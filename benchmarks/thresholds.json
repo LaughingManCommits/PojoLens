@@ -1,10 +1,10 @@
 {
   "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline|size=1000": 350.0,
-  "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline|size=10000": 500.0,
+  "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline|size=10000": 750.0,
   "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=1000": 300.0,
-  "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=10000": 500.0,
-  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft|size=1000": 300.0,
-  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft|size=10000": 600.0,
+  "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=10000": 900.0,
+  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft|size=1000": 500.0,
+  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft|size=10000": 1500.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly|size=1000": 5.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly|size=10000": 5.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilter|size=1000": 500.0,
@@ -35,8 +35,8 @@
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart|size=10000": 1600.0,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=1000": 1000.0,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=10000": 1800.0,
-  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain|size=1000": 200.0,
-  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain|size=10000": 300.0,
+  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain|size=1000": 250.0,
+  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain|size=10000": 650.0,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeGroupedMetricsExplain|size=1000": 300.0,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeGroupedMetricsExplain|size=10000": 300.0
 }

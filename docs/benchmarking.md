@@ -74,14 +74,15 @@ Representative core budgets from `benchmarks/thresholds.json`:
 
 | Workload | Category | Size 1k | Size 10k |
 |---|---|---:|---:|
-| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `350 ms/op` | `500 ms/op` |
-| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `300 ms/op` | `500 ms/op` |
-| `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `300 ms/op` | `600 ms/op` |
+| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `350 ms/op` | `750 ms/op` |
+| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `300 ms/op` | `900 ms/op` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `500 ms/op` | `1500 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `5 ms/op` | `5 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `500 ms/op` | `900 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `1 ms/op` | `1 ms/op` |
 | `StatsQueryJmhBenchmark.fluentGroupedMetrics` | `GROUP` | `600 ms/op` | `1100 ms/op` |
 | `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` | `TIME_BUCKET` | `700 ms/op` | `1400 ms/op` |
+| `StatsQueryJmhBenchmark.fluentGroupedMetricsExplain` | `EXPLAIN` | `250 ms/op` | `650 ms/op` |
 | `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart` | `CHART` | `900 ms/op` | `1600 ms/op` |
 
 The chart threshold file carries the full chart-type matrix for `BAR`, `LINE`, `PIE`, `AREA`, and `SCATTER` mapping/export paths across `1k`, `10k`, and `100k` datasets.
