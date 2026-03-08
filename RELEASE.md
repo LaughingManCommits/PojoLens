@@ -1,0 +1,85 @@
+# Release Guide
+
+## 1) Verify
+
+```bash
+mvn -B -ntp test
+```
+
+## 2) Review release docs
+
+Confirm these are aligned:
+- `README.md`
+- `MIGRATION.md`
+- `RELEASE.md`
+- `docs/sql-like.md`
+- `docs/charts.md`
+- `docs/benchmarking.md`
+
+## 3) Benchmark guard
+
+Run all benchmark and parity commands from `docs/benchmarking.md` and attach produced CSV/JSON artifacts to the release evidence.
+
+Minimum required checks:
+- strict threshold check against `benchmarks/thresholds.json`
+- chart threshold + parity checks against `benchmarks/chart-thresholds.json`
+- benchmark metric plot generation
+
+### 3.0) Reproducibility profile
+
+Benchmark inputs use deterministic profile constants from `BenchmarkProfiles`:
+- `profile=deterministic-v1`
+- `seed=20260301`
+- fixed epoch baselines (`1700000000000`, `1735689600000`)
+
+Keep this profile unchanged for CI/local comparability unless intentionally re-baselining thresholds.
+
+## 3.1) Backward-Compatibility Policy (Current Phase)
+
+This project is still in a rapid-evolution phase. Compatibility policy:
+- `QueryBuilder` interface methods are the supported user-facing Java API.
+- Concrete builder internals (`FilterQueryBuilder` helper/state methods) may change between minor releases.
+- SQL-like grammar is additive where possible, but strict validation rules may tighten.
+- Breaking changes must be documented in `MIGRATION.md`.
+
+## 3.2) Documented Limitations Check
+
+Before release, confirm limitations docs match implementation:
+- SQL-like unsupported: subqueries, multi-join SQL plans.
+- SQL-like `HAVING` supports boolean predicates (`AND` and `OR`).
+- Aggregate-query constraints and grouped field aliasing restrictions.
+- Time bucket date-type requirement.
+- Builder mutability/threading contract.
+
+## 3.3) Release Note Items (Current)
+
+- HAVING support now has fluent + SQL-like parity:
+  - Fluent API: `addHaving(...)`
+  - SQL-like: `... GROUP BY ... HAVING ...`
+- HAVING v1 scope:
+  - Allowed references: grouped fields, aggregate aliases, aggregate expressions
+  - Boolean support: `AND` and `OR`
+- Grouped aggregate ordering uses typed comparison (numeric/date/boolean aware).
+
+## 4) Commit and tag
+
+```bash
+git add .
+git commit -m "Release 1.3.0"
+git tag -a v1.3.0 -m "PojoLens v1.3.0"
+```
+
+## 5) Push
+
+```bash
+git push
+git push origin v1.3.0
+```
+
+## 6) Cleanup checklist
+
+- [ ] Run full validation (`mvn -B -ntp test` and benchmark checks from `docs/benchmarking.md`).
+- [ ] Confirm docs are in sync (`README.md`, `MIGRATION.md`, `RELEASE.md`, `docs/*.md`).
+- [ ] Confirm CI workflow updates are intentional (`.github/workflows/ci.yml`).
+- [ ] Remove stale comments/terminology and dead code paths found during release prep.
+

@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  lint-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint GitHub workflows
+        uses: reviewdog/action-actionlint@v1
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 21]
+    name: Java ${{ matrix.java }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Run tests
+        run: mvn -B -ntp test
+
+  lint-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Run Java lint profile
+        run: mvn -B -ntp -Plint verify -DskipTests
+      - name: Enforce lint baseline (fail on new violations)
+        shell: pwsh
+        run: ./scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Run SpotBugs report profile
+        run: mvn -B -ntp -Pstatic-analysis verify -DskipTests
+      - name: Publish SpotBugs summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## SpotBugs Report" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f target/spotbugsXml.xml ]; then
+            COUNT=$(grep -o "<BugInstance" target/spotbugsXml.xml | wc -l | tr -d ' ')
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Bug instances: ${COUNT}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- SpotBugs XML report not found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload SpotBugs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotbugs-report
+          path: |
+            target/spotbugsXml.xml
+            target/site/spotbugs.html
+          if-no-files-found: warn
+
+  doc-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check README/MIGRATION/RELEASE invariants
+        shell: pwsh
+        run: ./scripts/check-doc-consistency.ps1
+
+  benchmark-guardrail:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build benchmark runner
+        run: mvn -B -ntp -Pbenchmark-runner -DskipTests package
+      - name: Resolve benchmark jar
+        shell: bash
+        run: |
+          JAR_PATH="$(find target -maxdepth 1 -type f -name '*-benchmarks.jar' | head -n 1)"
+          echo "BENCHMARK_JAR=$JAR_PATH" >> "$GITHUB_ENV"
+      - name: Run benchmark suite
+        run: |
+          java -jar "$BENCHMARK_JAR" \
+            @scripts/benchmark-suite-main.args \
+            -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
+      - name: Check thresholds
+        run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          echo "## Benchmark Delta Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f target/benchmark-report.csv ]; then
+            echo "| Benchmark | Score | Limit | Delta | Status |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---:|---:|---:|---|" >> "$GITHUB_STEP_SUMMARY"
+            tail -n +2 target/benchmark-report.csv | while IFS=, read -r key score limit delta status; do
+              echo "| ${key} | ${score:-} | ${limit:-} | ${delta:-} | ${status:-} |" >> "$GITHUB_STEP_SUMMARY"
+            done
+          else
+            echo "Benchmark report file was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            target/benchmarks.json
+            target/benchmark-report.csv
+
+  cache-concurrency-stress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Run cache concurrency stress loop
+        shell: bash
+        run: |
+          for i in 1 2 3 4 5; do
+            echo "Cache concurrency run $i/5"
+            mvn -B -ntp "-Dtest=CacheConcurrencyTest" test
+          done
+
+  chart-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Generate chart images from interop test
+        run: mvn -B -ntp "-Dtest=chart.ChartLibraryInteropTest" test
+      - name: Upload generated chart images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-charts
+          path: target/generated-charts/*.png
+          if-no-files-found: warn
+
+  benchmark-plot-artifacts:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build benchmark runner
+        run: mvn -B -ntp -Pbenchmark-runner -DskipTests package
+      - name: Resolve benchmark jar
+        shell: bash
+        run: |
+          JAR_PATH="$(find target -maxdepth 1 -type f -name '*-benchmarks.jar' | head -n 1)"
+          echo "BENCHMARK_JAR=$JAR_PATH" >> "$GITHUB_ENV"
+      - name: Run chart benchmark suite
+        run: |
+          mkdir -p target/benchmarks/charts
+          java -jar "$BENCHMARK_JAR" \
+            @scripts/benchmark-suite-chart.args \
+            -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
+      - name: Check chart thresholds
+        run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
+      - name: Check chart parity
+        run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
+      - name: Generate benchmark metric plots
+        run: |
+          java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator \
+            target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json \
+            target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json \
+            target/benchmarks/charts/images
+      - name: Upload benchmark plot artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-metric-plots
+          path: |
+            target/benchmarks/charts/chart-benchmarks.json
+            target/benchmarks/charts/chart-benchmark-report.csv
+            target/benchmarks/charts/chart-parity-report.csv
+            target/benchmarks/charts/metrics-normalized.csv
+            target/benchmarks/charts/images/INDEX.txt
+            target/benchmarks/charts/images/*.png
+          if-no-files-found: warn
+

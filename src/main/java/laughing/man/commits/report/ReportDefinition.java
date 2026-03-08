@@ -1,0 +1,192 @@
+package laughing.man.commits.report;
+
+import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.chart.ChartData;
+import laughing.man.commits.chart.ChartResultMapper;
+import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.SqlLikeQuery;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * Immutable reusable report definition for repeated row/chart execution over
+ * different in-memory dataset snapshots.
+ *
+ * @param <T> projection row type
+ */
+public final class ReportDefinition<T> {
+
+    private final String source;
+    private final Class<T> projectionClass;
+    private final ChartSpec chartSpec;
+    private final TabularSchema schema;
+    private final ReportExecutor<T> executor;
+    private final boolean supportsJoinSources;
+
+    private ReportDefinition(String source,
+                             Class<T> projectionClass,
+                             ChartSpec chartSpec,
+                             TabularSchema schema,
+                             ReportExecutor<T> executor,
+                             boolean supportsJoinSources) {
+        this.source = Objects.requireNonNull(source, "source must not be null");
+        this.projectionClass = Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        this.chartSpec = chartSpec;
+        this.schema = Objects.requireNonNull(schema, "schema must not be null");
+        this.executor = Objects.requireNonNull(executor, "executor must not be null");
+        this.supportsJoinSources = supportsJoinSources;
+    }
+
+    public static <T> ReportDefinition<T> sql(SqlLikeQuery query, Class<T> projectionClass) {
+        Objects.requireNonNull(query, "query must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return new ReportDefinition<>(
+                query.source(),
+                projectionClass,
+                null,
+                query.schema(projectionClass),
+                (sourceRows, joinSources) -> query.filter(sourceRows, joinSources, projectionClass),
+                true
+        );
+    }
+
+    public static <T> ReportDefinition<T> sql(SqlLikeQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
+        return sql(query, projectionClass).withChartSpec(chartSpec);
+    }
+
+    public static <T> ReportDefinition<T> fluent(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        Objects.requireNonNull(configurer, "configurer must not be null");
+        return new ReportDefinition<>(
+                "fluent",
+                projectionClass,
+                null,
+                deriveFluentSchema(projectionClass, configurer),
+                (sourceRows, joinSources) -> {
+                    if (joinSources != null && !joinSources.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "joinSources are not supported for fluent report definitions; "
+                                        + "capture joined rows in the fluent configurer or use a SQL-like report definition"
+                        );
+                    }
+                    QueryBuilder builder = PojoLensCore.newQueryBuilder(sourceRows);
+                    configurer.accept(builder);
+                    return builder.initFilter().filter(projectionClass);
+                },
+                false
+        );
+    }
+
+    public static <T> ReportDefinition<T> fluent(Class<T> projectionClass,
+                                                 Consumer<QueryBuilder> configurer,
+                                                 ChartSpec chartSpec) {
+        return fluent(projectionClass, configurer).withChartSpec(chartSpec);
+    }
+
+    public String source() {
+        return source;
+    }
+
+    public Class<T> projectionClass() {
+        return projectionClass;
+    }
+
+    public ChartSpec chartSpec() {
+        return chartSpec;
+    }
+
+    public TabularSchema schema() {
+        return schema;
+    }
+
+    public boolean supportsJoinSources() {
+        return supportsJoinSources;
+    }
+
+    public ReportDefinition<T> withChartSpec(ChartSpec spec) {
+        return new ReportDefinition<>(
+                source,
+                projectionClass,
+                Objects.requireNonNull(spec, "chartSpec must not be null"),
+                schema,
+                executor,
+                supportsJoinSources
+        );
+    }
+
+    public ReportDefinition<T> withSchema(TabularSchema value) {
+        return new ReportDefinition<>(
+                source,
+                projectionClass,
+                chartSpec,
+                Objects.requireNonNull(value, "schema must not be null"),
+                executor,
+                supportsJoinSources
+        );
+    }
+
+    public List<T> rows(List<?> sourceRows) {
+        return rows(sourceRows, Collections.emptyMap());
+    }
+
+    public List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        Objects.requireNonNull(sourceRows, "sourceRows must not be null");
+        Objects.requireNonNull(joinSources, "joinSources must not be null");
+        return executor.rows(sourceRows, joinSources);
+    }
+
+    public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return rows(sourceRows, joinBindings.asMap());
+    }
+
+    public List<T> rows(DatasetBundle datasetBundle) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return rows(datasetBundle.primaryRows(), datasetBundle.joinSources());
+    }
+
+    public ChartData chart(List<?> sourceRows) {
+        return chart(sourceRows, Collections.emptyMap());
+    }
+
+    public ChartData chart(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return ChartResultMapper.toChartData(rows(sourceRows, joinSources), requireChartSpec());
+    }
+
+    public ChartData chart(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return chart(sourceRows, joinBindings.asMap());
+    }
+
+    public ChartData chart(DatasetBundle datasetBundle) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return chart(datasetBundle.primaryRows(), datasetBundle.joinSources());
+    }
+
+    private ChartSpec requireChartSpec() {
+        if (chartSpec == null) {
+            throw new IllegalStateException("Report definition has no chartSpec configured");
+        }
+        return chartSpec;
+    }
+
+    @FunctionalInterface
+    private interface ReportExecutor<T> {
+        List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources);
+    }
+
+    private static <T> TabularSchema deriveFluentSchema(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {
+        QueryBuilder schemaBuilder = PojoLensCore.newQueryBuilder(Collections.emptyList());
+        configurer.accept(schemaBuilder);
+        return schemaBuilder.schema(projectionClass);
+    }
+}
+
