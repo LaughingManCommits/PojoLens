@@ -258,7 +258,7 @@ Acceptance criteria:
 
 ### WP6: Replace expensive UUID generation
 
-Status: pending
+Status: completed
 
 Goal: reduce avoidable string churn on row/rule id creation.
 

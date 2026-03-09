@@ -175,20 +175,7 @@ public class ReflectionUtil {
      * Generates internal unique identifiers used by query rules and rows.
      */
     public static String newUUID() {
-        UUID uniqueString = UUID.randomUUID();
-        String unchangedString = uniqueString.toString();
-        StringBuilder uniqueID = new StringBuilder();
-        for (int x = 0; x < unchangedString.length(); x++) {
-            String singleChar = unchangedString.substring(x, x + 1);
-            if (singleChar.matches("^\\d+$")) {
-                int number = Integer.parseInt(singleChar);
-                char c = (char) (number + 97);
-                uniqueID.append(singleChar.replaceAll("^\\d+$", String.valueOf(c)));
-            } else {
-                uniqueID.append(singleChar);
-            }
-        }
-        return uniqueID.toString().replaceAll("-", "_");
+        return IdUtil.newUUID();
     }
 
     /**
