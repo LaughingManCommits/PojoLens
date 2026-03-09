@@ -129,6 +129,8 @@ Details:
 
 ### WP1: Remove repeated execution snapshots
 
+Status: completed
+
 Goal: a single logical query should not deep-copy all rows multiple times.
 
 Scope:
@@ -151,6 +153,8 @@ Acceptance criteria:
 - Existing concurrency behavior tests still pass.
 
 ### WP2: Cache field path resolution for output mapping
+
+Status: completed
 
 Goal: resolve each reflective field path once and reuse it within the operation and across operations.
 
@@ -175,6 +179,8 @@ Acceptance criteria:
 
 ### WP3: Reuse execution plans within a single stats operation
 
+Status: pending
+
 Goal: avoid rebuilding `FilterExecutionPlan` for the same schema and query shape during one run.
 
 Scope:
@@ -194,6 +200,8 @@ Acceptance criteria:
 - Stats query behavior is unchanged.
 
 ### WP4: Introduce schema-level row extraction plan
+
+Status: pending
 
 Goal: stop rediscovering how to flatten beans for every row.
 
@@ -218,6 +226,8 @@ Acceptance criteria:
 - Nested object traversal and cycle detection remain correct.
 
 ### WP5: Evaluate lazy or selective materialization for fluent queries
+
+Status: pending
 
 Goal: avoid flattening data that the query will never touch.
 
@@ -248,6 +258,8 @@ Acceptance criteria:
 
 ### WP6: Replace expensive UUID generation
 
+Status: pending
+
 Goal: reduce avoidable string churn on row/rule id creation.
 
 Scope:
@@ -265,6 +277,8 @@ Acceptance criteria:
 - Existing assumptions about identifier safety still hold.
 
 ### WP7: Cache field type metadata for builder validation
+
+Status: pending
 
 Goal: stop scanning rows repeatedly during metric/date validation.
 

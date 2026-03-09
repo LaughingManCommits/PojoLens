@@ -18,6 +18,8 @@ public class ReflectionUtil {
     private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final ResolvedFieldPath MISSING_FIELD_PATH = new ResolvedFieldPath(List.of(), null, false);
 
     /**
      * Converts internal domain rows back to typed objects.
@@ -29,15 +31,23 @@ public class ReflectionUtil {
             return result;
         }
         try {
+            Map<String, ResolvedFieldPath> resolvedFieldsByName = new HashMap<>();
             for (QueryRow row : classes) {
                 T object = cls.getDeclaredConstructor().newInstance();
                 List<? extends QueryField> fields = row.getFields();
                 for (QueryField field : fields) {
-                    Class<?> originalClass = getFieldType(object, field.getFieldName());
-                    if (originalClass != null && field.getValue() != null) {
-                        Object value = ObjectUtil.castValue(field.getValue(), originalClass);
-                        setFieldValue(object, field.getFieldName(), value);
+                    if (field == null || field.getFieldName() == null || field.getValue() == null) {
+                        continue;
                     }
+                    ResolvedFieldPath resolvedField = resolvedFieldsByName.computeIfAbsent(
+                            field.getFieldName(),
+                            fieldName -> resolveFieldPath(cls, fieldName)
+                    );
+                    if (!resolvedField.resolvable() || resolvedField.leafType() == null) {
+                        continue;
+                    }
+                    Object value = ObjectUtil.castValue(field.getValue(), resolvedField.leafType());
+                    setResolvedFieldValue(object, resolvedField, value, field.getFieldName());
                 }
                 result.add(object);
             }
@@ -57,28 +67,11 @@ public class ReflectionUtil {
             if (javaBean == null || propertyName == null || propertyName.isBlank()) {
                 return;
             }
-            FieldPath fieldPath = resolveFieldPath(javaBean.getClass(), propertyName);
-            if (fieldPath == null || fieldPath.fields().isEmpty()) {
+            ResolvedFieldPath fieldPath = resolveFieldPath(javaBean.getClass(), propertyName);
+            if (!fieldPath.resolvable()) {
                 return;
             }
-            Object current = javaBean;
-            List<Field> fields = fieldPath.fields();
-            for (int i = 0; i < fields.size() - 1; i++) {
-                Field field = fields.get(i);
-                Object nested = field.get(current);
-                if (nested == null) {
-                    if (propertyValue == null) {
-                        return;
-                    }
-                    nested = instantiateNestedValue(field.getType(), propertyName);
-                    field.set(current, nested);
-                }
-                current = nested;
-            }
-            Field field = fields.get(fields.size() - 1);
-            if (field != null) {
-                field.set(current, propertyValue);
-            }
+            setResolvedFieldValue(javaBean, fieldPath, propertyValue, propertyName);
         } catch (IllegalAccessException
                 | IllegalArgumentException
                 | SecurityException e) {
@@ -207,8 +200,8 @@ public class ReflectionUtil {
             if (cls == null || fieldName == null || fieldName.isBlank()) {
                 return null;
             }
-            FieldPath fieldPath = resolveFieldPath(cls.getClass(), fieldName);
-            if (fieldPath == null) {
+            ResolvedFieldPath fieldPath = resolveFieldPath(cls.getClass(), fieldName);
+            if (!fieldPath.resolvable()) {
                 return null;
             }
             Object current = cls;
@@ -292,14 +285,6 @@ public class ReflectionUtil {
                 || wrapped.equals(Date.class));
     }
 
-    private static Class<?> getFieldType(Object javaBean, String fieldName) {
-        FieldPath fieldPath = resolveFieldPath(javaBean.getClass(), fieldName);
-        if (fieldPath == null || fieldPath.fields().isEmpty()) {
-            return null;
-        }
-        return wrapPrimitive(fieldPath.fields().get(fieldPath.fields().size() - 1).getType());
-    }
-
     private static boolean isPlatformType(Class<?> type) {
         Package pkg = type.getPackage();
         if (pkg == null) {
@@ -359,25 +344,60 @@ public class ReflectionUtil {
         activePath.remove(type);
     }
 
-    private static FieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
+    private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
         if (rootType == null || fieldName == null || fieldName.isBlank()) {
-            return null;
+            return MISSING_FIELD_PATH;
         }
+        return FIELD_PATH_CACHE.computeIfAbsent(
+                new FieldPathCacheKey(rootType, fieldName),
+                key -> buildResolvedFieldPath(key.rootType(), key.fieldName())
+        );
+    }
+
+    private static ResolvedFieldPath buildResolvedFieldPath(Class<?> rootType, String fieldName) {
         String[] parts = fieldName.split("\\.");
         ArrayList<Field> fields = new ArrayList<>(parts.length);
         Class<?> currentType = rootType;
         for (String part : parts) {
             if (part.isBlank()) {
-                return null;
+                return MISSING_FIELD_PATH;
             }
             Field field = findMutableField(currentType, part);
             if (field == null) {
-                return null;
+                return MISSING_FIELD_PATH;
             }
             fields.add(field);
             currentType = field.getType();
         }
-        return new FieldPath(fields);
+        if (fields.isEmpty()) {
+            return MISSING_FIELD_PATH;
+        }
+        Field leaf = fields.get(fields.size() - 1);
+        return new ResolvedFieldPath(fields, wrapPrimitive(leaf.getType()), true);
+    }
+
+    private static void setResolvedFieldValue(Object javaBean,
+                                              ResolvedFieldPath fieldPath,
+                                              Object propertyValue,
+                                              String propertyName) throws Exception {
+        Object current = javaBean;
+        List<Field> fields = fieldPath.fields();
+        for (int i = 0; i < fields.size() - 1; i++) {
+            Field field = fields.get(i);
+            Object nested = field.get(current);
+            if (nested == null) {
+                if (propertyValue == null) {
+                    return;
+                }
+                nested = instantiateNestedValue(field.getType(), propertyName);
+                field.set(current, nested);
+            }
+            current = nested;
+        }
+        Field field = fields.get(fields.size() - 1);
+        if (field != null) {
+            field.set(current, propertyValue);
+        }
     }
 
     private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) throws Exception {
@@ -431,7 +451,15 @@ public class ReflectionUtil {
         return type;
     }
 
-    private record FieldPath(List<Field> fields) {
+    private record FieldPathCacheKey(Class<?> rootType, String fieldName) {
+    }
+
+    private record ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
+        private ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
+            this.fields = List.copyOf(fields);
+            this.leafType = leafType;
+            this.resolvable = resolvable;
+        }
     }
 
     private record FieldGraphDescriptor(List<String> fieldNames, Map<String, Class<?>> fieldTypes) {
