@@ -1,5 +1,4 @@
 # PojoLens
-
 From `List<T>` to chart-ready insights, without a database.
 
 `PojoLens` is a POJO-first in-memory query engine for Java. It gives teams a clean
