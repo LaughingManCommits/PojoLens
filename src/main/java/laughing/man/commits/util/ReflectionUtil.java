@@ -1,82 +1,128 @@
 package laughing.man.commits.util;
 
 import laughing.man.commits.annotations.Exclude;
-import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.QueryRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class ReflectionUtil {
+public final class ReflectionUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(ReflectionUtil.class);
+
     private static final int MAX_FIELD_GRAPH_DEPTH = 8;
-    private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
+    private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
+
     private static final ResolvedFieldPath MISSING_FIELD_PATH = new ResolvedFieldPath(List.of(), null, false);
+
+    private static final char[] ALPHA_HEX = {
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+            'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'
+    };
+
+    private ReflectionUtil() {
+    }
 
     /**
      * Converts internal domain rows back to typed objects.
      */
-    public static <T> List<T> toClassList(Class<T> cls,
-                                          List<QueryRow> classes) {
-        List<T> result = new ArrayList<>();
+    public static <T> List<T> toClassList(Class<T> cls, List<QueryRow> classes) {
         if (classes == null || classes.isEmpty()) {
-            return result;
+            return new ArrayList<>(0);
         }
+
+        List<T> result = new ArrayList<>(classes.size());
+
         try {
-            Map<String, ResolvedFieldPath> resolvedFieldsByName = new HashMap<>();
-            for (QueryRow row : classes) {
+            Map<String, ResolvedFieldPath> resolvedFieldsByName = new HashMap<>(32);
+
+            for (int rowIndex = 0; rowIndex < classes.size(); rowIndex++) {
+                QueryRow row = classes.get(rowIndex);
+                if (row == null) {
+                    continue;
+                }
+
                 T object = cls.getDeclaredConstructor().newInstance();
                 List<? extends QueryField> fields = row.getFields();
-                for (QueryField field : fields) {
-                    if (field == null || field.getFieldName() == null || field.getValue() == null) {
+                if (fields == null || fields.isEmpty()) {
+                    result.add(object);
+                    continue;
+                }
+
+                for (int i = 0; i < fields.size(); i++) {
+                    QueryField field = fields.get(i);
+                    if (field == null) {
                         continue;
                     }
+
+                    String fieldName = field.getFieldName();
+                    Object rawValue = field.getValue();
+
+                    if (fieldName == null || rawValue == null) {
+                        continue;
+                    }
+
                     ResolvedFieldPath resolvedField = resolvedFieldsByName.computeIfAbsent(
-                            field.getFieldName(),
-                            fieldName -> resolveFieldPath(cls, fieldName)
+                            fieldName,
+                            name -> resolveFieldPath(cls, name)
                     );
+
                     if (!resolvedField.resolvable() || resolvedField.leafType() == null) {
                         continue;
                     }
-                    Object value = ObjectUtil.castValue(field.getValue(), resolvedField.leafType());
-                    setResolvedFieldValue(object, resolvedField, value, field.getFieldName());
+
+                    Object value = ObjectUtil.castValue(rawValue, resolvedField.leafType());
+                    setResolvedFieldValue(object, resolvedField, value, fieldName);
                 }
+
                 result.add(object);
             }
         } catch (Exception e) {
-            LOG.error("Failed to Convert Objects [" + cls.getSimpleName() + "] to new List", e);
+            LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
             throw new IllegalStateException("Failed to convert domain rows to " + cls.getSimpleName(), e);
         }
+
         return result;
     }
 
     /**
      * Sets a mutable field value by name.
      */
-    public static void setFieldValue(Object javaBean, String propertyName,
-            Object propertyValue) throws Exception {
+    public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue) throws Exception {
         try {
             if (javaBean == null || propertyName == null || propertyName.isBlank()) {
                 return;
             }
+
             ResolvedFieldPath fieldPath = resolveFieldPath(javaBean.getClass(), propertyName);
             if (!fieldPath.resolvable()) {
                 return;
             }
+
             setResolvedFieldValue(javaBean, fieldPath, propertyValue, propertyName);
-        } catch (IllegalAccessException
-                | IllegalArgumentException
-                | SecurityException e) {
-            LOG.error("Failed to set Property [" + propertyName + "], "
-                    + "Parms [" + propertyValue + "]", e);
+        } catch (IllegalAccessException | IllegalArgumentException | SecurityException e) {
+            LOG.error("Failed to set Property [{}], Parms [{}]", propertyName, propertyValue, e);
             throw e;
         }
     }
@@ -85,44 +131,54 @@ public class ReflectionUtil {
      * Flattens input beans into internal domain rows used by the query engine.
      */
     public static List<QueryRow> toDomainRows(List<?> conversionList) {
-        List<QueryRow> domainRows = new ArrayList<>();
         if (conversionList == null || conversionList.isEmpty()) {
-            return domainRows;
+            return new ArrayList<>(0);
         }
 
         Object firstBean = null;
-        for (Object bean : conversionList) {
+        for (int i = 0; i < conversionList.size(); i++) {
+            Object bean = conversionList.get(i);
             if (bean != null) {
                 firstBean = bean;
                 break;
             }
         }
+
         if (firstBean == null) {
-            return domainRows;
+            return new ArrayList<>(0);
         }
 
         List<String> fields = collectQueryableFieldNames(firstBean.getClass());
+        List<QueryRow> domainRows = new ArrayList<>(conversionList.size());
 
-        for (Object currentBean : conversionList) {
+        for (int i = 0; i < conversionList.size(); i++) {
+            Object currentBean = conversionList.get(i);
             if (currentBean == null) {
                 continue;
             }
-            HashMap<String, Object> fieldValuesByName = new HashMap<>();
-            collectFieldValueMap(currentBean, fieldValuesByName, "", Collections.newSetFromMap(new IdentityHashMap<>()), 0);
-            String rowId = newUUID();
+
+            Map<String, Object> fieldValuesByName = new HashMap<>(Math.max(16, fields.size() * 2));
+            collectFieldValueMap(
+                    currentBean,
+                    fieldValuesByName,
+                    "",
+                    Collections.newSetFromMap(new IdentityHashMap<>()),
+                    0
+            );
+
             QueryRow domainRow = new QueryRow();
-            domainRow.setRowId(rowId);
-            List<QueryField> fieldList = new ArrayList<>();
-            fields.stream().map((fieldName) -> {
-                Object value = null;
-                if (fieldValuesByName.containsKey(fieldName)) {
-                    value = fieldValuesByName.get(fieldName);
-                }
+            domainRow.setRowId(newUUID());
+
+            List<QueryField> fieldList = new ArrayList<>(fields.size());
+            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
+                String fieldName = fields.get(fieldIndex);
+
                 QueryField field = new QueryField();
                 field.setFieldName(fieldName);
-                field.setValue(value);
-                return field;
-            }).forEachOrdered(fieldList::add);
+                field.setValue(fieldValuesByName.get(fieldName));
+                fieldList.add(field);
+            }
+
             domainRow.setFields(fieldList);
             domainRows.add(domainRow);
         }
@@ -141,30 +197,31 @@ public class ReflectionUtil {
         if (bean == null) {
             return;
         }
+
         if (depth > MAX_FIELD_GRAPH_DEPTH) {
             throw new IllegalStateException("Field graph depth exceeds max depth of " + MAX_FIELD_GRAPH_DEPTH);
         }
+
         if (!activePath.add(bean)) {
             return;
         }
+
         try {
-            for (Field field : getMutableFields(bean.getClass())) {
-                if (field.isAnnotationPresent(Exclude.class)) {
-                    continue;
-                }
+            List<Field> fields = getMutableFields(bean.getClass());
+            for (int i = 0; i < fields.size(); i++) {
+                Field field = fields.get(i);
                 String fieldName = qualify(prefix, field.getName());
-                Class<?> fieldType = wrapPrimitive(field.getType());
                 Object fieldValue = field.get(bean);
+                Class<?> fieldType = wrapPrimitive(field.getType());
+
                 if (isSimpleType(fieldType) || isSimpleValue(fieldValue)) {
                     objectValueMap.put(fieldName, fieldValue);
                 } else if (fieldValue != null && isTraversableType(fieldValue.getClass())) {
                     collectFieldValueMap(fieldValue, objectValueMap, fieldName, activePath, depth + 1);
                 }
             }
-        } catch (SecurityException
-                | IllegalArgumentException
-                | IllegalAccessException e) {
-            LOG.error("Failed to Convert Objects [" + bean.getClass().getSimpleName() + "] to new List", e);
+        } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            LOG.error("Failed to Convert Objects [{}] to new List", bean.getClass().getSimpleName(), e);
             throw new IllegalStateException("Failed to flatten object fields", e);
         } finally {
             activePath.remove(bean);
@@ -175,7 +232,23 @@ public class ReflectionUtil {
      * Generates internal unique identifiers used by query rules and rows.
      */
     public static String newUUID() {
-        return IdUtil.newUUID();
+        UUID uuid = UUID.randomUUID();
+        char[] out = new char[36];
+
+        long msb = uuid.getMostSignificantBits();
+        long lsb = uuid.getLeastSignificantBits();
+
+        writeAlphaHex(out, 0, msb >>> 32, 8);
+        out[8] = '_';
+        writeAlphaHex(out, 9, msb >>> 16, 4);
+        out[13] = '_';
+        writeAlphaHex(out, 14, msb, 4);
+        out[18] = '_';
+        writeAlphaHex(out, 19, lsb >>> 48, 4);
+        out[23] = '_';
+        writeAlphaHex(out, 24, lsb, 12);
+
+        return new String(out);
     }
 
     /**
@@ -183,26 +256,34 @@ public class ReflectionUtil {
      */
     public static Object getFieldValue(Object cls, String fieldName) throws Exception {
         Object value = null;
+
         try {
             if (cls == null || fieldName == null || fieldName.isBlank()) {
                 return null;
             }
+
             ResolvedFieldPath fieldPath = resolveFieldPath(cls.getClass(), fieldName);
             if (!fieldPath.resolvable()) {
                 return null;
             }
+
             Object current = cls;
-            for (Field field : fieldPath.fields()) {
+            List<Field> fields = fieldPath.fields();
+
+            for (int i = 0; i < fields.size(); i++) {
                 if (current == null) {
                     return null;
                 }
+
+                Field field = fields.get(i);
                 value = field.get(current);
                 current = value;
             }
         } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
-            LOG.error("Failed to get Property [" + cls + "]", e);
+            LOG.error("Failed to get Property [{}]", cls, e);
             throw e;
         }
+
         return value;
     }
 
@@ -225,14 +306,21 @@ public class ReflectionUtil {
     }
 
     public static List<Field> getFields(Class<?> key) {
-        List<Field> fields = new ArrayList<>();
-        for (Field field : key.getDeclaredFields()) {
+        Field[] declaredFields = key.getDeclaredFields();
+        List<Field> fields = new ArrayList<>(declaredFields.length);
+
+        for (int i = 0; i < declaredFields.length; i++) {
+            Field field = declaredFields[i];
             int mods = field.getModifiers();
-            if (!Modifier.isFinal(mods) && !Modifier.isStatic(mods)) {
+
+            if (!Modifier.isFinal(mods)
+                    && !Modifier.isStatic(mods)
+                    && !field.isAnnotationPresent(Exclude.class)) {
                 field.setAccessible(true);
                 fields.add(field);
             }
         }
+
         return fields;
     }
 
@@ -243,10 +331,14 @@ public class ReflectionUtil {
     }
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
-        Map<String, Field> byName = new HashMap<>();
-        for (Field field : getMutableFields(clazz)) {
+        List<Field> fields = getMutableFields(clazz);
+        Map<String, Field> byName = new HashMap<>(Math.max(16, fields.size() * 2));
+
+        for (int i = 0; i < fields.size(); i++) {
+            Field field = fields.get(i);
             byName.put(field.getName(), field);
         }
+
         return byName;
     }
 
@@ -254,22 +346,22 @@ public class ReflectionUtil {
         return value instanceof Number
                 || value instanceof Boolean
                 || value instanceof String
+                || value instanceof Character
                 || value instanceof Date;
     }
 
     public static boolean isSimpleType(Class<?> type) {
         Class<?> wrapped = wrapPrimitive(type);
-        return wrapped != null
-                && (wrapped.equals(Integer.class)
-                || wrapped.equals(Long.class)
-                || wrapped.equals(Double.class)
-                || wrapped.equals(Float.class)
-                || wrapped.equals(Boolean.class)
-                || wrapped.equals(Short.class)
-                || wrapped.equals(Byte.class)
-                || wrapped.equals(Character.class)
-                || wrapped.equals(String.class)
-                || wrapped.equals(Date.class));
+        return wrapped == Integer.class
+                || wrapped == Long.class
+                || wrapped == Double.class
+                || wrapped == Float.class
+                || wrapped == Boolean.class
+                || wrapped == Short.class
+                || wrapped == Byte.class
+                || wrapped == Character.class
+                || wrapped == String.class
+                || wrapped == Date.class;
     }
 
     private static boolean isPlatformType(Class<?> type) {
@@ -277,6 +369,7 @@ public class ReflectionUtil {
         if (pkg == null) {
             return true;
         }
+
         String name = pkg.getName();
         return !name.startsWith("java.")
                 && !name.startsWith("javax.")
@@ -305,36 +398,42 @@ public class ReflectionUtil {
         if (type == null) {
             return;
         }
+
         if (depth > MAX_FIELD_GRAPH_DEPTH) {
             throw new IllegalArgumentException("Field graph depth exceeds max depth of " + MAX_FIELD_GRAPH_DEPTH);
         }
+
         if (isSimpleType(type) || type.isEnum() || !isTraversableType(type)) {
             return;
         }
+
         if (!activePath.add(type)) {
             return;
         }
-        for (Field field : getMutableFields(type)) {
-            if (field.isAnnotationPresent(Exclude.class)) {
-                continue;
+
+        try {
+            List<Field> fields = getMutableFields(type);
+            for (int i = 0; i < fields.size(); i++) {
+                Field field = fields.get(i);
+                String qualifiedName = qualify(prefix, field.getName());
+                Class<?> fieldType = wrapPrimitive(field.getType());
+
+                if (isSimpleType(fieldType)) {
+                    fieldTypes.putIfAbsent(qualifiedName, fieldType);
+                } else if (isTraversableType(fieldType)) {
+                    collectFieldGraph(fieldType, qualifiedName, activePath, depth + 1, fieldTypes);
+                }
             }
-            String qualifiedName = qualify(prefix, field.getName());
-            Class<?> fieldType = wrapPrimitive(field.getType());
-            if (isSimpleType(fieldType)) {
-                fieldTypes.putIfAbsent(qualifiedName, fieldType);
-                continue;
-            }
-            if (isTraversableType(fieldType)) {
-                collectFieldGraph(fieldType, qualifiedName, activePath, depth + 1, fieldTypes);
-            }
+        } finally {
+            activePath.remove(type);
         }
-        activePath.remove(type);
     }
 
     private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
         if (rootType == null || fieldName == null || fieldName.isBlank()) {
             return MISSING_FIELD_PATH;
         }
+
         return FIELD_PATH_CACHE.computeIfAbsent(
                 new FieldPathCacheKey(rootType, fieldName),
                 key -> buildResolvedFieldPath(key.rootType(), key.fieldName())
@@ -342,23 +441,33 @@ public class ReflectionUtil {
     }
 
     private static ResolvedFieldPath buildResolvedFieldPath(Class<?> rootType, String fieldName) {
-        String[] parts = fieldName.split("\\.");
-        ArrayList<Field> fields = new ArrayList<>(parts.length);
+        List<String> parts = splitFieldPath(fieldName);
+        if (parts.isEmpty()) {
+            return MISSING_FIELD_PATH;
+        }
+
+        ArrayList<Field> fields = new ArrayList<>(parts.size());
         Class<?> currentType = rootType;
-        for (String part : parts) {
+
+        for (int i = 0; i < parts.size(); i++) {
+            String part = parts.get(i);
             if (part.isBlank()) {
                 return MISSING_FIELD_PATH;
             }
+
             Field field = findMutableField(currentType, part);
             if (field == null) {
                 return MISSING_FIELD_PATH;
             }
+
             fields.add(field);
             currentType = field.getType();
         }
+
         if (fields.isEmpty()) {
             return MISSING_FIELD_PATH;
         }
+
         Field leaf = fields.get(fields.size() - 1);
         return new ResolvedFieldPath(fields, wrapPrimitive(leaf.getType()), true);
     }
@@ -369,9 +478,11 @@ public class ReflectionUtil {
                                               String propertyName) throws Exception {
         Object current = javaBean;
         List<Field> fields = fieldPath.fields();
+
         for (int i = 0; i < fields.size() - 1; i++) {
             Field field = fields.get(i);
             Object nested = field.get(current);
+
             if (nested == null) {
                 if (propertyValue == null) {
                     return;
@@ -379,63 +490,104 @@ public class ReflectionUtil {
                 nested = instantiateNestedValue(field.getType(), propertyName);
                 field.set(current, nested);
             }
+
             current = nested;
         }
-        Field field = fields.get(fields.size() - 1);
-        if (field != null) {
-            field.set(current, propertyValue);
-        }
+
+        Field leaf = fields.get(fields.size() - 1);
+        leaf.set(current, propertyValue);
     }
 
     private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) throws Exception {
         if (fieldType == null || isSimpleType(fieldType) || fieldType.isEnum() || !isTraversableType(fieldType)) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'");
         }
+
         try {
-            java.lang.reflect.Constructor<?> constructor = fieldType.getDeclaredConstructor();
-            constructor.setAccessible(true);
+            Constructor<?> constructor = NO_ARG_CTOR_CACHE.computeIfAbsent(fieldType, type -> {
+                try {
+                    Constructor<?> c = type.getDeclaredConstructor();
+                    c.setAccessible(true);
+                    return c;
+                } catch (Exception e) {
+                    throw new ConstructorLookupException(e);
+                }
+            });
             return constructor.newInstance();
+        } catch (ConstructorLookupException ex) {
+            throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'", ex.getCause());
         } catch (ReflectiveOperationException ex) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'", ex);
         }
     }
 
     private static String qualify(String prefix, String fieldName) {
-        if (prefix == null || prefix.isEmpty()) {
-            return fieldName;
-        }
-        return prefix + "." + fieldName;
+        return (prefix == null || prefix.isEmpty()) ? fieldName : prefix + '.' + fieldName;
     }
 
     private static Class<?> wrapPrimitive(Class<?> type) {
         if (type == null || !type.isPrimitive()) {
             return type;
         }
-        if (type.equals(int.class)) {
+        if (type == int.class) {
             return Integer.class;
         }
-        if (type.equals(long.class)) {
+        if (type == long.class) {
             return Long.class;
         }
-        if (type.equals(double.class)) {
+        if (type == double.class) {
             return Double.class;
         }
-        if (type.equals(float.class)) {
+        if (type == float.class) {
             return Float.class;
         }
-        if (type.equals(boolean.class)) {
+        if (type == boolean.class) {
             return Boolean.class;
         }
-        if (type.equals(short.class)) {
+        if (type == short.class) {
             return Short.class;
         }
-        if (type.equals(byte.class)) {
+        if (type == byte.class) {
             return Byte.class;
         }
-        if (type.equals(char.class)) {
+        if (type == char.class) {
             return Character.class;
         }
         return type;
+    }
+
+    private static void writeAlphaHex(char[] out, int offset, long value, int digits) {
+        for (int i = digits - 1; i >= 0; i--) {
+            out[offset + i] = ALPHA_HEX[(int) (value & 0xF)];
+            value >>>= 4;
+        }
+    }
+
+    private static List<String> splitFieldPath(String fieldName) {
+        int length = fieldName.length();
+        if (length == 0) {
+            return List.of();
+        }
+
+        ArrayList<String> parts = new ArrayList<>(4);
+        int start = 0;
+
+        for (int i = 0; i < length; i++) {
+            if (fieldName.charAt(i) == '.') {
+                if (i == start) {
+                    return List.of();
+                }
+                parts.add(fieldName.substring(start, i));
+                start = i + 1;
+            }
+        }
+
+        if (start == length) {
+            return List.of();
+        }
+
+        parts.add(fieldName.substring(start));
+        return parts;
     }
 
     private record FieldPathCacheKey(Class<?> rootType, String fieldName) {
@@ -456,8 +608,9 @@ public class ReflectionUtil {
         }
     }
 
-    private ReflectionUtil() {
+    private static final class ConstructorLookupException extends RuntimeException {
+        private ConstructorLookupException(Throwable cause) {
+            super(cause);
+        }
     }
-
 }
-
