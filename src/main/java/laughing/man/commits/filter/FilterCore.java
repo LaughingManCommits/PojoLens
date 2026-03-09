@@ -103,6 +103,11 @@ public class FilterCore {
     }
 
     public List<QueryRow> filterHavingFields(List<QueryRow> rows) {
+        return filterHavingFields(rows, buildExecutionPlan());
+    }
+
+    public List<QueryRow> filterHavingFields(List<QueryRow> rows,
+                                             FilterExecutionPlan plan) {
         if (rows == null || rows.isEmpty()) {
             return rows;
         }
@@ -111,7 +116,6 @@ public class FilterCore {
                 return rows;
             }
         }
-        FilterExecutionPlan plan = buildExecutionPlan();
         if (hasExplicitRuleGroups(builder.getHavingAllOfGroups(), builder.getHavingAnyOfGroups())) {
             List<QueryRow> groupedResults = new ArrayList<>(rows.size());
             for (QueryRow row : rows) {

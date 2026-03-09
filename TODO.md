@@ -179,7 +179,7 @@ Acceptance criteria:
 
 ### WP3: Reuse execution plans within a single stats operation
 
-Status: pending
+Status: completed
 
 Goal: avoid rebuilding `FilterExecutionPlan` for the same schema and query shape during one run.
 

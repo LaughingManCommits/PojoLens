@@ -126,7 +126,7 @@ public class FilterImpl implements Filter {
                         FilterQueryBuilder havingBuilder = executionBuilder.snapshotForRows(aggregated);
                         FilterCore havingCore = new FilterCore(havingBuilder);
                         FilterExecutionPlan havingPlan = havingCore.buildExecutionPlan();
-                        List<QueryRow> havingFiltered = havingCore.filterHavingFields(aggregated);
+                        List<QueryRow> havingFiltered = havingCore.filterHavingFields(aggregated, havingPlan);
                         // ORDER BY for stats queries is evaluated on post-aggregation rows.
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                         List<QueryRow> orderedHaving = havingCore.orderByFields(havingFiltered, sortMethod, havingPlan);
