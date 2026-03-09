@@ -42,7 +42,7 @@ public class FilterImpl implements Filter {
      */
     @Override
     public <T> Map<String, List<T>> filterGroups(Class<T> cls) {
-        FilterQueryBuilder executionBuilder = builderState.snapshotForExecution();
+        FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
             if (core.getBuilder().getRows() != null
@@ -95,7 +95,7 @@ public class FilterImpl implements Filter {
     @Override
     public <T> List<T> filter(Sort sortMethod, Class<T> cls) {
         List<QueryRow> results = new ArrayList<>();
-        FilterQueryBuilder executionBuilder = builderState.snapshotForExecution();
+        FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
@@ -123,8 +123,7 @@ public class FilterImpl implements Filter {
                             aggregated.size(),
                             QueryTelemetrySupport.metadata("havingApplied", hasHavingPredicates(executionBuilder)));
                     if (hasHavingPredicates(executionBuilder)) {
-                        FilterQueryBuilder havingBuilder = executionBuilder.snapshotForExecution();
-                        havingBuilder.setRows(aggregated);
+                        FilterQueryBuilder havingBuilder = executionBuilder.snapshotForRows(aggregated);
                         FilterCore havingCore = new FilterCore(havingBuilder);
                         FilterExecutionPlan havingPlan = havingCore.buildExecutionPlan();
                         List<QueryRow> havingFiltered = havingCore.filterHavingFields(aggregated);
@@ -134,8 +133,7 @@ public class FilterImpl implements Filter {
                         emitOrderStage(executionBuilder, orderStarted, havingFiltered.size(), orderedHaving.size());
                         results = applyLimit(orderedHaving, executionBuilder.getLimit());
                     } else {
-                        FilterQueryBuilder aggregateBuilder = executionBuilder.snapshotForExecution();
-                        aggregateBuilder.setRows(aggregated);
+                        FilterQueryBuilder aggregateBuilder = executionBuilder.snapshotForRows(aggregated);
                         FilterCore aggregateCore = new FilterCore(aggregateBuilder);
                         FilterExecutionPlan aggregatePlan = aggregateCore.buildExecutionPlan();
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
@@ -394,11 +392,10 @@ public class FilterImpl implements Filter {
      */
     @Override
     public synchronized Filter join() {
-        FilterQueryBuilder executionBuilder = builderState.snapshotForExecution();
+        FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
             executionBuilder.setRows(core.join(executionBuilder.getRows()));
-            builderState = executionBuilder;
         } catch (Exception e) {
             LOG.error("Failed to join filterList[" + executionBuilder.getRows() + "] ", e);
             throw new IllegalStateException("Failed to apply join pipeline", e);

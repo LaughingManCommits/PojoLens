@@ -59,7 +59,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private FilterQueryBuilder(QuerySpec snapshot, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
-        this.spec.replaceWith(snapshot);
+        this.spec.replaceWith(snapshot, false);
     }
 
     @Override
@@ -675,12 +675,18 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public FilterQueryBuilder snapshotForExecution() {
-        FilterQueryBuilder snapshot = new FilterQueryBuilder(spec.deepCopy(), executionPlanCache);
+        FilterQueryBuilder snapshot = new FilterQueryBuilder(spec.executionCopy(), executionPlanCache);
         snapshot.copyOnBuild = copyOnBuild;
         snapshot.telemetryListener = telemetryListener;
         snapshot.telemetryQueryType = telemetryQueryType;
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
+        return snapshot;
+    }
+
+    public FilterQueryBuilder snapshotForRows(List<QueryRow> rows) {
+        FilterQueryBuilder snapshot = snapshotForExecution();
+        snapshot.setRows(rows);
         return snapshot;
     }
 

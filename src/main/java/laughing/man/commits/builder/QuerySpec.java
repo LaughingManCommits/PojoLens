@@ -191,77 +191,62 @@ final class QuerySpec {
 
     QuerySpec deepCopy() {
         QuerySpec copy = new QuerySpec();
-        copy.rows = deepCopyRows(rows);
-        copy.filterRules.putAll(filterRules);
-        copy.havingRules.putAll(havingRules);
-        copy.filterValues.putAll(filterValues);
-        copy.filterFields.putAll(filterFields);
-        copy.filterClause.putAll(filterClause);
-        copy.filterSeparator.putAll(filterSeparator);
-        copy.havingValues.putAll(havingValues);
-        copy.havingFields.putAll(havingFields);
-        copy.havingClause.putAll(havingClause);
-        copy.havingSeparator.putAll(havingSeparator);
-        copy.havingDateFormats.putAll(havingDateFormats);
-        copy.havingIDs.putAll(copyFilterIds(havingIDs));
-        copy.filterDateFormats.putAll(filterDateFormats);
-        copy.groupFields.putAll(groupFields);
-        copy.orderFields.putAll(orderFields);
-        copy.distinctFields.putAll(distinctFields);
-        copy.filterIDs.putAll(copyFilterIds(filterIDs));
-        copy.joinClasses.putAll(copyJoinClasses(joinClasses));
-        copy.joinMethods.putAll(joinMethods);
-        copy.joinParentFields.putAll(joinParentFields);
-        copy.joinChildFields.putAll(joinChildFields);
-        copy.returnFields.addAll(returnFields);
-        copy.metrics.addAll(metrics);
-        copy.timeBuckets.putAll(timeBuckets);
-        copy.allOfGroups.addAll(copyRuleGroups(allOfGroups));
-        copy.anyOfGroups.addAll(copyRuleGroups(anyOfGroups));
-        copy.havingAllOfGroups.addAll(copyRuleGroups(havingAllOfGroups));
-        copy.havingAnyOfGroups.addAll(copyRuleGroups(havingAnyOfGroups));
-        copy.limit = limit;
+        copyInto(copy, true);
+        return copy;
+    }
+
+    QuerySpec executionCopy() {
+        QuerySpec copy = new QuerySpec();
+        copyInto(copy, false);
         return copy;
     }
 
     void replaceWith(QuerySpec source) {
-        this.rows = deepCopyRows(source.rows);
-        replaceMap(this.filterRules, source.filterRules);
-        replaceMap(this.havingRules, source.havingRules);
-        replaceMap(this.filterValues, source.filterValues);
-        replaceMap(this.filterFields, source.filterFields);
-        replaceMap(this.filterClause, source.filterClause);
-        replaceMap(this.filterSeparator, source.filterSeparator);
-        replaceMap(this.havingValues, source.havingValues);
-        replaceMap(this.havingFields, source.havingFields);
-        replaceMap(this.havingClause, source.havingClause);
-        replaceMap(this.havingSeparator, source.havingSeparator);
-        replaceMap(this.havingDateFormats, source.havingDateFormats);
-        replaceMap(this.havingIDs, copyFilterIds(source.havingIDs));
-        replaceMap(this.filterDateFormats, source.filterDateFormats);
-        replaceMap(this.groupFields, source.groupFields);
-        replaceMap(this.orderFields, source.orderFields);
-        replaceMap(this.distinctFields, source.distinctFields);
-        replaceMap(this.filterIDs, copyFilterIds(source.filterIDs));
-        replaceMap(this.joinClasses, copyJoinClasses(source.joinClasses));
-        replaceMap(this.joinMethods, source.joinMethods);
-        replaceMap(this.joinParentFields, source.joinParentFields);
-        replaceMap(this.joinChildFields, source.joinChildFields);
-        this.returnFields.clear();
-        this.returnFields.addAll(source.returnFields);
-        this.metrics.clear();
-        this.metrics.addAll(source.metrics);
-        this.timeBuckets.clear();
-        this.timeBuckets.putAll(source.timeBuckets);
-        this.allOfGroups.clear();
-        this.allOfGroups.addAll(copyRuleGroups(source.allOfGroups));
-        this.anyOfGroups.clear();
-        this.anyOfGroups.addAll(copyRuleGroups(source.anyOfGroups));
-        this.havingAllOfGroups.clear();
-        this.havingAllOfGroups.addAll(copyRuleGroups(source.havingAllOfGroups));
-        this.havingAnyOfGroups.clear();
-        this.havingAnyOfGroups.addAll(copyRuleGroups(source.havingAnyOfGroups));
-        this.limit = source.limit;
+        replaceWith(source, true);
+    }
+
+    void replaceWith(QuerySpec source, boolean copyRows) {
+        source.copyInto(this, copyRows);
+    }
+
+    private void copyInto(QuerySpec target, boolean copyRows) {
+        target.rows = copyRows ? deepCopyRows(rows) : copyRowsReference(rows);
+        replaceMap(target.filterRules, filterRules);
+        replaceMap(target.havingRules, havingRules);
+        replaceMap(target.filterValues, filterValues);
+        replaceMap(target.filterFields, filterFields);
+        replaceMap(target.filterClause, filterClause);
+        replaceMap(target.filterSeparator, filterSeparator);
+        replaceMap(target.havingValues, havingValues);
+        replaceMap(target.havingFields, havingFields);
+        replaceMap(target.havingClause, havingClause);
+        replaceMap(target.havingSeparator, havingSeparator);
+        replaceMap(target.havingDateFormats, havingDateFormats);
+        replaceMap(target.havingIDs, copyFilterIds(havingIDs));
+        replaceMap(target.filterDateFormats, filterDateFormats);
+        replaceMap(target.groupFields, groupFields);
+        replaceMap(target.orderFields, orderFields);
+        replaceMap(target.distinctFields, distinctFields);
+        replaceMap(target.filterIDs, copyFilterIds(filterIDs));
+        replaceMap(target.joinClasses, copyRows ? copyJoinClasses(joinClasses) : copyJoinClassReferences(joinClasses));
+        replaceMap(target.joinMethods, joinMethods);
+        replaceMap(target.joinParentFields, joinParentFields);
+        replaceMap(target.joinChildFields, joinChildFields);
+        target.returnFields.clear();
+        target.returnFields.addAll(returnFields);
+        target.metrics.clear();
+        target.metrics.addAll(metrics);
+        target.timeBuckets.clear();
+        target.timeBuckets.putAll(timeBuckets);
+        target.allOfGroups.clear();
+        target.allOfGroups.addAll(copyRuleGroups(allOfGroups));
+        target.anyOfGroups.clear();
+        target.anyOfGroups.addAll(copyRuleGroups(anyOfGroups));
+        target.havingAllOfGroups.clear();
+        target.havingAllOfGroups.addAll(copyRuleGroups(havingAllOfGroups));
+        target.havingAnyOfGroups.clear();
+        target.havingAnyOfGroups.addAll(copyRuleGroups(havingAnyOfGroups));
+        target.limit = limit;
     }
 
     private static <K, V> void replaceMap(Map<K, V> target, Map<K, V> source) {
@@ -367,6 +352,14 @@ final class QuerySpec {
         return copy;
     }
 
+    private static Map<Integer, List<QueryRow>> copyJoinClassReferences(Map<Integer, List<QueryRow>> source) {
+        Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(16, source.size() * 2));
+        for (Map.Entry<Integer, List<QueryRow>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), copyRowsReference(entry.getValue()));
+        }
+        return copy;
+    }
+
     private static List<List<QueryRule>> copyRuleGroups(List<List<QueryRule>> source) {
         List<List<QueryRule>> copy = new ArrayList<>(source.size());
         for (List<QueryRule> group : source) {
@@ -405,6 +398,13 @@ final class QuerySpec {
             copy.add(cloned);
         }
         return copy;
+    }
+
+    private static List<QueryRow> copyRowsReference(List<QueryRow> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(source);
     }
 
     static final class CriteriaRule {

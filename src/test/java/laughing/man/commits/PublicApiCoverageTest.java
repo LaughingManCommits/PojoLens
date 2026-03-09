@@ -424,6 +424,9 @@ public class PublicApiCoverageTest {
         List<Foo> isolatedRows = isolatedFilter.filter(Foo.class);
         assertEquals(1, isolatedRows.size());
         assertEquals("a", isolatedRows.get(0).getStringField());
+        List<Foo> isolatedRowsAgain = isolatedFilter.filter(Foo.class);
+        assertEquals(1, isolatedRowsAgain.size());
+        assertEquals("a", isolatedRowsAgain.get(0).getStringField());
 
         QueryBuilder shared = PojoLens.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
@@ -432,6 +435,7 @@ public class PublicApiCoverageTest {
         shared.addRule("stringField", "b", Clauses.EQUAL, Separator.OR);
         List<Foo> sharedRows = sharedFilter.filter(Foo.class);
         assertEquals(2, sharedRows.size());
+        assertEquals(2, sharedFilter.filter(Foo.class).size());
     }
 
     @Test

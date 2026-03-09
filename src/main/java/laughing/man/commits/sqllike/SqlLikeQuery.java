@@ -591,8 +591,7 @@ public final class SqlLikeQuery {
             beforeHaving = afterGroup;
             List<QueryRow> havingRows = groupedRows;
             if (havingApplied) {
-                FilterQueryBuilder havingBuilder = working.snapshotForExecution();
-                havingBuilder.setRows(groupedRows);
+                FilterQueryBuilder havingBuilder = working.snapshotForRows(groupedRows);
                 FilterCore havingCore = new FilterCore(havingBuilder);
                 havingRows = havingCore.filterHavingFields(groupedRows);
             }
@@ -601,8 +600,7 @@ public final class SqlLikeQuery {
             beforeOrder = afterHaving;
             List<QueryRow> orderedRows = havingRows;
             if (orderApplied) {
-                FilterQueryBuilder orderBuilder = working.snapshotForExecution();
-                orderBuilder.setRows(havingRows);
+                FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                 FilterCore orderCore = new FilterCore(orderBuilder);
                 FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
                 orderedRows = orderCore.orderByFields(havingRows, context.sort, orderPlan);
@@ -668,15 +666,13 @@ public final class SqlLikeQuery {
                     QueryTelemetrySupport.metadata("havingApplied", hasHavingPredicates(working)));
             List<QueryRow> havingRows = groupedRows;
             if (hasHavingPredicates(working)) {
-                FilterQueryBuilder havingBuilder = working.snapshotForExecution();
-                havingBuilder.setRows(groupedRows);
+                FilterQueryBuilder havingBuilder = working.snapshotForRows(groupedRows);
                 FilterCore havingCore = new FilterCore(havingBuilder);
                 havingRows = havingCore.filterHavingFields(groupedRows);
             }
             List<QueryRow> orderedRows = havingRows;
             if (!working.getOrderFields().isEmpty()) {
-                FilterQueryBuilder orderBuilder = working.snapshotForExecution();
-                orderBuilder.setRows(havingRows);
+                FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                 FilterCore orderCore = new FilterCore(orderBuilder);
                 FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
                 long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
