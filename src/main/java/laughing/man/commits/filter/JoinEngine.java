@@ -115,7 +115,6 @@ final class JoinEngine {
                                     boolean nullChildValues) {
         QueryRow row = new QueryRow();
         row.setRowType(parentClass.getRowType());
-        row.setRowId(ReflectionUtil.newUUID());
         row.setFields(mergeFields(parentFields, childFields, nullChildValues));
         return row;
     }

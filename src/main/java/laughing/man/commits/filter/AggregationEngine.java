@@ -5,7 +5,6 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.ObjectUtil;
-import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
@@ -36,7 +35,6 @@ final class AggregationEngine {
             metricFields.add(field);
         }
         QueryRow metricRow = new QueryRow();
-        metricRow.setRowId(ReflectionUtil.newUUID());
         metricRow.setFields(metricFields);
         return List.of(metricRow);
     }
@@ -94,7 +92,6 @@ final class AggregationEngine {
                 fields.add(metricField);
             }
             QueryRow row = new QueryRow();
-            row.setRowId(ReflectionUtil.newUUID());
             row.setFields(fields);
             aggregatedRows.add(row);
         }

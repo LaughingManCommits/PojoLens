@@ -21,6 +21,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -112,6 +113,39 @@ public class FilterCoreTest {
 
         assertEquals(1, projectedA.get(0).getFields().size());
         assertEquals(1, projectedB.get(0).getFields().size());
+    }
+
+    @Test
+    public void rowIdsShouldBeOptionalForProjectionGroupingAggregationAndJoin() {
+        FilterCore core = new FilterCore(builder(sampleFoos()));
+        core.getBuilder().addField("stringField");
+        core.getBuilder().addGroup("stringField", 1);
+        core.getBuilder().addCount("rowCount");
+
+        for (QueryRow row : core.getBuilder().getRows()) {
+            assertNull(row.getRowId());
+        }
+
+        FilterExecutionPlan plan = core.buildExecutionPlan();
+        List<QueryRow> projected = core.filterDisplayFields(core.getBuilder().getRows(), plan);
+        for (QueryRow row : projected) {
+            assertNull(row.getRowId());
+        }
+
+        Map<String, List<QueryRow>> grouped = core.groupByFields(core.getBuilder().getRows(), projected, plan);
+        assertEquals(2, grouped.size());
+
+        List<QueryRow> aggregated = core.aggregateMetrics(core.getBuilder().getRows(), plan);
+        assertNull(aggregated.get(0).getRowId());
+
+        List<Parent> parents = Arrays.asList(new Parent(1, "p1"), new Parent(2, "p2"));
+        List<Child> children = List.of(new Child(1, "c1"));
+        FilterQueryBuilder joinBuilder = builder(new ArrayList<Object>(parents));
+        joinBuilder.addJoinBeans("id", children, "parentId", Join.LEFT_JOIN);
+        List<QueryRow> joined = new FilterCore(joinBuilder).join(parents);
+        for (QueryRow row : joined) {
+            assertNull(row.getRowId());
+        }
     }
 
     @Test

@@ -34,7 +34,6 @@ final class GroupEngine {
 
             for (int index = 0; index < rows.size(); index++) {
                 QueryRow row = rows.get(index);
-                String uniqueID = row.getRowId();
                 List<? extends QueryField> allFields = row.getFields();
                 String[] groupParts = new String[columnCount];
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
@@ -55,13 +54,7 @@ final class GroupEngine {
                 if (displayFields == null || index >= displayFields.size()) {
                     continue;
                 }
-                QueryRow displayClass = displayFields.get(index);
-                String displayID = displayClass.getRowId();
-
-                if (displayID.equals(uniqueID)) {
-                    groupedRows.add(displayClass);
-                }
-
+                groupedRows.add(displayFields.get(index));
             }
 
             for (Map.Entry<QueryKey, List<QueryRow>> entry : grouped.entrySet()) {

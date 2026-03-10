@@ -167,7 +167,6 @@ public final class ReflectionUtil {
             );
 
             QueryRow domainRow = new QueryRow();
-            domainRow.setRowId(newUUID());
 
             List<QueryField> fieldList = new ArrayList<>(fields.size());
             for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {

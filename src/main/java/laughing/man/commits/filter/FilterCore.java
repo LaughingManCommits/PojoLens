@@ -215,7 +215,6 @@ public class FilterCore {
             if (allFields == null) {
                 continue;
             }
-            String rowId = row.getRowId();
             List<QueryField> fieldList = new ArrayList<>(returnIndexes.size());
             for (int fieldIndex : returnIndexes) {
                 if (fieldIndex < allFields.size()) {
@@ -225,7 +224,6 @@ public class FilterCore {
 
             QueryRow projectedRow = new QueryRow();
             projectedRow.setFields(fieldList);
-            projectedRow.setRowId(rowId);
             results.add(projectedRow);
         }
         return results;
