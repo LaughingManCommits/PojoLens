@@ -143,6 +143,37 @@ public class FilterCoreTest {
     }
 
     @Test
+    public void buildExecutionPlanShouldCompileResolvedExecutionMetadata() {
+        FilterCore core = new FilterCore(builder(sampleFoos()));
+        core.getBuilder().addDistinct("stringField", 1);
+        core.getBuilder().addOrder("integerField", 1);
+        core.getBuilder().addGroup("stringField", 1);
+        core.getBuilder().addField("stringField");
+        core.getBuilder().addCount("rowCount");
+        core.getBuilder().addMetric("integerField", Metric.SUM, "sumInt");
+        core.getBuilder().addHaving("rowCount", 2, Clauses.BIGGER_EQUAL, Separator.AND);
+
+        FilterExecutionPlan sourcePlan = core.buildExecutionPlan();
+
+        assertEquals(List.of(0), sourcePlan.getDistinctFieldIndexes());
+        assertEquals(List.of(0), sourcePlan.getReturnFieldIndexes());
+        assertEquals(1, sourcePlan.getOrderColumns().size());
+        assertEquals(2, sourcePlan.getOrderColumns().get(0).fieldIndex());
+        assertEquals(1, sourcePlan.getGroupColumns().size());
+        assertEquals("stringField", sourcePlan.getGroupColumns().get(0).fieldName());
+        assertEquals(2, sourcePlan.getMetricPlans().size());
+        assertEquals(-1, sourcePlan.getMetricPlans().get(0).fieldIndex());
+        assertEquals(2, sourcePlan.getMetricPlans().get(1).fieldIndex());
+
+        List<QueryRow> aggregated = core.aggregateMetrics(core.getBuilder().getRows(), sourcePlan);
+        FilterQueryBuilder havingBuilder = core.getBuilder().snapshotForRows(aggregated);
+        FilterExecutionPlan havingPlan = new FilterCore(havingBuilder).buildExecutionPlan();
+
+        assertEquals(1, havingPlan.getHavingRulesByFieldIndex().size());
+        assertTrue(havingPlan.getHavingRulesByFieldIndex().containsKey(havingPlan.findFieldIndex("rowCount")));
+    }
+
+    @Test
     public void gettersAndPlanBuildShouldReturnExpectedObjects() {
         FilterQueryBuilder builder = builder(sampleFoos());
         FilterCore core = new FilterCore(builder);

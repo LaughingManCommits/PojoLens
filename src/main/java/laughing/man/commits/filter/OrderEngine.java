@@ -8,17 +8,9 @@ import laughing.man.commits.util.ObjectUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
-
-import static laughing.man.commits.EngineDefaults.SDF;
 
 final class OrderEngine {
-
-    private final FilterQueryBuilder builder;
-
     OrderEngine(FilterQueryBuilder builder) {
-        this.builder = builder;
     }
 
     List<QueryRow> orderByFields(List<QueryRow> rows, Sort sortMethod, FilterExecutionPlan plan) {
@@ -26,8 +18,7 @@ final class OrderEngine {
             return rows;
         }
 
-        SortedSet<Integer> orderKeys = new TreeSet<>(builder.getOrderFields().keySet());
-        List<OrderColumn> columns = resolveOrderColumns(orderKeys, plan);
+        List<FilterExecutionPlan.OrderColumn> columns = plan.getOrderColumns();
         List<QueryRow> results = new ArrayList<>(rows);
         results.sort((left, right) -> compareByColumns(left, right, columns, sortMethod));
         return results;
@@ -35,18 +26,18 @@ final class OrderEngine {
 
     private int compareByColumns(QueryRow left,
                                  QueryRow right,
-                                 List<OrderColumn> columns,
+                                 List<FilterExecutionPlan.OrderColumn> columns,
                                  Sort sortMethod) {
         List<? extends QueryField> leftFields = left.getFields();
         List<? extends QueryField> rightFields = right.getFields();
-        for (OrderColumn column : columns) {
-            Object leftValue = column.fieldIndex < leftFields.size()
-                    ? leftFields.get(column.fieldIndex).getValue()
+        for (FilterExecutionPlan.OrderColumn column : columns) {
+            Object leftValue = column.fieldIndex() < leftFields.size()
+                    ? leftFields.get(column.fieldIndex()).getValue()
                     : null;
-            Object rightValue = column.fieldIndex < rightFields.size()
-                    ? rightFields.get(column.fieldIndex).getValue()
+            Object rightValue = column.fieldIndex() < rightFields.size()
+                    ? rightFields.get(column.fieldIndex()).getValue()
                     : null;
-            int cmp = compareValues(leftValue, rightValue, column.dateFormat);
+            int cmp = compareValues(leftValue, rightValue, column.dateFormat());
             if (cmp != 0) {
                 return Sort.DESC.equals(sortMethod) ? -cmp : cmp;
             }
@@ -90,34 +81,6 @@ final class OrderEngine {
             return 1;
         }
         return leftText.compareTo(rightText);
-    }
-
-    private List<OrderColumn> resolveOrderColumns(SortedSet<Integer> orderKeys, FilterExecutionPlan plan) {
-        List<OrderColumn> columns = new ArrayList<>();
-        for (int orderKey : orderKeys) {
-            String fieldName = builder.getOrderFields().get(orderKey);
-            int index = plan.findFieldIndexIgnoreCase(fieldName);
-            if (index < 0) {
-                continue;
-            }
-            String dateFormat = SDF;
-            String uniqueKey = ObjectUtil.castToString(orderKey);
-            if (builder.getFilterDateFormats().containsKey(uniqueKey)) {
-                dateFormat = builder.getFilterDateFormats().get(uniqueKey);
-            }
-            columns.add(new OrderColumn(index, dateFormat));
-        }
-        return columns;
-    }
-
-    private static final class OrderColumn {
-        private final int fieldIndex;
-        private final String dateFormat;
-
-        private OrderColumn(int fieldIndex, String dateFormat) {
-            this.fieldIndex = fieldIndex;
-            this.dateFormat = dateFormat;
-        }
     }
 }
 

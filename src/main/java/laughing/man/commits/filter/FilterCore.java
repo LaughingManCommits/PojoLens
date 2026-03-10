@@ -18,8 +18,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 public class FilterCore {
 
@@ -125,7 +123,7 @@ public class FilterCore {
             }
             return groupedResults;
         }
-        return filterFields(rows, plan, compileHavingRules(plan), false);
+        return filterFields(rows, plan, plan.getHavingRulesByFieldIndex(), false);
     }
 
     private List<QueryRow> filterFields(List<QueryRow> rows,
@@ -195,40 +193,6 @@ public class FilterCore {
         return rows;
     }
 
-    private Map<Integer, List<CompiledRule>> compileHavingRules(FilterExecutionPlan plan) {
-        Map<Integer, List<CompiledRule>> rulesByField = new LinkedHashMap<>(expectedMapSize(builder.getHavingIDs().size()));
-        Map<String, String> havingFields = builder.getHavingFields();
-        Map<String, String> havingDateFormats = builder.getHavingDateFormats();
-        Map<String, Object> havingValues = builder.getHavingValues();
-        Map<String, Clauses> havingClause = builder.getHavingClause();
-        Map<String, Separator> havingSeparator = builder.getHavingSeparator();
-        for (Map.Entry<String, List<String>> entry : builder.getHavingIDs().entrySet()) {
-            String fieldName = entry.getKey();
-            int fieldIndex = plan.findFieldIndex(fieldName);
-            if (fieldIndex < 0) {
-                continue;
-            }
-            for (String fieldID : entry.getValue()) {
-                String configuredField = havingFields.get(fieldID);
-                if (configuredField == null) {
-                    continue;
-                }
-                if (!fieldName.equals(configuredField)) {
-                    continue;
-                }
-                String dateFormat = havingDateFormats.getOrDefault(fieldID, EngineDefaults.SDF);
-                CompiledRule rule = new CompiledRule(
-                        havingValues.get(fieldID),
-                        havingClause.get(fieldID),
-                        havingSeparator.get(fieldID),
-                        dateFormat
-                );
-                rulesByField.computeIfAbsent(fieldIndex, key -> new ArrayList<>(2)).add(rule);
-            }
-        }
-        return rulesByField;
-    }
-
     /**
      * Projects rows to configured return fields.
      */
@@ -244,7 +208,7 @@ public class FilterCore {
         if (rows == null || rows.isEmpty()) {
             return new ArrayList<>();
         }
-        List<Integer> returnIndexes = plan.resolveFieldIndexes(builder.getReturnFields());
+        List<Integer> returnIndexes = plan.getReturnFieldIndexes();
         List<QueryRow> results = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
             List<? extends QueryField> allFields = row.getFields();
@@ -285,17 +249,12 @@ public class FilterCore {
         try {
             if (!builder.getDistinctFields().isEmpty()) {
                 Map<QueryKey, QueryRow> distinct = new LinkedHashMap<>(expectedMapSize(builder.getRows().size()));
-                SortedSet<Integer> sortedKeys = new TreeSet<>(builder.getDistinctFields().keySet());
                 if (builder.getRows().isEmpty()) {
                     return builder.getRows();
                 }
-                List<Integer> fieldIndexes = new ArrayList<>(sortedKeys.size());
-                for (int distIndex : sortedKeys) {
-                    String distFieldName = builder.getDistinctFields().get(distIndex);
-                    int fieldIndex = plan.findFieldIndex(distFieldName);
-                    if (fieldIndex >= 0) {
-                        fieldIndexes.add(fieldIndex);
-                    }
+                List<Integer> fieldIndexes = plan.getDistinctFieldIndexes();
+                if (fieldIndexes.isEmpty()) {
+                    return new ArrayList<>();
                 }
                 int distinctFieldCount = fieldIndexes.size();
 

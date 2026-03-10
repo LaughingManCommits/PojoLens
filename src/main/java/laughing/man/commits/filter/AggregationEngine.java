@@ -1,25 +1,17 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryMetric;
-import laughing.man.commits.builder.QueryTimeBucket;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.enums.Metric;
-import laughing.man.commits.time.TimeBucketPreset;
-import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.StringUtil;
+import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
-import java.util.TreeSet;
-
-import static laughing.man.commits.EngineDefaults.SDF;
 
 final class AggregationEngine {
 
@@ -31,14 +23,15 @@ final class AggregationEngine {
     }
 
     List<QueryRow> aggregateMetrics(List<QueryRow> rows, FilterExecutionPlan plan) {
+        List<FilterExecutionPlan.MetricPlan> metrics = plan.getMetricPlans();
         if (!builder.getGroupFields().isEmpty()) {
-            return aggregateGroupedMetrics(rows, plan);
+            return aggregateGroupedMetrics(rows, plan, metrics);
         }
-        List<QueryField> metricFields = new ArrayList<>(builder.getMetrics().size());
-        for (QueryMetric configured : builder.getMetrics()) {
+        List<QueryField> metricFields = new ArrayList<>(metrics.size());
+        for (FilterExecutionPlan.MetricPlan metric : metrics) {
             QueryField field = new QueryField();
-            field.setFieldName(configured.getAlias());
-            field.setValue(calculateMetricValue(rows, plan, configured));
+            field.setFieldName(metric.alias());
+            field.setValue(calculateMetricValue(rows, metric));
             metricFields.add(field);
         }
         QueryRow metricRow = new QueryRow();
@@ -47,8 +40,10 @@ final class AggregationEngine {
         return List.of(metricRow);
     }
 
-    private List<QueryRow> aggregateGroupedMetrics(List<QueryRow> rows, FilterExecutionPlan plan) {
-        List<GroupColumn> columns = resolveGroupColumns(plan);
+    private List<QueryRow> aggregateGroupedMetrics(List<QueryRow> rows,
+                                                   FilterExecutionPlan plan,
+                                                   List<FilterExecutionPlan.MetricPlan> metrics) {
+        List<FilterExecutionPlan.GroupColumn> columns = plan.getGroupColumns();
         int columnCount = columns.size();
         Map<QueryKey, GroupAccumulator> grouped = new LinkedHashMap<>(expectedMapSize(rows == null ? 0 : rows.size()));
 
@@ -61,10 +56,10 @@ final class AggregationEngine {
                 String[] keyParts = new String[columnCount];
                 Object[] projectedValues = new Object[columnCount];
                 for (int i = 0; i < columnCount; i++) {
-                    GroupColumn column = columns.get(i);
-                    Object rawValue = fieldValue(fields, column.fieldIndex);
+                    FilterExecutionPlan.GroupColumn column = columns.get(i);
+                    Object rawValue = fieldValue(fields, column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
-                    String keyPart = toGroupKeyValue(projectedValue, column.dateFormat);
+                    String keyPart = toGroupKeyValue(projectedValue, column.dateFormat());
                     keyParts[i] = keyPart;
                     projectedValues[i] = projectedValue;
                 }
@@ -74,9 +69,9 @@ final class AggregationEngine {
                 if (accumulator == null) {
                     List<QueryField> groupProjection = new ArrayList<>(columnCount);
                     for (int i = 0; i < columnCount; i++) {
-                        GroupColumn column = columns.get(i);
+                        FilterExecutionPlan.GroupColumn column = columns.get(i);
                         QueryField projectionField = new QueryField();
-                        projectionField.setFieldName(column.fieldName);
+                        projectionField.setFieldName(column.fieldName());
                         projectionField.setValue(projectedValues[i]);
                         groupProjection.add(projectionField);
                     }
@@ -89,12 +84,12 @@ final class AggregationEngine {
 
         List<QueryRow> aggregatedRows = new ArrayList<>(grouped.size());
         for (GroupAccumulator group : grouped.values()) {
-            List<QueryField> fields = new ArrayList<>(group.groupProjection.size() + builder.getMetrics().size());
+            List<QueryField> fields = new ArrayList<>(group.groupProjection.size() + metrics.size());
             fields.addAll(group.groupProjection);
-            for (QueryMetric configured : builder.getMetrics()) {
+            for (FilterExecutionPlan.MetricPlan metric : metrics) {
                 QueryField metricField = new QueryField();
-                metricField.setFieldName(configured.getAlias());
-                metricField.setValue(calculateMetricValue(group.rows, plan, configured));
+                metricField.setFieldName(metric.alias());
+                metricField.setValue(calculateMetricValue(group.rows, metric));
                 fields.add(metricField);
             }
             QueryRow row = new QueryRow();
@@ -105,14 +100,14 @@ final class AggregationEngine {
         return aggregatedRows;
     }
 
-    private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan plan, QueryMetric metric) {
-        if (Metric.COUNT.equals(metric.getMetric())) {
+    private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
+        if (laughing.man.commits.enums.Metric.COUNT.equals(metric.metric())) {
             return (long) (rows == null ? 0 : rows.size());
         }
 
-        int fieldIndex = plan.findFieldIndex(metric.getField());
+        int fieldIndex = metric.fieldIndex();
         if (fieldIndex < 0) {
-            throw new IllegalArgumentException("Unknown metric field: " + metric.getField());
+            throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
         }
 
         NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
@@ -120,23 +115,23 @@ final class AggregationEngine {
             return null;
         }
 
-        if (Metric.SUM.equals(metric.getMetric())) {
+        if (laughing.man.commits.enums.Metric.SUM.equals(metric.metric())) {
             return stats.hasFraction ? stats.sum : (long) stats.sum;
         }
-        if (Metric.AVG.equals(metric.getMetric())) {
+        if (laughing.man.commits.enums.Metric.AVG.equals(metric.metric())) {
             return stats.sum / stats.count;
         }
-        if (Metric.MIN.equals(metric.getMetric())) {
+        if (laughing.man.commits.enums.Metric.MIN.equals(metric.metric())) {
             return stats.min;
         }
-        if (Metric.MAX.equals(metric.getMetric())) {
+        if (laughing.man.commits.enums.Metric.MAX.equals(metric.metric())) {
             return stats.max;
         }
 
-        throw new IllegalArgumentException("Unsupported metric: " + metric.getMetric());
+        throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
     }
 
-    private NumericStats collectNumericStats(List<QueryRow> rows, int fieldIndex, QueryMetric metric) {
+    private NumericStats collectNumericStats(List<QueryRow> rows, int fieldIndex, FilterExecutionPlan.MetricPlan metric) {
         NumericStats stats = new NumericStats();
         if (rows == null) {
             return stats;
@@ -152,7 +147,7 @@ final class AggregationEngine {
             }
             if (!(value instanceof Number)) {
                 throw new IllegalArgumentException(
-                        "Metric " + metric.getMetric() + " requires numeric field: " + metric.getField());
+                        "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
             }
             Number number = (Number) value;
             if (number instanceof Float || number instanceof Double) {
@@ -177,30 +172,6 @@ final class AggregationEngine {
         return stats;
     }
 
-    private List<GroupColumn> resolveGroupColumns(FilterExecutionPlan plan) {
-        SortedSet<Integer> orderedKeys = new TreeSet<>(builder.getGroupFields().keySet());
-        List<GroupColumn> columns = new ArrayList<>();
-        for (int groupedKey : orderedKeys) {
-            String fieldName = builder.getGroupFields().get(groupedKey);
-            int fieldIndex = plan.findFieldIndex(fieldName);
-            String uniqueKey = ObjectUtil.castToString(groupedKey);
-            String dateFormat = builder.getFilterDateFormats().getOrDefault(uniqueKey, SDF);
-
-            QueryTimeBucket bucket = builder.getTimeBuckets().get(fieldName);
-            if (bucket != null) {
-                int dateFieldIndex = plan.findFieldIndex(bucket.getDateField());
-                if (dateFieldIndex >= 0) {
-                    columns.add(new GroupColumn(fieldName, dateFieldIndex, dateFormat, bucket.getPreset()));
-                }
-                continue;
-            }
-            if (fieldIndex >= 0) {
-                columns.add(new GroupColumn(fieldName, fieldIndex, dateFormat, null));
-            }
-        }
-        return columns;
-    }
-
     private Object fieldValue(List<? extends QueryField> fields, int fieldIndex) {
         if (fieldIndex < 0 || fieldIndex >= fields.size()) {
             return null;
@@ -216,11 +187,11 @@ final class AggregationEngine {
         return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;
     }
 
-    private Object bucketedOrRawValue(GroupColumn column, Object rawValue) {
-        if (column.timeBucket == null) {
+    private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {
+        if (column.timeBucket() == null) {
             return rawValue;
         }
-        return TimeBucketUtil.bucketValue(rawValue, column.timeBucket);
+        return TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
     }
 
     private static final class NumericStats {
@@ -230,9 +201,6 @@ final class AggregationEngine {
         private Number max;
         private double sum;
         private boolean hasFraction;
-    }
-
-    private record GroupColumn(String fieldName, int fieldIndex, String dateFormat, TimeBucketPreset timeBucket) {
     }
 
     private static final class GroupAccumulator {
