@@ -20,7 +20,6 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import static laughing.man.commits.util.ObjectUtil.castToString;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.filter.Filter;
@@ -54,7 +53,9 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public FilterQueryBuilder(List<?> pojos, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
-        this.spec.setRows(ReflectionUtil.toDomainRows(pojos));
+        spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
+        refreshFieldTypes();
+        spec.setRows(materializedRows(toSourceRows(pojos)));
     }
 
     private FilterQueryBuilder(QuerySpec snapshot, FilterExecutionPlanCacheStore executionPlanCache) {
@@ -80,7 +81,8 @@ public class FilterQueryBuilder implements QueryBuilder {
             throw new IllegalArgumentException("registry must not be null");
         }
         this.computedFieldRegistry = registry;
-        spec.setRows(ComputedFieldSupport.materializeRows(spec.getRows(), registry));
+        refreshFieldTypes();
+        spec.setRows(materializedRows(spec.getRows()));
         materializeJoinRows();
         return this;
     }
@@ -132,7 +134,9 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public void setRows(List<QueryRow> rows) {
-        spec.setRows(ComputedFieldSupport.materializeRows(rows, computedFieldRegistry));
+        spec.setSourceFieldTypes(ReflectionUtil.collectQueryRowFieldTypes(rows));
+        refreshFieldTypes();
+        spec.setRows(materializedRows(rows));
     }
 
     @Override
@@ -731,73 +735,32 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void ensureFieldExists(String fieldName) {
-        if (computedFieldRegistry.contains(fieldName)) {
+        if (configuredFieldExists(fieldName)) {
             return;
         }
-        if (spec.getRows().isEmpty()) {
+        if (validationSchemaUnknown()) {
             return;
-        }
-        List<? extends QueryField> fields = spec.getRows().get(0).getFields();
-        for (QueryField field : fields) {
-            if (fieldName.equals(field.getFieldName())) {
-                return;
-            }
         }
         throw new IllegalArgumentException("Unknown metric field: " + fieldName);
     }
 
     private void ensureNumericField(String fieldName, Metric metric) {
-        if (computedFieldRegistry.contains(fieldName)) {
-            Class<?> outputType = computedFieldRegistry.get(fieldName).outputType();
-            if (Number.class.isAssignableFrom(outputType)) {
-                return;
-            }
-            throw new IllegalArgumentException("Metric " + metric + " requires numeric field: " + fieldName);
-        }
-        if (spec.getRows().isEmpty()) {
+        Class<?> fieldType = configuredFieldType(fieldName);
+        if (fieldType == null) {
             return;
         }
-        for (QueryRow row : spec.getRows()) {
-            if (row == null || row.getFields() == null) {
-                continue;
-            }
-            for (QueryField field : row.getFields()) {
-                if (!fieldName.equals(field.getFieldName())) {
-                    continue;
-                }
-                Object value = field.getValue();
-                if (value == null) {
-                    continue;
-                }
-                if (!(value instanceof Number)) {
-                    throw new IllegalArgumentException("Metric " + metric + " requires numeric field: " + fieldName);
-                }
-                return;
-            }
+        if (!Number.class.isAssignableFrom(fieldType)) {
+            throw new IllegalArgumentException("Metric " + metric + " requires numeric field: " + fieldName);
         }
     }
 
     private void ensureDateField(String fieldName) {
-        if (spec.getRows().isEmpty()) {
+        Class<?> fieldType = configuredFieldType(fieldName);
+        if (fieldType == null) {
             return;
         }
-        for (QueryRow row : spec.getRows()) {
-            if (row == null || row.getFields() == null) {
-                continue;
-            }
-            for (QueryField field : row.getFields()) {
-                if (!fieldName.equals(field.getFieldName())) {
-                    continue;
-                }
-                Object value = field.getValue();
-                if (value == null) {
-                    continue;
-                }
-                if (!(value instanceof java.util.Date)) {
-                    throw new IllegalArgumentException("Time bucket requires date field: " + fieldName);
-                }
-                return;
-            }
+        if (!java.util.Date.class.isAssignableFrom(fieldType)) {
+            throw new IllegalArgumentException("Time bucket requires date field: " + fieldName);
         }
     }
 
@@ -862,19 +825,82 @@ public class FilterQueryBuilder implements QueryBuilder {
             return;
         }
         for (Map.Entry<Integer, List<QueryRow>> entry : spec.getJoinClasses().entrySet()) {
-            entry.setValue(ComputedFieldSupport.materializeRows(entry.getValue(), computedFieldRegistry));
+            entry.setValue(materializedRows(entry.getValue()));
         }
     }
 
     private List<String> schemaFields() {
-        if (spec.getRows() == null || spec.getRows().isEmpty() || spec.getRows().get(0) == null || spec.getRows().get(0).getFields() == null) {
+        if (spec.getFieldTypes().isEmpty()) {
             return List.of();
         }
-        List<String> fields = new ArrayList<>(spec.getRows().get(0).getFields().size());
-        for (QueryField field : spec.getRows().get(0).getFields()) {
-            fields.add(field.getFieldName());
+        return new ArrayList<>(spec.getFieldTypes().keySet());
+    }
+
+    private boolean configuredFieldExists(String fieldName) {
+        return computedFieldRegistry.contains(fieldName) || spec.getFieldTypes().containsKey(fieldName);
+    }
+
+    private Class<?> configuredFieldType(String fieldName) {
+        if (computedFieldRegistry.contains(fieldName)) {
+            return computedFieldRegistry.get(fieldName).outputType();
         }
-        return fields;
+        return spec.getFieldTypes().get(fieldName);
+    }
+
+    private boolean validationSchemaUnknown() {
+        return spec.getRows().isEmpty() && spec.getFieldTypes().isEmpty();
+    }
+
+    private void refreshFieldTypes() {
+        spec.setFieldTypes(ComputedFieldSupport.augmentFieldTypes(spec.getSourceFieldTypes(), computedFieldRegistry));
+    }
+
+    private List<QueryRow> materializedRows(List<QueryRow> rows) {
+        return ComputedFieldSupport.materializeRows(rows, computedFieldRegistry);
+    }
+
+    private Map<String, Class<?>> inferSourceFieldTypes(List<?> pojos) {
+        Object first = firstNonNull(pojos);
+        if (first == null) {
+            return Map.of();
+        }
+        if (first instanceof QueryRow) {
+            return ReflectionUtil.collectQueryRowFieldTypes(queryRows(pojos));
+        }
+        return ReflectionUtil.collectQueryableFieldTypes(first.getClass());
+    }
+
+    private List<QueryRow> toSourceRows(List<?> pojos) {
+        Object first = firstNonNull(pojos);
+        if (first instanceof QueryRow) {
+            return queryRows(pojos);
+        }
+        return ReflectionUtil.toDomainRows(pojos);
+    }
+
+    private List<QueryRow> queryRows(List<?> pojos) {
+        List<QueryRow> rows = new ArrayList<>();
+        if (pojos == null) {
+            return rows;
+        }
+        for (Object pojo : pojos) {
+            if (pojo instanceof QueryRow row) {
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private Object firstNonNull(List<?> pojos) {
+        if (pojos == null) {
+            return null;
+        }
+        for (Object pojo : pojos) {
+            if (pojo != null) {
+                return pojo;
+            }
+        }
+        return null;
     }
 }
 

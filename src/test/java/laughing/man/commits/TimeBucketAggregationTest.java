@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TimeBucketAggregationTest {
@@ -125,6 +126,16 @@ public class TimeBucketAggregationTest {
         assertEquals(List.of("null|2025-W02|2|0"), normalized(sundayStart));
     }
 
+    @Test
+    public void timeBucketValidationShouldUseDeclaredDateTypeWhenValuesAreNull() {
+        List<NullableHireDatePoint> rows = List.of(
+                new NullableHireDatePoint("Engineering", null, 100)
+        );
+
+        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(rows)
+                .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
+    }
+
     private static List<String> normalized(List<DepartmentPeriodAgg> rows) {
         return rows.stream()
                 .map(r -> r.department + "|" + r.period + "|" + r.total + "|" + r.payroll)
@@ -175,6 +186,21 @@ public class TimeBucketAggregationTest {
         public long payroll;
 
         public DepartmentPeriodAgg() {
+        }
+    }
+
+    public static class NullableHireDatePoint {
+        public String department;
+        public Date hireDate;
+        public int salary;
+
+        public NullableHireDatePoint() {
+        }
+
+        public NullableHireDatePoint(String department, Date hireDate, int salary) {
+            this.department = department;
+            this.hireDate = hireDate;
+            this.salary = salary;
         }
     }
 }

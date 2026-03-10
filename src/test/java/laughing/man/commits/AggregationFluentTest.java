@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -75,6 +76,16 @@ public class AggregationFluentTest {
         }
     }
 
+    @Test
+    public void numericMetricValidationShouldUseDeclaredFieldTypeWhenValuesAreNull() {
+        List<NullableSalaryEmployee> employees = List.of(
+                new NullableSalaryEmployee("Engineering", null)
+        );
+
+        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(employees)
+                .addMetric("salary", Metric.SUM, "totalSalary"));
+    }
+
     public static class EmployeeStats {
         public long employeeCount;
         public long totalSalary;
@@ -91,6 +102,19 @@ public class AggregationFluentTest {
         public long engineeringPayroll;
 
         public AliasStats() {
+        }
+    }
+
+    public static class NullableSalaryEmployee {
+        public String department;
+        public Integer salary;
+
+        public NullableSalaryEmployee() {
+        }
+
+        public NullableSalaryEmployee(String department, Integer salary) {
+            this.department = department;
+            this.salary = salary;
         }
     }
 }

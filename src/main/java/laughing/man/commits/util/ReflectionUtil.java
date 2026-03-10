@@ -300,6 +300,32 @@ public final class ReflectionUtil {
         return fieldGraph(root).fieldTypes();
     }
 
+    public static Map<String, Class<?>> collectQueryRowFieldTypes(List<QueryRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+
+        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>();
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            QueryRow row = rows.get(rowIndex);
+            if (row == null || row.getFields() == null) {
+                continue;
+            }
+            List<? extends QueryField> fields = row.getFields();
+            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
+                QueryField field = fields.get(fieldIndex);
+                if (field == null || field.getFieldName() == null || field.getFieldName().isBlank()) {
+                    continue;
+                }
+                fieldTypes.putIfAbsent(field.getFieldName(), null);
+                if (fieldTypes.get(field.getFieldName()) == null && field.getValue() != null) {
+                    fieldTypes.put(field.getFieldName(), field.getValue().getClass());
+                }
+            }
+        }
+        return Collections.unmodifiableMap(fieldTypes);
+    }
+
     private static List<Field> getMutableFields(Class<?> clazz) {
         return MUTABLE_FIELD_CACHE.computeIfAbsent(clazz, ReflectionUtil::getFields);
     }

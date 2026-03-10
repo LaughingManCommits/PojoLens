@@ -15,6 +15,8 @@ import java.util.Map;
 final class QuerySpec {
 
     private List<QueryRow> rows = new ArrayList<>();
+    private final Map<String, Class<?>> sourceFieldTypes = new LinkedHashMap<>();
+    private final Map<String, Class<?>> fieldTypes = new LinkedHashMap<>();
     private final Map<String, CriteriaRule> filterRules = new LinkedHashMap<>();
     private final Map<String, CriteriaRule> havingRules = new LinkedHashMap<>();
     private final Map<String, Object> filterValues = new HashMap<>();
@@ -51,6 +53,22 @@ final class QuerySpec {
 
     void setRows(List<QueryRow> rows) {
         this.rows = rows == null ? new ArrayList<>() : rows;
+    }
+
+    Map<String, Class<?>> getSourceFieldTypes() {
+        return sourceFieldTypes;
+    }
+
+    void setSourceFieldTypes(Map<String, Class<?>> fieldTypes) {
+        replaceMap(sourceFieldTypes, fieldTypes == null ? Map.of() : fieldTypes);
+    }
+
+    Map<String, Class<?>> getFieldTypes() {
+        return fieldTypes;
+    }
+
+    void setFieldTypes(Map<String, Class<?>> fieldTypes) {
+        replaceMap(this.fieldTypes, fieldTypes == null ? Map.of() : fieldTypes);
     }
 
     Map<String, Object> getFilterValues() {
@@ -211,6 +229,8 @@ final class QuerySpec {
 
     private void copyInto(QuerySpec target, boolean copyRows) {
         target.rows = copyRows ? deepCopyRows(rows) : copyRowsReference(rows);
+        replaceMap(target.sourceFieldTypes, sourceFieldTypes);
+        replaceMap(target.fieldTypes, fieldTypes);
         replaceMap(target.filterRules, filterRules);
         replaceMap(target.havingRules, havingRules);
         replaceMap(target.filterValues, filterValues);

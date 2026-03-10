@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -80,6 +81,17 @@ public class ComputedFieldRegistryTest {
         assertEquals(3, fluentRows.size());
         assertEquals("Cara", sqlRows.get(0).name);
         assertEquals("Alice", fluentRows.get(0).name);
+    }
+
+    @Test
+    public void fluentBuilderShouldAllowComputedMetricValidationWithoutSourceRows() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build();
+
+        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(List.of())
+                .computedFields(registry)
+                .addMetric("adjustedSalary", Metric.SUM, "totalAdjustedPayroll"));
     }
 
     @Test
