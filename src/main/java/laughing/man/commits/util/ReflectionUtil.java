@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -148,7 +147,7 @@ public final class ReflectionUtil {
             return new ArrayList<>(0);
         }
 
-        List<String> fields = collectQueryableFieldNames(firstBean.getClass());
+        FieldGraphDescriptor descriptor = fieldGraph(firstBean.getClass());
         List<QueryRow> domainRows = new ArrayList<>(conversionList.size());
 
         for (int i = 0; i < conversionList.size(); i++) {
@@ -157,74 +156,17 @@ public final class ReflectionUtil {
                 continue;
             }
 
-            Map<String, Object> fieldValuesByName = new HashMap<>(Math.max(16, fields.size() * 2));
-            collectFieldValueMap(
-                    currentBean,
-                    fieldValuesByName,
-                    "",
-                    Collections.newSetFromMap(new IdentityHashMap<>()),
-                    0
-            );
-
-            QueryRow domainRow = new QueryRow();
-
-            List<QueryField> fieldList = new ArrayList<>(fields.size());
-            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
-                String fieldName = fields.get(fieldIndex);
-
-                QueryField field = new QueryField();
-                field.setFieldName(fieldName);
-                field.setValue(fieldValuesByName.get(fieldName));
-                fieldList.add(field);
+            try {
+                QueryRow domainRow = new QueryRow();
+                domainRow.setFields(extractQueryFields(currentBean, descriptor.flattenedFields()));
+                domainRows.add(domainRow);
+            } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
+                LOG.error("Failed to Convert Objects [{}] to new List", currentBean.getClass().getSimpleName(), e);
+                throw new IllegalStateException("Failed to flatten object fields", e);
             }
-
-            domainRow.setFields(fieldList);
-            domainRows.add(domainRow);
         }
 
         return domainRows;
-    }
-
-    /**
-     * Recursively extracts simple field values from object graphs.
-     */
-    private static void collectFieldValueMap(Object bean,
-                                             Map<String, Object> objectValueMap,
-                                             String prefix,
-                                             Set<Object> activePath,
-                                             int depth) {
-        if (bean == null) {
-            return;
-        }
-
-        if (depth > MAX_FIELD_GRAPH_DEPTH) {
-            throw new IllegalStateException("Field graph depth exceeds max depth of " + MAX_FIELD_GRAPH_DEPTH);
-        }
-
-        if (!activePath.add(bean)) {
-            return;
-        }
-
-        try {
-            List<Field> fields = getMutableFields(bean.getClass());
-            for (int i = 0; i < fields.size(); i++) {
-                Field field = fields.get(i);
-                String fieldName = qualify(prefix, field.getName());
-                Object fieldValue = field.get(bean);
-                Class<?> fieldType = wrapPrimitive(field.getType());
-
-                if (isSimpleType(fieldType) || isSimpleValue(fieldValue)) {
-                    objectValueMap.put(fieldName, fieldValue);
-                } else if (fieldValue != null && isTraversableType(fieldValue.getClass())) {
-                    collectFieldValueMap(fieldValue, objectValueMap, fieldName, activePath, depth + 1);
-                }
-            }
-        } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
-            LOG.error("Failed to Convert Objects [{}] to new List", bean.getClass().getSimpleName(), e);
-            throw new IllegalStateException("Failed to flatten object fields", e);
-        } finally {
-            activePath.remove(bean);
-        }
     }
 
     /**
@@ -367,14 +309,6 @@ public final class ReflectionUtil {
         return byName;
     }
 
-    private static boolean isSimpleValue(Object value) {
-        return value instanceof Number
-                || value instanceof Boolean
-                || value instanceof String
-                || value instanceof Character
-                || value instanceof Date;
-    }
-
     public static boolean isSimpleType(Class<?> type) {
         Class<?> wrapped = wrapPrimitive(type);
         return wrapped == Integer.class
@@ -410,16 +344,24 @@ public final class ReflectionUtil {
     }
 
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
-        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>();
-        collectFieldGraph(root, "", new LinkedHashSet<>(), 0, fieldTypes);
-        return new FieldGraphDescriptor(new ArrayList<>(fieldTypes.keySet()), fieldTypes);
+        ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
+        collectFieldGraph(root, "", List.of(), new LinkedHashSet<>(), 0, flattenedFields);
+        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(16, flattenedFields.size() * 2));
+        ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
+        for (int i = 0; i < flattenedFields.size(); i++) {
+            FlattenedFieldDescriptor field = flattenedFields.get(i);
+            fieldNames.add(field.fieldName());
+            fieldTypes.put(field.fieldName(), field.fieldPath().leafType());
+        }
+        return new FieldGraphDescriptor(fieldNames, fieldTypes, flattenedFields);
     }
 
     private static void collectFieldGraph(Class<?> type,
                                           String prefix,
+                                          List<Field> path,
                                           Set<Class<?>> activePath,
                                           int depth,
-                                          Map<String, Class<?>> fieldTypes) {
+                                          List<FlattenedFieldDescriptor> flattenedFields) {
         if (type == null) {
             return;
         }
@@ -442,16 +384,52 @@ public final class ReflectionUtil {
                 Field field = fields.get(i);
                 String qualifiedName = qualify(prefix, field.getName());
                 Class<?> fieldType = wrapPrimitive(field.getType());
+                List<Field> fieldPath = appendPath(path, field);
 
                 if (isSimpleType(fieldType)) {
-                    fieldTypes.putIfAbsent(qualifiedName, fieldType);
+                    flattenedFields.add(new FlattenedFieldDescriptor(
+                            qualifiedName,
+                            new ResolvedFieldPath(fieldPath, fieldType, true)
+                    ));
                 } else if (isTraversableType(fieldType)) {
-                    collectFieldGraph(fieldType, qualifiedName, activePath, depth + 1, fieldTypes);
+                    collectFieldGraph(fieldType, qualifiedName, fieldPath, activePath, depth + 1, flattenedFields);
                 }
             }
         } finally {
             activePath.remove(type);
         }
+    }
+
+    private static List<QueryField> extractQueryFields(Object bean,
+                                                       List<FlattenedFieldDescriptor> flattenedFields) throws IllegalAccessException {
+        List<QueryField> fields = new ArrayList<>(flattenedFields.size());
+        for (int i = 0; i < flattenedFields.size(); i++) {
+            FlattenedFieldDescriptor flattenedField = flattenedFields.get(i);
+            QueryField field = new QueryField();
+            field.setFieldName(flattenedField.fieldName());
+            field.setValue(readResolvedFieldValue(bean, flattenedField.fieldPath()));
+            fields.add(field);
+        }
+        return fields;
+    }
+
+    private static Object readResolvedFieldValue(Object bean, ResolvedFieldPath fieldPath) throws IllegalAccessException {
+        Object current = bean;
+        List<Field> fields = fieldPath.fields();
+        for (int i = 0; i < fields.size(); i++) {
+            if (current == null) {
+                return null;
+            }
+            current = fields.get(i).get(current);
+        }
+        return current;
+    }
+
+    private static List<Field> appendPath(List<Field> path, Field field) {
+        ArrayList<Field> fieldPath = new ArrayList<>(path.size() + 1);
+        fieldPath.addAll(path);
+        fieldPath.add(field);
+        return fieldPath;
     }
 
     private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
@@ -626,11 +604,19 @@ public final class ReflectionUtil {
         }
     }
 
-    private record FieldGraphDescriptor(List<String> fieldNames, Map<String, Class<?>> fieldTypes) {
-        private FieldGraphDescriptor(List<String> fieldNames, Map<String, Class<?>> fieldTypes) {
+    private record FieldGraphDescriptor(List<String> fieldNames,
+                                        Map<String, Class<?>> fieldTypes,
+                                        List<FlattenedFieldDescriptor> flattenedFields) {
+        private FieldGraphDescriptor(List<String> fieldNames,
+                                     Map<String, Class<?>> fieldTypes,
+                                     List<FlattenedFieldDescriptor> flattenedFields) {
             this.fieldNames = List.copyOf(fieldNames);
             this.fieldTypes = Collections.unmodifiableMap(new LinkedHashMap<>(fieldTypes));
+            this.flattenedFields = List.copyOf(flattenedFields);
         }
+    }
+
+    private record FlattenedFieldDescriptor(String fieldName, ResolvedFieldPath fieldPath) {
     }
 
     private static final class ConstructorLookupException extends RuntimeException {
