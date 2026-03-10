@@ -11,6 +11,13 @@ The highest-impact problems are:
 3. The fluent API eagerly flattens all source beans into `QueryRow` and `QueryField` objects even when the query only needs a few columns.
 4. Some stats/HAVING flows rebuild execution plans multiple times in one operation.
 
+Review update (2026-03-10):
+
+- WP1, WP2, WP3, and WP6 removed real redundant work and should stay.
+- They do not yet put the engine at a maximum-performance ceiling.
+- The remaining dominant costs are still eager row materialization, partial execution-plan compilation, repeated grouped-metric scans, and avoidable row identity/materialization churn.
+- A quick local Streams-baseline spot check still showed a large gap on comparable workloads, so the completed packages should be treated as incremental wins rather than end-state performance.
+
 ## Findings
 
 ### 1. Repeated deep-copy of query rows
@@ -117,13 +124,105 @@ Details:
 - `ensureDateField()` does the same.
 - Repeated metric or bucket configuration can trigger repeated linear scans.
 
+### 7. Execution-plan reuse is still only partial
+
+Impact: high for grouped, stats, order, and distinct-heavy workloads.
+
+Observed in:
+
+- `src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java`
+- `src/main/java/laughing/man/commits/filter/FilterImpl.java`
+- `src/main/java/laughing/man/commits/filter/FilterCore.java`
+- `src/main/java/laughing/man/commits/filter/OrderEngine.java`
+- `src/main/java/laughing/man/commits/filter/GroupEngine.java`
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+
+Details:
+
+- `FilterExecutionPlan` currently compiles field indexes and WHERE rules only.
+- `filterDistinctFields()` still sorts configured keys and resolves field indexes per execution.
+- `orderByFields()`, `groupByFields()`, and `aggregateMetrics()` rebuild ordered column descriptors every run.
+- Stats-plan caching also pays for a large serialized key in `planCacheKey()` on every invocation.
+
+### 8. Grouped aggregation still rescans rows once per metric
+
+Impact: high when grouped queries carry multiple metrics or large time buckets.
+
+Observed in:
+
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+
+Details:
+
+- Grouped aggregation first stores all matching rows per group.
+- It then calls `calculateMetricValue()` once per configured metric.
+- `SUM`, `AVG`, `MIN`, and `MAX` each trigger another full pass over the grouped rows.
+
+This prevents grouped/time-bucket queries from approaching a single-pass ceiling.
+
+### 9. Row ids are still allocated on hot paths where they are not semantically required
+
+Impact: medium-high allocation pressure.
+
+Observed in:
+
+- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+- `src/main/java/laughing/man/commits/filter/JoinEngine.java`
+- `src/main/java/laughing/man/commits/filter/FilterCore.java`
+- `src/main/java/laughing/man/commits/filter/GroupEngine.java`
+
+Details:
+
+- Every source row gets a string id during `toDomainRows()`.
+- Aggregate rows and joined rows allocate fresh ids again.
+- The main current consumer is grouped display-field correlation, which can likely use positional correlation or a lighter identity representation.
+
+WP6 made generation cheaper, but it did not remove the underlying allocation volume.
+
+### 10. Typed result materialization still has uncached constructor/setup work
+
+Impact: medium for projection-heavy workloads.
+
+Observed in:
+
+- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+
+Details:
+
+- `toClassList()` still calls `cls.getDeclaredConstructor().newInstance()` per row.
+- The per-call `resolvedFieldsByName` map is rebuilt for each projection batch.
+- There is no dedicated projection/materialization benchmark proving this stage is now cheap enough.
+
+### 11. Benchmark coverage still misses the hottest conversion costs
+
+Impact: medium, because regressions can hide behind end-to-end budgets.
+
+Observed in:
+
+- `src/main/java/laughing/man/commits/benchmark`
+- `docs/benchmarking.md`
+
+Details:
+
+- The current JMH suites cover end-to-end pipelines, charts, explain, and cache concurrency.
+- There is no dedicated JMH coverage for `toDomainRows()`, `toClassList()`, stats-plan cache-hit overhead, or allocation rate via `-prof gc`.
+- That makes it too easy to mark packages complete without proving ceiling performance on the hottest remaining conversion paths.
+
+## Review Of Completed Work Packages
+
+- WP1 reduced the worst row deep-copy behavior, but follow-up work is still needed around execution-shape copying and temporary aggregate/HAVING builders.
+- WP2 fixed repeated field-path lookup, but did not yet optimize root-constructor reuse or compiled projection write plans.
+- WP3 removed one avoidable HAVING plan rebuild, but order/group/distinct/metric descriptors are still rebuilt on each execution and the cache-hit path still serializes the full query shape.
+- WP6 made id generation cheaper, but the bigger remaining win is to stop allocating string row ids for pipelines that do not need them.
+
 ## Recommended Fix Order
 
-1. Remove repeated row deep-copy during execution.
-2. Cache resolved reflection paths for output mapping.
-3. Stop rebuilding plans inside single-operation stats/HAVING flows.
-4. Reduce row/field allocation in the flattening pipeline.
-5. Clean up smaller hot spots like `newUUID()` and repeated validation scans.
+1. Finish execution-plan compilation so grouped/stats/distinct/order paths stop rebuilding metadata per run.
+2. Fuse grouped aggregation and remove unnecessary row-id churn from hot paths.
+3. Cache field metadata and optimize typed projection/materialization.
+4. Reduce flattening cost with schema-driven extraction.
+5. Attempt selective/lazy materialization only after the above wins are benchmarked with direct hotspot coverage.
 
 ## Work Packages
 
@@ -298,6 +397,161 @@ Acceptance criteria:
 - Adding multiple metrics and time buckets does not rescan all rows for each check.
 - Validation errors remain correct and deterministic.
 
+### WP8: Compile full execution-plan metadata
+
+Status: pending
+
+Goal: stop rebuilding distinct/order/group/time-bucket/metric accessors on every execution.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java`
+- `src/main/java/laughing/man/commits/filter/FilterCore.java`
+- `src/main/java/laughing/man/commits/filter/OrderEngine.java`
+- `src/main/java/laughing/man/commits/filter/GroupEngine.java`
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+- `src/main/java/laughing/man/commits/filter/FilterImpl.java`
+
+Tasks:
+
+- Extend `FilterExecutionPlan` to precompute:
+  - distinct field indexes in stable order,
+  - order columns with effective date formats,
+  - group/time-bucket columns,
+  - metric field indexes and aliases,
+  - optionally HAVING rule bindings and explicit-group field lookups.
+- Make `filterDistinctFields()`, `orderByFields()`, `groupByFields()`, and `aggregateMetrics()` consume plan metadata instead of rebuilding it.
+- Reuse normalized query-shape data for cache lookup instead of recomputing from raw builder maps each run.
+
+Acceptance criteria:
+
+- No `TreeSet` or repeated column-resolution work remains in the distinct/order/group/aggregate hot paths.
+- Grouped/stats queries build these descriptors once per query shape.
+- Existing grouping/order/HAVING tests still pass.
+
+### WP9: Fuse grouped metric aggregation into a single pass
+
+Status: pending
+
+Goal: compute all metrics while grouping instead of rescanning each group for each metric.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+
+Tasks:
+
+- Replace `GroupAccumulator.rows` plus per-metric rescans with per-group metric accumulators.
+- Update `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX` in one row pass.
+- Preserve current null handling and numeric semantics.
+- Only materialize per-group source row lists when a downstream feature truly needs them.
+
+Acceptance criteria:
+
+- Grouped/time-bucket queries scan each input row at most once for aggregation work.
+- Adding extra metrics does not add another full pass over grouped rows.
+- Existing grouped-metric and time-bucket parity tests still pass.
+
+### WP10: Eliminate hot-path row id churn
+
+Status: pending
+
+Goal: stop allocating string row ids for pipelines that do not need them.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/domain/QueryRow.java`
+- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+- `src/main/java/laughing/man/commits/filter/FilterCore.java`
+- `src/main/java/laughing/man/commits/filter/GroupEngine.java`
+- `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
+- `src/main/java/laughing/man/commits/filter/JoinEngine.java`
+
+Tasks:
+
+- Decide whether row identity should be optional, numeric, or replaced by positional correlation in grouping/projection flows.
+- Remove eager id creation from `toDomainRows()` for simple filter/order/projection paths.
+- Avoid generating fresh ids for aggregate rows unless an API contract truly requires them.
+
+Acceptance criteria:
+
+- Non-join, non-grouped typed queries do not allocate per-row string ids.
+- Grouping correctness no longer depends on comparing generated UUID-like strings.
+- Existing behavior tests still pass.
+
+### WP11: Optimize typed projection/materialization path
+
+Status: pending
+
+Goal: lower remaining reflection overhead in `toClassList()`.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+
+Tasks:
+
+- Use cached no-arg constructors for root projection types.
+- Precompile and cache projection write plans keyed by `(projectionClass, sourceFieldSchema)`.
+- Reuse resolved field plans across batches instead of rebuilding a per-call `Map<String, ResolvedFieldPath>`.
+
+Acceptance criteria:
+
+- Result materialization does not do repeated constructor lookup per row.
+- Nested projection still works.
+- Dedicated projection/materialization benchmarks show measurable improvement.
+
+### WP12: Replace serialized stats-plan cache keys with structural query-shape keys
+
+Status: pending
+
+Goal: make stats-plan caching cheaper than the plan build it is avoiding.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/filter/FilterImpl.java`
+- `src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheStore.java`
+- a new immutable key type under `src/main/java/laughing/man/commits/filter`
+
+Tasks:
+
+- Replace large string assembly in `planCacheKey()` with an immutable key object that stores normalized ordered config.
+- Compute or cache the key once per execution snapshot or once per config mutation.
+- Measure cache-hit overhead against the current string-serialization approach.
+
+Acceptance criteria:
+
+- The cache-hit path does not sort and stringify all config maps on every execution.
+- Repeated grouped/stats queries are cheaper with the cache enabled than with it disabled.
+- Cache snapshot/telemetry behavior remains intact.
+
+### WP13: Add hotspot microbenchmarks and allocation guardrails
+
+Status: pending
+
+Goal: measure the paths that the current end-to-end benchmark suite hides.
+
+Scope:
+
+- benchmark classes under `src/main/java/laughing/man/commits/benchmark`
+- `docs/benchmarking.md`
+- benchmark threshold/config files where stable
+
+Tasks:
+
+- Add dedicated JMH benchmarks for:
+  - `ReflectionUtil.toDomainRows()`,
+  - `ReflectionUtil.toClassList()`,
+  - stats-plan cache-hit paths,
+  - grouped metrics with multiple aggregates.
+- Add local guidance for running these with `-prof gc` and capture allocation budgets where stable.
+- Document how the microbenchmarks complement the existing end-to-end suites.
+
+Acceptance criteria:
+
+- The benchmark suite can isolate flattening, projection, cache-hit, and multi-metric aggregation costs.
+- Future completed performance packages have a direct measurement path.
+
 ## Benchmark Plan
 
 Use the existing JMH benchmarks to validate the changes:
@@ -307,6 +561,8 @@ Use the existing JMH benchmarks to validate the changes:
 - `PojoLensJoinJmhBenchmark`
 - `StatsQueryJmhBenchmark`
 - `CacheConcurrencyJmhBenchmark`
+- add dedicated microbenchmarks for row flattening, typed projection, stats-plan cache hits, and multi-metric grouped aggregation
+- use `-prof gc` during hotspot tuning where the environment is stable enough to compare allocations
 
 Track:
 
@@ -328,12 +584,14 @@ At minimum, run:
 
 ## Suggested Implementation Sequence
 
-1. WP1
-2. WP2
-3. WP3
-4. WP6
-5. WP7
-6. WP4
-7. WP5
+1. WP8
+2. WP9
+3. WP10
+4. WP7
+5. WP4
+6. WP11
+7. WP12
+8. WP5
+9. WP13
 
-This order gets the safest high-impact wins first before attempting the larger architecture change around selective materialization.
+This order finishes the partial plan-reuse work first, then removes the most obvious remaining stats/materialization churn before taking on the larger selective-materialization redesign.
