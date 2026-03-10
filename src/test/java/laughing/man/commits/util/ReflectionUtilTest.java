@@ -4,11 +4,15 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,6 +79,65 @@ class ReflectionUtilTest {
         assertNull(fields.get(4).getValue());
     }
 
+    @Test
+    void toClassListShouldMaterializeNestedProjectionFromQueryRows() {
+        RootBean bean = new RootBean(7, "alpha", new Address("Amsterdam", new Geo("NL", 1011)));
+
+        List<QueryRow> rows = ReflectionUtil.toDomainRows(List.of(bean));
+        List<ProjectedRootBean> projected = ReflectionUtil.toClassList(ProjectedRootBean.class, rows);
+
+        assertEquals(1, projected.size());
+        assertEquals(7, projected.get(0).id);
+        assertEquals("alpha", projected.get(0).name);
+        assertNotNull(projected.get(0).address);
+        assertEquals("Amsterdam", projected.get(0).address.city);
+        assertNotNull(projected.get(0).address.geo);
+        assertEquals("NL", projected.get(0).address.geo.countryCode);
+        assertEquals(1011, projected.get(0).address.geo.zipCode);
+    }
+
+    @Test
+    void toClassListShouldReuseProjectionPlanForRepeatedSchema() throws Exception {
+        int before = projectionPlanCache().size();
+        List<QueryRow> rows = List.of(queryRow(
+                queryField("alpha", 3),
+                queryField("nested.beta", "value"),
+                queryField("ignored", "skip")
+        ));
+
+        List<ProjectionPlanProbe> first = ReflectionUtil.toClassList(ProjectionPlanProbe.class, rows);
+        int afterFirst = projectionPlanCache().size();
+        List<ProjectionPlanProbe> second = ReflectionUtil.toClassList(ProjectionPlanProbe.class, rows);
+        int afterSecond = projectionPlanCache().size();
+
+        assertEquals(before + 1, afterFirst);
+        assertEquals(afterFirst, afterSecond);
+        assertEquals(3, first.get(0).alpha);
+        assertEquals("value", first.get(0).nested.beta);
+        assertEquals(3, second.get(0).alpha);
+        assertEquals("value", second.get(0).nested.beta);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<?, ?> projectionPlanCache() throws Exception {
+        Field field = ReflectionUtil.class.getDeclaredField("PROJECTION_WRITE_PLAN_CACHE");
+        field.setAccessible(true);
+        return (Map<?, ?>) field.get(null);
+    }
+
+    private static QueryRow queryRow(QueryField... fields) {
+        QueryRow row = new QueryRow();
+        row.setFields(List.of(fields));
+        return row;
+    }
+
+    private static QueryField queryField(String name, Object value) {
+        QueryField field = new QueryField();
+        field.setFieldName(name);
+        field.setValue(value);
+        return field;
+    }
+
     static final class RootBean {
         int id;
         String name;
@@ -123,6 +186,46 @@ class ReflectionUtilTest {
 
         Manager(String title) {
             this.title = title;
+        }
+    }
+
+    static final class ProjectedRootBean {
+        int id;
+        String name;
+        ProjectedAddress address;
+
+        ProjectedRootBean() {
+        }
+    }
+
+    static final class ProjectedAddress {
+        String city;
+        ProjectedGeo geo;
+
+        ProjectedAddress() {
+        }
+    }
+
+    static final class ProjectedGeo {
+        String countryCode;
+        int zipCode;
+
+        ProjectedGeo() {
+        }
+    }
+
+    static final class ProjectionPlanProbe {
+        int alpha;
+        ProbeNested nested;
+
+        ProjectionPlanProbe() {
+        }
+    }
+
+    static final class ProbeNested {
+        String beta;
+
+        ProbeNested() {
         }
     }
 }

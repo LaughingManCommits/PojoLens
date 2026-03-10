@@ -31,6 +31,7 @@ public final class ReflectionUtil {
     private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
 
     private static final ResolvedFieldPath MISSING_FIELD_PATH = new ResolvedFieldPath(List.of(), null, false);
@@ -54,7 +55,7 @@ public final class ReflectionUtil {
         List<T> result = new ArrayList<>(classes.size());
 
         try {
-            Map<String, ResolvedFieldPath> resolvedFieldsByName = new HashMap<>(32);
+            ProjectionWritePlan plan = projectionWritePlan(cls, classes);
 
             for (int rowIndex = 0; rowIndex < classes.size(); rowIndex++) {
                 QueryRow row = classes.get(rowIndex);
@@ -62,38 +63,14 @@ public final class ReflectionUtil {
                     continue;
                 }
 
-                T object = cls.getDeclaredConstructor().newInstance();
+                T object = instantiateNoArg(cls);
                 List<? extends QueryField> fields = row.getFields();
-                if (fields == null || fields.isEmpty()) {
+                if (fields == null || fields.isEmpty() || plan.steps().isEmpty()) {
                     result.add(object);
                     continue;
                 }
 
-                for (int i = 0; i < fields.size(); i++) {
-                    QueryField field = fields.get(i);
-                    if (field == null) {
-                        continue;
-                    }
-
-                    String fieldName = field.getFieldName();
-                    Object rawValue = field.getValue();
-
-                    if (fieldName == null || rawValue == null) {
-                        continue;
-                    }
-
-                    ResolvedFieldPath resolvedField = resolvedFieldsByName.computeIfAbsent(
-                            fieldName,
-                            name -> resolveFieldPath(cls, name)
-                    );
-
-                    if (!resolvedField.resolvable() || resolvedField.leafType() == null) {
-                        continue;
-                    }
-
-                    Object value = ObjectUtil.castValue(rawValue, resolvedField.leafType());
-                    setResolvedFieldValue(object, resolvedField, value, fieldName);
-                }
+                applyProjectionWritePlan(object, fields, plan);
 
                 result.add(object);
             }
@@ -475,6 +452,76 @@ public final class ReflectionUtil {
         return new ResolvedFieldPath(fields, wrapPrimitive(leaf.getType()), true);
     }
 
+    private static ProjectionWritePlan projectionWritePlan(Class<?> projectionClass, List<QueryRow> rows) {
+        return PROJECTION_WRITE_PLAN_CACHE.computeIfAbsent(
+                new ProjectionPlanCacheKey(projectionClass, projectionSourceSchema(rows)),
+                key -> buildProjectionWritePlan(key.projectionClass(), key.sourceFieldSchema())
+        );
+    }
+
+    private static ProjectionWritePlan buildProjectionWritePlan(Class<?> projectionClass, List<String> sourceFieldSchema) {
+        ArrayList<ProjectionWriteStep> steps = new ArrayList<>(sourceFieldSchema.size());
+        for (int i = 0; i < sourceFieldSchema.size(); i++) {
+            String fieldName = sourceFieldSchema.get(i);
+            ResolvedFieldPath fieldPath = resolveFieldPath(projectionClass, fieldName);
+            if (!fieldPath.resolvable() || fieldPath.leafType() == null) {
+                continue;
+            }
+            steps.add(new ProjectionWriteStep(i, fieldName, fieldPath));
+        }
+        return new ProjectionWritePlan(steps);
+    }
+
+    private static List<String> projectionSourceSchema(List<QueryRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            QueryRow row = rows.get(rowIndex);
+            if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
+                continue;
+            }
+            List<? extends QueryField> fields = row.getFields();
+            ArrayList<String> schema = new ArrayList<>(fields.size());
+            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
+                QueryField field = fields.get(fieldIndex);
+                schema.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
+            }
+            return List.copyOf(schema);
+        }
+        return List.of();
+    }
+
+    private static void applyProjectionWritePlan(Object target,
+                                                 List<? extends QueryField> fields,
+                                                 ProjectionWritePlan plan) throws Exception {
+        for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
+            ProjectionWriteStep step = plan.steps().get(stepIndex);
+            QueryField sourceField = projectionSourceField(fields, step);
+            if (sourceField == null || sourceField.getValue() == null) {
+                continue;
+            }
+            Object value = ObjectUtil.castValue(sourceField.getValue(), step.fieldPath().leafType());
+            setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
+        }
+    }
+
+    private static QueryField projectionSourceField(List<? extends QueryField> fields, ProjectionWriteStep step) {
+        if (step.sourceIndex() < fields.size()) {
+            QueryField indexedField = fields.get(step.sourceIndex());
+            if (indexedField != null && step.fieldName().equals(indexedField.getFieldName())) {
+                return indexedField;
+            }
+        }
+        for (int i = 0; i < fields.size(); i++) {
+            QueryField field = fields.get(i);
+            if (field != null && step.fieldName().equals(field.getFieldName())) {
+                return field;
+            }
+        }
+        return null;
+    }
+
     private static void setResolvedFieldValue(Object javaBean,
                                               ResolvedFieldPath fieldPath,
                                               Object propertyValue,
@@ -507,21 +554,32 @@ public final class ReflectionUtil {
         }
 
         try {
-            Constructor<?> constructor = NO_ARG_CTOR_CACHE.computeIfAbsent(fieldType, type -> {
-                try {
-                    Constructor<?> c = type.getDeclaredConstructor();
-                    c.setAccessible(true);
-                    return c;
-                } catch (Exception e) {
-                    throw new ConstructorLookupException(e);
-                }
-            });
-            return constructor.newInstance();
+            return noArgConstructor(fieldType).newInstance();
         } catch (ConstructorLookupException ex) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'", ex.getCause());
         } catch (ReflectiveOperationException ex) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'", ex);
         }
+    }
+
+    private static <T> T instantiateNoArg(Class<T> type) throws ReflectiveOperationException {
+        try {
+            return type.cast(noArgConstructor(type).newInstance());
+        } catch (ConstructorLookupException ex) {
+            throw new IllegalArgumentException("Cannot instantiate type '" + type.getSimpleName() + "'", ex.getCause());
+        }
+    }
+
+    private static Constructor<?> noArgConstructor(Class<?> type) {
+        return NO_ARG_CTOR_CACHE.computeIfAbsent(type, key -> {
+            try {
+                Constructor<?> constructor = key.getDeclaredConstructor();
+                constructor.setAccessible(true);
+                return constructor;
+            } catch (Exception e) {
+                throw new ConstructorLookupException(e);
+            }
+        });
     }
 
     private static String qualify(String prefix, String fieldName) {
@@ -596,6 +654,13 @@ public final class ReflectionUtil {
     private record FieldPathCacheKey(Class<?> rootType, String fieldName) {
     }
 
+    private record ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
+        private ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
+            this.projectionClass = projectionClass;
+            this.sourceFieldSchema = List.copyOf(sourceFieldSchema);
+        }
+    }
+
     private record ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
         private ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
             this.fields = List.copyOf(fields);
@@ -617,6 +682,15 @@ public final class ReflectionUtil {
     }
 
     private record FlattenedFieldDescriptor(String fieldName, ResolvedFieldPath fieldPath) {
+    }
+
+    private record ProjectionWritePlan(List<ProjectionWriteStep> steps) {
+        private ProjectionWritePlan(List<ProjectionWriteStep> steps) {
+            this.steps = List.copyOf(steps);
+        }
+    }
+
+    private record ProjectionWriteStep(int sourceIndex, String fieldName, ResolvedFieldPath fieldPath) {
     }
 
     private static final class ConstructorLookupException extends RuntimeException {
