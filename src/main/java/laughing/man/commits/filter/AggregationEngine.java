@@ -3,9 +3,10 @@ package laughing.man.commits.filter;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.ObjectUtil;
-import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ final class AggregationEngine {
     List<QueryRow> aggregateMetrics(List<QueryRow> rows, FilterExecutionPlan plan) {
         List<FilterExecutionPlan.MetricPlan> metrics = plan.getMetricPlans();
         if (!builder.getGroupFields().isEmpty()) {
-            return aggregateGroupedMetrics(rows, plan, metrics);
+            return aggregateGroupedMetrics(rows, plan.getGroupColumns(), metrics);
         }
         List<QueryField> metricFields = new ArrayList<>(metrics.size());
         for (FilterExecutionPlan.MetricPlan metric : metrics) {
@@ -41,9 +42,8 @@ final class AggregationEngine {
     }
 
     private List<QueryRow> aggregateGroupedMetrics(List<QueryRow> rows,
-                                                   FilterExecutionPlan plan,
+                                                   List<FilterExecutionPlan.GroupColumn> columns,
                                                    List<FilterExecutionPlan.MetricPlan> metrics) {
-        List<FilterExecutionPlan.GroupColumn> columns = plan.getGroupColumns();
         int columnCount = columns.size();
         Map<QueryKey, GroupAccumulator> grouped = new LinkedHashMap<>(expectedMapSize(rows == null ? 0 : rows.size()));
 
@@ -75,10 +75,10 @@ final class AggregationEngine {
                         projectionField.setValue(projectedValues[i]);
                         groupProjection.add(projectionField);
                     }
-                    accumulator = new GroupAccumulator(groupProjection);
+                    accumulator = new GroupAccumulator(groupProjection, metrics);
                     grouped.put(key, accumulator);
                 }
-                accumulator.rows.add(row);
+                accumulator.accumulate(fields);
             }
         }
 
@@ -86,10 +86,11 @@ final class AggregationEngine {
         for (GroupAccumulator group : grouped.values()) {
             List<QueryField> fields = new ArrayList<>(group.groupProjection.size() + metrics.size());
             fields.addAll(group.groupProjection);
-            for (FilterExecutionPlan.MetricPlan metric : metrics) {
+            for (int i = 0; i < metrics.size(); i++) {
+                FilterExecutionPlan.MetricPlan metric = metrics.get(i);
                 QueryField metricField = new QueryField();
                 metricField.setFieldName(metric.alias());
-                metricField.setValue(calculateMetricValue(group.rows, metric));
+                metricField.setValue(group.metricAccumulators[i].result());
                 fields.add(metricField);
             }
             QueryRow row = new QueryRow();
@@ -101,7 +102,7 @@ final class AggregationEngine {
     }
 
     private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
-        if (laughing.man.commits.enums.Metric.COUNT.equals(metric.metric())) {
+        if (Metric.COUNT.equals(metric.metric())) {
             return (long) (rows == null ? 0 : rows.size());
         }
 
@@ -115,16 +116,16 @@ final class AggregationEngine {
             return null;
         }
 
-        if (laughing.man.commits.enums.Metric.SUM.equals(metric.metric())) {
+        if (Metric.SUM.equals(metric.metric())) {
             return stats.hasFraction ? stats.sum : (long) stats.sum;
         }
-        if (laughing.man.commits.enums.Metric.AVG.equals(metric.metric())) {
+        if (Metric.AVG.equals(metric.metric())) {
             return stats.sum / stats.count;
         }
-        if (laughing.man.commits.enums.Metric.MIN.equals(metric.metric())) {
+        if (Metric.MIN.equals(metric.metric())) {
             return stats.min;
         }
-        if (laughing.man.commits.enums.Metric.MAX.equals(metric.metric())) {
+        if (Metric.MAX.equals(metric.metric())) {
             return stats.max;
         }
 
@@ -205,11 +206,99 @@ final class AggregationEngine {
 
     private static final class GroupAccumulator {
         private final List<QueryField> groupProjection;
-        private final List<QueryRow> rows;
+        private final MetricAccumulator[] metricAccumulators;
 
-        private GroupAccumulator(List<QueryField> groupProjection) {
+        private GroupAccumulator(List<QueryField> groupProjection, List<FilterExecutionPlan.MetricPlan> metrics) {
             this.groupProjection = groupProjection;
-            this.rows = new ArrayList<>(4);
+            this.metricAccumulators = new MetricAccumulator[metrics.size()];
+            for (int i = 0; i < metrics.size(); i++) {
+                this.metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
+            }
+        }
+
+        private void accumulate(List<? extends QueryField> fields) {
+            for (MetricAccumulator metricAccumulator : metricAccumulators) {
+                metricAccumulator.accumulate(fields);
+            }
+        }
+    }
+
+    private static final class MetricAccumulator {
+        private final FilterExecutionPlan.MetricPlan metric;
+        private long count;
+        private boolean present;
+        private Number min;
+        private Number max;
+        private double sum;
+        private boolean hasFraction;
+
+        private MetricAccumulator(FilterExecutionPlan.MetricPlan metric) {
+            this.metric = metric;
+        }
+
+        private void accumulate(List<? extends QueryField> fields) {
+            if (Metric.COUNT.equals(metric.metric())) {
+                count++;
+                return;
+            }
+
+            int fieldIndex = metric.fieldIndex();
+            if (fieldIndex < 0) {
+                throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
+            }
+            if (fields == null || fieldIndex >= fields.size()) {
+                return;
+            }
+
+            Object value = fields.get(fieldIndex).getValue();
+            if (value == null) {
+                return;
+            }
+            if (!(value instanceof Number number)) {
+                throw new IllegalArgumentException(
+                        "Metric " + metric.metric() + " requires numeric field: " + metric.fieldName());
+            }
+            if (number instanceof Float || number instanceof Double) {
+                hasFraction = true;
+            }
+
+            double asDouble = number.doubleValue();
+            if (!present) {
+                min = number;
+                max = number;
+                present = true;
+            } else {
+                if (asDouble < min.doubleValue()) {
+                    min = number;
+                }
+                if (asDouble > max.doubleValue()) {
+                    max = number;
+                }
+            }
+            count++;
+            sum += asDouble;
+        }
+
+        private Object result() {
+            if (Metric.COUNT.equals(metric.metric())) {
+                return count;
+            }
+            if (!present) {
+                return null;
+            }
+            if (Metric.SUM.equals(metric.metric())) {
+                return hasFraction ? sum : (long) sum;
+            }
+            if (Metric.AVG.equals(metric.metric())) {
+                return sum / count;
+            }
+            if (Metric.MIN.equals(metric.metric())) {
+                return min;
+            }
+            if (Metric.MAX.equals(metric.metric())) {
+                return max;
+            }
+            throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
         }
     }
 

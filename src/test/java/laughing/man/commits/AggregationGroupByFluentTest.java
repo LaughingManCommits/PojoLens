@@ -37,6 +37,37 @@ public class AggregationGroupByFluentTest {
     }
 
     @Test
+    public void groupedMetricsShouldComputeAllAggregatesInOneProjection() {
+        List<Employee> employees = sampleEmployees();
+
+        List<DepartmentAllStats> stats = PojoLens.newQueryBuilder(employees)
+                .addGroup("department")
+                .addOrder("department", 1)
+                .addCount("employeeCount")
+                .addMetric("salary", Metric.SUM, "totalSalary")
+                .addMetric("salary", Metric.AVG, "avgSalary")
+                .addMetric("salary", Metric.MIN, "minSalary")
+                .addMetric("salary", Metric.MAX, "maxSalary")
+                .initFilter()
+                .filter(Sort.ASC, DepartmentAllStats.class);
+
+        assertEquals(2, stats.size());
+        assertEquals("Engineering", stats.get(0).department);
+        assertEquals(3L, stats.get(0).employeeCount);
+        assertEquals(360000L, stats.get(0).totalSalary);
+        assertEquals(120000.0d, stats.get(0).avgSalary, 0.0001d);
+        assertEquals(110000, stats.get(0).minSalary);
+        assertEquals(130000, stats.get(0).maxSalary);
+
+        assertEquals("Finance", stats.get(1).department);
+        assertEquals(1L, stats.get(1).employeeCount);
+        assertEquals(90000L, stats.get(1).totalSalary);
+        assertEquals(90000.0d, stats.get(1).avgSalary, 0.0001d);
+        assertEquals(90000, stats.get(1).minSalary);
+        assertEquals(90000, stats.get(1).maxSalary);
+    }
+
+    @Test
     public void groupedMetricsShouldWorkForMultipleGroupKeys() {
         List<Employee> employees = sampleEmployees();
 
@@ -173,6 +204,18 @@ public class AggregationGroupByFluentTest {
         public long totalSalary;
 
         public DepartmentStats() {
+        }
+    }
+
+    public static class DepartmentAllStats {
+        public String department;
+        public long employeeCount;
+        public long totalSalary;
+        public double avgSalary;
+        public int minSalary;
+        public int maxSalary;
+
+        public DepartmentAllStats() {
         }
     }
 
