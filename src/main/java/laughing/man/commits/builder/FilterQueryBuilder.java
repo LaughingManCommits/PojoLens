@@ -46,6 +46,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private String telemetryQueryType = "fluent";
     private String telemetrySource = "fluent";
     private ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
+    private volatile long executionPlanShapeVersion;
 
     public FilterQueryBuilder(List<?> pojos) {
         this(pojos, FilterExecutionPlanCache.defaultStore());
@@ -80,6 +81,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (registry == null) {
             throw new IllegalArgumentException("registry must not be null");
         }
+        markExecutionPlanShapeChanged();
         this.computedFieldRegistry = registry;
         refreshFieldTypes();
         spec.setRows(materializedRows(spec.getRows()));
@@ -133,7 +135,12 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getRows();
     }
 
+    public Map<String, Class<?>> getFieldTypes() {
+        return spec.getFieldTypes();
+    }
+
     public void setRows(List<QueryRow> rows) {
+        markExecutionPlanShapeChanged();
         spec.setSourceFieldTypes(ReflectionUtil.collectQueryRowFieldTypes(rows));
         refreshFieldTypes();
         spec.setRows(materializedRows(rows));
@@ -177,6 +184,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         Map<Integer, String> orderFields = spec.getOrderFields();
         if (!orderFields.containsValue(column) || !orderFields.containsKey(index)) {
             orderFields.put(index, column);
+            markExecutionPlanShapeChanged();
         } else {
             if (orderFields.containsKey(index)) {
                 LOG.info("Index [" + index + "] found "
@@ -206,6 +214,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             String id = castToString(index);
             if (!spec.getFilterDateFormats().containsKey(id) && dateFormat != null) {
                 spec.getFilterDateFormats().put(id, dateFormat);
+                markExecutionPlanShapeChanged();
                 addOrder(column, index);
             }
 
@@ -259,6 +268,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             String id = castToString(index);
             saveDateFormatIfAbsent(spec.getFilterDateFormats(), id, dateFormat);
             spec.getGroupFields().put(index, column);
+            markExecutionPlanShapeChanged();
         } catch (Exception e) {
             LOG.error("Could not add Group by fields "
                     + "column[" + column + "] "
@@ -276,6 +286,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         List<String> returnFields = spec.getReturnFields();
         if (!returnFields.contains(column)) {
             returnFields.add(column);
+            markExecutionPlanShapeChanged();
         }
         return this;
     }
@@ -296,6 +307,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             ensureNumericField(normalizedField, normalizedMetric);
         }
         spec.getMetrics().add(QueryMetric.of(normalizedField, normalizedMetric, normalizedAlias));
+        markExecutionPlanShapeChanged();
         return this;
     }
 
@@ -309,6 +321,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         String normalizedAlias = requireIdentifier(alias, "alias");
         ensureOutputAliasAvailable(normalizedAlias);
         spec.getMetrics().add(QueryMetric.count(normalizedAlias));
+        markExecutionPlanShapeChanged();
         return this;
     }
 
@@ -326,6 +339,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         ensureFieldExists(normalizedDateField);
         ensureDateField(normalizedDateField);
         spec.getTimeBuckets().put(normalizedAlias, QueryTimeBucket.of(normalizedDateField, normalizedPreset, normalizedAlias));
+        markExecutionPlanShapeChanged();
         addGroup(normalizedAlias);
         return this;
     }
@@ -363,6 +377,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         Map<Integer, String> distinctFields = spec.getDistinctFields();
         if (!distinctFields.containsValue(column) && !distinctFields.containsKey(index)) {
             distinctFields.put(index, column);
+            markExecutionPlanShapeChanged();
         }
         return this;
     }
@@ -553,6 +568,7 @@ public class FilterQueryBuilder implements QueryBuilder {
      */
     public FilterQueryBuilder removeFilterRule(String ruleId) {
         spec.removeFilterRule(ruleId);
+        markExecutionPlanShapeChanged();
         return this;
     }
 
@@ -562,6 +578,7 @@ public class FilterQueryBuilder implements QueryBuilder {
      */
     public FilterQueryBuilder removeHavingRule(String ruleId) {
         spec.removeHavingRule(ruleId);
+        markExecutionPlanShapeChanged();
         return this;
     }
 
@@ -645,6 +662,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         } else {
             spec.addFilterRule(rule);
         }
+        markExecutionPlanShapeChanged();
     }
 
     private void saveDateFormatIfAbsent(Map<String, String> dateFormatMap, String id, String dateFormat) {
@@ -685,6 +703,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         snapshot.telemetryQueryType = telemetryQueryType;
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
+        snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
         return snapshot;
     }
 
@@ -712,6 +731,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public String getTelemetrySource() {
         return telemetrySource;
+    }
+
+    public long getExecutionPlanShapeVersion() {
+        return executionPlanShapeVersion;
     }
 
     public FilterQueryBuilder telemetryContext(String queryType,
@@ -901,6 +924,10 @@ public class FilterQueryBuilder implements QueryBuilder {
             }
         }
         return null;
+    }
+
+    private void markExecutionPlanShapeChanged() {
+        executionPlanShapeVersion++;
     }
 }
 

@@ -13,7 +13,7 @@ public final class FilterExecutionPlanCache {
     private FilterExecutionPlanCache() {
     }
 
-    public static FilterExecutionPlan getOrBuild(String key, Supplier<FilterExecutionPlan> factory) {
+    public static FilterExecutionPlan getOrBuild(FilterExecutionPlanCacheKey key, Supplier<FilterExecutionPlan> factory) {
         return defaultStore.getOrBuild(key, factory);
     }
 

@@ -1,6 +1,8 @@
 package laughing.man.commits;
 
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Separator;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -129,6 +131,28 @@ public class CacheConcurrencyTest {
         assertEquals(PojoLens.getStatsPlanCacheHits(), ((Number) snapshot.get("hits")).longValue());
         assertEquals(PojoLens.getStatsPlanCacheMisses(), ((Number) snapshot.get("misses")).longValue());
         assertEquals(PojoLens.getStatsPlanCacheEvictions(), ((Number) snapshot.get("evictions")).longValue());
+    }
+
+    @Test
+    public void statsPlanCacheShouldHitForEquivalentRuleShapesAcrossBuilders() {
+        List<Employee> employees = sampleEmployees();
+
+        PojoLens.newQueryBuilder(employees)
+                .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
+                .addGroup("department")
+                .addCount("total")
+                .initFilter()
+                .filter(DepartmentCount.class);
+
+        PojoLens.newQueryBuilder(employees)
+                .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
+                .addGroup("department")
+                .addCount("total")
+                .initFilter()
+                .filter(DepartmentCount.class);
+
+        assertEquals(1L, PojoLens.getStatsPlanCacheMisses());
+        assertEquals(1L, PojoLens.getStatsPlanCacheHits());
     }
 
     private static void runConcurrently(int threads,

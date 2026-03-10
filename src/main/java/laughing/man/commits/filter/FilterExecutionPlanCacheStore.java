@@ -25,9 +25,9 @@ public final class FilterExecutionPlanCacheStore {
     private volatile int maxEntries = DEFAULT_MAX_ENTRIES;
     private volatile long maxWeight = DEFAULT_MAX_WEIGHT;
     private volatile long expireAfterWriteMillis = DEFAULT_EXPIRE_AFTER_WRITE_MILLIS;
-    private volatile Cache<String, FilterExecutionPlan> cache = newCache();
+    private volatile Cache<FilterExecutionPlanCacheKey, FilterExecutionPlan> cache = newCache();
 
-    public FilterExecutionPlan getOrBuild(String key, Supplier<FilterExecutionPlan> factory) {
+    public FilterExecutionPlan getOrBuild(FilterExecutionPlanCacheKey key, Supplier<FilterExecutionPlan> factory) {
         if (!enabled || key == null) {
             return factory.get();
         }
@@ -145,8 +145,8 @@ public final class FilterExecutionPlanCacheStore {
         rebuildCache();
     }
 
-    private Cache<String, FilterExecutionPlan> newCache() {
-        Caffeine<String, FilterExecutionPlan> builder = typedBuilder();
+    private Cache<FilterExecutionPlanCacheKey, FilterExecutionPlan> newCache() {
+        Caffeine<FilterExecutionPlanCacheKey, FilterExecutionPlan> builder = typedBuilder();
 
         if (statsEnabled) {
             builder.recordStats();
@@ -154,7 +154,7 @@ public final class FilterExecutionPlanCacheStore {
 
         if (maxWeight > 0L) {
             builder = builder.maximumWeight(maxWeight)
-                    .weigher((String key, FilterExecutionPlan value) -> Math.max(1, key.length()));
+                    .weigher((FilterExecutionPlanCacheKey key, FilterExecutionPlan value) -> key.weight());
         } else {
             builder = builder.maximumSize(maxEntries);
         }
@@ -168,7 +168,7 @@ public final class FilterExecutionPlanCacheStore {
 
     private void rebuildCache() {
         synchronized (mutationLock) {
-            Map<String, FilterExecutionPlan> entries = new LinkedHashMap<>(cache.asMap());
+            Map<FilterExecutionPlanCacheKey, FilterExecutionPlan> entries = new LinkedHashMap<>(cache.asMap());
             cache = newCache();
             cache.putAll(entries);
         }

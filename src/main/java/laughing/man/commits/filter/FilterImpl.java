@@ -13,7 +13,6 @@ import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
 import laughing.man.commits.util.ReflectionUtil;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +31,8 @@ public class FilterImpl implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(FilterImpl.class);
 
     private volatile FilterQueryBuilder builderState;
+    private volatile FilterExecutionPlanCacheKey planCacheKey;
+    private volatile long planCacheKeyVersion = Long.MIN_VALUE;
 
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
@@ -213,7 +214,7 @@ public class FilterImpl implements Filter {
         if (!groupedQuery && !isStatsQuery(executionBuilder)) {
             return core.buildExecutionPlan();
         }
-        String key = planCacheKey(executionBuilder);
+        FilterExecutionPlanCacheKey key = planCacheKey(executionBuilder);
         return executionBuilder.getExecutionPlanCache().getOrBuild(key, core::buildExecutionPlan);
     }
 
@@ -229,28 +230,16 @@ public class FilterImpl implements Filter {
                 || !builder.getHavingAnyOfGroups().isEmpty();
     }
 
-    private String planCacheKey(FilterQueryBuilder builder) {
-        StringBuilder sb = new StringBuilder(256);
-        sb.append("schema=").append(schemaKey(builder)).append('|');
-        appendSortedMap(sb, "filters", builder.getFilterFields());
-        appendSortedMap(sb, "clauses", builder.getFilterClause());
-        appendSortedMap(sb, "separators", builder.getFilterSeparator());
-        appendSortedMap(sb, "dates", builder.getFilterDateFormats());
-        appendSortedMap(sb, "havingFields", builder.getHavingFields());
-        appendSortedMap(sb, "havingClauses", builder.getHavingClause());
-        appendSortedMap(sb, "havingSeparators", builder.getHavingSeparator());
-        appendSortedMap(sb, "havingDates", builder.getHavingDateFormats());
-        appendSortedMap(sb, "groups", builder.getGroupFields());
-        appendSortedMap(sb, "orders", builder.getOrderFields());
-        appendSortedMap(sb, "distinct", builder.getDistinctFields());
-        appendIndexedList(sb, "returns", builder.getReturnFields());
-        appendTimeBuckets(sb, "timeBuckets", builder.getTimeBuckets());
-        appendMetrics(sb, "metrics", builder.getMetrics());
-        appendRuleGroups(sb, "allOf", builder.getAllOfGroups());
-        appendRuleGroups(sb, "anyOf", builder.getAnyOfGroups());
-        appendRuleGroups(sb, "havingAllOf", builder.getHavingAllOfGroups());
-        appendRuleGroups(sb, "havingAnyOf", builder.getHavingAnyOfGroups());
-        return sb.toString();
+    private FilterExecutionPlanCacheKey planCacheKey(FilterQueryBuilder builder) {
+        long shapeVersion = builder.getExecutionPlanShapeVersion();
+        FilterExecutionPlanCacheKey cached = planCacheKey;
+        if (cached != null && planCacheKeyVersion == shapeVersion) {
+            return cached;
+        }
+        FilterExecutionPlanCacheKey computed = FilterExecutionPlanCacheKey.from(builder);
+        planCacheKey = computed;
+        planCacheKeyVersion = shapeVersion;
+        return computed;
     }
 
     private void emitOrderStage(FilterQueryBuilder builder, long startedNanos, int beforeCount, int afterCount) {
@@ -281,110 +270,6 @@ public class FilterImpl implements Filter {
                 afterCount,
                 metadata
         );
-    }
-
-    private String schemaKey(FilterQueryBuilder builder) {
-        if (builder.getRows() == null || builder.getRows().isEmpty()) {
-            return "empty";
-        }
-        QueryRow row = builder.getRows().get(0);
-        if (row == null || row.getFields() == null) {
-            return "empty";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < row.getFields().size(); i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            sb.append(row.getFields().get(i).getFieldName());
-        }
-        return sb.toString();
-    }
-
-    private <K, V> void appendSortedMap(StringBuilder sb, String label, Map<K, V> map) {
-        sb.append(label).append('=');
-        List<Map.Entry<K, V>> entries = new ArrayList<>(map.entrySet());
-        entries.sort(Comparator.comparing(entry -> String.valueOf(entry.getKey())));
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<K, V> entry = entries.get(i);
-            if (i > 0) {
-                sb.append(',');
-            }
-            sb.append(String.valueOf(entry.getKey()))
-                    .append(':')
-                    .append(entry.getValue());
-        }
-        sb.append('|');
-    }
-
-    private void appendIndexedList(StringBuilder sb, String label, List<String> values) {
-        sb.append(label).append('=');
-        for (int i = 0; i < values.size(); i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            sb.append(i).append(':').append(values.get(i));
-        }
-        sb.append('|');
-    }
-
-    private void appendTimeBuckets(StringBuilder sb, String label, Map<String, QueryTimeBucket> buckets) {
-        sb.append(label).append('=');
-        List<Map.Entry<String, QueryTimeBucket>> entries = new ArrayList<>(buckets.entrySet());
-        entries.sort(Map.Entry.comparingByKey());
-        for (int i = 0; i < entries.size(); i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            Map.Entry<String, QueryTimeBucket> entry = entries.get(i);
-            QueryTimeBucket bucket = entry.getValue();
-            sb.append(entry.getKey())
-                    .append(':')
-                    .append(bucket.getDateField())
-                    .append(':')
-                    .append(bucket.getPreset().explainToken());
-        }
-        sb.append('|');
-    }
-
-    private void appendMetrics(StringBuilder sb, String label, List<QueryMetric> metrics) {
-        sb.append(label).append('=');
-        for (int i = 0; i < metrics.size(); i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            QueryMetric metric = metrics.get(i);
-            sb.append(metric.getMetric())
-                    .append(':')
-                    .append(metric.getField())
-                    .append(':')
-                    .append(metric.getAlias());
-        }
-        sb.append('|');
-    }
-
-    private void appendRuleGroups(StringBuilder sb, String label, List<List<QueryRule>> groups) {
-        sb.append(label).append('=');
-        for (int g = 0; g < groups.size(); g++) {
-            if (g > 0) {
-                sb.append(';');
-            }
-            List<QueryRule> group = groups.get(g);
-            for (int i = 0; i < group.size(); i++) {
-                QueryRule rule = group.get(i);
-                if (i > 0) {
-                    sb.append('&');
-                }
-                sb.append(rule.getColumn())
-                        .append(':')
-                        .append(rule.getClause())
-                        .append(':')
-                        .append(rule.getValue())
-                        .append(':')
-                        .append(rule.getDateFormat());
-            }
-        }
-        sb.append('|');
     }
 
     /**
