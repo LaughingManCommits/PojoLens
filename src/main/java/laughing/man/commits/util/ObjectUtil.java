@@ -10,232 +10,310 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.Year;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 /**
- * Value casting and comparison helpers used by the filtering engine.
+ * High-performance value casting and comparison helpers used by the filtering engine.
+ *
+ * Important:
+ * Date comparisons preserve old semantics:
+ * values are normalized according to the provided format before comparison.
  */
-public class ObjectUtil {
+public final class ObjectUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(ObjectUtil.class);
-    private static final Map<String, DateTimeFormatter> FORMATTER_CACHE = new ConcurrentHashMap<>();
+
+    private static final String DEFAULT_DATE_FORMAT = EngineDefaults.SDF;
+    private static final int DATE_PLAN_CACHE_MAX_ENTRIES = 16;
+    private static final int REGEX_CACHE_MAX_ENTRIES = 64;
 
     /**
-     * Compares a field value against one or more compare values.
+     * These are bounded internal memoization helpers, not part of the public runtime cache surface.
      */
-    public static boolean compareObject(Object fieldValue, Object compareObject,
-            Clauses clause, String dateFormat) {
+    private static final BoundedCache<String, DateFormatPlan> DATE_PLAN_CACHE =
+            new BoundedCache<>(DATE_PLAN_CACHE_MAX_ENTRIES);
+    private static final BoundedCache<String, Pattern> REGEX_CACHE =
+            new BoundedCache<>(REGEX_CACHE_MAX_ENTRIES);
+
+    private ObjectUtil() {
+    }
+
+    public static boolean compareObject(Object fieldValue,
+                                        Object compareObject,
+                                        Clauses clause,
+                                        String dateFormat) {
+        if (clause == null) {
+            return false;
+        }
+
         if (compareObject == null) {
-            if (Clauses.EQUAL.equals(clause)) {
-                return fieldValue == null;
-            }
-            if (Clauses.NOT_EQUAL.equals(clause)) {
-                return fieldValue != null;
-            }
-            return false;
+            return switch (clause) {
+                case EQUAL -> fieldValue == null;
+                case NOT_EQUAL -> fieldValue != null;
+                default -> false;
+            };
         }
-        boolean negatedSetClause = isNegatedSetClause(clause);
-        if (compareObject instanceof Map<?, ?> compareMap) {
-            return evaluateCollectionComparison(fieldValue, compareMap.values(), clause, dateFormat, negatedSetClause);
-        } else if (compareObject instanceof Collection<?> compareValues) {
-            return evaluateCollectionComparison(fieldValue, compareValues, clause, dateFormat, negatedSetClause);
-        } else if (compareObject instanceof Iterable<?> compareValues) {
-            return evaluateIterableComparison(fieldValue, compareValues, clause, dateFormat, negatedSetClause);
-        } else if (compareObject.getClass().isArray()) {
+
+        final boolean negatedSetClause = isNegatedSetClause(clause);
+
+        if (compareObject instanceof Map<?, ?> map) {
+            return evaluateIterableComparison(fieldValue, map.values(), clause, dateFormat, negatedSetClause);
+        }
+        if (compareObject instanceof Collection<?> collection) {
+            return evaluateIterableComparison(fieldValue, collection, clause, dateFormat, negatedSetClause);
+        }
+        if (compareObject instanceof Iterable<?> iterable) {
+            return evaluateIterableComparison(fieldValue, iterable, clause, dateFormat, negatedSetClause);
+        }
+        if (compareObject.getClass().isArray()) {
             return evaluateArrayComparison(fieldValue, compareObject, clause, dateFormat, negatedSetClause);
-        } else if (isScalarComparable(compareObject)) {
+        }
+        if (isScalarComparable(compareObject)) {
             return compare(fieldValue, compareObject, clause, dateFormat);
-        } else {
-            LOG.info("Could not cast/compare field as requested for filter "
-                    + "rule [" + compareObject.getClass().getSimpleName() + "]");
-            return false;
         }
-    }
 
-    /**
-     * Converts a value to string using default date formatting for dates.
-     */
-    public static String castToString(Object fieldValue) {
-        return castToString(fieldValue, null);
-    }
-
-    /**
-     * Converts a value to string using the provided date format when needed.
-     */
-    public static String castToString(Object fieldValue, String dateFormat) {
-        try {
-            if (fieldValue instanceof Date) {
-                String effectiveDateFormat = dateFormat;
-                if (StringUtil.isNull(effectiveDateFormat)) {
-                    effectiveDateFormat = EngineDefaults.SDF;
-                }
-                DateTimeFormatter formatter = formatter(effectiveDateFormat);
-                return formatDate((Date) fieldValue, formatter);
-            } else {
-                return String.valueOf(fieldValue);
-            }
-
-        } catch (Exception e) {
-            LOG.error("Failed to cast field[" + fieldValue + "]", e);
-        }
-        return null;
-    }
-
-    /**
-     * Compares single values after type normalization.
-     */
-    private static boolean compare(Object fieldValue, Object compareValue,
-            Clauses clause, String dateFormat) {
-        try {
-            if (clause == null) {
-                return false;
-            }
-            if (fieldValue instanceof Number) {
-                if (compareValue instanceof Number) {
-                    double fieldNumber = ((Number) fieldValue).doubleValue();
-                    double compareNumber = ((Number) compareValue).doubleValue();
-                    return compareNumbers(fieldNumber, compareNumber, clause);
-                } else {
-                    String value2 = castToString(compareValue);
-                    if (StringUtil.isNumber(value2)) {
-                        double fieldNumber = ((Number) fieldValue).doubleValue();
-                        double compareNumber = Double.parseDouble(value2);
-                        return compareNumbers(fieldNumber, compareNumber, clause);
-                    }
-                    LOG.warn("compareValue [" + compareValue + "] type "
-                            + "[" + compareValue.getClass().getSimpleName() + "] "
-                            + "is not a Convertible type Integer/Double/Float");
-                }
-            } else if (fieldValue instanceof Boolean) {
-                return compareBooleanValues((Boolean) fieldValue, compareValue, clause);
-            } else if (fieldValue instanceof String) {
-                return compareStringValues(fieldValue, compareValue, clause, dateFormat);
-            } else if (fieldValue instanceof Date) {
-                return compareDateValues(fieldValue, compareValue, clause, dateFormat);
-            }
-        } catch (Exception e) {
-            LOG.error("Failed to compare field[" + fieldValue + "] "
-                    + "with field [" + compareValue + "] "
-                    + "with clause [" + clause + "]", e);
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Could not cast/compare field as requested for filter rule [{}]",
+                    compareObject.getClass().getSimpleName());
         }
         return false;
     }
 
-    /**
-     * Generic helper for typed casts.
-     */
+    public static String castToString(Object fieldValue) {
+        return castToString(fieldValue, null);
+    }
+
+    public static String castToString(Object fieldValue, String dateFormat) {
+        try {
+            if (fieldValue instanceof Date date) {
+                return datePlan(dateFormat).format(date.toInstant());
+            }
+            if (fieldValue instanceof Instant instant) {
+                return datePlan(dateFormat).format(instant);
+            }
+            if (fieldValue instanceof ZonedDateTime zdt) {
+                return datePlan(dateFormat).format(zdt.toInstant());
+            }
+            if (fieldValue instanceof OffsetDateTime odt) {
+                return datePlan(dateFormat).format(odt.toInstant());
+            }
+            if (fieldValue instanceof LocalDateTime ldt) {
+                return datePlan(dateFormat).formatter().format(ldt);
+            }
+            if (fieldValue instanceof LocalDate ld) {
+                return datePlan(dateFormat).formatter().format(ld);
+            }
+            return String.valueOf(fieldValue);
+        } catch (Exception e) {
+            LOG.error("Failed to cast field [{}]", fieldValue, e);
+            return null;
+        }
+    }
+
     public static <T> T value(Object value, Class<T> cls) throws Exception {
         return cls.cast(value);
     }
 
-    /**
-     * Casts arbitrary input to the requested wrapper type when possible.
-     */
     public static <T> T castValue(Object fieldValue, Class<T> cls) {
         try {
             if (fieldValue == null || cls == null) {
                 return null;
             }
+
             if (cls.isInstance(fieldValue)) {
                 return cls.cast(fieldValue);
             }
-            String castValue = castToString(fieldValue, EngineDefaults.SDF);
-            if (castValue == null) {
-                return null;
+
+            if (cls == String.class) {
+                return cls.cast(castToString(fieldValue, DEFAULT_DATE_FORMAT));
             }
-            if (cls.equals(Integer.class)) {
-                return value(parseIntegerCompatible(castValue), cls);
-            } else if (cls.equals(Double.class)) {
-                return value(Double.valueOf(castValue), cls);
-            } else if (cls.equals(Float.class)) {
-                return value(Float.valueOf(castValue), cls);
-            } else if (cls.equals(Long.class)) {
-                return value(parseLongCompatible(castValue), cls);
-            } else if (cls.equals(Boolean.class)) {
-                Boolean parsed = StringUtil.parseBoolStrict(castValue);
-                return value(parsed != null && parsed, cls);
-            } else if (cls.equals(Date.class)) {
-                Date parsed = parseDateStrict(castValue, formatter(EngineDefaults.SDF));
-                return value(parsed, cls);
+
+            if (cls == Integer.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Integer.valueOf(n.intValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(parseIntegerCompatible(s));
             }
-            return value(castValue, cls);
+
+            if (cls == Long.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Long.valueOf(n.longValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(parseLongCompatible(s));
+            }
+
+            if (cls == Double.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Double.valueOf(n.doubleValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(Double.valueOf(s));
+            }
+
+            if (cls == Float.class) {
+                if (fieldValue instanceof Number n) {
+                    return cls.cast(Float.valueOf(n.floatValue()));
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                return s == null ? null : cls.cast(Float.valueOf(s));
+            }
+
+            if (cls == Boolean.class) {
+                if (fieldValue instanceof Boolean b) {
+                    return cls.cast(b);
+                }
+                String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+                Boolean parsed = StringUtil.parseBoolStrict(s);
+                return parsed == null ? null : cls.cast(parsed);
+            }
+
+            if (cls == Date.class) {
+                Long millis = normalizeToEpochMillis(fieldValue, DEFAULT_DATE_FORMAT);
+                return millis == null ? null : cls.cast(new Date(millis));
+            }
+
+            String s = castToString(fieldValue, DEFAULT_DATE_FORMAT);
+            return s == null ? null : value(s, cls);
+
         } catch (Exception e) {
-            String typeName = cls == null ? "null" : cls.getSimpleName();
-            LOG.error("Cannot Cast to value[" + fieldValue + "] "
-                    + "to Type [" + typeName + "] ", e);
-        }
-        return null;
-    }
-
-    private ObjectUtil() {
-    }
-
-    private static DateTimeFormatter formatter(String dateFormat) {
-        return FORMATTER_CACHE.computeIfAbsent(dateFormat, DateTimeFormatter::ofPattern);
-    }
-
-    private static Date normalizeDate(Object compareValue, DateTimeFormatter formatter) {
-        if (compareValue instanceof Date) {
-            return tryParseDate(formatDate((Date) compareValue, formatter), formatter);
-        }
-        String value = castToString(compareValue);
-        if (value == null) {
+            LOG.error("Cannot cast value [{}] to type [{}]",
+                    fieldValue,
+                    cls == null ? "null" : cls.getSimpleName(),
+                    e);
             return null;
         }
-        return tryParseDate(value, formatter);
+    }
+
+    private static boolean compare(Object fieldValue,
+                                   Object compareValue,
+                                   Clauses clause,
+                                   String dateFormat) {
+        if (fieldValue == null || clause == null) {
+            return false;
+        }
+
+        try {
+            if (fieldValue instanceof Number n) {
+                return compareNumberValues(n, compareValue, clause);
+            }
+            if (fieldValue instanceof Boolean b) {
+                return compareBooleanValues(b, compareValue, clause);
+            }
+            if (fieldValue instanceof String s) {
+                return compareStringValues(s, compareValue, clause, dateFormat);
+            }
+            if (isDateLike(fieldValue)) {
+                return compareDateValues(fieldValue, compareValue, clause, dateFormat);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to compare field [{}] with field [{}] with clause [{}]",
+                    fieldValue, compareValue, clause, e);
+        }
+
+        return false;
+    }
+
+    private static DateFormatPlan datePlan(String dateFormat) {
+        final String effective = (dateFormat == null || dateFormat.isEmpty())
+                ? DEFAULT_DATE_FORMAT
+                : dateFormat;
+        return DATE_PLAN_CACHE.getOrCompute(effective, DateFormatPlan::create);
+    }
+
+    private static Pattern regexPattern(String regex) {
+        return REGEX_CACHE.getOrCompute(regex, Pattern::compile);
+    }
+
+    private static ZoneId systemZone() {
+        return ZoneId.systemDefault();
+    }
+
+    static void clearInternalCaches() {
+        DATE_PLAN_CACHE.clear();
+        REGEX_CACHE.clear();
+    }
+
+    static int internalDatePlanCacheSize() {
+        return DATE_PLAN_CACHE.size();
+    }
+
+    static int internalRegexCacheSize() {
+        return REGEX_CACHE.size();
+    }
+
+    private static boolean compareNumberValues(Number fieldValue,
+                                               Object compareValue,
+                                               Clauses clause) {
+        final double left = fieldValue.doubleValue();
+
+        if (compareValue instanceof Number n) {
+            return compareNumbers(left, n.doubleValue(), clause);
+        }
+
+        final String s = (compareValue instanceof String str) ? str : castToString(compareValue);
+        if (s != null && StringUtil.isNumber(s)) {
+            return compareNumbers(left, Double.parseDouble(s), clause);
+        }
+
+        if (LOG.isWarnEnabled() && compareValue != null) {
+            LOG.warn("compareValue [{}] type [{}] is not a convertible numeric type",
+                    compareValue, compareValue.getClass().getSimpleName());
+        }
+        return false;
     }
 
     private static boolean compareNumbers(double left, double right, Clauses clause) {
         return switch (clause) {
             case BIGGER -> left > right;
-            case BIGGER_EQUAL -> left >= right;
-            case EQUAL -> left == right;
-            case IN -> left == right;
-            case NOT_BIGGER -> !(left > right);
+            case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
+            case EQUAL, IN -> left == right;
+            case NOT_BIGGER, SMALLER_EQUAL -> left <= right;
             case NOT_EQUAL -> left != right;
-            case NOT_SMALLER -> !(left < right);
             case SMALLER -> left < right;
-            case SMALLER_EQUAL -> left <= right;
             default -> false;
         };
     }
 
     private static Integer parseIntegerCompatible(String value) {
-        try {
-            return Integer.valueOf(value);
-        } catch (NumberFormatException ignore) {
-            return Double.valueOf(value).intValue();
+        final int len = value.length();
+        for (int i = 0; i < len; i++) {
+            char c = value.charAt(i);
+            if (c == '.' || c == 'e' || c == 'E') {
+                return (int) Double.parseDouble(value);
+            }
         }
+        return Integer.valueOf(value);
     }
 
     private static Long parseLongCompatible(String value) {
-        try {
-            return Long.valueOf(value);
-        } catch (NumberFormatException ignore) {
-            return Double.valueOf(value).longValue();
+        final int len = value.length();
+        for (int i = 0; i < len; i++) {
+            char c = value.charAt(i);
+            if (c == '.' || c == 'e' || c == 'E') {
+                return (long) Double.parseDouble(value);
+            }
         }
+        return Long.valueOf(value);
     }
 
     private static boolean isNegatedSetClause(Clauses clause) {
-        return Clauses.NOT_BIGGER.equals(clause)
-                || Clauses.NOT_EQUAL.equals(clause)
-                || Clauses.NOT_SMALLER.equals(clause);
-    }
-
-    private static boolean evaluateCollectionComparison(Object fieldValue,
-                                                        Collection<?> compareValues,
-                                                        Clauses clause,
-                                                        String dateFormat,
-                                                        boolean negatedSetClause) {
-        return evaluateIterableComparison(fieldValue, compareValues, clause, dateFormat, negatedSetClause);
+        return clause == Clauses.NOT_BIGGER
+                || clause == Clauses.NOT_EQUAL
+                || clause == Clauses.NOT_SMALLER;
     }
 
     private static boolean evaluateIterableComparison(Object fieldValue,
@@ -251,6 +329,7 @@ public class ObjectUtil {
             }
             return true;
         }
+
         for (Object compareValue : compareValues) {
             if (compare(fieldValue, compareValue, clause, dateFormat)) {
                 return true;
@@ -264,7 +343,26 @@ public class ObjectUtil {
                                                    Clauses clause,
                                                    String dateFormat,
                                                    boolean negatedSetClause) {
-        int length = Array.getLength(compareArray);
+        if (compareArray instanceof Object[] objects) {
+            if (negatedSetClause) {
+                for (Object compareValue : objects) {
+                    if (!compare(fieldValue, compareValue, clause, dateFormat)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            for (Object compareValue : objects) {
+                if (compare(fieldValue, compareValue, clause, dateFormat)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        final int length = Array.getLength(compareArray);
+
         if (negatedSetClause) {
             for (int i = 0; i < length; i++) {
                 if (!compare(fieldValue, Array.get(compareArray, i), clause, dateFormat)) {
@@ -273,6 +371,7 @@ public class ObjectUtil {
             }
             return true;
         }
+
         for (int i = 0; i < length; i++) {
             if (compare(fieldValue, Array.get(compareArray, i), clause, dateFormat)) {
                 return true;
@@ -284,47 +383,42 @@ public class ObjectUtil {
     private static boolean compareBooleanValues(boolean fieldValue,
                                                 Object compareValue,
                                                 Clauses clause) {
-        String value = castToString(compareValue);
-        Boolean compareBool = StringUtil.parseBoolStrict(value);
-        if (compareBool == null) {
-            LOG.warn("compareValue [" + value + "] is not a Convertible type Boolean");
-            return false;
-        }
-        if (Clauses.EQUAL.equals(clause)) {
-            return fieldValue == compareBool;
-        }
-        if (Clauses.IN.equals(clause)) {
-            return fieldValue == compareBool;
-        }
-        if (Clauses.NOT_EQUAL.equals(clause)) {
-            return fieldValue != compareBool;
-        }
-        return false;
-    }
+        final Boolean right;
 
-    private static boolean compareStringValues(Object fieldValue,
-                                               Object compareValue,
-                                               Clauses clause,
-                                               String dateFormat) {
-        String value1 = castToString(fieldValue, dateFormat);
-        String value2 = castToString(compareValue, dateFormat);
-        if (value1 == null) {
-            LOG.warn("fieldValue [" + fieldValue + "] type "
-                    + "[" + fieldValue.getClass().getSimpleName() + "] "
-                    + "is not a Convertible type String");
-            if (value2 == null && compareValue != null) {
-                LOG.warn("compareValue [" + compareValue + "] type "
-                        + "[" + compareValue.getClass().getSimpleName() + "] "
-                        + "is not a Convertible type String");
+        if (compareValue instanceof Boolean b) {
+            right = b;
+        } else {
+            String s = (compareValue instanceof String str) ? str : castToString(compareValue);
+            right = StringUtil.parseBoolStrict(s);
+        }
+
+        if (right == null) {
+            if (LOG.isWarnEnabled()) {
+                LOG.warn("compareValue [{}] is not a convertible boolean", compareValue);
             }
             return false;
         }
+
         return switch (clause) {
-            case EQUAL -> value1.equals(value2);
-            case IN -> value1.equals(value2);
-            case NOT_EQUAL -> !value1.equals(value2);
-            case CONTAINS -> value2 != null && value1.contains(value2);
-            case MATCHES -> value2 != null && value1.matches(value2);
+            case EQUAL, IN -> fieldValue == right;
+            case NOT_EQUAL -> fieldValue != right;
+            default -> false;
+        };
+    }
+
+    private static boolean compareStringValues(String fieldValue,
+                                               Object compareValue,
+                                               Clauses clause,
+                                               String dateFormat) {
+        final String right = (compareValue instanceof String s)
+                ? s
+                : castToString(compareValue, dateFormat);
+
+        return switch (clause) {
+            case EQUAL, IN -> Objects.equals(fieldValue, right);
+            case NOT_EQUAL -> !Objects.equals(fieldValue, right);
+            case CONTAINS -> right != null && fieldValue.contains(right);
+            case MATCHES -> right != null && regexPattern(right).matcher(fieldValue).matches();
             default -> false;
         };
     }
@@ -333,72 +427,384 @@ public class ObjectUtil {
                                              Object compareValue,
                                              Clauses clause,
                                              String dateFormat) {
-        String format = StringUtil.isNull(dateFormat) ? EngineDefaults.SDF : dateFormat;
-        DateTimeFormatter formatter = formatter(format);
-        Date compareDate = normalizeDate(compareValue, formatter);
-        if (compareDate == null) {
-            LOG.warn("compareValue [" + compareValue + "] is not a Convertible type Date");
+        final Long left = normalizeToEpochMillis(fieldValue, dateFormat);
+        final Long right = normalizeToEpochMillis(compareValue, dateFormat);
+
+        if (left == null) {
+            if (LOG.isWarnEnabled()) {
+                LOG.warn("fieldValue [{}] is not a convertible date", fieldValue);
+            }
             return false;
         }
-        Date fieldDate = tryParseDate(formatDate((Date) fieldValue, formatter), formatter);
-        if (fieldDate == null) {
-            LOG.warn("fieldValue [" + fieldValue + "] is not a Convertible type Date");
+
+        if (right == null) {
+            if (LOG.isWarnEnabled()) {
+                LOG.warn("compareValue [{}] is not a convertible date", compareValue);
+            }
             return false;
         }
+
         return switch (clause) {
-            case BIGGER -> fieldDate.after(compareDate);
-            case BIGGER_EQUAL -> fieldDate.equals(compareDate) || fieldDate.after(compareDate);
-            case EQUAL -> fieldDate.equals(compareDate);
-            case IN -> fieldDate.equals(compareDate);
-            case NOT_BIGGER -> !fieldDate.after(compareDate);
-            case NOT_EQUAL -> !fieldDate.equals(compareDate);
-            case NOT_SMALLER -> !fieldDate.before(compareDate);
-            case SMALLER -> fieldDate.before(compareDate);
-            case SMALLER_EQUAL -> fieldDate.before(compareDate) || fieldDate.equals(compareDate);
+            case BIGGER -> left > right;
+            case BIGGER_EQUAL -> left >= right;
+            case EQUAL, IN -> left.longValue() == right.longValue();
+            case NOT_BIGGER -> left <= right;
+            case NOT_EQUAL -> left.longValue() != right.longValue();
+            case NOT_SMALLER -> left >= right;
+            case SMALLER -> left < right;
+            case SMALLER_EQUAL -> left <= right;
             default -> false;
         };
+    }
+
+    /**
+     * Preserves old semantics:
+     * normalize according to the active date format before comparing.
+     */
+    private static Long normalizeToEpochMillis(Object value, String dateFormat) {
+        if (value == null) {
+            return null;
+        }
+        return datePlan(dateFormat).normalize(value);
     }
 
     private static boolean isScalarComparable(Object value) {
         return value instanceof Number
                 || value instanceof Boolean
                 || value instanceof String
-                || value instanceof Date;
+                || isDateLike(value);
     }
 
-    private static String formatDate(Date value, DateTimeFormatter formatter) {
-        return formatter.format(Instant.ofEpochMilli(value.getTime()).atZone(ZoneId.systemDefault()));
+    private static boolean isDateLike(Object value) {
+        return value instanceof Date
+                || value instanceof Instant
+                || value instanceof LocalDate
+                || value instanceof LocalDateTime
+                || value instanceof OffsetDateTime
+                || value instanceof ZonedDateTime;
     }
 
-    private static Date tryParseDate(String value, DateTimeFormatter formatter) {
-        try {
-            return parseDateStrict(value, formatter);
-        } catch (DateTimeParseException e) {
-            return null;
+    private enum DatePlanType {
+        YEAR,
+        YEAR_MONTH,
+        DATE,
+        DATE_HOUR,
+        DATE_MINUTE,
+        DATE_SECOND,
+        GENERIC
+    }
+
+    private static final class DateFormatPlan {
+        private final String pattern;
+        private final DateTimeFormatter formatter;
+        private final DatePlanType type;
+
+        private DateFormatPlan(String pattern, DateTimeFormatter formatter, DatePlanType type) {
+            this.pattern = pattern;
+            this.formatter = formatter;
+            this.type = type;
+        }
+
+        static DateFormatPlan create(String pattern) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
+            return new DateFormatPlan(pattern, formatter, detectType(pattern));
+        }
+
+        DateTimeFormatter formatter() {
+            return formatter;
+        }
+
+        String format(Instant instant) {
+            return formatter.format(instant.atZone(systemZone()));
+        }
+
+        Long normalize(Object value) {
+            try {
+                ZoneId systemZone = systemZone();
+                if (value instanceof Date d) {
+                    return normalizeInstant(d.toInstant(), systemZone);
+                }
+                if (value instanceof Instant instant) {
+                    return normalizeInstant(instant, systemZone);
+                }
+                if (value instanceof ZonedDateTime zdt) {
+                    return normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
+                }
+                if (value instanceof OffsetDateTime odt) {
+                    return normalizeInstant(odt.toInstant(), systemZone);
+                }
+                if (value instanceof LocalDateTime ldt) {
+                    return normalizeLocalDateTime(ldt, systemZone);
+                }
+                if (value instanceof LocalDate ld) {
+                    return normalizeLocalDate(ld, systemZone);
+                }
+                if (value instanceof String s) {
+                    return normalizeString(s, systemZone);
+                }
+
+                String s = String.valueOf(value);
+                return normalizeString(s, systemZone);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        private Long normalizeInstant(Instant instant, ZoneId systemZone) {
+            return normalizeZoned(instant.atZone(systemZone), systemZone);
+        }
+
+        private Long normalizeZoned(ZonedDateTime zdt, ZoneId systemZone) {
+            return switch (type) {
+                case YEAR -> Year.of(zdt.getYear())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case YEAR_MONTH -> YearMonth.of(zdt.getYear(), zdt.getMonthValue())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE -> zdt.toLocalDate()
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_HOUR -> LocalDateTime.of(
+                                zdt.getYear(),
+                                zdt.getMonthValue(),
+                                zdt.getDayOfMonth(),
+                                zdt.getHour(),
+                                0,
+                                0,
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_MINUTE -> LocalDateTime.of(
+                                zdt.getYear(),
+                                zdt.getMonthValue(),
+                                zdt.getDayOfMonth(),
+                                zdt.getHour(),
+                                zdt.getMinute(),
+                                0,
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_SECOND -> LocalDateTime.of(
+                                zdt.getYear(),
+                                zdt.getMonthValue(),
+                                zdt.getDayOfMonth(),
+                                zdt.getHour(),
+                                zdt.getMinute(),
+                                zdt.getSecond(),
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case GENERIC -> normalizeGeneric(zdt, systemZone);
+            };
+        }
+
+        private Long normalizeLocalDateTime(LocalDateTime ldt, ZoneId systemZone) {
+            return switch (type) {
+                case YEAR -> Year.of(ldt.getYear())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case YEAR_MONTH -> YearMonth.of(ldt.getYear(), ldt.getMonthValue())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE -> ldt.toLocalDate()
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_HOUR -> LocalDateTime.of(
+                                ldt.getYear(),
+                                ldt.getMonthValue(),
+                                ldt.getDayOfMonth(),
+                                ldt.getHour(),
+                                0,
+                                0,
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_MINUTE -> LocalDateTime.of(
+                                ldt.getYear(),
+                                ldt.getMonthValue(),
+                                ldt.getDayOfMonth(),
+                                ldt.getHour(),
+                                ldt.getMinute(),
+                                0,
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_SECOND -> LocalDateTime.of(
+                                ldt.getYear(),
+                                ldt.getMonthValue(),
+                                ldt.getDayOfMonth(),
+                                ldt.getHour(),
+                                ldt.getMinute(),
+                                ldt.getSecond(),
+                                0)
+                        .atZone(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case GENERIC -> normalizeGeneric(ldt.atZone(systemZone), systemZone);
+            };
+        }
+
+        private Long normalizeLocalDate(LocalDate ld, ZoneId systemZone) {
+            return switch (type) {
+                case YEAR -> Year.of(ld.getYear())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case YEAR_MONTH -> YearMonth.of(ld.getYear(), ld.getMonthValue())
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE, DATE_HOUR, DATE_MINUTE, DATE_SECOND -> ld
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case GENERIC -> normalizeGeneric(ld.atStartOfDay(systemZone), systemZone);
+            };
+        }
+
+        private Long normalizeString(String value, ZoneId systemZone) {
+            return switch (type) {
+                case YEAR -> Year.parse(value, formatter)
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case YEAR_MONTH -> YearMonth.parse(value, formatter)
+                        .atDay(1)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE -> LocalDate.parse(value, formatter)
+                        .atStartOfDay(systemZone)
+                        .toInstant()
+                        .toEpochMilli();
+                case DATE_HOUR, DATE_MINUTE, DATE_SECOND, GENERIC -> parseGenericString(value, systemZone);
+            };
+        }
+
+        private Long parseGenericString(String value, ZoneId systemZone) {
+            TemporalAccessor parsed = formatter.parseBest(
+                    value,
+                    ZonedDateTime::from,
+                    OffsetDateTime::from,
+                    LocalDateTime::from,
+                    LocalDate::from
+            );
+
+            if (parsed instanceof ZonedDateTime zdt) {
+                return normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
+            }
+            if (parsed instanceof OffsetDateTime odt) {
+                return normalizeInstant(odt.toInstant(), systemZone);
+            }
+            if (parsed instanceof LocalDateTime ldt) {
+                return normalizeLocalDateTime(ldt, systemZone);
+            }
+            if (parsed instanceof LocalDate ld) {
+                return normalizeLocalDate(ld, systemZone);
+            }
+            return Instant.from(parsed).toEpochMilli();
+        }
+
+        /**
+         * Exact semantic fallback:
+         * format the value using the formatter, then parse it back.
+         */
+        private Long normalizeGeneric(ZonedDateTime value, ZoneId systemZone) {
+            String formatted = formatter.format(value);
+            TemporalAccessor parsed = formatter.parseBest(
+                    formatted,
+                    ZonedDateTime::from,
+                    OffsetDateTime::from,
+                    LocalDateTime::from,
+                    LocalDate::from
+            );
+
+            if (parsed instanceof ZonedDateTime zdt) {
+                return zdt.toInstant().toEpochMilli();
+            }
+            if (parsed instanceof OffsetDateTime odt) {
+                return odt.toInstant().toEpochMilli();
+            }
+            if (parsed instanceof LocalDateTime ldt) {
+                return ldt.atZone(systemZone).toInstant().toEpochMilli();
+            }
+            if (parsed instanceof LocalDate ld) {
+                return ld.atStartOfDay(systemZone).toInstant().toEpochMilli();
+            }
+            return Instant.from(parsed).toEpochMilli();
+        }
+
+        private static DatePlanType detectType(String pattern) {
+            return switch (pattern) {
+                case "yyyy" -> DatePlanType.YEAR;
+                case "yyyy-MM" -> DatePlanType.YEAR_MONTH;
+                case "yyyy-MM-dd" -> DatePlanType.DATE;
+                case "yyyy-MM-dd HH" -> DatePlanType.DATE_HOUR;
+                case "yyyy-MM-dd HH:mm" -> DatePlanType.DATE_MINUTE;
+                case "yyyy-MM-dd HH:mm:ss" -> DatePlanType.DATE_SECOND;
+                default -> DatePlanType.GENERIC;
+            };
+        }
+
+        @Override
+        public String toString() {
+            return "DateFormatPlan[" + pattern + "," + type + ']';
         }
     }
 
-    private static Date parseDateStrict(String value, DateTimeFormatter formatter) {
-        TemporalAccessor parsed = formatter.parseBest(
-                value,
-                ZonedDateTime::from,
-                OffsetDateTime::from,
-                LocalDateTime::from,
-                LocalDate::from
-        );
-        if (parsed instanceof ZonedDateTime zonedDateTime) {
-            return Date.from(zonedDateTime.toInstant());
+    private static final class BoundedCache<K, V> {
+        private final LinkedHashMap<K, V> delegate;
+
+        private BoundedCache(int maxEntries) {
+            this.delegate = new LinkedHashMap<>(maxEntries, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+                    return size() > maxEntries;
+                }
+            };
         }
-        if (parsed instanceof OffsetDateTime offsetDateTime) {
-            return Date.from(offsetDateTime.toInstant());
+
+        private V getOrCompute(K key, Function<? super K, ? extends V> factory) {
+            synchronized (delegate) {
+                V cached = delegate.get(key);
+                if (cached != null) {
+                    return cached;
+                }
+                V created = factory.apply(key);
+                delegate.put(key, created);
+                return created;
+            }
         }
-        if (parsed instanceof LocalDateTime localDateTime) {
-            return Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+
+        private void clear() {
+            synchronized (delegate) {
+                delegate.clear();
+            }
         }
-        if (parsed instanceof LocalDate localDate) {
-            return Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        private int size() {
+            synchronized (delegate) {
+                return delegate.size();
+            }
         }
-        return Date.from(Instant.from(parsed));
     }
 }
-

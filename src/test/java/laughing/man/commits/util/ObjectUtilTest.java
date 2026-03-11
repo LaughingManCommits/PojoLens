@@ -9,8 +9,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,6 +81,38 @@ class ObjectUtilTest {
     void castValueShouldReturnInputWhenAlreadyRequestedType() {
         Date now = new Date();
         assertSame(now, ObjectUtil.castValue(now, Date.class));
+    }
+
+    @Test
+    void castToStringShouldRespectCurrentJvmDefaultTimezone() {
+        Date epoch = new Date(0L);
+        TimeZone original = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            String utc = ObjectUtil.castToString(epoch, "yyyy-MM-dd HH:mm:ss");
+
+            TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"));
+            String honolulu = ObjectUtil.castToString(epoch, "yyyy-MM-dd HH:mm:ss");
+
+            assertEquals("1970-01-01 00:00:00", utc);
+            assertEquals("1969-12-31 14:00:00", honolulu);
+            assertNotEquals(utc, honolulu);
+        } finally {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void internalMemoizationCachesShouldRemainBounded() {
+        ObjectUtil.clearInternalCaches();
+
+        for (int i = 0; i < 128; i++) {
+            ObjectUtil.castToString(new Date(0L), "yyyy-MM-dd HH:mm:ss'fmt" + i + "'");
+            ObjectUtil.compareObject("value", "value" + i, Clauses.MATCHES, null);
+        }
+
+        assertTrue(ObjectUtil.internalDatePlanCacheSize() <= 16);
+        assertTrue(ObjectUtil.internalRegexCacheSize() <= 64);
     }
 }
 
