@@ -64,6 +64,12 @@ Cache concurrency scenario:
 java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
 ```
 
+Hotspot microbenchmark suite:
+
+```bash
+java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
+```
+
 ## Representative Budgets
 
 The budget files are the source of truth:
@@ -108,6 +114,27 @@ Why the baseline is narrow:
 - chart payload mapping is partly renderer-contract work, not just query execution
 
 This keeps the comparison honest instead of forcing fake apples-to-apples claims.
+
+## Hotspot Microbenchmarks
+
+The hotspot suite isolates the conversion and cache paths that the end-to-end suites intentionally blur together:
+- `HotspotMicroJmhBenchmark.reflectionToDomainRows`
+- `HotspotMicroJmhBenchmark.reflectionToClassList`
+- `HotspotMicroJmhBenchmark.statsPlanCacheHit`
+- `HotspotMicroJmhBenchmark.groupedMultiMetricAggregation`
+
+Use the hotspot suite when tuning reflection flattening, typed projection, execution-plan cache hits, or grouped multi-metric aggregation.
+
+Allocation-focused local run examples:
+
+```bash
+java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
+java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+```
+
+For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
 
 ## Semantic Parity Guardrails
 

@@ -1,0 +1,276 @@
+package laughing.man.commits.benchmark;
+
+import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.Separator;
+import laughing.man.commits.filter.FilterCore;
+import laughing.man.commits.filter.FilterExecutionPlan;
+import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
+import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.util.ReflectionUtil;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+public class HotspotMicroJmhBenchmark {
+
+    @Benchmark
+    public List<QueryRow> reflectionToDomainRows(FlattenState state) {
+        return ReflectionUtil.toDomainRows(state.source);
+    }
+
+    @Benchmark
+    public List<ProjectionTarget> reflectionToClassList(ProjectionState state) {
+        return ReflectionUtil.toClassList(ProjectionTarget.class, state.rows);
+    }
+
+    @Benchmark
+    public FilterExecutionPlan statsPlanCacheHit(StatsPlanCacheState state) {
+        return state.executionPlanCache.getOrBuild(state.cacheKey, state.planBuilder);
+    }
+
+    @Benchmark
+    public List<QueryRow> groupedMultiMetricAggregation(AggregationState state) {
+        return state.core.aggregateMetrics(state.rows, state.plan);
+    }
+
+    @State(Scope.Thread)
+    public static class FlattenState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private List<FlattenEmployee> source;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            source = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                source.add(new FlattenEmployee(
+                        "emp" + i,
+                        new Date(BenchmarkProfiles.BASE_EPOCH_MILLIS + (i * 60_000L)),
+                        BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 701L, i, 250_000),
+                        new FlattenDepartment(
+                                "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 702L, i, 24),
+                                "region" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 703L, i, 6)
+                        ),
+                        new FlattenManager(
+                                "mgr" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 704L, i, 64),
+                                BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 705L, i, 8)
+                        )
+                ));
+            }
+
+            ReflectionUtil.toDomainRows(List.of(source.get(0)));
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class ProjectionState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private List<QueryRow> rows;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            rows = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                rows.add(projectionRow(i));
+            }
+
+            ReflectionUtil.toClassList(ProjectionTarget.class, List.of(rows.get(0)));
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class StatsPlanCacheState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private FilterExecutionPlanCacheStore executionPlanCache;
+        private FilterExecutionPlanCacheKey cacheKey;
+        private Supplier<FilterExecutionPlan> planBuilder;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            executionPlanCache = new FilterExecutionPlanCacheStore();
+            FilterQueryBuilder builder = new FilterQueryBuilder(statsSource(size), executionPlanCache)
+                    .addRule("integerField", 200, Clauses.BIGGER_EQUAL, Separator.AND)
+                    .addDistinct("stringField")
+                    .addOrder("integerField", 1)
+                    .addGroup("stringField")
+                    .addField("stringField")
+                    .addCount("rowCount")
+                    .addMetric("integerField", Metric.SUM, "sumValue")
+                    .addMetric("integerField", Metric.AVG, "avgValue");
+
+            FilterCore core = new FilterCore(builder);
+            cacheKey = FilterExecutionPlanCacheKey.from(builder);
+            planBuilder = core::buildExecutionPlan;
+
+            executionPlanCache.getOrBuild(cacheKey, planBuilder);
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class AggregationState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private FilterCore core;
+        private FilterExecutionPlan plan;
+        private List<QueryRow> rows;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            FilterQueryBuilder builder = new FilterQueryBuilder(statsSource(size))
+                    .addGroup("stringField")
+                    .addCount("rowCount")
+                    .addMetric("integerField", Metric.SUM, "sumValue")
+                    .addMetric("integerField", Metric.AVG, "avgValue")
+                    .addMetric("integerField", Metric.MIN, "minValue")
+                    .addMetric("integerField", Metric.MAX, "maxValue");
+
+            core = new FilterCore(builder);
+            plan = core.buildExecutionPlan();
+            rows = core.getBuilder().getRows();
+        }
+    }
+
+    private static List<BenchmarkFoo> statsSource(int size) {
+        ArrayList<BenchmarkFoo> source = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            source.add(new BenchmarkFoo(
+                    "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 801L, i, 24),
+                    new Date(BenchmarkProfiles.STATS_BASE_EPOCH_MILLIS + (i * 86_400_000L)),
+                    BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 802L, i, 1_000)
+            ));
+        }
+        return source;
+    }
+
+    private static QueryRow projectionRow(int index) {
+        ArrayList<QueryField> fields = new ArrayList<>(6);
+        fields.add(queryField(
+                "department.name",
+                "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 901L, index, 24)));
+        fields.add(queryField(
+                "department.region",
+                "region" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 902L, index, 6)));
+        fields.add(queryField(
+                "totals.rowCount",
+                (long) (BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 903L, index, 400) + 1)));
+        fields.add(queryField(
+                "totals.avgValue",
+                BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 904L, index, 2_000) / 10.0d));
+        fields.add(queryField("rank", BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 905L, index, 100)));
+        fields.add(queryField("snapshotDate", new Date(BenchmarkProfiles.STATS_BASE_EPOCH_MILLIS + (index * 86_400_000L))));
+
+        QueryRow row = new QueryRow();
+        row.setFields(fields);
+        return row;
+    }
+
+    private static QueryField queryField(String fieldName, Object value) {
+        QueryField field = new QueryField();
+        field.setFieldName(fieldName);
+        field.setValue(value);
+        return field;
+    }
+
+    public static class FlattenEmployee {
+        String employeeId;
+        Date createdAt;
+        int salary;
+        FlattenDepartment department;
+        FlattenManager manager;
+
+        public FlattenEmployee() {
+        }
+
+        public FlattenEmployee(String employeeId,
+                               Date createdAt,
+                               int salary,
+                               FlattenDepartment department,
+                               FlattenManager manager) {
+            this.employeeId = employeeId;
+            this.createdAt = createdAt;
+            this.salary = salary;
+            this.department = department;
+            this.manager = manager;
+        }
+    }
+
+    public static class FlattenDepartment {
+        String name;
+        String region;
+
+        public FlattenDepartment() {
+        }
+
+        public FlattenDepartment(String name, String region) {
+            this.name = name;
+            this.region = region;
+        }
+    }
+
+    public static class FlattenManager {
+        String name;
+        int level;
+
+        public FlattenManager() {
+        }
+
+        public FlattenManager(String name, int level) {
+            this.name = name;
+            this.level = level;
+        }
+    }
+
+    public static class ProjectionTarget {
+        ProjectionDepartment department;
+        ProjectionTotals totals;
+        int rank;
+        Date snapshotDate;
+
+        public ProjectionTarget() {
+        }
+    }
+
+    public static class ProjectionDepartment {
+        String name;
+        String region;
+
+        public ProjectionDepartment() {
+        }
+    }
+
+    public static class ProjectionTotals {
+        long rowCount;
+        double avgValue;
+
+        public ProjectionTotals() {
+        }
+    }
+}
