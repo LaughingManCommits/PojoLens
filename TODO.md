@@ -6,8 +6,8 @@ Most of the originally planned performance work is now reflected in the codebase
 
 Current focus:
 
-1. Use direct hotspot benchmarks to confirm current flattening, projection, cache-hit, and grouped-aggregation budgets.
-2. Treat WP5 selective/lazy materialization as the next major implementation item if flattening remains the dominant cost.
+1. `HotspotMicroJmhBenchmark` has already confirmed the current flattening, projection, cache-hit, and grouped-aggregation budgets on 2026-03-11.
+2. WP5 selective/lazy materialization is now in progress and should stay the main implementation item until the remaining conservative fallbacks are either optimized or intentionally kept.
 
 Review update (2026-03-10):
 
@@ -22,6 +22,28 @@ Reconciliation update (2026-03-11):
 - WP13 is now implemented via `HotspotMicroJmhBenchmark`, `scripts/benchmark-suite-hotspots.args`, and updated benchmarking docs.
 - WP5 remains the primary open performance redesign.
 - The historical findings below are kept for traceability, but current status and sequence decisions should use this reconciliation and the work-package statuses below.
+
+Execution update (2026-03-11, later):
+
+- Forked hotspot JMH with `-prof gc` confirmed that flattening/materialization is still the dominant allocation cost:
+  - `HotspotMicroJmhBenchmark.reflectionToDomainRows` at `size=10000`: about `563 us/op`, about `2.84 MB/op`
+  - `HotspotMicroJmhBenchmark.reflectionToClassList` at `size=10000`: about `966 us/op`, about `1.40 MB/op`
+  - `HotspotMicroJmhBenchmark.groupedMultiMetricAggregation` at `size=10000`: about `355 us/op`, about `654 KB/op`
+  - `HotspotMicroJmhBenchmark.statsPlanCacheHit` at `size=10000`: about `0.004 us/op`
+- This was enough to justify starting WP5 instead of spending more time on cache-hit or grouped-aggregation tuning first.
+- WP5 work completed so far:
+  - source POJO rows now materialize lazily instead of being flattened eagerly in the builder constructor
+  - ordinary fluent queries selectively materialize only the source fields needed by filters, distinct, order, group, return fields, metrics, time buckets, and join keys
+  - pending join child sources materialize lazily, with selective join materialization enabled only for the safe case of a single non-colliding join shape
+  - non-join computed-field queries now expand only the base-field dependency graph required by referenced computed fields instead of forcing full source flattening
+- Conservative full-materialization fallback still remains for:
+  - computed-field queries that also use joins
+  - explicit rule-group queries (`allOf`, `anyOf`, HAVING group variants)
+  - open-ended full-row outputs
+  - multi-join or schema-collision join shapes
+- Latest verification on 2026-03-11:
+  - targeted tests passed for `FilterQueryBuilderSelectiveMaterializationTest`, `ComputedFieldRegistryTest`, `PojoLensJoinBehaviorTest`, `FilterCoreTest`, `PublicApiCoverageTest`, `SqlLikeJoinTest`, `SqlLikeQueryContractTest`, `SqlLikeMappingParityTest`, and `PojoLensConcurrencyBehaviorTest`
+  - `mvn -q -DskipTests test-compile` passed
 
 ## Historical Findings
 
@@ -231,8 +253,10 @@ Details:
 
 ## Recommended Fix Order
 
-1. Use `HotspotMicroJmhBenchmark` plus the end-to-end suites to confirm whether eager flattening is still the dominant ceiling.
-2. Implement WP5 selective/lazy materialization only if the hotspot data still shows flattening/materialization as the main remaining cost.
+1. Finish or explicitly freeze the remaining WP5 scope:
+   - decide whether computed-field plus join queries should keep the conservative full-materialization fallback, or
+   - extend selective materialization to that path if benchmark data says it matters.
+2. Add a dedicated computed-field-focused microbenchmark or another comparable measurement path, then rerun hotspot and end-to-end suites to capture the allocation delta from the current WP5 slice.
 3. Promote stable hotspot allocation budgets into threshold/config files once they survive repeated local runs.
 
 ## Work Packages
@@ -337,7 +361,7 @@ Acceptance criteria:
 
 ### WP5: Evaluate lazy or selective materialization for fluent queries
 
-Status: pending
+Status: in progress
 
 Goal: avoid flattening data that the query will never touch.
 
@@ -361,10 +385,30 @@ Tasks:
   - join keys.
 - Compare complexity against the current eager flattening design.
 
+Progress update (2026-03-11):
+
+- Implemented:
+  - lazy source-bean retention in `FilterQueryBuilder`
+  - selective source-field materialization for ordinary fluent queries
+  - safe single-join lazy/selective join-source materialization
+  - computed-field dependency expansion for non-join selective materialization
+- Verified:
+  - targeted fluent, join, computed-field, SQL-like parity, and concurrency suites pass
+  - compile-only Maven verification passes
+- Remaining:
+  - decide whether computed-field plus join flows should stay on the current safe full fallback or receive a selective path
+  - add a dedicated computed-field hotspot benchmark or equivalent measurement before claiming WP5 complete
+  - rerun end-to-end benchmarks and capture before/after allocation deltas for the implemented WP5 slice
+
 Acceptance criteria:
 
 - Large-query benchmarks show lower allocation rate when only a subset of fields is used.
 - API behavior and result ordering remain unchanged.
+
+Current evidence:
+
+- Targeted behavior coverage currently supports the second acceptance criterion for the implemented slices.
+- The first acceptance criterion is partially supported by the hotspot data that justified WP5, but it still needs a clean before/after benchmark capture for the newly landed computed-field-aware selective path.
 
 ### WP6: Replace expensive UUID generation
 
@@ -596,7 +640,16 @@ At minimum, run:
 
 ## Suggested Remaining Implementation Sequence
 
-1. WP5
-2. tighten hotspot threshold/config files only after the new microbenchmark numbers stabilize
+1. Continue WP5 from the current partial state:
+   - either keep the conservative computed-field plus join fallback as the stopping point, or
+   - extend it only if new measurements justify the added complexity
+2. Add the missing computed-field measurement path and rerun hotspot plus end-to-end benchmarks to capture the current WP5 delta
+3. tighten hotspot threshold/config files only after the new microbenchmark numbers stabilize
 
 Hotspot microbenchmarking is now a standing prerequisite rather than a future work package.
+
+## Next Session Handoff
+
+- First decision tomorrow: is the remaining computed-field plus join case important enough to optimize, or is the safe full fallback acceptable for now.
+- If continuing implementation, start in `FilterQueryBuilder` around the selective-materialization helpers and `requiresFullSourceMaterialization()`.
+- If measuring first, rerun `HotspotMicroJmhBenchmark` with `-prof gc` and add a computed-field-specific benchmark before changing more engine code.

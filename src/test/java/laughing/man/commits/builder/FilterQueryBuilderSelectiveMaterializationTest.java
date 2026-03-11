@@ -1,10 +1,12 @@
 package laughing.man.commits.builder;
 
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -61,6 +64,88 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals("c1", rows.get(0).tag);
     }
 
+    @Test
+    void computedFieldQueriesShouldMaterializeOnlyReferencedDependencies() throws Exception {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .add("totalComp", "adjustedSalary + bonus", Double.class)
+                .build();
+
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleCompensation())
+                .computedFields(registry)
+                .addRule("totalComp", 140.0, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp");
+
+        assertEquals(List.of("name", "salary", "bonus", "adjustedSalary", "totalComp"),
+                fieldNames(builder.getRows().get(0)));
+
+        List<CompensationProjection> rows = builder.initFilter().filter(CompensationProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("b", rows.get(0).name);
+        assertEquals(147.0, rows.get(0).totalComp, 0.0001);
+    }
+
+    @Test
+    void computedMetricQueriesShouldMaterializeOnlyGroupedAndComputedDependencies() throws Exception {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .add("totalComp", "adjustedSalary + bonus", Double.class)
+                .build();
+
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleCompensation())
+                .computedFields(registry)
+                .addGroup("department")
+                .addMetric("totalComp", Metric.SUM, "totalCompSum")
+                .addOrder("totalCompSum", 1);
+
+        assertEquals(List.of("salary", "bonus", "department", "adjustedSalary", "totalComp"),
+                fieldNames(builder.getRows().get(0)));
+
+        List<DepartmentCompensationProjection> rows = builder.initFilter().filter(DepartmentCompensationProjection.class);
+        assertEquals(2, rows.size());
+        Map<String, Double> totalsByDepartment = rows.stream()
+                .collect(java.util.stream.Collectors.toMap(row -> row.department, row -> row.totalCompSum));
+        assertEquals(130.0, totalsByDepartment.get("fin"), 0.0001);
+        assertEquals(251.0, totalsByDepartment.get("eng"), 0.0001);
+    }
+
+    @Test
+    void collidingJoinQueriesShouldFallBackToFullParentMaterialization() throws Exception {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleCollisionParents())
+                .addJoinBeans("id", sampleCollisionChildren(), "parentId", Join.LEFT_JOIN)
+                .addRule("tag", "parent-tag", Clauses.EQUAL, Separator.AND)
+                .addField("tag")
+                .addField("child_name");
+
+        assertEquals(List.of("id", "name", "tag"), fieldNames(builder.getRows().get(0)));
+        assertEquals(List.of("parentId", "name"), fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
+
+        List<CollisionJoinProjection> rows = builder.initFilter().join().filter(CollisionJoinProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("parent-tag", rows.get(0).tag);
+        assertEquals("child-name", rows.get(0).child_name);
+    }
+
+    @Test
+    void multipleJoinQueriesShouldFallBackToFullParentMaterialization() throws Exception {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleMultiJoinParents())
+                .addJoinBeans("id", sampleLabels(), "parentId", Join.LEFT_JOIN)
+                .addJoinBeans("id", sampleCodes(), "parentId", Join.LEFT_JOIN)
+                .addRule("tag", "parent-tag", Clauses.EQUAL, Separator.AND)
+                .addField("tag")
+                .addField("label")
+                .addField("code");
+
+        assertEquals(List.of("id", "name", "tag", "region"), fieldNames(builder.getRows().get(0)));
+
+        List<MultiJoinProjection> rows = builder.initFilter().join().filter(MultiJoinProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("parent-tag", rows.get(0).tag);
+        assertEquals("north", rows.get(0).label);
+        assertEquals("x1", rows.get(0).code);
+    }
+
     private static List<Foo> sampleFoos() {
         Date now = new Date();
         return Arrays.asList(
@@ -76,6 +161,34 @@ class FilterQueryBuilderSelectiveMaterializationTest {
 
     private static List<Child> sampleChildren() {
         return List.of(new Child(1, "c1"));
+    }
+
+    private static List<CompensationRow> sampleCompensation() {
+        return List.of(
+                new CompensationRow("a", 100, 20, "fin", 1),
+                new CompensationRow("b", 120, 15, "eng", 2),
+                new CompensationRow("c", 90, 5, "eng", 3)
+        );
+    }
+
+    private static List<CollisionParent> sampleCollisionParents() {
+        return List.of(new CollisionParent(1, "parent-name", "parent-tag"));
+    }
+
+    private static List<CollisionChild> sampleCollisionChildren() {
+        return List.of(new CollisionChild(1, "child-name"));
+    }
+
+    private static List<MultiJoinParent> sampleMultiJoinParents() {
+        return List.of(new MultiJoinParent(1, "parent-name", "parent-tag", "emea"));
+    }
+
+    private static List<LabelChild> sampleLabels() {
+        return List.of(new LabelChild(1, "north"));
+    }
+
+    private static List<CodeChild> sampleCodes() {
+        return List.of(new CodeChild(1, "x1"));
     }
 
     private static List<String> fieldNames(QueryRow row) {
@@ -109,6 +222,111 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String tag;
 
         public JoinProjection() {
+        }
+    }
+
+    static final class CompensationRow {
+        String name;
+        int salary;
+        int bonus;
+        String department;
+        int level;
+
+        CompensationRow(String name, int salary, int bonus, String department, int level) {
+            this.name = name;
+            this.salary = salary;
+            this.bonus = bonus;
+            this.department = department;
+            this.level = level;
+        }
+    }
+
+    public static final class CompensationProjection {
+        public String name;
+        public double totalComp;
+
+        public CompensationProjection() {
+        }
+    }
+
+    public static final class DepartmentCompensationProjection {
+        public String department;
+        public double totalCompSum;
+
+        public DepartmentCompensationProjection() {
+        }
+    }
+
+    static final class CollisionParent {
+        int id;
+        String name;
+        String tag;
+
+        CollisionParent(int id, String name, String tag) {
+            this.id = id;
+            this.name = name;
+            this.tag = tag;
+        }
+    }
+
+    static final class CollisionChild {
+        int parentId;
+        String name;
+
+        CollisionChild(int parentId, String name) {
+            this.parentId = parentId;
+            this.name = name;
+        }
+    }
+
+    public static final class CollisionJoinProjection {
+        public String tag;
+        public String child_name;
+
+        public CollisionJoinProjection() {
+        }
+    }
+
+    static final class MultiJoinParent {
+        int id;
+        String name;
+        String tag;
+        String region;
+
+        MultiJoinParent(int id, String name, String tag, String region) {
+            this.id = id;
+            this.name = name;
+            this.tag = tag;
+            this.region = region;
+        }
+    }
+
+    static final class LabelChild {
+        int parentId;
+        String label;
+
+        LabelChild(int parentId, String label) {
+            this.parentId = parentId;
+            this.label = label;
+        }
+    }
+
+    static final class CodeChild {
+        int parentId;
+        String code;
+
+        CodeChild(int parentId, String code) {
+            this.parentId = parentId;
+            this.code = code;
+        }
+    }
+
+    public static final class MultiJoinProjection {
+        public String tag;
+        public String label;
+        public String code;
+
+        public MultiJoinProjection() {
         }
     }
 }

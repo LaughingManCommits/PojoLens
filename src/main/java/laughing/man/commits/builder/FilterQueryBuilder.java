@@ -1,5 +1,6 @@
 package laughing.man.commits.builder;
 
+import laughing.man.commits.computed.ComputedFieldDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import java.util.ArrayList;
@@ -1000,8 +1001,13 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private boolean requiresFullSourceMaterialization() {
-        if (!computedFieldRegistry.isEmpty()) {
+        if (!computedFieldRegistry.isEmpty() && hasJoinDefinitions()) {
             return true;
+        }
+        if (!spec.getJoinClasses().isEmpty() || !joinSourceBeans.isEmpty()) {
+            if (!supportsSelectiveJoinMaterialization()) {
+                return true;
+            }
         }
         if (!spec.getAllOfGroups().isEmpty()
                 || !spec.getAnyOfGroups().isEmpty()
@@ -1009,10 +1015,7 @@ public class FilterQueryBuilder implements QueryBuilder {
                 || !spec.getHavingAnyOfGroups().isEmpty()) {
             return true;
         }
-        if (spec.getReturnFields().isEmpty()
-                && spec.getMetrics().isEmpty()
-                && spec.getGroupFields().isEmpty()
-                && spec.getTimeBuckets().isEmpty()) {
+        if (requiresOpenEndedRowMaterialization()) {
             return true;
         }
         return false;
@@ -1030,6 +1033,35 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
         if (spec.getSourceFieldTypes().containsKey(fieldName)) {
             selected.add(fieldName);
+            return;
+        }
+        if (computedFieldRegistry.contains(fieldName)) {
+            addComputedSourceDependencies(selected, fieldName, new LinkedHashSet<>());
+        }
+    }
+
+    private void addComputedSourceDependencies(LinkedHashSet<String> selected,
+                                               String computedFieldName,
+                                               Set<String> visiting) {
+        if (!visiting.add(computedFieldName)) {
+            return;
+        }
+        try {
+            ComputedFieldDefinition definition = computedFieldRegistry.get(computedFieldName);
+            if (definition == null) {
+                return;
+            }
+            for (String dependency : definition.dependencies()) {
+                if (spec.getSourceFieldTypes().containsKey(dependency)) {
+                    selected.add(dependency);
+                    continue;
+                }
+                if (computedFieldRegistry.contains(dependency)) {
+                    addComputedSourceDependencies(selected, dependency, visiting);
+                }
+            }
+        } finally {
+            visiting.remove(computedFieldName);
         }
     }
 
@@ -1103,9 +1135,119 @@ public class FilterQueryBuilder implements QueryBuilder {
             return;
         }
         for (Map.Entry<Integer, List<?>> entry : new ArrayList<>(joinSourceBeans.entrySet())) {
-            List<QueryRow> rows = materializedRows(toSourceRows(entry.getValue()));
+            List<?> source = entry.getValue();
+            List<QueryRow> rows;
+            if (supportsSelectiveJoinMaterialization()) {
+                Map<String, Class<?>> childFieldTypes = inferSourceFieldTypes(source);
+                SourceMaterializationPlan plan = joinSourceMaterializationPlan(entry.getKey(), childFieldTypes);
+                rows = materializedRows(plan.full()
+                        ? toSourceRows(source)
+                        : ReflectionUtil.toDomainRows(source, plan.fields()));
+            } else {
+                rows = materializedRows(toSourceRows(source));
+            }
             spec.getJoinClasses().put(entry.getKey(), rows);
             joinSourceBeans.remove(entry.getKey());
+        }
+    }
+
+    private SourceMaterializationPlan joinSourceMaterializationPlan(int joinIndex,
+                                                                    Map<String, Class<?>> childFieldTypes) {
+        if (requiresOpenEndedRowMaterialization()) {
+            return SourceMaterializationPlan.fullPlan();
+        }
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        addConfiguredFieldIfPresent(selected, childFieldTypes, spec.getJoinChildFields().get(joinIndex));
+        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getReturnFields());
+        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getFilterFields().values());
+        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getDistinctFields().values());
+        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getOrderFields().values());
+        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getGroupFields().values());
+        for (QueryMetric metric : spec.getMetrics()) {
+            if (!Metric.COUNT.equals(metric.getMetric())) {
+                addConfiguredFieldIfPresent(selected, childFieldTypes, metric.getField());
+            }
+        }
+        for (QueryTimeBucket bucket : spec.getTimeBuckets().values()) {
+            addConfiguredFieldIfPresent(selected, childFieldTypes, bucket.getDateField());
+        }
+        if (selected.isEmpty()) {
+            return SourceMaterializationPlan.fullPlan();
+        }
+        return SourceMaterializationPlan.selectivePlan(selected);
+    }
+
+    private boolean supportsSelectiveJoinMaterialization() {
+        if (joinDefinitionCount() != 1) {
+            return false;
+        }
+        Integer joinIndex = joinDefinitionIndexes().stream().findFirst().orElse(null);
+        if (joinIndex == null) {
+            return false;
+        }
+        return !hasJoinSchemaCollision(joinIndex);
+    }
+
+    private boolean hasJoinSchemaCollision(int joinIndex) {
+        Map<String, Class<?>> childFieldTypes = joinFieldTypes(joinIndex);
+        if (childFieldTypes.isEmpty()) {
+            return false;
+        }
+        for (String fieldName : childFieldTypes.keySet()) {
+            if (spec.getSourceFieldTypes().containsKey(fieldName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Map<String, Class<?>> joinFieldTypes(int joinIndex) {
+        List<?> pending = joinSourceBeans.get(joinIndex);
+        if (pending != null) {
+            return inferSourceFieldTypes(pending);
+        }
+        List<QueryRow> rows = spec.getJoinClasses().get(joinIndex);
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+        return ReflectionUtil.collectQueryRowFieldTypes(rows);
+    }
+
+    private int joinDefinitionCount() {
+        return joinDefinitionIndexes().size();
+    }
+
+    private boolean hasJoinDefinitions() {
+        return joinDefinitionCount() > 0;
+    }
+
+    private Set<Integer> joinDefinitionIndexes() {
+        LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
+        indexes.addAll(spec.getJoinClasses().keySet());
+        indexes.addAll(joinSourceBeans.keySet());
+        return indexes;
+    }
+
+    private boolean requiresOpenEndedRowMaterialization() {
+        return spec.getReturnFields().isEmpty()
+                && spec.getMetrics().isEmpty()
+                && spec.getGroupFields().isEmpty()
+                && spec.getTimeBuckets().isEmpty();
+    }
+
+    private void addConfiguredFieldsIfPresent(LinkedHashSet<String> selected,
+                                              Map<String, Class<?>> availableFields,
+                                              Iterable<String> fieldNames) {
+        for (String fieldName : fieldNames) {
+            addConfiguredFieldIfPresent(selected, availableFields, fieldName);
+        }
+    }
+
+    private void addConfiguredFieldIfPresent(LinkedHashSet<String> selected,
+                                             Map<String, Class<?>> availableFields,
+                                             String fieldName) {
+        if (fieldName != null && availableFields.containsKey(fieldName)) {
+            selected.add(fieldName);
         }
     }
 
