@@ -2,14 +2,12 @@
 
 ## Summary
 
-The library already caches some reflection metadata, but there are still several hot paths that rebuild execution state or allocate far more objects than necessary during a single logical query.
+Most of the originally planned performance work is now reflected in the codebase. After reconciliation on 2026-03-11, the primary clearly-open engine item is still eager full flattening/selective materialization.
 
-The highest-impact problems are:
+Current focus:
 
-1. Full row snapshots are deep-copied multiple times per query execution.
-2. Output materialization resolves the same reflective field path twice per field.
-3. The fluent API eagerly flattens all source beans into `QueryRow` and `QueryField` objects even when the query only needs a few columns.
-4. Some stats/HAVING flows rebuild execution plans multiple times in one operation.
+1. Use direct hotspot benchmarks to confirm current flattening, projection, cache-hit, and grouped-aggregation budgets.
+2. Treat WP5 selective/lazy materialization as the next major implementation item if flattening remains the dominant cost.
 
 Review update (2026-03-10):
 
@@ -18,7 +16,14 @@ Review update (2026-03-10):
 - The remaining dominant costs are still eager row materialization, partial execution-plan compilation, repeated grouped-metric scans, and avoidable row identity/materialization churn.
 - A quick local Streams-baseline spot check still showed a large gap on comparable workloads, so the completed packages should be treated as incremental wins rather than end-state performance.
 
-## Findings
+Reconciliation update (2026-03-11):
+
+- WP4, WP7, WP8, WP9, WP10, WP11, and WP12 are already implemented in code and should be treated as completed.
+- WP13 is now implemented via `HotspotMicroJmhBenchmark`, `scripts/benchmark-suite-hotspots.args`, and updated benchmarking docs.
+- WP5 remains the primary open performance redesign.
+- The historical findings below are kept for traceability, but current status and sequence decisions should use this reconciliation and the work-package statuses below.
+
+## Historical Findings
 
 ### 1. Repeated deep-copy of query rows
 
@@ -211,18 +216,24 @@ Details:
 
 ## Review Of Completed Work Packages
 
-- WP1 reduced the worst row deep-copy behavior, but follow-up work is still needed around execution-shape copying and temporary aggregate/HAVING builders.
-- WP2 fixed repeated field-path lookup, but did not yet optimize root-constructor reuse or compiled projection write plans.
-- WP3 removed one avoidable HAVING plan rebuild, but order/group/distinct/metric descriptors are still rebuilt on each execution and the cache-hit path still serializes the full query shape.
-- WP6 made id generation cheaper, but the bigger remaining win is to stop allocating string row ids for pipelines that do not need them.
+- WP1 switched execution snapshots to row-reference copies for normal execution paths and retained deep copies only for explicit deep-copy flows.
+- WP2 now includes field-path caching, cached projection write plans, and cached no-arg constructors in the materialization path.
+- WP3 reuses prepared plans within the stats/HAVING flow where the schema is unchanged.
+- WP4 landed via `FieldGraphDescriptor` and direct ordered extraction in `ReflectionUtil.toDomainRows()`.
+- WP6 replaced the old UUID formatter with a direct alpha-hex writer.
+- WP7 now validates numeric/date fields from cached schema metadata instead of rescanning rows.
+- WP8 compiles distinct/order/group/metric metadata in `FilterExecutionPlan`, and downstream engines consume that metadata directly.
+- WP9 uses per-group metric accumulators instead of per-metric rescans.
+- WP10 makes row ids optional on the hot filter/group/projection/aggregation/join paths, with tests covering that behavior.
+- WP11 caches projection write plans and no-arg constructors for typed materialization.
+- WP12 uses structural `FilterExecutionPlanCacheKey` objects plus shape-version reuse in `FilterImpl`.
+- WP13 adds direct hotspot microbenchmarks and local `-prof gc` guidance.
 
 ## Recommended Fix Order
 
-1. Finish execution-plan compilation so grouped/stats/distinct/order paths stop rebuilding metadata per run.
-2. Fuse grouped aggregation and remove unnecessary row-id churn from hot paths.
-3. Cache field metadata and optimize typed projection/materialization.
-4. Reduce flattening cost with schema-driven extraction.
-5. Attempt selective/lazy materialization only after the above wins are benchmarked with direct hotspot coverage.
+1. Use `HotspotMicroJmhBenchmark` plus the end-to-end suites to confirm whether eager flattening is still the dominant ceiling.
+2. Implement WP5 selective/lazy materialization only if the hotspot data still shows flattening/materialization as the main remaining cost.
+3. Promote stable hotspot allocation budgets into threshold/config files once they survive repeated local runs.
 
 ## Work Packages
 
@@ -300,7 +311,7 @@ Acceptance criteria:
 
 ### WP4: Introduce schema-level row extraction plan
 
-Status: pending
+Status: completed
 
 Goal: stop rediscovering how to flatten beans for every row.
 
@@ -377,7 +388,7 @@ Acceptance criteria:
 
 ### WP7: Cache field type metadata for builder validation
 
-Status: pending
+Status: completed
 
 Goal: stop scanning rows repeatedly during metric/date validation.
 
@@ -399,7 +410,7 @@ Acceptance criteria:
 
 ### WP8: Compile full execution-plan metadata
 
-Status: pending
+Status: completed
 
 Goal: stop rebuilding distinct/order/group/time-bucket/metric accessors on every execution.
 
@@ -431,7 +442,7 @@ Acceptance criteria:
 
 ### WP9: Fuse grouped metric aggregation into a single pass
 
-Status: pending
+Status: completed
 
 Goal: compute all metrics while grouping instead of rescanning each group for each metric.
 
@@ -454,7 +465,7 @@ Acceptance criteria:
 
 ### WP10: Eliminate hot-path row id churn
 
-Status: pending
+Status: completed
 
 Goal: stop allocating string row ids for pipelines that do not need them.
 
@@ -481,7 +492,7 @@ Acceptance criteria:
 
 ### WP11: Optimize typed projection/materialization path
 
-Status: pending
+Status: completed
 
 Goal: lower remaining reflection overhead in `toClassList()`.
 
@@ -503,7 +514,7 @@ Acceptance criteria:
 
 ### WP12: Replace serialized stats-plan cache keys with structural query-shape keys
 
-Status: pending
+Status: completed
 
 Goal: make stats-plan caching cheaper than the plan build it is avoiding.
 
@@ -527,7 +538,7 @@ Acceptance criteria:
 
 ### WP13: Add hotspot microbenchmarks and allocation guardrails
 
-Status: pending
+Status: completed
 
 Goal: measure the paths that the current end-to-end benchmark suite hides.
 
@@ -561,7 +572,7 @@ Use the existing JMH benchmarks to validate the changes:
 - `PojoLensJoinJmhBenchmark`
 - `StatsQueryJmhBenchmark`
 - `CacheConcurrencyJmhBenchmark`
-- add dedicated microbenchmarks for row flattening, typed projection, stats-plan cache hits, and multi-metric grouped aggregation
+- `HotspotMicroJmhBenchmark` for row flattening, typed projection, stats-plan cache hits, and multi-metric grouped aggregation
 - use `-prof gc` during hotspot tuning where the environment is stable enough to compare allocations
 
 Track:
@@ -580,18 +591,12 @@ At minimum, run:
 - join behavior tests,
 - concurrency behavior tests,
 - SQL-like parity tests for any shared reflection changes,
+- `HotspotMicroJmhBenchmark` locally with `-prof gc` when touching reflection/materialization/cache hot paths,
 - benchmarks before and after each major work package.
 
-## Suggested Implementation Sequence
+## Suggested Remaining Implementation Sequence
 
-1. WP8
-2. WP9
-3. WP10
-4. WP7
-5. WP4
-6. WP11
-7. WP12
-8. WP5
-9. WP13
+1. WP5
+2. tighten hotspot threshold/config files only after the new microbenchmark numbers stabilize
 
-This order finishes the partial plan-reuse work first, then removes the most obvious remaining stats/materialization churn before taking on the larger selective-materialization redesign.
+Hotspot microbenchmarking is now a standing prerequisite rather than a future work package.
