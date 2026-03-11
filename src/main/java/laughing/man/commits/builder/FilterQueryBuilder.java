@@ -3,10 +3,12 @@ package laughing.man.commits.builder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,9 @@ public class FilterQueryBuilder implements QueryBuilder {
     private String telemetryQueryType = "fluent";
     private String telemetrySource = "fluent";
     private ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
+    private List<?> sourceBeans = List.of();
+    private boolean fullyMaterializedSourceRows;
+    private Set<String> materializedSourceFields = Set.of();
     private volatile long executionPlanShapeVersion;
 
     public FilterQueryBuilder(List<?> pojos) {
@@ -56,7 +61,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
         spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
         refreshFieldTypes();
-        spec.setRows(materializedRows(toSourceRows(pojos)));
+        initializeSourceRows(pojos);
     }
 
     private FilterQueryBuilder(QuerySpec snapshot, FilterExecutionPlanCacheStore executionPlanCache) {
@@ -84,7 +89,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         markExecutionPlanShapeChanged();
         this.computedFieldRegistry = registry;
         refreshFieldTypes();
-        spec.setRows(materializedRows(spec.getRows()));
+        if (hasSourceBeans()) {
+            clearMaterializedSourceRows();
+        } else {
+            spec.setRows(materializedRows(spec.getRows()));
+        }
         materializeJoinRows();
         return this;
     }
@@ -132,6 +141,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public List<QueryRow> getRows() {
+        ensureRowsMaterialized();
         return spec.getRows();
     }
 
@@ -141,6 +151,8 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public void setRows(List<QueryRow> rows) {
         markExecutionPlanShapeChanged();
+        sourceBeans = List.of();
+        clearMaterializedSourceRows();
         spec.setSourceFieldTypes(ReflectionUtil.collectQueryRowFieldTypes(rows));
         refreshFieldTypes();
         spec.setRows(materializedRows(rows));
@@ -703,6 +715,9 @@ public class FilterQueryBuilder implements QueryBuilder {
         snapshot.telemetryQueryType = telemetryQueryType;
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
+        snapshot.sourceBeans = copySourceBeans(sourceBeans);
+        snapshot.fullyMaterializedSourceRows = fullyMaterializedSourceRows;
+        snapshot.materializedSourceFields = materializedSourceFields;
         snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
         return snapshot;
     }
@@ -882,6 +897,19 @@ public class FilterQueryBuilder implements QueryBuilder {
         return ComputedFieldSupport.materializeRows(rows, computedFieldRegistry);
     }
 
+    private void initializeSourceRows(List<?> pojos) {
+        Object first = firstNonNull(pojos);
+        if (first instanceof QueryRow) {
+            sourceBeans = List.of();
+            clearMaterializedSourceRows();
+            spec.setRows(materializedRows(queryRows(pojos)));
+            return;
+        }
+        sourceBeans = copySourceBeans(pojos);
+        clearMaterializedSourceRows();
+        spec.setRows(new ArrayList<>());
+    }
+
     private Map<String, Class<?>> inferSourceFieldTypes(List<?> pojos) {
         Object first = firstNonNull(pojos);
         if (first == null) {
@@ -899,6 +927,134 @@ public class FilterQueryBuilder implements QueryBuilder {
             return queryRows(pojos);
         }
         return ReflectionUtil.toDomainRows(pojos);
+    }
+
+    private void ensureRowsMaterialized() {
+        if (!hasSourceBeans()) {
+            return;
+        }
+        SourceMaterializationPlan plan = sourceMaterializationPlan();
+        if (materializedSourceRowsSatisfy(plan)) {
+            return;
+        }
+
+        List<QueryRow> baseRows = plan.full()
+                ? ReflectionUtil.toDomainRows(sourceBeans)
+                : ReflectionUtil.toDomainRows(sourceBeans, plan.fields());
+        spec.setRows(materializedRows(baseRows));
+        fullyMaterializedSourceRows = plan.full();
+        materializedSourceFields = plan.full() ? Set.of() : Set.copyOf(plan.fields());
+    }
+
+    private SourceMaterializationPlan sourceMaterializationPlan() {
+        if (requiresFullSourceMaterialization()) {
+            return SourceMaterializationPlan.fullPlan();
+        }
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        addSourceFields(selected, spec.getReturnFields());
+        addSourceFields(selected, spec.getFilterFields().values());
+        addSourceFields(selected, spec.getDistinctFields().values());
+        addSourceFields(selected, spec.getOrderFields().values());
+        addGroupSourceFields(selected);
+        addMetricSourceFields(selected);
+        addTimeBucketSourceFields(selected);
+
+        if (selected.isEmpty()) {
+            return SourceMaterializationPlan.fullPlan();
+        }
+        return SourceMaterializationPlan.selectivePlan(selected);
+    }
+
+    private boolean requiresFullSourceMaterialization() {
+        if (!spec.getJoinClasses().isEmpty()) {
+            return true;
+        }
+        if (!computedFieldRegistry.isEmpty()) {
+            return true;
+        }
+        if (!spec.getAllOfGroups().isEmpty()
+                || !spec.getAnyOfGroups().isEmpty()
+                || !spec.getHavingAllOfGroups().isEmpty()
+                || !spec.getHavingAnyOfGroups().isEmpty()) {
+            return true;
+        }
+        if (spec.getReturnFields().isEmpty()
+                && spec.getMetrics().isEmpty()
+                && spec.getGroupFields().isEmpty()
+                && spec.getTimeBuckets().isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
+    private void addSourceFields(LinkedHashSet<String> selected, Iterable<String> fieldNames) {
+        for (String fieldName : fieldNames) {
+            addSourceField(selected, fieldName);
+        }
+    }
+
+    private void addSourceField(LinkedHashSet<String> selected, String fieldName) {
+        if (fieldName == null) {
+            return;
+        }
+        if (spec.getSourceFieldTypes().containsKey(fieldName)) {
+            selected.add(fieldName);
+        }
+    }
+
+    private void addGroupSourceFields(LinkedHashSet<String> selected) {
+        for (String fieldName : spec.getGroupFields().values()) {
+            if (!spec.getTimeBuckets().containsKey(fieldName)) {
+                addSourceField(selected, fieldName);
+            }
+        }
+    }
+
+    private void addMetricSourceFields(LinkedHashSet<String> selected) {
+        for (QueryMetric metric : spec.getMetrics()) {
+            if (!Metric.COUNT.equals(metric.getMetric())) {
+                addSourceField(selected, metric.getField());
+            }
+        }
+    }
+
+    private void addTimeBucketSourceFields(LinkedHashSet<String> selected) {
+        for (QueryTimeBucket bucket : spec.getTimeBuckets().values()) {
+            addSourceField(selected, bucket.getDateField());
+        }
+    }
+
+    private boolean materializedSourceRowsSatisfy(SourceMaterializationPlan plan) {
+        if (spec.getRows().isEmpty()) {
+            return false;
+        }
+        if (fullyMaterializedSourceRows) {
+            return true;
+        }
+        if (plan.full()) {
+            return false;
+        }
+        return materializedSourceFields.containsAll(plan.fields());
+    }
+
+    private boolean hasSourceBeans() {
+        return sourceBeans != null && !sourceBeans.isEmpty();
+    }
+
+    private void clearMaterializedSourceRows() {
+        fullyMaterializedSourceRows = false;
+        materializedSourceFields = Set.of();
+        if (hasSourceBeans()) {
+            spec.setRows(new ArrayList<>());
+        }
+    }
+
+    private List<?> copySourceBeans(List<?> pojos) {
+        if (pojos == null || pojos.isEmpty()) {
+            return List.of();
+        }
+        return new ArrayList<>(pojos);
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {
@@ -928,6 +1084,21 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private void markExecutionPlanShapeChanged() {
         executionPlanShapeVersion++;
+    }
+
+    private record SourceMaterializationPlan(boolean full, List<String> fields) {
+        private SourceMaterializationPlan(boolean full, List<String> fields) {
+            this.full = full;
+            this.fields = List.copyOf(fields);
+        }
+
+        private static SourceMaterializationPlan fullPlan() {
+            return new SourceMaterializationPlan(true, List.of());
+        }
+
+        private static SourceMaterializationPlan selectivePlan(Set<String> fields) {
+            return new SourceMaterializationPlan(false, new ArrayList<>(fields));
+        }
     }
 }
 

@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -107,6 +108,15 @@ public final class ReflectionUtil {
      * Flattens input beans into internal domain rows used by the query engine.
      */
     public static List<QueryRow> toDomainRows(List<?> conversionList) {
+        return toDomainRows(conversionList, null);
+    }
+
+    /**
+     * Flattens input beans into internal domain rows used by the query engine.
+     * When {@code selectedFieldNames} is provided, only those flattened fields
+     * are materialized, in their original schema order.
+     */
+    public static List<QueryRow> toDomainRows(List<?> conversionList, Collection<String> selectedFieldNames) {
         if (conversionList == null || conversionList.isEmpty()) {
             return new ArrayList<>(0);
         }
@@ -125,6 +135,7 @@ public final class ReflectionUtil {
         }
 
         FieldGraphDescriptor descriptor = fieldGraph(firstBean.getClass());
+        List<FlattenedFieldDescriptor> flattenedFields = selectedFlattenedFields(descriptor, selectedFieldNames);
         List<QueryRow> domainRows = new ArrayList<>(conversionList.size());
 
         for (int i = 0; i < conversionList.size(); i++) {
@@ -135,7 +146,7 @@ public final class ReflectionUtil {
 
             try {
                 QueryRow domainRow = new QueryRow();
-                domainRow.setFields(extractQueryFields(currentBean, descriptor.flattenedFields()));
+                domainRow.setFields(extractQueryFields(currentBean, flattenedFields));
                 domainRows.add(domainRow);
             } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
                 LOG.error("Failed to Convert Objects [{}] to new List", currentBean.getClass().getSimpleName(), e);
@@ -388,6 +399,26 @@ public final class ReflectionUtil {
             fields.add(field);
         }
         return fields;
+    }
+
+    private static List<FlattenedFieldDescriptor> selectedFlattenedFields(FieldGraphDescriptor descriptor,
+                                                                          Collection<String> selectedFieldNames) {
+        List<FlattenedFieldDescriptor> flattenedFields = descriptor.flattenedFields();
+        if (selectedFieldNames == null) {
+            return flattenedFields;
+        }
+        LinkedHashSet<String> selected = new LinkedHashSet<>(selectedFieldNames);
+        if (selected.isEmpty()) {
+            return flattenedFields;
+        }
+        ArrayList<FlattenedFieldDescriptor> filtered = new ArrayList<>(Math.min(selected.size(), flattenedFields.size()));
+        for (int i = 0; i < flattenedFields.size(); i++) {
+            FlattenedFieldDescriptor field = flattenedFields.get(i);
+            if (selected.contains(field.fieldName())) {
+                filtered.add(field);
+            }
+        }
+        return filtered.isEmpty() ? flattenedFields : List.copyOf(filtered);
     }
 
     private static Object readResolvedFieldValue(Object bean, ResolvedFieldPath fieldPath) throws IllegalAccessException {
