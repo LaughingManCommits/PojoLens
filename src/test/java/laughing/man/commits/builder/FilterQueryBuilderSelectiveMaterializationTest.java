@@ -4,6 +4,7 @@ import laughing.man.commits.domain.Foo;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,22 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals("a", rows.get(0).getStringField());
     }
 
+    @Test
+    void joinQueriesShouldSelectOnlyNeededParentSourceFieldsBeforeJoinExecution() throws Exception {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleParents())
+                .addJoinBeans("id", sampleChildren(), "parentId", Join.LEFT_JOIN)
+                .addRule("tag", "c1", Clauses.EQUAL, Separator.AND)
+                .addField("name")
+                .addField("tag");
+
+        assertEquals(List.of("id", "name"), fieldNames(builder.getRows().get(0)));
+
+        List<JoinProjection> rows = builder.initFilter().join().filter(JoinProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("p1", rows.get(0).name);
+        assertEquals("c1", rows.get(0).tag);
+    }
+
     private static List<Foo> sampleFoos() {
         Date now = new Date();
         return Arrays.asList(
@@ -53,9 +70,45 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         );
     }
 
+    private static List<Parent> sampleParents() {
+        return List.of(new Parent(1, "p1"), new Parent(2, "p2"));
+    }
+
+    private static List<Child> sampleChildren() {
+        return List.of(new Child(1, "c1"));
+    }
+
     private static List<String> fieldNames(QueryRow row) {
         return row.getFields().stream()
                 .map(QueryField::getFieldName)
                 .toList();
+    }
+
+    static final class Parent {
+        int id;
+        String name;
+
+        Parent(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    static final class Child {
+        int parentId;
+        String tag;
+
+        Child(int parentId, String tag) {
+            this.parentId = parentId;
+            this.tag = tag;
+        }
+    }
+
+    public static final class JoinProjection {
+        public String name;
+        public String tag;
+
+        public JoinProjection() {
+        }
     }
 }

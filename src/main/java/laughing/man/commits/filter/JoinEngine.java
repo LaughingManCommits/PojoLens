@@ -25,10 +25,11 @@ final class JoinEngine {
 
     <T> List<QueryRow> join(List<T> bean) {
         List<QueryRow> rows = toRows(bean);
-        if (!builder.getJoinClasses().isEmpty()) {
-            SortedSet<Integer> orderKeys = new TreeSet<>(builder.getJoinClasses().keySet());
+        Map<Integer, List<QueryRow>> joinClasses = builder.getJoinClassesForExecution();
+        if (!joinClasses.isEmpty()) {
+            SortedSet<Integer> orderKeys = new TreeSet<>(joinClasses.keySet());
             for (int joinID : orderKeys) {
-                List<QueryRow> joinChildClasses = builder.getJoinClasses().get(joinID);
+                List<QueryRow> joinChildClasses = joinClasses.get(joinID);
                 Join joinMethod = builder.getJoinMethods().get(joinID);
                 if (joinChildClasses == null || joinChildClasses.isEmpty()) {
                     continue;

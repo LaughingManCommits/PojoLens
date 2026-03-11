@@ -3,6 +3,7 @@ package laughing.man.commits.builder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -49,6 +50,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private String telemetrySource = "fluent";
     private ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
     private List<?> sourceBeans = List.of();
+    private Map<Integer, List<?>> joinSourceBeans = new HashMap<>();
     private boolean fullyMaterializedSourceRows;
     private Set<String> materializedSourceFields = Set.of();
     private volatile long executionPlanShapeVersion;
@@ -160,8 +162,17 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     @Override
     public FilterQueryBuilder addJoinBeans(String parentField, List<?> children, String childField, Join joinMethod) {
-        List<QueryRow> childRows = ReflectionUtil.toDomainRows(children);
-        addJoinRows(parentField, childRows, childField, joinMethod);
+        if (children == null || children.isEmpty()) {
+            addJoinRows(parentField, new ArrayList<>(), childField, joinMethod);
+            return this;
+        }
+        Object first = firstNonNull(children);
+        if (first instanceof QueryRow || !computedFieldRegistry.isEmpty()) {
+            List<QueryRow> childRows = toSourceRows(children);
+            addJoinRows(parentField, childRows, childField, joinMethod);
+            return this;
+        }
+        addLazyJoinSource(parentField, children, childField, joinMethod);
         return this;
     }
 
@@ -598,6 +609,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getJoinClasses();
     }
 
+    public Map<Integer, List<QueryRow>> getJoinClassesForExecution() {
+        materializePendingJoinRows();
+        return spec.getJoinClasses();
+    }
+
     public Map<Integer, Join> getJoinMethods() {
         return spec.getJoinMethods();
     }
@@ -648,10 +664,24 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private void addJoinRows(String parentField, List<QueryRow> children, String childField, Join joinMethod) {
         int index = nextJoinIndex();
-        getJoinClasses().put(index, ComputedFieldSupport.materializeRows(children, computedFieldRegistry));
-        getJoinMethods().put(index, joinMethod);
-        getJoinParentFields().put(index, parentField);
-        getJoinChildFields().put(index, childField);
+        storeJoinDefinition(index, ComputedFieldSupport.materializeRows(children, computedFieldRegistry), parentField, childField, joinMethod);
+    }
+
+    private void addLazyJoinSource(String parentField, List<?> children, String childField, Join joinMethod) {
+        int index = nextJoinIndex();
+        joinSourceBeans.put(index, copySourceBeans(children));
+        storeJoinDefinition(index, new ArrayList<>(), parentField, childField, joinMethod);
+    }
+
+    private void storeJoinDefinition(int index,
+                                     List<QueryRow> children,
+                                     String parentField,
+                                     String childField,
+                                     Join joinMethod) {
+        spec.getJoinClasses().put(index, children);
+        spec.getJoinMethods().put(index, joinMethod);
+        spec.getJoinParentFields().put(index, parentField);
+        spec.getJoinChildFields().put(index, childField);
     }
 
     private void addCriteriaRule(String column,
@@ -716,6 +746,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
         snapshot.sourceBeans = copySourceBeans(sourceBeans);
+        snapshot.joinSourceBeans = copyJoinSourceBeans();
         snapshot.fullyMaterializedSourceRows = fullyMaterializedSourceRows;
         snapshot.materializedSourceFields = materializedSourceFields;
         snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
@@ -859,6 +890,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void materializeJoinRows() {
+        materializePendingJoinRows();
         if (computedFieldRegistry.isEmpty()) {
             return;
         }
@@ -956,6 +988,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         addSourceFields(selected, spec.getFilterFields().values());
         addSourceFields(selected, spec.getDistinctFields().values());
         addSourceFields(selected, spec.getOrderFields().values());
+        addSourceFields(selected, spec.getJoinParentFields().values());
         addGroupSourceFields(selected);
         addMetricSourceFields(selected);
         addTimeBucketSourceFields(selected);
@@ -967,9 +1000,6 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private boolean requiresFullSourceMaterialization() {
-        if (!spec.getJoinClasses().isEmpty()) {
-            return true;
-        }
         if (!computedFieldRegistry.isEmpty()) {
             return true;
         }
@@ -1055,6 +1085,28 @@ public class FilterQueryBuilder implements QueryBuilder {
             return List.of();
         }
         return new ArrayList<>(pojos);
+    }
+
+    private Map<Integer, List<?>> copyJoinSourceBeans() {
+        if (joinSourceBeans.isEmpty()) {
+            return new HashMap<>();
+        }
+        HashMap<Integer, List<?>> copy = new HashMap<>(Math.max(16, joinSourceBeans.size() * 2));
+        for (Map.Entry<Integer, List<?>> entry : joinSourceBeans.entrySet()) {
+            copy.put(entry.getKey(), copySourceBeans(entry.getValue()));
+        }
+        return copy;
+    }
+
+    private void materializePendingJoinRows() {
+        if (joinSourceBeans.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<Integer, List<?>> entry : new ArrayList<>(joinSourceBeans.entrySet())) {
+            List<QueryRow> rows = materializedRows(toSourceRows(entry.getValue()));
+            spec.getJoinClasses().put(entry.getKey(), rows);
+            joinSourceBeans.remove(entry.getKey());
+        }
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {
