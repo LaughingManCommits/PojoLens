@@ -15,7 +15,7 @@ Load order is defined in the root `AGENTS.md`.
 
 # Current Focus
 
-The main unfinished engineering work still relates to **WP5 selective / lazy materialization**, but the remaining work is now dominated by repeated measurement and threshold decisions rather than core builder plumbing.
+The main unfinished engineering work still relates to **WP5 selective / lazy materialization**, but the remaining work is now dominated by hotspot threshold follow-up and any future tightening of the new computed-field join guardrail rather than core builder plumbing.
 
 Relevant reference:
 
@@ -63,6 +63,6 @@ Snapshot/testing utilities:
 - Should `CONTRIBUTING.md` and `RELEASE.md` benchmark examples be corrected to `1.0.0`?
 - Should doc-consistency tooling detect version drift?
 - Do the initial forked hotspot numbers for `computedFieldJoinSelectiveMaterialization` (`~37.9 us/op` / `~363,824 B/op` at `1k`, `~361.5 us/op` / `~3,531,826 B/op` at `10k`) hold up across repeated runs?
-- Do the initial end-to-end computed-field join numbers (`~0.335 ms/op` / `~2,138,298 B/op` at `1k`, `~3.750 ms/op` / `~20,981,581 B/op` at `10k`) hold up across repeated runs, and how much gap to the manual baseline is acceptable as a regression budget?
-- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds and adding to the strict main suite after reruns, or should they remain guidance-only?
+- The end-to-end computed-field join path now has conservative strict-suite budgets of `250 ms/op` at `1k` and `500 ms/op` at `10k`; should those be tightened once more cold-run data is collected?
+- The repeated end-to-end profiled runs held at about `0.335 ms/op` / `2,138,3xx B/op` for `1k` and `3.589-3.750 ms/op` / `20,981,5xx B/op` for `10k`; how much gap to the manual baseline is acceptable as a longer-term regression budget?
 - Should the remaining WP5 fallbacks for explicit rule groups or multi-join shapes be left as the stable stopping point?

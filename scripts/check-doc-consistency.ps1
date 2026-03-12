@@ -53,8 +53,10 @@ Require-Pattern $charts "docs/charts.md" "percentStacked.*requires.*stacked=true
 Require-Pattern $migration "MIGRATION.md" "percentStacked.*requires.*stacked=true" $errors
 
 # Benchmark command coverage invariants.
+Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
 Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "SqlLikePipelineJmhBenchmark.parseAndFilterBooleanDepth" $errors
 Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed" $errors
+Require-Substring $benchmarking "docs/benchmarking.md" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "BenchmarkMetricsPlotGenerator" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "benchmarks/chart-thresholds.json" $errors
 Require-Pattern $benchmarking "docs/benchmarking.md" "BenchmarkThresholdChecker.*--strict" $errors

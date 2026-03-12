@@ -83,6 +83,7 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `350 ms/op` | `750 ms/op` |
 | `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `300 ms/op` | `900 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `500 ms/op` | `1500 ms/op` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `250 ms/op` | `500 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `5 ms/op` | `5 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `500 ms/op` | `900 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `1 ms/op` | `1 ms/op` |
@@ -160,7 +161,9 @@ Example local comparison run:
 java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
 ```
 
-Treat this as a local diagnostic until repeated forked reruns justify adding it to `scripts/benchmark-suite-main.args` and `benchmarks/thresholds.json`.
+The PojoLens path is now part of the core guardrail suite through `scripts/benchmark-suite-main.args`, with conservative cold-run thresholds of `250 ms/op` at `size=1000` and `500 ms/op` at `size=10000` in `benchmarks/thresholds.json`.
+
+Keep `manualHashJoinLeftComputedField` as a local comparison baseline rather than a merge gate. Use the profiled local command above when you need allocation context or want to compare the current PojoLens path against the manual baseline directly. These budgets are intentionally based on the colder no-warmup strict-suite configuration, not the warmer `-wi 1 -i 3 -prof gc` profiling runs.
 
 ## Plot Generation
 

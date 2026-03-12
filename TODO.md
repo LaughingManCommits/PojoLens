@@ -405,6 +405,7 @@ Progress update (2026-03-12):
   - safe single-join computed-field queries now retain selective parent and child materialization when schemas remain collision-free
   - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` was added and wired into `scripts/benchmark-suite-hotspots.args` plus `docs/benchmarking.md`
   - `PojoLensJoinJmhBenchmark` now includes `pojoLensJoinLeftComputedField` plus `manualHashJoinLeftComputedField` for end-to-end comparison of the WP5 computed-field single-join path
+  - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` is now wired into `scripts/benchmark-suite-main.args` with conservative cold-run thresholds in `benchmarks/thresholds.json`
 - Verified:
   - full `mvn -q test` passed after the latest WP5 builder and benchmark changes
   - a forked `-prof gc` hotspot run captured the new computed-field join path at about `37.9 us/op` and about `363,824 B/op` for `size=1000`
@@ -412,9 +413,12 @@ Progress update (2026-03-12):
   - a forked `-prof gc` end-to-end run captured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.335 ms/op` and about `2,138,298 B/op` for `size=1000`
   - the same end-to-end run captured about `3.750 ms/op` and about `20,981,581 B/op` for `size=10000`
   - the same end-to-end run captured `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` for `size=1000` and about `0.097 ms/op` / `927,128 B/op` for `size=10000`
+  - a second forked `-prof gc` end-to-end run stayed at about `0.335 ms/op` / `2,138,338 B/op` for `size=1000` and about `3.589 ms/op` / `20,981,552 B/op` for `size=10000`
+  - repeated isolated cold guardrail-style runs for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` stayed around `57.6-57.9 ms/op` for `size=1000` and `166.9-169.8 ms/op` for `size=10000`
+  - the full strict core benchmark suite passed with `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `109.706 ms/op` for `size=1000` and about `160.863 ms/op` for `size=10000`, and `BenchmarkThresholdChecker --strict` passed with conservative budgets of `250 ms/op` / `500 ms/op`
 - Remaining:
-  - rerun the hotspot and end-to-end computed-field join diagnostics enough times to decide whether those allocation numbers are stable enough for thresholds or should remain documented as local diagnostics
-  - decide whether `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` should be added to `scripts/benchmark-suite-main.args` plus `benchmarks/thresholds.json`, or stay outside the strict suite
+  - rerun the hotspot enough times to decide whether its allocation numbers are stable enough for a threshold or should remain documented as a local diagnostic
+  - decide later whether the new end-to-end guardrail budgets should be tightened once more machines and runs are available
 
 Acceptance criteria:
 
@@ -424,7 +428,7 @@ Acceptance criteria:
 Current evidence:
 
 - Targeted behavior coverage currently supports the second acceptance criterion for the implemented slices.
-- The first acceptance criterion is now partially supported by initial forked `-prof gc` runs of both `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` and `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`, but it still needs repeated measurements before any threshold should be treated as stable.
+- The first acceptance criterion is now partially supported by repeated hotspot diagnostics and repeated end-to-end computed-field join runs, including new conservative strict-suite thresholds for the end-to-end path. The hotspot path still remains diagnostic-only.
 
 ### WP6: Replace expensive UUID generation
 

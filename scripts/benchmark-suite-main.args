@@ -1,6 +1,7 @@
 laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline
 laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline
 laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft
+laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField
 laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly
 laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilter
 laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving
