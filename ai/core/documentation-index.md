@@ -38,5 +38,5 @@
 ## Active Work And Future Plans
 
 - `TODO.md`: primary planning document and the only explicit backlog-like file found.
-- Verified current open focus from `TODO.md`: remaining WP5 selective/lazy materialization work is now benchmark follow-up, mainly hotspot threshold follow-up and any future tightening of the new computed-field join guardrail.
+- Verified current open focus from `TODO.md`: WP5 is now closed at its accepted selective/single-join boundary, and the remaining follow-up work is benchmark hardening for hotspot thresholds and possible future tightening of the computed-field join guardrail.
 - No separate `ROADMAP.md`, `BACKLOG.md`, ADR directory, or design-notes folder was found.
