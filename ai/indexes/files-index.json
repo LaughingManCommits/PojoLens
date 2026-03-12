@@ -1,0 +1,245 @@
+{
+  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "notes": "Important repository roots and files. Generated outputs under target/ are excluded except where they are artifact destinations referenced by tests or docs.",
+  "roots": [
+    {
+      "path": ".github/workflows",
+      "kind": "ci"
+    },
+    {
+      "path": "ai",
+      "kind": "ai-memory"
+    },
+    {
+      "path": "benchmarks",
+      "kind": "benchmark-config"
+    },
+    {
+      "path": "docs",
+      "kind": "documentation"
+    },
+    {
+      "path": "scripts",
+      "kind": "repo-scripts"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits",
+      "kind": "source-root"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits",
+      "kind": "test-root"
+    },
+    {
+      "path": "src/test/resources/fixtures",
+      "kind": "test-fixtures"
+    }
+  ],
+  "importantFiles": [
+    {
+      "path": "pom.xml",
+      "kind": "build",
+      "description": "Single-module Maven build, Java 17 target, dependencies, benchmark/lint/static-analysis profiles."
+    },
+    {
+      "path": "README.md",
+      "kind": "product-doc",
+      "description": "Primary product overview, quick starts, public API list, and limitations."
+    },
+    {
+      "path": "TODO.md",
+      "kind": "planning",
+      "description": "Primary backlog-like document; current open work is WP5 selective/lazy materialization follow-up."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "kind": "process-doc",
+      "description": "Local validation and benchmark commands."
+    },
+    {
+      "path": "MIGRATION.md",
+      "kind": "migration-doc",
+      "description": "Historical API changes and migration guidance."
+    },
+    {
+      "path": "RELEASE.md",
+      "kind": "release-doc",
+      "description": "Release checklist and compatibility notes."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "ci",
+      "description": "GitHub Actions workflow for tests, lint, static analysis, doc checks, benchmarks, and artifacts."
+    },
+    {
+      "path": "scripts/check-doc-consistency.ps1",
+      "kind": "validation-script",
+      "description": "Narrow repo doc invariant check used by CI."
+    },
+    {
+      "path": "scripts/check-doc-consistency.py",
+      "kind": "validation-script",
+      "description": "Python counterpart to the doc consistency checks."
+    },
+    {
+      "path": "scripts/check-lint-baseline.ps1",
+      "kind": "validation-script",
+      "description": "Checkstyle baseline enforcement helper."
+    },
+    {
+      "path": "scripts/benchmark-suite-main.args",
+      "kind": "benchmark-suite",
+      "description": "Core benchmark suite selector list."
+    },
+    {
+      "path": "scripts/benchmark-suite-chart.args",
+      "kind": "benchmark-suite",
+      "description": "Chart benchmark suite selector list."
+    },
+    {
+      "path": "scripts/benchmark-suite-hotspots.args",
+      "kind": "benchmark-suite",
+      "description": "Hotspot microbenchmark selector list."
+    },
+    {
+      "path": "scripts/benchmark-suite-baseline.args",
+      "kind": "benchmark-suite",
+      "description": "Streams baseline selector list."
+    },
+    {
+      "path": "scripts/benchmark-suite-cache.args",
+      "kind": "benchmark-suite",
+      "description": "Cache concurrency benchmark selector list."
+    },
+    {
+      "path": "benchmarks/thresholds.json",
+      "kind": "benchmark-thresholds",
+      "description": "Core benchmark budget thresholds."
+    },
+    {
+      "path": "benchmarks/chart-thresholds.json",
+      "kind": "benchmark-thresholds",
+      "description": "Chart benchmark budget thresholds."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLens.java",
+      "kind": "public-entry",
+      "description": "Compatibility facade exposing the main public API."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensCore.java",
+      "kind": "public-entry",
+      "description": "Fluent core entry point and stats-plan cache controls."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensSql.java",
+      "kind": "public-entry",
+      "description": "SQL-like entry point and SQL parse cache controls."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensChart.java",
+      "kind": "public-entry",
+      "description": "Chart payload mapping entry point."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java",
+      "kind": "public-entry",
+      "description": "Instance-scoped runtime with isolated caches, diagnostics, telemetry, and computed fields."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
+      "kind": "engine",
+      "description": "Fluent query configuration hub with explain, schema, and selective materialization logic."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/FilterImpl.java",
+      "kind": "engine",
+      "description": "Execution hub for filter, group, order, join, and chart flows."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java",
+      "kind": "engine",
+      "description": "Precompiled execution metadata for rules, distinct, order, group, and metrics."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/util/ReflectionUtil.java",
+      "kind": "engine",
+      "description": "POJO field discovery, flattening, and projection helper."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
+      "kind": "engine",
+      "description": "Public SQL-like contract for params, bind-first execution, schema, explain, lint, and charting."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
+      "kind": "engine",
+      "description": "SQL-like parser and clause/token guardrail implementation."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java",
+      "kind": "engine",
+      "description": "SQL-like field, aggregate, join, subquery, and time-bucket validation."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/chart/ChartResultMapper.java",
+      "kind": "feature",
+      "description": "Chart payload mapping implementation."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/chart/ChartQueryPresets.java",
+      "kind": "feature",
+      "description": "Chart/query preset factories for common reporting shapes."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java",
+      "kind": "feature",
+      "description": "Reusable report wrapper over SQL-like or fluent queries."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
+      "kind": "feature",
+      "description": "Keyed snapshot diff implementation."
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
+      "kind": "feature",
+      "description": "Code-first regression fixture helper for stable dataset snapshots."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/PublicApiCoverageTest.java",
+      "kind": "test-anchor",
+      "description": "Broad public API behavior coverage."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
+      "kind": "test-anchor",
+      "description": "Public surface and removed-API contract checks."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
+      "kind": "test-anchor",
+      "description": "README and SQL-like doc examples."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
+      "kind": "test-anchor",
+      "description": "README stats/chart examples."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
+      "kind": "test-anchor",
+      "description": "SQL-like join and chained-join contract coverage."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
+      "kind": "test-anchor",
+      "description": "Selective/lazy materialization behavior coverage."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+      "kind": "test-anchor",
+      "description": "XChart interoperability and chart artifact generation."
+    }
+  ]
+}

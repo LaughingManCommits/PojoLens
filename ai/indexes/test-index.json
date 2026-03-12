@@ -1,0 +1,145 @@
+{
+  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "verification": {
+    "command": "mvn -B -ntp test",
+    "status": "passed",
+    "testsRun": 398,
+    "date": "2026-03-12",
+    "java": "17.0.10",
+    "maven": "3.8.1"
+  },
+  "testRoots": [
+    "src/test/java/laughing/man/commits",
+    "src/test/resources/fixtures"
+  ],
+  "suites": [
+    {
+      "category": "public-surface",
+      "files": [
+        "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
+        "src/test/java/laughing/man/commits/PublicApiCoverageTest.java"
+      ],
+      "focus": "Public API entry points, cache controls, typed overloads, reports, bundles, fixtures, and compatibility surface."
+    },
+    {
+      "category": "docs-examples",
+      "files": [
+        "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
+        "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java"
+      ],
+      "focus": "README and markdown recipe examples stay executable."
+    },
+    {
+      "category": "sql-like",
+      "files": [
+        "src/test/java/laughing/man/commits/SqlLikeParserTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeValidationTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeParametersContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeTemplateContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeErrorCodesContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeLintModeTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeAliasTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeJoinBindingsContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeMappingParityTest.java"
+      ],
+      "focus": "Grammar, validation, joins, aliases, error contracts, parameters, lint, and typed execution."
+    },
+    {
+      "category": "fluent-engine",
+      "files": [
+        "src/test/java/laughing/man/commits/PojoLensRuleBehaviorTest.java",
+        "src/test/java/laughing/man/commits/PojoLensOrderGroupBehaviorTest.java",
+        "src/test/java/laughing/man/commits/AggregationFluentTest.java",
+        "src/test/java/laughing/man/commits/AggregationGroupByFluentTest.java",
+        "src/test/java/laughing/man/commits/filter/FilterCoreTest.java",
+        "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java"
+      ],
+      "focus": "Core filter/order/group/metric behavior and selective materialization."
+    },
+    {
+      "category": "joins-and-bundles",
+      "files": [
+        "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
+        "src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java"
+      ],
+      "focus": "Fluent joins, SQL-like join execution, bundle-backed execution contexts."
+    },
+    {
+      "category": "caching-and-runtime",
+      "files": [
+        "src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
+        "src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
+        "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
+        "src/test/java/laughing/man/commits/PojoLensConcurrencyBehaviorTest.java"
+      ],
+      "focus": "Cache defaults, stats visibility, concurrency, runtime presets, and mutable builder snapshot behavior."
+    },
+    {
+      "category": "charts-and-reporting",
+      "files": [
+        "src/test/java/laughing/man/commits/ChartQueryPresetsTest.java",
+        "src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java",
+        "src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java",
+        "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+        "src/test/java/laughing/man/commits/FluentChartIntegrationTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
+        "src/test/java/laughing/man/commits/ReportDefinitionTest.java"
+      ],
+      "focus": "Chart payload contracts, presets, report reuse, and chart-library interoperability."
+    },
+    {
+      "category": "metadata-and-utilities",
+      "files": [
+        "src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java",
+        "src/test/java/laughing/man/commits/QueryTelemetryTest.java",
+        "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
+        "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
+        "src/test/java/laughing/man/commits/NestedPathQueryTest.java",
+        "src/test/java/laughing/man/commits/ComputedFieldRegistryTest.java"
+      ],
+      "focus": "Telemetry, snapshot diffing, regression fixtures, nested paths, metamodel generation, computed fields."
+    },
+    {
+      "category": "benchmark-tooling",
+      "files": [
+        "src/test/java/laughing/man/commits/benchmark/BenchmarkMetricLoaderTest.java",
+        "src/test/java/laughing/man/commits/benchmark/BenchmarkMetricQueriesParityTest.java",
+        "src/test/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGeneratorTest.java",
+        "src/test/java/laughing/man/commits/benchmark/StreamsBenchmarkParityTest.java"
+      ],
+      "focus": "Benchmark result normalization, parity, and plotting helpers."
+    }
+  ],
+  "fixtures": [
+    "src/test/resources/fixtures/benchmark/core-results-empty.json",
+    "src/test/resources/fixtures/benchmark/core-thresholds-empty.json",
+    "src/test/resources/fixtures/benchmark/metrics-results.json",
+    "src/test/resources/fixtures/benchmark/metrics-thresholds.json",
+    "src/test/resources/fixtures/chart/chartjs-area-percent-stacked.json",
+    "src/test/resources/fixtures/chart/chartjs-basic-bar.json",
+    "src/test/resources/fixtures/chart/chartjs-line-metadata.json"
+  ],
+  "ci": {
+    "workflow": ".github/workflows/ci.yml",
+    "jobs": [
+      {
+        "name": "test",
+        "java": [
+          "17",
+          "21"
+        ]
+      },
+      {
+        "name": "cache-concurrency-stress",
+        "focus": "Runs CacheConcurrencyTest five times."
+      },
+      {
+        "name": "chart-artifacts",
+        "focus": "Runs ChartLibraryInteropTest and uploads generated PNGs."
+      }
+    ]
+  }
+}

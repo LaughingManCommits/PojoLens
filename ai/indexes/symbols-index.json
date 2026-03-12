@@ -1,0 +1,411 @@
+{
+  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "groups": [
+    {
+      "component": "facades",
+      "symbols": [
+        {
+          "name": "PojoLens",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLens.java",
+          "entryPoint": true,
+          "members": [
+            "newQueryBuilder",
+            "newRuntime",
+            "parse",
+            "template",
+            "bundle",
+            "compareSnapshots",
+            "report",
+            "toChartData",
+            "sqlLike cache controls",
+            "statsPlan cache controls"
+          ]
+        },
+        {
+          "name": "PojoLensCore",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensCore.java",
+          "entryPoint": true,
+          "members": [
+            "newQueryBuilder",
+            "statsPlan cache controls"
+          ]
+        },
+        {
+          "name": "PojoLensSql",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensSql.java",
+          "entryPoint": true,
+          "members": [
+            "parse",
+            "template",
+            "sqlLike cache controls"
+          ]
+        },
+        {
+          "name": "PojoLensChart",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensChart.java",
+          "entryPoint": true,
+          "members": [
+            "toChartData"
+          ]
+        },
+        {
+          "name": "PojoLensRuntime",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java",
+          "entryPoint": true,
+          "members": [
+            "newQueryBuilder",
+            "parse",
+            "template",
+            "sqlLikeCache",
+            "statsPlanCache",
+            "setStrictParameterTypes",
+            "setLintMode",
+            "setTelemetryListener",
+            "setComputedFieldRegistry",
+            "applyPreset"
+          ]
+        },
+        {
+          "name": "PojoLensRuntimePreset",
+          "kind": "enum",
+          "path": "src/main/java/laughing/man/commits/PojoLensRuntimePreset.java",
+          "values": [
+            "DEV",
+            "PROD",
+            "TEST"
+          ]
+        }
+      ]
+    },
+    {
+      "component": "fluent",
+      "symbols": [
+        {
+          "name": "QueryBuilder",
+          "kind": "interface",
+          "path": "src/main/java/laughing/man/commits/builder/QueryBuilder.java",
+          "members": [
+            "copyOnBuild",
+            "telemetry",
+            "computedFields",
+            "limit",
+            "initFilter",
+            "explain",
+            "schema",
+            "addJoinBeans",
+            "addOrder",
+            "addGroup",
+            "addField",
+            "addMetric",
+            "addCount",
+            "addTimeBucket",
+            "addDistinct",
+            "addRule",
+            "addHaving",
+            "allOf",
+            "anyOf",
+            "addHavingAllOf",
+            "addHavingAnyOf"
+          ]
+        },
+        {
+          "name": "Filter",
+          "kind": "interface",
+          "path": "src/main/java/laughing/man/commits/filter/Filter.java",
+          "members": [
+            "filterGroups",
+            "filter",
+            "chart",
+            "join"
+          ]
+        },
+        {
+          "name": "FilterQueryBuilder",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
+          "role": "Mutable fluent builder with selective or full materialization decisions."
+        },
+        {
+          "name": "FilterExecutionPlan",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java",
+          "role": "Compiled rule, distinct, order, group, and metric metadata."
+        },
+        {
+          "name": "FilterExecutionPlanCacheStore",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheStore.java",
+          "role": "Instance-scoped stats-plan cache."
+        }
+      ]
+    },
+    {
+      "component": "sqlLike",
+      "symbols": [
+        {
+          "name": "SqlLikeQuery",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
+          "members": [
+            "source",
+            "params",
+            "strictParameterTypes",
+            "lintMode",
+            "telemetry",
+            "computedFields",
+            "lintWarnings",
+            "bindTyped",
+            "filter",
+            "chart",
+            "sort",
+            "schema",
+            "explain"
+          ]
+        },
+        {
+          "name": "SqlLikeTemplate",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeTemplate.java",
+          "members": [
+            "bind"
+          ]
+        },
+        {
+          "name": "SqlLikeBoundQuery",
+          "kind": "interface",
+          "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeBoundQuery.java",
+          "members": [
+            "filter",
+            "chart"
+          ]
+        },
+        {
+          "name": "SqlParams",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/SqlParams.java",
+          "members": [
+            "builder",
+            "asMap"
+          ]
+        },
+        {
+          "name": "JoinBindings",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/JoinBindings.java",
+          "members": [
+            "empty",
+            "of",
+            "from",
+            "builder",
+            "asMap"
+          ]
+        },
+        {
+          "name": "SqlLikeParser",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
+          "role": "Parser and clause/token guardrail implementation."
+        },
+        {
+          "name": "SqlLikeValidator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java",
+          "role": "Validation of fields, joins, aggregates, subqueries, and time buckets."
+        }
+      ]
+    },
+    {
+      "component": "reportingAndCharts",
+      "symbols": [
+        {
+          "name": "ChartSpec",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartSpec.java"
+        },
+        {
+          "name": "ChartData",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartData.java"
+        },
+        {
+          "name": "ChartDataset",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartDataset.java"
+        },
+        {
+          "name": "ChartType",
+          "kind": "enum",
+          "path": "src/main/java/laughing/man/commits/chart/ChartType.java"
+        },
+        {
+          "name": "ChartQueryPreset",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartQueryPreset.java",
+          "members": [
+            "source",
+            "query",
+            "chartSpec",
+            "schema",
+            "reportDefinition",
+            "rows",
+            "chart"
+          ]
+        },
+        {
+          "name": "ChartQueryPresets",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartQueryPresets.java",
+          "members": [
+            "categoryTotals",
+            "categoryCounts",
+            "timeSeriesTotals",
+            "timeSeriesCounts",
+            "groupedBreakdown"
+          ]
+        },
+        {
+          "name": "ReportDefinition",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java",
+          "members": [
+            "sql",
+            "fluent",
+            "schema",
+            "supportsJoinSources",
+            "withChartSpec",
+            "rows",
+            "chart"
+          ]
+        },
+        {
+          "name": "TabularSchema",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/table/TabularSchema.java"
+        },
+        {
+          "name": "TimeBucketPreset",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/time/TimeBucketPreset.java",
+          "members": [
+            "of",
+            "day",
+            "week",
+            "month",
+            "quarter",
+            "year",
+            "parse",
+            "withZone",
+            "withWeekStart",
+            "sqlArgumentList"
+          ]
+        }
+      ]
+    },
+    {
+      "component": "comparisonAndTesting",
+      "symbols": [
+        {
+          "name": "DatasetBundle",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/DatasetBundle.java",
+          "members": [
+            "of",
+            "builder",
+            "primaryRows",
+            "joinSources",
+            "joinBindings"
+          ]
+        },
+        {
+          "name": "SnapshotComparison",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
+          "members": [
+            "builder",
+            "rows",
+            "added",
+            "removed",
+            "changed",
+            "unchanged",
+            "summary"
+          ]
+        },
+        {
+          "name": "QuerySnapshotFixture",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/testing/QuerySnapshotFixture.java",
+          "members": [
+            "of",
+            "bundle",
+            "primaryRows",
+            "joinSources"
+          ]
+        },
+        {
+          "name": "QueryRegressionFixture",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
+          "members": [
+            "sql",
+            "report",
+            "fluent",
+            "rows",
+            "explain",
+            "lintCodes",
+            "assertRowCount",
+            "assertMetric",
+            "assertOrderedRows",
+            "assertUnorderedRows",
+            "assertExplainContains",
+            "assertLintCodes"
+          ]
+        },
+        {
+          "name": "FluentSqlLikeParity",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/testing/FluentSqlLikeParity.java"
+        },
+        {
+          "name": "ComputedFieldRegistry",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/computed/ComputedFieldRegistry.java",
+          "members": [
+            "empty",
+            "of",
+            "builder",
+            "names",
+            "definitions"
+          ]
+        },
+        {
+          "name": "FieldMetamodelGenerator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java",
+          "members": [
+            "generate"
+          ]
+        },
+        {
+          "name": "QueryTelemetryEvent",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/telemetry/QueryTelemetryEvent.java"
+        },
+        {
+          "name": "QueryTelemetryStage",
+          "kind": "enum",
+          "path": "src/main/java/laughing/man/commits/telemetry/QueryTelemetryStage.java"
+        },
+        {
+          "name": "QueryTelemetryListener",
+          "kind": "interface",
+          "path": "src/main/java/laughing/man/commits/telemetry/QueryTelemetryListener.java"
+        }
+      ]
+    }
+  ]
+}

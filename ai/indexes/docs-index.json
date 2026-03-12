@@ -1,0 +1,230 @@
+{
+  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "documents": [
+    {
+      "path": "README.md",
+      "category": "readme",
+      "description": "Primary product overview, quick starts, public API entry points, and limitations.",
+      "relevance": "high",
+      "alignment": "mostly-aligned"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "category": "contributing",
+      "description": "Local validation and benchmark commands.",
+      "relevance": "high",
+      "alignment": "mixed"
+    },
+    {
+      "path": "LICENSE.md",
+      "category": "license",
+      "description": "Repository license text.",
+      "relevance": "low",
+      "alignment": "not-applicable"
+    },
+    {
+      "path": "MIGRATION.md",
+      "category": "migration",
+      "description": "Historical API changes and migration notes.",
+      "relevance": "medium",
+      "alignment": "mismatch"
+    },
+    {
+      "path": "RELEASE.md",
+      "category": "release",
+      "description": "Release checklist and compatibility notes.",
+      "relevance": "medium",
+      "alignment": "mismatch"
+    },
+    {
+      "path": "TODO.md",
+      "category": "todo",
+      "description": "Primary planning document and current performance backlog.",
+      "relevance": "high",
+      "alignment": "aligned",
+      "activeWork": true
+    },
+    {
+      "path": "docs/benchmarking.md",
+      "category": "benchmarking",
+      "description": "Benchmark philosophy, suites, thresholds, hotspot guidance, and CI gates.",
+      "relevance": "high",
+      "alignment": "mixed"
+    },
+    {
+      "path": "docs/caching.md",
+      "category": "reference",
+      "description": "SQL-like and stats-plan cache defaults, APIs, and tuning notes.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/charts.md",
+      "category": "reference",
+      "description": "Chart payload contract, validation rules, presets, and examples.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/computed-fields.md",
+      "category": "reference",
+      "description": "Computed field registry scope, runtime integration, and validation notes.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/metamodel.md",
+      "category": "reference",
+      "description": "Field metamodel generator usage and output shape.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/modules.md",
+      "category": "architecture",
+      "description": "Staged entry-point split and dependency footprint notes.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/regression-fixtures.md",
+      "category": "reference",
+      "description": "Snapshot fixture and regression fixture workflow.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/reports.md",
+      "category": "reference",
+      "description": "Reusable report definitions, schema bridge, and optional chart mapping.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/snapshot-comparison.md",
+      "category": "reference",
+      "description": "Snapshot diff API, row shape, and comparison semantics.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/sql-like.md",
+      "category": "reference",
+      "description": "SQL-like grammar, validation rules, limits, recipes, and error reference.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/tabular-schema.md",
+      "category": "reference",
+      "description": "Tabular schema metadata contract and format hints.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/telemetry.md",
+      "category": "reference",
+      "description": "Telemetry stages, hook points, and event shape.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "docs/time-buckets.md",
+      "category": "reference",
+      "description": "Calendar presets, SQL-like bucket forms, and explain tokens.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/AGENTS.md",
+      "category": "ai-memory",
+      "description": "Load order and trust rules for future agents using the memory layer.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/repo-purpose.md",
+      "category": "ai-memory",
+      "description": "Compact statement of what the repository is for and what it does not own.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/system-boundaries.md",
+      "category": "ai-memory",
+      "description": "Owned capabilities, non-goals, dependencies, and behavioral constraints.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/architecture-map.md",
+      "category": "ai-memory",
+      "description": "High-level architecture and pipeline map for fluent, SQL-like, chart, and benchmark layers.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/module-index.md",
+      "category": "ai-memory",
+      "description": "Top-level directory and package inventory with high-signal files.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/readme-alignment.md",
+      "category": "ai-memory",
+      "description": "Explicit documentation-versus-implementation alignment findings and mismatches.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/documentation-index.md",
+      "category": "ai-memory",
+      "description": "Human-readable summary of important docs, drift, and active-work sources.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/test-strategy.md",
+      "category": "ai-memory",
+      "description": "Summary of test coverage, fixtures, and validation evidence collected during bootstrap.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/runbook.md",
+      "category": "ai-memory",
+      "description": "Build, validation, benchmark, and CI runbook for the library.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/core/discovery-notes.md",
+      "category": "ai-memory",
+      "description": "High-signal discovery notes and residual uncertainty from the bootstrap scan.",
+      "relevance": "medium",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/state/current-state.md",
+      "category": "ai-memory",
+      "description": "Current repo snapshot, open work, and known documentation risks.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/state/handoff.md",
+      "category": "ai-memory",
+      "description": "Next-session load order, area-specific entry files, and open questions.",
+      "relevance": "high",
+      "alignment": "aligned"
+    },
+    {
+      "path": "ai/codex_bootstrap_prompt_with_docs_scan.md",
+      "category": "ai-bootstrap",
+      "description": "Bootstrap instructions for creating this AI memory scaffold.",
+      "relevance": "low",
+      "alignment": "not-applicable"
+    }
+  ]
+}
