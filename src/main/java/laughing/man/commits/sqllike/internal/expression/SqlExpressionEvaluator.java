@@ -13,11 +13,19 @@ import java.util.function.UnaryOperator;
 public final class SqlExpressionEvaluator {
 
     private static final int TOKEN_CACHE_MAX_ENTRIES = 512;
+    private static final int COMPILED_CACHE_MAX_ENTRIES = 512;
     private static final Map<String, List<Token>> TOKEN_CACHE =
             Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, List<Token>> eldest) {
                     return size() > TOKEN_CACHE_MAX_ENTRIES;
+                }
+            });
+    private static final Map<String, CompiledExpression> COMPILED_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CompiledExpression> eldest) {
+                    return size() > COMPILED_CACHE_MAX_ENTRIES;
                 }
             });
 
@@ -46,13 +54,11 @@ public final class SqlExpressionEvaluator {
     }
 
     public static double evaluateNumeric(String expression, ValueResolver resolver) {
-        Parser parser = new Parser(tokensFor(expression), resolver);
-        return parser.parse();
+        return compileNumeric(expression).evaluate(resolver);
     }
 
     public static Set<String> collectIdentifiers(String expression) {
-        Parser parser = new Parser(tokensFor(expression), name -> null, false);
-        return parser.collectIdentifiers();
+        return compileNumeric(expression).identifiers();
     }
 
     public static String rewriteIdentifiers(String expression, UnaryOperator<String> rewriter) {
@@ -70,6 +76,16 @@ public final class SqlExpressionEvaluator {
             }
         }
         return rewritten.toString();
+    }
+
+    public static CompiledExpression compileNumeric(String expression) {
+        CompiledExpression cached = COMPILED_CACHE.get(expression);
+        if (cached != null) {
+            return cached;
+        }
+        CompiledExpression compiled = new Compiler(tokensFor(expression)).compile();
+        COMPILED_CACHE.put(expression, compiled);
+        return compiled;
     }
 
     private static boolean isFunctionCall(List<Token> tokens, int index) {
@@ -149,43 +165,161 @@ public final class SqlExpressionEvaluator {
         }
     }
 
-    private static final class Parser {
+    public static final class CompiledExpression {
+        private final Node root;
+        private final Set<String> identifiers;
+
+        private CompiledExpression(Node root, Set<String> identifiers) {
+            this.root = root;
+            this.identifiers = Collections.unmodifiableSet(new LinkedHashSet<>(identifiers));
+        }
+
+        public double evaluate(ValueResolver resolver) {
+            return root.evaluate(resolver);
+        }
+
+        public Set<String> identifiers() {
+            return identifiers;
+        }
+    }
+
+    private interface Node {
+        double evaluate(ValueResolver resolver);
+    }
+
+    private static final class NumberNode implements Node {
+        private final double value;
+
+        private NumberNode(double value) {
+            this.value = value;
+        }
+
+        @Override
+        public double evaluate(ValueResolver resolver) {
+            return value;
+        }
+    }
+
+    private static final class IdentifierNode implements Node {
+        private final String identifier;
+
+        private IdentifierNode(String identifier) {
+            this.identifier = identifier;
+        }
+
+        @Override
+        public double evaluate(ValueResolver resolver) {
+            Object value = resolver.resolve(identifier);
+            if (value == null) {
+                throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
+            }
+            if (!(value instanceof Number)) {
+                throw new IllegalArgumentException("Expression identifier '" + identifier + "' must be numeric");
+            }
+            return ((Number) value).doubleValue();
+        }
+    }
+
+    private static final class UnaryNode implements Node {
+        private final boolean negate;
+        private final Node operand;
+
+        private UnaryNode(boolean negate, Node operand) {
+            this.negate = negate;
+            this.operand = operand;
+        }
+
+        @Override
+        public double evaluate(ValueResolver resolver) {
+            double value = operand.evaluate(resolver);
+            return negate ? -value : value;
+        }
+    }
+
+    private static final class BinaryNode implements Node {
+        private final char operator;
+        private final Node left;
+        private final Node right;
+
+        private BinaryNode(char operator, Node left, Node right) {
+            this.operator = operator;
+            this.left = left;
+            this.right = right;
+        }
+
+        @Override
+        public double evaluate(ValueResolver resolver) {
+            double leftValue = left.evaluate(resolver);
+            double rightValue = right.evaluate(resolver);
+            if (operator == '+') {
+                return leftValue + rightValue;
+            }
+            if (operator == '-') {
+                return leftValue - rightValue;
+            }
+            if (operator == '*') {
+                return leftValue * rightValue;
+            }
+            if (Math.abs(rightValue) < 1e-12) {
+                throw new IllegalArgumentException("Division by zero in expression");
+            }
+            return leftValue / rightValue;
+        }
+    }
+
+    private static final class FunctionNode implements Node {
+        private final String rawName;
+        private final String normalizedName;
+        private final List<Node> arguments;
+
+        private FunctionNode(String rawName, String normalizedName, List<Node> arguments) {
+            this.rawName = rawName;
+            this.normalizedName = normalizedName;
+            this.arguments = List.copyOf(arguments);
+        }
+
+        @Override
+        public double evaluate(ValueResolver resolver) {
+            if ("ABS".equals(normalizedName)) {
+                return Math.abs(arguments.get(0).evaluate(resolver));
+            }
+            if ("ROUND".equals(normalizedName)) {
+                return Math.rint(arguments.get(0).evaluate(resolver));
+            }
+            if ("FLOOR".equals(normalizedName)) {
+                return Math.floor(arguments.get(0).evaluate(resolver));
+            }
+            if ("CEIL".equals(normalizedName) || "CEILING".equals(normalizedName)) {
+                return Math.ceil(arguments.get(0).evaluate(resolver));
+            }
+            throw new IllegalArgumentException("Unsupported expression function '" + rawName + "'");
+        }
+    }
+
+    private static final class Compiler {
         private final List<Token> tokens;
-        private final ValueResolver resolver;
-        private final boolean resolveValues;
         private int index;
         private final LinkedHashSet<String> identifiers = new LinkedHashSet<>();
 
-        private Parser(List<Token> tokens, ValueResolver resolver) {
-            this(tokens, resolver, true);
-        }
-
-        private Parser(List<Token> tokens, ValueResolver resolver, boolean resolveValues) {
+        private Compiler(List<Token> tokens) {
             this.tokens = tokens;
-            this.resolver = resolver;
-            this.resolveValues = resolveValues;
         }
 
-        private double parse() {
-            double value = parseExpression();
+        private CompiledExpression compile() {
+            Node value = parseExpression();
             expect(TokenType.EOF, null);
-            return value;
+            return new CompiledExpression(value, identifiers);
         }
 
-        private Set<String> collectIdentifiers() {
-            parse();
-            return identifiers;
-        }
-
-        private double parseExpression() {
-            double value = parseTerm();
+        private Node parseExpression() {
+            Node value = parseTerm();
             while (true) {
                 if (matchSymbol("+")) {
-                    value += parseTerm();
+                    value = new BinaryNode('+', value, parseTerm());
                     continue;
                 }
                 if (matchSymbol("-")) {
-                    value -= parseTerm();
+                    value = new BinaryNode('-', value, parseTerm());
                     continue;
                 }
                 break;
@@ -193,19 +327,15 @@ public final class SqlExpressionEvaluator {
             return value;
         }
 
-        private double parseTerm() {
-            double value = parseFactor();
+        private Node parseTerm() {
+            Node value = parseFactor();
             while (true) {
                 if (matchSymbol("*")) {
-                    value *= parseFactor();
+                    value = new BinaryNode('*', value, parseFactor());
                     continue;
                 }
                 if (matchSymbol("/")) {
-                    double divisor = parseFactor();
-                    if (resolveValues && Math.abs(divisor) < 1e-12) {
-                        throw new IllegalArgumentException("Division by zero in expression");
-                    }
-                    value /= divisor;
+                    value = new BinaryNode('/', value, parseFactor());
                     continue;
                 }
                 break;
@@ -213,15 +343,15 @@ public final class SqlExpressionEvaluator {
             return value;
         }
 
-        private double parseFactor() {
+        private Node parseFactor() {
             if (matchSymbol("+")) {
-                return parseFactor();
+                return new UnaryNode(false, parseFactor());
             }
             if (matchSymbol("-")) {
-                return -parseFactor();
+                return new UnaryNode(true, parseFactor());
             }
             if (matchSymbol("(")) {
-                double value = parseExpression();
+                Node value = parseExpression();
                 expectSymbol(")");
                 return value;
             }
@@ -229,7 +359,7 @@ public final class SqlExpressionEvaluator {
             if (token.type == TokenType.NUMBER) {
                 next();
                 try {
-                    return Double.parseDouble(token.text);
+                    return new NumberNode(Double.parseDouble(token.text));
                 } catch (NumberFormatException ex) {
                     throw new IllegalArgumentException("Invalid numeric literal '" + token.text + "'");
                 }
@@ -238,27 +368,17 @@ public final class SqlExpressionEvaluator {
                 String identifier = token.text;
                 next();
                 if (matchSymbol("(")) {
-                    List<Double> args = parseFunctionArgs();
+                    List<Node> args = parseFunctionArgs();
                     return callFunction(identifier, args);
                 }
                 identifiers.add(identifier);
-                if (!resolveValues) {
-                    return 0.0;
-                }
-                Object value = resolver.resolve(identifier);
-                if (value == null) {
-                    throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
-                }
-                if (!(value instanceof Number)) {
-                    throw new IllegalArgumentException("Expression identifier '" + identifier + "' must be numeric");
-                }
-                return ((Number) value).doubleValue();
+                return new IdentifierNode(identifier);
             }
             throw new IllegalArgumentException("Expected numeric expression term");
         }
 
-        private List<Double> parseFunctionArgs() {
-            List<Double> args = new ArrayList<>();
+        private List<Node> parseFunctionArgs() {
+            List<Node> args = new ArrayList<>();
             if (matchSymbol(")")) {
                 return args;
             }
@@ -270,28 +390,28 @@ public final class SqlExpressionEvaluator {
             return args;
         }
 
-        private double callFunction(String rawName, List<Double> args) {
+        private Node callFunction(String rawName, List<Node> args) {
             String name = rawName.toUpperCase(Locale.ROOT);
             if ("ABS".equals(name)) {
                 requireArgCount(name, args, 1);
-                return Math.abs(args.get(0));
+                return new FunctionNode(rawName, name, args);
             }
             if ("ROUND".equals(name)) {
                 requireArgCount(name, args, 1);
-                return Math.rint(args.get(0));
+                return new FunctionNode(rawName, name, args);
             }
             if ("FLOOR".equals(name)) {
                 requireArgCount(name, args, 1);
-                return Math.floor(args.get(0));
+                return new FunctionNode(rawName, name, args);
             }
             if ("CEIL".equals(name) || "CEILING".equals(name)) {
                 requireArgCount(name, args, 1);
-                return Math.ceil(args.get(0));
+                return new FunctionNode(rawName, name, args);
             }
             throw new IllegalArgumentException("Unsupported expression function '" + rawName + "'");
         }
 
-        private void requireArgCount(String functionName, List<Double> args, int expected) {
+        private void requireArgCount(String functionName, List<?> args, int expected) {
             if (args.size() != expected) {
                 throw new IllegalArgumentException(
                         "Function " + functionName + " requires " + expected + " argument(s)"

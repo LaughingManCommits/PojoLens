@@ -117,6 +117,29 @@ public class ComputedFieldRegistryTest {
         assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
     }
 
+    @Test
+    public void dependentComputedFieldsShouldPreserveOrderingAndNumericCoercion() {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .add("roundedAdjustedSalary", "ROUND(adjustedSalary)", Integer.class)
+                .build();
+
+        List<RoundedAdjustedSalaryRow> rows = PojoLens.newQueryBuilder(sampleEmployees())
+                .computedFields(registry)
+                .addField("name")
+                .addField("roundedAdjustedSalary")
+                .initFilter()
+                .filter(RoundedAdjustedSalaryRow.class);
+
+        assertEquals(4, rows.size());
+        Map<String, Integer> roundedByName = rows.stream()
+                .collect(java.util.stream.Collectors.toMap(row -> row.name, row -> row.roundedAdjustedSalary));
+        assertEquals(Integer.valueOf(132000), roundedByName.get("Alice"));
+        assertEquals(Integer.valueOf(99000), roundedByName.get("Bob"));
+        assertEquals(Integer.valueOf(143000), roundedByName.get("Cara"));
+        assertEquals(Integer.valueOf(121000), roundedByName.get("Dan"));
+    }
+
     public static class AdjustedSalaryRow {
         public String name;
         public double adjustedSalary;
@@ -138,6 +161,14 @@ public class ComputedFieldRegistryTest {
         public double salaryDelta;
 
         public SalaryDeltaRow() {
+        }
+    }
+
+    public static class RoundedAdjustedSalaryRow {
+        public String name;
+        public int roundedAdjustedSalary;
+
+        public RoundedAdjustedSalaryRow() {
         }
     }
 }

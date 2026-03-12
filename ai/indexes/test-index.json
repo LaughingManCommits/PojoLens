@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "generatedAt": "2026-03-12T20:29:16+01:00",
   "verification": {
     "command": "mvn -B -ntp test",
     "status": "passed",
-    "testsRun": 398,
+    "testsRun": 406,
     "date": "2026-03-12",
     "java": "17.0.10",
     "maven": "3.8.1"
@@ -43,9 +43,10 @@
         "src/test/java/laughing/man/commits/SqlLikeAliasTest.java",
         "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
         "src/test/java/laughing/man/commits/SqlLikeJoinBindingsContractTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeMappingParityTest.java"
+        "src/test/java/laughing/man/commits/SqlLikeMappingParityTest.java",
+        "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java"
       ],
-      "focus": "Grammar, validation, joins, aliases, error contracts, parameters, lint, and typed execution."
+      "focus": "Grammar, validation, joins, aliases, numeric-expression compilation, error contracts, parameters, lint, and typed execution."
     },
     {
       "category": "fluent-engine",

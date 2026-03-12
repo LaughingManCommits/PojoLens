@@ -76,7 +76,7 @@ Interpretation:
 
 ### WP14: Compile computed-field expressions for row execution
 
-Status: pending
+Status: in progress
 
 Goal: stop reparsing computed expressions for every row.
 
@@ -91,6 +91,13 @@ Tasks:
 - compile numeric computed expressions once instead of creating a new parser per row
 - cache the compiled representation by computed-field definition or expression string
 - keep identifier collection and validation behavior intact
+
+Progress on 2026-03-12:
+
+- `SqlExpressionEvaluator` now compiles numeric expressions into reusable cached ASTs keyed by expression string.
+- `ComputedFieldSupport.materializeRows()` now compiles the applicable computed-field definitions once per materialization call and reuses the compiled expressions for each row.
+- Added targeted regression coverage in `SqlExpressionEvaluatorTest` and `ComputedFieldRegistryTest`.
+- Remaining acceptance work is a comparable warmed profile/JFR pass to confirm the old `SqlExpressionEvaluator$Parser.*` hot spots disappeared from the computed-field join path.
 
 Acceptance criteria:
 

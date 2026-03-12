@@ -15,7 +15,7 @@ Load order is defined in the root `AGENTS.md`.
 
 # Current Focus
 
-**WP5 selective / lazy materialization is complete** at the accepted selective/single-join boundary. The current backlog is now implementation follow-up from a focused warm profile of the computed-field join benchmark, not just threshold tightening.
+**WP14 is now in progress.** WP5 remains closed at the accepted selective/single-join boundary, and the current backlog is profiler-driven follow-up on the computed-field join path.
 
 Relevant reference:
 
@@ -28,6 +28,7 @@ Relevant reference:
 Fluent execution pipeline:
 
 - src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java
+- src/main/java/laughing/man/commits/computed/internal/ComputedFieldSupport.java
 - src/main/java/laughing/man/commits/filter/FilterImpl.java
 - src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java
 - src/main/java/laughing/man/commits/util/ReflectionUtil.java
@@ -43,8 +44,11 @@ Fluent execution pipeline:
 SQL-like execution:
 
 - src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java
+- src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java
 - src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java
 - src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java
+- src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java
+- src/test/java/laughing/man/commits/ComputedFieldRegistryTest.java
 
 Charts and reporting:
 
@@ -62,7 +66,7 @@ Snapshot/testing utilities:
 
 - Should `CONTRIBUTING.md` and `RELEASE.md` benchmark examples be corrected to `1.0.0`?
 - Should doc-consistency tooling detect version drift?
-- Can computed-field expressions be compiled once so `SqlExpressionEvaluator$Parser.*` disappears from the warmed `pojoLensJoinLeftComputedField` profile?
+- Does a comparable warmed JFR now confirm that the old `SqlExpressionEvaluator$Parser.*` hot spots disappeared after the new compiled-expression path?
 - Can `ComputedFieldSupport.materializeRow` and `JoinEngine.mergeFields` stop cloning `QueryRow`/`QueryField` state per row?
 - Can `FilterImpl.join()` avoid the post-join `collectQueryRowFieldTypes(rows)` rescan by deriving schema from parent/child metadata?
 - After implementation changes, should `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` stay diagnostic-only or get a stable threshold?

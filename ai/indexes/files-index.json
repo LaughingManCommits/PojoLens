@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-12T10:20:00+01:00",
+  "generatedAt": "2026-03-12T20:29:16+01:00",
   "notes": "Important repository roots and files. Generated outputs under target/ are excluded except where they are artifact destinations referenced by tests or docs.",
   "roots": [
     {
@@ -235,6 +235,11 @@
       "path": "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
       "kind": "test-anchor",
       "description": "Selective/lazy materialization behavior coverage."
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java",
+      "kind": "test-anchor",
+      "description": "Compiled numeric-expression cache and evaluator behavior coverage used by computed fields and SQL-like expression handling."
     },
     {
       "path": "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",

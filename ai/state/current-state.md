@@ -1,67 +1,43 @@
 # Current State
 
-memory-built-from-commit: 90602abe66a3355095e34b843549f6a55008f26c
+memory-built-from-commit: e27ca800d83924e8232cfb0240715ef705c4c5c7
 
 As of 2026-03-12:
 
 ## Repository Health
 
-- Verified: `mvn -q test` passes on 2026-03-12 after the latest WP5 builder changes.
-- Verified: a quick non-forked JMH smoke run for `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` succeeds on 2026-03-12.
-- Verified: a forked `-prof gc` run of `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` succeeded on 2026-03-12 at both `size=1000` and `size=10000`.
-- Verified: a forked `-prof gc` run of `PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)` succeeded on 2026-03-12 at both `size=1000` and `size=10000`.
-- Verified: a focused warm benchmark run of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms` averaged about `5.505 ms/op` on 2026-03-12.
-- Verified: the matching warm manual baseline `manualHashJoinLeftComputedField` averaged about `0.148 ms/op` at `size=10000`, leaving about a `37x` gap.
-- Verified: a focused JFR recording at `target/pojolens-join-warm-fork.jfr` captured the warmed benchmark body and showed heavy allocation churn plus `261` young GCs over about `53 s`.
-- Verified: repeated cold guardrail-style runs of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` stayed around `57.6-57.9 ms/op` at `size=1000` and `166.9-169.8 ms/op` at `size=10000` on 2026-03-12.
-- Verified: the full core benchmark suite and strict threshold checker both passed on 2026-03-12 after adding `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`, with suite scores of about `109.706 ms/op` at `size=1000` and about `160.863 ms/op` at `size=10000`.
-- Verified: `scripts/check-doc-consistency.ps1` succeeds in PowerShell.
-- Verified: the repository behaves as a stable Java library with strong contract-test coverage.
+- Verified: `mvn -q test` passes on 2026-03-12 after the WP14 expression-compilation changes, with `406` tests discovered in Surefire reports.
+- Verified: `scripts/check-doc-consistency.ps1` had already passed earlier on 2026-03-12 and was not impacted by WP14.
+- Verified: the repository still behaves as a stable Java library with strong contract-test coverage.
 
 ## Active Work Areas
 
-The primary unfinished work is defined in `TODO.md`.
+- WP5 selective / lazy materialization remains closed at the accepted selective single-join scope boundary.
+- WP14 is now in progress in `TODO.md`.
+- Implemented on 2026-03-12: `SqlExpressionEvaluator` now compiles numeric expressions into reusable cached ASTs keyed by expression string instead of instantiating a fresh parser for each row evaluation.
+- Implemented on 2026-03-12: `ComputedFieldSupport.materializeRows()` now compiles the applicable computed-field definitions once per materialization call and reuses those compiled expressions for every row.
+- Implemented on 2026-03-12: added `SqlExpressionEvaluatorTest` plus dependent computed-field integer-coercion coverage in `ComputedFieldRegistryTest`.
+- Remaining open packages after the WP14 start are WP15 row/field cloning removal, WP16 joined-schema reuse, WP17 residual row-model churn reduction, and WP18 benchmark rebaselining.
 
-Key items:
+## Latest Measurements
 
-- WP5 selective / lazy materialization is complete for its accepted scope.
-- The remaining backlog is now profiler-driven implementation follow-up, not just threshold hardening.
-- Implemented on 2026-03-12: single-join computed-field queries now retain lazy/selective parent and child materialization when the join shape is collision-free.
-- Implemented on 2026-03-12: `HotspotMicroJmhBenchmark` now includes `computedFieldJoinSelectiveMaterialization`, and the hotspot suite/docs were wired to expose it.
-- Implemented on 2026-03-12: `PojoLensJoinJmhBenchmark` now includes end-to-end computed-field single-join comparison coverage plus a parity test for the manual baseline.
-- Implemented on 2026-03-12: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` is now included in `scripts/benchmark-suite-main.args` with conservative thresholds of `250 ms/op` at `size=1000` and `500 ms/op` at `size=10000`.
-- Active TODO packages are now:
-  - compile computed-field expressions once instead of reparsing per row
-  - remove per-row `QueryRow`/`QueryField` cloning in computed and join materialization
-  - derive joined-row field types without rescanning all joined rows
-  - reduce remaining row-model churn on the selective join path
-  - rebaseline budgets only after the implementation changes land
-- Measured on 2026-03-12: the first forked `-prof gc` run reported about `37.9 us/op` / `363,824 B/op` at `size=1000` and about `361.5 us/op` / `3,531,826 B/op` at `size=10000`.
-- Measured on 2026-03-12: the first forked end-to-end `-prof gc` comparison reported `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.335 ms/op` / `2,138,298 B/op` for `size=1000` and about `3.750 ms/op` / `20,981,581 B/op` for `size=10000`.
-- Measured on 2026-03-12: the same end-to-end run reported `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` for `size=1000` and about `0.097 ms/op` / `927,128 B/op` for `size=10000`.
-- Measured on 2026-03-12: the second forked end-to-end `-prof gc` comparison stayed at about `0.335 ms/op` / `2,138,338 B/op` for `size=1000` and about `3.589 ms/op` / `20,981,552 B/op` for `size=10000`.
-- Warm JFR hotspot summary on 2026-03-12:
-  - top CPU leaf methods were `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, `ReflectionUtil.collectQueryRowFieldTypes`, and `SqlExpressionEvaluator$Parser.parseFactor`
-  - top sampled allocation sites were `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, `ReflectionUtil.extractQueryFields`, `SqlExpressionEvaluator$Parser.parseFactor`, and `JoinEngine.buildFieldIndex`
-  - top sampled allocated classes included `QueryField`, `QueryRow`, `LinkedHashMap`, `HashMap$Node`, `ArrayList`, and `Object[]`
-- Accepted WP5 stopping point: conservative full-materialization fallback remains the intentional stable behavior for multi-join shapes, open-ended full-row outputs, explicit rule-group queries, and join shapes whose raw or computed field names collide.
+- Historical warm baseline before WP14: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` averaged about `5.505 ms/op` at `size=10000` with `-wi 5 -i 10 -r 300ms`; the matching manual baseline averaged about `0.148 ms/op`.
+- Historical warm JFR before WP14 showed heavy allocation churn and prominent `SqlExpressionEvaluator$Parser.*`, `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, and `ReflectionUtil.collectQueryRowFieldTypes` hot spots.
+- Post-change short smoke on 2026-03-12: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` ran at about `0.464 ms/op` for `size=1000` and about `6.184 ms/op` for `size=10000` using `-wi 1 -i 2 -r 100ms`.
+- Post-change short smoke on 2026-03-12: `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` ran at about `0.012 ms/op` for `size=1000` with the same short configuration.
+- Post-change allocation smoke on 2026-03-12: `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` at `size=1000` measured about `60.147 us/op` and `363,856 B/op` with `-wi 1 -i 2 -r 100ms -prof gc`.
+- Interpretation: WP14 correctness is verified, but the package is not benchmark-accepted yet because no comparable warmed profile/JFR has been rerun and the short hotspot smoke did not materially change the allocation-heavy signature.
 
 ## Documentation Risks
 
-Current mismatches:
-
-- `CONTRIBUTING.md` and `RELEASE.md` still reference benchmark version/tag examples for **1.3.0** while `pom.xml` declares **1.0.0**.
-- `MIGRATION.md` and `RELEASE.md` describe SQL-like subqueries as unsupported, but code/tests indicate limited support.
-
-The documentation check script does not detect these mismatches.
+- `CONTRIBUTING.md` and `RELEASE.md` still reference benchmark version/tag examples for `1.3.0` while `pom.xml` declares `1.0.0`.
+- `MIGRATION.md` and `RELEASE.md` still describe SQL-like subqueries more narrowly than the code/tests now support.
+- The doc-consistency script does not currently detect those mismatches.
 
 ## Next Verification Opportunities
 
-Future sessions may verify:
-
-- whether compiling computed expressions removes `SqlExpressionEvaluator$Parser.*` from the warm join profile
-- whether join/computed materialization can stop `QueryField` and `QueryRow` from dominating sampled allocations
-- whether joined-row field-type metadata can be derived without `collectQueryRowFieldTypes(rows)` rescans
-- whether the new computed-field join guardrail budgets (`250 ms/op` at `1k`, `500 ms/op` at `10k`) should be tightened after the implementation work lands
-- whether `CONTRIBUTING.md` and `RELEASE.md` examples should match version `1.0.0`
-- whether doc-consistency tooling should be extended to detect API drift
+- rerun a comparable warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` to confirm the old parser hot spots disappeared after WP14
+- verify whether WP14 changed end-to-end warm throughput in a statistically meaningful way instead of the short `-wi 1 -i 2 -r 100ms` smoke runs
+- move to WP15 and remove `QueryRow` / `QueryField` cloning from computed and join materialization
+- move to WP16 and eliminate the post-join `collectQueryRowFieldTypes(rows)` rescan
+- revisit `CONTRIBUTING.md`, `RELEASE.md`, and doc-consistency tooling when performance work settles

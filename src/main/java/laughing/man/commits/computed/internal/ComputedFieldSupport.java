@@ -76,9 +76,10 @@ public final class ComputedFieldSupport {
         if (definitions.isEmpty()) {
             return rows;
         }
+        List<CompiledComputedField> compiledDefinitions = compileDefinitions(definitions);
         ArrayList<QueryRow> materialized = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
-            materialized.add(materializeRow(row, definitions));
+            materialized.add(materializeRow(row, compiledDefinitions));
         }
         return materialized;
     }
@@ -115,7 +116,18 @@ public final class ComputedFieldSupport {
         return entries;
     }
 
-    private static QueryRow materializeRow(QueryRow row, List<ComputedFieldDefinition> definitions) {
+    private static List<CompiledComputedField> compileDefinitions(List<ComputedFieldDefinition> definitions) {
+        ArrayList<CompiledComputedField> compiledDefinitions = new ArrayList<>(definitions.size());
+        for (ComputedFieldDefinition definition : definitions) {
+            compiledDefinitions.add(new CompiledComputedField(
+                    definition,
+                    SqlExpressionEvaluator.compileNumeric(definition.expression())
+            ));
+        }
+        return compiledDefinitions;
+    }
+
+    private static QueryRow materializeRow(QueryRow row, List<CompiledComputedField> definitions) {
         QueryRow copy = new QueryRow();
         copy.setRowId(row.getRowId());
         copy.setRowType(row.getRowType());
@@ -130,16 +142,35 @@ public final class ComputedFieldSupport {
                 values.put(field.getFieldName(), field.getValue());
             }
         }
-        for (ComputedFieldDefinition definition : definitions) {
+        for (CompiledComputedField definition : definitions) {
             Object value = castNumericValue(
-                    SqlExpressionEvaluator.evaluateNumeric(definition.expression(), values::get),
-                    definition.outputType()
+                    definition.expression().evaluate(values::get),
+                    definition.definition().outputType()
             );
-            values.put(definition.name(), value);
-            upsertField(fields, definition.name(), value);
+            values.put(definition.definition().name(), value);
+            upsertField(fields, definition.definition().name(), value);
         }
         copy.setFields(fields);
         return copy;
+    }
+
+    private static final class CompiledComputedField {
+        private final ComputedFieldDefinition definition;
+        private final SqlExpressionEvaluator.CompiledExpression expression;
+
+        private CompiledComputedField(ComputedFieldDefinition definition,
+                                      SqlExpressionEvaluator.CompiledExpression expression) {
+            this.definition = definition;
+            this.expression = expression;
+        }
+
+        private ComputedFieldDefinition definition() {
+            return definition;
+        }
+
+        private SqlExpressionEvaluator.CompiledExpression expression() {
+            return expression;
+        }
     }
 
     private static void upsertField(List<QueryField> fields, String name, Object value) {

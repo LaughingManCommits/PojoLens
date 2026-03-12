@@ -44,7 +44,6 @@ When beginning a task, reference the existing memory system.
 Example prompts:
 
 Follow AGENTS.md and load repository context.
-Help implement the WP5 selective materialization improvements referenced in current-state.md.
 
 or
 
