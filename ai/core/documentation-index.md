@@ -5,7 +5,7 @@
 - `README.md`: primary product overview, public entry points, quick starts, and limitations. Mostly aligned with code and tests.
 - `docs/sql-like.md`: strongest SQL-like reference. Backed by parser, validation, error-code, docs-example, and join tests.
 - `docs/charts.md`: chart payload contract and examples. Backed by chart validation/mapping tests and XChart interop tests.
-- `docs/benchmarking.md`: benchmark philosophy, suites, thresholds, hotspot microbenchmarks, and CI gates. Backed by benchmark classes, scripts, and benchmark utility tests.
+- `docs/benchmarking.md`: benchmark philosophy, suites, thresholds, hotspot microbenchmarks, end-to-end computed-field join diagnostics, and CI gates. Backed by benchmark classes, scripts, and benchmark utility tests.
 
 ## Feature References
 
@@ -38,5 +38,5 @@
 ## Active Work And Future Plans
 
 - `TODO.md`: primary planning document and the only explicit backlog-like file found.
-- Verified current open focus from `TODO.md`: remaining WP5 selective/lazy materialization decisions plus benchmark follow-up.
+- Verified current open focus from `TODO.md`: remaining WP5 selective/lazy materialization work is now benchmark follow-up, mainly repeated reruns and threshold decisions for the new computed-field join diagnostics.
 - No separate `ROADMAP.md`, `BACKLOG.md`, ADR directory, or design-notes folder was found.

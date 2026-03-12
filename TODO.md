@@ -404,13 +404,17 @@ Progress update (2026-03-12):
 - Implemented:
   - safe single-join computed-field queries now retain selective parent and child materialization when schemas remain collision-free
   - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` was added and wired into `scripts/benchmark-suite-hotspots.args` plus `docs/benchmarking.md`
+  - `PojoLensJoinJmhBenchmark` now includes `pojoLensJoinLeftComputedField` plus `manualHashJoinLeftComputedField` for end-to-end comparison of the WP5 computed-field single-join path
 - Verified:
   - full `mvn -q test` passed after the latest WP5 builder and benchmark changes
   - a forked `-prof gc` hotspot run captured the new computed-field join path at about `37.9 us/op` and about `363,824 B/op` for `size=1000`
   - the same run captured about `361.5 us/op` and about `3,531,826 B/op` for `size=10000`
+  - a forked `-prof gc` end-to-end run captured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.335 ms/op` and about `2,138,298 B/op` for `size=1000`
+  - the same end-to-end run captured about `3.750 ms/op` and about `20,981,581 B/op` for `size=10000`
+  - the same end-to-end run captured `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` for `size=1000` and about `0.097 ms/op` / `927,128 B/op` for `size=10000`
 - Remaining:
-  - rerun the hotspot enough times to decide whether those allocation numbers are stable enough for a threshold or should remain documented as a local diagnostic
-  - rerun end-to-end benchmark suites and capture before/after allocation deltas for the implemented WP5 slice
+  - rerun the hotspot and end-to-end computed-field join diagnostics enough times to decide whether those allocation numbers are stable enough for thresholds or should remain documented as local diagnostics
+  - decide whether `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` should be added to `scripts/benchmark-suite-main.args` plus `benchmarks/thresholds.json`, or stay outside the strict suite
 
 Acceptance criteria:
 
@@ -420,7 +424,7 @@ Acceptance criteria:
 Current evidence:
 
 - Targeted behavior coverage currently supports the second acceptance criterion for the implemented slices.
-- The first acceptance criterion is now partially supported by an initial forked `-prof gc` run of `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization`, but it still needs repeated hotspot/end-to-end measurements before any threshold should be treated as stable.
+- The first acceptance criterion is now partially supported by initial forked `-prof gc` runs of both `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` and `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`, but it still needs repeated measurements before any threshold should be treated as stable.
 
 ### WP6: Replace expensive UUID generation
 

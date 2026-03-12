@@ -1,7 +1,10 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.Separator;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -27,15 +30,29 @@ public class PojoLensJoinJmhBenchmark {
 
     private List<ParentRow> parents;
     private List<ChildRow> children;
+    private List<ComputedParentRow> computedParents;
+    private List<ComputedChildRow> computedChildren;
+    private ComputedFieldRegistry computedFieldRegistry;
+    private double minimumTotalComp;
 
     @Setup
     public void setup() {
         parents = new ArrayList<>(size);
         children = new ArrayList<>(size);
+        computedParents = new ArrayList<>(size);
+        computedChildren = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             parents.add(new ParentRow(i, "p" + i));
             children.add(new ChildRow(i, "c" + i));
+            int salary = 90_000 + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1101L, i, 70_000);
+            int bonus = 5_000 + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1102L, i, 20_000);
+            computedParents.add(new ComputedParentRow(i, "emp" + i, salary));
+            computedChildren.add(new ComputedChildRow(i, bonus));
         }
+        computedFieldRegistry = ComputedFieldRegistry.builder()
+                .add("totalComp", "salary + bonus", Double.class)
+                .build();
+        minimumTotalComp = 140_000d;
     }
 
     @Benchmark
@@ -66,6 +83,40 @@ public class PojoLensJoinJmhBenchmark {
         return out;
     }
 
+    @Benchmark
+    public List<ComputedJoinProjection> pojoLensJoinLeftComputedField() throws Exception {
+        return PojoLens.newQueryBuilder(computedParents)
+                .computedFields(computedFieldRegistry)
+                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp")
+                .initFilter()
+                .join()
+                .filter(ComputedJoinProjection.class);
+    }
+
+    @Benchmark
+    public List<ComputedJoinProjection> manualHashJoinLeftComputedField() {
+        Map<Integer, ComputedChildRow> childByParent = new HashMap<>(computedChildren.size() * 2);
+        for (ComputedChildRow child : computedChildren) {
+            childByParent.put(child.parentId, child);
+        }
+        List<ComputedJoinProjection> out = new ArrayList<>(computedParents.size());
+        for (ComputedParentRow parent : computedParents) {
+            ComputedChildRow child = childByParent.get(parent.id);
+            int bonus = child == null ? 0 : child.bonus;
+            double totalComp = parent.salary + bonus;
+            if (totalComp >= minimumTotalComp) {
+                ComputedJoinProjection row = new ComputedJoinProjection();
+                row.name = parent.name;
+                row.totalComp = totalComp;
+                out.add(row);
+            }
+        }
+        return out;
+    }
+
     public static class ParentRow {
         int id;
         String name;
@@ -91,6 +142,42 @@ public class PojoLensJoinJmhBenchmark {
         public ChildRow(int parentId, String tag) {
             this.parentId = parentId;
             this.tag = tag;
+        }
+    }
+
+    public static class ComputedParentRow {
+        int id;
+        String name;
+        int salary;
+
+        public ComputedParentRow() {
+        }
+
+        public ComputedParentRow(int id, String name, int salary) {
+            this.id = id;
+            this.name = name;
+            this.salary = salary;
+        }
+    }
+
+    public static class ComputedChildRow {
+        int parentId;
+        int bonus;
+
+        public ComputedChildRow() {
+        }
+
+        public ComputedChildRow(int parentId, int bonus) {
+            this.parentId = parentId;
+            this.bonus = bonus;
+        }
+    }
+
+    public static class ComputedJoinProjection {
+        String name;
+        double totalComp;
+
+        public ComputedJoinProjection() {
         }
     }
 }

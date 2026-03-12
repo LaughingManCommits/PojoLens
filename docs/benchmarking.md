@@ -144,8 +144,23 @@ Comparable baseline numbers are only useful if the outputs actually match.
 
 Current parity guardrails:
 - `StreamsBenchmarkParityTest` locks the Streams baseline against equivalent fluent query outputs
+- `PojoLensJoinJmhBenchmarkParityTest` locks the computed-field join benchmark against its manual hash-join baseline
 - `ChartParityChecker` checks chart benchmark outputs for fluent vs SQL-like parity
 - `BenchmarkMetricQueriesParityTest` keeps the normalized benchmark-query helpers aligned across fluent and SQL-like access
+
+## End-To-End Computed Join Diagnostics
+
+When WP5 selective single-join changes need end-to-end validation, use the dedicated computed-field join benchmarks in `PojoLensJoinJmhBenchmark`:
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`
+- `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField`
+
+Example local comparison run:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
+```
+
+Treat this as a local diagnostic until repeated forked reruns justify adding it to `scripts/benchmark-suite-main.args` and `benchmarks/thresholds.json`.
 
 ## Plot Generation
 

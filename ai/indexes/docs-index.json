@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-12T13:40:53+01:00",
+  "generatedAt": "2026-03-12T15:07:00+01:00",
   "documents": [
     {
       "path": "README.md",
@@ -47,7 +47,7 @@
     {
       "path": "docs/benchmarking.md",
       "category": "benchmarking",
-      "description": "Benchmark philosophy, suites, thresholds, hotspot guidance including computed-field join materialization, and CI gates.",
+      "description": "Benchmark philosophy, suites, thresholds, hotspot guidance, end-to-end computed-field join diagnostics, and CI gates.",
       "relevance": "high",
       "alignment": "aligned"
     },

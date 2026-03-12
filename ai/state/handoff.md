@@ -33,7 +33,11 @@ Fluent execution pipeline:
 - src/main/java/laughing/man/commits/util/ReflectionUtil.java
 - src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java
 - src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java
+- src/main/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmark.java
+- src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java
 - scripts/benchmark-suite-hotspots.args
+- scripts/benchmark-suite-main.args
+- benchmarks/thresholds.json
 - docs/benchmarking.md
 
 SQL-like execution:
@@ -59,5 +63,6 @@ Snapshot/testing utilities:
 - Should `CONTRIBUTING.md` and `RELEASE.md` benchmark examples be corrected to `1.0.0`?
 - Should doc-consistency tooling detect version drift?
 - Do the initial forked hotspot numbers for `computedFieldJoinSelectiveMaterialization` (`~37.9 us/op` / `~363,824 B/op` at `1k`, `~361.5 us/op` / `~3,531,826 B/op` at `10k`) hold up across repeated runs?
-- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds after hotspot reruns, or should they remain guidance-only?
+- Do the initial end-to-end computed-field join numbers (`~0.335 ms/op` / `~2,138,298 B/op` at `1k`, `~3.750 ms/op` / `~20,981,581 B/op` at `10k`) hold up across repeated runs, and how much gap to the manual baseline is acceptable as a regression budget?
+- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds and adding to the strict main suite after reruns, or should they remain guidance-only?
 - Should the remaining WP5 fallbacks for explicit rule groups or multi-join shapes be left as the stable stopping point?

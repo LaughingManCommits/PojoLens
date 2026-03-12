@@ -7,6 +7,7 @@
 - Verified: README claim that chart support is payload mapping rather than native rendering matches `docs/charts.md`, `ChartValidation`, `ChartResultMapperValidationTest`, and the absence of renderer code outside benchmark/test XChart usage.
 - Verified: README claim of staged entry points matches the concrete facade split in `PojoLens`, `PojoLensCore`, `PojoLensSql`, and `PojoLensChart`.
 - Verified: README claim of deterministic multi-join support matches `SqlLikeJoinTest` and `docs/sql-like.md`.
+- Verified: `docs/benchmarking.md` now uses the current `1.0.0` benchmark runner examples and documents both hotspot and end-to-end computed-field join diagnostics that match `HotspotMicroJmhBenchmark`, `PojoLensJoinJmhBenchmark`, and their parity coverage.
 
 ## Verified Mismatches
 
