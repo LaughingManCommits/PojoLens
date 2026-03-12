@@ -111,6 +111,52 @@ class FilterQueryBuilderSelectiveMaterializationTest {
     }
 
     @Test
+    void computedJoinQueriesShouldMaterializeOnlyNeededParentAndChildDependencies() throws Exception {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("totalComp", "salary + bonus", Double.class)
+                .build();
+
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleJoinCompensationParents())
+                .computedFields(registry)
+                .addJoinBeans("id", sampleJoinCompensationChildren(), "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", 135.0, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp");
+
+        assertEquals(List.of("id", "name", "salary"), fieldNames(builder.getRows().get(0)));
+        assertEquals(List.of("parentId", "bonus"), fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
+
+        List<JoinComputedProjection> rows = builder.initFilter().join().filter(JoinComputedProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("b", rows.get(0).name);
+        assertEquals(135.0, rows.get(0).totalComp, 0.0001);
+    }
+
+    @Test
+    void computedJoinQueriesShouldFallBackWhenComputedOutputsCollideWithChildFields() throws Exception {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("bonus", "salary * 0.1", Double.class)
+                .build();
+
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleComputedCollisionParents())
+                .computedFields(registry)
+                .addJoinBeans("id", sampleComputedCollisionChildren(), "parentId", Join.LEFT_JOIN)
+                .addRule("bonus", 12.0, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("bonus")
+                .addField("child_bonus");
+
+        assertEquals(List.of("id", "name", "salary", "bonus"), fieldNames(builder.getRows().get(0)));
+        assertEquals(List.of("parentId", "bonus", "tag"), fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
+
+        List<ComputedCollisionProjection> rows = builder.initFilter().join().filter(ComputedCollisionProjection.class);
+        assertEquals(1, rows.size());
+        assertEquals("b", rows.get(0).name);
+        assertEquals(15.0, rows.get(0).bonus, 0.0001);
+        assertEquals(25, rows.get(0).child_bonus);
+    }
+
+    @Test
     void collidingJoinQueriesShouldFallBackToFullParentMaterialization() throws Exception {
         FilterQueryBuilder builder = new FilterQueryBuilder(sampleCollisionParents())
                 .addJoinBeans("id", sampleCollisionChildren(), "parentId", Join.LEFT_JOIN)
@@ -168,6 +214,34 @@ class FilterQueryBuilderSelectiveMaterializationTest {
                 new CompensationRow("a", 100, 20, "fin", 1),
                 new CompensationRow("b", 120, 15, "eng", 2),
                 new CompensationRow("c", 90, 5, "eng", 3)
+        );
+    }
+
+    private static List<JoinCompensationParent> sampleJoinCompensationParents() {
+        return List.of(
+                new JoinCompensationParent(1, "a", 100, "fin"),
+                new JoinCompensationParent(2, "b", 120, "eng")
+        );
+    }
+
+    private static List<JoinCompensationChild> sampleJoinCompensationChildren() {
+        return List.of(
+                new JoinCompensationChild(1, 20, "legacy"),
+                new JoinCompensationChild(2, 15, "retained")
+        );
+    }
+
+    private static List<ComputedCollisionParent> sampleComputedCollisionParents() {
+        return List.of(
+                new ComputedCollisionParent(1, "a", 100),
+                new ComputedCollisionParent(2, "b", 150)
+        );
+    }
+
+    private static List<ComputedCollisionChild> sampleComputedCollisionChildren() {
+        return List.of(
+                new ComputedCollisionChild(1, 20, "first"),
+                new ComputedCollisionChild(2, 25, "second")
         );
     }
 
@@ -254,6 +328,73 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public double totalCompSum;
 
         public DepartmentCompensationProjection() {
+        }
+    }
+
+    static final class JoinCompensationParent {
+        int id;
+        String name;
+        int salary;
+        String department;
+
+        JoinCompensationParent(int id, String name, int salary, String department) {
+            this.id = id;
+            this.name = name;
+            this.salary = salary;
+            this.department = department;
+        }
+    }
+
+    static final class JoinCompensationChild {
+        int parentId;
+        int bonus;
+        String tag;
+
+        JoinCompensationChild(int parentId, int bonus, String tag) {
+            this.parentId = parentId;
+            this.bonus = bonus;
+            this.tag = tag;
+        }
+    }
+
+    public static final class JoinComputedProjection {
+        public String name;
+        public double totalComp;
+
+        public JoinComputedProjection() {
+        }
+    }
+
+    static final class ComputedCollisionParent {
+        int id;
+        String name;
+        int salary;
+
+        ComputedCollisionParent(int id, String name, int salary) {
+            this.id = id;
+            this.name = name;
+            this.salary = salary;
+        }
+    }
+
+    static final class ComputedCollisionChild {
+        int parentId;
+        int bonus;
+        String tag;
+
+        ComputedCollisionChild(int parentId, int bonus, String tag) {
+            this.parentId = parentId;
+            this.bonus = bonus;
+            this.tag = tag;
+        }
+    }
+
+    public static final class ComputedCollisionProjection {
+        public String name;
+        public double bonus;
+        public int child_bonus;
+
+        public ComputedCollisionProjection() {
         }
     }
 

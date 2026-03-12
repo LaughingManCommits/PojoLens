@@ -168,7 +168,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             return this;
         }
         Object first = firstNonNull(children);
-        if (first instanceof QueryRow || !computedFieldRegistry.isEmpty()) {
+        if (first instanceof QueryRow) {
             List<QueryRow> childRows = toSourceRows(children);
             addJoinRows(parentField, childRows, childField, joinMethod);
             return this;
@@ -891,11 +891,13 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void materializeJoinRows() {
-        materializePendingJoinRows();
         if (computedFieldRegistry.isEmpty()) {
             return;
         }
         for (Map.Entry<Integer, List<QueryRow>> entry : spec.getJoinClasses().entrySet()) {
+            if (joinSourceBeans.containsKey(entry.getKey())) {
+                continue;
+            }
             entry.setValue(materializedRows(entry.getValue()));
         }
     }
@@ -985,11 +987,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
 
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        addSourceFields(selected, spec.getReturnFields());
-        addSourceFields(selected, spec.getFilterFields().values());
-        addSourceFields(selected, spec.getDistinctFields().values());
-        addSourceFields(selected, spec.getOrderFields().values());
-        addSourceFields(selected, spec.getJoinParentFields().values());
+        addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getReturnFields());
+        addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getFilterFields().values());
+        addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getDistinctFields().values());
+        addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getOrderFields().values());
+        addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getJoinParentFields().values());
         addGroupSourceFields(selected);
         addMetricSourceFields(selected);
         addTimeBucketSourceFields(selected);
@@ -1001,9 +1003,6 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private boolean requiresFullSourceMaterialization() {
-        if (!computedFieldRegistry.isEmpty() && hasJoinDefinitions()) {
-            return true;
-        }
         if (!spec.getJoinClasses().isEmpty() || !joinSourceBeans.isEmpty()) {
             if (!supportsSelectiveJoinMaterialization()) {
                 return true;
@@ -1021,28 +1020,33 @@ public class FilterQueryBuilder implements QueryBuilder {
         return false;
     }
 
-    private void addSourceFields(LinkedHashSet<String> selected, Iterable<String> fieldNames) {
+    private void addSelectedFields(LinkedHashSet<String> selected,
+                                   Map<String, Class<?>> availableFieldTypes,
+                                   Iterable<String> fieldNames) {
         for (String fieldName : fieldNames) {
-            addSourceField(selected, fieldName);
+            addSelectedField(selected, availableFieldTypes, fieldName);
         }
     }
 
-    private void addSourceField(LinkedHashSet<String> selected, String fieldName) {
+    private void addSelectedField(LinkedHashSet<String> selected,
+                                  Map<String, Class<?>> availableFieldTypes,
+                                  String fieldName) {
         if (fieldName == null) {
             return;
         }
-        if (spec.getSourceFieldTypes().containsKey(fieldName)) {
+        if (availableFieldTypes.containsKey(fieldName)) {
             selected.add(fieldName);
             return;
         }
         if (computedFieldRegistry.contains(fieldName)) {
-            addComputedSourceDependencies(selected, fieldName, new LinkedHashSet<>());
+            addComputedDependencies(selected, availableFieldTypes, fieldName, new LinkedHashSet<>());
         }
     }
 
-    private void addComputedSourceDependencies(LinkedHashSet<String> selected,
-                                               String computedFieldName,
-                                               Set<String> visiting) {
+    private void addComputedDependencies(LinkedHashSet<String> selected,
+                                         Map<String, Class<?>> availableFieldTypes,
+                                         String computedFieldName,
+                                         Set<String> visiting) {
         if (!visiting.add(computedFieldName)) {
             return;
         }
@@ -1052,12 +1056,12 @@ public class FilterQueryBuilder implements QueryBuilder {
                 return;
             }
             for (String dependency : definition.dependencies()) {
-                if (spec.getSourceFieldTypes().containsKey(dependency)) {
+                if (availableFieldTypes.containsKey(dependency)) {
                     selected.add(dependency);
                     continue;
                 }
                 if (computedFieldRegistry.contains(dependency)) {
-                    addComputedSourceDependencies(selected, dependency, visiting);
+                    addComputedDependencies(selected, availableFieldTypes, dependency, visiting);
                 }
             }
         } finally {
@@ -1068,7 +1072,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void addGroupSourceFields(LinkedHashSet<String> selected) {
         for (String fieldName : spec.getGroupFields().values()) {
             if (!spec.getTimeBuckets().containsKey(fieldName)) {
-                addSourceField(selected, fieldName);
+                addSelectedField(selected, spec.getSourceFieldTypes(), fieldName);
             }
         }
     }
@@ -1076,14 +1080,14 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void addMetricSourceFields(LinkedHashSet<String> selected) {
         for (QueryMetric metric : spec.getMetrics()) {
             if (!Metric.COUNT.equals(metric.getMetric())) {
-                addSourceField(selected, metric.getField());
+                addSelectedField(selected, spec.getSourceFieldTypes(), metric.getField());
             }
         }
     }
 
     private void addTimeBucketSourceFields(LinkedHashSet<String> selected) {
         for (QueryTimeBucket bucket : spec.getTimeBuckets().values()) {
-            addSourceField(selected, bucket.getDateField());
+            addSelectedField(selected, spec.getSourceFieldTypes(), bucket.getDateField());
         }
     }
 
@@ -1157,19 +1161,19 @@ public class FilterQueryBuilder implements QueryBuilder {
             return SourceMaterializationPlan.fullPlan();
         }
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        addConfiguredFieldIfPresent(selected, childFieldTypes, spec.getJoinChildFields().get(joinIndex));
-        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getReturnFields());
-        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getFilterFields().values());
-        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getDistinctFields().values());
-        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getOrderFields().values());
-        addConfiguredFieldsIfPresent(selected, childFieldTypes, spec.getGroupFields().values());
+        addSelectedField(selected, childFieldTypes, spec.getJoinChildFields().get(joinIndex));
+        addSelectedFields(selected, childFieldTypes, spec.getReturnFields());
+        addSelectedFields(selected, childFieldTypes, spec.getFilterFields().values());
+        addSelectedFields(selected, childFieldTypes, spec.getDistinctFields().values());
+        addSelectedFields(selected, childFieldTypes, spec.getOrderFields().values());
+        addSelectedFields(selected, childFieldTypes, spec.getGroupFields().values());
         for (QueryMetric metric : spec.getMetrics()) {
             if (!Metric.COUNT.equals(metric.getMetric())) {
-                addConfiguredFieldIfPresent(selected, childFieldTypes, metric.getField());
+                addSelectedField(selected, childFieldTypes, metric.getField());
             }
         }
         for (QueryTimeBucket bucket : spec.getTimeBuckets().values()) {
-            addConfiguredFieldIfPresent(selected, childFieldTypes, bucket.getDateField());
+            addSelectedField(selected, childFieldTypes, bucket.getDateField());
         }
         if (selected.isEmpty()) {
             return SourceMaterializationPlan.fullPlan();
@@ -1189,16 +1193,24 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private boolean hasJoinSchemaCollision(int joinIndex) {
-        Map<String, Class<?>> childFieldTypes = joinFieldTypes(joinIndex);
-        if (childFieldTypes.isEmpty()) {
+        Set<String> parentFieldNames = materializedFieldNames(spec.getSourceFieldTypes());
+        Set<String> childFieldNames = materializedFieldNames(joinFieldTypes(joinIndex));
+        if (childFieldNames.isEmpty()) {
             return false;
         }
-        for (String fieldName : childFieldTypes.keySet()) {
-            if (spec.getSourceFieldTypes().containsKey(fieldName)) {
+        for (String fieldName : childFieldNames) {
+            if (parentFieldNames.contains(fieldName)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private Set<String> materializedFieldNames(Map<String, Class<?>> availableFieldTypes) {
+        if (availableFieldTypes.isEmpty()) {
+            return Set.of();
+        }
+        return ComputedFieldSupport.augmentFieldNames(availableFieldTypes.keySet(), computedFieldRegistry);
     }
 
     private Map<String, Class<?>> joinFieldTypes(int joinIndex) {
@@ -1233,22 +1245,6 @@ public class FilterQueryBuilder implements QueryBuilder {
                 && spec.getMetrics().isEmpty()
                 && spec.getGroupFields().isEmpty()
                 && spec.getTimeBuckets().isEmpty();
-    }
-
-    private void addConfiguredFieldsIfPresent(LinkedHashSet<String> selected,
-                                              Map<String, Class<?>> availableFields,
-                                              Iterable<String> fieldNames) {
-        for (String fieldName : fieldNames) {
-            addConfiguredFieldIfPresent(selected, availableFields, fieldName);
-        }
-    }
-
-    private void addConfiguredFieldIfPresent(LinkedHashSet<String> selected,
-                                             Map<String, Class<?>> availableFields,
-                                             String fieldName) {
-        if (fieldName != null && availableFields.containsKey(fieldName)) {
-            selected.add(fieldName);
-        }
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {

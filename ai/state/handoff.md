@@ -15,7 +15,7 @@ Load order is defined in the root `AGENTS.md`.
 
 # Current Focus
 
-The main unfinished engineering work relates to **WP5 selective / lazy materialization**.
+The main unfinished engineering work still relates to **WP5 selective / lazy materialization**, but the remaining work is now measurement-oriented rather than core builder plumbing.
 
 Relevant reference:
 
@@ -31,6 +31,7 @@ Fluent execution pipeline:
 - src/main/java/laughing/man/commits/filter/FilterImpl.java
 - src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java
 - src/main/java/laughing/man/commits/util/ReflectionUtil.java
+- src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java
 
 SQL-like execution:
 
@@ -54,4 +55,5 @@ Snapshot/testing utilities:
 
 - Should documentation examples reference version `1.0.0` instead of `1.3.0`?
 - Should doc-consistency tooling detect version drift?
-- Should WP5 optimization preserve full materialization fallback?
+- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds after hotspot reruns?
+- Should the remaining WP5 fallbacks for explicit rule groups or multi-join shapes be left as the stable stopping point?

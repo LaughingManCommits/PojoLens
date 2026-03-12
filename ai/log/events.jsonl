@@ -1,3 +1,4 @@
 {"ts":"2026-03-12T10:06:32+01:00","type":"validation","summary":"Bootstrap scan ran `mvn -B -ntp test` successfully; 398 tests passed with 0 failures or errors."}
 {"ts":"2026-03-12T10:07:45+01:00","type":"alignment","summary":"Detected documentation drift: benchmark jar/tag examples use 1.3.0 while pom.xml declares 1.0.0, and MIGRATION.md/RELEASE.md still describe SQL-like subqueries plus multi-join plans as unsupported."}
 {"ts":"2026-03-12T10:20:00+01:00","type":"bootstrap","summary":"Initial /ai memory scaffold and indexes created from repository scan of code, tests, CI, scripts, and markdown docs."}
+{"ts":"2026-03-12T13:00:03+01:00","type":"implementation","summary":"Extended WP5 selective materialization so computed-field queries can keep lazy/selective single-join parent and child materialization when schemas remain collision-free; verified with full `mvn -q test` plus focused regression coverage."}

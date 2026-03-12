@@ -1,12 +1,12 @@
 # Current State
 
-memory-built-from-commit: UNKNOWN
+memory-built-from-commit: 0ecce5d9ea14e2821e552c5511b366ff81fc86c3
 
 As of 2026-03-12:
 
 ## Repository Health
 
-- Verified: `mvn -B -ntp test` passes with 398 tests and no failures.
+- Verified: `mvn -q test` passes on 2026-03-12 after the latest WP5 builder changes.
 - Verified: `scripts/check-doc-consistency.ps1` succeeds in PowerShell.
 - Verified: the repository behaves as a stable Java library with strong contract-test coverage.
 
@@ -16,9 +16,9 @@ The primary unfinished work is defined in `TODO.md`.
 
 Key items:
 
-- WP5 selective / lazy materialization improvements.
-- Decide whether computed-field plus join flows retain full-materialization fallback.
-- Run benchmark verification before declaring the WP5 slice complete.
+- WP5 selective / lazy materialization remains open mainly for benchmark capture and threshold follow-up.
+- Implemented on 2026-03-12: single-join computed-field queries now retain lazy/selective parent and child materialization when the join shape is collision-free.
+- Conservative full-materialization fallback still remains for multi-join shapes, open-ended full-row outputs, explicit rule-group queries, and join shapes whose raw or computed field names collide.
 
 ## Documentation Risks
 
@@ -33,6 +33,6 @@ The documentation check script does not detect these mismatches.
 
 Future sessions may verify:
 
-- benchmark performance after WP5 changes
+- benchmark performance after the widened WP5 computed-field join path
 - whether documentation examples should match version `1.0.0`
 - whether doc-consistency tooling should be extended to detect API drift
