@@ -15,7 +15,7 @@ Load order is defined in the root `AGENTS.md`.
 
 # Current Focus
 
-The main unfinished engineering work still relates to **WP5 selective / lazy materialization**, but the remaining work is now measurement-oriented rather than core builder plumbing.
+The main unfinished engineering work still relates to **WP5 selective / lazy materialization**, but the remaining work is now dominated by repeated measurement and threshold decisions rather than core builder plumbing.
 
 Relevant reference:
 
@@ -58,6 +58,6 @@ Snapshot/testing utilities:
 
 - Should `CONTRIBUTING.md` and `RELEASE.md` benchmark examples be corrected to `1.0.0`?
 - Should doc-consistency tooling detect version drift?
-- What forked `-prof gc` allocation budget does `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` stabilize at?
-- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds after hotspot reruns?
+- Do the initial forked hotspot numbers for `computedFieldJoinSelectiveMaterialization` (`~37.9 us/op` / `~363,824 B/op` at `1k`, `~361.5 us/op` / `~3,531,826 B/op` at `10k`) hold up across repeated runs?
+- Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds after hotspot reruns, or should they remain guidance-only?
 - Should the remaining WP5 fallbacks for explicit rule groups or multi-join shapes be left as the stable stopping point?

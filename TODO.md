@@ -256,7 +256,7 @@ Details:
 1. Finish or explicitly freeze the remaining WP5 scope:
    - decide whether computed-field plus join queries should keep the conservative full-materialization fallback, or
    - extend selective materialization to that path if benchmark data says it matters.
-2. Add a dedicated computed-field-focused microbenchmark or another comparable measurement path, then rerun hotspot and end-to-end suites to capture the allocation delta from the current WP5 slice.
+2. Rerun the new computed-field hotspot together with end-to-end suites to capture the allocation delta from the current WP5 slice and determine whether a stable budget is emerging.
 3. Promote stable hotspot allocation budgets into threshold/config files once they survive repeated local runs.
 
 ## Work Packages
@@ -397,8 +397,20 @@ Progress update (2026-03-11):
   - compile-only Maven verification passes
 - Remaining:
   - decide whether computed-field plus join flows should stay on the current safe full fallback or receive a selective path
-  - add a dedicated computed-field hotspot benchmark or equivalent measurement before claiming WP5 complete
   - rerun end-to-end benchmarks and capture before/after allocation deltas for the implemented WP5 slice
+
+Progress update (2026-03-12):
+
+- Implemented:
+  - safe single-join computed-field queries now retain selective parent and child materialization when schemas remain collision-free
+  - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` was added and wired into `scripts/benchmark-suite-hotspots.args` plus `docs/benchmarking.md`
+- Verified:
+  - full `mvn -q test` passed after the latest WP5 builder and benchmark changes
+  - a forked `-prof gc` hotspot run captured the new computed-field join path at about `37.9 us/op` and about `363,824 B/op` for `size=1000`
+  - the same run captured about `361.5 us/op` and about `3,531,826 B/op` for `size=10000`
+- Remaining:
+  - rerun the hotspot enough times to decide whether those allocation numbers are stable enough for a threshold or should remain documented as a local diagnostic
+  - rerun end-to-end benchmark suites and capture before/after allocation deltas for the implemented WP5 slice
 
 Acceptance criteria:
 
@@ -408,7 +420,7 @@ Acceptance criteria:
 Current evidence:
 
 - Targeted behavior coverage currently supports the second acceptance criterion for the implemented slices.
-- The first acceptance criterion is partially supported by the hotspot data that justified WP5, but it still needs a clean before/after benchmark capture for the newly landed computed-field-aware selective path.
+- The first acceptance criterion is now partially supported by an initial forked `-prof gc` run of `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization`, but it still needs repeated hotspot/end-to-end measurements before any threshold should be treated as stable.
 
 ### WP6: Replace expensive UUID generation
 
@@ -643,13 +655,13 @@ At minimum, run:
 1. Continue WP5 from the current partial state:
    - either keep the conservative computed-field plus join fallback as the stopping point, or
    - extend it only if new measurements justify the added complexity
-2. Add the missing computed-field measurement path and rerun hotspot plus end-to-end benchmarks to capture the current WP5 delta
+2. Rerun the new computed-field hotspot plus end-to-end benchmarks to capture the current WP5 delta and decide whether the hotspot is threshold-ready
 3. tighten hotspot threshold/config files only after the new microbenchmark numbers stabilize
 
 Hotspot microbenchmarking is now a standing prerequisite rather than a future work package.
 
 ## Next Session Handoff
 
-- First decision tomorrow: is the remaining computed-field plus join case important enough to optimize, or is the safe full fallback acceptable for now.
-- If continuing implementation, start in `FilterQueryBuilder` around the selective-materialization helpers and `requiresFullSourceMaterialization()`.
-- If measuring first, rerun `HotspotMicroJmhBenchmark` with `-prof gc` and add a computed-field-specific benchmark before changing more engine code.
+- First decision tomorrow: do repeated hotspot/end-to-end runs justify treating the new computed-field join path as stable enough for a budget, or should it remain measurement-only for now.
+- If continuing implementation, revisit `FilterQueryBuilder` only if the remaining full fallback shapes show up as meaningful benchmark costs.
+- If measuring first, rerun `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` with forked `-prof gc` and compare it against the end-to-end suites before changing thresholds.
