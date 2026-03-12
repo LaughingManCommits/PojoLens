@@ -32,6 +32,9 @@ Fluent execution pipeline:
 - src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java
 - src/main/java/laughing/man/commits/util/ReflectionUtil.java
 - src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java
+- src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java
+- scripts/benchmark-suite-hotspots.args
+- docs/benchmarking.md
 
 SQL-like execution:
 
@@ -53,7 +56,8 @@ Snapshot/testing utilities:
 
 # Open Questions
 
-- Should documentation examples reference version `1.0.0` instead of `1.3.0`?
+- Should `CONTRIBUTING.md` and `RELEASE.md` benchmark examples be corrected to `1.0.0`?
 - Should doc-consistency tooling detect version drift?
+- What forked `-prof gc` allocation budget does `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` stabilize at?
 - Are the new computed-field-plus-single-join selective paths worth tightening into benchmark thresholds after hotspot reruns?
 - Should the remaining WP5 fallbacks for explicit rule groups or multi-join shapes be left as the stable stopping point?

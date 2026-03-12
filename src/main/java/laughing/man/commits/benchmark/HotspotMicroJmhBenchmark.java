@@ -1,9 +1,11 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.filter.FilterCore;
@@ -49,6 +51,20 @@ public class HotspotMicroJmhBenchmark {
     @Benchmark
     public List<QueryRow> groupedMultiMetricAggregation(AggregationState state) {
         return state.core.aggregateMetrics(state.rows, state.plan);
+    }
+
+    @Benchmark
+    public int computedFieldJoinSelectiveMaterialization(ComputedFieldJoinState state) {
+        FilterQueryBuilder builder = new FilterQueryBuilder(state.parents)
+                .computedFields(state.registry)
+                .addJoinBeans("id", state.children, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", state.minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp");
+
+        List<QueryRow> parentRows = builder.getRows();
+        List<QueryRow> childRows = builder.getJoinClassesForExecution().get(1);
+        return parentRows.size() + (childRows == null ? 0 : childRows.size());
     }
 
     @State(Scope.Thread)
@@ -155,6 +171,43 @@ public class HotspotMicroJmhBenchmark {
             core = new FilterCore(builder);
             plan = core.buildExecutionPlan();
             rows = core.getBuilder().getRows();
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class ComputedFieldJoinState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private List<ComputedFieldParent> parents;
+        private List<ComputedFieldChild> children;
+        private ComputedFieldRegistry registry;
+        private double minimumTotalComp;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            parents = new ArrayList<>(size);
+            children = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                int salary = 90_000 + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1001L, i, 70_000);
+                int bonus = 5_000 + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1002L, i, 20_000);
+                parents.add(new ComputedFieldParent(
+                        i,
+                        "emp" + i,
+                        salary,
+                        "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1003L, i, 24)
+                ));
+                children.add(new ComputedFieldChild(
+                        i,
+                        bonus,
+                        "tag" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1004L, i, 8)
+                ));
+            }
+            registry = ComputedFieldRegistry.builder()
+                    .add("totalComp", "salary + bonus", Double.class)
+                    .build();
+            minimumTotalComp = 140_000d;
         }
     }
 
@@ -271,6 +324,38 @@ public class HotspotMicroJmhBenchmark {
         double avgValue;
 
         public ProjectionTotals() {
+        }
+    }
+
+    public static class ComputedFieldParent {
+        int id;
+        String name;
+        int salary;
+        String department;
+
+        public ComputedFieldParent() {
+        }
+
+        public ComputedFieldParent(int id, String name, int salary, String department) {
+            this.id = id;
+            this.name = name;
+            this.salary = salary;
+            this.department = department;
+        }
+    }
+
+    public static class ComputedFieldChild {
+        int parentId;
+        int bonus;
+        String tag;
+
+        public ComputedFieldChild() {
+        }
+
+        public ComputedFieldChild(int parentId, int bonus, String tag) {
+            this.parentId = parentId;
+            this.bonus = bonus;
+            this.tag = tag;
         }
     }
 }

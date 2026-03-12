@@ -38,7 +38,7 @@ mvn -Pbenchmark -DskipTests test-compile exec:java "-Djmh.args=laughing.man.comm
 
 ```bash
 mvn -Pbenchmark-runner -DskipTests package
-java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline -f 1 -wi 1 -i 3
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline -f 1 -wi 1 -i 3
 ```
 
 ## Budgeted CI Suites
@@ -46,28 +46,28 @@ java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.P
 Core guardrail suite:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
-java -cp target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
+java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
 ```
 
 Chart guardrail suite:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
-java -cp target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
-java -cp target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
+java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
+java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
 ```
 
 Cache concurrency scenario:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
 ```
 
 Hotspot microbenchmark suite:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
 ```
 
 ## Representative Budgets
@@ -100,7 +100,7 @@ For apples-to-apples comparisons, `PojoLens` now ships a dedicated JMH baseline 
 Baseline suite command:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
 ```
 
 Baseline workloads:
@@ -122,16 +122,18 @@ The hotspot suite isolates the conversion and cache paths that the end-to-end su
 - `HotspotMicroJmhBenchmark.reflectionToClassList`
 - `HotspotMicroJmhBenchmark.statsPlanCacheHit`
 - `HotspotMicroJmhBenchmark.groupedMultiMetricAggregation`
+- `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization`
 
-Use the hotspot suite when tuning reflection flattening, typed projection, execution-plan cache hits, or grouped multi-metric aggregation.
+Use the hotspot suite when tuning reflection flattening, typed projection, execution-plan cache hits, grouped multi-metric aggregation, or WP5 computed-field join materialization.
 
 Allocation-focused local run examples:
 
 ```bash
-java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
-java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
-java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
-java -jar target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 ```
 
 For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
@@ -148,7 +150,7 @@ Current parity guardrails:
 ## Plot Generation
 
 ```bash
-java -cp target/pojo-lens-1.3.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator target/benchmarks.json benchmarks/thresholds.json target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/images
+java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator target/benchmarks.json benchmarks/thresholds.json target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/images
 ```
 
 Artifacts:

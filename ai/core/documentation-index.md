@@ -5,7 +5,7 @@
 - `README.md`: primary product overview, public entry points, quick starts, and limitations. Mostly aligned with code and tests.
 - `docs/sql-like.md`: strongest SQL-like reference. Backed by parser, validation, error-code, docs-example, and join tests.
 - `docs/charts.md`: chart payload contract and examples. Backed by chart validation/mapping tests and XChart interop tests.
-- `docs/benchmarking.md`: benchmark philosophy, suites, thresholds, and CI gates. Useful, but jar-name examples are version-stale.
+- `docs/benchmarking.md`: benchmark philosophy, suites, thresholds, hotspot microbenchmarks, and CI gates. Backed by benchmark classes, scripts, and benchmark utility tests.
 
 ## Feature References
 
