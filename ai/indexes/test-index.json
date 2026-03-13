@@ -1,19 +1,19 @@
 ﻿{
-    "generatedAt":  "2026-03-13T09:15:45+01:00",
+    "generatedAt":  "2026-03-13T17:52:04+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
                   ],
     "counts":  {
-                   "testJavaFiles":  62,
-                   "testClasses":  58
+                   "testJavaFiles":  63,
+                   "testClasses":  59
                },
     "latestKnownFullRun":  {
-                               "command":  "mvn -B -ntp test",
-                               "date":  "2026-03-12",
+                               "command":  "mvn -q test",
+                               "date":  "2026-03-13",
                                "status":  "passed",
-                               "testsRun":  406,
-                               "note":  "Recorded before the 2026-03-13 memory migration; not rerun during this task."
+                               "testsRun":  410,
+                               "note":  "Reran after the selective single-join array fast-path redesign."
                            },
     "suites":  [
                    {
@@ -44,6 +44,7 @@
                        "files":  [
                                      "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
                                      "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
+                                     "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
                                      "src/test/java/laughing/man/commits/filter/FilterCoreTest.java"
                                  ]
                    },

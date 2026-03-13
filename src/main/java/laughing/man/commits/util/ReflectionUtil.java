@@ -104,6 +104,48 @@ public final class ReflectionUtil {
         }
     }
 
+    public static <T> List<T> toClassList(Class<T> cls,
+                                          List<Object[]> rows,
+                                          List<String> sourceFieldSchema) {
+        return toClassList(cls, rows, sourceFieldSchema, null);
+    }
+
+    public static <T> List<T> toClassList(Class<T> cls,
+                                          List<Object[]> rows,
+                                          List<String> sourceFieldSchema,
+                                          int[] sourceIndexes) {
+        if (rows == null || rows.isEmpty()) {
+            return new ArrayList<>(0);
+        }
+
+        List<T> result = new ArrayList<>(rows.size());
+
+        try {
+            ProjectionWritePlan plan = projectionWritePlanForSchema(cls, sourceFieldSchema);
+
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                Object[] row = rows.get(rowIndex);
+                if (row == null) {
+                    continue;
+                }
+
+                T object = instantiateNoArg(cls);
+                if (row.length == 0 || plan.steps().isEmpty()) {
+                    result.add(object);
+                    continue;
+                }
+
+                applyProjectionWritePlan(object, row, sourceIndexes, plan);
+                result.add(object);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
+            throw new IllegalStateException("Failed to convert array rows to " + cls.getSimpleName(), e);
+        }
+
+        return result;
+    }
+
     /**
      * Flattens input beans into internal domain rows used by the query engine.
      */
@@ -254,6 +296,32 @@ public final class ReflectionUtil {
             }
         }
         return Collections.unmodifiableMap(fieldTypes);
+    }
+
+    public static FlatRowReadPlan compileFlatRowReadPlan(Class<?> root, Collection<String> selectedFieldNames) {
+        if (root == null) {
+            throw new IllegalArgumentException("root must not be null");
+        }
+        FieldGraphDescriptor descriptor = fieldGraph(root);
+        List<FlattenedFieldDescriptor> flattenedFields = selectedFlattenedFields(descriptor, selectedFieldNames);
+        return new FlatRowReadPlan(flattenedFields);
+    }
+
+    public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
+        if (bean == null || plan == null) {
+            return new Object[0];
+        }
+        try {
+            Object[] values = new Object[plan.size()];
+            List<FlattenedFieldDescriptor> flattenedFields = plan.flattenedFields();
+            for (int i = 0; i < flattenedFields.size(); i++) {
+                values[i] = readResolvedFieldValue(bean, flattenedFields.get(i).fieldPath());
+            }
+            return values;
+        } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            LOG.error("Failed to read flattened row values [{}]", bean.getClass().getSimpleName(), e);
+            throw new IllegalStateException("Failed to flatten object fields", e);
+        }
     }
 
     private static List<Field> getMutableFields(Class<?> clazz) {
@@ -484,8 +552,12 @@ public final class ReflectionUtil {
     }
 
     private static ProjectionWritePlan projectionWritePlan(Class<?> projectionClass, List<QueryRow> rows) {
+        return projectionWritePlanForSchema(projectionClass, projectionSourceSchema(rows));
+    }
+
+    private static ProjectionWritePlan projectionWritePlanForSchema(Class<?> projectionClass, List<String> sourceFieldSchema) {
         return PROJECTION_WRITE_PLAN_CACHE.computeIfAbsent(
-                new ProjectionPlanCacheKey(projectionClass, projectionSourceSchema(rows)),
+                new ProjectionPlanCacheKey(projectionClass, sourceFieldSchema),
                 key -> buildProjectionWritePlan(key.projectionClass(), key.sourceFieldSchema())
         );
     }
@@ -533,6 +605,31 @@ public final class ReflectionUtil {
                 continue;
             }
             Object value = ObjectUtil.castValue(sourceField.getValue(), step.fieldPath().leafType());
+            setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
+        }
+    }
+
+    private static void applyProjectionWritePlan(Object target,
+                                                 Object[] sourceValues,
+                                                 int[] sourceIndexes,
+                                                 ProjectionWritePlan plan) throws Exception {
+        for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
+            ProjectionWriteStep step = plan.steps().get(stepIndex);
+            int sourceIndex = step.sourceIndex();
+            if (sourceIndexes != null) {
+                if (sourceIndex < 0 || sourceIndex >= sourceIndexes.length) {
+                    continue;
+                }
+                sourceIndex = sourceIndexes[sourceIndex];
+            }
+            if (sourceIndex < 0 || sourceIndex >= sourceValues.length) {
+                continue;
+            }
+            Object rawValue = sourceValues[sourceIndex];
+            if (rawValue == null) {
+                continue;
+            }
+            Object value = ObjectUtil.castValue(rawValue, step.fieldPath().leafType());
             setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
         }
     }
@@ -727,6 +824,41 @@ public final class ReflectionUtil {
     private static final class ConstructorLookupException extends RuntimeException {
         private ConstructorLookupException(Throwable cause) {
             super(cause);
+        }
+    }
+
+    public static final class FlatRowReadPlan {
+        private final List<FlattenedFieldDescriptor> flattenedFields;
+        private final List<String> fieldNames;
+        private final Map<String, Class<?>> fieldTypes;
+
+        private FlatRowReadPlan(List<FlattenedFieldDescriptor> flattenedFields) {
+            this.flattenedFields = List.copyOf(flattenedFields);
+            ArrayList<String> orderedFieldNames = new ArrayList<>(flattenedFields.size());
+            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(16, flattenedFields.size() * 2));
+            for (int i = 0; i < flattenedFields.size(); i++) {
+                FlattenedFieldDescriptor field = flattenedFields.get(i);
+                orderedFieldNames.add(field.fieldName());
+                orderedFieldTypes.put(field.fieldName(), field.fieldPath().leafType());
+            }
+            this.fieldNames = List.copyOf(orderedFieldNames);
+            this.fieldTypes = Collections.unmodifiableMap(orderedFieldTypes);
+        }
+
+        public List<String> fieldNames() {
+            return fieldNames;
+        }
+
+        public Map<String, Class<?>> fieldTypes() {
+            return fieldTypes;
+        }
+
+        public int size() {
+            return flattenedFields.size();
+        }
+
+        private List<FlattenedFieldDescriptor> flattenedFields() {
+            return flattenedFields;
         }
     }
 }

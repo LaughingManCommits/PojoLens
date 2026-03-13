@@ -5,9 +5,9 @@
 
 Fluent path:
 
-- `builder/FilterQueryBuilder` captures query shape and materialization decisions
-- `filter/FilterExecutionPlan` compiles reusable execution metadata
-- `filter/FilterImpl` and related engines execute filtering, grouping, ordering, joins, and chart preparation
+- `builder/FilterQueryBuilder` captures query shape, source schemas, and materialization decisions
+- `filter/FilterExecutionPlan` compiles reusable execution metadata for both legacy row execution and schema-driven array execution
+- `filter/FilterImpl` dispatches between the legacy `QueryRow` engine and `filter/FastArrayQuerySupport` for the selective single-join computed/filter/projection hot path
 
 SQL-like path:
 

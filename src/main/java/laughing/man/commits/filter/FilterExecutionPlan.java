@@ -33,14 +33,18 @@ public final class FilterExecutionPlan {
     private final List<MetricPlan> metricPlans;
 
     FilterExecutionPlan(FilterQueryBuilder builder) {
-        List<QueryRow> rows = builder.getRows();
-        if (rows != null && !rows.isEmpty()) {
-            List<? extends QueryField> firstFields = rows.get(0).getFields();
-            for (int i = 0; i < firstFields.size(); i++) {
-                String name = firstFields.get(i).getFieldName();
-                fieldIndexByName.put(name, i);
-                fieldIndexByLowerName.put(name.toLowerCase(Locale.ROOT), i);
-            }
+        this(builder, fieldNames(builder.getRows()));
+    }
+
+    static FilterExecutionPlan forSchema(FilterQueryBuilder builder, List<String> fieldNames) {
+        return new FilterExecutionPlan(builder, fieldNames);
+    }
+
+    private FilterExecutionPlan(FilterQueryBuilder builder, List<String> fieldNames) {
+        for (int i = 0; i < fieldNames.size(); i++) {
+            String name = fieldNames.get(i);
+            fieldIndexByName.put(name, i);
+            fieldIndexByLowerName.put(name.toLowerCase(Locale.ROOT), i);
         }
         rulesByFieldIndex = freezeCompiledRules(compileRules(
                 builder.getFilterIDs(),
@@ -228,6 +232,22 @@ public final class FilterExecutionPlan {
             frozen.put(entry.getKey(), List.copyOf(entry.getValue()));
         }
         return Collections.unmodifiableMap(frozen);
+    }
+
+    private static List<String> fieldNames(List<QueryRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<? extends QueryField> firstFields = rows.get(0).getFields();
+        if (firstFields == null || firstFields.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> names = new ArrayList<>(firstFields.size());
+        for (int i = 0; i < firstFields.size(); i++) {
+            QueryField field = firstFields.get(i);
+            names.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
+        }
+        return List.copyOf(names);
     }
 
     static record OrderColumn(int fieldIndex, String dateFormat) {

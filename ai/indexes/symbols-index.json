@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-13T09:15:45+01:00",
+    "generatedAt":  "2026-03-13T17:52:04+01:00",
     "groups":  [
                    {
                        "component":  "facades",
@@ -58,6 +58,11 @@
                                            "name":  "FilterImpl",
                                            "kind":  "class",
                                            "path":  "src/main/java/laughing/man/commits/filter/FilterImpl.java"
+                                       },
+                                       {
+                                           "name":  "FastArrayQuerySupport",
+                                           "kind":  "class",
+                                           "path":  "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java"
                                        },
                                        {
                                            "name":  "FilterExecutionPlan",

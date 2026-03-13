@@ -34,6 +34,7 @@ public class FilterImpl implements Filter {
     private volatile FilterQueryBuilder builderState;
     private volatile FilterExecutionPlanCacheKey planCacheKey;
     private volatile long planCacheKeyVersion = Long.MIN_VALUE;
+    private volatile FastArrayQuerySupport.FastArrayState fastArrayState;
 
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
@@ -44,6 +45,7 @@ public class FilterImpl implements Filter {
      */
     @Override
     public <T> Map<String, List<T>> filterGroups(Class<T> cls) {
+        materializeFastRowsIfPresent();
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
@@ -96,6 +98,10 @@ public class FilterImpl implements Filter {
      */
     @Override
     public <T> List<T> filter(Sort sortMethod, Class<T> cls) {
+        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
+        if (fastState != null) {
+            return FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
+        }
         List<QueryRow> results = new ArrayList<>();
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
@@ -279,6 +285,13 @@ public class FilterImpl implements Filter {
     @Override
     public synchronized Filter join() {
         FilterQueryBuilder executionBuilder = builderState;
+        FastArrayQuerySupport.FastArrayState fastState = FastArrayQuerySupport.tryBuildJoinedState(executionBuilder);
+        if (fastState != null) {
+            executionBuilder.setExecutionSchema(fastState.schemaTypes());
+            this.fastArrayState = fastState;
+            return this;
+        }
+        this.fastArrayState = null;
         FilterCore core = new FilterCore(executionBuilder);
         try {
             List<QueryRow> joinedRows = core.join(executionBuilder.getRows());
@@ -289,6 +302,19 @@ public class FilterImpl implements Filter {
             throw new IllegalStateException("Failed to apply join pipeline", e);
         }
         return this;
+    }
+
+    private void materializeFastRowsIfPresent() {
+        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
+        if (fastState == null) {
+            return;
+        }
+        FilterQueryBuilder executionBuilder = builderState;
+        executionBuilder.setMaterializedRows(
+                FastArrayQuerySupport.toQueryRows(fastState),
+                fastState.schemaTypes()
+        );
+        fastArrayState = null;
     }
 
 }

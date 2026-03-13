@@ -152,6 +152,22 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getFieldTypes();
     }
 
+    public Map<String, Class<?>> getSourceFieldTypesForExecution() {
+        return spec.getSourceFieldTypes();
+    }
+
+    public Map<Integer, Map<String, Class<?>>> getJoinSourceFieldTypesForExecution() {
+        return spec.getJoinSourceFieldTypes();
+    }
+
+    public List<?> getSourceBeansForExecution() {
+        return sourceBeans;
+    }
+
+    public Map<Integer, List<?>> getJoinSourceBeansForExecution() {
+        return joinSourceBeans;
+    }
+
     public void setRows(List<QueryRow> rows) {
         setRows(rows, ReflectionUtil.collectQueryRowFieldTypes(rows));
     }
@@ -172,6 +188,12 @@ public class FilterQueryBuilder implements QueryBuilder {
         spec.setSourceFieldTypes(sourceFieldTypes);
         refreshFieldTypes();
         spec.setRows(rows == null ? new ArrayList<>() : new ArrayList<>(rows));
+    }
+
+    public void setExecutionSchema(Map<String, Class<?>> sourceFieldTypes) {
+        markExecutionPlanShapeChanged();
+        spec.setSourceFieldTypes(new LinkedHashMap<>(sourceFieldTypes));
+        refreshFieldTypes();
     }
 
     @Override
