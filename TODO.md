@@ -61,13 +61,26 @@ Focused warm profiling remains the main driver for the backlog below.
 
 Near-term target for this path:
 
-- reduce warmed overhead to **under 5x** manual
-- practical target at the current manual baseline: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField < 0.75 ms/op`
+- reduce warmed overhead to under **5x** manual
+- practical latency target at the current manual baseline: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField < 0.75 ms/op`
+- practical allocation target on the same path: **< 2,000,000 B/op**
+- practical combined goal: lower both latency and allocation together, not one at the expense of the other
 
 Stretch target:
 
-- reduce warmed overhead to **under 3x** manual
-- stretch target at the current manual baseline: `< 0.45 ms/op`
+- reduce warmed overhead to under **3x** manual
+- stretch latency target at the current manual baseline: **< 0.45 ms/op**
+- stretch allocation target on the same path: **< 1,000,000 B/op**
+
+Minimum acceptance direction for each meaningful WP17 improvement:
+
+- report **ms/op delta**
+- report **B/op delta**
+- report whether young-GC pressure improved, stayed flat, or regressed
+
+Guardrail:
+
+- do not accept CPU-only wins as sufficient if allocation and GC pressure remain effectively flat on the warmed target path
 
 Do not trade away correctness for speed.
 
