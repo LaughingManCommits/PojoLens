@@ -153,10 +153,14 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public void setRows(List<QueryRow> rows) {
+        setRows(rows, ReflectionUtil.collectQueryRowFieldTypes(rows));
+    }
+
+    public void setRows(List<QueryRow> rows, Map<String, Class<?>> sourceFieldTypes) {
         markExecutionPlanShapeChanged();
         sourceBeans = List.of();
         clearMaterializedSourceRows();
-        spec.setSourceFieldTypes(ReflectionUtil.collectQueryRowFieldTypes(rows));
+        spec.setSourceFieldTypes(sourceFieldTypes);
         refreshFieldTypes();
         spec.setRows(materializedRows(rows));
     }
@@ -665,21 +669,28 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private void addJoinRows(String parentField, List<QueryRow> children, String childField, Join joinMethod) {
         int index = nextJoinIndex();
-        storeJoinDefinition(index, ComputedFieldSupport.materializeRows(children, computedFieldRegistry), parentField, childField, joinMethod);
+        storeJoinDefinition(index,
+                ComputedFieldSupport.materializeRows(children, computedFieldRegistry),
+                inferSourceFieldTypes(children),
+                parentField,
+                childField,
+                joinMethod);
     }
 
     private void addLazyJoinSource(String parentField, List<?> children, String childField, Join joinMethod) {
         int index = nextJoinIndex();
         joinSourceBeans.put(index, copySourceBeans(children));
-        storeJoinDefinition(index, new ArrayList<>(), parentField, childField, joinMethod);
+        storeJoinDefinition(index, new ArrayList<>(), inferSourceFieldTypes(children), parentField, childField, joinMethod);
     }
 
     private void storeJoinDefinition(int index,
                                      List<QueryRow> children,
+                                     Map<String, Class<?>> childFieldTypes,
                                      String parentField,
                                      String childField,
                                      Join joinMethod) {
         spec.getJoinClasses().put(index, children);
+        spec.getJoinSourceFieldTypes().put(index, new LinkedHashMap<>(childFieldTypes));
         spec.getJoinMethods().put(index, joinMethod);
         spec.getJoinParentFields().put(index, parentField);
         spec.getJoinChildFields().put(index, childField);
@@ -758,6 +769,17 @@ public class FilterQueryBuilder implements QueryBuilder {
         FilterQueryBuilder snapshot = snapshotForExecution();
         snapshot.setRows(rows);
         return snapshot;
+    }
+
+    public Map<String, Class<?>> deriveJoinedSourceFieldTypes() {
+        Map<String, Class<?>> current = new LinkedHashMap<>(spec.getSourceFieldTypes());
+        if (current.isEmpty() || !hasJoinDefinitions()) {
+            return current;
+        }
+        for (Integer joinIndex : new java.util.TreeSet<>(joinDefinitionIndexes())) {
+            current = mergeJoinFieldTypes(current, joinFieldTypes(joinIndex), spec.getJoinMethods().get(joinIndex));
+        }
+        return current;
     }
 
     public FilterExecutionPlanCacheStore getExecutionPlanCache() {
@@ -1218,6 +1240,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (pending != null) {
             return inferSourceFieldTypes(pending);
         }
+        Map<String, Class<?>> known = spec.getJoinSourceFieldTypes().get(joinIndex);
+        if (known != null && !known.isEmpty()) {
+            return known;
+        }
         List<QueryRow> rows = spec.getJoinClasses().get(joinIndex);
         if (rows == null || rows.isEmpty()) {
             return Map.of();
@@ -1245,6 +1271,46 @@ public class FilterQueryBuilder implements QueryBuilder {
                 && spec.getMetrics().isEmpty()
                 && spec.getGroupFields().isEmpty()
                 && spec.getTimeBuckets().isEmpty();
+    }
+
+    private Map<String, Class<?>> mergeJoinFieldTypes(Map<String, Class<?>> currentFieldTypes,
+                                                      Map<String, Class<?>> joinFieldTypes,
+                                                      Join joinMethod) {
+        if (joinFieldTypes == null || joinFieldTypes.isEmpty() || joinMethod == null) {
+            return currentFieldTypes;
+        }
+        Map<String, Class<?>> primary = currentFieldTypes;
+        Map<String, Class<?>> secondary = joinFieldTypes;
+        if (Join.RIGHT_JOIN.equals(joinMethod)) {
+            primary = joinFieldTypes;
+            secondary = currentFieldTypes;
+        }
+
+        LinkedHashMap<String, Class<?>> merged = new LinkedHashMap<>(primary.size() + secondary.size());
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (Map.Entry<String, Class<?>> entry : primary.entrySet()) {
+            merged.put(entry.getKey(), entry.getValue());
+            names.add(entry.getKey());
+        }
+        for (Map.Entry<String, Class<?>> entry : secondary.entrySet()) {
+            String fieldName = entry.getKey();
+            if (names.contains(fieldName)) {
+                fieldName = uniqueJoinedFieldName(fieldName, names);
+            }
+            merged.put(fieldName, entry.getValue());
+            names.add(fieldName);
+        }
+        return merged;
+    }
+
+    private String uniqueJoinedFieldName(String baseName, Set<String> existing) {
+        String candidate = "child_" + baseName;
+        int index = 1;
+        while (existing.contains(candidate)) {
+            candidate = "child_" + baseName + "_" + index;
+            index++;
+        }
+        return candidate;
     }
 
     private List<QueryRow> queryRows(List<?> pojos) {

@@ -280,7 +280,7 @@ public class FilterImpl implements Filter {
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
-            executionBuilder.setRows(core.join(executionBuilder.getRows()));
+            executionBuilder.setRows(core.join(executionBuilder.getRows()), executionBuilder.deriveJoinedSourceFieldTypes());
         } catch (Exception e) {
             LOG.error("Failed to join filterList[" + executionBuilder.getRows() + "] ", e);
             throw new IllegalStateException("Failed to apply join pipeline", e);

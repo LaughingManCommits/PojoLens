@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class FilterQueryBuilderSelectiveMaterializationTest {
 
@@ -62,6 +63,19 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals(1, rows.size());
         assertEquals("p1", rows.get(0).name);
         assertEquals("c1", rows.get(0).tag);
+    }
+
+    @Test
+    void unmatchedLeftJoinShouldRetainChildFieldTypesWithoutRescanningJoinedRows() {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleParents())
+                .copyOnBuild(false)
+                .addJoinBeans("id", sampleChildren(), "parentId", Join.LEFT_JOIN)
+                .addField("name")
+                .addField("tag");
+
+        builder.initFilter().join();
+
+        assertSame(String.class, builder.getFieldTypes().get("tag"));
     }
 
     @Test

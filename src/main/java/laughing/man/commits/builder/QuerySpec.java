@@ -35,6 +35,7 @@ final class QuerySpec {
     private final Map<Integer, String> distinctFields = new HashMap<>();
     private final Map<String, List<String>> filterIDs = new HashMap<>();
     private final Map<Integer, List<QueryRow>> joinClasses = new HashMap<>();
+    private final Map<Integer, Map<String, Class<?>>> joinSourceFieldTypes = new HashMap<>();
     private final Map<Integer, Join> joinMethods = new HashMap<>();
     private final Map<Integer, String> joinParentFields = new HashMap<>();
     private final Map<Integer, String> joinChildFields = new HashMap<>();
@@ -143,6 +144,10 @@ final class QuerySpec {
         return joinClasses;
     }
 
+    Map<Integer, Map<String, Class<?>>> getJoinSourceFieldTypes() {
+        return joinSourceFieldTypes;
+    }
+
     Map<Integer, Join> getJoinMethods() {
         return joinMethods;
     }
@@ -249,6 +254,7 @@ final class QuerySpec {
         replaceMap(target.distinctFields, distinctFields);
         replaceMap(target.filterIDs, copyFilterIds(filterIDs));
         replaceMap(target.joinClasses, copyRows ? copyJoinClasses(joinClasses) : copyJoinClassReferences(joinClasses));
+        replaceMap(target.joinSourceFieldTypes, copyJoinFieldTypes(joinSourceFieldTypes));
         replaceMap(target.joinMethods, joinMethods);
         replaceMap(target.joinParentFields, joinParentFields);
         replaceMap(target.joinChildFields, joinChildFields);
@@ -376,6 +382,14 @@ final class QuerySpec {
         Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(16, source.size() * 2));
         for (Map.Entry<Integer, List<QueryRow>> entry : source.entrySet()) {
             copy.put(entry.getKey(), copyRowsReference(entry.getValue()));
+        }
+        return copy;
+    }
+
+    private static Map<Integer, Map<String, Class<?>>> copyJoinFieldTypes(Map<Integer, Map<String, Class<?>>> source) {
+        Map<Integer, Map<String, Class<?>>> copy = new HashMap<>(Math.max(16, source.size() * 2));
+        for (Map.Entry<Integer, Map<String, Class<?>>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
         }
         return copy;
     }

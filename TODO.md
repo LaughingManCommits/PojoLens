@@ -146,7 +146,7 @@ Acceptance criteria:
 
 ### WP16: Derive joined-row field types without rescanning materialized rows
 
-Status: pending
+Status: in progress
 
 Goal: stop walking every joined row just to reconstruct field-type metadata.
 
@@ -161,6 +161,20 @@ Tasks:
 - stop using `ReflectionUtil.collectQueryRowFieldTypes(rows)` after join execution
 - derive joined field types from parent/child source metadata and computed-field definitions
 - keep builder validation and typed projection behavior correct
+
+Progress on 2026-03-13:
+
+- `FilterImpl.join()` now updates builder row schema from `FilterQueryBuilder.deriveJoinedSourceFieldTypes()` instead of rescanning all joined rows to rediscover field types.
+- `FilterQueryBuilder` now retains per-join source field-type metadata and derives merged join schemas with the same collision-renaming rules used by `JoinEngine`, including `RIGHT_JOIN` field ordering.
+- Added regression coverage in `FilterQueryBuilderSelectiveMaterializationTest` to ensure unmatched left joins retain child field types even when every joined child value is `null`.
+- Validation on 2026-03-13:
+  - `mvn -q test` passed after the WP16 schema-derivation changes.
+  - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.249 ms/op`, slightly better than the post-WP15 short smoke around `0.257 ms/op`.
+
+Remaining acceptance work:
+
+- rerun a warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to verify `ReflectionUtil.collectQueryRowFieldTypes` no longer appears as a major CPU leaf after join execution
+- confirm the derived-schema path remains correct for broader multi-join and collision-heavy cases beyond the current regression set
 
 Acceptance criteria:
 
