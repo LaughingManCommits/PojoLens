@@ -106,7 +106,7 @@ Acceptance criteria:
 
 ### WP15: Remove per-row row/field cloning in computed and join materialization
 
-Status: pending
+Status: in progress
 
 Goal: stop rebuilding large `QueryRow` and `QueryField` graphs for every joined row.
 
@@ -121,6 +121,22 @@ Tasks:
 - remove the full-field-copy loop in `ComputedFieldSupport.materializeRow()`
 - replace `JoinEngine.mergeFields()` row-by-row cloning with schema-aware value assembly
 - avoid per-row `LinkedHashMap`, `HashSet`, and duplicate-name bookkeeping when the joined schema is already known
+
+Progress on 2026-03-13:
+
+- `ComputedFieldSupport.materializeRow()` now reuses existing base `QueryField` objects and only allocates replacement `QueryField` instances for computed outputs that are added or updated.
+- `JoinEngine` now precomputes a merge plan per join step, reuses unchanged parent/child `QueryField` instances for the common no-collision path, and limits new `QueryField` allocation to renamed collision fields or unmatched-child null placeholders.
+- Added regression coverage in `FilterQueryBuilderSelectiveMaterializationTest` to confirm distinct computed outputs are preserved across multiple child matches on the same joined parent row.
+- Short validation on 2026-03-13:
+  - `mvn -q test` passed.
+  - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.257 ms/op` versus the prior short smoke around `0.464 ms/op`.
+  - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` at `size=1000`, `-wi 1 -i 2 -r 100ms -prof gc`: about `40.405 us/op` and `363,856 B/op` versus the prior short smoke around `60.147 us/op` and `363,856 B/op`.
+
+Remaining acceptance work:
+
+- rerun a comparable warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to confirm `ComputedFieldSupport.materializeRow` and `JoinEngine.mergeFields` stop dominating the hot path
+- verify whether the clone-removal changes reduced end-to-end warm throughput gaps beyond the short 1k smoke runs
+- determine whether the flat `B/op` result means WP16/WP17 now dominate allocation even though the WP15 hotspot time improved
 
 Acceptance criteria:
 

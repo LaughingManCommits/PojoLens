@@ -133,6 +133,39 @@ class FilterQueryBuilderSelectiveMaterializationTest {
     }
 
     @Test
+    void computedJoinQueriesShouldKeepDistinctComputedValuesAcrossMultipleChildMatches() throws Exception {
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("totalComp", "salary + bonus", Double.class)
+                .build();
+
+        List<JoinComputedDetailProjection> rows = new FilterQueryBuilder(List.of(
+                new JoinCompensationParent(1, "a", 100, "fin")
+        ))
+                .computedFields(registry)
+                .addJoinBeans("id", List.of(
+                        new JoinCompensationChild(1, 20, "legacy"),
+                        new JoinCompensationChild(1, 35, "retained")
+                ), "parentId", Join.LEFT_JOIN)
+                .addField("name")
+                .addField("bonus")
+                .addField("tag")
+                .addField("totalComp")
+                .initFilter()
+                .join()
+                .filter(JoinComputedDetailProjection.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("a", rows.get(0).name);
+        assertEquals(20, rows.get(0).bonus);
+        assertEquals("legacy", rows.get(0).tag);
+        assertEquals(120.0, rows.get(0).totalComp, 0.0001);
+        assertEquals("a", rows.get(1).name);
+        assertEquals(35, rows.get(1).bonus);
+        assertEquals("retained", rows.get(1).tag);
+        assertEquals(135.0, rows.get(1).totalComp, 0.0001);
+    }
+
+    @Test
     void computedJoinQueriesShouldFallBackWhenComputedOutputsCollideWithChildFields() throws Exception {
         ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
                 .add("bonus", "salary * 0.1", Double.class)
@@ -362,6 +395,16 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public double totalComp;
 
         public JoinComputedProjection() {
+        }
+    }
+
+    public static final class JoinComputedDetailProjection {
+        public String name;
+        public int bonus;
+        public String tag;
+        public double totalComp;
+
+        public JoinComputedDetailProjection() {
         }
     }
 

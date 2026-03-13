@@ -63,6 +63,7 @@ final class JoinEngine {
 
                 Map<String, List<QueryRow>> childIndex = buildFieldIndex(childLoop, childFieldIndex);
                 List<? extends QueryField> childTemplateFields = childLoop.get(0).getFields();
+                MergePlan mergePlan = buildMergePlan(parentLoop.get(0).getFields(), childTemplateFields);
                 List<QueryRow> joinedRows = new ArrayList<>(parentLoop.size());
 
                 for (QueryRow parentClass : parentLoop) {
@@ -74,10 +75,10 @@ final class JoinEngine {
                     List<QueryRow> matchingChildren = childIndex.get(parentValue);
                     if (matchingChildren != null && !matchingChildren.isEmpty()) {
                         for (QueryRow childClass : matchingChildren) {
-                            joinedRows.add(buildJoinedRow(parentClass, parentFields, childClass.getFields(), false));
+                            joinedRows.add(buildJoinedRow(parentClass, parentFields, childClass.getFields(), mergePlan, false));
                         }
                     } else if (!Join.INNER_JOIN.equals(joinMethod)) {
-                        joinedRows.add(buildJoinedRow(parentClass, parentFields, childTemplateFields, true));
+                        joinedRows.add(buildJoinedRow(parentClass, parentFields, childTemplateFields, mergePlan, true));
                     }
                 }
 
@@ -113,10 +114,11 @@ final class JoinEngine {
     private QueryRow buildJoinedRow(QueryRow parentClass,
                                     List<? extends QueryField> parentFields,
                                     List<? extends QueryField> childFields,
+                                    MergePlan mergePlan,
                                     boolean nullChildValues) {
         QueryRow row = new QueryRow();
         row.setRowType(parentClass.getRowType());
-        row.setFields(mergeFields(parentFields, childFields, nullChildValues));
+        row.setFields(mergeFields(parentFields, childFields, mergePlan, nullChildValues));
         return row;
     }
 
@@ -146,35 +148,60 @@ final class JoinEngine {
         return -1;
     }
 
-    private List<QueryField> mergeFields(List<? extends QueryField> parentFields,
-                                          List<? extends QueryField> childFields,
-                                          boolean nullChildValues) {
+    private MergePlan buildMergePlan(List<? extends QueryField> parentFields,
+                                     List<? extends QueryField> childFields) {
         int parentSize = parentFields == null ? 0 : parentFields.size();
         int childSize = childFields == null ? 0 : childFields.size();
-        List<QueryField> merged = new ArrayList<>(parentSize + childSize);
         HashSet<String> names = new HashSet<>(Math.max(16, parentSize + childSize));
+        MergeSlot[] childSlots = new MergeSlot[childSize];
+        List<QueryField> nullChildFields = new ArrayList<>(childSize);
 
         if (parentFields != null) {
             for (QueryField parent : parentFields) {
-                QueryField copy = new QueryField();
-                copy.setFieldName(parent.getFieldName());
-                copy.setValue(parent.getValue());
-                merged.add(copy);
-                names.add(copy.getFieldName());
+                names.add(parent.getFieldName());
             }
         }
 
         if (childFields != null) {
-            for (QueryField child : childFields) {
+            for (int i = 0; i < childFields.size(); i++) {
+                QueryField child = childFields.get(i);
                 String fieldName = child.getFieldName();
                 if (names.contains(fieldName)) {
                     fieldName = uniqueChildName(fieldName, names);
                 }
-                QueryField copy = new QueryField();
-                copy.setFieldName(fieldName);
-                copy.setValue(nullChildValues ? null : child.getValue());
-                merged.add(copy);
                 names.add(fieldName);
+                boolean renamed = !fieldName.equals(child.getFieldName());
+                childSlots[i] = new MergeSlot(fieldName, renamed);
+                nullChildFields.add(newQueryField(fieldName, null));
+            }
+        }
+        return new MergePlan(parentSize + childSize, childSlots, List.copyOf(nullChildFields));
+    }
+
+    private List<QueryField> mergeFields(List<? extends QueryField> parentFields,
+                                         List<? extends QueryField> childFields,
+                                         MergePlan mergePlan,
+                                         boolean nullChildValues) {
+        List<QueryField> merged = new ArrayList<>(mergePlan.totalSize());
+        if (parentFields != null) {
+            for (QueryField parent : parentFields) {
+                merged.add(parent);
+            }
+        }
+
+        if (nullChildValues) {
+            merged.addAll(mergePlan.nullChildFields());
+            return merged;
+        }
+
+        if (childFields != null) {
+            MergeSlot[] childSlots = mergePlan.childSlots();
+            for (int i = 0; i < childFields.size(); i++) {
+                QueryField child = childFields.get(i);
+                MergeSlot slot = childSlots[i];
+                merged.add(slot.renamed()
+                        ? newQueryField(slot.fieldName(), child.getValue())
+                        : child);
             }
         }
         return merged;
@@ -195,6 +222,19 @@ final class JoinEngine {
             return 16;
         }
         return (int) ((sourceSize / 0.75f) + 1.0f);
+    }
+
+    private QueryField newQueryField(String fieldName, Object value) {
+        QueryField field = new QueryField();
+        field.setFieldName(fieldName);
+        field.setValue(value);
+        return field;
+    }
+
+    private record MergePlan(int totalSize, MergeSlot[] childSlots, List<QueryField> nullChildFields) {
+    }
+
+    private record MergeSlot(String fieldName, boolean renamed) {
     }
 }
 

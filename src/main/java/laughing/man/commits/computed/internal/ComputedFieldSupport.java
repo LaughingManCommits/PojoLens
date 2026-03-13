@@ -135,10 +135,7 @@ public final class ComputedFieldSupport {
         LinkedHashMap<String, Object> values = new LinkedHashMap<>();
         if (row.getFields() != null) {
             for (QueryField field : row.getFields()) {
-                QueryField fieldCopy = new QueryField();
-                fieldCopy.setFieldName(field.getFieldName());
-                fieldCopy.setValue(field.getValue());
-                fields.add(fieldCopy);
+                fields.add(field);
                 values.put(field.getFieldName(), field.getValue());
             }
         }
@@ -174,16 +171,21 @@ public final class ComputedFieldSupport {
     }
 
     private static void upsertField(List<QueryField> fields, String name, Object value) {
-        for (QueryField field : fields) {
+        for (int i = 0; i < fields.size(); i++) {
+            QueryField field = fields.get(i);
             if (name.equals(field.getFieldName())) {
-                field.setValue(value);
+                fields.set(i, newQueryField(name, value));
                 return;
             }
         }
-        QueryField computedField = new QueryField();
-        computedField.setFieldName(name);
-        computedField.setValue(value);
-        fields.add(computedField);
+        fields.add(newQueryField(name, value));
+    }
+
+    private static QueryField newQueryField(String name, Object value) {
+        QueryField field = new QueryField();
+        field.setFieldName(name);
+        field.setValue(value);
+        return field;
     }
 
     private static Object castNumericValue(double value, Class<?> outputType) {
