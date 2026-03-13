@@ -1,98 +1,72 @@
 # Repository Agent Instructions
 
-This repository uses a persistent AI memory system stored under `/ai`.
+This repository uses persistent AI memory under `/ai`.
 
-The `/ai` directory contains durable project context so future agents can understand the repository without rediscovering everything.
+Read `ai/AGENTS.md` before modifying `/ai`.
 
-Rules for maintaining the memory system are defined in:
+## Default Load Order
 
-`ai/AGENTS.md`
-
-Agents must read this file before modifying `/ai` memory.
-
----
-
-# Required Context Load Order
-
-Before performing any task, read these files in order:
+Load only this hot context before starting work:
 
 1. `ai/core/agent-invariants.md`
 2. `ai/core/repo-purpose.md`
-3. `ai/core/module-index.md`
-4. `ai/core/readme-alignment.md`
-5. `ai/core/runbook.md`
-6. `ai/core/documentation-index.md`
-7. `ai/state/current-state.md`
-8. `ai/state/handoff.md`
+3. `ai/state/current-state.md`
+4. `ai/state/handoff.md`
 
-If additional core files exist (for example `system-boundaries.md` or `architecture-map.md`), read them **before the state files**.
+These files must stay short and task-oriented.
 
-Core files describe **stable repository truths**.  
-State files describe **the most recent work session**.
+## Load Additional Context Only When Relevant
 
----
+- Architecture, package layout, or code navigation:
+  `ai/core/module-index.md`, `ai/core/architecture-map.md`, `ai/core/system-boundaries.md`, `ai/indexes/files-index.json`, `ai/indexes/symbols-index.json`
+- Documentation work or drift checks:
+  `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`, `ai/indexes/docs-index.json`
+- Validation, CI, tests, or benchmark workflows:
+  `ai/core/runbook.md`, `ai/core/test-strategy.md`, `ai/indexes/test-index.json`, `ai/indexes/config-index.json`
+- Repository discovery or uncommon repo facts:
+  `ai/core/discovery-notes.md`
+- Historical memory changes:
+  `ai/log/events.jsonl`
 
-# Memory Freshness
+Do not auto-load cold context unless the task needs it.
 
-The file `ai/memory-state.json` records when the repository was last scanned.
+## Memory Freshness
 
-If the repository has changed significantly since the recorded commit or scan time, agents should:
+`ai/memory-state.json` records the last full memory rebuild.
 
-- regenerate affected index files in `ai/indexes/`
-- update relevant core files if repository truths changed
-- update `ai/state/current-state.md`
+If repository structure or durable behavior changes:
 
----
+1. update affected core files
+2. regenerate affected files in `ai/indexes/`
+3. refresh `ai/state/current-state.md`
+4. log the significant event in `ai/log/events.jsonl`
 
-# Trust Order for Facts
+## Trust Order For Facts
 
-When evidence conflicts, use this priority order:
+When evidence conflicts, prefer:
 
 1. runtime code in `src/main/java`
-2. build and CI configuration (`pom.xml`, workflows)
+2. build and CI config
 3. tests in `src/test/java` and `src/test/resources`
-4. repository markdown documentation
-5. `/ai` generated memory
+4. repository markdown docs
+5. `/ai` memory
 
-If `/ai` memory contradicts code or tests, prefer **code and tests** and update the `/ai` memory.
+If `/ai` contradicts code or tests, fix `/ai`.
 
----
+## Repository Rules
 
-# Repository Operating Rules
+Treat this repository as a single Java library artifact (`jar`), not a deployable service.
 
-Agents must treat this repository as:
+- Recheck public-doc claims against code and tests.
+- Use `TODO.md` as the planning file.
+- Ignore `target/` when deriving repository truth except for generated-artifact validation.
 
-**a library artifact (JAR), not a deployable service.**
+## Session Completion
 
-Key rules:
-
-- Recheck README and documentation claims against **code and tests**.
-- Use `TODO.md` for planned work; no separate backlog file exists.
-- Ignore `target/` when deriving repository truth except when validating generated artifacts.
-
----
-
-# Documentation Consistency
-
-When public behavior or documentation changes:
-
-Update:
-
-- `ai/core/readme-alignment.md`
-- `ai/indexes/docs-index.json`
-
-This ensures documentation stays aligned with the implementation.
-
----
-
-# Session Completion Rules
-
-Before ending a task or session:
+Before ending work:
 
 1. update `ai/state/current-state.md`
 2. update `ai/state/handoff.md`
-3. append significant events to `ai/log/events.jsonl`
-4. regenerate indexes if repository structure changed
-5. ensure `/ai` memory still reflects repository truth
-
-If `/ai` memory appears stale or inconsistent with code, update it following the rules in `ai/AGENTS.md`.
+3. append only significant events to `ai/log/events.jsonl`
+4. regenerate indexes if structure changed
+5. ensure hot and cold memory still match repository reality

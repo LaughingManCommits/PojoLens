@@ -20,6 +20,8 @@ Confirm these are aligned:
 
 Run all benchmark and parity commands from `docs/benchmarking.md` and attach produced CSV/JSON artifacts to the release evidence.
 
+When building the benchmark runner locally, resolve the real jar from `target/*-benchmarks.jar` instead of hardcoding a versioned filename.
+
 Minimum required checks:
 - strict threshold check against `benchmarks/thresholds.json`
 - chart threshold + parity checks against `benchmarks/chart-thresholds.json`
@@ -45,7 +47,9 @@ This project is still in a rapid-evolution phase. Compatibility policy:
 ## 3.2) Documented Limitations Check
 
 Before release, confirm limitations docs match implementation:
-- SQL-like unsupported: subqueries, multi-join SQL plans.
+- SQL-like supports limited `WHERE ... IN (select oneField ...)` subqueries.
+- SQL-like chained joins are supported when each `JOIN ... ON ...` references the current plan correctly.
+- SQL-like unsupported: aggregate, grouped, or joined subquery plans.
 - SQL-like `HAVING` supports boolean predicates (`AND` and `OR`).
 - Aggregate-query constraints and grouped field aliasing restrictions.
 - Time bucket date-type requirement.
@@ -65,15 +69,15 @@ Before release, confirm limitations docs match implementation:
 
 ```bash
 git add .
-git commit -m "Release 1.3.0"
-git tag -a v1.3.0 -m "PojoLens v1.3.0"
+git commit -m "Release <version>"
+git tag -a v<version> -m "PojoLens v<version>"
 ```
 
 ## 5) Push
 
 ```bash
 git push
-git push origin v1.3.0
+git push origin v<version>
 ```
 
 ## 6) Cleanup checklist

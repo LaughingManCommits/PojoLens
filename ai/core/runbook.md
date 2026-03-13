@@ -1,29 +1,22 @@
 # Runbook
 
-## Local Validation
+Validation commands:
 
-- Verified: Main test command: `mvn -B -ntp test`
-- Verified: Doc consistency script: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-doc-consistency.ps1`
-- Verified: Lint profile: `mvn -B -ntp -Plint verify -DskipTests`
-- Verified: Lint baseline enforcement: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
-- Verified: Static analysis profile: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+- tests: `mvn -B -ntp test`
+- docs check: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-doc-consistency.ps1`
+- lint: `mvn -B -ntp -Plint verify -DskipTests`
+- lint baseline: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
+- static analysis: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 
-## Benchmark Flow
+Benchmark flow:
 
-1. Verified: Build benchmark runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
-2. Verified: Resolve the real benchmark jar from `target\*-benchmarks.jar` instead of hardcoding a versioned filename.
-3. Verified: Core benchmark suite uses `@scripts/benchmark-suite-main.args`
-4. Verified: Chart benchmark suite uses `@scripts/benchmark-suite-chart.args`
-5. Verified: Hotspot suite uses `@scripts/benchmark-suite-hotspots.args`
-6. Verified: Streams baseline suite uses `@scripts/benchmark-suite-baseline.args`
-7. Verified: Threshold checks use `benchmarks/thresholds.json` and `benchmarks/chart-thresholds.json`
+1. build the runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+2. resolve `target/*-benchmarks.jar` dynamically
+3. run suites from `@scripts/benchmark-suite-main.args`, `@scripts/benchmark-suite-chart.args`, `@scripts/benchmark-suite-hotspots.args`, or `@scripts/benchmark-suite-baseline.args`
+4. check thresholds with `benchmarks/thresholds.json` or `benchmarks/chart-thresholds.json`
 
-## CI Summary
+CI:
 
-- Verified: `.github/workflows/ci.yml` runs `lint-workflows`, `test`, `lint-java`, `static-analysis`, `doc-consistency`, `benchmark-guardrail`, `cache-concurrency-stress`, `chart-artifacts`, and `benchmark-plot-artifacts`.
-- Verified: CI resolves benchmark jar paths dynamically instead of assuming a fixed versioned filename.
+- `.github/workflows/ci.yml` runs workflow lint, tests, Java lint, SpotBugs, doc consistency, benchmark guardrails, cache stress, and chart artifact jobs
 
-## No Service Startup Or Deploy Runbook
-
-- Verified: This repo builds a library jar only.
-- Verified: No app entry point, Dockerfile, Compose file, Kubernetes manifest, or Terraform config was found.
+No deploy runbook exists because the repository produces a library jar only.

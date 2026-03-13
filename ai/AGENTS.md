@@ -1,164 +1,68 @@
 # AI Memory Maintenance Guide
 
-This directory contains the persistent AI memory for this repository.
+This directory stores persistent repository memory in two tiers.
 
-These files help future agents understand the project without rediscovering repository context.
+## Hot Context
 
-This file defines **how the memory system itself should be maintained**.
+Always loaded:
 
----
-
-# Memory Structure
-
-The `/ai` directory contains four layers of memory.
-
-## Core Memory
-Location: `ai/core/*`
-
-Durable repository knowledge.
-
-Examples:
-- agent-invariants.md
-- repo-purpose.md
-- module-index.md
-- readme-alignment.md
-- runbook.md
-- documentation-index.md
-- system-boundaries.md
-- test-strategy.md
+1. `ai/core/agent-invariants.md`
+2. `ai/core/repo-purpose.md`
+3. `ai/state/current-state.md`
+4. `ai/state/handoff.md`
 
 Rules:
 
-- Only update when durable repository facts change.
-- Prefer incremental edits instead of rewriting entire files.
-- Never delete files inside `ai/core/*`.
-- Avoid storing chronological logs inside core files.
+- keep these files short
+- store only the minimum context needed to start work
+- move durable detail into cold files
 
-Core memory should remain stable across many sessions.
+## Cold Context
 
----
+Load only when the task needs it:
 
-## State Memory
-Location: `ai/state/*`
-
-Session-level memory describing the latest repository understanding.
-
-Files:
-
-- current-state.md
-- handoff.md
-
-Rules:
-
-- Update `current-state.md` after meaningful discoveries, verification, or completed tasks.
-- Update `handoff.md` before ending a session.
-- Keep state files concise and focused on next actions.
-- Rewrite state files rather than appending indefinitely.
-
-State memory represents operational context, not durable facts.
-
----
-
-## Index Memory
-Location: `ai/indexes/*`
-
-Machine-readable metadata about the repository.
-
-Examples:
-
-- files-index.json
-- symbols-index.json
-- docs-index.json
-- test-index.json
-- config-index.json
+- `ai/core/module-index.md`
+- `ai/core/readme-alignment.md`
+- `ai/core/runbook.md`
+- `ai/core/documentation-index.md`
+- `ai/core/system-boundaries.md`
+- `ai/core/architecture-map.md`
+- `ai/core/test-strategy.md`
+- `ai/core/discovery-notes.md`
+- `ai/indexes/*`
+- `ai/log/events.jsonl`
 
 Rules:
 
-- Regenerate indexes if repository structure changes.
-- Remove entries for deleted or moved files.
-- `docs-index.json` must include all Markdown documentation discovered in the repository.
+- keep durable truths in `ai/core/*`
+- keep `ai/state/*` session-specific and concise
+- regenerate indexes instead of letting stale entries accumulate
+- log only significant events
 
-Indexes represent the **current repository structure**, not historical data.
+## Integrity Rules
 
----
+- Prefer code, build config, and tests over `/ai` when facts conflict.
+- Preserve uncertainty instead of inventing facts.
+- Remove redundant memory, not useful knowledge.
+- Do not auto-load cold files by default.
 
-## Log Memory
-Location: `ai/log/*`
+## Freshness Rules
 
-Append-only historical records.
+`ai/memory-state.json` tracks the last full rebuild.
 
-Example:
+When durable repo facts or structure change:
 
-- events.jsonl
+1. update affected hot or cold files
+2. regenerate affected indexes
+3. refresh `ai/state/current-state.md`
+4. update `ai/state/handoff.md`
+5. append a significant event to `ai/log/events.jsonl`
 
-Rules:
+## Compaction Rules
 
-Log events when:
+- Core files: durable facts only
+- State files: current work only
+- Index files: current structure only
+- Log: significant events only
 
-- repository scans occur
-- indexes are regenerated
-- documentation mismatches are detected
-- core repository knowledge changes
-
-Avoid logging trivial actions such as simple file reads.
-
----
-
-# Memory Integrity Rules
-
-Agents maintaining this directory must:
-
-- Prefer **code and tests** over `/ai` memory when contradictions appear.
-- Preserve uncertainty rather than inventing facts.
-- Never replace verified knowledge with speculation.
-- Never delete `ai/core/*` automatically.
-
-If `/ai` memory conflicts with repository reality, update `/ai`.
-
----
-
-# Memory Compaction Rules
-
-The `/ai` directory must remain compact.
-
-### Core files
-Keep concise and stable.
-
-### State files
-Rewrite regularly and remove stale context.
-
-### Index files
-Regenerate instead of accumulating history.
-
-### Logs
-If logs become large:
-
-- summarize older entries
-- move summaries into `ai/archive/`
-- keep recent events in `events.jsonl`.
-
----
-
-# Memory Update Workflow
-
-When finishing a task:
-
-1. update `ai/state/current-state.md`
-2. update `ai/state/handoff.md`
-3. update affected core files if durable facts changed
-4. regenerate indexes if repository structure changed
-5. append a relevant event to `ai/log/events.jsonl`
-
----
-
-# Goal of This Directory
-
-The `/ai` directory acts as a persistent repository knowledge cache.
-
-Future agents should be able to:
-
-- understand repository purpose
-- understand architecture and modules
-- locate important documentation
-- verify documentation accuracy
-- continue work from previous sessions
+The goal is fast startup from hot context and selective deep reads from cold context.

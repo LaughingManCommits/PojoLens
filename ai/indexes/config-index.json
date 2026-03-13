@@ -1,95 +1,86 @@
-{
-  "generatedAt": "2026-03-12T10:20:00+01:00",
-  "build": {
-    "path": "pom.xml",
-    "groupId": "laughing.man.commits",
-    "artifactId": "pojo-lens",
-    "version": "1.0.0",
-    "packaging": "jar",
-    "javaRelease": 17,
-    "runtimeDependencies": [
-      "org.slf4j:slf4j-api",
-      "com.github.ben-manes.caffeine:caffeine"
-    ],
-    "optionalDependencies": [
-      "org.knowm.xchart:xchart",
-      "org.openjdk.jmh:jmh-core"
-    ],
-    "testDependencies": [
-      "org.slf4j:slf4j-simple",
-      "org.junit.jupiter:junit-jupiter"
-    ],
-    "profiles": [
-      "benchmark",
-      "benchmark-runner",
-      "lint",
-      "static-analysis"
-    ]
-  },
-  "ci": {
-    "path": ".github/workflows/ci.yml",
-    "jobs": [
-      "lint-workflows",
-      "test",
-      "lint-java",
-      "static-analysis",
-      "doc-consistency",
-      "benchmark-guardrail",
-      "cache-concurrency-stress",
-      "chart-artifacts",
-      "benchmark-plot-artifacts"
-    ],
-    "testJavaVersions": [
-      17,
-      21
-    ]
-  },
-  "benchmarkConfigs": [
-    {
-      "path": "benchmarks/thresholds.json",
-      "purpose": "Core benchmark budget thresholds."
-    },
-    {
-      "path": "benchmarks/chart-thresholds.json",
-      "purpose": "Chart benchmark budget thresholds."
-    },
-    {
-      "path": "scripts/benchmark-suite-main.args",
-      "purpose": "Core benchmark suite selectors."
-    },
-    {
-      "path": "scripts/benchmark-suite-chart.args",
-      "purpose": "Chart benchmark suite selectors."
-    },
-    {
-      "path": "scripts/benchmark-suite-hotspots.args",
-      "purpose": "Hotspot microbenchmark selectors."
-    },
-    {
-      "path": "scripts/benchmark-suite-baseline.args",
-      "purpose": "Streams baseline selectors."
-    },
-    {
-      "path": "scripts/benchmark-suite-cache.args",
-      "purpose": "Cache concurrency selectors."
-    }
-  ],
-  "validationScripts": [
-    {
-      "path": "scripts/check-doc-consistency.ps1",
-      "purpose": "Checks a narrow set of README/MIGRATION/RELEASE/doc invariants."
-    },
-    {
-      "path": "scripts/check-doc-consistency.py",
-      "purpose": "Python counterpart for doc consistency checks."
-    },
-    {
-      "path": "scripts/check-lint-baseline.ps1",
-      "purpose": "Fails on new Checkstyle violations relative to the baseline."
-    }
-  ],
-  "deployment": {
-    "filesFound": [],
-    "note": "No Docker, Compose, Kubernetes, or Terraform files were found."
-  }
+﻿{
+    "generatedAt":  "2026-03-13T09:15:45+01:00",
+    "build":  {
+                  "path":  "pom.xml",
+                  "groupId":  "laughing.man.commits",
+                  "artifactId":  "pojo-lens",
+                  "version":  "1.0.0",
+                  "packaging":  "jar",
+                  "javaRelease":  17,
+                  "profiles":  [
+                                   "benchmark",
+                                   "benchmark-runner",
+                                   "lint",
+                                   "static-analysis"
+                               ],
+                  "runtimeDependencies":  [
+                                              "org.slf4j:slf4j-api",
+                                              "com.github.ben-manes.caffeine:caffeine"
+                                          ],
+                  "optionalDependencies":  [
+                                               "org.knowm.xchart:xchart",
+                                               "org.openjdk.jmh:jmh-core"
+                                           ],
+                  "testDependencies":  [
+                                           "org.slf4j:slf4j-simple",
+                                           "org.junit.jupiter:junit-jupiter"
+                                       ]
+              },
+    "ci":  {
+               "path":  ".github/workflows/ci.yml",
+               "jobs":  [
+                            "lint-workflows",
+                            "test",
+                            "lint-java",
+                            "static-analysis",
+                            "doc-consistency",
+                            "benchmark-guardrail",
+                            "cache-concurrency-stress",
+                            "chart-artifacts",
+                            "benchmark-plot-artifacts"
+                        ],
+               "testJavaVersions":  [
+                                        17,
+                                        21
+                                    ]
+           },
+    "aiMemory":  {
+                     "hotContext":  [
+                                        "ai/core/agent-invariants.md",
+                                        "ai/core/repo-purpose.md",
+                                        "ai/state/current-state.md",
+                                        "ai/state/handoff.md"
+                                    ],
+                     "coldContext":  [
+                                         "ai/core/module-index.md",
+                                         "ai/core/readme-alignment.md",
+                                         "ai/core/runbook.md",
+                                         "ai/core/documentation-index.md",
+                                         "ai/core/system-boundaries.md",
+                                         "ai/core/architecture-map.md",
+                                         "ai/core/test-strategy.md",
+                                         "ai/core/discovery-notes.md",
+                                         "ai/indexes/*",
+                                         "ai/log/events.jsonl"
+                                     ],
+                     "memoryStatePath":  "ai/memory-state.json"
+                 },
+    "planning":  {
+                     "primaryBacklog":  "TODO.md"
+                 },
+    "validationScripts":  [
+                              "scripts/check-doc-consistency.ps1",
+                              "scripts/check-doc-consistency.py",
+                              "scripts/check-lint-baseline.ps1"
+                          ],
+    "benchmarkConfigs":  [
+                             "benchmarks/thresholds.json",
+                             "benchmarks/chart-thresholds.json",
+                             "scripts/benchmark-suite-main.args",
+                             "scripts/benchmark-suite-chart.args",
+                             "scripts/benchmark-suite-hotspots.args",
+                             "scripts/benchmark-suite-baseline.args",
+                             "scripts/benchmark-suite-cache.args"
+                         ]
 }
+

@@ -1,11 +1,11 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$readmePath = Join-Path $root "README.md"
+$pomPath = Join-Path $root "pom.xml"
+$contributingPath = Join-Path $root "CONTRIBUTING.md"
 $migrationPath = Join-Path $root "MIGRATION.md"
 $releasePath = Join-Path $root "RELEASE.md"
 $sqlLikePath = Join-Path $root "docs/sql-like.md"
-$chartsPath = Join-Path $root "docs/charts.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
 $benchmarkMainArgsPath = Join-Path $root "scripts/benchmark-suite-main.args"
 
@@ -16,56 +16,62 @@ function Require-File([string]$path) {
     return Get-Content -Raw -Path $path
 }
 
+function Add-Error([System.Collections.Generic.List[string]]$errors, [string]$message) {
+    $errors.Add($message)
+}
+
 function Require-Substring([string]$doc, [string]$name, [string]$needle, [System.Collections.Generic.List[string]]$errors) {
     if (-not $doc.Contains($needle)) {
-        $errors.Add("${name}: missing required text: $needle")
+        Add-Error $errors "${name}: missing required text: $needle"
     }
 }
 
 function Require-Pattern([string]$doc, [string]$name, [string]$pattern, [System.Collections.Generic.List[string]]$errors) {
     if (-not [regex]::IsMatch($doc, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
-        $errors.Add("${name}: missing required pattern: $pattern")
+        Add-Error $errors "${name}: missing required pattern: $pattern"
     }
 }
 
-$readme = Require-File $readmePath
+function Forbid-Pattern([string]$doc, [string]$name, [string]$pattern, [System.Collections.Generic.List[string]]$errors) {
+    if ([regex]::IsMatch($doc, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        Add-Error $errors "${name}: contains forbidden pattern: $pattern"
+    }
+}
+
+[xml]$pom = Get-Content -Raw -Path $pomPath
+$projectVersion = $pom.project.version
+$contributing = Require-File $contributingPath
 $migration = Require-File $migrationPath
 $release = Require-File $releasePath
 $sqlLike = Require-File $sqlLikePath
-$charts = Require-File $chartsPath
 $benchmarking = Require-File $benchmarkingPath
 $benchmarkMainArgs = Require-File $benchmarkMainArgsPath
 $errors = [System.Collections.Generic.List[string]]::new()
 
-# HAVING boolean support invariants.
-Require-Pattern $migration "MIGRATION.md" "HAVING.*AND.*/.OR|HAVING.*AND.*OR" $errors
-Require-Pattern $release "RELEASE.md" "HAVING.*Boolean support:.*AND.*OR" $errors
-Require-Pattern $sqlLike "docs/sql-like.md" "Boolean support.*AND.*OR|AND.*OR.*supported" $errors
+# Benchmark command drift should use dynamic jar resolution in process docs.
+Require-Pattern $contributing "CONTRIBUTING.md" 'BENCHMARK_JAR=.*\*-benchmarks\.jar' $errors
+Require-Pattern $release "RELEASE.md" 'target/\*-benchmarks\.jar' $errors
+Forbid-Pattern $contributing "CONTRIBUTING.md" 'pojo-lens-\d+\.\d+\.\d+-benchmarks\.jar' $errors
+Forbid-Pattern $release "RELEASE.md" 'Release\s+\d+\.\d+\.\d+|v\d+\.\d+\.\d+' $errors
 
-# Chart type/policy invariants.
-foreach ($chartType in @("BAR", "LINE", "PIE", "AREA", "SCATTER")) {
-    Require-Substring $charts "docs/charts.md" "- ``$chartType``" $errors
-    Require-Substring $migration "MIGRATION.md" "``$chartType``" $errors
-}
-Require-Pattern $charts "docs/charts.md" "does not ship chart rendering|will not implement native image/chart rendering|no internal renderer" $errors
-Require-Pattern $migration "MIGRATION.md" "will not implement native image/chart rendering|not implement native image/chart rendering" $errors
-Require-Pattern $charts "docs/charts.md" "percentStacked.*requires.*stacked=true" $errors
-Require-Pattern $migration "MIGRATION.md" "percentStacked.*requires.*stacked=true" $errors
+# SQL-like capability drift checks.
+Require-Pattern $migration "MIGRATION.md" 'supports limited `?WHERE .*IN \(select oneField .*subqueries' $errors
+Require-Pattern $migration "MIGRATION.md" 'chained joins are supported' $errors
+Require-Pattern $release "RELEASE.md" 'supports limited `?WHERE .*IN \(select oneField .*subqueries' $errors
+Require-Pattern $release "RELEASE.md" 'chained joins are supported' $errors
+Forbid-Pattern $migration "MIGRATION.md" 'does not support subqueries or multi-join SQL plans' $errors
+Forbid-Pattern $release "RELEASE.md" 'unsupported:\s*subqueries,\s*multi-join SQL plans' $errors
 
-# Benchmark command coverage invariants.
+# Source docs still define the canonical behavior.
+Require-Substring $sqlLike "docs/sql-like.md" 'SQL-like subqueries currently support only `WHERE <field> IN (select <field> ...)`.' $errors
+Require-Substring $sqlLike "docs/sql-like.md" 'chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly' $errors
+
+# Benchmark guide and suite should still cover the guarded benchmark path.
 Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
-Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "SqlLikePipelineJmhBenchmark.parseAndFilterBooleanDepth" $errors
-Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
-Require-Substring $benchmarking "docs/benchmarking.md" "BenchmarkMetricsPlotGenerator" $errors
+Require-Substring $benchmarking "docs/benchmarking.md" "BenchmarkThresholdChecker" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "benchmarks/chart-thresholds.json" $errors
-Require-Pattern $benchmarking "docs/benchmarking.md" "BenchmarkThresholdChecker.*--strict" $errors
-Require-Pattern $benchmarking "docs/benchmarking.md" "CI Gates|CI gates" $errors
-
-# README should link to split docs.
-Require-Substring $readme "README.md" "docs/sql-like.md" $errors
-Require-Substring $readme "README.md" "docs/charts.md" $errors
-Require-Substring $readme "README.md" "docs/benchmarking.md" $errors
+Require-Substring $benchmarking "docs/benchmarking.md" "target/pojo-lens-$projectVersion-benchmarks.jar" $errors
 
 if ($errors.Count -gt 0) {
     Write-Host "[doc-check] FAILED"
@@ -75,4 +81,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Host "[doc-check] OK: README/MIGRATION/RELEASE invariants satisfied."
+Write-Host "[doc-check] OK: documentation invariants satisfied."

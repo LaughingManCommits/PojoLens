@@ -1,27 +1,23 @@
 # Architecture Map
 
-- Verified: `PojoLens` is the compatibility facade and delegates to `PojoLensCore`, `PojoLensSql`, and `PojoLensChart`.
-- Verified: `PojoLensRuntime` provides instance-scoped SQL parse cache, stats-plan cache, computed-field defaults, lint/strict-typing defaults, and telemetry hooks.
+- `PojoLens` is the compatibility facade over `PojoLensCore`, `PojoLensSql`, and `PojoLensChart`.
+- `PojoLensRuntime` adds instance-scoped caches, computed-field defaults, telemetry, and lint or strict-typing configuration.
 
-## Fluent Pipeline
+Fluent path:
 
-- Verified: `builder/FilterQueryBuilder` captures fluent query shape, explain/schema payloads, computed fields, and selective/lazy materialization decisions.
-- Verified: `filter/FilterImpl` executes filter, group, order, join, and chart flows over execution snapshots.
-- Verified: `filter/FilterExecutionPlan` precompiles rule bindings plus distinct/order/group/metric metadata for repeated execution.
-- Verified: `util/ReflectionUtil` is the main POJO flattening and projection utility.
+- `builder/FilterQueryBuilder` captures query shape and materialization decisions
+- `filter/FilterExecutionPlan` compiles reusable execution metadata
+- `filter/FilterImpl` and related engines execute filtering, grouping, ordering, joins, and chart preparation
 
-## SQL-like Pipeline
+SQL-like path:
 
-- Verified: `sqllike/parser/SqlLikeParser` parses normalized text into AST and enforces guardrails such as max query length, token count, predicate count, and order/select limits.
-- Verified: `sqllike/internal/validation/*` resolves join plans, validates fields and aggregates, enforces subquery and time-bucket rules, and normalizes grouped aliases.
-- Verified: `sqllike/internal/binding/SqlLikeBinder` maps validated AST state onto the fluent pipeline.
-- Verified: `sqllike/SqlLikeQuery` is the public contract for params, typed bind-first execution, charting, schema, explain, lint, telemetry, and computed fields.
+- `sqllike/parser/SqlLikeParser` parses text into AST
+- `sqllike/internal/validation/*` validates fields, joins, aggregates, subqueries, and time buckets
+- `sqllike/internal/binding/SqlLikeBinder` binds validated queries onto the fluent engine
+- `sqllike/SqlLikeQuery` exposes the public SQL-like contract
 
-## Feature Layers
+Feature layers:
 
-- Verified: `chart/*` owns chart payload models, presets, mapping, and validation.
-- Verified: `report/ReportDefinition` wraps reusable query plus projection plus optional chart metadata.
-- Verified: `table/*` owns deterministic tabular schema metadata.
-- Verified: `snapshot/*` owns keyed snapshot comparison and diff rows.
-- Verified: `testing/*` owns parity helpers and regression fixtures.
-- Verified: `benchmark/*` plus `scripts/*` and `benchmarks/*` own performance measurement, threshold checks, parity checks, and plot generation.
+- `chart/*` maps rows to `ChartData`
+- `report/*`, `table/*`, `snapshot/*`, `testing/*`, `computed/*`, `telemetry/*`, and `metamodel/*` build on the core query engine
+- `benchmark/*` plus `benchmarks/*` and `scripts/*` provide performance tooling and threshold checks

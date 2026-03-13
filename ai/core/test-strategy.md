@@ -1,29 +1,25 @@
 # Test Strategy
 
-- Verified: `mvn -B -ntp test` passed on 2026-03-12 with `398` tests and `0` failures/errors.
-- Verified: CI runs the main test job on Java `17` and `21`.
+Primary validation:
 
-## Main Coverage Areas
+- `mvn -B -ntp test`
+- CI test matrix on Java `17` and `21`
 
-- Verified: Public API and backward-compatibility contracts.
-- Verified: README and doc example execution.
-- Verified: SQL-like parser, validation, error codes, named parameters, lint mode, and typed bind-first execution.
-- Verified: Fluent vs SQL-like parity, joins, nested paths, HAVING, time buckets, computed fields, and selective materialization.
-- Verified: Cache policy/configuration, cache concurrency, runtime presets, and telemetry stages.
-- Verified: Chart payload validation/mapping plus XChart interoperability artifact generation.
-- Verified: Report definitions, dataset bundles, snapshot comparison, and regression fixtures.
-- Verified: Benchmark utility parity, metric loading, and plot generation helpers.
+Coverage emphasis:
 
-## Fixtures And Artifacts
+- public API and compatibility contracts
+- README and docs examples
+- SQL-like parsing, validation, parameters, lint, joins, aliases, and typed execution
+- fluent filtering, grouping, metrics, joins, nested paths, time buckets, and selective materialization
+- cache behavior, runtime presets, telemetry, reports, chart mapping, snapshots, regression fixtures, and benchmark utilities
 
-- Verified: Chart fixtures live under `src/test/resources/fixtures/chart`.
-- Verified: Benchmark fixtures live under `src/test/resources/fixtures/benchmark`.
-- Verified: `ChartLibraryInteropTest` writes generated PNGs to `target/generated-charts` and mirrors them into benchmark image artifacts.
+Artifacts and fixtures:
 
-## Not Run During Bootstrap
+- test fixtures live under `src/test/resources/fixtures`
+- `ChartLibraryInteropTest` generates chart PNG artifacts under `target/generated-charts`
 
-- Unknown locally: `mvn -B -ntp -Plint verify -DskipTests`
-- Unknown locally: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
-- Unknown locally: benchmark runner and threshold suites
+Additional validation paths:
 
-- Verified separately: `scripts/check-doc-consistency.ps1` passed on 2026-03-12 when run with Windows PowerShell.
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+- benchmark suites built from the `benchmark-runner` profile
