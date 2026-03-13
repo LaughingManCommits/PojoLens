@@ -8,9 +8,9 @@ This file now tracks only unfinished performance work.
 
 As of 2026-03-13, the main remaining gap is still the warmed computed-field single-join path, not broad pipeline correctness:
 
-- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `1.091 ms/op`
-- `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.150 ms/op`
-- current gap: about `7.3x`
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `1.043 ms/op`
+- `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.161 ms/op`
+- current gap: about `6.5x`
 
 Focused warm profiling is still the driver for the backlog below.
 
@@ -19,41 +19,41 @@ Focused warm profiling is still the driver for the backlog below.
 Primary reproduction command:
 
 ```powershell
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField -p size=10000 -f 1 -wi 5 -i 10 -r 300ms -jvmArgsAppend "-XX:StartFlightRecording=filename=target/pojolens-join-warm-fork.jfr,settings=profile,dumponexit=true"
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField -p size=10000 -f 1 -wi 5 -i 10 -r 300ms -jvmArgsAppend "-XX:StartFlightRecording=filename=target/wp17-after-readpath.jfr,settings=profile,dumponexit=true"
 ```
 
 Profiler artifact:
 
-- `target/pojolens-join-warm-fork.jfr`
+- `target/wp17-after-readpath.jfr`
 
-Observed during the warm profile on 2026-03-13 after the array-path rewrite:
+Observed during the current warm profile on 2026-03-13 after the first landed WP17 changes:
 
-- benchmark average with JFR overhead: about `1.584 ms/op`
-- manual baseline average: about `0.108 ms/op`
+- benchmark average with JFR overhead: about `1.097 ms/op`
+- current manual baseline average from the same controlled rerun cycle: about `0.161 ms/op`
 - JFR duration: about `53 s`
-- young GCs during the recording: `202`
+- young GCs during the recording: about `180`
 
 Top sampled CPU leaf methods in repository code:
 
-- `FastArrayQuerySupport.filterRows` (`961` first-app-frame samples)
-- `ReflectionUtil.readResolvedFieldValue` (`589`)
-- `ReflectionUtil.readFlatRowValues` (`257`)
-- `FastArrayQuerySupport$ComputedFieldPlan.resolveValue` (`200`)
-- `FastArrayQuerySupport.buildChildIndex` (`184`)
-- `ReflectionUtil.setResolvedFieldValue` (`99`)
-- `ReflectionUtil.noArgConstructor` (`76`)
-- `ReflectionUtil.applyProjectionWritePlan` (`48`)
+- `FastArrayQuerySupport.buildChildIndex` (`753` first-app-frame samples)
+- `FastArrayQuerySupport.tryBuildJoinedState` (`563`)
+- `FastArrayQuerySupport$ComputedFieldPlan.resolveValue` (`271`)
+- `ReflectionUtil$ResolvedFieldPath.read` (`209`)
+- `FastArrayQuerySupport.filterRows` (`114`)
+- `ReflectionUtil.applyProjectionWritePlan` (`112`)
+- `ReflectionUtil.noArgConstructor` (`97`)
+- `ReflectionUtil.setResolvedFieldValue` (`90`)
 
 Top sampled allocation sites in repository code:
 
-- `ReflectionUtil.readFlatRowValues` (`3583` first-app-frame allocation samples)
-- `FastArrayQuerySupport.materializeJoinedRow` (`2803`)
-- `ReflectionUtil.readResolvedFieldValue` (`2412`)
-- `FastArrayQuerySupport.filterRows` (`1564`)
-- `FastArrayQuerySupport.buildChildIndex` (`1271`)
-- `ReflectionUtil.instantiateNoArg` (`747`)
-- `FilterQueryBuilder.copySourceBeans` (`419`)
-- `FastArrayQuerySupport.castNumericValue` (`225`)
+- `FastArrayQuerySupport.buildChildIndex` (`4162` first-app-frame allocation samples)
+- `ReflectionUtil.readFlatRowValues` (`3159`)
+- `ReflectionUtil$ResolvedFieldPath.read` (`2916`)
+- `FastArrayQuerySupport.materializeJoinedRow` (`2243`)
+- `ReflectionUtil.instantiateNoArg` (`983`)
+- `FastArrayQuerySupport.castNumericValue` (`553`)
+- `FilterQueryBuilder.copySourceBeans` (`348`)
+- `FastArrayQuerySupport.filterRows` (`223`)
 
 Focused warm profiling remains the main driver for the backlog below.
 
@@ -80,19 +80,21 @@ Accepted conclusions from the latest warm profiling and follow-up validation:
 - old `SqlExpressionEvaluator$Parser.*` hotspots are no longer dominant
 - old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hotspots are no longer dominant on the selective single-join fast path
 - old joined-row field-type rescanning is no longer the dominant issue on the selective single-join fast path
+- generic single-rule filter overhead dropped materially after the specialized fast matcher landed on the array path
+- read-side reflection dropped materially after narrowing `ResolvedFieldPath.read` / `FlatRowReadPlan` traversal on the common path
 - the remaining cost is now concentrated in:
-  - `FastArrayQuerySupport.filterRows`
-  - `ReflectionUtil.readResolvedFieldValue`
-  - `ReflectionUtil.readFlatRowValues`
-  - `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
   - `FastArrayQuerySupport.buildChildIndex`
-  - projection writes in `ReflectionUtil.setResolvedFieldValue` / `applyProjectionWritePlan`
-  - residual allocation churn on the array-based fast path
+  - `FastArrayQuerySupport.tryBuildJoinedState`
+  - `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
+  - `ReflectionUtil.readFlatRowValues` / `ReflectionUtil$ResolvedFieldPath.read`
+  - `FastArrayQuerySupport.materializeJoinedRow`
+  - projection writes and no-arg instantiation in `ReflectionUtil`
+  - residual allocation churn during join-state construction on the array-based fast path
 
 Working hypothesis:
 
-1. the remaining gap is now mostly **reflection + allocation + row-shaping overhead**
-2. the join algorithm itself is probably no longer the main bottleneck
+1. the remaining gap is now mostly **join-state build + child indexing + residual reflection/allocation overhead**
+2. the generic single-rule filter path is no longer the first thing to attack on this benchmark shape
 3. the next optimization work should stay focused on the warmed selective single-join array path unless fresh profiling proves otherwise
 
 WP Interpretation:
@@ -100,14 +102,16 @@ WP Interpretation:
 - WP14 is accepted: the old `SqlExpressionEvaluator$Parser.*` hot spots remain out of the dominant warmed samples.
 - WP15 is effectively accepted on the selective single-join path: the old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hot path dropped out after replacing the `QueryRow` materialization path with the array-based execution path.
 - WP16 is effectively accepted on this path: `ReflectionUtil.collectQueryRowFieldTypes` no longer shows up as a dominant warmed leaf because the fast path bypasses joined-row rescans entirely.
-- WP17 is now the clear next implementation target because the remaining cost has shifted into `FastArrayQuerySupport.filterRows`, `ReflectionUtil.readFlatRowValues`, `ReflectionUtil.readResolvedFieldValue`, and projection writes in `ReflectionUtil.setResolvedFieldValue`.
+- WP17 remains the active implementation target because the remaining cost is now concentrated in child indexing, join-state construction, computed dependency lookup, residual read-side reflection, and joined-row allocation on the selective single-join path.
 
 Latest post-profile validation on 2026-03-13:
 
-- warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `1.091 ms/op`
-- warmed `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `0.150 ms/op`
-- allocation-focused `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 3 -i 5 -r 250ms -prof gc`: about `1.441 ms/op` and `3,107,771.004 B/op`
-- the fast-path JFR above was captured before a small follow-up cleanup in `FastArrayQuerySupport.filterRows` / `buildChildIndex`, but it already shows the hotspot shift away from the old row-wrapper path
+- controlled repro before the first landed WP17 changes: warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `1.436 ms/op`
+- warmed `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `0.161 ms/op`
+- after landing the specialized single-rule matcher in `FastArrayQuerySupport.filterRows()`: warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`: about `1.094 ms/op`
+- after landing the narrower read-path optimization in `ReflectionUtil`: warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`: about `1.043 ms/op`
+- allocation-focused post-change `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 3 -i 5 -r 250ms -prof gc`: about `1.031 ms/op` and `3,107,786.135 B/op`
+- the latest warmed JFR now confirms that `FastArrayQuerySupport.filterRows` is no longer the dominant CPU leaf; the next hotspot cluster is `buildChildIndex`, `tryBuildJoinedState`, `ComputedFieldPlan.resolveValue`, and `ResolvedFieldPath.read`
 
 ## Active Work Packages
 
@@ -212,22 +216,36 @@ Scope:
 
 Primary optimization targets (combined CPU/allocation priority):
 
-- `ReflectionUtil.readFlatRowValues`
-- `FastArrayQuerySupport.materializeJoinedRow`
-- `ReflectionUtil.readResolvedFieldValue`
-- `FastArrayQuerySupport.filterRows`
-- `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
 - `FastArrayQuerySupport.buildChildIndex`
-- `ReflectionUtil.setResolvedFieldValue`
+- `FastArrayQuerySupport.tryBuildJoinedState`
+- `FastArrayQuerySupport.materializeJoinedRow`
+- `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
+- `ReflectionUtil.readFlatRowValues`
+- `ReflectionUtil$ResolvedFieldPath.read`
+- `ReflectionUtil.instantiateNoArg`
 - `ReflectionUtil.applyProjectionWritePlan`
+- `ReflectionUtil.setResolvedFieldValue`
 - `FilterQueryBuilder.copySourceBeans`
 - `FastArrayQuerySupport.castNumericValue`
+- `FastArrayQuerySupport.filterRows`
+
+Progress on 2026-03-13:
+
+- Re-established the local warmed benchmark baseline under controlled reruns after an earlier speculative WP17 pass regressed and was reverted.
+- Added a specialized single-rule fast matcher in `FastArrayQuerySupport`, which materially reduced generic rule-evaluation overhead on the benchmark-shaped single-filter path.
+- Added a narrower read-side field-path optimization in `ReflectionUtil`, using precompiled `ResolvedFieldPath.read` traversal through `FlatRowReadPlan`.
+- Focused validation passed after both landed WP17 changes: `FilterImplFastPathTest`, `FilterQueryBuilderSelectiveMaterializationTest`, and `PojoLensJoinJmhBenchmarkParityTest`.
+- Warmed end-to-end reruns improved from the controlled local baseline around `1.436 ms/op` to about `1.094 ms/op`, then to about `1.043 ms/op`.
+- Allocation-focused reruns remain effectively flat at about `3,107,786 B/op`, so the current WP17 gains are primarily CPU-side.
+- The latest warmed JFR moved the next hotspot cluster into child indexing, join-state construction, computed-field dependency lookup, residual read-side reflection, and joined-row allocation.
 
 Tasks:
 
-- reduce the remaining per-row reflection cost in `readFlatRowValues()` together with the traversal inside `readResolvedFieldValue()`
-- reduce generic rule-evaluation overhead in `FastArrayQuerySupport.filterRows()`
+- reduce child-side extraction and indexing cost in `FastArrayQuerySupport.buildChildIndex()`
+- reduce join-state construction overhead in `FastArrayQuerySupport.tryBuildJoinedState()`
 - reduce allocation churn in `materializeJoinedRow()`
+- reduce computed dependency lookup overhead in `FastArrayQuerySupport$ComputedFieldPlan.resolveValue()`
+- continue reducing residual read-side cost in `readFlatRowValues()` / `ResolvedFieldPath.read`
 - reduce projection overhead in `setResolvedFieldValue()` / `applyProjectionWritePlan()`
 - decide whether defensive source-list copying in `FilterQueryBuilder.copySourceBeans()` still belongs on the hot path now that compatibility constraints are relaxed
 - reduce generic numeric-casting overhead if it is still on the hot path after higher-value changes
@@ -252,13 +270,13 @@ Do not do:
 Acceptance criteria:
 
 - warmed profiling shows a clear reduction in:
-  - `FastArrayQuerySupport.filterRows`
-  - `ReflectionUtil.readFlatRowValues`
-  - `ReflectionUtil.readResolvedFieldValue`
-  - `ReflectionUtil.setResolvedFieldValue`
-- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` improves materially from `1.091 ms/op`
-- `B/op` drops materially from `3,107,771.004 B/op`
-- young-GC pressure drops materially from the current fast-path baseline
+  - `FastArrayQuerySupport.buildChildIndex`
+  - `FastArrayQuerySupport.tryBuildJoinedState`
+  - `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
+  - `ReflectionUtil.readFlatRowValues` / `ReflectionUtil$ResolvedFieldPath.read`
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` improves materially from the current post-change baseline around `1.043 ms/op`
+- `B/op` drops materially from the current post-change baseline around `3,107,786.135 B/op`
+- young-GC pressure drops materially from the current post-change fast-path baseline
 - correctness and projection behavior remain unchanged
 
 Minimum success criteria:
