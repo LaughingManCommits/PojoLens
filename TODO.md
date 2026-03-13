@@ -2,17 +2,17 @@
 
 ## Summary
 
-WP1-WP13 and WP5 are complete and intentionally removed from this file.
+WP1-WP14 and WP5 are complete and intentionally removed from this file.
 
 This file now tracks only unfinished performance work.
 
-As of 2026-03-12, the main remaining gap is the warmed computed-field single-join path, not broad pipeline correctness:
+As of 2026-03-13, the main remaining gap is still the warmed computed-field single-join path, not broad pipeline correctness:
 
-- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `5.505 ms/op`
-- `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.148 ms/op`
-- current gap: about `37x`
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `3.029 ms/op`
+- `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.108 ms/op`
+- current gap: about `28x`
 
-Focused warm profiling is now the driver for the backlog below.
+Focused warm profiling is still the driver for the backlog below.
 
 ## Focused Profiler Findings
 
@@ -26,83 +26,43 @@ Profiler artifact:
 
 - `target/pojolens-join-warm-fork.jfr`
 
-Observed during the warm profile:
+Observed during the warm profile on 2026-03-13:
 
-- benchmark average: about `5.505 ms/op`
+- benchmark average: about `3.029 ms/op`
+- manual baseline average: about `0.108 ms/op`
 - JFR duration: about `53 s`
-- young GCs during the recording: `261`
+- young GCs during the recording: `381`
 
 Top sampled CPU leaf methods in repository code:
 
-- `ComputedFieldSupport.materializeRow`
-- `JoinEngine.mergeFields`
-- `ReflectionUtil.collectQueryRowFieldTypes`
-- `FilterCore.filterFields`
-- `ReflectionUtil.readResolvedFieldValue`
-- `SqlExpressionEvaluator$Parser.parseFactor`
-- `FilterCore.filterDisplayFields`
+- `ComputedFieldSupport.materializeRow` (`600` first-app-frame samples)
+- `FilterCore.filterFields` (`411`)
+- `ReflectionUtil.readResolvedFieldValue` (`292`)
+- `ReflectionUtil.collectQueryRowFieldTypes` (`284`)
+- `ObjectUtil.castToString` (`185`)
+- `FilterCore.filterDisplayFields` (`155`)
+- `JoinEngine.join` (`123`)
+- `JoinEngine.mergeFields` (`119`)
 
 Top sampled allocation sites in repository code:
 
-- `ComputedFieldSupport.materializeRow`
-- `JoinEngine.mergeFields`
-- `ReflectionUtil.extractQueryFields`
-- `SqlExpressionEvaluator$Parser.parseFactor`
-- `JoinEngine.buildFieldIndex`
-- `SqlExpressionEvaluator$Parser.<init>`
-- `ReflectionUtil.readResolvedFieldValue`
-- `ReflectionUtil.toDomainRows`
-
-Top sampled allocated classes:
-
-- `QueryField`
-- `Object[]`
-- `LinkedHashMap$Entry`
-- `HashMap$Node[]`
-- `HashMap$Node`
-- `LinkedHashMap`
-- `QueryRow`
-- `ArrayList`
+- `ComputedFieldSupport.materializeRow` (`5397` first-app-frame allocation samples)
+- `ReflectionUtil.extractQueryFields` (`2587`)
+- `JoinEngine.buildFieldIndex` (`1248`)
+- `ObjectUtil.castToString` (`1222`)
+- `ReflectionUtil.toDomainRows` (`808`)
+- `ReflectionUtil.readResolvedFieldValue` (`779`)
+- `JoinEngine.mergeFields` (`639`)
+- `ComputedFieldSupport.newQueryField` (`579`)
 
 Interpretation:
 
-- computed fields are still reparsed and reevaluated row-by-row
-- computed-field materialization still clones full row state per row
-- join output assembly still clones parent/child field objects per row
-- post-join builder state still rescans all joined rows to rediscover field types
-- the selective join path still pays large `QueryField` and container-allocation costs even after WP5
+- WP14 is accepted: the old `SqlExpressionEvaluator$Parser.*` hot spots dropped out of the dominant warmed CPU and allocation samples.
+- WP15 is still open: `ComputedFieldSupport.materializeRow` remains the hottest repository frame and `JoinEngine.mergeFields` is still visible in the warmed path.
+- WP16 is still open: `ReflectionUtil.collectQueryRowFieldTypes` remains a major warmed CPU leaf, so the derived-schema fast path is not yet eliminating that rescan cost from the real join execution path.
+- WP17 is now the clearest next implementation target because row flattening and projection churn (`extractQueryFields`, `toDomainRows`, `filterFields`, `filterDisplayFields`) still dominate the remaining allocation profile.
 
 ## Active Work Packages
-
-### WP14: Compile computed-field expressions for row execution
-
-Status: in progress
-
-Goal: stop reparsing computed expressions for every row.
-
-Scope:
-
-- `src/main/java/laughing/man/commits/computed/internal/ComputedFieldSupport.java`
-- `src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java`
-- computed-field registry integration points
-
-Tasks:
-
-- compile numeric computed expressions once instead of creating a new parser per row
-- cache the compiled representation by computed-field definition or expression string
-- keep identifier collection and validation behavior intact
-
-Progress on 2026-03-12:
-
-- `SqlExpressionEvaluator` now compiles numeric expressions into reusable cached ASTs keyed by expression string.
-- `ComputedFieldSupport.materializeRows()` now compiles the applicable computed-field definitions once per materialization call and reuses the compiled expressions for each row.
-- Added targeted regression coverage in `SqlExpressionEvaluatorTest` and `ComputedFieldRegistryTest`.
-- Remaining acceptance work is a comparable warmed profile/JFR pass to confirm the old `SqlExpressionEvaluator$Parser.*` hot spots disappeared from the computed-field join path.
-
-Acceptance criteria:
-
-- warmed join profiling no longer shows `SqlExpressionEvaluator$Parser.*` among the dominant CPU/allocation sites for `pojoLensJoinLeftComputedField`
-- computed-field behavior and type coercion remain unchanged
 
 ### WP15: Remove per-row row/field cloning in computed and join materialization
 
@@ -131,12 +91,15 @@ Progress on 2026-03-13:
   - `mvn -q test` passed.
   - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.257 ms/op` versus the prior short smoke around `0.464 ms/op`.
   - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` at `size=1000`, `-wi 1 -i 2 -r 100ms -prof gc`: about `40.405 us/op` and `363,856 B/op` versus the prior short smoke around `60.147 us/op` and `363,856 B/op`.
+- Warmed validation on 2026-03-13:
+  - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `3.029 ms/op` versus the prior warmed baseline around `5.505 ms/op`.
+  - warmed JFR still shows `ComputedFieldSupport.materializeRow` as the dominant repository CPU and allocation frame, and `JoinEngine.mergeFields` is still present in the hot path.
 
 Remaining acceptance work:
 
-- rerun a comparable warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to confirm `ComputedFieldSupport.materializeRow` and `JoinEngine.mergeFields` stop dominating the hot path
-- verify whether the clone-removal changes reduced end-to-end warm throughput gaps beyond the short 1k smoke runs
-- determine whether the flat `B/op` result means WP16/WP17 now dominate allocation even though the WP15 hotspot time improved
+- reduce `ComputedFieldSupport.materializeRow` further so it stops dominating the warmed path
+- reduce or eliminate the remaining `JoinEngine.mergeFields` / `ComputedFieldSupport.newQueryField` allocation churn
+- confirm with a follow-up warmed JFR that both methods fall out of the dominant repository hotspots
 
 Acceptance criteria:
 
@@ -170,16 +133,17 @@ Progress on 2026-03-13:
 - Validation on 2026-03-13:
   - `mvn -q test` passed after the WP16 schema-derivation changes.
   - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.249 ms/op`, slightly better than the post-WP15 short smoke around `0.257 ms/op`.
+  - warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` still sampled `ReflectionUtil.collectQueryRowFieldTypes` heavily (`284` first-app-frame CPU samples), so the intended fast path is not yet removing that work from the real warmed execution profile.
 
 Remaining acceptance work:
 
-- rerun a warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to verify `ReflectionUtil.collectQueryRowFieldTypes` no longer appears as a major CPU leaf after join execution
+- identify and remove the remaining call path that still executes `ReflectionUtil.collectQueryRowFieldTypes` during the warmed computed-field join path
 - confirm the derived-schema path remains correct for broader multi-join and collision-heavy cases beyond the current regression set
 
 Acceptance criteria:
 
 - warmed join profiling no longer shows `ReflectionUtil.collectQueryRowFieldTypes` as a major CPU leaf
-- no full joined-row rescan is required after `FilterImpl.join()`
+- no full joined-row rescan is required anywhere on the warmed join execution path after `FilterImpl.join()`
 
 ### WP17: Reduce residual row-model churn on the selective join path
 
@@ -262,10 +226,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP14
-2. WP15
-3. WP16
-4. WP17
-5. WP18
+1. WP15
+2. WP16
+3. WP17
+4. WP18
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.

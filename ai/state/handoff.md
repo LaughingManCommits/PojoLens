@@ -2,8 +2,9 @@
 
 ## Next Work Tasks
 
-- Continue WP15/WP16 acceptance work, then move to WP17 and WP18.
-- Rerun warmed benchmark and JFR validation before judging WP14/WP15/WP16 complete.
+- Continue WP15/WP16 acceptance by removing the remaining warmed-path hits in `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, and `ReflectionUtil.collectQueryRowFieldTypes`.
+- Start WP17 on the remaining row-model churn in `ReflectionUtil` and `FilterCore` once the WP16 rescan leak is understood.
+- Rerun warmed JFR plus warmed `-prof gc` benchmarks after the next implementation pass.
 - Keep process docs aligned if benchmark commands, release steps, or SQL-like capability boundaries change again.
 
 ## Relevant Files
@@ -26,5 +27,6 @@
 ## Unresolved Questions
 
 - Should the doc-consistency tooling expand beyond process-doc drift into broader release and README alignment checks?
-- Do warmed benchmarks confirm that WP14 removed the old parser hot spot, WP15 moved `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` out of the dominant hot path, and WP16 removed `ReflectionUtil.collectQueryRowFieldTypes` from the post-join hot path?
-- Why did the short hotspot time improve while `gc.alloc.rate.norm` stayed essentially flat, and does that point the remaining allocation cost at WP16/WP17?
+- What exact caller chain still executes `ReflectionUtil.collectQueryRowFieldTypes` on the warmed computed-field join path after the WP16 schema-derivation change?
+- Can `ComputedFieldSupport.materializeRow` avoid the remaining `LinkedHashMap` and `HashMap` churn without breaking computed-field overwrite semantics?
+- How much of the remaining gap is now in `extractQueryFields` / `toDomainRows` / `filterDisplayFields`, and should WP17 start there or in `buildFieldIndex` / `castToString` first?

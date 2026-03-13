@@ -4,15 +4,16 @@
 
 - The repository remains a single-module Java library with the expected `jar` packaging and CI/test structure.
 - The AI memory system was compacted into hot and cold tiers on 2026-03-13.
-- `mvn -q test` passed on 2026-03-13 after the first WP15 clone-reduction changes.
+- `mvn -q test` passed on 2026-03-13 after the WP15/WP16 code changes.
+- A warmed JFR plus warmed benchmark comparison was captured on 2026-03-13 for the computed-field join path.
 
 ## Active Work Areas
 
 - `TODO.md` is still focused on profiler-driven follow-up work after WP14.
-- WP15 is now in progress: `ComputedFieldSupport` and `JoinEngine` were changed to reuse existing `QueryField` objects on the common path and only allocate replacement field objects when computed outputs or renamed child collisions require them.
-- WP16 is also in progress: `FilterImpl.join()` now derives joined field types from builder/join metadata instead of rescanning joined rows with `ReflectionUtil.collectQueryRowFieldTypes(rows)`.
-- Short smoke validation on 2026-03-13 improved the 1k end-to-end computed-field join path (`~0.249 ms/op` after WP16 versus `~0.257 ms/op` after WP15), but warmed profiling is still needed and the earlier hotspot allocation-per-op result remained effectively flat.
-- Remaining open backlog areas are warmed WP15/WP16 acceptance, then WP17 residual row-model churn reduction and WP18 benchmark rebaselining.
+- WP14 is effectively accepted: the warmed 2026-03-13 JFR no longer shows `SqlExpressionEvaluator$Parser.*` among the dominant repository hotspots.
+- WP15 is still in progress: the warmed join benchmark improved to about `3.029 ms/op` at `size=10000` from the earlier `~5.505 ms/op`, but `ComputedFieldSupport.materializeRow` remains the hottest repository frame and `JoinEngine.mergeFields` is still sampled.
+- WP16 is still in progress: the manual warmed baseline improved to about `0.108 ms/op`, but `ReflectionUtil.collectQueryRowFieldTypes` still appears heavily in the warmed end-to-end profile, so the derived-schema fast path is not yet complete in practice.
+- WP17 is now the clearest next implementation target because warmed allocation samples still cluster around `ReflectionUtil.extractQueryFields`, `ReflectionUtil.toDomainRows`, `FilterCore.filterFields`, and `FilterCore.filterDisplayFields`.
 - The new hot context is stable; deeper repository detail now lives in cold core files and indexes.
 
 ## Documentation Risks
@@ -23,6 +24,7 @@
 
 ## Next Validation Opportunities
 
-- Rerun a warmed JFR and benchmark comparison for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to judge WP14/WP15/WP16 together on the real hot path.
+- After the next implementation pass, rerun warmed JFR plus warmed `-prof gc` benchmarks for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`.
+- Add or extend regression coverage for the remaining WP16 call path that still reaches `ReflectionUtil.collectQueryRowFieldTypes`.
 - Rerun the doc-consistency script when process docs or benchmark instructions change again.
 - Regenerate AI indexes again after any source, test, or documentation structure change.
