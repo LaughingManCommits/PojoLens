@@ -3,6 +3,7 @@ package laughing.man.commits.filter;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryMetric;
@@ -280,7 +281,9 @@ public class FilterImpl implements Filter {
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
         try {
-            executionBuilder.setRows(core.join(executionBuilder.getRows()), executionBuilder.deriveJoinedSourceFieldTypes());
+            List<QueryRow> joinedRows = core.join(executionBuilder.getRows());
+            ComputedFieldSupport.materializeRowsInPlace(joinedRows, executionBuilder.getComputedFieldRegistry());
+            executionBuilder.setMaterializedRows(joinedRows, executionBuilder.deriveJoinedSourceFieldTypes());
         } catch (Exception e) {
             LOG.error("Failed to join filterList[" + executionBuilder.getRows() + "] ", e);
             throw new IllegalStateException("Failed to apply join pipeline", e);

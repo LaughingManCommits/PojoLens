@@ -8,6 +8,7 @@ import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -68,6 +69,16 @@ public final class ComputedFieldSupport {
     }
 
     public static List<QueryRow> materializeRows(List<QueryRow> rows, ComputedFieldRegistry registry) {
+        return materializeRows(rows, registry, true);
+    }
+
+    public static List<QueryRow> materializeRowsInPlace(List<QueryRow> rows, ComputedFieldRegistry registry) {
+        return materializeRows(rows, registry, false);
+    }
+
+    private static List<QueryRow> materializeRows(List<QueryRow> rows,
+                                                  ComputedFieldRegistry registry,
+                                                  boolean copyRows) {
         if (rows == null || rows.isEmpty() || registry == null || registry.isEmpty()) {
             return rows;
         }
@@ -76,10 +87,16 @@ public final class ComputedFieldSupport {
         if (definitions.isEmpty()) {
             return rows;
         }
-        List<CompiledComputedField> compiledDefinitions = compileDefinitions(definitions);
+        MaterializationPlan plan = buildMaterializationPlan(rows.get(0), definitions);
+        if (!copyRows) {
+            for (QueryRow row : rows) {
+                materializeRow(row, plan, false);
+            }
+            return rows;
+        }
         ArrayList<QueryRow> materialized = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
-            materialized.add(materializeRow(row, compiledDefinitions));
+            materialized.add(materializeRow(row, plan, true));
         }
         return materialized;
     }
@@ -116,25 +133,175 @@ public final class ComputedFieldSupport {
         return entries;
     }
 
-    private static List<CompiledComputedField> compileDefinitions(List<ComputedFieldDefinition> definitions) {
-        ArrayList<CompiledComputedField> compiledDefinitions = new ArrayList<>(definitions.size());
-        for (ComputedFieldDefinition definition : definitions) {
-            compiledDefinitions.add(new CompiledComputedField(
-                    definition,
-                    SqlExpressionEvaluator.compileNumeric(definition.expression())
-            ));
+    private static MaterializationPlan buildMaterializationPlan(QueryRow sampleRow,
+                                                                List<ComputedFieldDefinition> definitions) {
+        List<? extends QueryField> sourceFields = sampleRow == null ? null : sampleRow.getFields();
+        int baseFieldCount = sourceFields == null ? 0 : sourceFields.size();
+        HashMap<String, ValueSource> availableValues = new HashMap<>(Math.max(16, baseFieldCount + definitions.size() * 2));
+        HashMap<String, Integer> outputIndexes = new HashMap<>(Math.max(16, baseFieldCount + definitions.size() * 2));
+        CompiledComputedField[] compiledDefinitions = new CompiledComputedField[definitions.size()];
+        int appendedFieldCount = 0;
+
+        if (sourceFields != null) {
+            for (int i = 0; i < sourceFields.size(); i++) {
+                QueryField sourceField = sourceFields.get(i);
+                if (sourceField == null || sourceField.getFieldName() == null) {
+                    continue;
+                }
+                String fieldName = sourceField.getFieldName();
+                availableValues.put(fieldName, ValueSource.source(i));
+                outputIndexes.put(fieldName, i);
+            }
         }
-        return compiledDefinitions;
+
+        for (int i = 0; i < definitions.size(); i++) {
+            ComputedFieldDefinition definition = definitions.get(i);
+            SqlExpressionEvaluator.CompiledExpression expression =
+                    SqlExpressionEvaluator.compileNumeric(definition.expression());
+            String[] dependencyNames = expression.identifiers().toArray(String[]::new);
+            ValueSource[] dependencySources = new ValueSource[dependencyNames.length];
+            for (int dependencyIndex = 0; dependencyIndex < dependencyNames.length; dependencyIndex++) {
+                dependencySources[dependencyIndex] = availableValues.get(dependencyNames[dependencyIndex]);
+            }
+
+            Integer outputIndex = outputIndexes.get(definition.name());
+            boolean replacesExisting = outputIndex != null;
+            if (!replacesExisting) {
+                outputIndex = baseFieldCount + appendedFieldCount;
+                appendedFieldCount++;
+            }
+
+            compiledDefinitions[i] = new CompiledComputedField(
+                    definition,
+                    expression,
+                    outputIndex,
+                    replacesExisting,
+                    dependencyNames,
+                    dependencySources
+            );
+            availableValues.put(definition.name(), ValueSource.computed(i));
+            outputIndexes.put(definition.name(), outputIndex);
+        }
+
+        return new MaterializationPlan(baseFieldCount, baseFieldCount + appendedFieldCount, compiledDefinitions);
     }
 
-    private static QueryRow materializeRow(QueryRow row, List<CompiledComputedField> definitions) {
+    private static QueryRow materializeRow(QueryRow row,
+                                           MaterializationPlan plan,
+                                           boolean copyRow) {
+        if (row == null) {
+            return null;
+        }
+        List<QueryField> materializedFields = materializeFields(row, plan);
+        if (!copyRow) {
+            row.setFields(materializedFields);
+            return row;
+        }
         QueryRow copy = new QueryRow();
         copy.setRowId(row.getRowId());
         copy.setRowType(row.getRowType());
-        List<QueryField> fields = new ArrayList<>();
-        LinkedHashMap<String, Object> values = new LinkedHashMap<>();
-        if (row.getFields() != null) {
-            for (QueryField field : row.getFields()) {
+        copy.setFields(materializedFields);
+        return copy;
+    }
+
+    private static final class CompiledComputedField {
+        private final ComputedFieldDefinition definition;
+        private final SqlExpressionEvaluator.CompiledExpression expression;
+        private final int outputIndex;
+        private final boolean replacesExisting;
+        private final String[] dependencyNames;
+        private final ValueSource[] dependencySources;
+
+        private CompiledComputedField(ComputedFieldDefinition definition,
+                                      SqlExpressionEvaluator.CompiledExpression expression,
+                                      int outputIndex,
+                                      boolean replacesExisting,
+                                      String[] dependencyNames,
+                                      ValueSource[] dependencySources) {
+            this.definition = definition;
+            this.expression = expression;
+            this.outputIndex = outputIndex;
+            this.replacesExisting = replacesExisting;
+            this.dependencyNames = dependencyNames;
+            this.dependencySources = dependencySources;
+        }
+
+        private ComputedFieldDefinition definition() {
+            return definition;
+        }
+
+        private SqlExpressionEvaluator.CompiledExpression expression() {
+            return expression;
+        }
+
+        private int outputIndex() {
+            return outputIndex;
+        }
+
+        private boolean replacesExisting() {
+            return replacesExisting;
+        }
+
+        private Object resolveValue(String identifier,
+                                    List<? extends QueryField> sourceFields,
+                                    Object[] computedValues) {
+            for (int i = 0; i < dependencyNames.length; i++) {
+                if (!dependencyNames[i].equals(identifier)) {
+                    continue;
+                }
+                ValueSource source = dependencySources[i];
+                if (source == null) {
+                    return null;
+                }
+                if (source.computed()) {
+                    return computedValues[source.index()];
+                }
+                int sourceIndex = source.index();
+                if (sourceFields == null || sourceIndex < 0 || sourceIndex >= sourceFields.size()) {
+                    return null;
+                }
+                QueryField field = sourceFields.get(sourceIndex);
+                return field == null ? null : field.getValue();
+            }
+            return null;
+        }
+    }
+
+    private static List<QueryField> materializeFields(QueryRow row, MaterializationPlan plan) {
+        List<? extends QueryField> sourceFields = row.getFields();
+        if (sourceFields == null || sourceFields.size() != plan.baseFieldCount()) {
+            return materializeFieldsLegacy(sourceFields, plan.compiledDefinitions());
+        }
+
+        ArrayList<QueryField> fields = new ArrayList<>(plan.totalFieldCount());
+        for (int i = 0; i < sourceFields.size(); i++) {
+            fields.add(sourceFields.get(i));
+        }
+
+        Object[] computedValues = new Object[plan.compiledDefinitions().length];
+        for (int i = 0; i < plan.compiledDefinitions().length; i++) {
+            CompiledComputedField definition = plan.compiledDefinitions()[i];
+            Object value = castNumericValue(
+                    definition.expression().evaluate(identifier -> definition.resolveValue(identifier, sourceFields, computedValues)),
+                    definition.definition().outputType()
+            );
+            computedValues[i] = value;
+            QueryField computedField = newQueryField(definition.definition().name(), value);
+            if (definition.replacesExisting()) {
+                fields.set(definition.outputIndex(), computedField);
+            } else {
+                fields.add(computedField);
+            }
+        }
+        return fields;
+    }
+
+    private static List<QueryField> materializeFieldsLegacy(List<? extends QueryField> sourceFields,
+                                                            CompiledComputedField[] definitions) {
+        ArrayList<QueryField> fields = new ArrayList<>(sourceFields == null ? definitions.length : sourceFields.size() + definitions.length);
+        LinkedHashMap<String, Object> values = new LinkedHashMap<>(Math.max(16, fields.size() * 2));
+        if (sourceFields != null) {
+            for (QueryField field : sourceFields) {
                 fields.add(field);
                 values.put(field.getFieldName(), field.getValue());
             }
@@ -147,27 +314,7 @@ public final class ComputedFieldSupport {
             values.put(definition.definition().name(), value);
             upsertField(fields, definition.definition().name(), value);
         }
-        copy.setFields(fields);
-        return copy;
-    }
-
-    private static final class CompiledComputedField {
-        private final ComputedFieldDefinition definition;
-        private final SqlExpressionEvaluator.CompiledExpression expression;
-
-        private CompiledComputedField(ComputedFieldDefinition definition,
-                                      SqlExpressionEvaluator.CompiledExpression expression) {
-            this.definition = definition;
-            this.expression = expression;
-        }
-
-        private ComputedFieldDefinition definition() {
-            return definition;
-        }
-
-        private SqlExpressionEvaluator.CompiledExpression expression() {
-            return expression;
-        }
+        return fields;
     }
 
     private static void upsertField(List<QueryField> fields, String name, Object value) {
@@ -216,6 +363,21 @@ public final class ComputedFieldSupport {
             names.add(field.getFieldName());
         }
         return names;
+    }
+
+    private record MaterializationPlan(int baseFieldCount,
+                                       int totalFieldCount,
+                                       CompiledComputedField[] compiledDefinitions) {
+    }
+
+    private record ValueSource(boolean computed, int index) {
+        private static ValueSource source(int index) {
+            return new ValueSource(false, index);
+        }
+
+        private static ValueSource computed(int index) {
+            return new ValueSource(true, index);
+        }
     }
 }
 

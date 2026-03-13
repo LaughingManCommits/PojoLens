@@ -165,6 +165,15 @@ public class FilterQueryBuilder implements QueryBuilder {
         spec.setRows(materializedRows(rows));
     }
 
+    public void setMaterializedRows(List<QueryRow> rows, Map<String, Class<?>> sourceFieldTypes) {
+        markExecutionPlanShapeChanged();
+        sourceBeans = List.of();
+        clearMaterializedSourceRows();
+        spec.setSourceFieldTypes(sourceFieldTypes);
+        refreshFieldTypes();
+        spec.setRows(rows == null ? new ArrayList<>() : new ArrayList<>(rows));
+    }
+
     @Override
     public FilterQueryBuilder addJoinBeans(String parentField, List<?> children, String childField, Join joinMethod) {
         if (children == null || children.isEmpty()) {

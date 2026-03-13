@@ -8,9 +8,9 @@ This file now tracks only unfinished performance work.
 
 As of 2026-03-13, the main remaining gap is still the warmed computed-field single-join path, not broad pipeline correctness:
 
-- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `3.029 ms/op`
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `2.605 ms/op`
 - `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.108 ms/op`
-- current gap: about `28x`
+- current gap: about `24x`
 
 Focused warm profiling is still the driver for the backlog below.
 
@@ -26,7 +26,7 @@ Profiler artifact:
 
 - `target/pojolens-join-warm-fork.jfr`
 
-Observed during the warm profile on 2026-03-13:
+Observed during the warm profile on 2026-03-13 before the latest WP15 pass:
 
 - benchmark average: about `3.029 ms/op`
 - manual baseline average: about `0.108 ms/op`
@@ -58,9 +58,16 @@ Top sampled allocation sites in repository code:
 Interpretation:
 
 - WP14 is accepted: the old `SqlExpressionEvaluator$Parser.*` hot spots dropped out of the dominant warmed CPU and allocation samples.
-- WP15 is still open: `ComputedFieldSupport.materializeRow` remains the hottest repository frame and `JoinEngine.mergeFields` is still visible in the warmed path.
+- WP15 is still open: the earlier warm JFR still showed `ComputedFieldSupport.materializeRow` as the hottest repository frame and `JoinEngine.mergeFields` in the warmed path.
 - WP16 is still open: `ReflectionUtil.collectQueryRowFieldTypes` remains a major warmed CPU leaf, so the derived-schema fast path is not yet eliminating that rescan cost from the real join execution path.
 - WP17 is now the clearest next implementation target because row flattening and projection churn (`extractQueryFields`, `toDomainRows`, `filterFields`, `filterDisplayFields`) still dominate the remaining allocation profile.
+
+Latest post-profile validation on 2026-03-13:
+
+- warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `2.605 ms/op`
+- warmed `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `0.108 ms/op`
+- allocation-focused `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 3 -i 5 -r 250ms -prof gc`: about `2.702 ms/op` and `13,061,013.568 B/op`
+- a follow-up warmed JFR has not yet been captured after this latest implementation pass, so hotspot attribution still reflects the earlier `3.029 ms/op` recording above
 
 ## Active Work Packages
 
@@ -86,14 +93,18 @@ Progress on 2026-03-13:
 
 - `ComputedFieldSupport.materializeRow()` now reuses existing base `QueryField` objects and only allocates replacement `QueryField` instances for computed outputs that are added or updated.
 - `JoinEngine` now precomputes a merge plan per join step, reuses unchanged parent/child `QueryField` instances for the common no-collision path, and limits new `QueryField` allocation to renamed collision fields or unmatched-child null placeholders.
+- `ComputedFieldSupport` now precomputes a stable row-schema materialization plan, resolves source/computed dependencies once per schema, and eliminates per-row `LinkedHashMap` construction and field-name upsert scans on the common path.
+- `FilterImpl.join()` now materializes computed fields in place on internally produced joined rows, and `FilterQueryBuilder.setMaterializedRows(...)` stores those rows without wrapping them in a second `QueryRow` copy pass.
 - Added regression coverage in `FilterQueryBuilderSelectiveMaterializationTest` to confirm distinct computed outputs are preserved across multiple child matches on the same joined parent row.
 - Short validation on 2026-03-13:
   - `mvn -q test` passed.
   - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.257 ms/op` versus the prior short smoke around `0.464 ms/op`.
   - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` at `size=1000`, `-wi 1 -i 2 -r 100ms -prof gc`: about `40.405 us/op` and `363,856 B/op` versus the prior short smoke around `60.147 us/op` and `363,856 B/op`.
 - Warmed validation on 2026-03-13:
-  - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000`, `-wi 5 -i 10 -r 300ms`: about `3.029 ms/op` versus the prior warmed baseline around `5.505 ms/op`.
-  - warmed JFR still shows `ComputedFieldSupport.materializeRow` as the dominant repository CPU and allocation frame, and `JoinEngine.mergeFields` is still present in the hot path.
+  - earlier warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` run improved to about `3.029 ms/op` versus the prior warmed baseline around `5.505 ms/op`.
+  - the latest warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` run improved again to about `2.605 ms/op` with the manual baseline unchanged at about `0.108 ms/op`.
+  - warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` with `-prof gc` now measures about `2.702 ms/op` and `13,061,013.568 B/op`.
+  - a new warmed JFR is still needed to confirm whether `ComputedFieldSupport.materializeRow` and `JoinEngine.mergeFields` have fallen out of the dominant hot path after the latest pass.
 
 Remaining acceptance work:
 
