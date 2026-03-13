@@ -2,10 +2,12 @@
 
 ## Next Work Tasks
 
-- Start WP17 from the new fast-path baseline: warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` is about `1.091 ms/op` at `size=10000` versus a current manual baseline rerun around `0.150 ms/op`, and `-prof gc` measures about `1.441 ms/op` / `3,107,771 B/op`.
+- Start WP17 from the last stable fast-path baseline: an earlier warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` run measured about `1.091 ms/op` at `size=10000` versus a current manual baseline rerun around `0.150 ms/op`, and `-prof gc` measured about `1.441 ms/op` / `3,107,771 B/op`.
+- A reverted-code rerun in the current session measured about `1.475 ms/op`, so re-establish the benchmark baseline under controlled conditions before trusting new optimization deltas.
 - The current warmed JFR artifact is `target/pojolens-fastpath-current.jfr`; it already confirms the hot path has moved away from `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, and `ReflectionUtil.collectQueryRowFieldTypes`.
-- Attack the remaining hot frames in this order: `FastArrayQuerySupport.filterRows`, `ReflectionUtil.readFlatRowValues`, `ReflectionUtil.readResolvedFieldValue`, `ReflectionUtil.setResolvedFieldValue`, then `FilterQueryBuilder.copySourceBeans`.
+- Follow the refreshed WP17 order in `TODO.md`: start with `ReflectionUtil.readFlatRowValues`, `FastArrayQuerySupport.materializeJoinedRow`, `ReflectionUtil.readResolvedFieldValue`, `FastArrayQuerySupport.filterRows`, and `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`, then only chase the lower-yield tail (`buildChildIndex`, projection writes, `copySourceBeans`, `castNumericValue`) if profiling still justifies it.
 - Prefer a deeper internal redesign over compatibility-preserving tweaks: compiled accessor chains or method handles, narrower predicate plans, and cheaper projection materialization are all on the table.
+- The first speculative WP17 code experiments in this session regressed the warmed benchmark and were reverted, so the next change should be driven by a fresh profile or tighter benchmark control, not by the reverted ideas themselves.
 - Keep process docs aligned if benchmark commands, release steps, or SQL-like capability boundaries change again.
 
 ## Relevant Files

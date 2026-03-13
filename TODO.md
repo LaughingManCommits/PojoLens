@@ -55,7 +55,47 @@ Top sampled allocation sites in repository code:
 - `FilterQueryBuilder.copySourceBeans` (`419`)
 - `FastArrayQuerySupport.castNumericValue` (`225`)
 
-Interpretation:
+Focused warm profiling remains the main driver for the backlog below.
+
+## Target
+
+Near-term target for this path:
+
+- reduce warmed overhead to **under 5x** manual
+- practical target at the current manual baseline: `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField < 0.75 ms/op`
+
+Stretch target:
+
+- reduce warmed overhead to **under 3x** manual
+- stretch target at the current manual baseline: `< 0.45 ms/op`
+
+Do not trade away correctness for speed.
+
+## Current Interpretation
+
+The major bottleneck is no longer the old row-wrapper/materialization path.
+
+Accepted conclusions from the latest warm profiling and follow-up validation:
+
+- old `SqlExpressionEvaluator$Parser.*` hotspots are no longer dominant
+- old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hotspots are no longer dominant on the selective single-join fast path
+- old joined-row field-type rescanning is no longer the dominant issue on the selective single-join fast path
+- the remaining cost is now concentrated in:
+  - `FastArrayQuerySupport.filterRows`
+  - `ReflectionUtil.readResolvedFieldValue`
+  - `ReflectionUtil.readFlatRowValues`
+  - `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
+  - `FastArrayQuerySupport.buildChildIndex`
+  - projection writes in `ReflectionUtil.setResolvedFieldValue` / `applyProjectionWritePlan`
+  - residual allocation churn on the array-based fast path
+
+Working hypothesis:
+
+1. the remaining gap is now mostly **reflection + allocation + row-shaping overhead**
+2. the join algorithm itself is probably no longer the main bottleneck
+3. the next optimization work should stay focused on the warmed selective single-join array path unless fresh profiling proves otherwise
+
+WP Interpretation:
 
 - WP14 is accepted: the old `SqlExpressionEvaluator$Parser.*` hot spots remain out of the dominant warmed samples.
 - WP15 is effectively accepted on the selective single-join path: the old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hot path dropped out after replacing the `QueryRow` materialization path with the array-based execution path.
@@ -145,7 +185,7 @@ Progress on 2026-03-13:
 - Validation on 2026-03-13:
   - `mvn -q test` passed after the WP16 schema-derivation changes.
   - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=1000`, `-wi 1 -i 2 -r 100ms`: about `0.249 ms/op`, slightly better than the post-WP15 short smoke around `0.257 ms/op`.
-  - warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` still sampled `ReflectionUtil.collectQueryRowFieldTypes` heavily (`284` first-app-frame CPU samples), so the intended fast path is not yet removing that work from the real warmed execution profile.
+  - an earlier warmed JFR for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` still sampled `ReflectionUtil.collectQueryRowFieldTypes` heavily (`284` first-app-frame CPU samples) before the later fast-path dispatch changes, which is why WP16 remained open at that point.
 
 Remaining acceptance work:
 
@@ -156,11 +196,13 @@ Acceptance criteria:
 - warmed join profiling no longer shows `ReflectionUtil.collectQueryRowFieldTypes` as a major CPU leaf on the selective single-join path
 - no full joined-row rescan is required anywhere on the fast single-join execution path after `FilterImpl.join()`
 
-### WP17: Reduce residual row-model churn on the selective join path
+### WP17: Reduce residual overhead on the selective single-join array path
 
-Status: pending
+Status: active
 
-Goal: lower the remaining reflection, filter, and projection cost on the new warmed array-based join path.
+Priority: highest
+
+Goal: reduce the remaining reflection, filtering, projection, and allocation cost on the warmed array-based join path.
 
 Scope:
 
@@ -168,17 +210,64 @@ Scope:
 - `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
 - `src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java`
 
+Primary optimization targets (combined CPU/allocation priority):
+
+- `ReflectionUtil.readFlatRowValues`
+- `FastArrayQuerySupport.materializeJoinedRow`
+- `ReflectionUtil.readResolvedFieldValue`
+- `FastArrayQuerySupport.filterRows`
+- `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`
+- `FastArrayQuerySupport.buildChildIndex`
+- `ReflectionUtil.setResolvedFieldValue`
+- `ReflectionUtil.applyProjectionWritePlan`
+- `FilterQueryBuilder.copySourceBeans`
+- `FastArrayQuerySupport.castNumericValue`
+
 Tasks:
 
-- reduce the remaining per-row reflection cost in `readFlatRowValues()` / `readResolvedFieldValue()`
+- reduce the remaining per-row reflection cost in `readFlatRowValues()` together with the traversal inside `readResolvedFieldValue()`
 - reduce generic rule-evaluation overhead in `FastArrayQuerySupport.filterRows()`
+- reduce allocation churn in `materializeJoinedRow()`
 - reduce projection overhead in `setResolvedFieldValue()` / `applyProjectionWritePlan()`
 - decide whether defensive source-list copying in `FilterQueryBuilder.copySourceBeans()` still belongs on the hot path now that compatibility constraints are relaxed
+- reduce generic numeric-casting overhead if it is still on the hot path after higher-value changes
+- move repeated per-plan work out of per-row execution wherever possible
+
+Allowed strategies:
+
+- precompute access plans once per execution plan
+- replace repeated generic reflective access with cached or specialized access paths where benchmark-proven
+- fuse extraction, filtering, and computed evaluation when it removes duplicate work
+- avoid rebuilding arrays or row state when values can be reused or written directly
+- avoid eager projection materialization on internal fast-path stages when the caller-visible result does not require it yet
+- reduce boxing, branch-heavy type switching, and repeated metadata lookups on the hot path
+
+Do not do:
+
+- do not reopen old `QueryRow` / `QueryField` work unless profiling clearly shows it has become dominant again
+- do not broaden scope to multi-join or collision-heavy redesign unless profiling on the target benchmark requires it
+- do not do speculative cleanup refactors with no benchmark evidence
+- do not optimize cold-start behavior ahead of the warmed target path
 
 Acceptance criteria:
 
-- warmed join profiling shows a clear reduction in `FastArrayQuerySupport.filterRows`, `ReflectionUtil.readFlatRowValues`, `ReflectionUtil.readResolvedFieldValue`, and `ReflectionUtil.setResolvedFieldValue`
-- young-GC count and `B/op` both drop materially from the current fast-path baseline
+- warmed profiling shows a clear reduction in:
+  - `FastArrayQuerySupport.filterRows`
+  - `ReflectionUtil.readFlatRowValues`
+  - `ReflectionUtil.readResolvedFieldValue`
+  - `ReflectionUtil.setResolvedFieldValue`
+- `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` improves materially from `1.091 ms/op`
+- `B/op` drops materially from `3,107,771.004 B/op`
+- young-GC pressure drops materially from the current fast-path baseline
+- correctness and projection behavior remain unchanged
+
+Minimum success criteria:
+
+- warmed benchmark falls below `0.75 ms/op`
+
+Strong success criteria:
+
+- warmed benchmark falls below `0.45 ms/op`
 
 ### WP18: Rebaseline computed-field benchmark budgets after implementation changes
 
@@ -206,6 +295,19 @@ Acceptance criteria:
 
 - hotspot threshold policy is explicit and stable
 - end-to-end computed-field join budgets reflect the new implementation rather than the current high-allocation baseline
+
+### Decision Rules For The Agent
+
+When making changes:
+- use benchmark and profiler evidence, not intuition
+- prefer small, isolated, measurable changes
+- rerun the target benchmark after each meaningful optimization
+- only reprofile after a measurable improvement
+- report both speed delta and allocation delta
+- keep correctness intact
+
+If a change improves one hotspot but regresses another, document that explicitly.
+If a broader redesign seems necessary, prove it with profiler evidence from the target benchmark first.
 
 ## Validation Plan
 
