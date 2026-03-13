@@ -6,6 +6,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
@@ -431,17 +432,42 @@ final class FastArrayQuerySupport {
         if (rows == null || rows.isEmpty()) {
             return rows;
         }
-        FastRuleGroup[] ruleGroups = compileRuleGroups(plan.getRulesByFieldIndex());
-        if (ruleGroups.length == 0) {
+        FastRowMatcher matcher = compileRowMatcher(plan.getRulesByFieldIndex());
+        if (matcher == MatchAllRowMatcher.INSTANCE) {
             return rows;
         }
         ArrayList<Object[]> results = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
-            if (matchesRuleGroups(row, ruleGroups)) {
+            if (matcher.matches(row)) {
                 results.add(row);
             }
         }
         return results;
+    }
+
+    private static FastRowMatcher compileRowMatcher(Map<Integer, List<CompiledRule>> rulesByField) {
+        if (rulesByField == null || rulesByField.isEmpty()) {
+            return MatchAllRowMatcher.INSTANCE;
+        }
+        if (rulesByField.size() == 1) {
+            Map.Entry<Integer, List<CompiledRule>> entry = rulesByField.entrySet().iterator().next();
+            List<CompiledRule> rules = entry.getValue();
+            if (rules != null && rules.size() == 1) {
+                return compileSingleRuleMatcher(entry.getKey(), rules.get(0));
+            }
+        }
+        FastRuleGroup[] ruleGroups = compileRuleGroups(rulesByField);
+        return ruleGroups.length == 0 ? MatchAllRowMatcher.INSTANCE : new GenericFastRowMatcher(ruleGroups);
+    }
+
+    private static FastRowMatcher compileSingleRuleMatcher(int fieldIndex, CompiledRule rule) {
+        if (rule == null) {
+            return MatchAllRowMatcher.INSTANCE;
+        }
+        if (rule.compareValue instanceof Number number && isNumericClause(rule.clause)) {
+            return new SingleNumericRuleMatcher(fieldIndex, number.doubleValue(), rule);
+        }
+        return new SingleRuleMatcher(fieldIndex, rule);
     }
 
     private static FastRuleGroup[] compileRuleGroups(Map<Integer, List<CompiledRule>> rulesByField) {
@@ -488,6 +514,30 @@ final class FastArrayQuerySupport {
             }
         }
         return (andMatched && !andFailed) || orMatched;
+    }
+
+    private static boolean isNumericClause(Clauses clause) {
+        return clause == Clauses.BIGGER
+                || clause == Clauses.BIGGER_EQUAL
+                || clause == Clauses.EQUAL
+                || clause == Clauses.IN
+                || clause == Clauses.NOT_BIGGER
+                || clause == Clauses.NOT_EQUAL
+                || clause == Clauses.NOT_SMALLER
+                || clause == Clauses.SMALLER
+                || clause == Clauses.SMALLER_EQUAL;
+    }
+
+    private static boolean compareNumbers(double left, double right, Clauses clause) {
+        return switch (clause) {
+            case BIGGER -> left > right;
+            case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
+            case EQUAL, IN -> left == right;
+            case NOT_BIGGER, SMALLER_EQUAL -> left <= right;
+            case NOT_EQUAL -> left != right;
+            case SMALLER -> left < right;
+            default -> false;
+        };
     }
 
     private static List<Object[]> orderRows(List<Object[]> rows, Sort sortMethod, FilterExecutionPlan plan) {
@@ -666,5 +716,51 @@ final class FastArrayQuerySupport {
     }
 
     private record FastRuleGroup(int fieldIndex, CompiledRule[] rules) {
+    }
+
+    private interface FastRowMatcher {
+        boolean matches(Object[] row);
+    }
+
+    private enum MatchAllRowMatcher implements FastRowMatcher {
+        INSTANCE;
+
+        @Override
+        public boolean matches(Object[] row) {
+            return true;
+        }
+    }
+
+    private record GenericFastRowMatcher(FastRuleGroup[] ruleGroups) implements FastRowMatcher {
+        @Override
+        public boolean matches(Object[] row) {
+            return matchesRuleGroups(row, ruleGroups);
+        }
+    }
+
+    private record SingleRuleMatcher(int fieldIndex, CompiledRule rule) implements FastRowMatcher {
+        @Override
+        public boolean matches(Object[] row) {
+            if (row == null || fieldIndex < 0 || fieldIndex >= row.length) {
+                return false;
+            }
+            return ObjectUtil.compareObject(row[fieldIndex], rule.compareValue, rule.clause, rule.dateFormat);
+        }
+    }
+
+    private record SingleNumericRuleMatcher(int fieldIndex,
+                                            double compareValue,
+                                            CompiledRule rule) implements FastRowMatcher {
+        @Override
+        public boolean matches(Object[] row) {
+            if (row == null || fieldIndex < 0 || fieldIndex >= row.length) {
+                return false;
+            }
+            Object fieldValue = row[fieldIndex];
+            if (fieldValue instanceof Number number) {
+                return compareNumbers(number.doubleValue(), compareValue, rule.clause);
+            }
+            return ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
+        }
     }
 }

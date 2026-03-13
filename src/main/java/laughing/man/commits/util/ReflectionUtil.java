@@ -313,9 +313,9 @@ public final class ReflectionUtil {
         }
         try {
             Object[] values = new Object[plan.size()];
-            List<FlattenedFieldDescriptor> flattenedFields = plan.flattenedFields();
-            for (int i = 0; i < flattenedFields.size(); i++) {
-                values[i] = readResolvedFieldValue(bean, flattenedFields.get(i).fieldPath());
+            ResolvedFieldPath[] fieldPaths = plan.fieldPaths();
+            for (int i = 0; i < fieldPaths.length; i++) {
+                values[i] = readResolvedFieldValue(bean, fieldPaths[i]);
             }
             return values;
         } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
@@ -490,15 +490,10 @@ public final class ReflectionUtil {
     }
 
     private static Object readResolvedFieldValue(Object bean, ResolvedFieldPath fieldPath) throws IllegalAccessException {
-        Object current = bean;
-        List<Field> fields = fieldPath.fields();
-        for (int i = 0; i < fields.size(); i++) {
-            if (current == null) {
-                return null;
-            }
-            current = fields.get(i).get(current);
+        if (bean == null || fieldPath == null || !fieldPath.resolvable()) {
+            return null;
         }
-        return current;
+        return fieldPath.read(bean);
     }
 
     private static List<Field> appendPath(List<Field> path, Field field) {
@@ -789,11 +784,61 @@ public final class ReflectionUtil {
         }
     }
 
-    private record ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
+    private static final class ResolvedFieldPath {
+        private final List<Field> fields;
+        private final Field[] readFields;
+        private final Class<?> leafType;
+        private final boolean resolvable;
+
         private ResolvedFieldPath(List<Field> fields, Class<?> leafType, boolean resolvable) {
             this.fields = List.copyOf(fields);
+            this.readFields = this.fields.toArray(Field[]::new);
             this.leafType = leafType;
             this.resolvable = resolvable;
+        }
+
+        private List<Field> fields() {
+            return fields;
+        }
+
+        private Class<?> leafType() {
+            return leafType;
+        }
+
+        private boolean resolvable() {
+            return resolvable;
+        }
+
+        private Object read(Object bean) throws IllegalAccessException {
+            if (bean == null) {
+                return null;
+            }
+            return switch (readFields.length) {
+                case 0 -> null;
+                case 1 -> readFields[0].get(bean);
+                case 2 -> {
+                    Object nested = readFields[0].get(bean);
+                    yield nested == null ? null : readFields[1].get(nested);
+                }
+                case 3 -> {
+                    Object nested = readFields[0].get(bean);
+                    if (nested == null) {
+                        yield null;
+                    }
+                    Object leafParent = readFields[1].get(nested);
+                    yield leafParent == null ? null : readFields[2].get(leafParent);
+                }
+                default -> {
+                    Object current = bean;
+                    for (Field field : readFields) {
+                        if (current == null) {
+                            yield null;
+                        }
+                        current = field.get(current);
+                    }
+                    yield current;
+                }
+            };
         }
     }
 
@@ -829,15 +874,18 @@ public final class ReflectionUtil {
 
     public static final class FlatRowReadPlan {
         private final List<FlattenedFieldDescriptor> flattenedFields;
+        private final ResolvedFieldPath[] fieldPaths;
         private final List<String> fieldNames;
         private final Map<String, Class<?>> fieldTypes;
 
         private FlatRowReadPlan(List<FlattenedFieldDescriptor> flattenedFields) {
             this.flattenedFields = List.copyOf(flattenedFields);
+            this.fieldPaths = new ResolvedFieldPath[flattenedFields.size()];
             ArrayList<String> orderedFieldNames = new ArrayList<>(flattenedFields.size());
             LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(16, flattenedFields.size() * 2));
             for (int i = 0; i < flattenedFields.size(); i++) {
                 FlattenedFieldDescriptor field = flattenedFields.get(i);
+                fieldPaths[i] = field.fieldPath();
                 orderedFieldNames.add(field.fieldName());
                 orderedFieldTypes.put(field.fieldName(), field.fieldPath().leafType());
             }
@@ -859,6 +907,10 @@ public final class ReflectionUtil {
 
         private List<FlattenedFieldDescriptor> flattenedFields() {
             return flattenedFields;
+        }
+
+        private ResolvedFieldPath[] fieldPaths() {
+            return fieldPaths;
         }
     }
 }
