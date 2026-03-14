@@ -167,15 +167,27 @@ public final class SqlExpressionEvaluator {
 
     public static final class CompiledExpression {
         private final Node root;
+        private final List<String> identifierOrder;
         private final Set<String> identifiers;
 
-        private CompiledExpression(Node root, Set<String> identifiers) {
+        private CompiledExpression(Node root, List<String> identifierOrder) {
             this.root = root;
-            this.identifiers = Collections.unmodifiableSet(new LinkedHashSet<>(identifiers));
+            this.identifierOrder = List.copyOf(identifierOrder);
+            this.identifiers = Collections.unmodifiableSet(new LinkedHashSet<>(identifierOrder));
         }
 
         public double evaluate(ValueResolver resolver) {
             return root.evaluate(resolver);
+        }
+
+        public BoundExpression bind(int[] identifierIndexes) {
+            if (identifierIndexes == null) {
+                throw new IllegalArgumentException("identifierIndexes must not be null");
+            }
+            if (identifierIndexes.length != identifierOrder.size()) {
+                throw new IllegalArgumentException("identifierIndexes length must match expression identifiers");
+            }
+            return new BoundExpression(root, identifierIndexes.clone());
         }
 
         public Set<String> identifiers() {
@@ -183,8 +195,24 @@ public final class SqlExpressionEvaluator {
         }
     }
 
+    public static final class BoundExpression {
+        private final Node root;
+        private final int[] identifierIndexes;
+
+        private BoundExpression(Node root, int[] identifierIndexes) {
+            this.root = root;
+            this.identifierIndexes = identifierIndexes;
+        }
+
+        public double evaluate(Object[] values) {
+            return root.evaluate(values, identifierIndexes);
+        }
+    }
+
     private interface Node {
         double evaluate(ValueResolver resolver);
+
+        double evaluate(Object[] values, int[] identifierIndexes);
     }
 
     private static final class NumberNode implements Node {
@@ -198,18 +226,38 @@ public final class SqlExpressionEvaluator {
         public double evaluate(ValueResolver resolver) {
             return value;
         }
+
+        @Override
+        public double evaluate(Object[] values, int[] identifierIndexes) {
+            return value;
+        }
     }
 
     private static final class IdentifierNode implements Node {
         private final String identifier;
+        private final int ordinal;
 
-        private IdentifierNode(String identifier) {
+        private IdentifierNode(String identifier, int ordinal) {
             this.identifier = identifier;
+            this.ordinal = ordinal;
         }
 
         @Override
         public double evaluate(ValueResolver resolver) {
             Object value = resolver.resolve(identifier);
+            if (value == null) {
+                throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
+            }
+            if (!(value instanceof Number)) {
+                throw new IllegalArgumentException("Expression identifier '" + identifier + "' must be numeric");
+            }
+            return ((Number) value).doubleValue();
+        }
+
+        @Override
+        public double evaluate(Object[] values, int[] identifierIndexes) {
+            int sourceIndex = ordinal < identifierIndexes.length ? identifierIndexes[ordinal] : -1;
+            Object value = sourceIndex >= 0 && values != null && sourceIndex < values.length ? values[sourceIndex] : null;
             if (value == null) {
                 throw new IllegalArgumentException("Unknown expression identifier '" + identifier + "'");
             }
@@ -234,6 +282,12 @@ public final class SqlExpressionEvaluator {
             double value = operand.evaluate(resolver);
             return negate ? -value : value;
         }
+
+        @Override
+        public double evaluate(Object[] values, int[] identifierIndexes) {
+            double value = operand.evaluate(values, identifierIndexes);
+            return negate ? -value : value;
+        }
     }
 
     private static final class BinaryNode implements Node {
@@ -251,6 +305,25 @@ public final class SqlExpressionEvaluator {
         public double evaluate(ValueResolver resolver) {
             double leftValue = left.evaluate(resolver);
             double rightValue = right.evaluate(resolver);
+            if (operator == '+') {
+                return leftValue + rightValue;
+            }
+            if (operator == '-') {
+                return leftValue - rightValue;
+            }
+            if (operator == '*') {
+                return leftValue * rightValue;
+            }
+            if (Math.abs(rightValue) < 1e-12) {
+                throw new IllegalArgumentException("Division by zero in expression");
+            }
+            return leftValue / rightValue;
+        }
+
+        @Override
+        public double evaluate(Object[] values, int[] identifierIndexes) {
+            double leftValue = left.evaluate(values, identifierIndexes);
+            double rightValue = right.evaluate(values, identifierIndexes);
             if (operator == '+') {
                 return leftValue + rightValue;
             }
@@ -294,12 +367,29 @@ public final class SqlExpressionEvaluator {
             }
             throw new IllegalArgumentException("Unsupported expression function '" + rawName + "'");
         }
+
+        @Override
+        public double evaluate(Object[] values, int[] identifierIndexes) {
+            if ("ABS".equals(normalizedName)) {
+                return Math.abs(arguments.get(0).evaluate(values, identifierIndexes));
+            }
+            if ("ROUND".equals(normalizedName)) {
+                return Math.rint(arguments.get(0).evaluate(values, identifierIndexes));
+            }
+            if ("FLOOR".equals(normalizedName)) {
+                return Math.floor(arguments.get(0).evaluate(values, identifierIndexes));
+            }
+            if ("CEIL".equals(normalizedName) || "CEILING".equals(normalizedName)) {
+                return Math.ceil(arguments.get(0).evaluate(values, identifierIndexes));
+            }
+            throw new IllegalArgumentException("Unsupported expression function '" + rawName + "'");
+        }
     }
 
     private static final class Compiler {
         private final List<Token> tokens;
         private int index;
-        private final LinkedHashSet<String> identifiers = new LinkedHashSet<>();
+        private final LinkedHashMap<String, Integer> identifierOrdinals = new LinkedHashMap<>();
 
         private Compiler(List<Token> tokens) {
             this.tokens = tokens;
@@ -308,7 +398,7 @@ public final class SqlExpressionEvaluator {
         private CompiledExpression compile() {
             Node value = parseExpression();
             expect(TokenType.EOF, null);
-            return new CompiledExpression(value, identifiers);
+            return new CompiledExpression(value, new ArrayList<>(identifierOrdinals.keySet()));
         }
 
         private Node parseExpression() {
@@ -371,10 +461,19 @@ public final class SqlExpressionEvaluator {
                     List<Node> args = parseFunctionArgs();
                     return callFunction(identifier, args);
                 }
-                identifiers.add(identifier);
-                return new IdentifierNode(identifier);
+                return new IdentifierNode(identifier, identifierOrdinal(identifier));
             }
             throw new IllegalArgumentException("Expected numeric expression term");
+        }
+
+        private int identifierOrdinal(String identifier) {
+            Integer existing = identifierOrdinals.get(identifier);
+            if (existing != null) {
+                return existing;
+            }
+            int ordinal = identifierOrdinals.size();
+            identifierOrdinals.put(identifier, ordinal);
+            return ordinal;
         }
 
         private List<Node> parseFunctionArgs() {

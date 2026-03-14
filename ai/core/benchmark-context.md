@@ -29,11 +29,11 @@ Load only when the task touches benchmark suites, threshold budgets, parity chec
 
 Use this section only when the task is profiler-led and needs class-level hotspot prioritization. Skip it for ordinary benchmark threshold or reporting work.
 
-- Compared warmed artifacts: `target/pojolens-fastpath-current.jfr`, `target/wp17-after-readpath.jfr`, and `target/wp17-after-parent-buffer.jfr`.
-- Recurring CPU cluster 1: `ReflectionUtil` read-side access. `readResolvedFieldValue` / `ResolvedFieldPath.read` stayed dominant at about `589`, `875`, and `925` first-repo-frame samples across the three warmed profiles.
-- Recurring CPU cluster 2: `FastArrayQuerySupport` join/computed work. `ComputedFieldPlan.resolveValue` rose from about `200` to `253` to `331`, while `tryBuildJoinedState` and `buildChildIndex` stayed present in every warmed profile.
+- Compared warmed artifacts: `target/pojolens-fastpath-current.jfr`, `target/wp17-after-readpath.jfr`, `target/wp17-after-parent-buffer.jfr`, and `target/wp17-after-bound-expression.jfr`.
+- Recurring CPU cluster 1: `ReflectionUtil` read-side access. `readResolvedFieldValue` / `ResolvedFieldPath.read` stayed dominant at about `589`, `875`, `925`, and `832` first-repo-frame samples across the warmed profiles.
+- Recurring CPU cluster 2: `FastArrayQuerySupport` join/computed work. `ComputedFieldPlan.resolveValue` rose from about `200` to `253` to `331`, then dropped out after direct array-index binding; the latest profile now shows computed work through `applyComputedValues` (`313`) while `tryBuildJoinedState` and `buildChildIndex` still stay present.
 - Recurring CPU cluster 3: projection writes remained visible through `ReflectionUtil.applyProjectionWritePlan` and `ReflectionUtil.setResolvedFieldValue` after earlier bottlenecks were reduced.
-- Recurring allocation cluster 1: `FastArrayQuerySupport.buildChildIndex` stayed largest and rose from about `1271` to `3676` to `5353` first-repo-frame allocation samples.
-- Recurring allocation cluster 2: `ReflectionUtil` extraction stayed heavy through `readFlatRowValues`, `readResolvedFieldValue`, and `ResolvedFieldPath.read`.
-- Recurring allocation cluster 3: `FastArrayQuerySupport.materializeJoinedRow` stayed large in all warmed profiles; `castNumericValue` emerged once earlier costs dropped.
-- Interpretation: the dominant warmed stress has converged into `ReflectionUtil` plus `FastArrayQuerySupport`, so class-level changes in those files have higher expected leverage than reopening the older `ComputedFieldSupport`, `JoinEngine`, or `collectQueryRowFieldTypes` paths.
+- Recurring allocation cluster 1: `FastArrayQuerySupport.buildChildIndex` stayed largest and rose from about `1271` to `3676` to `5353` to `6824` first-repo-frame allocation samples.
+- Recurring allocation cluster 2: `ReflectionUtil` extraction stayed heavy through `readFlatRowValues`, `readResolvedFieldValue`, and `ResolvedFieldPath.read`, even after dependency lookup was bound away.
+- Recurring allocation cluster 3: `FastArrayQuerySupport.materializeJoinedRow` stayed large in all warmed profiles and rose to about `4731`; `castNumericValue` remains visible even after the computed lookup change.
+- Interpretation: the dominant warmed stress has converged into `ReflectionUtil` plus `FastArrayQuerySupport`, and the newest profiler evidence points more toward reflection reads plus join/index materialization allocation than toward any remaining string-based computed dependency lookup.

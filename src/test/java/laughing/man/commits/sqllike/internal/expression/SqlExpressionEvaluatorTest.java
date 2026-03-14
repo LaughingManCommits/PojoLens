@@ -35,6 +35,16 @@ class SqlExpressionEvaluatorTest {
     }
 
     @Test
+    void compiledExpressionsShouldSupportBoundArrayEvaluation() {
+        SqlExpressionEvaluator.CompiledExpression compiled =
+                SqlExpressionEvaluator.compileNumeric("salary + bonus * multiplier");
+
+        SqlExpressionEvaluator.BoundExpression bound = compiled.bind(new int[]{2, 0, 1});
+
+        assertEquals(150.0, bound.evaluate(new Object[]{20, 1.5d, 120}), 0.0001);
+    }
+
+    @Test
     void compileNumericShouldValidateFunctionArity() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,

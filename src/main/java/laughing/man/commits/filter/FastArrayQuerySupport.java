@@ -266,10 +266,10 @@ final class FastArrayQuerySupport {
             ComputedFieldDefinition definition = computedDefinitions.get(i);
             SqlExpressionEvaluator.CompiledExpression expression =
                     SqlExpressionEvaluator.compileNumeric(definition.expression());
-            String[] dependencyNames = expression.identifiers().toArray(String[]::new);
-            int[] dependencyIndexes = new int[dependencyNames.length];
-            for (int dependencyIndex = 0; dependencyIndex < dependencyNames.length; dependencyIndex++) {
-                Integer resolvedIndex = schemaIndexByName.get(dependencyNames[dependencyIndex]);
+            List<String> dependencyNames = new ArrayList<>(expression.identifiers());
+            int[] dependencyIndexes = new int[dependencyNames.size()];
+            for (int dependencyIndex = 0; dependencyIndex < dependencyNames.size(); dependencyIndex++) {
+                Integer resolvedIndex = schemaIndexByName.get(dependencyNames.get(dependencyIndex));
                 if (resolvedIndex == null) {
                     return null;
                 }
@@ -278,7 +278,11 @@ final class FastArrayQuerySupport {
             int outputIndex = schemaFields.size();
             schemaFields.add(definition.name());
             schemaIndexByName.put(definition.name(), outputIndex);
-            computedPlans[i] = new ComputedFieldPlan(definition, expression, dependencyNames, dependencyIndexes, outputIndex);
+            computedPlans[i] = new ComputedFieldPlan(
+                    definition,
+                    expression.bind(dependencyIndexes),
+                    outputIndex
+            );
         }
 
         LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(16, schemaFields.size() * 2));
@@ -443,7 +447,7 @@ final class FastArrayQuerySupport {
     private static void applyComputedValues(Object[] values, JoinCompilePlan plan) {
         for (ComputedFieldPlan computedPlan : plan.computedPlans()) {
             values[computedPlan.outputIndex()] = castNumericValue(
-                    computedPlan.expression().evaluate(identifier -> computedPlan.resolveValue(identifier, values)),
+                    computedPlan.expression().evaluate(values),
                     computedPlan.definition().outputType()
             );
         }
@@ -721,19 +725,8 @@ final class FastArrayQuerySupport {
     }
 
     private record ComputedFieldPlan(ComputedFieldDefinition definition,
-                                     SqlExpressionEvaluator.CompiledExpression expression,
-                                     String[] dependencyNames,
-                                     int[] dependencyIndexes,
+                                     SqlExpressionEvaluator.BoundExpression expression,
                                      int outputIndex) {
-        private Object resolveValue(String identifier, Object[] values) {
-            for (int i = 0; i < dependencyNames.length; i++) {
-                if (dependencyNames[i].equals(identifier)) {
-                    int dependencyIndex = dependencyIndexes[i];
-                    return dependencyIndex >= 0 && dependencyIndex < values.length ? values[dependencyIndex] : null;
-                }
-            }
-            return null;
-        }
     }
 
     private record FastRuleGroup(int fieldIndex, CompiledRule[] rules) {
