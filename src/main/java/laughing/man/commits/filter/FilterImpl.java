@@ -102,6 +102,10 @@ public class FilterImpl implements Filter {
         if (fastState != null) {
             return FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
         }
+        return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
+    }
+
+    private List<QueryRow> filterRows(Sort sortMethod) {
         List<QueryRow> results = new ArrayList<>();
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
@@ -166,37 +170,34 @@ public class FilterImpl implements Filter {
             LOG.error("Failed to compare core.getBuilder().getRows()[" + core.getBuilder().getRows() + "] ", e);
             throw new IllegalStateException("Failed to run filter", e);
         }
-        return ReflectionUtil.toClassList(cls, results);
+        return results;
     }
 
     @Override
     public <T> ChartData chart(Class<T> cls, ChartSpec spec) {
-        List<T> rows = filter(cls);
-        long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
-        ChartData chart = ChartMapper.toChartData(rows, spec);
-        emitStage(builderState,
-                QueryTelemetryStage.CHART,
-                chartStarted,
-                rows.size(),
-                rows.size(),
-                QueryTelemetrySupport.metadata(
-                        "chartType", chart.getType(),
-                        "labelCount", chart.getLabels() == null ? 0 : chart.getLabels().size(),
-                        "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
-                ));
-        return chart;
+        return chart(null, cls, spec);
     }
 
     @Override
     public <T> ChartData chart(Sort sortMethod, Class<T> cls, ChartSpec spec) {
-        List<T> rows = filter(sortMethod, cls);
+        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
+        int rowCount;
         long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
-        ChartData chart = ChartMapper.toChartData(rows, spec);
+        ChartData chart;
+        if (fastState != null) {
+            List<T> rows = FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
+            rowCount = rows.size();
+            chart = ChartMapper.toChartData(rows, spec);
+        } else {
+            List<QueryRow> rows = filterRows(sortMethod);
+            rowCount = rows.size();
+            chart = ChartMapper.toChartData(rows, spec);
+        }
         emitStage(builderState,
                 QueryTelemetryStage.CHART,
                 chartStarted,
-                rows.size(),
-                rows.size(),
+                rowCount,
+                rowCount,
                 QueryTelemetrySupport.metadata(
                         "chartType", chart.getType(),
                         "labelCount", chart.getLabels() == null ? 0 : chart.getLabels().size(),

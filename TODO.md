@@ -372,11 +372,14 @@ Current evidence from 2026-03-14:
 - absolute chart cost is still worth attacking: `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=10000` measured about `135.007 ms/op`, `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart|size=10000` measured about `133.176 ms/op`, and `ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000` used about `69.0%` of its current budget
 - chart and SQL-like chart flows are still valid optimization targets, but they should now be judged on absolute `ms/op`, allocation, and product value rather than on fluent-vs-SQL-like ratio alone
 - the first WP18 structural redesign is now landed: reusable non-subquery SQL-like execution shapes cache validation/binding work and rebind request-scoped builders per execution instead of rebuilding the fluent pipeline every time
+- the second WP18 redesign is now landed: fluent and SQL-like chart execution map directly from internal `QueryRow` results, and `ChartMapper` now uses indexed `QueryRow` field reads instead of projecting to caller classes and then reflecting back over those objects
+- exact targeted JMH reruns on 2026-03-14 at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart` at about `5.045 ms/op` and `sqlLikeParseAndTimeBucketMetricsToChart` at about `4.891 ms/op`, down materially from the earlier same-session targeted snapshot around `7.200 ms/op` and `7.088 ms/op`
+- matching exact query-only reruns now measure `fluentTimeBucketMetrics` at about `4.990 ms/op` and `sqlLikeParseAndTimeBucketMetrics` at about `4.728 ms/op`, which means chart-mapping overhead on that stats workload is now close to noise and the remaining absolute cost is mostly outside the old projection round-trip
 
 Tasks:
 
 - profile the most expensive absolute chart and SQL-like chart paths by `ms/op`, not by ratio
-- separate SQL-like translation, stats plan construction, chart payload assembly, and serialization cost on the chart workloads that matter most
+- separate SQL-like translation, stats plan construction, remaining chart payload assembly, and serialization cost on the chart workloads that matter most now that the typed-projection round-trip is removed
 - allow larger chart or SQL-like pipeline redesigns when they clearly reduce product-visible overhead while preserving substantially similar features/behavior
 - land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
 - keep chart threshold pass status intact while improving absolute latency headroom

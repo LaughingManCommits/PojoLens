@@ -7,6 +7,8 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chart.MultiSeriesPoint;
 import laughing.man.commits.chart.NullPointPolicy;
 import laughing.man.commits.chart.SeriesPoint;
+import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -75,6 +77,22 @@ public class ChartResultMapperMappingTest {
         assertEquals("Finance", data.getLabels().get(1));
         assertEquals(1, data.getDatasets().size());
         assertEquals("payroll", data.getDatasets().get(0).getLabel());
+        assertEquals(300d, data.getDatasets().get(0).getValues().get(0), 0.0001d);
+        assertEquals(150d, data.getDatasets().get(0).getValues().get(1), 0.0001d);
+    }
+
+    @Test
+    public void toChartDataShouldMapQueryRows() {
+        List<QueryRow> rows = List.of(
+                queryRow("department", "Engineering", "payroll", 300L),
+                queryRow("department", "Finance", "payroll", 150L)
+        );
+
+        ChartData data = ChartResultMapper.toChartData(rows, ChartSpec.of(ChartType.BAR, "department", "payroll"));
+
+        assertEquals(2, data.getLabels().size());
+        assertEquals("Engineering", data.getLabels().get(0));
+        assertEquals("Finance", data.getLabels().get(1));
         assertEquals(300d, data.getDatasets().get(0).getValues().get(0), 0.0001d);
         assertEquals(150d, data.getDatasets().get(0).getValues().get(1), 0.0001d);
     }
@@ -303,6 +321,23 @@ public class ChartResultMapperMappingTest {
 
         assertEquals(1, data.getLabels().size());
         assertEquals("2025-01-01", data.getLabels().get(0));
+    }
+
+    private static QueryRow queryRow(String firstField,
+                                     Object firstValue,
+                                     String secondField,
+                                     Object secondValue) {
+        QueryField first = new QueryField();
+        first.setFieldName(firstField);
+        first.setValue(firstValue);
+
+        QueryField second = new QueryField();
+        second.setFieldName(secondField);
+        second.setValue(secondValue);
+
+        QueryRow row = new QueryRow();
+        row.setFields(List.of(first, second));
+        return row;
     }
 }
 

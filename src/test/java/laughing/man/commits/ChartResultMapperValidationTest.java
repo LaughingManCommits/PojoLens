@@ -3,6 +3,8 @@ package laughing.man.commits;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -33,6 +35,25 @@ public class ChartResultMapperValidationTest {
 
         try {
             ChartResultMapper.toChartData(rows, ChartSpec.of(ChartType.BAR, "missing", "payroll"));
+            fail("Expected unknown x-field error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown chart field 'missing'"));
+        }
+    }
+
+    @Test
+    public void toChartDataShouldRejectUnknownFieldsForQueryRows() {
+        QueryField department = new QueryField();
+        department.setFieldName("department");
+        department.setValue("Engineering");
+        QueryField payroll = new QueryField();
+        payroll.setFieldName("payroll");
+        payroll.setValue(300L);
+        QueryRow row = new QueryRow();
+        row.setFields(List.of(department, payroll));
+
+        try {
+            ChartResultMapper.toChartData(List.of(row), ChartSpec.of(ChartType.BAR, "missing", "payroll"));
             fail("Expected unknown x-field error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown chart field 'missing'"));

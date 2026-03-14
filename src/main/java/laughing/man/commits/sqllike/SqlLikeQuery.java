@@ -403,11 +403,7 @@ public final class SqlLikeQuery {
      * @return chart payload
      */
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
-        List<T> rows = filter(pojos, projectionClass);
-        long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-        ChartData chart = ChartResultMapper.toChartData(rows, spec);
-        emitChartTelemetry(chartStarted, rows.size(), chart);
-        return chart;
+        return chart(pojos, Collections.emptyMap(), projectionClass, spec);
     }
 
     /**
@@ -439,11 +435,8 @@ public final class SqlLikeQuery {
                                Map<String, List<?>> joinSources,
                                Class<T> projectionClass,
                                ChartSpec spec) {
-        List<T> rows = filter(pojos, joinSources, projectionClass);
-        long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-        ChartData chart = ChartResultMapper.toChartData(rows, spec);
-        emitChartTelemetry(chartStarted, rows.size(), chart);
-        return chart;
+        ExecutionContext context = prepareExecution(pojos, joinSources, projectionClass);
+        return executeChart(context, spec);
     }
 
     /**
@@ -639,6 +632,14 @@ public final class SqlLikeQuery {
         stage.put("before", before);
         stage.put("after", after);
         return Collections.unmodifiableMap(stage);
+    }
+
+    private ChartData executeChart(ExecutionContext context, ChartSpec spec) {
+        List<QueryRow> rows = executeRawRows(context);
+        long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+        ChartData chart = ChartResultMapper.toChartData(rows, spec);
+        emitChartTelemetry(chartStarted, rows.size(), chart);
+        return chart;
     }
 
     private List<QueryRow> executeRawRows(ExecutionContext context) {
@@ -1036,11 +1037,7 @@ public final class SqlLikeQuery {
 
         @Override
         public ChartData chart(ChartSpec spec) {
-            List<T> rows = filter();
-            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-            ChartData chart = ChartResultMapper.toChartData(rows, spec);
-            emitChartTelemetry(chartStarted, rows.size(), chart);
-            return chart;
+            return executeChart(context, spec);
         }
     }
 
