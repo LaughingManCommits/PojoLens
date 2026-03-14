@@ -12,7 +12,8 @@
 - The earlier warmed end-to-end benchmark at `size=10000` measured about `1.091 ms/op` versus a current manual baseline rerun around `0.150 ms/op`; `-prof gc` measured about `1.441 ms/op` and `3,107,771 B/op`.
 - A fresh reverted-code rerun on 2026-03-13 measured about `1.475 ms/op` for the same warmed end-to-end path, confirming session-to-session drift and forcing WP17 to re-establish its baseline locally before making more changes.
 - After that controlled repro, four WP17 changes have now landed: a specialized single-rule fast matcher in `FastArrayQuerySupport`, a narrower read-path optimization in `ReflectionUtil`, a 2026-03-14 join-build allocation cut that reuses one parent read buffer and stores single-child index entries without per-key `ArrayList` buckets, and direct array-index binding for compiled numeric expressions in `SqlExpressionEvaluator` / `FastArrayQuerySupport`.
-- The current warmed end-to-end rerun at `size=10000` is about `0.614 ms/op` versus a current manual baseline rerun around `0.108 ms/op`; the current `-prof gc` rerun measures about `0.617 ms/op` and `2,307,945 B/op`, so the newest gain is CPU-only and allocation is effectively flat versus the prior step.
+- The last landed WP17 improvement still measures about `0.617 ms/op` and `2,307,905 B/op` on the current short `-prof gc` rerun, but current clean-tree long warmed reruns on unchanged code have drifted back up to about `0.892 ms/op` versus a current manual baseline rerun around `0.111 ms/op`.
+- Two additional WP17 follow-up experiments on 2026-03-14 targeted compiled `ReflectionUtil` accessors and early join-time filtering/materialization, but both regressed the warmed benchmark and were reverted; the git tree is clean again.
 - Warmed profiling is now also represented by `target/wp17-after-bound-expression.jfr`, where the top current repository first-repo-frame CPU leaves are `ReflectionUtil$ResolvedFieldPath.read`, `FastArrayQuerySupport.applyComputedValues`, `FastArrayQuerySupport.tryBuildJoinedState`, `FastArrayQuerySupport.buildChildIndex`, and `ReflectionUtil.applyProjectionWritePlan`.
 - Warmed profiling is now represented by `target/pojolens-fastpath-current.jfr`, which shows the hot path has moved away from `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, and `ReflectionUtil.collectQueryRowFieldTypes`.
 
@@ -25,6 +26,7 @@
 - WP17 is now the active implementation target, with `TODO.md` defining the next attack order around residual reflection reads, join-state build/materialization, computed boxing/casting, and projection writes on the selective single-join array path.
 - An initial speculative WP17 implementation pass on 2026-03-13 regressed the warmed benchmark and was reverted; the follow-up controlled repro/profile loop then identified `matchesRuleGroups` and read-side reflection as the real current hotspots.
 - WP17 is now actively moving again after landing the single-rule matcher fast path, the narrowed `ResolvedFieldPath.read` / `FlatRowReadPlan` read optimization, the parent-buffer/single-child-bucket join-build optimization, and bound array-expression evaluation.
+- Two immediate follow-up WP17 directions on 2026-03-14 were explicitly ruled out for now: compiled `ReflectionUtil` accessors and early join-time filtering/materialization both regressed the long warmed benchmark and were reverted on the same clean tree.
 - The remaining gap on the selective single-join path is now concentrated in `ReflectionUtil$ResolvedFieldPath.read`, residual `FastArrayQuerySupport.tryBuildJoinedState` / `buildChildIndex` work, `FastArrayQuerySupport.applyComputedValues` / `castNumericValue`, `FastArrayQuerySupport.materializeJoinedRow`, and projection writes in `ReflectionUtil`.
 - Benchmark stress outside WP17 is now most visible in chart parity drift, cold filter-vs-baseline gaps, and hotspot allocation in computed join / reflection conversion microbenchmarks rather than in hard threshold failures.
 - The broader performance backlog after WP17 is now explicit: chart parity work, recurring reflection/conversion hotspot work, and only then budget rebaselining.
@@ -39,6 +41,7 @@
 ## Next Validation Opportunities
 
 - Reduce residual reflection cost in `ReflectionUtil$ResolvedFieldPath.read`; that is now the dominant first-repo-frame CPU leaf in the warmed profile.
+- Re-establish a stable long warmed baseline or fresh clean-tree profile before landing another WP17 code change; current 300 ms warmed reruns are drifting away from the short allocation-focused reruns on unchanged code.
 - Reduce residual computed evaluation and numeric-cast overhead in `FastArrayQuerySupport.applyComputedValues()` / `castNumericValue()` now that dependency lookup is bound away.
 - Reduce the remaining child indexing / joined-row allocation cost in `FastArrayQuerySupport.buildChildIndex()` and `FastArrayQuerySupport.materializeJoinedRow()`.
 - Reduce projection write overhead in `ReflectionUtil.applyProjectionWritePlan()` / `setResolvedFieldValue()` once the join-build tail is lower.

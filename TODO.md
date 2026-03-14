@@ -337,11 +337,15 @@ Acceptance criteria:
 
 Minimum success criteria:
 
-- warmed benchmark falls below `0.75 ms/op`
+- warmed benchmark remains below `0.75 ms/op`
+- allocation falls below `2,000,000 B/op`
+- young-GC pressure does not regress
 
 Strong success criteria:
 
 - warmed benchmark falls below `0.45 ms/op`
+- allocation falls below `1,000,000 B/op`
+- warmed profiling materially shifts away from the current `ReflectionUtil` / `FastArrayQuerySupport` hotspot concentration
 
 ### WP18: Fix chart parity regressions on SQL-like chart flows
 
@@ -375,6 +379,10 @@ Tasks:
 - land fixes in priority order by worst ratio first
 - keep chart threshold pass status intact while closing the parity gaps
 
+Boundary with WP19:
+
+- if a parity fix turns out to depend on shared reflection/conversion work already tracked in WP19, land the shared code under WP19 and use WP18 to track reproduction, parity verification, and chart-specific acceptance
+
 Acceptance criteria:
 
 - `ChartParityChecker` passes on the current suite manifest
@@ -388,6 +396,8 @@ Status: pending
 Priority: high
 
 Goal: cut the class-level overhead that recurs across warmed JFRs and the hotspot microbenchmark suite, especially in `ReflectionUtil` and `FastArrayQuerySupport`.
+
+This package covers cross-cutting overhead that affects both the warmed selective join path and the broader conversion/projection workloads. It is not limited to the WP17 benchmark shape.
 
 Scope:
 
@@ -435,10 +445,15 @@ Scope:
 
 Tasks:
 
-- rerun `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` after WP14-WP17
-- rerun the warmed and cold end-to-end computed-field join benchmarks after WP14-WP17
+- rerun `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` after WP14-WP19
+- rerun the warmed and cold end-to-end computed-field join benchmarks after WP14-WP19
 - decide whether the hotspot stays diagnostic-only or gets a stable threshold
 - tighten the current end-to-end strict-suite budgets only after repeated stable runs
+
+Boundary:
+
+- WP20 covers computed-field and hotspot rebaselining only
+- chart thresholds and chart parity remain under WP18 unless chart-path implementation changes justify separate chart rebaselining
 
 Acceptance criteria:
 
@@ -448,15 +463,18 @@ Acceptance criteria:
 ### Decision Rules For The Agent
 
 When making changes:
+
 - use benchmark and profiler evidence, not intuition
-- prefer small, isolated, measurable changes
+- prefer the simplest change that clearly improves the benchmarked path, whether it is small and isolated or a broader redesign
+- allow design changes when they materially improve performance, reduce complexity, or remove architectural bottlenecks
 - rerun the target benchmark after each meaningful optimization
-- only reprofile after a measurable improvement
+- only reprofile after a measurable change
 - report both speed delta and allocation delta
 - keep correctness intact
 
 If a change improves one hotspot but regresses another, document that explicitly.
-If a broader redesign seems necessary, prove it with profiler evidence from the target benchmark first.
+
+For this library stage, design changes are allowed if they are evidence-backed and move the implementation toward a better long-term shape. Do not preserve a weaker design only because it is already in place.
 
 ## Validation Plan
 
