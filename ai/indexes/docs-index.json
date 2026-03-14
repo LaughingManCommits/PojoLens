@@ -1,5 +1,5 @@
-﻿{
-    "generatedAt":  "2026-03-13T11:09:23+01:00",
+{
+    "generatedAt":  "2026-03-14T09:55:33.0994216+01:00",
     "documents":  [
                       {
                           "path":  "AGENTS.md",
@@ -20,6 +20,12 @@
                       },
                       {
                           "path":  "ai/core/architecture-map.md",
+                          "category":  "ai-cold-core",
+                          "relevance":  "medium",
+                          "loadTier":  "cold"
+                      },
+                      {
+                          "path":  "ai/core/benchmark-context.md",
                           "category":  "ai-cold-core",
                           "relevance":  "medium",
                           "loadTier":  "cold"
@@ -73,6 +79,12 @@
                           "loadTier":  "cold"
                       },
                       {
+                          "path":  "ai/state/benchmark-state.md",
+                          "category":  "ai-cold-state",
+                          "relevance":  "medium",
+                          "loadTier":  "cold"
+                      },
+                      {
                           "path":  "ai/state/current-state.md",
                           "category":  "ai-hot-context",
                           "relevance":  "medium",
@@ -88,6 +100,11 @@
                           "path":  "AI-DEVELOPER.md",
                           "category":  "repo-guidance",
                           "relevance":  "low"
+                      },
+                      {
+                          "path":  "BENCHMARKS.md",
+                          "category":  "benchmark-report",
+                          "relevance":  "high"
                       },
                       {
                           "path":  "CONTRIBUTING.md",
@@ -191,4 +208,3 @@
                       }
                   ]
 }
-

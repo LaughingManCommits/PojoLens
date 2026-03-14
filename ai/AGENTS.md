@@ -24,10 +24,12 @@ Load only when the task needs it:
 - `ai/core/module-index.md`
 - `ai/core/readme-alignment.md`
 - `ai/core/runbook.md`
+- `ai/core/benchmark-context.md`
 - `ai/core/documentation-index.md`
 - `ai/core/system-boundaries.md`
 - `ai/core/architecture-map.md`
 - `ai/core/test-strategy.md`
+- `ai/state/benchmark-state.md`
 - `ai/core/discovery-notes.md`
 - `ai/indexes/*`
 - `ai/log/events.jsonl`
@@ -38,6 +40,7 @@ Rules:
 - keep `ai/state/*` session-specific and concise
 - regenerate indexes instead of letting stale entries accumulate
 - log only significant events
+- load benchmark context only when the task is about benchmark runs, thresholds, parity, profiling, or performance regressions
 
 ## Integrity Rules
 

@@ -1,12 +1,12 @@
-﻿{
-    "generatedAt":  "2026-03-13T17:52:04+01:00",
+{
+    "generatedAt":  "2026-03-14T09:55:33.0994216+01:00",
     "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
     "counts":  {
                    "mainJavaFiles":  133,
                    "testJavaFiles":  63,
                    "testClasses":  59,
-                   "markdownDocs":  34,
-                   "aiCoreFiles":  10,
+                   "markdownDocs":  37,
+                   "aiCoreFiles":  11,
                    "aiIndexFiles":  5
                },
     "roots":  [
@@ -211,7 +211,18 @@
                            {
                                "path":  "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
                                "kind":  "test-anchor"
+                           },
+                           {
+                               "path":  "BENCHMARKS.md",
+                               "kind":  "benchmark-report"
+                           },
+                           {
+                               "path":  "ai/core/benchmark-context.md",
+                               "kind":  "memory-benchmark-context"
+                           },
+                           {
+                               "path":  "ai/state/benchmark-state.md",
+                               "kind":  "memory-benchmark-state"
                            }
                        ]
 }
-

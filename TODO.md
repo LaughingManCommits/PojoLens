@@ -4,15 +4,21 @@
 
 WP1-WP14 and WP5 are complete and intentionally removed from this file.
 
-This file now tracks only unfinished performance work.
+This file tracks the active performance backlog plus the accepted package boundaries that still matter for follow-up decisions.
 
-As of 2026-03-14, the main remaining gap is still the warmed computed-field single-join path, not broad pipeline correctness:
+As of 2026-03-14, the main warmed tuning gap is still the computed-field single-join path:
 
 - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `size=10000` with `-wi 5 -i 10 -r 300ms`: about `0.654 ms/op`
 - `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.111 ms/op`
 - current gap: about `5.9x`
 
-Focused warm profiling is still the driver for the backlog below.
+The broader benchmark sweep now also shows portfolio-level issues that should stay visible in the backlog:
+
+- chart parity failed in `5/15` fluent-vs-SQL-like comparisons even though chart thresholds still passed
+- cold filter/baseline comparisons remain far slower than Streams/manual baselines, so broader end-to-end overhead is still real outside the warmed WP17 target
+- recurring warmed JFR hotspot classes are now concentrated in `ReflectionUtil` and `FastArrayQuerySupport`, which is a stronger prioritization signal than any single method name
+
+Focused warm profiling still drives WP17, but the backlog below now also tracks the broader suite-level and class-level stress points.
 
 ## Focused Profiler Findings
 
@@ -55,6 +61,35 @@ Top sampled allocation sites in repository code:
 - `FilterQueryBuilder.copySourceBeans` (`14`)
 
 Focused warm profiling remains the main driver for the backlog below.
+
+## Cross-JFR Hotspot Clusters
+
+Compared warmed profiler artifacts:
+
+- `target/pojolens-fastpath-current.jfr`
+- `target/wp17-after-readpath.jfr`
+- `target/wp17-after-parent-buffer.jfr`
+
+Recurring first-repo-frame CPU clusters across those profiles:
+
+- `ReflectionUtil` read path: `readResolvedFieldValue` / `ResolvedFieldPath.read` stayed dominant and grew from about `589` to `875` to `925` samples as earlier bottlenecks dropped away
+- `FastArrayQuerySupport` computed/join path: `ComputedFieldPlan.resolveValue` grew from about `200` to `253` to `331` samples while `tryBuildJoinedState` and `buildChildIndex` stayed present in every warmed profile
+- `FastArrayQuerySupport.filterRows` was very large in the earliest fast-path profile (`961`) and is now lower (`126`, `122`), which confirms the matcher work helped but did not eliminate the class from the hot set
+- `ReflectionUtil` projection writes stayed visible in the later profiles through `applyProjectionWritePlan` / `setResolvedFieldValue`
+
+Recurring first-repo-frame allocation clusters across those profiles:
+
+- `FastArrayQuerySupport.buildChildIndex` remained the largest recurring allocation site and rose from about `1271` to `3676` to `5353` samples as parent-side buffer work was reduced
+- `ReflectionUtil` read-side extraction stayed heavy through `readFlatRowValues`, `readResolvedFieldValue`, and `ResolvedFieldPath.read`
+- `FastArrayQuerySupport.materializeJoinedRow` remained a top allocation source in every warmed profile
+- `FastArrayQuerySupport.castNumericValue` emerged after the read-path cleanup and now stays in the top allocation cluster
+- `ReflectionUtil.instantiateNoArg` is lower in the newest profile but still belongs to the recurring conversion/projection cost family
+
+Common interpretation:
+
+1. the warmed hotspot picture is now primarily class-level in `ReflectionUtil` and `FastArrayQuerySupport`
+2. old `ComputedFieldSupport`, `JoinEngine`, and `collectQueryRowFieldTypes` work is no longer the main thing holding back this path
+3. broader backlog work should target those recurring classes plus chart parity, not just one isolated micro-optimization at a time
 
 ## Target
 
@@ -115,6 +150,7 @@ WP Interpretation:
 - WP15 is effectively accepted on the selective single-join path: the old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hot path dropped out after replacing the `QueryRow` materialization path with the array-based execution path.
 - WP16 is effectively accepted on this path: `ReflectionUtil.collectQueryRowFieldTypes` no longer shows up as a dominant warmed leaf because the fast path bypasses joined-row rescans entirely.
 - WP17 remains the active implementation target because the remaining cost is now concentrated in residual reflection reads, computed dependency lookup, child indexing, joined-row materialization, and projection writes on the selective single-join path.
+- the broader 2026-03-14 benchmark sweep also justifies tracking chart parity and reflection/conversion hotspot work as separate packages instead of treating WP17 as the full performance picture
 
 Latest post-profile validation on 2026-03-14:
 
@@ -300,7 +336,82 @@ Strong success criteria:
 
 - warmed benchmark falls below `0.45 ms/op`
 
-### WP18: Rebaseline computed-field benchmark budgets after implementation changes
+### WP18: Fix chart parity regressions on SQL-like chart flows
+
+Status: pending
+
+Priority: high after the active WP17 class-level hotspot work
+
+Goal: bring SQL-like chart flows back within the current fluent-vs-SQL-like parity guardrails without weakening chart thresholds.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java`
+- `src/main/java/laughing/man/commits/benchmark/StatsQueryJmhBenchmark.java`
+- `src/main/java/laughing/man/commits/sqllike`
+- `src/main/java/laughing/man/commits/chart`
+- `target/benchmarks/chart.json`
+- `target/benchmarks/chart-parity-report.csv`
+
+Current evidence from 2026-03-14:
+
+- chart thresholds passed `45/45`
+- chart parity failed in `5/15` comparisons
+- current failing shapes are `SCATTER` at `1000`, then `BAR`, `LINE`, `PIE`, and `SCATTER` at `10000`
+- this is the clearest suite-level regression signal outside WP17
+
+Tasks:
+
+- reproduce the five current chart parity failures with the documented chart suite
+- profile the failing SQL-like chart path against the fluent equivalent to separate parse/planning overhead from chart payload assembly
+- identify whether the dominant gap lives in SQL-like translation, stats plan construction, or chart serialization
+- land fixes in priority order by worst ratio first
+- keep chart threshold pass status intact while closing the parity gaps
+
+Acceptance criteria:
+
+- `ChartParityChecker` passes on the current suite manifest
+- chart threshold checks still pass after any parity fix
+- the root cause of the prior parity failures is documented in `BENCHMARKS.md`
+
+### WP19: Reduce recurring reflection and conversion hotspot clusters
+
+Status: pending
+
+Priority: high
+
+Goal: cut the class-level overhead that recurs across warmed JFRs and the hotspot microbenchmark suite, especially in `ReflectionUtil` and `FastArrayQuerySupport`.
+
+Scope:
+
+- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+- `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`
+- `src/main/java/laughing/man/commits/util/ObjectUtil.java`
+- `src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java`
+- `src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java`
+- `target/benchmarks/hotspots-gc.json`
+- warmed JFR artifacts under `target/*.jfr`
+
+Current evidence from 2026-03-14:
+
+- hottest microbenchmark latency is `reflectionToClassList|size=10000` at `1115.501 us/op`
+- hottest microbenchmark allocation is `computedFieldJoinSelectiveMaterialization|size=10000` at `3,532,314 B/op`
+- recurring warmed JFR hotspot classes are `ReflectionUtil` and `FastArrayQuerySupport`
+
+Tasks:
+
+- reduce `reflectionToClassList` and `reflectionToDomainRows` latency/allocation with the same class-level changes that help the warmed join path
+- reduce recurring projection/conversion cost in `instantiateNoArg`, `applyProjectionWritePlan`, `setResolvedFieldValue`, and numeric casts
+- decide whether compiled accessors or other specialized conversion plans should become the default for the common benchmark shapes
+- rerun the hotspot suite with `-prof gc` and compare against the current `BENCHMARKS.md` snapshot
+
+Acceptance criteria:
+
+- hotspot `-prof gc` runs show material latency and allocation drops in the reflection/conversion workloads
+- warmed JFR hotspot concentration shifts materially away from the current `ReflectionUtil` and `FastArrayQuerySupport` class cluster
+- improvements are reported with both `us/op` or `ms/op` and `B/op`
+
+### WP20: Rebaseline computed-field benchmark budgets after implementation changes
 
 Status: pending
 
@@ -371,9 +482,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP15
-2. WP16
-3. WP17
-4. WP18
+1. WP17
+2. WP18
+3. WP19
+4. WP20
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.
