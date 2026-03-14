@@ -2,17 +2,17 @@
 
 ## Next Work Tasks
 
-- Start WP17 from the last stable fast-path baseline: an earlier warmed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` run measured about `1.091 ms/op` at `size=10000` versus a current manual baseline rerun around `0.150 ms/op`, and `-prof gc` measured about `1.441 ms/op` / `3,107,771 B/op`.
-- A reverted-code rerun in the current session measured about `1.475 ms/op`, so re-establish the benchmark baseline under controlled conditions before trusting new optimization deltas.
-- The controlled repro work is now done. The current post-change warmed rerun is about `1.043 ms/op` at `size=10000` versus a current manual baseline rerun around `0.161 ms/op`, and the current `-prof gc` rerun is about `1.031 ms/op` / `3,107,786 B/op`.
-- The current warmed JFR artifact is `target/pojolens-fastpath-current.jfr`; it already confirms the hot path has moved away from `ComputedFieldSupport.materializeRow`, `JoinEngine.mergeFields`, and `ReflectionUtil.collectQueryRowFieldTypes`.
-- Follow the refreshed WP17 order in `TODO.md`: start with `ReflectionUtil.readFlatRowValues`, `FastArrayQuerySupport.materializeJoinedRow`, `ReflectionUtil.readResolvedFieldValue`, `FastArrayQuerySupport.filterRows`, and `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`, then only chase the lower-yield tail (`buildChildIndex`, projection writes, `copySourceBeans`, `castNumericValue`) if profiling still justifies it.
+- The current warmed baseline after the newest landed WP17 change is about `0.654 ms/op` at `size=10000` versus a current manual baseline rerun around `0.111 ms/op`.
+- The current allocation-focused rerun is about `0.632 ms/op` / `2,307,857 B/op`, down materially from the prior local pre-change rerun around `3,107,785.502 B/op`.
+- The 2026-03-14 change reused one parent read buffer across `tryBuildJoinedState()` and changed `buildChildIndex()` to store single-child matches directly in the hash index, only promoting to `List<Object[]>` on actual fan-out.
+- The current warmed JFR artifact is `target/wp17-after-parent-buffer.jfr`.
+- Follow the refreshed WP17 order in `TODO.md`: start with `ReflectionUtil$ResolvedFieldPath.read`, `FastArrayQuerySupport$ComputedFieldPlan.resolveValue`, then residual `tryBuildJoinedState` / `buildChildIndex`, `materializeJoinedRow`, and projection writes.
 - Prefer a deeper internal redesign over compatibility-preserving tweaks: compiled accessor chains or method handles, narrower predicate plans, and cheaper projection materialization are all on the table.
-- The first speculative WP17 code experiments in this session regressed the warmed benchmark and were reverted, so the next change should be driven by a fresh profile or tighter benchmark control, not by the reverted ideas themselves.
-- The matcher/read-path changes that did land are in `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java` and `src/main/java/laughing/man/commits/util/ReflectionUtil.java`.
-- The newest warmed profile is `target/wp17-after-readpath.jfr`. Its current first-app-frame CPU hotspots are `FastArrayQuerySupport.buildChildIndex` (`753`), `FastArrayQuerySupport.tryBuildJoinedState` (`563`), `FastArrayQuerySupport$ComputedFieldPlan.resolveValue` (`271`), and `ReflectionUtil$ResolvedFieldPath.read` (`209`).
-- The newest warmed profile’s first-app-frame allocation hotspots are `FastArrayQuerySupport.buildChildIndex` (`4162`), `ReflectionUtil.readFlatRowValues` (`3159`), `ReflectionUtil$ResolvedFieldPath.read` (`2916`), `FastArrayQuerySupport.materializeJoinedRow` (`2243`), and `ReflectionUtil.instantiateNoArg` (`983`).
-- The next WP17 change should target child indexing or joined-row materialization before reopening projection writes; the filter-rule overhead already dropped materially after the single-rule matcher landed.
+- The first speculative WP17 code experiments in this session regressed the warmed benchmark and were reverted before the current benchmark-backed pass landed; keep driving changes from fresh profiles and rebuilt benchmark jars.
+- The matcher/read-path/parent-buffer changes that did land are in `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java` and `src/main/java/laughing/man/commits/util/ReflectionUtil.java`.
+- The newest warmed profile is `target/wp17-after-parent-buffer.jfr`. Its current first-repo-frame CPU hotspots are `ReflectionUtil$ResolvedFieldPath.read` (`925`), `FastArrayQuerySupport$ComputedFieldPlan.resolveValue` (`331`), `FastArrayQuerySupport.tryBuildJoinedState` (`246`), `FastArrayQuerySupport.buildChildIndex` (`193`), and `FastArrayQuerySupport.filterRows` (`122`).
+- The newest warmed profile's first-repo-frame allocation hotspots are `FastArrayQuerySupport.buildChildIndex` (`5353`), `ReflectionUtil$ResolvedFieldPath.read` (`3878`), `FastArrayQuerySupport.materializeJoinedRow` (`3491`), `FastArrayQuerySupport.castNumericValue` (`2132`), and `ReflectionUtil.readFlatRowValues` (`697`).
+- The next WP17 change should target residual reflection reads or computed dependency lookup before reopening broad projection or source-copy work.
 - Keep process docs aligned if benchmark commands, release steps, or SQL-like capability boundaries change again.
 
 ## Relevant Files
@@ -31,6 +31,7 @@
 - `src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java`
 - `target/pojolens-fastpath-current.jfr`
 - `target/wp17-after-readpath.jfr`
+- `target/wp17-after-parent-buffer.jfr`
 - `src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java`
 - `src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java`
 - `src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java`
@@ -38,6 +39,6 @@
 ## Unresolved Questions
 
 - Should broader multi-join, collision-heavy, or grouped flows get their own array-based path, or should the legacy `QueryRow` engine remain the long-tail fallback?
-- Is the next best gain in compiled field access for `readFlatRowValues()` / `readResolvedFieldValue()`, or in reducing generic rule evaluation inside `FastArrayQuerySupport.filterRows()`?
+- Is the next best gain in compiled field access for `ReflectionUtil$ResolvedFieldPath.read`, or in reducing computed dependency lookup inside `FastArrayQuerySupport$ComputedFieldPlan.resolveValue()`?
 - Should projection stay on no-arg construction plus setter writes, or move to a cheaper constructor or record-style path for common benchmark projections?
 - Can `FilterQueryBuilder.copySourceBeans()` be bypassed safely on the fast path now that internal compatibility constraints are relaxed?

@@ -313,14 +313,24 @@ public final class ReflectionUtil {
         }
         try {
             Object[] values = new Object[plan.size()];
-            ResolvedFieldPath[] fieldPaths = plan.fieldPaths();
-            for (int i = 0; i < fieldPaths.length; i++) {
-                values[i] = readResolvedFieldValue(bean, fieldPaths[i]);
-            }
+            readFlatRowValues(bean, plan, values, 0);
             return values;
         } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
             LOG.error("Failed to read flattened row values [{}]", bean.getClass().getSimpleName(), e);
             throw new IllegalStateException("Failed to flatten object fields", e);
+        }
+    }
+
+    public static void readFlatRowValues(Object bean,
+                                         FlatRowReadPlan plan,
+                                         Object[] target,
+                                         int offset) throws IllegalAccessException {
+        if (bean == null || plan == null || target == null || offset < 0) {
+            return;
+        }
+        ResolvedFieldPath[] fieldPaths = plan.fieldPaths();
+        for (int i = 0; i < fieldPaths.length && offset + i < target.length; i++) {
+            target[offset + i] = readResolvedFieldValue(bean, fieldPaths[i]);
         }
     }
 

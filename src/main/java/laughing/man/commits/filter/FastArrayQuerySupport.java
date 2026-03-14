@@ -63,18 +63,27 @@ final class FastArrayQuerySupport {
             return null;
         }
 
-        Map<Object, List<Object[]>> childIndex = buildChildIndex(children, plan);
+        Map<Object, Object> childIndex = buildChildIndex(children, plan);
         ArrayList<Object[]> joinedRows = new ArrayList<>(parents.size());
+        Object[] parentValues = new Object[plan.parentReadPlan().size()];
         for (Object parent : parents) {
             if (parent == null) {
                 continue;
             }
-            Object[] parentValues = ReflectionUtil.readFlatRowValues(parent, plan.parentReadPlan());
+            try {
+                ReflectionUtil.readFlatRowValues(parent, plan.parentReadPlan(), parentValues, 0);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException("Failed to read parent join values", e);
+            }
             Object joinKey = parentValues[plan.parentJoinIndex()];
-            List<Object[]> matchingChildren = childIndex.get(joinKey);
-            if (matchingChildren != null && !matchingChildren.isEmpty()) {
-                for (Object[] childValues : matchingChildren) {
-                    joinedRows.add(materializeJoinedRow(parentValues, childValues, plan));
+            Object matchingChildren = childIndex.get(joinKey);
+            if (matchingChildren instanceof Object[] childValues) {
+                joinedRows.add(materializeJoinedRow(parentValues, childValues, plan));
+                continue;
+            }
+            if (matchingChildren instanceof List<?> childValueList && !childValueList.isEmpty()) {
+                for (Object childValue : childValueList) {
+                    joinedRows.add(materializeJoinedRow(parentValues, (Object[]) childValue, plan));
                 }
                 continue;
             }
@@ -395,19 +404,27 @@ final class FastArrayQuerySupport {
         return selected;
     }
 
-    private static Map<Object, List<Object[]>> buildChildIndex(List<?> children, JoinCompilePlan plan) {
-        HashMap<Object, List<Object[]>> index = new HashMap<>(expectedMapSize(children.size()));
+    private static Map<Object, Object> buildChildIndex(List<?> children, JoinCompilePlan plan) {
+        HashMap<Object, Object> index = new HashMap<>(expectedMapSize(children.size()));
         for (Object child : children) {
             if (child == null) {
                 continue;
             }
             Object[] childValues = ReflectionUtil.readFlatRowValues(child, plan.childReadPlan());
             Object joinKey = childValues[plan.childJoinIndex()];
-            List<Object[]> bucket = index.get(joinKey);
-            if (bucket == null) {
-                bucket = new ArrayList<>(1);
-                index.put(joinKey, bucket);
+            Object existing = index.putIfAbsent(joinKey, childValues);
+            if (existing == null) {
+                continue;
             }
+            if (existing instanceof Object[] existingValues) {
+                ArrayList<Object[]> bucket = new ArrayList<>(2);
+                bucket.add(existingValues);
+                bucket.add(childValues);
+                index.put(joinKey, bucket);
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> bucket = (List<Object[]>) existing;
             bucket.add(childValues);
         }
         return index;
@@ -419,13 +436,17 @@ final class FastArrayQuerySupport {
         Object[] values = new Object[plan.schemaFields().size()];
         System.arraycopy(parentValues, 0, values, 0, parentValues.length);
         System.arraycopy(childValues, 0, values, parentValues.length, childValues.length);
+        applyComputedValues(values, plan);
+        return values;
+    }
+
+    private static void applyComputedValues(Object[] values, JoinCompilePlan plan) {
         for (ComputedFieldPlan computedPlan : plan.computedPlans()) {
             values[computedPlan.outputIndex()] = castNumericValue(
                     computedPlan.expression().evaluate(identifier -> computedPlan.resolveValue(identifier, values)),
                     computedPlan.definition().outputType()
             );
         }
-        return values;
     }
 
     private static List<Object[]> filterRows(List<Object[]> rows, FilterExecutionPlan plan) {
