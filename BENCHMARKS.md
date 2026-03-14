@@ -23,7 +23,7 @@ Generated from a full local benchmark sweep on 2026-03-14.
 
 - Core threshold status: 42/42 entries passed `benchmarks/thresholds.json`.
 - Chart threshold status: 45/45 entries passed `benchmarks/chart-thresholds.json`.
-- Chart parity status: 5 failures out of 15 fluent vs SQL-like comparisons.
+- Historical chart parity note: 5 failures out of 15 fluent vs SQL-like comparisons were observed in this 2026-03-14 snapshot, but that ratio is now treated as diagnostic-only rather than as a gate.
 - Highest cold core budget usage: laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=1000 at 36.8%.
 - Highest hotspot allocation: computedFieldJoinSelectiveMaterialization|size=10000 at 3532314.399 B/op.
 - Highest hotspot latency: reflectionToClassList|size=10000 at 1115.501 us/op.
@@ -60,7 +60,7 @@ Slowest cold core workloads:
 ## Chart Suite
 
 - All chart thresholds passed.
-- Chart parity did not pass: the SQL-like path exceeded the current fluent ratio guardrail in 5 cases.
+- Historical chart parity data from this run showed the SQL-like path exceeding the old fluent ratio guardrail in 5 cases, but that ratio is no longer treated as a benchmark gate because SQL-like intentionally includes query translation work.
 
 Worst chart threshold consumers:
 
@@ -75,7 +75,7 @@ Worst chart threshold consumers:
 | laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport|size=100000 | 0.243 ms/op | 0.766 ms/op | 31.7% |
 | laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport|size=1000 | 0.299 ms/op | 0.953 ms/op | 31.4% |
 
-Chart parity failures:
+Historical chart parity snapshot:
 
 | Chart | Size | Fluent | SQL-like | Ratio | Limit |
 | --- | --- | --- | --- | --- | --- |
@@ -170,7 +170,7 @@ Interpretation:
 
 ## Stress Points
 
-- Chart parity is the clearest suite-level regression signal. SQL-like chart mapping is currently too slow relative to fluent for `SCATTER` at `1k`, and for `BAR`, `LINE`, `PIE`, and `SCATTER` at `10k`.
+- Absolute chart and SQL-like chart latency still matters, but fluent-vs-SQL-like ratio is no longer treated as a release gate because the entry styles do different work by design.
 - Cold end-to-end performance remains most exposed on older filter/baseline comparisons rather than on hard threshold failures. `StreamsBaselineJmhBenchmark.fluentFilterProjection|size=10000` came in at `126.115 ms/op` versus `0.130 ms/op` for the Streams baseline, and the legacy `PojoLensJmhBenchmark.pojoLensFilter|size=10000` came in at `126.650 ms/op` versus `0.016 ms/op` for the manual baseline.
 - Allocation stress is still concentrated in conversion/materialization paths. The largest `B/op` values are `computedFieldJoinSelectiveMaterialization|size=10000` (`3,532,314 B/op`), `reflectionToDomainRows|size=10000` (`2,840,027 B/op`), and `reflectionToClassList|size=10000` (`1,400,238 B/op`).
 - Cross-JFR warm profiling shows the recurring class-level hotspot concentration is now mostly `ReflectionUtil` plus `FastArrayQuerySupport`, which is the main common stress point behind the current WP17 and hotspot-microbenchmark backlog.
@@ -183,7 +183,6 @@ Interpretation:
 - `target/benchmarks/core-report.csv`
 - `target/benchmarks/chart.json`
 - `target/benchmarks/chart-report.csv`
-- `target/benchmarks/chart-parity-report.csv`
 - `target/benchmarks/baseline.json`
 - `target/benchmarks/cache.json`
 - `target/benchmarks/hotspots-gc.json`

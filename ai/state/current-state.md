@@ -7,7 +7,7 @@
 - `mvn -q test` passed again on 2026-03-14 after the latest WP17 bound-expression optimization.
 - Focused validation also passed again on 2026-03-14: `SqlExpressionEvaluatorTest`, `FilterImplFastPathTest`, `FilterQueryBuilderSelectiveMaterializationTest`, and `PojoLensJoinJmhBenchmarkParityTest`.
 - The benchmark runner was rebuilt with `mvn -q -DskipTests -Pbenchmark-runner package` before rerunning JMH, so the current measurements come from the updated code.
-- A broader benchmark sweep was captured on 2026-03-14 across the core, chart, baseline, cache, hotspot, and standalone legacy suites; `BENCHMARKS.md` and `ai/state/benchmark-state.md` summarize it, and chart parity currently fails in `5/15` fluent-vs-SQL-like comparisons even though all threshold checks passed.
+- A broader benchmark sweep was captured on 2026-03-14 across the core, chart, baseline, cache, hotspot, and standalone legacy suites; `BENCHMARKS.md` and `ai/state/benchmark-state.md` summarize it, and chart thresholds currently pass with headroom while the old fluent-vs-SQL-like chart parity report is now treated as diagnostic-only.
 - `BENCHMARKS.md`, `ai/state/benchmark-state.md`, and `ai/core/benchmark-context.md` now also capture the recurring warmed JFR hotspot clusters; the common class-level stress is concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
 - The earlier warmed end-to-end benchmark at `size=10000` measured about `1.091 ms/op` versus a current manual baseline rerun around `0.150 ms/op`; `-prof gc` measured about `1.441 ms/op` and `3,107,771 B/op`.
 - A fresh reverted-code rerun on 2026-03-13 measured about `1.475 ms/op` for the same warmed end-to-end path, confirming session-to-session drift and forcing WP17 to re-establish its baseline locally before making more changes.
@@ -19,17 +19,18 @@
 
 ## Active Work Areas
 
-- `TODO.md` now tracks both the active WP17 warmed join-path work and the broader benchmark backlog exposed by the full 2026-03-14 sweep.
+- `TODO.md` now parks WP17 as good enough for now, treats larger redesigns as allowed when they buy real wins, and focuses next on absolute chart/SQL-like overhead plus the broader benchmark backlog exposed by the full 2026-03-14 sweep.
 - WP14 is effectively accepted: the warmed 2026-03-13 JFR no longer shows `SqlExpressionEvaluator$Parser.*` among the dominant repository hotspots.
 - WP15 and WP16 are effectively accepted on the selective single-join path after introducing `FastArrayQuerySupport`, array-row projection support in `ReflectionUtil`, and schema-based execution-plan dispatch in `FilterImpl`.
 - Legacy `QueryRow` execution remains the fallback for broader shapes such as multi-join, collision-heavy, grouped, HAVING, distinct, and time-bucket flows; the fast path is intentionally narrow and benchmark-driven.
-- WP17 is now the active implementation target, with `TODO.md` defining the next attack order around residual reflection reads, join-state build/materialization, computed boxing/casting, and projection writes on the selective single-join array path.
+- WP17 is now considered good enough for the moment; its remaining reflection/join/projection tail stays documented, but it is no longer the default active package.
+- WP18 is now the active package: reduce absolute chart and SQL-like chart cost by product value and `ms/op`, not by fluent-vs-SQL-like ratio, and allow larger redesigns when they have clearer benchmark upside.
 - An initial speculative WP17 implementation pass on 2026-03-13 regressed the warmed benchmark and was reverted; the follow-up controlled repro/profile loop then identified `matchesRuleGroups` and read-side reflection as the real current hotspots.
-- WP17 is now actively moving again after landing the single-rule matcher fast path, the narrowed `ResolvedFieldPath.read` / `FlatRowReadPlan` read optimization, the parent-buffer/single-child-bucket join-build optimization, and bound array-expression evaluation.
+- The last round of WP17 work landed the single-rule matcher fast path, the narrowed `ResolvedFieldPath.read` / `FlatRowReadPlan` read optimization, the parent-buffer/single-child-bucket join-build optimization, and bound array-expression evaluation before the package was parked as good enough.
 - Two immediate follow-up WP17 directions on 2026-03-14 were explicitly ruled out for now: compiled `ReflectionUtil` accessors and early join-time filtering/materialization both regressed the long warmed benchmark and were reverted on the same clean tree.
 - The remaining gap on the selective single-join path is now concentrated in `ReflectionUtil$ResolvedFieldPath.read`, residual `FastArrayQuerySupport.tryBuildJoinedState` / `buildChildIndex` work, `FastArrayQuerySupport.applyComputedValues` / `castNumericValue`, `FastArrayQuerySupport.materializeJoinedRow`, and projection writes in `ReflectionUtil`.
-- Benchmark stress outside WP17 is now most visible in chart parity drift, cold filter-vs-baseline gaps, and hotspot allocation in computed join / reflection conversion microbenchmarks rather than in hard threshold failures.
-- The broader performance backlog after WP17 is now explicit: chart parity work, recurring reflection/conversion hotspot work, and only then budget rebaselining.
+- Benchmark stress outside WP17 is now most visible in absolute chart/SQL-like overhead, cold filter-vs-baseline gaps, and hotspot allocation in computed join / reflection conversion microbenchmarks rather than in hard threshold failures.
+- The broader performance backlog after WP17 is now explicit: absolute chart/SQL-like overhead work, recurring reflection/conversion hotspot work, and only then budget rebaselining.
 - The new hot context is stable; deeper repository detail now lives in cold core files and indexes.
 
 ## Documentation Risks

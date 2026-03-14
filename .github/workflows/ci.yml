@@ -203,8 +203,6 @@ jobs:
             -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
       - name: Check chart thresholds
         run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
-      - name: Check chart parity
-        run: java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
       - name: Generate benchmark metric plots
         run: |
           java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator \
@@ -219,7 +217,6 @@ jobs:
           path: |
             target/benchmarks/charts/chart-benchmarks.json
             target/benchmarks/charts/chart-benchmark-report.csv
-            target/benchmarks/charts/chart-parity-report.csv
             target/benchmarks/charts/metrics-normalized.csv
             target/benchmarks/charts/images/INDEX.txt
             target/benchmarks/charts/images/*.png

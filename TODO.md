@@ -12,9 +12,11 @@ As of 2026-03-14, the main warmed tuning gap is still the computed-field single-
 - `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField` at `size=10000` with the same settings: about `0.108 ms/op`
 - current gap: about `5.7x`
 
+WP17 is considered good enough for now. Active follow-up work should favor broader, higher-leverage redesigns over more narrow micro-tuning unless fresh profiling shows an obvious reopen candidate.
+
 The broader benchmark sweep now also shows portfolio-level issues that should stay visible in the backlog:
 
-- chart parity failed in `5/15` fluent-vs-SQL-like comparisons even though chart thresholds still passed
+- chart thresholds passed with headroom, and the old fluent-vs-SQL-like chart parity report is now diagnostic-only because SQL-like intentionally pays query-translation overhead that fluent does not
 - cold filter/baseline comparisons remain far slower than Streams/manual baselines, so broader end-to-end overhead is still real outside the warmed WP17 target
 - recurring warmed JFR hotspot classes are now concentrated in `ReflectionUtil` and `FastArrayQuerySupport`, which is a stronger prioritization signal than any single method name
 
@@ -90,7 +92,7 @@ Common interpretation:
 
 1. the warmed hotspot picture is now primarily class-level in `ReflectionUtil` and `FastArrayQuerySupport`
 2. old `ComputedFieldSupport`, `JoinEngine`, and `collectQueryRowFieldTypes` work is no longer the main thing holding back this path
-3. broader backlog work should target those recurring classes plus chart parity, not just one isolated micro-optimization at a time
+3. broader backlog work should target those recurring classes plus absolute chart/SQL-like overhead, not just one isolated micro-optimization at a time
 
 ## Target
 
@@ -151,8 +153,8 @@ WP Interpretation:
 - WP14 is accepted: the old `SqlExpressionEvaluator$Parser.*` hot spots remain out of the dominant warmed samples.
 - WP15 is effectively accepted on the selective single-join path: the old `ComputedFieldSupport.materializeRow` / `JoinEngine.mergeFields` hot path dropped out after replacing the `QueryRow` materialization path with the array-based execution path.
 - WP16 is effectively accepted on this path: `ReflectionUtil.collectQueryRowFieldTypes` no longer shows up as a dominant warmed leaf because the fast path bypasses joined-row rescans entirely.
-- WP17 remains the active implementation target because the remaining cost is now concentrated in residual reflection reads, child indexing, joined-row materialization, computed boxing/casting, and projection writes on the selective single-join path.
-- the broader 2026-03-14 benchmark sweep also justifies tracking chart parity and reflection/conversion hotspot work as separate packages instead of treating WP17 as the full performance picture
+- WP17 is now parked as good enough because the remaining cost is concentrated in residual reflection reads, child indexing, joined-row materialization, computed boxing/casting, and projection writes on the selective single-join path, while broader redesign work now has better leverage.
+- the broader 2026-03-14 benchmark sweep also justifies tracking absolute chart/SQL-like overhead and reflection/conversion hotspot work as separate packages instead of treating WP17 as the full performance picture
 
 Latest post-profile validation on 2026-03-14:
 
@@ -255,9 +257,9 @@ Acceptance criteria:
 
 ### WP17: Reduce residual overhead on the selective single-join array path
 
-Status: active
+Status: good enough for now; parked
 
-Priority: highest
+Priority: reopen only when fresh profiling or a broader redesign exposes a clear high-confidence win
 
 Goal: reduce the remaining reflection, filtering, projection, and allocation cost on the warmed array-based join path.
 
@@ -347,13 +349,13 @@ Strong success criteria:
 - allocation falls below `1,000,000 B/op`
 - warmed profiling materially shifts away from the current `ReflectionUtil` / `FastArrayQuerySupport` hotspot concentration
 
-### WP18: Fix chart parity regressions on SQL-like chart flows
+### WP18: Reduce absolute overhead on chart and SQL-like chart flows
 
-Status: pending
+Status: active
 
-Priority: high after the active WP17 class-level hotspot work
+Priority: highest
 
-Goal: bring SQL-like chart flows back within the current fluent-vs-SQL-like parity guardrails without weakening chart thresholds.
+Goal: reduce absolute chart and SQL-like chart latency where it materially improves the product, without using fluent-vs-SQL-like ratio checks as a gate.
 
 Scope:
 
@@ -362,32 +364,31 @@ Scope:
 - `src/main/java/laughing/man/commits/sqllike`
 - `src/main/java/laughing/man/commits/chart`
 - `target/benchmarks/chart.json`
-- `target/benchmarks/chart-parity-report.csv`
 
 Current evidence from 2026-03-14:
 
 - chart thresholds passed `45/45`
-- chart parity failed in `5/15` comparisons
-- current failing shapes are `SCATTER` at `1000`, then `BAR`, `LINE`, `PIE`, and `SCATTER` at `10000`
-- this is the clearest suite-level regression signal outside WP17
+- the prior chart parity report failed in `5/15` comparisons, but that ratio is now diagnostic-only because SQL-like includes parse/translation work that fluent does not
+- absolute chart cost is still worth attacking: `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=10000` measured about `135.007 ms/op`, `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart|size=10000` measured about `133.176 ms/op`, and `ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000` used about `69.0%` of its current budget
+- chart and SQL-like chart flows are still valid optimization targets, but they should now be judged on absolute `ms/op`, allocation, and product value rather than on fluent-vs-SQL-like ratio alone
 
 Tasks:
 
-- reproduce the five current chart parity failures with the documented chart suite
-- profile the failing SQL-like chart path against the fluent equivalent to separate parse/planning overhead from chart payload assembly
-- identify whether the dominant gap lives in SQL-like translation, stats plan construction, or chart serialization
-- land fixes in priority order by worst ratio first
-- keep chart threshold pass status intact while closing the parity gaps
+- profile the most expensive absolute chart and SQL-like chart paths by `ms/op`, not by ratio
+- separate SQL-like translation, stats plan construction, chart payload assembly, and serialization cost on the chart workloads that matter most
+- allow larger chart or SQL-like pipeline redesigns when they clearly reduce product-visible overhead while preserving substantially similar features/behavior
+- land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
+- keep chart threshold pass status intact while improving absolute latency headroom
 
 Boundary with WP19:
 
-- if a parity fix turns out to depend on shared reflection/conversion work already tracked in WP19, land the shared code under WP19 and use WP18 to track reproduction, parity verification, and chart-specific acceptance
+- if a chart or SQL-like chart fix depends on shared reflection/conversion work already tracked in WP19, land the shared code under WP19 and use WP18 to track chart-specific reproduction and acceptance
 
 Acceptance criteria:
 
-- `ChartParityChecker` passes on the current suite manifest
-- chart threshold checks still pass after any parity fix
-- the root cause of the prior parity failures is documented in `BENCHMARKS.md`
+- selected chart or SQL-like chart workloads show material absolute `ms/op` improvements versus the current `BENCHMARKS.md` snapshot
+- chart threshold checks still pass after any WP18 fix
+- the root cause of the prior absolute chart overhead is documented in `BENCHMARKS.md`
 
 ### WP19: Reduce recurring reflection and conversion hotspot clusters
 
@@ -453,7 +454,7 @@ Tasks:
 Boundary:
 
 - WP20 covers computed-field and hotspot rebaselining only
-- chart thresholds and chart parity remain under WP18 unless chart-path implementation changes justify separate chart rebaselining
+- chart thresholds remain under WP18 unless chart-path implementation changes justify separate chart rebaselining
 
 Acceptance criteria:
 
@@ -467,6 +468,7 @@ When making changes:
 - use benchmark and profiler evidence, not intuition
 - prefer the simplest change that clearly improves the benchmarked path, whether it is small and isolated or a broader redesign
 - allow design changes when they materially improve performance, reduce complexity, or remove architectural bottlenecks
+- prefer a larger redesign over a smaller tweak when the larger change has the clearer path to a real benchmark win
 - rerun the target benchmark after each meaningful optimization
 - only reprofile after a measurable change
 - report both speed delta and allocation delta
@@ -507,9 +509,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP17
-2. WP18
-3. WP19
-4. WP20
+1. WP18
+2. WP19
+3. WP20
+4. WP17 only if broader work exposes a clear reopen case
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.

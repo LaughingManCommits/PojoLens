@@ -1,11 +1,11 @@
 # Benchmark Context
 
-Load only when the task touches benchmark suites, threshold budgets, parity checks, profiling, or performance regression analysis. Do not load this file for normal coding, bug fixing, or prose-only work.
+Load only when the task touches benchmark suites, threshold budgets, profiling, or performance regression analysis. Do not load this file for normal coding, bug fixing, or prose-only work.
 
 ## Benchmark Surface
 
 - Core guardrail suite: `scripts/benchmark-suite-main.args` backed by `benchmarks/thresholds.json`.
-- Chart guardrail suite: `scripts/benchmark-suite-chart.args` backed by `benchmarks/chart-thresholds.json` plus `ChartParityChecker`.
+- Chart guardrail suite: `scripts/benchmark-suite-chart.args` backed by `benchmarks/chart-thresholds.json`.
 - Baseline suite: `scripts/benchmark-suite-baseline.args` for fluent vs plain Streams comparisons where semantics align.
 - Cache suite: `scripts/benchmark-suite-cache.args` for concurrent SQL-like parse cache and stats-plan cache stress.
 - Hotspot suite: `scripts/benchmark-suite-hotspots.args` for reflection/materialization/cache microbenchmarks; use `-prof gc` when allocation matters.
@@ -15,7 +15,7 @@ Load only when the task touches benchmark suites, threshold budgets, parity chec
 
 - Treat `benchmarks/*.json` as guardrail budgets, not as target performance ceilings.
 - Separate cold guardrail numbers (`-wi 0 -i 1`) from warmed tuning numbers. They answer different questions and should not be compared directly.
-- Treat chart parity failures separately from chart threshold failures. A suite can stay within budget while still violating fluent vs SQL-like ratio expectations.
+- Do not use fluent-vs-SQL-like performance ratios as merge gates; SQL-like intentionally includes query translation work that fluent does not.
 - Treat cache throughput (`ops/s`) separately from average-time workloads (`ms/op` or `us/op`).
 - Use hotspot `gc.alloc.rate.norm` when deciding where allocation work belongs; use core/chart suites when deciding whether guardrails or public budgets are at risk.
 

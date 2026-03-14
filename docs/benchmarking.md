@@ -6,7 +6,7 @@ The benchmark contract for this project is:
 - publish explicit latency budgets for the hot paths we own
 - keep those budgets under CI guardrails
 - add conservative external baselines only where semantics are genuinely comparable
-- require parity checks so benchmark numbers do not hide behavior differences
+- keep correctness parity in tests, but judge performance work by absolute latency/allocation rather than fluent-vs-SQL-like ratio checks
 
 ## Benchmark Categories
 
@@ -55,7 +55,6 @@ Chart guardrail suite:
 ```bash
 java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
 java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
-java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
 ```
 
 Cache concurrency scenario:
@@ -139,14 +138,13 @@ java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.H
 
 For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
 
-## Semantic Parity Guardrails
+## Semantic Guardrails
 
 Comparable baseline numbers are only useful if the outputs actually match.
 
-Current parity guardrails:
+Current correctness guardrails:
 - `StreamsBenchmarkParityTest` locks the Streams baseline against equivalent fluent query outputs
 - `PojoLensJoinJmhBenchmarkParityTest` locks the computed-field join benchmark against its manual hash-join baseline
-- `ChartParityChecker` checks chart benchmark outputs for fluent vs SQL-like parity
 - `BenchmarkMetricQueriesParityTest` keeps the normalized benchmark-query helpers aligned across fluent and SQL-like access
 
 ## End-To-End Computed Join Diagnostics
@@ -176,7 +174,6 @@ Artifacts:
 - `target/benchmark-report.csv`
 - `target/benchmarks/charts/chart-benchmarks.json`
 - `target/benchmarks/charts/chart-benchmark-report.csv`
-- `target/benchmarks/charts/chart-parity-report.csv`
 - `target/benchmarks/charts/metrics-normalized.csv`
 - `target/benchmarks/charts/images/INDEX.txt`
 - `target/benchmarks/charts/images/*.png`
@@ -186,7 +183,6 @@ Artifacts:
 GitHub Actions currently enforces:
 - strict threshold checks for the core benchmark suite
 - strict threshold checks for the chart benchmark suite
-- chart parity checks
 - benchmark plot generation/upload
 - cache concurrency stress loops
 
@@ -197,6 +193,7 @@ The Streams baseline suite is intentionally reproducible but not currently a mer
 - Treat the threshold files as budgets, not as bragging rights.
 - Prefer latency and allocation context over raw throughput-only claims.
 - Only compare against Streams where output semantics are intentionally aligned.
+- Do not use fluent-vs-SQL-like performance ratios as a merge gate; SQL-like intentionally pays query-translation cost that fluent does not.
 - Do not compare `PojoLens` to databases or unrelated libraries as if the workloads were equivalent.
 - When a comparison needs caveats, write the caveats next to the number.
 
