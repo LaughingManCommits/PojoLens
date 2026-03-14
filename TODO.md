@@ -371,6 +371,7 @@ Current evidence from 2026-03-14:
 - the prior chart parity report failed in `5/15` comparisons, but that ratio is now diagnostic-only because SQL-like includes parse/translation work that fluent does not
 - absolute chart cost is still worth attacking: `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=10000` measured about `135.007 ms/op`, `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart|size=10000` measured about `133.176 ms/op`, and `ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000` used about `69.0%` of its current budget
 - chart and SQL-like chart flows are still valid optimization targets, but they should now be judged on absolute `ms/op`, allocation, and product value rather than on fluent-vs-SQL-like ratio alone
+- the first WP18 structural redesign is now landed: reusable non-subquery SQL-like execution shapes cache validation/binding work and rebind request-scoped builders per execution instead of rebuilding the fluent pipeline every time
 
 Tasks:
 

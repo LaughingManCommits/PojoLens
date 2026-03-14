@@ -782,17 +782,30 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public FilterQueryBuilder snapshotForExecution() {
-        FilterQueryBuilder snapshot = new FilterQueryBuilder(spec.executionCopy(), executionPlanCache);
-        snapshot.copyOnBuild = copyOnBuild;
-        snapshot.telemetryListener = telemetryListener;
-        snapshot.telemetryQueryType = telemetryQueryType;
-        snapshot.telemetrySource = telemetrySource;
-        snapshot.computedFieldRegistry = computedFieldRegistry;
+        FilterQueryBuilder snapshot = copyBuilderState(spec.executionCopy(), copyOnBuild);
         snapshot.sourceBeans = copySourceBeans(sourceBeans);
         snapshot.joinSourceBeans = copyJoinSourceBeans();
         snapshot.fullyMaterializedSourceRows = fullyMaterializedSourceRows;
         snapshot.materializedSourceFields = materializedSourceFields;
-        snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
+        return snapshot;
+    }
+
+    public FilterQueryBuilder snapshotForPreparedExecution() {
+        FilterQueryBuilder snapshot = copyBuilderState(spec.executionCopy(), true);
+        snapshot.sourceBeans = List.of();
+        snapshot.joinSourceBeans = new HashMap<>();
+        snapshot.fullyMaterializedSourceRows = false;
+        snapshot.materializedSourceFields = Set.of();
+        snapshot.spec.setRows(new ArrayList<>());
+        for (Integer joinIndex : new ArrayList<>(snapshot.spec.getJoinClasses().keySet())) {
+            snapshot.spec.getJoinClasses().put(joinIndex, new ArrayList<>());
+        }
+        return snapshot;
+    }
+
+    public FilterQueryBuilder preparedExecutionCopy(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
+        FilterQueryBuilder snapshot = copyBuilderState(spec.executionCopy(), false);
+        snapshot.bindPreparedExecutionSources(pojos, joinSourcesByIndex == null ? Map.of() : joinSourcesByIndex);
         return snapshot;
     }
 
@@ -844,6 +857,17 @@ public class FilterQueryBuilder implements QueryBuilder {
         this.telemetrySource = requireIdentifier(source, "source");
         this.telemetryListener = listener;
         return this;
+    }
+
+    private FilterQueryBuilder copyBuilderState(QuerySpec snapshotSpec, boolean snapshotCopyOnBuild) {
+        FilterQueryBuilder snapshot = new FilterQueryBuilder(snapshotSpec, executionPlanCache);
+        snapshot.copyOnBuild = snapshotCopyOnBuild;
+        snapshot.telemetryListener = telemetryListener;
+        snapshot.telemetryQueryType = telemetryQueryType;
+        snapshot.telemetrySource = telemetrySource;
+        snapshot.computedFieldRegistry = computedFieldRegistry;
+        snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
+        return snapshot;
     }
 
     private void ensureOutputAliasAvailable(String alias) {
@@ -983,6 +1007,47 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private List<QueryRow> materializedRows(List<QueryRow> rows) {
         return ComputedFieldSupport.materializeRows(rows, computedFieldRegistry);
+    }
+
+    private void bindPreparedExecutionSources(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
+        bindPreparedSourceRows(pojos);
+        joinSourceBeans = new HashMap<>();
+        for (Integer joinIndex : new ArrayList<>(spec.getJoinClasses().keySet())) {
+            spec.getJoinClasses().put(joinIndex, new ArrayList<>());
+            bindPreparedJoinSource(joinIndex, joinSourcesByIndex.get(joinIndex));
+        }
+    }
+
+    private void bindPreparedSourceRows(List<?> pojos) {
+        spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
+        refreshFieldTypes();
+        Object first = firstNonNull(pojos);
+        if (first instanceof QueryRow) {
+            sourceBeans = List.of();
+            fullyMaterializedSourceRows = false;
+            materializedSourceFields = Set.of();
+            spec.setRows(materializedRows(queryRows(pojos)));
+            return;
+        }
+        sourceBeans = directSourceBeans(pojos);
+        fullyMaterializedSourceRows = false;
+        materializedSourceFields = Set.of();
+        spec.setRows(new ArrayList<>());
+    }
+
+    private void bindPreparedJoinSource(int joinIndex, List<?> children) {
+        Map<String, Class<?>> childFieldTypes = inferSourceFieldTypes(children);
+        spec.getJoinSourceFieldTypes().put(joinIndex, new LinkedHashMap<>(childFieldTypes));
+        Object first = firstNonNull(children);
+        if (first instanceof QueryRow) {
+            spec.getJoinClasses().put(joinIndex, materializedRows(queryRows(children)));
+            return;
+        }
+        if (children == null || children.isEmpty()) {
+            spec.getJoinClasses().put(joinIndex, new ArrayList<>());
+            return;
+        }
+        joinSourceBeans.put(joinIndex, directSourceBeans(children));
     }
 
     private void initializeSourceRows(List<?> pojos) {
@@ -1174,6 +1239,13 @@ public class FilterQueryBuilder implements QueryBuilder {
             return List.of();
         }
         return new ArrayList<>(pojos);
+    }
+
+    private List<?> directSourceBeans(List<?> pojos) {
+        if (pojos == null || pojos.isEmpty()) {
+            return List.of();
+        }
+        return pojos;
     }
 
     private Map<Integer, List<?>> copyJoinSourceBeans() {

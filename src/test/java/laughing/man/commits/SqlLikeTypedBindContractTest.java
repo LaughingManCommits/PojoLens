@@ -1,6 +1,7 @@
 package laughing.man.commits;
 
 import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -100,6 +101,23 @@ public class SqlLikeTypedBindContractTest {
         assertEquals(summaryRows(direct), summaryRows(typed));
     }
 
+    @Test
+    public void typedBindShouldRemainReusableAcrossRepeatedJoinFilters() {
+        List<Company> companies = sampleCompanies();
+        List<CompanyEmployee> employees = sampleCompanyEmployees();
+        Map<String, List<?>> joinSources = new HashMap<>();
+        joinSources.put("employees", employees);
+
+        SqlLikeBoundQuery<Company> bound = PojoLens
+                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+                .bindTyped(companies, Company.class, joinSources);
+
+        List<Company> first = bound.filter();
+        List<Company> second = bound.filter();
+
+        assertEquals(companyIds(first), companyIds(second));
+    }
+
     private static List<Integer> salaries(List<Employee> rows) {
         return rows.stream().map(r -> r.salary).collect(Collectors.toList());
     }
@@ -112,6 +130,10 @@ public class SqlLikeTypedBindContractTest {
         return rows.stream()
                 .map(r -> r.employeeName + ":" + r.annualSalary)
                 .collect(Collectors.toList());
+    }
+
+    private static List<Integer> companyIds(List<Company> rows) {
+        return rows.stream().map(r -> r.id).collect(Collectors.toList());
     }
 }
 

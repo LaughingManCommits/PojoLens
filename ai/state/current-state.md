@@ -7,6 +7,7 @@
 - `mvn -q test` passed again on 2026-03-14 after the latest WP17 bound-expression optimization.
 - Focused validation also passed again on 2026-03-14: `SqlExpressionEvaluatorTest`, `FilterImplFastPathTest`, `FilterQueryBuilderSelectiveMaterializationTest`, and `PojoLensJoinJmhBenchmarkParityTest`.
 - The benchmark runner was rebuilt with `mvn -q -DskipTests -Pbenchmark-runner package` before rerunning JMH, so the current measurements come from the updated code.
+- `mvn -q test` passed again on 2026-03-14 after the first WP18 runtime redesign.
 - A broader benchmark sweep was captured on 2026-03-14 across the core, chart, baseline, cache, hotspot, and standalone legacy suites; `BENCHMARKS.md` and `ai/state/benchmark-state.md` summarize it, and chart thresholds currently pass with headroom while the old fluent-vs-SQL-like chart parity report is now treated as diagnostic-only.
 - `BENCHMARKS.md`, `ai/state/benchmark-state.md`, and `ai/core/benchmark-context.md` now also capture the recurring warmed JFR hotspot clusters; the common class-level stress is concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
 - The earlier warmed end-to-end benchmark at `size=10000` measured about `1.091 ms/op` versus a current manual baseline rerun around `0.150 ms/op`; `-prof gc` measured about `1.441 ms/op` and `3,107,771 B/op`.
@@ -25,11 +26,14 @@
 - Legacy `QueryRow` execution remains the fallback for broader shapes such as multi-join, collision-heavy, grouped, HAVING, distinct, and time-bucket flows; the fast path is intentionally narrow and benchmark-driven.
 - WP17 is now considered good enough for the moment; its remaining reflection/join/projection tail stays documented, but it is no longer the default active package.
 - WP18 is now the active package: reduce absolute chart and SQL-like chart cost by product value and `ms/op`, not by fluent-vs-SQL-like ratio, and allow larger redesigns when they have clearer benchmark upside.
+- The first WP18 runtime redesign landed on 2026-03-14: non-subquery SQL-like executions now cache a prepared validated/bound shape and rebind a request-scoped `FilterQueryBuilder` per call instead of rebuilding the fluent pipeline every execution.
+- The same WP18 change also disables that prepared-shape reuse for subquery-bearing SQL-like queries, because subquery result sets depend on the current execution rows and join bindings.
 - An initial speculative WP17 implementation pass on 2026-03-13 regressed the warmed benchmark and was reverted; the follow-up controlled repro/profile loop then identified `matchesRuleGroups` and read-side reflection as the real current hotspots.
 - The last round of WP17 work landed the single-rule matcher fast path, the narrowed `ResolvedFieldPath.read` / `FlatRowReadPlan` read optimization, the parent-buffer/single-child-bucket join-build optimization, and bound array-expression evaluation before the package was parked as good enough.
 - Two immediate follow-up WP17 directions on 2026-03-14 were explicitly ruled out for now: compiled `ReflectionUtil` accessors and early join-time filtering/materialization both regressed the long warmed benchmark and were reverted on the same clean tree.
 - The remaining gap on the selective single-join path is now concentrated in `ReflectionUtil$ResolvedFieldPath.read`, residual `FastArrayQuerySupport.tryBuildJoinedState` / `buildChildIndex` work, `FastArrayQuerySupport.applyComputedValues` / `castNumericValue`, `FastArrayQuerySupport.materializeJoinedRow`, and projection writes in `ReflectionUtil`.
 - Benchmark stress outside WP17 is now most visible in absolute chart/SQL-like overhead, cold filter-vs-baseline gaps, and hotspot allocation in computed join / reflection conversion microbenchmarks rather than in hard threshold failures.
+- A quick targeted WP18 JMH check on 2026-03-14 at `size=10000` now measured `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart` at about `7.088 ms/op` versus `7.200 ms/op` for `fluentTimeBucketMetricsToChart` under the short verification run.
 - The broader performance backlog after WP17 is now explicit: absolute chart/SQL-like overhead work, recurring reflection/conversion hotspot work, and only then budget rebaselining.
 - The new hot context is stable; deeper repository detail now lives in cold core files and indexes.
 

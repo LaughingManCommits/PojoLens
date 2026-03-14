@@ -5,6 +5,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chart.ChartDataset;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
 
@@ -91,6 +92,27 @@ public class SqlLikeChartIntegrationTest {
         assertEquals(2, chart.getLabels().size());
         assertEquals("1", chart.getLabels().get(0));
         assertEquals("2", chart.getLabels().get(1));
+    }
+
+    @Test
+    public void repeatedChartExecutionsShouldRebindToCurrentSourceRows() {
+        Date now = utcDate(2025, Calendar.MARCH, 1);
+        List<Employee> firstRows = sampleEmployees();
+        List<Employee> secondRows = List.of(
+                new Employee(10, "Eve", "Engineering", 50_000, now, true),
+                new Employee(11, "Frank", "Finance", 200_000, now, true)
+        );
+        ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "payroll").withSortedLabels(true);
+
+        SqlLikeQuery query = PojoLens.parse("select department, sum(salary) as payroll group by department");
+
+        ChartData first = query.chart(firstRows, DepartmentPayrollRow.class, spec);
+        ChartData second = query.chart(secondRows, DepartmentPayrollRow.class, spec);
+
+        assertEquals(List.of("Engineering", "Finance"), first.getLabels());
+        assertEquals(List.of(360000d, 90000d), first.getDatasets().get(0).getValues());
+        assertEquals(List.of("Engineering", "Finance"), second.getLabels());
+        assertEquals(List.of(50000d, 200000d), second.getDatasets().get(0).getValues());
     }
 
     private static List<String> datasetSummary(List<ChartDataset> datasets) {

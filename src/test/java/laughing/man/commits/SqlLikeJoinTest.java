@@ -3,6 +3,7 @@ package laughing.man.commits;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import org.junit.jupiter.api.Test;
@@ -99,6 +100,29 @@ public class SqlLikeJoinTest {
                 .filter(parents, joinSources, ParentBean.class);
 
         assertEquals(List.of(1), ids(rows));
+    }
+
+    @Test
+    public void repeatedJoinExecutionsShouldRebindCurrentJoinSources() {
+        List<ParentBean> parents = Arrays.asList(
+                new ParentBean(1, "p1"),
+                new ParentBean(2, "p2")
+        );
+        SqlLikeQuery query = PojoLens.parse("select * from parents left join children on id = parentId where tag = 'match'");
+
+        List<ParentBean> first = query.filter(
+                parents,
+                Map.of("children", List.of(new ChildBean(1, "match"))),
+                ParentBean.class
+        );
+        List<ParentBean> second = query.filter(
+                parents,
+                Map.of("children", List.of(new ChildBean(2, "match"))),
+                ParentBean.class
+        );
+
+        assertEquals(List.of(1), ids(first));
+        assertEquals(List.of(2), ids(second));
     }
 
     @Test
