@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FilterQueryBuilderSelectiveMaterializationTest {
 
@@ -237,6 +238,28 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals("parent-tag", rows.get(0).tag);
         assertEquals("north", rows.get(0).label);
         assertEquals("x1", rows.get(0).code);
+    }
+
+    @Test
+    void executionSnapshotsShouldStayIsolatedFromTheirSourceBuilders() {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleFoos())
+                .addField("stringField");
+
+        FilterQueryBuilder snapshot = builder.snapshotForExecution();
+        snapshot.addField("integerField")
+                .addOrder("integerField", 1);
+
+        assertEquals(List.of("stringField"), builder.getReturnFields());
+        assertTrue(builder.getOrderFields().isEmpty());
+        assertEquals(List.of("stringField", "integerField"), snapshot.getReturnFields());
+
+        FilterQueryBuilder preparedTemplate = builder.snapshotForPreparedExecution();
+        FilterQueryBuilder preparedExecution = preparedTemplate.preparedExecutionCopy(sampleFoos(), Map.of());
+        preparedExecution.addGroup("stringField");
+
+        assertTrue(preparedTemplate.getRows().isEmpty());
+        assertTrue(preparedTemplate.getGroupFields().isEmpty());
+        assertEquals(Map.of(1, "stringField"), preparedExecution.getGroupFields());
     }
 
     private static List<Foo> sampleFoos() {

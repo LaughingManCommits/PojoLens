@@ -43,7 +43,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private static final Logger LOG = LoggerFactory.getLogger(FilterQueryBuilder.class);
 
-    private final QuerySpec spec = new QuerySpec();
+    private final QuerySpec spec;
     private final FilterExecutionPlanCacheStore executionPlanCache;
     private boolean copyOnBuild = true;
     private QueryTelemetryListener telemetryListener;
@@ -62,6 +62,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public FilterQueryBuilder(List<?> pojos, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
+        this.spec = new QuerySpec();
         spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
         refreshFieldTypes();
         initializeSourceRows(pojos);
@@ -69,7 +70,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private FilterQueryBuilder(QuerySpec snapshot, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
-        this.spec.replaceWith(snapshot, false);
+        this.spec = snapshot == null ? new QuerySpec() : snapshot;
     }
 
     @Override

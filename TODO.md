@@ -384,6 +384,8 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - focused cache regressions were added for repeated SQL-like aliased stats filter/chart execution, and `mvn -q test` passed after the consolidation pass
 - a broader same-session attempt to delegate SQL-like raw-row execution fully through `FilterImpl` was benchmarked and not kept after short `size=10000` reruns regressed to about `5.404 ms/op` for `sqlLikeParseAndTimeBucketMetrics` and `5.034 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart`
 - the kept narrower pass is functionally useful but benchmark-neutral so far: the same short reruns now measure about `4.889 ms/op` and `4.731 ms/op` versus the earlier same-session baselines around `4.881 ms/op` and `4.594 ms/op`
+- a follow-up 2026-03-15 consolidation pass now removes a duplicate `QuerySpec` copy in `FilterQueryBuilder` snapshot construction by letting snapshot builders adopt the already-copied spec; snapshot-isolation regression coverage was added and `mvn -q test` passed again
+- the same-session short 2026-03-15 reruns after that copy-removal pass were dominated by broad drift rather than a clean patch signal: `sqlLikeParseAndTimeBucketMetrics` measured about `6.418 ms/op`, `sqlLikeParseAndTimeBucketMetricsToChart` about `6.632 ms/op`, and fluent controls also drifted up to about `7.146 ms/op` and `7.029 ms/op`
 
 Tasks:
 
@@ -392,6 +394,7 @@ Tasks:
 - allow larger chart or SQL-like pipeline redesigns when they clearly reduce product-visible overhead while preserving substantially similar features/behavior
 - land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
 - keep chart threshold pass status intact while improving absolute latency headroom
+- if work stays on prepared-builder setup cost, capture a direct profile or narrower benchmark around rebinding/copying first; the latest short end-to-end reruns were too drift-heavy to isolate this pass
 
 Boundary with WP19:
 

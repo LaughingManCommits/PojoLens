@@ -1,71 +1,114 @@
-# AI Memory Maintenance Guide
+# AI Memory Guide
 
-This directory stores persistent repository memory in two tiers.
+This directory stores persistent repository memory used by AI agents.
 
-## Hot Context
+The root `AGENTS.md` defines agent workflow.
+This file defines how the memory system is organized and maintained.
 
-Always loaded:
+---
 
-1. `ai/core/agent-invariants.md`
-2. `ai/core/repo-purpose.md`
-3. `ai/state/current-state.md`
-4. `ai/state/handoff.md`
+# Memory Layout
 
-Rules:
+core/    → durable repository truths  
+state/   → current work snapshot  
+indexes/ → derived navigation data  
+log/     → append-only discovery history
 
-- keep these files short
-- store only the minimum context needed to start work
-- move durable detail into cold files
+Conceptually:
 
-## Cold Context
+log → state → core → regenerated indexes
 
-Load only when the task needs it:
+---
 
-- `ai/core/module-index.md`
-- `ai/core/readme-alignment.md`
-- `ai/core/runbook.md`
-- `ai/core/benchmark-context.md`
-- `ai/core/documentation-index.md`
-- `ai/core/system-boundaries.md`
-- `ai/core/architecture-map.md`
-- `ai/core/test-strategy.md`
-- `ai/state/benchmark-state.md`
-- `ai/core/discovery-notes.md`
-- `ai/indexes/*`
-- `ai/log/events.jsonl`
+# Hot Context
+
+Always loaded at session start:
+
+- ai/core/agent-invariants.md
+- ai/core/repo-purpose.md
+- ai/state/current-state.md
+- ai/state/handoff.md
 
 Rules:
 
-- keep durable truths in `ai/core/*`
-- keep `ai/state/*` session-specific and concise
-- regenerate indexes instead of letting stale entries accumulate
-- log only significant events
-- load benchmark context only when the task is about benchmark runs, thresholds, parity, profiling, or performance regressions
+- keep hot context small
+- store only startup-critical information
+- move durable knowledge into `core/`
 
-## Integrity Rules
+---
 
-- Prefer code, build config, and tests over `/ai` when facts conflict.
-- Preserve uncertainty instead of inventing facts.
-- Remove redundant memory, not useful knowledge.
-- Do not auto-load cold files by default.
+# Cold Context
 
-## Freshness Rules
+Load only when deeper repository knowledge is required.
 
-`ai/memory-state.json` tracks the last full rebuild.
+Examples:
 
-When durable repo facts or structure change:
+- ai/core/module-index.md
+- ai/core/architecture-map.md
+- ai/core/system-boundaries.md
+- ai/core/test-strategy.md
+- ai/core/readme-alignment.md
+- ai/core/benchmark-context.md
+- ai/core/discovery-notes.md
+- ai/state/benchmark-state.md
+- ai/indexes/*
+- ai/log/events.jsonl
 
-1. update affected hot or cold files
+Do not auto-load cold files.
+
+---
+
+# Integrity
+
+When facts conflict prefer:
+
+1. code
+2. tests
+3. build config
+4. `/ai`
+
+Do not invent facts.
+Preserve uncertainty.
+
+---
+
+# Freshness
+
+When durable repository facts change:
+
+1. update affected memory files
 2. regenerate affected indexes
 3. refresh `ai/state/current-state.md`
-4. update `ai/state/handoff.md`
-5. append a significant event to `ai/log/events.jsonl`
+4. refresh `ai/state/handoff.md`
+5. log a significant event if useful
 
-## Compaction Rules
+---
 
-- Core files: durable facts only
-- State files: current work only
-- Index files: current structure only
-- Log: significant events only
+# Compaction
 
-The goal is fast startup from hot context and selective deep reads from cold context.
+Keep memory lightweight.
+
+log/
+- significant events only
+- merge repeated discoveries
+- summarize old exploration
+
+state/
+- active work only
+- remove completed tasks
+- promote durable knowledge to `core`
+
+core/
+- durable truths only
+- remove duplicates and stale facts
+
+indexes/
+- derived data
+- regenerate instead of editing
+
+---
+
+# Promotion Rule
+
+If knowledge remains relevant across multiple sessions,
+promote it from `state/` to `core/`.
