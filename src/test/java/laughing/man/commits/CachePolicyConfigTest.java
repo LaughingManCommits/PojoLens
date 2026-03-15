@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.AfterEach;
@@ -87,6 +89,31 @@ public class CachePolicyConfigTest {
         assertEquals(0L, PojoLens.getStatsPlanCacheEvictions());
     }
 
+    @Test
+    public void sqlLikeAliasedStatsQueryShouldReuseStatsPlanCache() {
+        List<Employee> employees = sampleEmployees();
+        SqlLikeQuery query = PojoLens.parse("select department as dept, count(*) as total group by department");
+
+        query.filter(employees, DepartmentCountAlias.class);
+        query.filter(employees, DepartmentCountAlias.class);
+
+        assertEquals(1L, PojoLens.getStatsPlanCacheMisses());
+        assertEquals(1L, PojoLens.getStatsPlanCacheHits());
+    }
+
+    @Test
+    public void sqlLikeStatsChartShouldReuseStatsPlanCache() {
+        List<Employee> employees = sampleEmployees();
+        SqlLikeQuery query = PojoLens.parse("select department, count(*) as total group by department");
+        ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "total");
+
+        query.chart(employees, DepartmentCount.class, spec);
+        query.chart(employees, DepartmentCount.class, spec);
+
+        assertEquals(1L, PojoLens.getStatsPlanCacheMisses());
+        assertEquals(1L, PojoLens.getStatsPlanCacheHits());
+    }
+
     private static void runStatsPlanQuery(List<Employee> employees) {
         PojoLens.newQueryBuilder(employees)
                 .addGroup("department")
@@ -120,6 +147,14 @@ public class CachePolicyConfigTest {
         public long total;
 
         public DepartmentCount() {
+        }
+    }
+
+    public static class DepartmentCountAlias {
+        public String dept;
+        public long total;
+
+        public DepartmentCountAlias() {
         }
     }
 }

@@ -10,6 +10,7 @@ import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
+import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -654,7 +655,7 @@ public final class SqlLikeQuery {
         }
 
         core.clean(working.getRows().get(0));
-        FilterExecutionPlan plan = core.buildExecutionPlan();
+        FilterExecutionPlan plan = context.resolveRawExecutionPlan(core, working);
         List<QueryRow> distinctRows = core.filterDistinctFields(plan);
         long filterStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
         List<QueryRow> whereRows = core.filterFields(distinctRows, plan);
@@ -832,13 +833,25 @@ public final class SqlLikeQuery {
                 sourceClass,
                 computedFieldRegistry
         );
+        FilterExecutionPlanCacheKey rawExecutionPlanCacheKey =
+                shouldCacheRawExecutionPlan(normalizedAst, boundBuilder)
+                        ? FilterExecutionPlanCacheKey.from(boundBuilder)
+                        : null;
         return new PreparedExecution(
                 boundBuilder.snapshotForPreparedExecution(),
                 extractJoinSourceNames(normalizedAst),
                 SqlLikeBinder.resolveSort(normalizedAst),
                 normalizedAst.hasJoins(),
-                normalizedAst.select()
+                normalizedAst.select(),
+                rawExecutionPlanCacheKey
         );
+    }
+
+    private static boolean shouldCacheRawExecutionPlan(QueryAst ast, FilterQueryBuilder builder) {
+        return !ast.hasJoins()
+                && (!builder.getMetrics().isEmpty()
+                || !builder.getGroupFields().isEmpty()
+                || !builder.getTimeBuckets().isEmpty());
     }
 
     private static List<String> extractJoinSourceNames(QueryAst ast) {
@@ -934,6 +947,14 @@ public final class SqlLikeQuery {
         private SelectAst select() {
             return prepared.select();
         }
+
+        private FilterExecutionPlan resolveRawExecutionPlan(FilterCore core, FilterQueryBuilder builder) {
+            FilterExecutionPlanCacheKey cachedKey = prepared.rawExecutionPlanCacheKey();
+            if (cachedKey == null) {
+                return core.buildExecutionPlan();
+            }
+            return builder.getExecutionPlanCache().getOrBuild(cachedKey, core::buildExecutionPlan);
+        }
     }
 
     private static final class PreparedExecution {
@@ -942,17 +963,20 @@ public final class SqlLikeQuery {
         private final Sort sort;
         private final boolean applyJoin;
         private final SelectAst select;
+        private final FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
 
         private PreparedExecution(FilterQueryBuilder templateBuilder,
                                   List<String> joinSourceNames,
                                   Sort sort,
                                   boolean applyJoin,
-                                  SelectAst select) {
+                                  SelectAst select,
+                                  FilterExecutionPlanCacheKey rawExecutionPlanCacheKey) {
             this.templateBuilder = templateBuilder;
             this.joinSourceNames = joinSourceNames;
             this.sort = sort;
             this.applyJoin = applyJoin;
             this.select = select;
+            this.rawExecutionPlanCacheKey = rawExecutionPlanCacheKey;
         }
 
         private FilterQueryBuilder newExecutionBuilder(List<?> pojos,
@@ -995,6 +1019,10 @@ public final class SqlLikeQuery {
 
         private SelectAst select() {
             return select;
+        }
+
+        private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {
+            return rawExecutionPlanCacheKey;
         }
     }
 

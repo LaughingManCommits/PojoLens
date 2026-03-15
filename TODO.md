@@ -380,6 +380,10 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - the comparable cold chart-suite rerun on 2026-03-15 now measures `scatterPayloadJsonExport` at about `0.066 ms/op`, `0.634 ms/op`, and `1.146 ms/op` for sizes `1000`, `10000`, and `100000`, down materially from the 2026-03-14 snapshot around `3.910`, `43.157`, and `82.048 ms/op`
 - targeted warm reruns on 2026-03-15 at `size=10000`, `-f 1 -wi 2 -i 3 -r 200ms` now measure `scatterPayloadJsonExport` at about `0.560 ms/op`; the matching `-prof gc` rerun measures about `0.367 ms/op` and `580,857 B/op`
 - with benchmark JSON export now cheap again, the remaining WP18 product-value question is more likely SQL-like setup/query execution or other chart assembly work than `ChartPayloadJsonExporter`
+- a narrower 2026-03-15 consolidation pass now precomputes reusable raw execution-plan cache keys for prepared non-join SQL-like stats shapes, so repeated aliased stats filters and chart executions reuse the existing stats plan cache without rebuilding that key from the rebound builder every call
+- focused cache regressions were added for repeated SQL-like aliased stats filter/chart execution, and `mvn -q test` passed after the consolidation pass
+- a broader same-session attempt to delegate SQL-like raw-row execution fully through `FilterImpl` was benchmarked and not kept after short `size=10000` reruns regressed to about `5.404 ms/op` for `sqlLikeParseAndTimeBucketMetrics` and `5.034 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart`
+- the kept narrower pass is functionally useful but benchmark-neutral so far: the same short reruns now measure about `4.889 ms/op` and `4.731 ms/op` versus the earlier same-session baselines around `4.881 ms/op` and `4.594 ms/op`
 
 Tasks:
 
