@@ -397,6 +397,9 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - a seventh 2026-03-15 setup/refactor pass now caches `ReflectionUtil.compileFlatRowReadPlan(...)` by root type plus selected schema and introduces a per-call `SqlLikeQuery` execution run so filter/chart/raw-row paths reuse one rebound builder and one fast-stats resolution per invocation instead of rebuilding that state ad hoc
 - focused regression coverage was added in `ReflectionUtilTest` for flat read-plan cache reuse and in `SqlLikeTypedBindContractTest` for repeated bound stats charts; focused tests plus full `mvn -q test` passed after the refactor
 - the latest short targeted rerun after that setup/refactor pass stayed noisy overall, but SQL-like chart moved below SQL-like query in the same run: fluent query/chart measured about `6.919` and `7.182 ms/op`, while SQL-like query/chart measured about `7.033` and `6.381 ms/op`; treat that as weak evidence for setup-side improvement, not a clean attribution result
+- an eighth 2026-03-15 alias-projection/chart pass now keeps plain aliased fast-stats filters on direct array-row projection, adds aliased output-schema remapping for fast-stats charts, and carries the caller projection class through SQL-like chart execution so plain aliases and computed select outputs still chart correctly when grouped queries fall back through `QueryRow` results
+- focused regressions now cover repeated aliased fast-stats filter rebinding, aliased stats charts with and without `ORDER BY`, and aliased stats chart cache reuse; focused suites plus full `mvn -q test` passed again after that pass
+- the latest short targeted rerun after the alias/chart pass measured fluent query/chart about `6.452` and `6.737 ms/op`, while SQL-like query/chart measured about `6.735` and `4.764 ms/op`; treat that as evidence the chart path stayed low while the remaining SQL-like query/setup cost is still unresolved, not as a clean overall speed win
 
 Tasks:
 
@@ -406,7 +409,7 @@ Tasks:
 - land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
 - keep chart threshold pass status intact while improving absolute latency headroom
 - if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
-- now that simple stats shapes also bypass chart-row materialization, profile the remaining SQL-like chart gap specifically and decide whether the next gain is in SQL-like setup/binding or in residual chart assembly beyond `ChartMapper`
+- now that aliased stats charts preserve projection names on both the fast path and the grouped fallback path and the latest short rerun again keeps SQL-like chart below query, profile the remaining SQL-like query/setup cost specifically and only revisit chart assembly if a direct profile points there
 - add a dedicated microbenchmark or profile around prepared SQL-like fast-stats setup now that builder rebinding and flat-read-plan compilation are both cached away; short whole-query JMH is still conflating setup and row-scan variance
 
 Boundary with WP19:

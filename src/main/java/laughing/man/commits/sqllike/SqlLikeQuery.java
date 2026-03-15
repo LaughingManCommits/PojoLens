@@ -35,6 +35,7 @@ import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
+import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -382,12 +383,28 @@ public final class SqlLikeQuery {
 
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
         ExecutionRun run = context.newRun();
+        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
         SelectAst select = context.select();
         if (select != null
                 && !select.wildcard()
                 && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
+            if (statsState != null && !select.hasComputedFields()) {
+                return SqlLikeExecutionSupport.projectAliasedRows(
+                        statsState.rows(),
+                        statsState.schemaFields(),
+                        projectionClass,
+                        select
+                );
+            }
             List<QueryRow> sourceRows = executeRawRows(run);
             return SqlLikeExecutionSupport.projectAliasedRows(sourceRows, projectionClass, select);
+        }
+        if (statsState != null) {
+            return ReflectionUtil.toClassList(
+                    projectionClass,
+                    statsState.rows(),
+                    statsState.schemaFields()
+            );
         }
         return SqlLikeExecutionSupport.executeWithOptionalJoin(
                 run.builder(),
@@ -440,7 +457,7 @@ public final class SqlLikeQuery {
                                Class<T> projectionClass,
                                ChartSpec spec) {
         ExecutionContext context = prepareExecution(pojos, joinSources, projectionClass);
-        return executeChart(context, spec);
+        return executeChart(context, projectionClass, spec);
     }
 
     /**
@@ -640,16 +657,41 @@ public final class SqlLikeQuery {
         return Collections.unmodifiableMap(stage);
     }
 
-    private ChartData executeChart(ExecutionContext context, ChartSpec spec) {
+    private <T> ChartData executeChart(ExecutionContext context, Class<T> projectionClass, ChartSpec spec) {
         ExecutionRun run = context.newRun();
         FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
+        SelectAst select = context.select();
         if (statsState != null) {
+            if (select != null && !select.wildcard() && select.hasComputedFields()) {
+                List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(
+                        executeRawRows(run),
+                        projectionClass,
+                        select
+                );
+                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+                ChartData chart = ChartMapper.toChartData(projectedRows, spec);
+                emitChartTelemetry(chartStarted, projectedRows.size(), chart);
+                return chart;
+            }
             long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-            ChartData chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
+            List<String> chartSchema =
+                    select != null && !select.wildcard() && hasPlainFieldAliases(select)
+                            ? SqlLikeExecutionSupport.aliasedOutputSchema(statsState.schemaFields(), select)
+                            : statsState.schemaFields();
+            ChartData chart = ChartMapper.toChartData(statsState.rows(), chartSchema, spec);
             emitChartTelemetry(chartStarted, statsState.rows().size(), chart);
             return chart;
         }
         List<QueryRow> rows = executeRawRows(run);
+        if (select != null
+                && !select.wildcard()
+                && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
+            List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(rows, projectionClass, select);
+            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+            ChartData chart = ChartMapper.toChartData(projectedRows, spec);
+            emitChartTelemetry(chartStarted, projectedRows.size(), chart);
+            return chart;
+        }
         long chartStarted = QueryTelemetrySupport.start(telemetryListener);
         ChartData chart = ChartResultMapper.toChartData(rows, spec);
         emitChartTelemetry(chartStarted, rows.size(), chart);
@@ -1135,7 +1177,7 @@ public final class SqlLikeQuery {
 
         @Override
         public ChartData chart(ChartSpec spec) {
-            return executeChart(context, spec);
+            return executeChart(context, projectionClass, spec);
         }
     }
 

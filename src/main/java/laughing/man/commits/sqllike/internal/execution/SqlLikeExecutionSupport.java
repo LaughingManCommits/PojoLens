@@ -12,6 +12,7 @@ import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -60,6 +61,18 @@ public final class SqlLikeExecutionSupport {
         }
     }
 
+    public static <T> List<T> projectAliasedRows(List<Object[]> sourceRows,
+                                                 List<String> sourceFieldSchema,
+                                                 Class<T> targetClass,
+                                                 SelectAst select) {
+        AliasedProjectionPlan plan = aliasedProjectionPlan(sourceFieldSchema, select);
+        return ReflectionUtil.toClassList(targetClass, sourceRows, plan.outputSchema(), plan.sourceIndexes());
+    }
+
+    public static List<String> aliasedOutputSchema(List<String> sourceFieldSchema, SelectAst select) {
+        return aliasedProjectionPlan(sourceFieldSchema, select).outputSchema();
+    }
+
     public static <T> List<T> executeWithOptionalJoin(QueryBuilder builder,
                                                       Sort sort,
                                                       boolean applyJoin,
@@ -104,6 +117,46 @@ public final class SqlLikeExecutionSupport {
         return field.field();
     }
 
+    private static AliasedProjectionPlan aliasedProjectionPlan(List<String> sourceFieldSchema, SelectAst select) {
+        if (select == null || select.fields().isEmpty()) {
+            return new AliasedProjectionPlan(List.of(), new int[0]);
+        }
+        ArrayList<String> outputSchema = new ArrayList<>(select.fields().size());
+        int[] sourceIndexes = new int[select.fields().size()];
+        int mapped = 0;
+        for (SelectFieldAst field : select.fields()) {
+            if (field.computedField()) {
+                throw SqlLikeErrors.state(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED,
+                        "Computed select fields require row-based alias projection",
+                        null);
+            }
+            int sourceIndex = findSourceFieldIndex(sourceFieldSchema, projectionSourceField(field));
+            if (sourceIndex < 0) {
+                throw SqlLikeErrors.state(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED,
+                        "Failed to resolve aliased SQL-like projection field '" + projectionSourceField(field) + "'",
+                        null);
+            }
+            outputSchema.add(field.outputName());
+            sourceIndexes[mapped++] = sourceIndex;
+        }
+        return new AliasedProjectionPlan(
+                List.copyOf(outputSchema),
+                mapped == sourceIndexes.length ? sourceIndexes : Arrays.copyOf(sourceIndexes, mapped)
+        );
+    }
+
+    private static int findSourceFieldIndex(List<String> sourceFieldSchema, String fieldName) {
+        if (sourceFieldSchema == null || fieldName == null) {
+            return -1;
+        }
+        for (int i = 0; i < sourceFieldSchema.size(); i++) {
+            if (fieldName.equals(sourceFieldSchema.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static Object queryRowFieldValue(QueryRow row, String fieldName) {
         if (row.getFields() == null) {
             return null;
@@ -114,6 +167,9 @@ public final class SqlLikeExecutionSupport {
             }
         }
         return null;
+    }
+
+    private record AliasedProjectionPlan(List<String> outputSchema, int[] sourceIndexes) {
     }
 }
 

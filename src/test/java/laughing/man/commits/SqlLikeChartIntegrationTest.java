@@ -58,6 +58,36 @@ public class SqlLikeChartIntegrationTest {
     }
 
     @Test
+    public void sqlLikeChartShouldSupportAliasedGroupOutputs() {
+        List<Employee> employees = sampleEmployees();
+
+        ChartData chart = PojoLens
+                .parse("select department as dept, count(*) as total group by department")
+                .chart(employees, DepartmentHeadcountAliasRow.class,
+                        ChartSpec.of(ChartType.BAR, "dept", "total").withSortedLabels(true));
+
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+        assertEquals(1, chart.getDatasets().size());
+        assertEquals("total", chart.getDatasets().get(0).getLabel());
+        assertEquals(List.of(3d, 1d), chart.getDatasets().get(0).getValues());
+    }
+
+    @Test
+    public void sqlLikeChartShouldSupportAliasedGroupOutputsWithOrderBy() {
+        List<Employee> employees = sampleEmployees();
+
+        ChartData chart = PojoLens
+                .parse("select department as dept, count(*) as total group by department order by total desc")
+                .chart(employees, DepartmentHeadcountAliasRow.class,
+                        ChartSpec.of(ChartType.BAR, "dept", "total"));
+
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+        assertEquals(1, chart.getDatasets().size());
+        assertEquals("total", chart.getDatasets().get(0).getLabel());
+        assertEquals(List.of(3d, 1d), chart.getDatasets().get(0).getValues());
+    }
+
+    @Test
     public void sqlLikeMultiSeriesChartShouldMapBucketedAggregates() {
         List<EmployeePoint> rows = new ArrayList<>();
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 3), 100));
@@ -148,6 +178,14 @@ public class SqlLikeChartIntegrationTest {
         public long headcount;
 
         public DepartmentHeadcountRow() {
+        }
+    }
+
+    public static class DepartmentHeadcountAliasRow {
+        public String dept;
+        public long total;
+
+        public DepartmentHeadcountAliasRow() {
         }
     }
 

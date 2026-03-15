@@ -114,6 +114,19 @@ public class CachePolicyConfigTest {
         assertEquals(1L, PojoLens.getStatsPlanCacheHits());
     }
 
+    @Test
+    public void sqlLikeAliasedStatsChartShouldReuseStatsPlanCache() {
+        List<Employee> employees = sampleEmployees();
+        SqlLikeQuery query = PojoLens.parse("select department as dept, count(*) as total group by department");
+        ChartSpec spec = ChartSpec.of(ChartType.BAR, "dept", "total");
+
+        query.chart(employees, DepartmentCountAlias.class, spec);
+        query.chart(employees, DepartmentCountAlias.class, spec);
+
+        assertEquals(1L, PojoLens.getStatsPlanCacheMisses());
+        assertEquals(1L, PojoLens.getStatsPlanCacheHits());
+    }
+
     private static void runStatsPlanQuery(List<Employee> employees) {
         PojoLens.newQueryBuilder(employees)
                 .addGroup("department")

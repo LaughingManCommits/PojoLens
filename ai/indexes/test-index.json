@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-15T16:54:49.4120583+01:00",
+    "generatedAt":  "2026-03-15T18:43:52.6130267+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
@@ -12,8 +12,8 @@
                                "command":  "mvn -q test",
                                "date":  "2026-03-15",
                                "status":  "passed",
-                               "testsRun":  426,
-                               "note":  "Reran after the WP18 flat-read-plan cache and SQL-like execution-run refactor."
+                               "testsRun":  431,
+                               "note":  "Reran after the WP18 aliased stats/chart projection cleanup."
                            },
     "suites":  [
                    {

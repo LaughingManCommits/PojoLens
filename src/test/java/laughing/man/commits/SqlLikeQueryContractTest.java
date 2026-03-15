@@ -273,6 +273,64 @@ public class SqlLikeQueryContractTest {
                 second.stream().map(row -> row.total).collect(Collectors.toList()));
     }
 
+    @Test
+    public void repeatedBeanBackedFastStatsFiltersShouldRebindToCurrentRows() {
+        List<DepartmentEmployee> firstRows = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+        List<DepartmentEmployee> secondRows = Arrays.asList(
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("HR")
+        );
+
+        SqlLikeQuery query = PojoLens.parse(
+                "select department, count(*) as total group by department");
+
+        List<DepartmentCount> first = query.filter(firstRows, DepartmentCount.class);
+        List<DepartmentCount> second = query.filter(secondRows, DepartmentCount.class);
+
+        assertEquals(Arrays.asList("Engineering", "Finance"),
+                first.stream().map(row -> row.department).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(2L, 1L),
+                first.stream().map(row -> row.total).collect(Collectors.toList()));
+        assertEquals(Arrays.asList("Finance", "HR"),
+                second.stream().map(row -> row.department).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(2L, 1L),
+                second.stream().map(row -> row.total).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void repeatedBeanBackedAliasedFastStatsFiltersShouldRebindToCurrentRows() {
+        List<DepartmentEmployee> firstRows = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+        List<DepartmentEmployee> secondRows = Arrays.asList(
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("HR")
+        );
+
+        SqlLikeQuery query = PojoLens.parse(
+                "select department as dept, count(*) as total group by department");
+
+        List<DepartmentCountAlias> first = query.filter(firstRows, DepartmentCountAlias.class);
+        List<DepartmentCountAlias> second = query.filter(secondRows, DepartmentCountAlias.class);
+
+        assertEquals(Arrays.asList("Engineering", "Finance"),
+                first.stream().map(row -> row.dept).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(2L, 1L),
+                first.stream().map(row -> row.total).collect(Collectors.toList()));
+        assertEquals(Arrays.asList("Finance", "HR"),
+                second.stream().map(row -> row.dept).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(2L, 1L),
+                second.stream().map(row -> row.total).collect(Collectors.toList()));
+    }
+
     public static class TestBean {
         String name;
         int value;
@@ -304,6 +362,14 @@ public class SqlLikeQueryContractTest {
         long total;
 
         public DepartmentCount() {
+        }
+    }
+
+    public static class DepartmentCountAlias {
+        String dept;
+        long total;
+
+        public DepartmentCountAlias() {
         }
     }
 
