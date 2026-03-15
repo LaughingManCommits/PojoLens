@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
+    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
     "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
     "counts":  {
                    "mainJavaFiles":  134,
@@ -171,6 +171,10 @@
                            {
                                "path":  "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java",
                                "kind":  "engine"
+                           },
+                           {
+                               "path":  "src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java",
+                               "kind":  "benchmark"
                            },
                            {
                                "path":  "src/main/java/laughing/man/commits/chart/ChartMapper.java",

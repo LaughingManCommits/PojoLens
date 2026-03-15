@@ -9,9 +9,15 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.filter.FilterCore;
+import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.filter.FastStatsQuerySupport;
+import laughing.man.commits.sqllike.ast.QueryAst;
+import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
+import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
+import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import laughing.man.commits.util.ReflectionUtil;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -22,10 +28,12 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -46,6 +54,38 @@ public class HotspotMicroJmhBenchmark {
     @Benchmark
     public FilterExecutionPlan statsPlanCacheHit(StatsPlanCacheState state) {
         return state.executionPlanCache.getOrBuild(state.cacheKey, state.planBuilder);
+    }
+
+    @Benchmark
+    public void sqlLikePreparedStatsRebindCopy(PreparedSqlLikeStatsState state, Blackhole blackhole) {
+        FilterQueryBuilder builder = state.preparedTemplate.preparedExecutionCopy(state.source, state.joinSourcesByIndex);
+        blackhole.consume(builder);
+        blackhole.consume(builder.getSourceBeansForExecution().size());
+    }
+
+    @Benchmark
+    public void sqlLikePreparedStatsRebindView(PreparedSqlLikeStatsState state, Blackhole blackhole) {
+        FilterQueryBuilder builder = state.preparedTemplate.preparedExecutionView(state.source, state.joinSourcesByIndex);
+        blackhole.consume(builder);
+        blackhole.consume(builder.getSourceBeansForExecution().size());
+    }
+
+    @Benchmark
+    public void sqlLikePreparedStatsFastPathSetupCopy(PreparedSqlLikeStatsState state, Blackhole blackhole) {
+        FilterQueryBuilder builder = state.preparedTemplate.preparedExecutionCopy(state.source, state.joinSourcesByIndex);
+        FastStatsQuerySupport.FastStatsState fastStatsState =
+                FastStatsQuerySupport.tryBuildState(builder, state.rawExecutionPlanCacheKey);
+        blackhole.consume(fastStatsState);
+        blackhole.consume(fastStatsState == null ? 0 : fastStatsState.rows().size());
+    }
+
+    @Benchmark
+    public void sqlLikePreparedStatsFastPathSetupView(PreparedSqlLikeStatsState state, Blackhole blackhole) {
+        FilterQueryBuilder builder = state.preparedTemplate.preparedExecutionView(state.source, state.joinSourcesByIndex);
+        FastStatsQuerySupport.FastStatsState fastStatsState =
+                FastStatsQuerySupport.tryBuildState(builder, state.rawExecutionPlanCacheKey);
+        blackhole.consume(fastStatsState);
+        blackhole.consume(fastStatsState == null ? 0 : fastStatsState.rows().size());
     }
 
     @Benchmark
@@ -145,6 +185,59 @@ public class HotspotMicroJmhBenchmark {
             planBuilder = core::buildExecutionPlan;
 
             executionPlanCache.getOrBuild(cacheKey, planBuilder);
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class PreparedSqlLikeStatsState {
+
+        @Param({"1000", "10000"})
+        public int size;
+
+        private List<BenchmarkFoo> source;
+        private Map<Integer, List<?>> joinSourcesByIndex;
+        private FilterQueryBuilder preparedTemplate;
+        private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            source = statsSource(size);
+            joinSourcesByIndex = Map.of();
+
+            FilterExecutionPlanCache.setEnabled(true);
+            FilterExecutionPlanCache.setStatsEnabled(true);
+            FilterExecutionPlanCache.setMaxEntries(1024);
+            FilterExecutionPlanCache.setMaxWeight(0L);
+            FilterExecutionPlanCache.setExpireAfterWriteMillis(0L);
+            FilterExecutionPlanCache.clear();
+            FilterExecutionPlanCache.resetStats();
+
+            QueryAst ast = SqlLikeParser.parse(
+                    "select bucket(dateField,'month') as period, count(*) as total, sum(integerField) as totalValue "
+                            + "group by period"
+            );
+            QueryAst normalizedAst = SqlLikeValidator.validateForFilter(
+                    ast,
+                    BenchmarkFoo.class,
+                    PreparedStatsRow.class,
+                    Map.of(),
+                    false,
+                    ComputedFieldRegistry.empty()
+            );
+            FilterQueryBuilder boundBuilder = (FilterQueryBuilder) SqlLikeBinder.bind(
+                    normalizedAst,
+                    source,
+                    Map.of(),
+                    BenchmarkFoo.class,
+                    ComputedFieldRegistry.empty()
+            );
+            preparedTemplate = boundBuilder.snapshotForPreparedExecution();
+            rawExecutionPlanCacheKey = FilterExecutionPlanCacheKey.from(boundBuilder);
+
+            FilterQueryBuilder warmedView = preparedTemplate.preparedExecutionView(source, joinSourcesByIndex);
+            FastStatsQuerySupport.tryBuildState(warmedView, rawExecutionPlanCacheKey);
+            FilterQueryBuilder warmedCopy = preparedTemplate.preparedExecutionCopy(source, joinSourcesByIndex);
+            FastStatsQuerySupport.tryBuildState(warmedCopy, rawExecutionPlanCacheKey);
         }
     }
 
@@ -324,6 +417,15 @@ public class HotspotMicroJmhBenchmark {
         double avgValue;
 
         public ProjectionTotals() {
+        }
+    }
+
+    public static class PreparedStatsRow {
+        String period;
+        long total;
+        long totalValue;
+
+        public PreparedStatsRow() {
         }
     }
 

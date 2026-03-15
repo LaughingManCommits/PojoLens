@@ -400,6 +400,7 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - an eighth 2026-03-15 alias-projection/chart pass now keeps plain aliased fast-stats filters on direct array-row projection, adds aliased output-schema remapping for fast-stats charts, and carries the caller projection class through SQL-like chart execution so plain aliases and computed select outputs still chart correctly when grouped queries fall back through `QueryRow` results
 - focused regressions now cover repeated aliased fast-stats filter rebinding, aliased stats charts with and without `ORDER BY`, and aliased stats chart cache reuse; focused suites plus full `mvn -q test` passed again after that pass
 - the latest short targeted rerun after the alias/chart pass measured fluent query/chart about `6.452` and `6.737 ms/op`, while SQL-like query/chart measured about `6.735` and `4.764 ms/op`; treat that as evidence the chart path stayed low while the remaining SQL-like query/setup cost is still unresolved, not as a clean overall speed win
+- a dedicated prepared SQL-like stats setup microbenchmark now lives in `HotspotMicroJmhBenchmark`; the first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured `sqlLikePreparedStatsRebindView` at about `0.324 us/op` and `3,120 B/op` versus `0.668 us/op` and `3,528 B/op` for `sqlLikePreparedStatsRebindCopy`, while the combined rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy, which is evidence that builder-copy savings remain real but are now buried under the row-scan/aggregation work in full fast-stats state creation
 
 Tasks:
 
@@ -410,7 +411,7 @@ Tasks:
 - keep chart threshold pass status intact while improving absolute latency headroom
 - if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
 - now that aliased stats charts preserve projection names on both the fast path and the grouped fallback path and the latest short rerun again keeps SQL-like chart below query, profile the remaining SQL-like query/setup cost specifically and only revisit chart assembly if a direct profile points there
-- add a dedicated microbenchmark or profile around prepared SQL-like fast-stats setup now that builder rebinding and flat-read-plan compilation are both cached away; short whole-query JMH is still conflating setup and row-scan variance
+- use the dedicated prepared SQL-like fast-stats microbenchmark or a fresh profile to separate rebind cost from full fast-stats state creation; short whole-query JMH is still conflating setup and row-scan variance
 
 Boundary with WP19:
 

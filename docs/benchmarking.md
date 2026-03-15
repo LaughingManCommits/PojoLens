@@ -121,10 +121,14 @@ The hotspot suite isolates the conversion and cache paths that the end-to-end su
 - `HotspotMicroJmhBenchmark.reflectionToDomainRows`
 - `HotspotMicroJmhBenchmark.reflectionToClassList`
 - `HotspotMicroJmhBenchmark.statsPlanCacheHit`
+- `HotspotMicroJmhBenchmark.sqlLikePreparedStatsRebindCopy`
+- `HotspotMicroJmhBenchmark.sqlLikePreparedStatsRebindView`
+- `HotspotMicroJmhBenchmark.sqlLikePreparedStatsFastPathSetupCopy`
+- `HotspotMicroJmhBenchmark.sqlLikePreparedStatsFastPathSetupView`
 - `HotspotMicroJmhBenchmark.groupedMultiMetricAggregation`
 - `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization`
 
-Use the hotspot suite when tuning reflection flattening, typed projection, execution-plan cache hits, grouped multi-metric aggregation, or WP5 computed-field join materialization.
+Use the hotspot suite when tuning reflection flattening, typed projection, execution-plan cache hits, prepared SQL-like stats setup, grouped multi-metric aggregation, or the computed-field join materialization path.
 
 Allocation-focused local run examples:
 
@@ -132,6 +136,7 @@ Allocation-focused local run examples:
 java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
+java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.sqlLikePreparedStats(Rebind|FastPathSetup)(Copy|View)' -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
 java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 ```

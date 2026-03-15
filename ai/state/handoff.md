@@ -10,6 +10,7 @@
 
 - WP18 is the active package.
 - The chart-path mapping and JSON-export work now look mostly solved for the current bean-backed stats workloads.
+- A new hotspot microbenchmark now shows prepared-view rebinding is still cheaper than copy rebinding, but full fast-stats setup remains dominated by row-scan/aggregation work rather than builder-copy overhead.
 - The remaining likely bottleneck is SQL-like setup/query execution after prepared-shape reuse, direct bean stats aggregation, direct array-row chart mapping, flat-read-plan caching, and alias-safe chart projection.
 
 ## Guardrails
@@ -24,6 +25,7 @@
 - `BENCHMARKS.md`
 - `ai/state/benchmark-state.md`
 - `ai/core/benchmark-context.md`
+- `src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java`
 - `src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java`
 - `src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java`
 - `src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java`
@@ -31,6 +33,6 @@
 
 ## Next Validation
 
-- Add a setup-focused microbenchmark or capture a fresh profile for the remaining prepared SQL-like stats/query cost.
+- Use the new prepared-stats hotspot microbenchmark or a fresh profile to isolate what still dominates after rebinding.
 - After code changes, rerun focused regressions plus `mvn -q test`.
 - Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.

@@ -34,29 +34,29 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - All core threshold checks passed.
 - The worst relative budget consumers are still comfortably below budget, which suggests the current core thresholds remain conservative.
 
-| Workload | Score | Budget | Budget Use | Headroom |
-| --- | --- | --- | --- | --- |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=1000 | 110.463 ms/op | 300 ms/op | 36.8% | 189.537 ms/op |
-| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000 | 136.208 ms/op | 500 ms/op | 27.2% | 363.792 ms/op |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline|size=10000 | 129.008 ms/op | 750 ms/op | 17.2% | 620.992 ms/op |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=10000 | 139.857 ms/op | 900 ms/op | 15.5% | 760.143 ms/op |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving|size=10000 | 131.85 ms/op | 1300 ms/op | 10.1% | 1168.15 ms/op |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart|size=10000 | 133.176 ms/op | 1600 ms/op | 8.3% | 1466.824 ms/op |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving|size=1000 | 56.468 ms/op | 700 ms/op | 8.1% | 643.532 ms/op |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics|size=10000 | 111.317 ms/op | 1400 ms/op | 8.0% | 1288.683 ms/op |
+| Workload                                                                              | Score      | Budget        | Budget Use | Headroom |
+|---------------------------------------------------------------------------------------|------------|---------------|------------|----------|
+| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline         | size=1000  | 110.463 ms/op | 300 ms/op  | 36.8%    | 189.537 ms/op |
+| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField | size=10000 | 136.208 ms/op | 500 ms/op  | 27.2%    | 363.792 ms/op |
+| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline        | size=10000 | 129.008 ms/op | 750 ms/op  | 17.2%    | 620.992 ms/op |
+| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline         | size=10000 | 139.857 ms/op | 900 ms/op  | 15.5%    | 760.143 ms/op |
+| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving       | size=10000 | 131.85 ms/op  | 1300 ms/op | 10.1%    | 1168.15 ms/op |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart  | size=10000 | 133.176 ms/op | 1600 ms/op | 8.3%     | 1466.824 ms/op |
+| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving       | size=1000  | 56.468 ms/op  | 700 ms/op  | 8.1%     | 643.532 ms/op |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics         | size=10000 | 111.317 ms/op | 1400 ms/op | 8.0%     | 1288.683 ms/op |
 
 Slowest cold core workloads:
 
-| Workload | Score | Budget Use |
-| --- | --- | --- |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=10000 | 139.857 ms/op | 15.5% |
-| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000 | 136.208 ms/op | 27.2% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart|size=10000 | 135.007 ms/op | 7.5% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart|size=10000 | 133.176 ms/op | 8.3% |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving|size=10000 | 131.85 ms/op | 10.1% |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline|size=10000 | 129.008 ms/op | 17.2% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics|size=10000 | 118.594 ms/op | 7.9% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics|size=10000 | 111.317 ms/op | 8.0% |
+| Workload                                                                                      | Score      | Budget Use    |
+|-----------------------------------------------------------------------------------------------|------------|---------------|
+| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline                 | size=10000 | 139.857 ms/op | 15.5% |
+| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField         | size=10000 | 136.208 ms/op | 27.2% |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart | size=10000 | 135.007 ms/op | 7.5% |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart          | size=10000 | 133.176 ms/op | 8.3% |
+| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving               | size=10000 | 131.85 ms/op  | 10.1% |
+| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline                | size=10000 | 129.008 ms/op | 17.2% |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics        | size=10000 | 118.594 ms/op | 7.9% |
+| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics                 | size=10000 | 111.317 ms/op | 8.0% |
 
 ## Chart Suite
 
@@ -68,91 +68,91 @@ Targeted WP18 follow-up on 2026-03-15:
 - Root cause for the old scatter export hotspot was benchmark-only JSON serialization work in `ChartPayloadJsonExporter`, especially per-point `String.format(Locale.ROOT, "%.6f", value)` plus repeated `StringBuilder` growth.
 - After replacing that with direct fixed-scale appends and a capacity estimate, a rebuilt comparable chart-suite rerun still passed `45/45` thresholds and reduced the scatter export path materially.
 
-| Workload | 2026-03-14 cold | 2026-03-15 cold | Budget Use After |
-| --- | --- | --- | --- |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=1000 | 3.91 ms/op | 0.066 ms/op | 1.2% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000 | 43.157 ms/op | 0.634 ms/op | 1.0% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=100000 | 82.048 ms/op | 1.146 ms/op | 0.6% |
+| Workload                                                                               | 2026-03-14 cold | 2026-03-15 cold | Budget Use After |
+|----------------------------------------------------------------------------------------|-----------------|-----------------|------------------|
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=1000       | 3.91 ms/op      | 0.066 ms/op      | 1.2% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=10000      | 43.157 ms/op    | 0.634 ms/op      | 1.0% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=100000     | 82.048 ms/op    | 1.146 ms/op      | 0.6% |
 
 - A targeted warmed rerun at `size=10000`, `-f 1 -wi 2 -i 3 -r 200ms`, measured `scatterPayloadJsonExport` at about `0.560 ms/op`; the matching `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
 
 Worst chart threshold consumers:
 
-| Workload | Score | Budget | Budget Use |
-| --- | --- | --- | --- |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=1000 | 3.91 ms/op | 5.386 ms/op | 72.6% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000 | 43.157 ms/op | 62.583 ms/op | 69.0% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=100000 | 82.048 ms/op | 176.555 ms/op | 46.5% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport|size=1000 | 0.303 ms/op | 0.794 ms/op | 38.1% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport|size=100000 | 0.292 ms/op | 0.797 ms/op | 36.6% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport|size=10000 | 0.35 ms/op | 0.969 ms/op | 36.1% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport|size=100000 | 0.243 ms/op | 0.766 ms/op | 31.7% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport|size=1000 | 0.299 ms/op | 0.953 ms/op | 31.4% |
+| Workload                                                                               | Score       | Budget       | Budget Use    |
+|----------------------------------------------------------------------------------------|-------------|--------------|---------------|
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=1000   | 3.91 ms/op   | 5.386 ms/op   | 72.6% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=10000  | 43.157 ms/op | 62.583 ms/op  | 69.0% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=100000 | 82.048 ms/op | 176.555 ms/op | 46.5% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport    | size=1000   | 0.303 ms/op  | 0.794 ms/op   | 38.1% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=100000 | 0.292 ms/op  | 0.797 ms/op   | 36.6% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=10000  | 0.35 ms/op   | 0.969 ms/op   | 36.1% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport    | size=100000 | 0.243 ms/op  | 0.766 ms/op   | 31.7% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=1000   | 0.299 ms/op  | 0.953 ms/op   | 31.4% |
 
 Historical chart parity snapshot:
 
-| Chart | Size | Fluent | SQL-like | Ratio | Limit |
-| --- | --- | --- | --- | --- | --- |
-| SCATTER | 1000 | 0.952225 ms/op | 1.757569 ms/op | 1.845750x | 1.750000x |
-| BAR | 10000 | 1.009345 ms/op | 1.802326 ms/op | 1.785639x | 1.750000x |
-| LINE | 10000 | 1.409154 ms/op | 2.498889 ms/op | 1.773326x | 1.750000x |
-| PIE | 10000 | 0.996702 ms/op | 1.786875 ms/op | 1.792788x | 1.750000x |
+| Chart   | Size  | Fluent         | SQL-like       | Ratio     | Limit     |
+|---------|-------|----------------|----------------|-----------|-----------|
+| SCATTER | 1000  | 0.952225 ms/op | 1.757569 ms/op | 1.845750x | 1.750000x |
+| BAR     | 10000 | 1.009345 ms/op | 1.802326 ms/op | 1.785639x | 1.750000x |
+| LINE    | 10000 | 1.409154 ms/op | 2.498889 ms/op | 1.773326x | 1.750000x |
+| PIE     | 10000 | 0.996702 ms/op | 1.786875 ms/op | 1.792788x | 1.750000x |
 | SCATTER | 10000 | 5.418491 ms/op | 9.485809 ms/op | 1.750637x | 1.750000x |
 
 ## Streams Baseline Suite
 
-| Workload | Size | PojoLens | Streams | Ratio |
-| --- | --- | --- | --- | --- |
-| FilterProjection | 1000 | 18.317 ms/op | 0.012 ms/op | 1497.6x |
-| FilterProjection | 10000 | 126.115 ms/op | 0.13 ms/op | 973.6x |
-| GroupedMetrics | 1000 | 0.94 ms/op | 0.008 ms/op | 118.0x |
-| GroupedMetrics | 10000 | 11.435 ms/op | 0.072 ms/op | 159.9x |
-| TimeBucketMetrics | 1000 | 17.301 ms/op | 0.098 ms/op | 176.7x |
-| TimeBucketMetrics | 10000 | 147.092 ms/op | 1.398 ms/op | 105.2x |
+| Workload          | Size  | PojoLens      | Streams     | Ratio   |
+|-------------------|-------|---------------|-------------|---------|
+| FilterProjection  | 1000  | 18.317 ms/op  | 0.012 ms/op | 1497.6x |
+| FilterProjection  | 10000 | 126.115 ms/op | 0.13 ms/op  | 973.6x  |
+| GroupedMetrics    | 1000  | 0.94 ms/op    | 0.008 ms/op | 118.0x  |
+| GroupedMetrics    | 10000 | 11.435 ms/op  | 0.072 ms/op | 159.9x  |
+| TimeBucketMetrics | 1000  | 17.301 ms/op  | 0.098 ms/op | 176.7x  |
+| TimeBucketMetrics | 10000 | 147.092 ms/op | 1.398 ms/op | 105.2x  |
 
 ## Standalone Legacy Filter Benchmark
 
 - `PojoLensJmhBenchmark` is not currently part of the published suite manifests, but it is still useful as a cold filter/distinct/order sanity check.
 
-| Size | Manual | PojoLens | Ratio |
-| --- | --- | --- | --- |
-| 1000 | 0.002 ms/op | 5.683 ms/op | 3701.1x |
+| Size  | Manual      | PojoLens     | Ratio   |
+|-------|-------------|--------------|---------|
+| 1000  | 0.002 ms/op | 5.683 ms/op  | 3701.1x |
 | 10000 | 0.016 ms/op | 126.65 ms/op | 7874.4x |
 
 ## Cache Concurrency Suite
 
-| Benchmark | Mode | Threads | Score |
-| --- | --- | --- | --- |
-| sqlLikeParseHotSetConcurrent | thrpt | 8 | 312607925.225 ops/s |
-| statsPlanBuildHotSetConcurrent | thrpt | 8 | 114.799 ops/s |
+| Benchmark                      | Mode  | Threads | Score               |
+|--------------------------------|-------|---------|---------------------|
+| sqlLikeParseHotSetConcurrent   | thrpt | 8       | 312607925.225 ops/s |
+| statsPlanBuildHotSetConcurrent | thrpt | 8       | 114.799 ops/s       |
 
 ## Hotspot Suite (`-prof gc`)
 
 Highest hotspot latencies:
 
-| Benchmark | Latency | Alloc |
-| --- | --- | --- |
-| reflectionToClassList|size=10000 | 1115.501 us/op | 1400237.743 B/op |
-| reflectionToDomainRows|size=10000 | 557.219 us/op | 2840026.819 B/op |
-| computedFieldJoinSelectiveMaterialization|size=10000 | 469.259 us/op | 3532314.399 B/op |
-| groupedMultiMetricAggregation|size=10000 | 457.742 us/op | 1043042.326 B/op |
-| reflectionToClassList|size=1000 | 117.549 us/op | 140232.608 B/op |
-| reflectionToDomainRows|size=1000 | 56.647 us/op | 284040.289 B/op |
-| computedFieldJoinSelectiveMaterialization|size=1000 | 50.712 us/op | 364312.281 B/op |
-| groupedMultiMetricAggregation|size=1000 | 47.289 us/op | 121120.242 B/op |
+| Benchmark                                 | Latency    | Alloc          |
+|-------------------------------------------|------------|----------------|
+| reflectionToClassList                     | size=10000 | 1115.501 us/op | 1400237.743 B/op |
+| reflectionToDomainRows                    | size=10000 | 557.219 us/op  | 2840026.819 B/op |
+| computedFieldJoinSelectiveMaterialization | size=10000 | 469.259 us/op  | 3532314.399 B/op |
+| groupedMultiMetricAggregation             | size=10000 | 457.742 us/op  | 1043042.326 B/op |
+| reflectionToClassList                     | size=1000  | 117.549 us/op  | 140232.608 B/op |
+| reflectionToDomainRows                    | size=1000  | 56.647 us/op   | 284040.289 B/op |
+| computedFieldJoinSelectiveMaterialization | size=1000  | 50.712 us/op   | 364312.281 B/op |
+| groupedMultiMetricAggregation             | size=1000  | 47.289 us/op   | 121120.242 B/op |
 
 Highest hotspot allocations:
 
-| Benchmark | Alloc | Latency |
-| --- | --- | --- |
-| computedFieldJoinSelectiveMaterialization|size=10000 | 3532314.399 B/op | 469.259 us/op |
-| reflectionToDomainRows|size=10000 | 2840026.819 B/op | 557.219 us/op |
-| reflectionToClassList|size=10000 | 1400237.743 B/op | 1115.501 us/op |
-| groupedMultiMetricAggregation|size=10000 | 1043042.326 B/op | 457.742 us/op |
-| computedFieldJoinSelectiveMaterialization|size=1000 | 364312.281 B/op | 50.712 us/op |
-| reflectionToDomainRows|size=1000 | 284040.289 B/op | 56.647 us/op |
-| reflectionToClassList|size=1000 | 140232.608 B/op | 117.549 us/op |
-| groupedMultiMetricAggregation|size=1000 | 121120.242 B/op | 47.289 us/op |
+| Benchmark                                 | Alloc      | Latency          |
+|-------------------------------------------|------------|------------------|
+| computedFieldJoinSelectiveMaterialization | size=10000 | 3532314.399 B/op | 469.259 us/op |
+| reflectionToDomainRows                    | size=10000 | 2840026.819 B/op | 557.219 us/op |
+| reflectionToClassList                     | size=10000 | 1400237.743 B/op | 1115.501 us/op |
+| groupedMultiMetricAggregation             | size=10000 | 1043042.326 B/op | 457.742 us/op |
+| computedFieldJoinSelectiveMaterialization | size=1000  | 364312.281 B/op  | 50.712 us/op |
+| reflectionToDomainRows                    | size=1000  | 284040.289 B/op  | 56.647 us/op |
+| reflectionToClassList                     | size=1000  | 140232.608 B/op  | 117.549 us/op |
+| groupedMultiMetricAggregation             | size=1000  | 121120.242 B/op  | 47.289 us/op |
 
 ## Recurring Warm JFR Hotspots
 

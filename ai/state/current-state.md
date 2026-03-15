@@ -29,8 +29,10 @@
   - `fluentTimeBucketMetrics`: about `4.990 ms/op`
   - `fluentTimeBucketMetricsToChart`: about `5.045 ms/op`
 - Later short `2026-03-15` reruns were drift-heavy, but after the alias/chart pass SQL-like chart still ran below SQL-like query (`4.764 ms/op` vs `6.735 ms/op`), which points more toward remaining setup/query cost than chart assembly.
+- A new prepared SQL-like stats hotspot microbenchmark now isolates rebinding from full fast-stats setup. Its first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured rebind view at about `0.324 us/op` / `3,120 B/op` versus copy at about `0.668 us/op` / `3,528 B/op`, while full rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy.
 
 ## Current Risks
 
 - Short whole-query JMH remains too noisy for patch attribution on its own.
-- The next likely WP18 gain is to isolate the remaining SQL-like setup/query cost with a setup-focused microbenchmark or a fresh profile before another broad refactor.
+- Builder rebinding is no longer the default suspect on its own; the new microbenchmark shows the remaining full fast-stats setup cost is dominated by row-scan/aggregation work.
+- The next likely WP18 gain is to profile or microbenchmark the remaining SQL-like query/setup path beyond rebinding before another broad refactor.
