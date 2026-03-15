@@ -32,6 +32,7 @@ public final class ReflectionUtil {
     private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
+    private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
     private static final Map<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
 
@@ -302,9 +303,11 @@ public final class ReflectionUtil {
         if (root == null) {
             throw new IllegalArgumentException("root must not be null");
         }
-        FieldGraphDescriptor descriptor = fieldGraph(root);
-        List<FlattenedFieldDescriptor> flattenedFields = selectedFlattenedFields(descriptor, selectedFieldNames);
-        return new FlatRowReadPlan(flattenedFields);
+        List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
+        return FLAT_ROW_READ_PLAN_CACHE.computeIfAbsent(
+                new FlatRowReadPlanCacheKey(root, normalizedSelection),
+                key -> buildFlatRowReadPlan(key.rootType(), key.selectedFieldNames())
+        );
     }
 
     public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
@@ -497,6 +500,25 @@ public final class ReflectionUtil {
             }
         }
         return filtered.isEmpty() ? flattenedFields : List.copyOf(filtered);
+    }
+
+    private static FlatRowReadPlan buildFlatRowReadPlan(Class<?> root, List<String> selectedFieldNames) {
+        FieldGraphDescriptor descriptor = fieldGraph(root);
+        return new FlatRowReadPlan(selectedFlattenedFields(descriptor, selectedFieldNames));
+    }
+
+    private static List<String> normalizedSelectedFieldNames(Collection<String> selectedFieldNames) {
+        if (selectedFieldNames == null || selectedFieldNames.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> normalized = new ArrayList<>(selectedFieldNames.size());
+        LinkedHashSet<String> seen = new LinkedHashSet<>(selectedFieldNames.size());
+        for (String fieldName : selectedFieldNames) {
+            if (seen.add(fieldName)) {
+                normalized.add(fieldName);
+            }
+        }
+        return Collections.unmodifiableList(normalized);
     }
 
     private static Object readResolvedFieldValue(Object bean, ResolvedFieldPath fieldPath) throws IllegalAccessException {
@@ -785,6 +807,13 @@ public final class ReflectionUtil {
     }
 
     private record FieldPathCacheKey(Class<?> rootType, String fieldName) {
+    }
+
+    private record FlatRowReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+        private FlatRowReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+            this.rootType = rootType;
+            this.selectedFieldNames = Collections.unmodifiableList(new ArrayList<>(selectedFieldNames));
+        }
     }
 
     private record ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {

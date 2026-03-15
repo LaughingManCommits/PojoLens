@@ -118,9 +118,37 @@ class ReflectionUtilTest {
         assertEquals("value", second.get(0).nested.beta);
     }
 
+    @Test
+    void compileFlatRowReadPlanShouldReuseCacheForEquivalentSelection() throws Exception {
+        int before = flatRowReadPlanCache().size();
+
+        ReflectionUtil.FlatRowReadPlan first = ReflectionUtil.compileFlatRowReadPlan(
+                RootBean.class,
+                List.of("id", "address.geo.zipCode")
+        );
+        int afterFirst = flatRowReadPlanCache().size();
+        ReflectionUtil.FlatRowReadPlan second = ReflectionUtil.compileFlatRowReadPlan(
+                RootBean.class,
+                List.of("id", "address.geo.zipCode")
+        );
+        int afterSecond = flatRowReadPlanCache().size();
+
+        assertEquals(before + 1, afterFirst);
+        assertEquals(afterFirst, afterSecond);
+        assertTrue(first == second);
+        assertEquals(List.of("id", "address.geo.zipCode"), first.fieldNames());
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<?, ?> projectionPlanCache() throws Exception {
         Field field = ReflectionUtil.class.getDeclaredField("PROJECTION_WRITE_PLAN_CACHE");
+        field.setAccessible(true);
+        return (Map<?, ?>) field.get(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<?, ?> flatRowReadPlanCache() throws Exception {
+        Field field = ReflectionUtil.class.getDeclaredField("FLAT_ROW_READ_PLAN_CACHE");
         field.setAccessible(true);
         return (Map<?, ?>) field.get(null);
     }

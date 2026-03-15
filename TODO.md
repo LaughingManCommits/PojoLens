@@ -394,6 +394,9 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - a sixth 2026-03-15 direct-chart pass now routes `FastStatsQuerySupport.FastStatsState` chart executions through indexed `Object[]` mapping in `ChartMapper` instead of rebuilding `QueryRow` / `QueryField` graphs first; `ChartMapperArrayRowsTest` was added to pin the new mapper path
 - focused chart/sql-like coverage plus full `mvn -q test` passed after the direct-chart pass
 - the latest short targeted rerun after the direct-chart pass stayed mixed rather than proving a clean SQL-like chart win: fluent query/chart measured about `6.934` and `6.336 ms/op`, while SQL-like query/chart measured about `6.318` and `7.173 ms/op`; treat that as a sign to profile the remaining SQL-like chart cost directly rather than assume `QueryRow` materialization was the whole gap
+- a seventh 2026-03-15 setup/refactor pass now caches `ReflectionUtil.compileFlatRowReadPlan(...)` by root type plus selected schema and introduces a per-call `SqlLikeQuery` execution run so filter/chart/raw-row paths reuse one rebound builder and one fast-stats resolution per invocation instead of rebuilding that state ad hoc
+- focused regression coverage was added in `ReflectionUtilTest` for flat read-plan cache reuse and in `SqlLikeTypedBindContractTest` for repeated bound stats charts; focused tests plus full `mvn -q test` passed after the refactor
+- the latest short targeted rerun after that setup/refactor pass stayed noisy overall, but SQL-like chart moved below SQL-like query in the same run: fluent query/chart measured about `6.919` and `7.182 ms/op`, while SQL-like query/chart measured about `7.033` and `6.381 ms/op`; treat that as weak evidence for setup-side improvement, not a clean attribution result
 
 Tasks:
 
@@ -404,6 +407,7 @@ Tasks:
 - keep chart threshold pass status intact while improving absolute latency headroom
 - if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
 - now that simple stats shapes also bypass chart-row materialization, profile the remaining SQL-like chart gap specifically and decide whether the next gain is in SQL-like setup/binding or in residual chart assembly beyond `ChartMapper`
+- add a dedicated microbenchmark or profile around prepared SQL-like fast-stats setup now that builder rebinding and flat-read-plan compilation are both cached away; short whole-query JMH is still conflating setup and row-scan variance
 
 Boundary with WP19:
 

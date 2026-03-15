@@ -381,15 +381,16 @@ public final class SqlLikeQuery {
     }
 
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
+        ExecutionRun run = context.newRun();
         SelectAst select = context.select();
         if (select != null
                 && !select.wildcard()
                 && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
-            List<QueryRow> sourceRows = executeRawRows(context);
+            List<QueryRow> sourceRows = executeRawRows(run);
             return SqlLikeExecutionSupport.projectAliasedRows(sourceRows, projectionClass, select);
         }
         return SqlLikeExecutionSupport.executeWithOptionalJoin(
-                context.newExecutionBuilder(),
+                run.builder(),
                 context.sort(),
                 context.applyJoin(),
                 projectionClass
@@ -550,7 +551,7 @@ public final class SqlLikeQuery {
     }
 
     private Map<String, Object> buildStageRowCounts(ExecutionContext context) {
-        FilterQueryBuilder working = context.newExecutionBuilder();
+        FilterQueryBuilder working = context.newRun().builder();
         FilterCore core = new FilterCore(working);
         if (context.applyJoin()) {
             working.setRows(core.join(working.getRows()));
@@ -640,39 +641,29 @@ public final class SqlLikeQuery {
     }
 
     private ChartData executeChart(ExecutionContext context, ChartSpec spec) {
-        if (!context.applyJoin()) {
-            FilterQueryBuilder working = context.newExecutionBuilder();
-            FastStatsQuerySupport.FastStatsState statsState = FastStatsQuerySupport.tryBuildState(
-                    working,
-                    context.rawExecutionPlanCacheKey()
-            );
-            if (statsState != null) {
-                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-                ChartData chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
-                emitChartTelemetry(chartStarted, statsState.rows().size(), chart);
-                return chart;
-            }
+        ExecutionRun run = context.newRun();
+        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
+        if (statsState != null) {
+            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+            ChartData chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
+            emitChartTelemetry(chartStarted, statsState.rows().size(), chart);
+            return chart;
         }
-        List<QueryRow> rows = executeRawRows(context);
+        List<QueryRow> rows = executeRawRows(run);
         long chartStarted = QueryTelemetrySupport.start(telemetryListener);
         ChartData chart = ChartResultMapper.toChartData(rows, spec);
         emitChartTelemetry(chartStarted, rows.size(), chart);
         return chart;
     }
 
-    private List<QueryRow> executeRawRows(ExecutionContext context) {
-        FilterQueryBuilder working = context.newExecutionBuilder();
-        if (!context.applyJoin()) {
-            FastStatsQuerySupport.FastStatsState statsState = FastStatsQuerySupport.tryBuildState(
-                    working,
-                    context.rawExecutionPlanCacheKey()
-            );
-            if (statsState != null) {
-                return FastStatsQuerySupport.toQueryRows(statsState);
-            }
+    private List<QueryRow> executeRawRows(ExecutionRun run) {
+        FilterQueryBuilder working = run.builder();
+        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
+        if (statsState != null) {
+            return FastStatsQuerySupport.toQueryRows(statsState);
         }
         FilterCore core = new FilterCore(working);
-        if (context.applyJoin()) {
+        if (run.applyJoin()) {
             working.setRows(core.join(working.getRows()));
             core = new FilterCore(working);
         }
@@ -683,7 +674,7 @@ public final class SqlLikeQuery {
         if (working.requiresRuntimeSchemaCleaning()) {
             core.clean(working.getRows().get(0));
         }
-        FilterExecutionPlan plan = context.resolveRawExecutionPlan(core, working);
+        FilterExecutionPlan plan = run.resolveRawExecutionPlan(core);
         List<QueryRow> distinctRows = core.filterDistinctFields(plan);
         long filterStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
         List<QueryRow> whereRows = core.filterFields(distinctRows, plan);
@@ -716,12 +707,12 @@ public final class SqlLikeQuery {
             if (!working.getOrderFields().isEmpty()) {
                 long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
                 if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, context.sort(), groupedPlan);
+                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan);
                 } else {
                     FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                     FilterCore orderCore = new FilterCore(orderBuilder);
                     FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, context.sort(), orderPlan);
+                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan);
                 }
                 emitStage(working,
                         QueryTelemetryStage.ORDER,
@@ -738,7 +729,7 @@ public final class SqlLikeQuery {
         }
 
         long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-        List<QueryRow> orderedRows = core.orderByFields(whereRows, context.sort(), plan);
+        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan);
         if (!working.getOrderFields().isEmpty()) {
             emitStage(working,
                     QueryTelemetryStage.ORDER,
@@ -986,6 +977,53 @@ public final class SqlLikeQuery {
 
         private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {
             return prepared.rawExecutionPlanCacheKey();
+        }
+
+        private ExecutionRun newRun() {
+            return new ExecutionRun(this);
+        }
+    }
+
+    private final class ExecutionRun {
+        private final ExecutionContext context;
+        private FilterQueryBuilder builder;
+        private FastStatsQuerySupport.FastStatsState fastStatsState;
+        private boolean fastStatsResolved;
+
+        private ExecutionRun(ExecutionContext context) {
+            this.context = context;
+        }
+
+        private FilterQueryBuilder builder() {
+            if (builder == null) {
+                builder = context.newExecutionBuilder();
+            }
+            return builder;
+        }
+
+        private FastStatsQuerySupport.FastStatsState fastStatsState() {
+            if (!fastStatsResolved) {
+                if (!context.applyJoin()) {
+                    fastStatsState = FastStatsQuerySupport.tryBuildState(
+                            builder(),
+                            context.rawExecutionPlanCacheKey()
+                    );
+                }
+                fastStatsResolved = true;
+            }
+            return fastStatsState;
+        }
+
+        private boolean applyJoin() {
+            return context.applyJoin();
+        }
+
+        private Sort sort() {
+            return context.sort();
+        }
+
+        private FilterExecutionPlan resolveRawExecutionPlan(FilterCore core) {
+            return context.resolveRawExecutionPlan(core, builder());
         }
     }
 

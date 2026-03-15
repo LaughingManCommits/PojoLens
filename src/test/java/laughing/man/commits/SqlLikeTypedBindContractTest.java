@@ -1,5 +1,8 @@
 package laughing.man.commits;
 
+import laughing.man.commits.chart.ChartData;
+import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -118,6 +121,21 @@ public class SqlLikeTypedBindContractTest {
         assertEquals(companyIds(first), companyIds(second));
     }
 
+    @Test
+    public void typedBindShouldRemainReusableAcrossRepeatedStatsCharts() {
+        List<Employee> source = sampleEmployees();
+        SqlLikeBoundQuery<DepartmentCount> bound = PojoLens
+                .parse("select department, count(*) as total group by department")
+                .bindTyped(source, DepartmentCount.class);
+        ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "total");
+
+        ChartData first = bound.chart(spec);
+        ChartData second = bound.chart(spec);
+
+        assertEquals(first.getLabels(), second.getLabels());
+        assertEquals(first.getDatasets().get(0).getValues(), second.getDatasets().get(0).getValues());
+    }
+
     private static List<Integer> salaries(List<Employee> rows) {
         return rows.stream().map(r -> r.salary).collect(Collectors.toList());
     }
@@ -134,6 +152,14 @@ public class SqlLikeTypedBindContractTest {
 
     private static List<Integer> companyIds(List<Company> rows) {
         return rows.stream().map(r -> r.id).collect(Collectors.toList());
+    }
+
+    public static class DepartmentCount {
+        public String department;
+        public long total;
+
+        public DepartmentCount() {
+        }
     }
 }
 
