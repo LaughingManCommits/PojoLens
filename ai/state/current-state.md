@@ -9,7 +9,9 @@
 - The benchmark runner was rebuilt with `mvn -q -DskipTests -Pbenchmark-runner package` before rerunning JMH, so the current measurements come from the updated code.
 - `mvn -q test` passed again on 2026-03-14 after the first WP18 runtime redesign.
 - `mvn -q test` passed again on 2026-03-14 after the second WP18 chart-path redesign.
+- `mvn -q test` passed again on 2026-03-15 after the third WP18 chart-export pass.
 - A broader benchmark sweep was captured on 2026-03-14 across the core, chart, baseline, cache, hotspot, and standalone legacy suites; `BENCHMARKS.md` and `ai/state/benchmark-state.md` summarize it, and chart thresholds currently pass with headroom while the old fluent-vs-SQL-like chart parity report is now treated as diagnostic-only.
+- A rebuilt 2026-03-15 chart-suite rerun plus strict threshold check still passed `45/45` after the chart-export pass; comparable cold `scatterPayloadJsonExport` timings fell to about `0.066`, `0.634`, and `1.146 ms/op` for sizes `1000`, `10000`, and `100000`, and a targeted `size=10000` `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
 - Exact targeted WP18 JMH reruns on 2026-03-14 at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart` at about `5.045 ms/op` and `sqlLikeParseAndTimeBucketMetricsToChart` at about `4.891 ms/op`, down materially from the earlier same-session snapshot around `7.200 ms/op` and `7.088 ms/op`.
 - Matching exact query-only reruns now measure `fluentTimeBucketMetrics` at about `4.990 ms/op` and `sqlLikeParseAndTimeBucketMetrics` at about `4.728 ms/op`, so chart-mapping overhead on that stats workload is now close to noise and the old projection round-trip is no longer the main absolute chart cost there.
 - `BENCHMARKS.md`, `ai/state/benchmark-state.md`, and `ai/core/benchmark-context.md` now also capture the recurring warmed JFR hotspot clusters; the common class-level stress is concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
@@ -32,6 +34,7 @@
 - The first WP18 runtime redesign landed on 2026-03-14: non-subquery SQL-like executions now cache a prepared validated/bound shape and rebind a request-scoped `FilterQueryBuilder` per call instead of rebuilding the fluent pipeline every execution.
 - The same WP18 change also disables that prepared-shape reuse for subquery-bearing SQL-like queries, because subquery result sets depend on the current execution rows and join bindings.
 - The second WP18 redesign landed on 2026-03-14: fluent and SQL-like chart execution now map directly from internal `QueryRow` results, and `ChartMapper` uses indexed `QueryRow` field reads instead of round-tripping through caller projection objects.
+- The third WP18 chart-export pass landed on 2026-03-15: `ChartPayloadJsonExporter` now pre-sizes its payload buffer and appends fixed-scale numeric values directly instead of using per-point `String.format(...)`.
 - An initial speculative WP17 implementation pass on 2026-03-13 regressed the warmed benchmark and was reverted; the follow-up controlled repro/profile loop then identified `matchesRuleGroups` and read-side reflection as the real current hotspots.
 - The last round of WP17 work landed the single-rule matcher fast path, the narrowed `ResolvedFieldPath.read` / `FlatRowReadPlan` read optimization, the parent-buffer/single-child-bucket join-build optimization, and bound array-expression evaluation before the package was parked as good enough.
 - Two immediate follow-up WP17 directions on 2026-03-14 were explicitly ruled out for now: compiled `ReflectionUtil` accessors and early join-time filtering/materialization both regressed the long warmed benchmark and were reverted on the same clean tree.
@@ -54,6 +57,6 @@
 - Reduce residual computed evaluation and numeric-cast overhead in `FastArrayQuerySupport.applyComputedValues()` / `castNumericValue()` now that dependency lookup is bound away.
 - Reduce the remaining child indexing / joined-row allocation cost in `FastArrayQuerySupport.buildChildIndex()` and `FastArrayQuerySupport.materializeJoinedRow()`.
 - Reduce projection write overhead in `ReflectionUtil.applyProjectionWritePlan()` / `setResolvedFieldValue()` once the join-build tail is lower.
-- On WP18, chart mapping for the time-bucket stats workload now looks mostly solved; next isolate the remaining absolute cost in SQL-like setup/query execution or chart serialization paths such as `ChartVisualizationJmhBenchmark.scatterPayloadJsonExport`.
+- On WP18, the time-bucket chart mapping path and the benchmark JSON export path now look mostly solved; next isolate the remaining absolute cost in SQL-like setup/query execution or any remaining real chart assembly path.
 - Rerun the doc-consistency script when process docs or benchmark instructions change again.
 - Regenerate AI indexes again after any source, test, or documentation structure change.

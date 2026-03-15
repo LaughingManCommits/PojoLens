@@ -27,6 +27,7 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - Highest cold core budget usage: laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=1000 at 36.8%.
 - Highest hotspot allocation: computedFieldJoinSelectiveMaterialization|size=10000 at 3532314.399 B/op.
 - Highest hotspot latency: reflectionToClassList|size=10000 at 1115.501 us/op.
+- Targeted chart follow-up on 2026-03-15: after removing per-point `String.format(...)` work and pre-sizing the benchmark JSON exporter buffer, a rebuilt comparable chart-suite rerun still passed thresholds and reduced `scatterPayloadJsonExport` to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`.
 
 ## Core Guardrail Suite
 
@@ -61,6 +62,19 @@ Slowest cold core workloads:
 
 - All chart thresholds passed.
 - Historical chart parity data from this run showed the SQL-like path exceeding the old fluent ratio guardrail in 5 cases, but that ratio is no longer treated as a benchmark gate because SQL-like intentionally includes query translation work.
+
+Targeted WP18 follow-up on 2026-03-15:
+
+- Root cause for the old scatter export hotspot was benchmark-only JSON serialization work in `ChartPayloadJsonExporter`, especially per-point `String.format(Locale.ROOT, "%.6f", value)` plus repeated `StringBuilder` growth.
+- After replacing that with direct fixed-scale appends and a capacity estimate, a rebuilt comparable chart-suite rerun still passed `45/45` thresholds and reduced the scatter export path materially.
+
+| Workload | 2026-03-14 cold | 2026-03-15 cold | Budget Use After |
+| --- | --- | --- | --- |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=1000 | 3.91 ms/op | 0.066 ms/op | 1.2% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=10000 | 43.157 ms/op | 0.634 ms/op | 1.0% |
+| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport|size=100000 | 82.048 ms/op | 1.146 ms/op | 0.6% |
+
+- A targeted warmed rerun at `size=10000`, `-f 1 -wi 2 -i 3 -r 200ms`, measured `scatterPayloadJsonExport` at about `0.560 ms/op`; the matching `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
 
 Worst chart threshold consumers:
 
@@ -171,6 +185,7 @@ Interpretation:
 ## Stress Points
 
 - Absolute chart and SQL-like chart latency still matters, but fluent-vs-SQL-like ratio is no longer treated as a release gate because the entry styles do different work by design.
+- The prior scatter export hotspot is now largely gone on the 2026-03-15 follow-up, so the next WP18 gains are more likely in SQL-like setup/query execution or other chart assembly paths than in benchmark JSON serialization.
 - Cold end-to-end performance remains most exposed on older filter/baseline comparisons rather than on hard threshold failures. `StreamsBaselineJmhBenchmark.fluentFilterProjection|size=10000` came in at `126.115 ms/op` versus `0.130 ms/op` for the Streams baseline, and the legacy `PojoLensJmhBenchmark.pojoLensFilter|size=10000` came in at `126.650 ms/op` versus `0.016 ms/op` for the manual baseline.
 - Allocation stress is still concentrated in conversion/materialization paths. The largest `B/op` values are `computedFieldJoinSelectiveMaterialization|size=10000` (`3,532,314 B/op`), `reflectionToDomainRows|size=10000` (`2,840,027 B/op`), and `reflectionToClassList|size=10000` (`1,400,238 B/op`).
 - Cross-JFR warm profiling shows the recurring class-level hotspot concentration is now mostly `ReflectionUtil` plus `FastArrayQuerySupport`, which is the main common stress point behind the current WP17 and hotspot-microbenchmark backlog.

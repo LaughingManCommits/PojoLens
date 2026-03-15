@@ -365,7 +365,7 @@ Scope:
 - `src/main/java/laughing/man/commits/chart`
 - `target/benchmarks/chart.json`
 
-Current evidence from 2026-03-14:
+Current evidence from 2026-03-14 to 2026-03-15:
 
 - chart thresholds passed `45/45`
 - the prior chart parity report failed in `5/15` comparisons, but that ratio is now diagnostic-only because SQL-like includes parse/translation work that fluent does not
@@ -375,6 +375,11 @@ Current evidence from 2026-03-14:
 - the second WP18 redesign is now landed: fluent and SQL-like chart execution map directly from internal `QueryRow` results, and `ChartMapper` now uses indexed `QueryRow` field reads instead of projecting to caller classes and then reflecting back over those objects
 - exact targeted JMH reruns on 2026-03-14 at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart` at about `5.045 ms/op` and `sqlLikeParseAndTimeBucketMetricsToChart` at about `4.891 ms/op`, down materially from the earlier same-session targeted snapshot around `7.200 ms/op` and `7.088 ms/op`
 - matching exact query-only reruns now measure `fluentTimeBucketMetrics` at about `4.990 ms/op` and `sqlLikeParseAndTimeBucketMetrics` at about `4.728 ms/op`, which means chart-mapping overhead on that stats workload is now close to noise and the remaining absolute cost is mostly outside the old projection round-trip
+- the third WP18 chart-export pass landed on 2026-03-15: `ChartPayloadJsonExporter` now pre-sizes its payload buffer and appends fixed-scale numeric values directly instead of calling `String.format(...)` for every point
+- `mvn -q test` passed on 2026-03-15 after that exporter pass, and a rebuilt cold chart-suite rerun plus `BenchmarkThresholdChecker` still passed `45/45`
+- the comparable cold chart-suite rerun on 2026-03-15 now measures `scatterPayloadJsonExport` at about `0.066 ms/op`, `0.634 ms/op`, and `1.146 ms/op` for sizes `1000`, `10000`, and `100000`, down materially from the 2026-03-14 snapshot around `3.910`, `43.157`, and `82.048 ms/op`
+- targeted warm reruns on 2026-03-15 at `size=10000`, `-f 1 -wi 2 -i 3 -r 200ms` now measure `scatterPayloadJsonExport` at about `0.560 ms/op`; the matching `-prof gc` rerun measures about `0.367 ms/op` and `580,857 B/op`
+- with benchmark JSON export now cheap again, the remaining WP18 product-value question is more likely SQL-like setup/query execution or other chart assembly work than `ChartPayloadJsonExporter`
 
 Tasks:
 

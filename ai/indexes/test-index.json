@@ -1,19 +1,19 @@
 ﻿{
-    "generatedAt":  "2026-03-13T17:52:04+01:00",
+    "generatedAt":  "2026-03-15T08:46:50.8196227+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
                   ],
     "counts":  {
-                   "testJavaFiles":  63,
-                   "testClasses":  59
+                   "testJavaFiles":  64,
+                   "testClasses":  60
                },
     "latestKnownFullRun":  {
                                "command":  "mvn -q test",
-                               "date":  "2026-03-13",
+                               "date":  "2026-03-15",
                                "status":  "passed",
-                               "testsRun":  410,
-                               "note":  "Reran after the selective single-join array fast-path redesign."
+                               "testsRun":  417,
+                               "note":  "Reran after the WP18 chart-export serializer pass."
                            },
     "suites":  [
                    {
@@ -63,7 +63,8 @@
                                      "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
                                      "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
                                      "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
-                                     "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java"
+                                     "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
+                                     "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java"
                                  ]
                    }
                ]
