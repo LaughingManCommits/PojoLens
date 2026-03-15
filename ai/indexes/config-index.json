@@ -1,5 +1,5 @@
-{
-    "generatedAt":  "2026-03-14T09:55:33.0994216+01:00",
+﻿{
+    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
     "build":  {
                   "path":  "pom.xml",
                   "groupId":  "laughing.man.commits",
@@ -29,6 +29,7 @@
     "ci":  {
                "path":  ".github/workflows/ci.yml",
                "jobs":  [
+                            "push",
                             "lint-workflows",
                             "test",
                             "lint-java",
@@ -60,10 +61,10 @@
                                          "ai/core/architecture-map.md",
                                          "ai/core/test-strategy.md",
                                          "ai/core/discovery-notes.md",
-                                         "ai/indexes/*",
-                                         "ai/log/events.jsonl",
                                          "ai/core/benchmark-context.md",
-                                         "ai/state/benchmark-state.md"
+                                         "ai/state/benchmark-state.md",
+                                         "ai/indexes/*",
+                                         "ai/log/events.jsonl"
                                      ],
                      "memoryStatePath":  "ai/memory-state.json"
                  },

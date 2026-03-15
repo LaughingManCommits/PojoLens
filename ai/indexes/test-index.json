@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-15T18:43:52.6130267+01:00",
+    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
@@ -13,7 +13,7 @@
                                "date":  "2026-03-15",
                                "status":  "passed",
                                "testsRun":  431,
-                               "note":  "Reran after the WP18 aliased stats/chart projection cleanup."
+                               "note":  "Latest recorded full-suite result before the 2026-03-15 AI memory maintenance pass."
                            },
     "suites":  [
                    {
@@ -35,7 +35,10 @@
                        "files":  [
                                      "src/test/java/laughing/man/commits/SqlLikeParserTest.java",
                                      "src/test/java/laughing/man/commits/SqlLikeValidationTest.java",
+                                     "src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java",
+                                     "src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java",
                                      "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
+                                     "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
                                      "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java"
                                  ]
                    },
@@ -43,6 +46,9 @@
                        "category":  "fluent-and-joins",
                        "files":  [
                                      "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
+                                     "src/test/java/laughing/man/commits/AggregationFluentTest.java",
+                                     "src/test/java/laughing/man/commits/AggregationGroupByFluentTest.java",
+                                     "src/test/java/laughing/man/commits/NestedPathQueryTest.java",
                                      "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
                                      "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
                                      "src/test/java/laughing/man/commits/filter/FilterCoreTest.java"
@@ -53,7 +59,8 @@
                        "files":  [
                                      "src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
                                      "src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
-                                     "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java"
+                                     "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
+                                     "src/test/java/laughing/man/commits/SqlLikeQueryCacheTest.java"
                                  ]
                    },
                    {
@@ -61,7 +68,8 @@
                        "files":  [
                                      "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
                                      "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
+                                     "src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java",
+                                     "src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java",
                                      "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
                                      "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
                                      "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
@@ -71,4 +79,3 @@
                    }
                ]
 }
-

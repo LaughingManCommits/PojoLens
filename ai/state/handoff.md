@@ -1,104 +1,36 @@
 # Handoff
 
-## Next Work Tasks
+## Resume Order
 
-- The newest clean-tree long warmed rerun on unchanged code measured about `0.892 ms/op` at `size=10000` versus a current manual baseline rerun around `0.111 ms/op`.
-- The current short allocation-focused rerun is still about `0.618 ms/op` / `2,307,905 B/op`, with `gc.count` at `8` and `gc.time` at `5 ms`; the long warmed and short allocation reruns are diverging again on unchanged code.
-- A broader 2026-03-14 benchmark sweep is summarized in `BENCHMARKS.md` and `ai/state/benchmark-state.md`: all core/chart thresholds passed, the old chart parity report is now diagnostic-only rather than gated, and the hotspot suite still points to computed join / reflection conversion allocation pressure.
-- WP18 is the active package now: reduce absolute chart and SQL-like chart overhead by product value and `ms/op`, not by fluent-vs-SQL-like ratio, and allow larger redesigns when they have the clearer path to a real win.
-- The first WP18 runtime redesign is now in: non-subquery SQL-like executions cache a prepared validated/bound shape and rebind a request-scoped `FilterQueryBuilder` per execution, which also avoids the extra `copyOnBuild` snapshot on the hot path.
-- Subquery-bearing SQL-like queries intentionally bypass that prepared-shape cache for correctness, because their bound value sets depend on the current execution rows and join bindings.
-- The second WP18 redesign is now in: fluent and SQL-like chart execution map directly from internal `QueryRow` results, and `ChartMapper` now uses indexed `QueryRow` field reads instead of projecting to caller classes and then reflecting back over those objects.
-- The third WP18 chart-export pass is now in: `ChartPayloadJsonExporter` pre-sizes its buffer and writes fixed-scale numeric values directly instead of calling `String.format(...)` per point.
-- A narrower 2026-03-15 WP18 consolidation pass is also in: prepared non-join SQL-like stats shapes now precompute reusable raw execution-plan cache keys, and repeated aliased stats filter/chart executions now reuse the existing stats plan cache.
-- A follow-up 2026-03-15 WP18 consolidation pass is now in: `FilterQueryBuilder` snapshot construction no longer copies an already-copied `QuerySpec` a second time, and snapshot-isolation regression coverage was added in `FilterQueryBuilderSelectiveMaterializationTest`.
-- A fourth 2026-03-15 WP18 setup pass is now in: bean-backed prepared SQL-like executions bind to a lightweight `preparedExecutionView(...)` that shares the validated query shape instead of cloning the full builder config every call, and `RuleCleaner` is skipped on that validated path while `QueryRow`-backed executions still use isolated copies.
-- A fifth 2026-03-15 WP18 direct-stats pass is now in: simple bean-backed non-join stats queries aggregate directly from `ReflectionUtil.FlatRowReadPlan` reads through `FastStatsQuerySupport`, while still resolving execution plans through the existing stats-plan cache keys.
-- A sixth 2026-03-15 WP18 direct-chart pass is now in: `ChartMapper` now maps indexed `Object[]` rows plus schema names directly, and `FilterImpl` plus `SqlLikeQuery` route `FastStatsQuerySupport.FastStatsState` chart execution through that path instead of rebuilding `QueryRow` graphs first.
-- A seventh 2026-03-15 WP18 setup/refactor pass is now in: `ReflectionUtil` caches `FlatRowReadPlan` compilation by root type plus selected schema, and `SqlLikeQuery` now uses an explicit per-call execution run so filter/chart/raw-row paths reuse one rebound builder and one fast-stats resolution per invocation instead of rebuilding that state ad hoc.
-- An eighth 2026-03-15 WP18 alias-projection/chart pass is now in: `SqlLikeExecutionSupport` can remap fast-stats array schemas to aliased select outputs, `SqlLikeQuery` keeps plain aliased fast-stats filters on that direct array path, and chart execution now carries the projection class so aliased or computed select outputs still chart correctly when grouped queries fall back through `QueryRow` results such as with `ORDER BY`.
-- Exact targeted 2026-03-14 JMH reruns at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart` at about `4.891 ms/op` and `fluentTimeBucketMetricsToChart` at about `5.045 ms/op`.
-- Matching exact query-only reruns now measure `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics` at about `4.728 ms/op` and `fluentTimeBucketMetrics` at about `4.990 ms/op`, so chart-mapping overhead on that stats workload is now close to noise.
-- A rebuilt 2026-03-15 chart-suite rerun plus strict threshold check still passed `45/45` after that exporter pass; comparable cold `scatterPayloadJsonExport` timings fell to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`, and a targeted `size=10000` `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
-- Focused cache regressions were added for repeated SQL-like aliased stats filter/chart execution, and `mvn -q test` passed after the prepared-key consolidation pass.
-- Focused validation passed again after the prepared-execution-view pass: `SqlLikeQueryContractTest`, `SqlLikeChartIntegrationTest`, `CachePolicyConfigTest`, and `FilterQueryBuilderSelectiveMaterializationTest`; `mvn -q test` also passed on 2026-03-15.
-- A direct same-session rebinding probe on a 10k-row bean-backed time-bucket stats template measured `preparedExecutionView(...)` at about `4.228 us/op` versus `preparedExecutionCopy(...)` at about `5.822 us/op`, roughly `1.38x` faster for repeated setup on the targeted builder path.
-- Focused validation then passed after the fifth and sixth passes: `ChartMapperArrayRowsTest`, `SqlLikeChartIntegrationTest`, `ChartResultMapperMappingTest`, `ChartResultMapperValidationTest`, `SqlLikeQueryContractTest`, `TimeBucketAggregationTest`, `CachePolicyConfigTest`, and full `mvn -q test`.
-- Focused validation then passed again after the seventh pass: `ReflectionUtilTest`, `SqlLikeTypedBindContractTest`, `SqlLikeChartIntegrationTest`, `SqlLikeQueryContractTest`, `ChartMapperArrayRowsTest`, `CachePolicyConfigTest`, and full `mvn -q test`.
-- Focused validation passed again after the alias-projection/chart pass: `SqlLikeChartIntegrationTest`, `SqlLikeQueryContractTest`, `SqlLikeTypedBindContractTest`, `CachePolicyConfigTest`, and full `mvn -q test`; the current full-suite count is `431`.
-- A broader same-session attempt to route SQL-like raw-row execution directly through `FilterImpl` was benchmarked and not kept after short `size=10000` reruns regressed to about `5.404 ms/op` for `sqlLikeParseAndTimeBucketMetrics` and `5.034 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart`.
-- The kept narrower consolidation pass is benchmark-neutral so far on those short reruns: the same workloads now measure about `4.889 ms/op` and `4.731 ms/op` versus the earlier same-session baselines around `4.881 ms/op` and `4.594 ms/op`.
-- The next short same-session reruns after the duplicate-copy removal were too drift-heavy to attribute: SQL-like query/chart measured about `6.418` and `6.632 ms/op`, while fluent controls also drifted to about `7.146` and `7.029 ms/op`.
-- The latest short end-to-end rerun after the prepared-execution-view pass also stayed drift-heavy rather than attribution-friendly: SQL-like query/chart measured about `7.510` and `6.783 ms/op`, while fluent controls sat around `7.677` and `7.359 ms/op`.
-- The latest short end-to-end rerun after the direct-chart pass stayed mixed rather than proving a clean SQL-like chart win: fluent query/chart measured about `6.934` and `6.336 ms/op`, while SQL-like query/chart measured about `6.318` and `7.173 ms/op`.
-- The latest short end-to-end rerun after the setup/refactor pass stayed noisy overall, but SQL-like chart moved below SQL-like query in the same run: fluent query/chart measured about `6.919` and `7.182 ms/op`, while SQL-like query/chart measured about `7.033` and `6.381 ms/op`.
-- The latest short end-to-end rerun after the alias-projection/chart pass measured fluent query/chart about `6.452` and `6.737 ms/op`, while SQL-like query/chart measured about `6.735` and `4.764 ms/op`; treat that as evidence the chart path stayed low while the remaining SQL-like query/setup cost is still the better next profiling target.
-- The benchmark memory now also records the recurring warmed JFR hotspot clusters in `BENCHMARKS.md` and `ai/core/benchmark-context.md`; the common class-level stress is concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
-- Two speculative WP17 follow-up directions were tried on 2026-03-14 and reverted on the same clean tree after benchmark regressions: compiled `ReflectionUtil` accessors and early join-time filtering/materialization inside `FastArrayQuerySupport`.
-- The newest 2026-03-14 change bound compiled numeric expressions to direct array indexes once per plan in `SqlExpressionEvaluator`, and `FastArrayQuerySupport.applyComputedValues()` now uses that bound form instead of per-row lambda/string dependency resolution.
-- The prior 2026-03-14 change reused one parent read buffer across `tryBuildJoinedState()` and changed `buildChildIndex()` to store single-child matches directly in the hash index, only promoting to `List<Object[]>` on actual fan-out.
-- The current warmed JFR artifact is `target/wp17-after-bound-expression.jfr`.
-- Follow the refreshed `TODO.md` order: treat WP17 as good enough for now, attack absolute chart/SQL-like overhead next, then the broader reflection/conversion hotspot suite, and rebaseline budgets last.
-- Prefer a deeper internal redesign over compatibility-preserving tweaks: compiled accessor chains or method handles, narrower predicate plans, and cheaper projection materialization are all on the table.
-- The next WP18 opportunities after the prepared execution, direct `QueryRow` chart-mapping changes, direct bean stats aggregation, direct array-row chart mapping, cached flat-read-plan/per-call execution reuse, and alias-safe chart projection are now more likely remaining SQL-like setup/query cost than any broad chart-mapping issue.
-- Do not retry the broader `FilterImpl` raw-row delegation without a better hypothesis for the extra overhead; the prepared-key version keeps the cache reuse behavior without reopening that regression.
-- The builder-rebinding microbenchmark question is partly answered now: the lighter prepared view is measurably cheaper in isolation, so the next WP18 step should profile or benchmark what still dominates after setup rather than re-proving the old copy cost.
-- Small local tweaks are no longer preferred by default; larger redesigns are explicitly allowed when they have the clearer path to a real benchmark win while keeping feature behavior substantially similar.
-- The first speculative WP17 code experiments in this session regressed the warmed benchmark and were reverted before the current benchmark-backed pass landed; keep driving changes from fresh profiles and rebuilt benchmark jars.
-- The matcher/read-path/parent-buffer/bound-expression changes that did land are in `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`, `src/main/java/laughing/man/commits/util/ReflectionUtil.java`, and `src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java`.
-- The newest warmed profile is `target/wp17-after-bound-expression.jfr`. Its current first-repo-frame CPU hotspots are `ReflectionUtil$ResolvedFieldPath.read` (`832`), `FastArrayQuerySupport.applyComputedValues` (`313`), `FastArrayQuerySupport.tryBuildJoinedState` (`236`), `FastArrayQuerySupport.buildChildIndex` (`213`), and `ReflectionUtil.applyProjectionWritePlan` (`151`).
-- The newest warmed profile's first-repo-frame allocation hotspots are `FastArrayQuerySupport.buildChildIndex` (`6824`), `FastArrayQuerySupport.materializeJoinedRow` (`4731`), `ReflectionUtil$ResolvedFieldPath.read` (`2467`), `ReflectionUtil.readFlatRowValues` (`715`), and `FastArrayQuerySupport.castNumericValue` (`671`).
-- If WP17 is reopened later, start with a fresh clean-tree controlled repro/profile loop before another code change; after that, target residual reflection reads or joined-row/index allocation, and require an allocation win as well as a CPU win.
-- If the task is about broader profiling rather than immediate code changes, load `ai/core/benchmark-context.md` for the cross-JFR hotspot clusters before choosing the next package.
-- Keep process docs aligned if benchmark commands, release steps, or SQL-like capability boundaries change again.
+- Load hot context, then `TODO.md` if the task touches active performance work.
+- Load `ai/state/benchmark-state.md` and `ai/core/benchmark-context.md` only for benchmark, profiler, or threshold tasks.
+- Rebuild the benchmark runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package` before quoting fresh JMH numbers.
 
-## Relevant Files
+## Current Priority
+
+- WP18 is the active package.
+- The chart-path mapping and JSON-export work now look mostly solved for the current bean-backed stats workloads.
+- The remaining likely bottleneck is SQL-like setup/query execution after prepared-shape reuse, direct bean stats aggregation, direct array-row chart mapping, flat-read-plan caching, and alias-safe chart projection.
+
+## Guardrails
+
+- Do not reopen the broader `FilterImpl` raw-row delegation without a new hypothesis; it regressed the short `size=10000` reruns and was not kept.
+- Do not reopen WP17 micro-tuning unless a fresh clean-tree profile shows a high-confidence win on the selective single-join path.
+- Judge SQL-like work by absolute `ms/op`, allocation, and product value; fluent-vs-SQL-like ratios are diagnostic only.
+
+## Useful Files
 
 - `TODO.md`
-- `docs/benchmarking.md`
-- `.github/workflows/ci.yml`
 - `BENCHMARKS.md`
 - `ai/state/benchmark-state.md`
 - `ai/core/benchmark-context.md`
-- `benchmarks/thresholds.json`
-- `scripts/benchmark-suite-main.args`
-- `scripts/benchmark-suite-hotspots.args`
-- `src/main/java/laughing/man/commits/computed/internal/ComputedFieldSupport.java`
-- `src/main/java/laughing/man/commits/filter/JoinEngine.java`
-- `src/main/java/laughing/man/commits/filter/FilterImpl.java`
-- `src/main/java/laughing/man/commits/chart/ChartMapper.java`
-- `src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java`
-- `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`
-- `src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java`
-- `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
-- `src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java`
-- `src/main/java/laughing/man/commits/builder/QuerySpec.java`
-- `src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java`
 - `src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java`
-- `target/pojolens-fastpath-current.jfr`
-- `target/wp17-after-readpath.jfr`
-- `target/wp17-after-parent-buffer.jfr`
-- `target/wp17-after-bound-expression.jfr`
-- `src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java`
-- `src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java`
-- `src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java`
-- `src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java`
-- `src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java`
-- `src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java`
-- `src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java`
-- `src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java`
-- `src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java`
-- `src/test/java/laughing/man/commits/util/ReflectionUtilTest.java`
-- `src/test/java/laughing/man/commits/SqlLikeJoinTest.java`
-- `src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java`
+- `src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java`
+- `src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java`
+- `src/main/java/laughing/man/commits/chart/ChartMapper.java`
 
-## Unresolved Questions
+## Next Validation
 
-- Should broader multi-join, collision-heavy, or grouped flows get their own array-based path, or should the legacy `QueryRow` engine remain the long-tail fallback?
-- Is the next best gain in compiled field access for `ReflectionUtil$ResolvedFieldPath.read`, or in reducing joined-row/index allocation plus projection/cast overhead now that computed dependency lookup is already bound away?
-- Why are the current 300 ms warmed reruns drifting back toward `~0.892 ms/op` on unchanged code while the short `-prof gc` rerun still sits near `0.618 ms/op`? The next session should answer that before trusting another optimization result.
-- Should projection stay on no-arg construction plus setter writes, or move to a cheaper constructor or record-style path for common benchmark projections?
-- Can `FilterQueryBuilder.copySourceBeans()` be bypassed safely on the fast path now that internal compatibility constraints are relaxed?
-- With builder-copy overhead, source-row materialization, chart-row materialization, and repeated flat-read-plan compilation now all reduced on the bean-backed prepared path, what remaining cost dominates the end-to-end SQL-like stats/chart workloads?
-- With alias projection now fixed on both SQL-like chart paths and the latest short rerun keeping chart below query, what remaining SQL-like setup/query cost now dominates the stats workloads?
-- Should the next WP18 step be a dedicated setup microbenchmark or a fresh JFR on the SQL-like chart workload, now that short whole-query JMH is still too noisy to isolate the remaining gap?
+- Add a setup-focused microbenchmark or capture a fresh profile for the remaining prepared SQL-like stats/query cost.
+- After code changes, rerun focused regressions plus `mvn -q test`.
+- Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.

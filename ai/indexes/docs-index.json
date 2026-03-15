@@ -1,5 +1,5 @@
-{
-    "generatedAt":  "2026-03-14T09:55:33.0994216+01:00",
+﻿{
+    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
     "documents":  [
                       {
                           "path":  "AGENTS.md",
@@ -14,9 +14,9 @@
                       },
                       {
                           "path":  "ai/core/agent-invariants.md",
-                          "category":  "ai-hot-context",
+                          "category":  "ai-cold-core",
                           "relevance":  "medium",
-                          "loadTier":  "hot"
+                          "loadTier":  "cold"
                       },
                       {
                           "path":  "ai/core/architecture-map.md",
@@ -56,9 +56,9 @@
                       },
                       {
                           "path":  "ai/core/repo-purpose.md",
-                          "category":  "ai-hot-context",
+                          "category":  "ai-cold-core",
                           "relevance":  "medium",
-                          "loadTier":  "hot"
+                          "loadTier":  "cold"
                       },
                       {
                           "path":  "ai/core/runbook.md",
@@ -95,11 +95,6 @@
                           "category":  "ai-hot-context",
                           "relevance":  "medium",
                           "loadTier":  "hot"
-                      },
-                      {
-                          "path":  "AI-DEVELOPER.md",
-                          "category":  "repo-guidance",
-                          "relevance":  "low"
                       },
                       {
                           "path":  "BENCHMARKS.md",
@@ -183,6 +178,11 @@
                           "relevance":  "low"
                       },
                       {
+                          "path":  "MAINTENANCE.md",
+                          "category":  "memory-maintenance",
+                          "relevance":  "medium"
+                      },
+                      {
                           "path":  "MIGRATION.md",
                           "category":  "migration",
                           "relevance":  "low",
@@ -192,7 +192,7 @@
                           "path":  "README.md",
                           "category":  "readme",
                           "relevance":  "high",
-                          "alignment":  "mostly-aligned"
+                          "alignment":  "aligned"
                       },
                       {
                           "path":  "RELEASE.md",

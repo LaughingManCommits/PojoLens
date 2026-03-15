@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-15T16:07:51.9525617+01:00",
+    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
     "groups":  [
                    {
                        "component":  "facades",
@@ -128,6 +128,11 @@
                                            "name":  "SqlExpressionEvaluator",
                                            "kind":  "class",
                                            "path":  "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java"
+                                       },
+                                       {
+                                           "name":  "SqlLikeExecutionSupport",
+                                           "kind":  "class",
+                                           "path":  "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java"
                                        }
                                    ]
                    },
@@ -138,6 +143,11 @@
                                            "name":  "ChartMapper",
                                            "kind":  "class",
                                            "path":  "src/main/java/laughing/man/commits/chart/ChartMapper.java"
+                                       },
+                                       {
+                                           "name":  "ChartResultMapper",
+                                           "kind":  "class",
+                                           "path":  "src/main/java/laughing/man/commits/chart/ChartResultMapper.java"
                                        },
                                        {
                                            "name":  "ChartData",
@@ -193,4 +203,3 @@
                    }
                ]
 }
-

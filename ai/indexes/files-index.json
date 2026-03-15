@@ -1,5 +1,5 @@
-{
-    "generatedAt":  "2026-03-15T16:07:51.9525617+01:00",
+﻿{
+    "generatedAt":  "2026-03-15T19:48:37.3595823+01:00",
     "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
     "counts":  {
                    "mainJavaFiles":  134,
@@ -67,6 +67,10 @@
                            {
                                "path":  "TODO.md",
                                "kind":  "planning"
+                           },
+                           {
+                               "path":  "MAINTENANCE.md",
+                               "kind":  "memory-maintenance"
                            },
                            {
                                "path":  "AGENTS.md",
@@ -154,6 +158,10 @@
                            },
                            {
                                "path":  "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
+                               "kind":  "engine"
+                           },
+                           {
+                               "path":  "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java",
                                "kind":  "engine"
                            },
                            {

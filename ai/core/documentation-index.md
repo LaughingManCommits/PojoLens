@@ -26,11 +26,13 @@ Process and repository docs:
 - `MIGRATION.md`
 - `RELEASE.md`
 - `TODO.md`
+- `MAINTENANCE.md`
 - `LICENSE.md`
 - `AGENTS.md`
 - `ai/AGENTS.md`
 
 Documentation notes:
 
-- `TODO.md` is the active planning document; no separate backlog or roadmap file exists.
-- `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` need occasional drift checks against code and tests.
+- `TODO.md` is the active backlog document.
+- `MAINTENANCE.md` applies only to `/ai` memory cleanup passes.
+- `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` are the main process docs that need periodic drift checks against code and tests.
