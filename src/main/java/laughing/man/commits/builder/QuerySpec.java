@@ -15,37 +15,37 @@ import java.util.Map;
 final class QuerySpec {
 
     private List<QueryRow> rows = new ArrayList<>();
-    private final Map<String, Class<?>> sourceFieldTypes = new LinkedHashMap<>();
-    private final Map<String, Class<?>> fieldTypes = new LinkedHashMap<>();
-    private final Map<String, CriteriaRule> filterRules = new LinkedHashMap<>();
-    private final Map<String, CriteriaRule> havingRules = new LinkedHashMap<>();
-    private final Map<String, Object> filterValues = new HashMap<>();
-    private final Map<String, String> filterFields = new HashMap<>();
-    private final Map<String, Clauses> filterClause = new HashMap<>();
-    private final Map<String, Separator> filterSeparator = new HashMap<>();
-    private final Map<String, Object> havingValues = new HashMap<>();
-    private final Map<String, String> havingFields = new HashMap<>();
-    private final Map<String, Clauses> havingClause = new HashMap<>();
-    private final Map<String, Separator> havingSeparator = new HashMap<>();
-    private final Map<String, String> havingDateFormats = new HashMap<>();
-    private final Map<String, List<String>> havingIDs = new HashMap<>();
-    private final Map<String, String> filterDateFormats = new HashMap<>();
-    private final Map<Integer, String> groupFields = new HashMap<>();
-    private final Map<Integer, String> orderFields = new HashMap<>();
-    private final Map<Integer, String> distinctFields = new HashMap<>();
-    private final Map<String, List<String>> filterIDs = new HashMap<>();
-    private final Map<Integer, List<QueryRow>> joinClasses = new HashMap<>();
-    private final Map<Integer, Map<String, Class<?>>> joinSourceFieldTypes = new HashMap<>();
-    private final Map<Integer, Join> joinMethods = new HashMap<>();
-    private final Map<Integer, String> joinParentFields = new HashMap<>();
-    private final Map<Integer, String> joinChildFields = new HashMap<>();
-    private final List<String> returnFields = new ArrayList<>();
-    private final List<QueryMetric> metrics = new ArrayList<>();
-    private final Map<String, QueryTimeBucket> timeBuckets = new HashMap<>();
-    private final List<List<QueryRule>> allOfGroups = new ArrayList<>();
-    private final List<List<QueryRule>> anyOfGroups = new ArrayList<>();
-    private final List<List<QueryRule>> havingAllOfGroups = new ArrayList<>();
-    private final List<List<QueryRule>> havingAnyOfGroups = new ArrayList<>();
+    private Map<String, Class<?>> sourceFieldTypes = new LinkedHashMap<>();
+    private Map<String, Class<?>> fieldTypes = new LinkedHashMap<>();
+    private Map<String, CriteriaRule> filterRules = new LinkedHashMap<>();
+    private Map<String, CriteriaRule> havingRules = new LinkedHashMap<>();
+    private Map<String, Object> filterValues = new HashMap<>();
+    private Map<String, String> filterFields = new HashMap<>();
+    private Map<String, Clauses> filterClause = new HashMap<>();
+    private Map<String, Separator> filterSeparator = new HashMap<>();
+    private Map<String, Object> havingValues = new HashMap<>();
+    private Map<String, String> havingFields = new HashMap<>();
+    private Map<String, Clauses> havingClause = new HashMap<>();
+    private Map<String, Separator> havingSeparator = new HashMap<>();
+    private Map<String, String> havingDateFormats = new HashMap<>();
+    private Map<String, List<String>> havingIDs = new HashMap<>();
+    private Map<String, String> filterDateFormats = new HashMap<>();
+    private Map<Integer, String> groupFields = new HashMap<>();
+    private Map<Integer, String> orderFields = new HashMap<>();
+    private Map<Integer, String> distinctFields = new HashMap<>();
+    private Map<String, List<String>> filterIDs = new HashMap<>();
+    private Map<Integer, List<QueryRow>> joinClasses = new HashMap<>();
+    private Map<Integer, Map<String, Class<?>>> joinSourceFieldTypes = new HashMap<>();
+    private Map<Integer, Join> joinMethods = new HashMap<>();
+    private Map<Integer, String> joinParentFields = new HashMap<>();
+    private Map<Integer, String> joinChildFields = new HashMap<>();
+    private List<String> returnFields = new ArrayList<>();
+    private List<QueryMetric> metrics = new ArrayList<>();
+    private Map<String, QueryTimeBucket> timeBuckets = new HashMap<>();
+    private List<List<QueryRule>> allOfGroups = new ArrayList<>();
+    private List<List<QueryRule>> anyOfGroups = new ArrayList<>();
+    private List<List<QueryRule>> havingAllOfGroups = new ArrayList<>();
+    private List<List<QueryRule>> havingAnyOfGroups = new ArrayList<>();
     private Integer limit;
 
     List<QueryRow> getRows() {
@@ -221,6 +221,44 @@ final class QuerySpec {
     QuerySpec executionCopy() {
         QuerySpec copy = new QuerySpec();
         copyInto(copy, false);
+        return copy;
+    }
+
+    QuerySpec preparedExecutionViewCopy() {
+        QuerySpec copy = new QuerySpec();
+        copy.rows = copyRowsReference(rows);
+        copy.sourceFieldTypes = new LinkedHashMap<>(sourceFieldTypes);
+        copy.fieldTypes = new LinkedHashMap<>(fieldTypes);
+        copy.filterRules = filterRules;
+        copy.havingRules = havingRules;
+        copy.filterValues = filterValues;
+        copy.filterFields = filterFields;
+        copy.filterClause = filterClause;
+        copy.filterSeparator = filterSeparator;
+        copy.havingValues = havingValues;
+        copy.havingFields = havingFields;
+        copy.havingClause = havingClause;
+        copy.havingSeparator = havingSeparator;
+        copy.havingDateFormats = havingDateFormats;
+        copy.havingIDs = havingIDs;
+        copy.filterDateFormats = filterDateFormats;
+        copy.groupFields = groupFields;
+        copy.orderFields = orderFields;
+        copy.distinctFields = distinctFields;
+        copy.filterIDs = filterIDs;
+        copy.joinClasses = copyJoinClassReferences(joinClasses);
+        copy.joinSourceFieldTypes = copyJoinFieldTypes(joinSourceFieldTypes);
+        copy.joinMethods = joinMethods;
+        copy.joinParentFields = joinParentFields;
+        copy.joinChildFields = joinChildFields;
+        copy.returnFields = returnFields;
+        copy.metrics = metrics;
+        copy.timeBuckets = timeBuckets;
+        copy.allOfGroups = allOfGroups;
+        copy.anyOfGroups = anyOfGroups;
+        copy.havingAllOfGroups = havingAllOfGroups;
+        copy.havingAnyOfGroups = havingAnyOfGroups;
+        copy.limit = limit;
         return copy;
     }
 

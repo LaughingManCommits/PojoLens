@@ -1,5 +1,5 @@
 {
-    "generatedAt":  "2026-03-15T08:46:50.8196227+01:00",
+    "generatedAt":  "2026-03-15T13:48:22.2487910+01:00",
     "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
     "counts":  {
                    "mainJavaFiles":  133,

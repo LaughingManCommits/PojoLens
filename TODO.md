@@ -386,6 +386,9 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - the kept narrower pass is functionally useful but benchmark-neutral so far: the same short reruns now measure about `4.889 ms/op` and `4.731 ms/op` versus the earlier same-session baselines around `4.881 ms/op` and `4.594 ms/op`
 - a follow-up 2026-03-15 consolidation pass now removes a duplicate `QuerySpec` copy in `FilterQueryBuilder` snapshot construction by letting snapshot builders adopt the already-copied spec; snapshot-isolation regression coverage was added and `mvn -q test` passed again
 - the same-session short 2026-03-15 reruns after that copy-removal pass were dominated by broad drift rather than a clean patch signal: `sqlLikeParseAndTimeBucketMetrics` measured about `6.418 ms/op`, `sqlLikeParseAndTimeBucketMetricsToChart` about `6.632 ms/op`, and fluent controls also drifted up to about `7.146 ms/op` and `7.029 ms/op`
+- a fourth 2026-03-15 setup pass now lets bean-backed prepared SQL-like executions bind to a lightweight `preparedExecutionView(...)` that shares the validated query shape and skips `RuleCleaner` on that validated path, while `QueryRow`-backed executions still fall back to isolated copies
+- focused validation passed again after that pass: `SqlLikeQueryContractTest`, `SqlLikeChartIntegrationTest`, `CachePolicyConfigTest`, `FilterQueryBuilderSelectiveMaterializationTest`, and then `mvn -q test`
+- a direct same-session rebinding probe on a 10k-row bean-backed time-bucket stats template now measures `preparedExecutionView(...)` at about `4.228 us/op` versus `preparedExecutionCopy(...)` at about `5.822 us/op` (`~1.38x` faster), but the matching short end-to-end rerun still drifted to about `7.510 ms/op` for `sqlLikeParseAndTimeBucketMetrics` and `6.783 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart` with fluent controls near `7.677` and `7.359 ms/op`
 
 Tasks:
 
@@ -394,7 +397,7 @@ Tasks:
 - allow larger chart or SQL-like pipeline redesigns when they clearly reduce product-visible overhead while preserving substantially similar features/behavior
 - land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
 - keep chart threshold pass status intact while improving absolute latency headroom
-- if work stays on prepared-builder setup cost, capture a direct profile or narrower benchmark around rebinding/copying first; the latest short end-to-end reruns were too drift-heavy to isolate this pass
+- if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
 
 Boundary with WP19:
 

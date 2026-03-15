@@ -52,7 +52,9 @@ public class FilterImpl implements Filter {
             if (core.getBuilder().getRows() != null
                     && !core.getBuilder().getRows().isEmpty()) {
                 FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, true);
-                core.clean(core.getBuilder().getRows().get(0));
+                if (executionBuilder.requiresRuntimeSchemaCleaning()) {
+                    core.clean(core.getBuilder().getRows().get(0));
+                }
                 // Remove duplicate rows when distinct columns are configured.
                 List<QueryRow> distinctClasses = core.filterDistinctFields(plan);
                 // Apply rule filtering (AND/OR and grouped operators).
@@ -112,7 +114,9 @@ public class FilterImpl implements Filter {
         try {
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
                 FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, false);
-                core.clean(core.getBuilder().getRows().get(0));
+                if (executionBuilder.requiresRuntimeSchemaCleaning()) {
+                    core.clean(core.getBuilder().getRows().get(0));
+                }
                 // Remove duplicate rows when distinct columns are configured.
                 List<QueryRow> distinctClasses = core.filterDistinctFields(plan);
                 // Apply rule filtering (AND/OR and grouped operators).

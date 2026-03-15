@@ -50,6 +50,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private String telemetryQueryType = "fluent";
     private String telemetrySource = "fluent";
     private ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
+    private boolean runtimeSchemaValidated;
     private List<?> sourceBeans = List.of();
     private Map<Integer, List<?>> joinSourceBeans = new HashMap<>();
     private boolean fullyMaterializedSourceRows;
@@ -810,6 +811,17 @@ public class FilterQueryBuilder implements QueryBuilder {
         return snapshot;
     }
 
+    public FilterQueryBuilder preparedExecutionView(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
+        Map<Integer, List<?>> joinSources = joinSourcesByIndex == null ? Map.of() : joinSourcesByIndex;
+        if (!supportsPreparedExecutionView(pojos, joinSources)) {
+            return preparedExecutionCopy(pojos, joinSources);
+        }
+        FilterQueryBuilder snapshot = copyBuilderState(spec.preparedExecutionViewCopy(), false);
+        snapshot.bindPreparedExecutionSources(pojos, joinSources);
+        snapshot.runtimeSchemaValidated = true;
+        return snapshot;
+    }
+
     public FilterQueryBuilder snapshotForRows(List<QueryRow> rows) {
         FilterQueryBuilder snapshot = snapshotForExecution();
         snapshot.setRows(rows);
@@ -851,6 +863,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         return executionPlanShapeVersion;
     }
 
+    public boolean requiresRuntimeSchemaCleaning() {
+        return !runtimeSchemaValidated;
+    }
+
     public FilterQueryBuilder telemetryContext(String queryType,
                                                String source,
                                                QueryTelemetryListener listener) {
@@ -867,6 +883,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         snapshot.telemetryQueryType = telemetryQueryType;
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
+        snapshot.runtimeSchemaValidated = runtimeSchemaValidated;
         snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
         return snapshot;
     }
@@ -1440,6 +1457,18 @@ public class FilterQueryBuilder implements QueryBuilder {
             }
         }
         return null;
+    }
+
+    private boolean supportsPreparedExecutionView(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
+        if (firstNonNull(pojos) instanceof QueryRow) {
+            return false;
+        }
+        for (List<?> rows : joinSourcesByIndex.values()) {
+            if (firstNonNull(rows) instanceof QueryRow) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void markExecutionPlanShapeChanged() {

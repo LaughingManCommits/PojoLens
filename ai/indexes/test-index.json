@@ -1,5 +1,5 @@
 ﻿{
-    "generatedAt":  "2026-03-15T08:46:50.8196227+01:00",
+    "generatedAt":  "2026-03-15T13:48:22.2487910+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
@@ -12,8 +12,8 @@
                                "command":  "mvn -q test",
                                "date":  "2026-03-15",
                                "status":  "passed",
-                               "testsRun":  417,
-                               "note":  "Reran after the WP18 chart-export serializer pass."
+                               "testsRun":  421,
+                               "note":  "Reran after the WP18 prepared-execution-view setup pass."
                            },
     "suites":  [
                    {

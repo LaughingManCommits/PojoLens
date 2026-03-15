@@ -243,6 +243,36 @@ public class SqlLikeQueryContractTest {
         assertEquals("Acme", results.get(0).name);
     }
 
+    @Test
+    public void repeatedBeanBackedStatsExecutionsShouldRebindToCurrentRows() {
+        List<DepartmentEmployee> firstRows = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+        List<DepartmentEmployee> secondRows = Arrays.asList(
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("Finance"),
+                new DepartmentEmployee("HR")
+        );
+
+        SqlLikeQuery query = PojoLens.parse(
+                "select department, count(*) as total group by department order by department asc");
+
+        List<DepartmentCount> first = query.filter(firstRows, DepartmentCount.class);
+        List<DepartmentCount> second = query.filter(secondRows, DepartmentCount.class);
+
+        assertEquals(Arrays.asList("Engineering", "Finance"),
+                first.stream().map(row -> row.department).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(2L, 1L),
+                first.stream().map(row -> row.total).collect(Collectors.toList()));
+        assertEquals(Arrays.asList("Finance", "HR"),
+                second.stream().map(row -> row.department).collect(Collectors.toList()));
+        assertEquals(Arrays.asList(3L, 1L),
+                second.stream().map(row -> row.total).collect(Collectors.toList()));
+    }
+
     public static class TestBean {
         String name;
         int value;

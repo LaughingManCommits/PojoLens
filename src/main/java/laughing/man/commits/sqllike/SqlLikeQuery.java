@@ -573,7 +573,9 @@ public final class SqlLikeQuery {
         int afterLimit = beforeLimit;
 
         if (working.getRows() != null && !working.getRows().isEmpty()) {
-            core.clean(working.getRows().get(0));
+            if (working.requiresRuntimeSchemaCleaning()) {
+                core.clean(working.getRows().get(0));
+            }
             FilterExecutionPlan plan = core.buildExecutionPlan();
             List<QueryRow> distinctRows = core.filterDistinctFields(plan);
             beforeWhere = sizeOf(distinctRows);
@@ -654,7 +656,9 @@ public final class SqlLikeQuery {
             return Collections.emptyList();
         }
 
-        core.clean(working.getRows().get(0));
+        if (working.requiresRuntimeSchemaCleaning()) {
+            core.clean(working.getRows().get(0));
+        }
         FilterExecutionPlan plan = context.resolveRawExecutionPlan(core, working);
         List<QueryRow> distinctRows = core.filterDistinctFields(plan);
         long filterStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
@@ -983,7 +987,7 @@ public final class SqlLikeQuery {
                                                        Map<String, List<?>> joinSources,
                                                        QueryTelemetryListener telemetryListener,
                                                        String source) {
-            FilterQueryBuilder builder = templateBuilder.preparedExecutionCopy(
+            FilterQueryBuilder builder = templateBuilder.preparedExecutionView(
                     pojos,
                     joinSourcesByIndex(joinSources)
             );
