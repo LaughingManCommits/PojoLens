@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Core chart mapping engine for converting query rows into {@link ChartData}.
+ * Core chart mapping engine for converting result rows into {@link ChartData}.
  */
 public final class ChartMapper {
 
@@ -52,6 +52,21 @@ public final class ChartMapper {
         return mapMultiSeries(rows, spec, chartData);
     }
 
+    public static ChartData toChartData(List<Object[]> rows, List<String> fieldNames, ChartSpec spec) {
+        ChartValidation.validateSpec(spec);
+
+        ChartData chartData = newChartData(spec);
+        if (rows == null || rows.isEmpty()) {
+            return chartData;
+        }
+
+        IndexedRowReadPlan readPlan = indexedRowReadPlan(fieldNames, spec);
+        if (!spec.multiSeries()) {
+            return mapSingleSeriesArrayRows(rows, spec, chartData, readPlan);
+        }
+        return mapMultiSeriesArrayRows(rows, spec, chartData, readPlan);
+    }
+
     private static ChartData newChartData(ChartSpec spec) {
         ChartData chartData = new ChartData();
         chartData.setType(spec.type());
@@ -76,8 +91,8 @@ public final class ChartMapper {
     }
 
     private static <T> ChartData mapSingleSeries(List<T> rows, ChartSpec spec, ChartData chartData) {
-        List<String> labels = new ArrayList<>();
-        List<Double> values = new ArrayList<>();
+        List<String> labels = new ArrayList<>(rows.size());
+        List<Double> values = new ArrayList<>(rows.size());
         for (T row : rows) {
             if (row == null) {
                 continue;
@@ -96,7 +111,7 @@ public final class ChartMapper {
     }
 
     private static ChartData mapQueryRows(List<QueryRow> rows, ChartSpec spec, ChartData chartData) {
-        QueryRowReadPlan readPlan = queryRowReadPlan(rows, spec);
+        IndexedRowReadPlan readPlan = queryRowReadPlan(rows, spec);
         if (!spec.multiSeries()) {
             return mapSingleSeriesQueryRows(rows, spec, chartData, readPlan);
         }
@@ -106,15 +121,38 @@ public final class ChartMapper {
     private static ChartData mapSingleSeriesQueryRows(List<QueryRow> rows,
                                                       ChartSpec spec,
                                                       ChartData chartData,
-                                                      QueryRowReadPlan readPlan) {
-        List<String> labels = new ArrayList<>();
-        List<Double> values = new ArrayList<>();
+                                                      IndexedRowReadPlan readPlan) {
+        List<String> labels = new ArrayList<>(rows.size());
+        List<Double> values = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
             if (row == null) {
                 continue;
             }
             Object x = readQueryRowField(row, spec.xField(), readPlan.xFieldIndex());
             Object y = readQueryRowField(row, spec.yField(), readPlan.yFieldIndex());
+            labels.add(ChartValidation.validateXValue(x, spec.xField(), spec.dateFormat()));
+            values.add(ChartValidation.validateYValue(y, spec.yField()));
+        }
+        if (spec.sortLabels()) {
+            sortSingleSeries(labels, values);
+        }
+        chartData.setLabels(labels);
+        chartData.setDatasets(List.of(newDataset(spec, spec.yField(), values)));
+        return chartData;
+    }
+
+    private static ChartData mapSingleSeriesArrayRows(List<Object[]> rows,
+                                                      ChartSpec spec,
+                                                      ChartData chartData,
+                                                      IndexedRowReadPlan readPlan) {
+        List<String> labels = new ArrayList<>(rows.size());
+        List<Double> values = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object x = readArrayRowField(row, readPlan.xFieldIndex());
+            Object y = readArrayRowField(row, readPlan.yFieldIndex());
             labels.add(ChartValidation.validateXValue(x, spec.xField(), spec.dateFormat()));
             values.add(ChartValidation.validateYValue(y, spec.yField()));
         }
@@ -172,7 +210,7 @@ public final class ChartMapper {
     private static ChartData mapMultiSeriesQueryRows(List<QueryRow> rows,
                                                      ChartSpec spec,
                                                      ChartData chartData,
-                                                     QueryRowReadPlan readPlan) {
+                                                     IndexedRowReadPlan readPlan) {
         LinkedHashSet<String> orderedLabels = new LinkedHashSet<>();
         LinkedHashSet<String> orderedSeries = new LinkedHashSet<>();
         Map<String, Map<String, Double>> valuesBySeries = new LinkedHashMap<>();
@@ -224,7 +262,60 @@ public final class ChartMapper {
         return chartData;
     }
 
-    private static QueryRowReadPlan queryRowReadPlan(List<QueryRow> rows, ChartSpec spec) {
+    private static ChartData mapMultiSeriesArrayRows(List<Object[]> rows,
+                                                     ChartSpec spec,
+                                                     ChartData chartData,
+                                                     IndexedRowReadPlan readPlan) {
+        LinkedHashSet<String> orderedLabels = new LinkedHashSet<>();
+        LinkedHashSet<String> orderedSeries = new LinkedHashSet<>();
+        Map<String, Map<String, Double>> valuesBySeries = new LinkedHashMap<>();
+
+        for (Object[] row : rows) {
+            if (row == null) {
+                continue;
+            }
+            String x = ChartValidation.validateXValue(
+                    readArrayRowField(row, readPlan.xFieldIndex()),
+                    spec.xField(),
+                    spec.dateFormat()
+            );
+            String series = stringSeriesValue(readArrayRowField(row, readPlan.seriesFieldIndex()));
+            Double value = ChartValidation.validateYValue(
+                    readArrayRowField(row, readPlan.yFieldIndex()),
+                    spec.yField()
+            );
+            orderedLabels.add(x);
+            orderedSeries.add(series);
+            valuesBySeries.computeIfAbsent(series, key -> new LinkedHashMap<>()).put(x, value);
+        }
+
+        List<String> labels = new ArrayList<>(orderedLabels);
+        if (spec.sortLabels()) {
+            labels.sort(Comparator.nullsFirst(String::compareTo));
+        }
+
+        List<ChartDataset> datasets = new ArrayList<>();
+        for (String series : orderedSeries) {
+            Map<String, Double> points = valuesBySeries.getOrDefault(series, Collections.emptyMap());
+            List<Double> values = new ArrayList<>(labels.size());
+            for (String label : labels) {
+                Double point = points.get(label);
+                if (point == null && NullPointPolicy.ZERO.equals(spec.nullPointPolicy())) {
+                    point = 0d;
+                }
+                values.add(point);
+            }
+            datasets.add(newDataset(spec, series, values));
+        }
+        if (spec.percentStacked()) {
+            applyPercentStacking(datasets, labels.size());
+        }
+        chartData.setLabels(labels);
+        chartData.setDatasets(datasets);
+        return chartData;
+    }
+
+    private static IndexedRowReadPlan queryRowReadPlan(List<QueryRow> rows, ChartSpec spec) {
         for (QueryRow row : rows) {
             if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
                 continue;
@@ -238,13 +329,32 @@ public final class ChartMapper {
                 }
                 fieldIndexes.putIfAbsent(field.getFieldName(), i);
             }
-            return new QueryRowReadPlan(
+            return new IndexedRowReadPlan(
                     requireQueryRowFieldIndex(fieldIndexes, spec.xField()),
                     requireQueryRowFieldIndex(fieldIndexes, spec.yField()),
                     spec.multiSeries() ? requireQueryRowFieldIndex(fieldIndexes, spec.seriesField()) : -1
             );
         }
         throw new IllegalArgumentException("Unknown chart field '" + spec.xField() + "'");
+    }
+
+    private static IndexedRowReadPlan indexedRowReadPlan(List<String> fieldNames, ChartSpec spec) {
+        if (fieldNames == null || fieldNames.isEmpty()) {
+            throw new IllegalArgumentException("Unknown chart field '" + spec.xField() + "'");
+        }
+        LinkedHashMap<String, Integer> fieldIndexes = new LinkedHashMap<>();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            String fieldName = fieldNames.get(i);
+            if (fieldName == null || fieldName.isBlank()) {
+                continue;
+            }
+            fieldIndexes.putIfAbsent(fieldName, i);
+        }
+        return new IndexedRowReadPlan(
+                requireQueryRowFieldIndex(fieldIndexes, spec.xField()),
+                requireQueryRowFieldIndex(fieldIndexes, spec.yField()),
+                spec.multiSeries() ? requireQueryRowFieldIndex(fieldIndexes, spec.seriesField()) : -1
+        );
     }
 
     private static int requireQueryRowFieldIndex(Map<String, Integer> fieldIndexes, String fieldName) {
@@ -297,6 +407,13 @@ public final class ChartMapper {
         return null;
     }
 
+    private static Object readArrayRowField(Object[] row, int fieldIndex) {
+        if (row == null || fieldIndex < 0 || fieldIndex >= row.length) {
+            return null;
+        }
+        return row[fieldIndex];
+    }
+
     private static Object readField(Object row, String fieldName) {
         try {
             return ReflectionUtil.getFieldValue(row, fieldName);
@@ -339,6 +456,6 @@ public final class ChartMapper {
         );
     }
 
-    private record QueryRowReadPlan(int xFieldIndex, int yFieldIndex, int seriesFieldIndex) {
+    private record IndexedRowReadPlan(int xFieldIndex, int yFieldIndex, int seriesFieldIndex) {
     }
 }

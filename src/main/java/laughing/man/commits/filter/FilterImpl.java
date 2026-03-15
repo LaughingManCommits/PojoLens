@@ -35,6 +35,7 @@ public class FilterImpl implements Filter {
     private volatile FilterExecutionPlanCacheKey planCacheKey;
     private volatile long planCacheKeyVersion = Long.MIN_VALUE;
     private volatile FastArrayQuerySupport.FastArrayState fastArrayState;
+    private volatile FastStatsQuerySupport.FastStatsState fastStatsState;
 
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
@@ -104,10 +105,27 @@ public class FilterImpl implements Filter {
         if (fastState != null) {
             return FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
         }
+        FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
+        if (statsState == null) {
+            statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
+            fastStatsState = statsState;
+        }
+        if (statsState != null) {
+            return ReflectionUtil.toClassList(cls, statsState.rows(), statsState.schemaFields());
+        }
         return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
     }
 
     private List<QueryRow> filterRows(Sort sortMethod) {
+        FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
+        if (statsState == null) {
+            statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
+            fastStatsState = statsState;
+        }
+        if (statsState != null) {
+            return FastStatsQuerySupport.toQueryRows(statsState);
+        }
+
         List<QueryRow> results = new ArrayList<>();
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
@@ -193,9 +211,19 @@ public class FilterImpl implements Filter {
             rowCount = rows.size();
             chart = ChartMapper.toChartData(rows, spec);
         } else {
-            List<QueryRow> rows = filterRows(sortMethod);
-            rowCount = rows.size();
-            chart = ChartMapper.toChartData(rows, spec);
+            FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
+            if (statsState == null) {
+                statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
+                fastStatsState = statsState;
+            }
+            if (statsState != null) {
+                rowCount = statsState.rows().size();
+                chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
+            } else {
+                List<QueryRow> rows = filterRows(sortMethod);
+                rowCount = rows.size();
+                chart = ChartMapper.toChartData(rows, spec);
+            }
         }
         emitStage(builderState,
                 QueryTelemetryStage.CHART,
@@ -290,6 +318,7 @@ public class FilterImpl implements Filter {
     @Override
     public synchronized Filter join() {
         FilterQueryBuilder executionBuilder = builderState;
+        this.fastStatsState = null;
         FastArrayQuerySupport.FastArrayState fastState = FastArrayQuerySupport.tryBuildJoinedState(executionBuilder);
         if (fastState != null) {
             executionBuilder.setExecutionSchema(fastState.schemaTypes());
@@ -312,6 +341,13 @@ public class FilterImpl implements Filter {
     private void materializeFastRowsIfPresent() {
         FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
         if (fastState == null) {
+            FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
+            if (statsState == null) {
+                return;
+            }
+            FilterQueryBuilder executionBuilder = builderState;
+            executionBuilder.setRows(FastStatsQuerySupport.toQueryRows(statsState));
+            fastStatsState = null;
             return;
         }
         FilterQueryBuilder executionBuilder = builderState;

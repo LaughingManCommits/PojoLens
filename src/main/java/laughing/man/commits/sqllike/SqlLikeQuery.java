@@ -3,6 +3,7 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.chart.ChartData;
+import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.computed.ComputedFieldRegistry;
@@ -11,6 +12,7 @@ import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
+import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -638,6 +640,19 @@ public final class SqlLikeQuery {
     }
 
     private ChartData executeChart(ExecutionContext context, ChartSpec spec) {
+        if (!context.applyJoin()) {
+            FilterQueryBuilder working = context.newExecutionBuilder();
+            FastStatsQuerySupport.FastStatsState statsState = FastStatsQuerySupport.tryBuildState(
+                    working,
+                    context.rawExecutionPlanCacheKey()
+            );
+            if (statsState != null) {
+                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+                ChartData chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
+                emitChartTelemetry(chartStarted, statsState.rows().size(), chart);
+                return chart;
+            }
+        }
         List<QueryRow> rows = executeRawRows(context);
         long chartStarted = QueryTelemetrySupport.start(telemetryListener);
         ChartData chart = ChartResultMapper.toChartData(rows, spec);
@@ -647,6 +662,15 @@ public final class SqlLikeQuery {
 
     private List<QueryRow> executeRawRows(ExecutionContext context) {
         FilterQueryBuilder working = context.newExecutionBuilder();
+        if (!context.applyJoin()) {
+            FastStatsQuerySupport.FastStatsState statsState = FastStatsQuerySupport.tryBuildState(
+                    working,
+                    context.rawExecutionPlanCacheKey()
+            );
+            if (statsState != null) {
+                return FastStatsQuerySupport.toQueryRows(statsState);
+            }
+        }
         FilterCore core = new FilterCore(working);
         if (context.applyJoin()) {
             working.setRows(core.join(working.getRows()));
@@ -958,6 +982,10 @@ public final class SqlLikeQuery {
                 return core.buildExecutionPlan();
             }
             return builder.getExecutionPlanCache().getOrBuild(cachedKey, core::buildExecutionPlan);
+        }
+
+        private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {
+            return prepared.rawExecutionPlanCacheKey();
         }
     }
 

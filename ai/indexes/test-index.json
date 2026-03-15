@@ -1,19 +1,19 @@
 ﻿{
-    "generatedAt":  "2026-03-15T13:48:22.2487910+01:00",
+    "generatedAt":  "2026-03-15T16:07:51.9525617+01:00",
     "testRoots":  [
                       "src/test/java/laughing/man/commits",
                       "src/test/resources/fixtures"
                   ],
     "counts":  {
-                   "testJavaFiles":  64,
-                   "testClasses":  60
+                   "testJavaFiles":  65,
+                   "testClasses":  61
                },
     "latestKnownFullRun":  {
                                "command":  "mvn -q test",
                                "date":  "2026-03-15",
                                "status":  "passed",
-                               "testsRun":  421,
-                               "note":  "Reran after the WP18 prepared-execution-view setup pass."
+                               "testsRun":  424,
+                               "note":  "Reran after the WP18 direct-stats and direct-chart passes."
                            },
     "suites":  [
                    {
@@ -60,6 +60,8 @@
                        "category":  "charts-reports-and-tools",
                        "files":  [
                                      "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+                                     "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+                                     "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
                                      "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
                                      "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
                                      "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",

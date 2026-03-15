@@ -1,10 +1,10 @@
 {
-    "generatedAt":  "2026-03-15T13:48:22.2487910+01:00",
+    "generatedAt":  "2026-03-15T16:07:51.9525617+01:00",
     "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
     "counts":  {
-                   "mainJavaFiles":  133,
-                   "testJavaFiles":  64,
-                   "testClasses":  60,
+                   "mainJavaFiles":  134,
+                   "testJavaFiles":  65,
+                   "testClasses":  61,
                    "markdownDocs":  37,
                    "aiCoreFiles":  11,
                    "aiIndexFiles":  5
@@ -137,6 +137,10 @@
                                "kind":  "engine"
                            },
                            {
+                               "path":  "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java",
+                               "kind":  "engine"
+                           },
+                           {
                                "path":  "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java",
                                "kind":  "engine"
                            },
@@ -159,6 +163,10 @@
                            {
                                "path":  "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java",
                                "kind":  "engine"
+                           },
+                           {
+                               "path":  "src/main/java/laughing/man/commits/chart/ChartMapper.java",
+                               "kind":  "feature"
                            },
                            {
                                "path":  "src/main/java/laughing/man/commits/chart/ChartResultMapper.java",
@@ -214,6 +222,10 @@
                            },
                            {
                                "path":  "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java",
+                               "kind":  "test-anchor"
+                           },
+                           {
+                               "path":  "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
                                "kind":  "test-anchor"
                            },
                            {

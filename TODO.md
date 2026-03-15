@@ -389,6 +389,11 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - a fourth 2026-03-15 setup pass now lets bean-backed prepared SQL-like executions bind to a lightweight `preparedExecutionView(...)` that shares the validated query shape and skips `RuleCleaner` on that validated path, while `QueryRow`-backed executions still fall back to isolated copies
 - focused validation passed again after that pass: `SqlLikeQueryContractTest`, `SqlLikeChartIntegrationTest`, `CachePolicyConfigTest`, `FilterQueryBuilderSelectiveMaterializationTest`, and then `mvn -q test`
 - a direct same-session rebinding probe on a 10k-row bean-backed time-bucket stats template now measures `preparedExecutionView(...)` at about `4.228 us/op` versus `preparedExecutionCopy(...)` at about `5.822 us/op` (`~1.38x` faster), but the matching short end-to-end rerun still drifted to about `7.510 ms/op` for `sqlLikeParseAndTimeBucketMetrics` and `6.783 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart` with fluent controls near `7.677` and `7.359 ms/op`
+- a fifth 2026-03-15 direct-stats pass now lets simple bean-backed non-join stats queries aggregate directly from `ReflectionUtil.FlatRowReadPlan` reads through `FastStatsQuerySupport`, keeping existing stats-plan cache reuse while bypassing source `QueryRow` materialization
+- the next short targeted rerun after that direct-stats pass improved the same 10k workloads to about `6.042 ms/op` for `sqlLikeParseAndTimeBucketMetrics`, `6.698 ms/op` for `sqlLikeParseAndTimeBucketMetricsToChart`, `6.663 ms/op` for `fluentTimeBucketMetrics`, and `6.746 ms/op` for `fluentTimeBucketMetricsToChart`; query-heavy paths moved down most, while chart deltas stayed smaller
+- a sixth 2026-03-15 direct-chart pass now routes `FastStatsQuerySupport.FastStatsState` chart executions through indexed `Object[]` mapping in `ChartMapper` instead of rebuilding `QueryRow` / `QueryField` graphs first; `ChartMapperArrayRowsTest` was added to pin the new mapper path
+- focused chart/sql-like coverage plus full `mvn -q test` passed after the direct-chart pass
+- the latest short targeted rerun after the direct-chart pass stayed mixed rather than proving a clean SQL-like chart win: fluent query/chart measured about `6.934` and `6.336 ms/op`, while SQL-like query/chart measured about `6.318` and `7.173 ms/op`; treat that as a sign to profile the remaining SQL-like chart cost directly rather than assume `QueryRow` materialization was the whole gap
 
 Tasks:
 
@@ -398,6 +403,7 @@ Tasks:
 - land fixes in priority order by absolute product cost and benchmark leverage, not by fluent-vs-SQL-like ratio
 - keep chart threshold pass status intact while improving absolute latency headroom
 - if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
+- now that simple stats shapes also bypass chart-row materialization, profile the remaining SQL-like chart gap specifically and decide whether the next gain is in SQL-like setup/binding or in residual chart assembly beyond `ChartMapper`
 
 Boundary with WP19:
 
