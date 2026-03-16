@@ -30,6 +30,7 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - Targeted chart follow-up on 2026-03-15: after removing per-point `String.format(...)` work and pre-sizing the benchmark JSON exporter buffer, a rebuilt comparable chart-suite rerun still passed thresholds and reduced `scatterPayloadJsonExport` to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`.
 - Targeted stats follow-up on 2026-03-16: after replacing per-row time-bucket `String.format(...)` work and removing single-group `QueryKey` churn from the fast-stats path, the prepared stats setup microbenchmark fell to about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view at `size=10000`, while exact targeted whole-query reruns on the bean-backed month-bucket stats workload measured about `0.529`, `0.531`, `0.519`, and `0.526 ms/op` for fluent query, fluent chart, SQL-like query, and SQL-like chart respectively.
 - Targeted WP19 follow-up on 2026-03-16: after a narrow `ReflectionUtil` projection-cast fast path and a rebuilt hotspot-suite rerun, `reflectionToClassList|size=10000` measured about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` about `418.191 us/op` / `2,840,026 B/op`, down materially in latency versus the recorded 2026-03-14 hotspot snapshot while allocations stayed essentially flat.
+- Targeted WP20 follow-up on 2026-03-16: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`; warmed `-prof gc` reruns measured about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`, while the hotspot path stayed around `34.472 us/op` / `364,232 B/op` and `319.695 us/op` / `3,532,314 B/op`. Based on that rebaseline, the core computed-field join budgets were tightened to `25/200 ms/op` and the hotspot stayed diagnostic-only.
 
 ## Targeted WP18 Follow-up (2026-03-16)
 
@@ -72,6 +73,33 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - Two smaller post-profile experiments on `2026-03-16` were benchmark-flat and were not kept: a specialized `ResolvedFieldPath` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`. The next likely WP19 leverage point is joined-row materialization/indexing rather than more branch shaving.
 - A larger structural spike on `2026-03-16` then tried to prefilter fast-array joined rows during `tryBuildJoinedState()` so only matching rows were copied into the stored fast state. On the actual warmed target that regressed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted.
 - A clean warmed rerun after the revert recovered to about `0.595 ms/op`. Interpretation: park WP19 for now. The hotspot cluster is real, but the obvious prefiltered-fast-state redesign is not a win on this benchmark shape.
+
+## Targeted WP20 Follow-up (2026-03-16)
+
+- Rebuilt benchmark runner: `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- Repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` used `-f 1 -wi 0 -i 1 -r 100ms` and measured:
+  - `size=1000`: about `2.597`, `3.766`, and `6.020 ms/op`
+  - `size=10000`: about `114.241`, `113.818`, and `60.348 ms/op`
+- Matching warmed `-prof gc` reruns at `-f 1 -wi 1 -i 3 -r 100ms` measured:
+
+| Benchmark | Size | Score | Alloc |
+|-----------|------|-------|-------|
+| `manualHashJoinLeftComputedField` | `1000` | `0.009 ms/op` | `84,512 B/op` |
+| `manualHashJoinLeftComputedField` | `10000` | `0.098 ms/op` | `927,128 B/op` |
+| `pojoLensJoinLeftComputedField` | `1000` | `0.063 ms/op` | `247,520 B/op` |
+| `pojoLensJoinLeftComputedField` | `10000` | `0.603 ms/op` | `2,302,715 B/op` |
+
+- A fresh hotspot rerun of `computedFieldJoinSelectiveMaterialization` at `-f 1 -wi 1 -i 3 -r 100ms -prof gc` measured:
+
+| Size | Score | Alloc |
+|------|-------|-------|
+| `1000` | `34.472 us/op` | `364,232 B/op` |
+| `10000` | `319.695 us/op` | `3,532,314 B/op` |
+
+- Threshold policy decision:
+  - tighten the core end-to-end `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` budgets in `benchmarks/thresholds.json` from `250/500 ms/op` to `25/200 ms/op`
+  - keep `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` diagnostic-only because the path is still allocation-heavy at `size=10000` and remains better suited to local tuning than to a strict merge gate
+- A rebuilt core strict-suite rerun against the new thresholds wrote `target/wp20-core-benchmarks.json`; `BenchmarkThresholdChecker` passed in `--strict` mode, and `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `5.263 ms/op` at `size=1000` and `118.793 ms/op` at `size=10000` on that validation run.
 
 ## Core Guardrail Suite
 

@@ -9,7 +9,7 @@
 ## Active Work
 
 - `TODO.md` remains the source-of-truth backlog.
-- WP20 is now the next recommended package if performance work continues.
+- WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
 - WP19 is parked after a failed structural spike; reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked as good enough for now after the 2026-03-16 stats/chart validation pass; reopen it only if a fresh profile shows real leverage in scatter mapping or another chart-heavy path.
 - `TODO.md` now makes consolidation guidance explicit: share plans/metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
@@ -40,6 +40,10 @@
 - A rebuilt full chart guardrail rerun on `2026-03-16` still passed `45/45`; the largest remaining cold chart-mapping scores were scatter mapping at about `2.924 ms/op` fluent and `4.613 ms/op` SQL-like for `size=10000`, and about `19.743` / `24.991 ms/op` at `size=100000`.
 - A rebuilt full hotspot-suite rerun on `2026-03-16` with `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`, versus the recorded `2026-03-14` snapshot of `1115.501 us/op` / `1,400,238 B/op` and `557.219 us/op` / `2,840,027 B/op`.
 - The same `2026-03-16` hotspot-suite rerun measures `computedFieldJoinSelectiveMaterialization|size=10000` at about `303.247 us/op` / `3,532,314 B/op` and `groupedMultiMetricAggregation|size=10000` at about `353.796 us/op` / `1,043,042 B/op`.
+- WP20 reran the computed-field benchmarks on `2026-03-16`: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `-f 1 -wi 0 -i 1 -r 100ms` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`.
+- Matching warmed `-prof gc` reruns on `2026-03-16` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`, versus `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
+- A fresh WP20 hotspot rerun on `2026-03-16` measured `computedFieldJoinSelectiveMaterialization` at about `34.472 us/op` / `364,232 B/op` for `size=1000` and `319.695 us/op` / `3,532,314 B/op` for `size=10000`; the latency is improved, but the allocation profile is still too large for a stable strict gate.
+- `benchmarks/thresholds.json` now tightens `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000`, and a rebuilt core strict-suite rerun on `2026-03-16` still passed `42/42` with that workload measuring about `5.263` and `118.793 ms/op`.
 - A refreshed warmed JFR on `2026-03-16` produced `target/wp19-current-2026-03-16.jfr` and measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` at about `0.666 ms/op` with JFR overhead, which is effectively flat versus the last recorded warm-profile cycle.
 - That refreshed warmed JFR still concentrates CPU in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`); allocation still centers in `ResolvedFieldPath.read` (`4220`), `materializeJoinedRow` (`3684`), and `buildChildIndex` (`3117`).
 - Two post-profile micro-optimizations on `2026-03-16` were benchmark-flat and were not kept: a specialized nested-write path in `ReflectionUtil` and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
@@ -59,5 +63,6 @@
 - Do not assume the same win automatically carries over to other grouped, aliased, or multi-series SQL-like/chart workloads without targeted validation.
 - Prepared-view vs copy is no longer the dominant question on the full fast-stats setup path; further rebinding micro-tuning should stay parked unless a new profile reopens it.
 - If WP18 stays open, scatter mapping is now the clearest remaining chart workload to profile directly because grouped stats and grouped line/area chart shapes are already well below their guardrails.
+- The strict computed-field join budget is intentionally still conservative because `-wi 0 -i 1` cold runs drift materially; do not tighten below `25/200 ms/op` without another repeated strict rerun cycle.
 - WP19 is not done just because the hotspot-suite latencies fell; reflection/conversion allocations are still essentially flat and the refreshed warmed JFR kept the same dominant class cluster.
 - Do not keep spending time on WP19 without a materially different structural idea. The obvious prefiltered-fast-state redesign already regressed the warmed target and was not kept.

@@ -82,7 +82,7 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `350 ms/op` | `750 ms/op` |
 | `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `300 ms/op` | `900 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `500 ms/op` | `1500 ms/op` |
-| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `250 ms/op` | `500 ms/op` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `25 ms/op` | `200 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `5 ms/op` | `5 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `500 ms/op` | `900 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `1 ms/op` | `1 ms/op` |
@@ -143,6 +143,8 @@ java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.H
 
 For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
 
+As of the 2026-03-16 WP20 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `34.472 us/op` / `364,232 B/op` at `size=1000` and `319.695 us/op` / `3,532,314 B/op` at `size=10000`, so the path is faster than the earlier hotspot snapshot but still too allocation-heavy to freeze into a strict merge gate.
+
 ## Semantic Guardrails
 
 Comparable baseline numbers are only useful if the outputs actually match.
@@ -164,7 +166,11 @@ Example local comparison run:
 java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
 ```
 
-The PojoLens path is now part of the core guardrail suite through `scripts/benchmark-suite-main.args`, with conservative cold-run thresholds of `250 ms/op` at `size=1000` and `500 ms/op` at `size=10000` in `benchmarks/thresholds.json`.
+The PojoLens path is part of the core guardrail suite through `scripts/benchmark-suite-main.args`.
+
+As of the 2026-03-16 WP20 rebaseline, repeated strict-style cold reruns (`-f 1 -wi 0 -i 1 -r 100ms`) measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`. The core guardrail was tightened to `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000` in `benchmarks/thresholds.json` so the cold strict suite still has noise headroom without preserving the old pre-fast-path budget slack.
+
+Matching warmed `-prof gc` reruns on `2026-03-16` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`, while the manual comparison baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
 
 Keep `manualHashJoinLeftComputedField` as a local comparison baseline rather than a merge gate. Use the profiled local command above when you need allocation context or want to compare the current PojoLens path against the manual baseline directly. These budgets are intentionally based on the colder no-warmup strict-suite configuration, not the warmer `-wi 1 -i 3 -prof gc` profiling runs.
 

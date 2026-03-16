@@ -490,7 +490,7 @@ Acceptance criteria:
 
 ### WP20: Rebaseline computed-field benchmark budgets after implementation changes
 
-Status: pending
+Status: completed
 
 Goal: tighten budgets only after the implementation work above stabilizes.
 
@@ -509,6 +509,19 @@ Tasks:
 - rerun the warmed and cold end-to-end computed-field join benchmarks after WP14-WP19
 - decide whether the hotspot stays diagnostic-only or gets a stable threshold
 - tighten the current end-to-end strict-suite budgets only after repeated stable runs
+
+Progress on 2026-03-16:
+
+- Rebuilt the benchmark runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package` before collecting fresh WP20 numbers.
+- Repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `-f 1 -wi 0 -i 1 -r 100ms` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000`, and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`.
+- Matching warmed `-prof gc` reruns of the end-to-end computed join path at `-f 1 -wi 1 -i 3 -r 100ms` measured PojoLens at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`; the manual hash-join baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
+- A fresh `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` rerun at `-f 1 -wi 1 -i 3 -r 100ms -prof gc` measured about `34.472 us/op` / `364,232 B/op` for `size=1000` and `319.695 us/op` / `3,532,314 B/op` for `size=10000`.
+- The end-to-end strict-suite budgets in `benchmarks/thresholds.json` were tightened from `250/500 ms/op` to `25/200 ms/op` for `size=1000/10000`.
+- The hotspot stays diagnostic-only for now: latency is improved, but allocation remains too large and too likely to cause merge-gate churn at about `3.53 MB/op` on the `size=10000` shape.
+
+Remaining acceptance work:
+
+- none; a rebuilt core strict-suite rerun on `2026-03-16` wrote `target/wp20-core-benchmarks.json`, `BenchmarkThresholdChecker` passed in `--strict` mode, and `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `5.263 ms/op` at `size=1000` and `118.793 ms/op` at `size=10000` under the new `25/200 ms/op` budgets
 
 Boundary:
 
@@ -568,10 +581,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP20
-2. WP18 only if a fresh profile reopens scatter or another chart-heavy path
-3. WP19 only with a new structural hypothesis
-4. WP17 only if broader work exposes a clear reopen case
+1. WP18 only if a fresh profile reopens scatter or another chart-heavy path
+2. WP19 only with a new structural hypothesis
+3. WP17 only if broader work exposes a clear reopen case
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.
 

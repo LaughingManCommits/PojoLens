@@ -9,11 +9,16 @@
 ## Current Priority
 
 - WP19 is now parked.
-- If performance work continues, WP20 is the next recommended package.
+- WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
+- If performance work continues, reopen WP18 only with a fresh scatter/chart profile or reopen WP19 only with a materially different structural idea.
 - A narrow `ReflectionUtil` follow-up now skips no-op projection casts when the raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows.
 - The rebuilt `2026-03-16` hotspot suite (`target/benchmarks/hotspots-gc-2026-03-16.json`) now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`.
 - Those reflection latencies are materially lower than the recorded `2026-03-14` hotspot snapshot (`1115.501` and `557.219 us/op` respectively), but the allocation footprint is effectively unchanged, which is context for a future reopen rather than a reason to keep WP19 active now.
 - `computedFieldJoinSelectiveMaterialization|size=10000` now measures about `303.247 us/op` / `3,532,314 B/op`, so it still owns the biggest absolute hotspot allocation even though its latency also moved down.
+- WP20 reran the computed-field join benchmarks on `2026-03-16`: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`.
+- Matching warmed `-prof gc` reruns measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`, versus `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
+- A fresh hotspot rerun on `2026-03-16` measured `computedFieldJoinSelectiveMaterialization` at about `34.472 us/op` / `364,232 B/op` for `size=1000` and `319.695 us/op` / `3,532,314 B/op` for `size=10000`; keep it diagnostic-only for now.
+- `benchmarks/thresholds.json` now tightens `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000`. A rebuilt strict core suite wrote `target/wp20-core-benchmarks.json`, and `BenchmarkThresholdChecker` still passed in `--strict` mode with the computed-field join scores at about `5.263` and `118.793 ms/op`.
 - A refreshed warmed JFR now exists at `target/wp19-current-2026-03-16.jfr`; it measured the join benchmark at about `0.666 ms/op` with JFR overhead and kept the same dominant class cluster: `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
 - First-repo-frame allocation in that warmed JFR is still led by `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), and `FastArrayQuerySupport.buildChildIndex` (`3117`).
 - Two smaller 2026-03-16 follow-up optimizations were benchmark-flat and not kept: a specialized `ReflectionUtil` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
@@ -34,17 +39,22 @@
 - `TODO.md`
 - `BENCHMARKS.md`
 - `ai/state/benchmark-state.md`
+- `benchmarks/thresholds.json`
 - `ai/core/benchmark-context.md`
 - `src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java`
 - `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
 - `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`
 - `src/main/java/laughing/man/commits/util/ObjectUtil.java`
 - `target/benchmarks/hotspots-gc-2026-03-16.json`
+- `target/wp20-core-benchmarks.json`
+- `target/wp20-computed-join-warm-gc.json`
+- `target/wp20-computed-join-hotspot-gc.json`
 - `target/wp19-current-2026-03-16.jfr`
 
 ## Next Validation
 
-- If continuing performance work, shift to WP20 rather than reopening WP19 immediately.
+- Do not reopen WP20 unless the computed-field join implementation changes again enough to invalidate the new `25/200 ms/op` cold budgets.
+- If continuing performance work, prefer WP18 only with fresh scatter/chart evidence or WP19 only with a materially different structural idea.
 - Only reopen WP19 with a materially different structural idea than the reverted prefiltered-fast-state spike.
 - After code changes, rerun focused regressions plus `mvn -q test`.
 - Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.
