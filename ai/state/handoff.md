@@ -8,7 +8,7 @@
 
 ## Current Priority
 
-- WP19 is now parked.
+- WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.
 - If performance work continues, reopen WP19 only with a materially different structural idea, or reopen WP18 only if a fresh scatter/chart profile points beyond the remaining broader row/query overhead.
@@ -29,6 +29,7 @@
 - First-repo-frame allocation in that warmed JFR is still led by `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), and `FastArrayQuerySupport.buildChildIndex` (`3117`).
 - Two smaller 2026-03-16 follow-up optimizations were benchmark-flat and not kept: a specialized `ReflectionUtil` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
 - A larger 2026-03-16 structural spike that tried to prefilter fast-array joined rows during `tryBuildJoinedState()` regressed the real warmed target from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted. A clean warmed rerun on the reverted code recovered to about `0.595 ms/op`.
+- A second 2026-03-16 structural spike then tried to defer fast-array joined-row materialization and filter directly to compact projected rows. Comparable short `-prof gc` reruns measured about `0.073 ms/op` / `220,040 B/op` at `size=1000` and `0.712 ms/op` / `2,022,740 B/op` at `size=10000`, versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation improved, but the warmed target regressed, so it was reverted too.
 - WP18 is parked as good enough for now; only reopen it if a fresh profile points back to scatter mapping or another chart-heavy path.
 
 ## Guardrails
@@ -38,7 +39,7 @@
 - Judge SQL-like work by absolute `ms/op`, allocation, and product value; fluent-vs-SQL-like ratios are diagnostic only.
 - Follow the `TODO.md` consolidation guidance: share plans and metadata first, and do not merge specialized bean, `QueryRow`, or `Object[]` execution loops just to remove duplication.
 - Do not spend more time on prepared-view vs copy micro-tuning for this stats shape unless a fresh profile reopens it; the dominant 2026-03-15 setup cost was mostly removed by the 2026-03-16 single-group fast-stats and bucket-format pass.
-- Do not reopen WP19 without a structurally different hypothesis. The obvious prefiltered-fast-state redesign already regressed the warmed target and was not kept.
+- Do not reopen WP19 without a structurally different hypothesis. Both the prefiltered-fast-state redesign and the deferred-materialization/projected-output redesign already regressed the warmed target and were not kept.
 
 ## Useful Files
 

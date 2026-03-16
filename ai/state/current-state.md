@@ -10,7 +10,7 @@
 
 - `TODO.md` remains the source-of-truth backlog.
 - WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
-- WP19 is parked after a failed structural spike; reopen it only with a genuinely new larger hypothesis.
+- WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.
 - `TODO.md` now makes consolidation guidance explicit: share plans/metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
 - WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
@@ -53,6 +53,7 @@
 - That refreshed warmed JFR still concentrates CPU in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`); allocation still centers in `ResolvedFieldPath.read` (`4220`), `materializeJoinedRow` (`3684`), and `buildChildIndex` (`3117`).
 - Two post-profile micro-optimizations on `2026-03-16` were benchmark-flat and were not kept: a specialized nested-write path in `ReflectionUtil` and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
 - A larger structural spike that tried to prefilter fast-array joined rows during join-state creation regressed the real warmed target from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted. A clean warmed rerun on the reverted code recovered to about `0.595 ms/op`.
+- A second structural spike on `2026-03-16` then tried to defer fast-array joined-row materialization and filter directly to compact projected rows. Comparable short `-prof gc` reruns measured about `0.073 ms/op` / `220,040 B/op` at `size=1000` and `0.712 ms/op` / `2,022,740 B/op` at `size=10000`, versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation improved, but latency regressed, so it was reverted as well.
 - Exact targeted reruns from `2026-03-14` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
   - `sqlLikeParseAndTimeBucketMetrics`: about `4.728 ms/op`
   - `sqlLikeParseAndTimeBucketMetricsToChart`: about `4.891 ms/op`
@@ -71,4 +72,4 @@
 - After the scatter pass, the remaining `size=100000` scatter cost looks less chart-specific and more like broader row-materialization/query overhead; do not keep tuning `ChartMapper` without a fresh profile that isolates another chart-specific bottleneck.
 - The strict computed-field join budget is intentionally still conservative because `-wi 0 -i 1` cold runs drift materially; do not tighten below `25/200 ms/op` without another repeated strict rerun cycle.
 - WP19 is not done just because the hotspot-suite latencies fell; reflection/conversion allocations are still essentially flat and the refreshed warmed JFR kept the same dominant class cluster.
-- Do not keep spending time on WP19 without a materially different structural idea. The obvious prefiltered-fast-state redesign already regressed the warmed target and was not kept.
+- Do not keep spending time on WP19 without a materially different structural idea. Both the prefiltered-fast-state redesign and the deferred-materialization/projected-output redesign regressed the warmed target and were not kept.

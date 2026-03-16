@@ -477,6 +477,7 @@ Current evidence from 2026-03-14 to 2026-03-16:
 - the same warmed JFR still concentrates first-repo-frame allocation in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`)
 - two smaller `2026-03-16` follow-up experiments after the refreshed JFR were benchmark-flat and were not kept: a specialized nested-write path inside `ReflectionUtil.ResolvedFieldPath` and a `Double` fast path inside `FastArrayQuerySupport.applyComputedValues`
 - one larger `2026-03-16` structural spike then tried to prefilter fast-array joined rows during `tryBuildJoinedState()` so only rule-matching rows were copied into the stored fast state, but on the actual warmed target it regressed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` from about `0.584 ms/op` to about `0.700 ms/op`
+- a second `2026-03-16` structural spike then tried to defer fast-array joined-row materialization and filter straight to compact projected rows on the no-order path, but comparable short `-prof gc` reruns measured about `0.073 ms/op` / `220,040 B/op` at `size=1000` and `0.712 ms/op` / `2,022,740 B/op` at `size=10000` versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation dropped, but absolute latency regressed, so it was reverted
 - that structural spike was reverted immediately; a clean warmed rerun on the reverted code recovered to about `0.595 ms/op`, so the hard-stop condition fired and WP19 is now parked pending a genuinely new larger hypothesis
 
 Tasks:
@@ -487,6 +488,7 @@ Tasks:
 - rerun the hotspot suite with `-prof gc` and compare against the current `BENCHMARKS.md` snapshot
 - rerun warmed JFR on the current tree before the next larger WP19 refactor so the remaining `ReflectionUtil` and `FastArrayQuerySupport` cluster is measured on the same code that produced the new hotspot-suite checkpoint
 - prefer the next larger WP19 attempt in `FastArrayQuerySupport.materializeJoinedRow` / `buildChildIndex` or a more structural `ReflectionUtil` read-path reuse change; the latest smaller branch-level experiments did not move the benchmark enough to keep
+- do not retry the deferred join-state plus compact projected-row variant unless a fresh profile shows a case where allocation matters more than the warmed end-to-end latency regression
 - do not run more WP19 spikes until there is a new structural idea that is materially different from the reverted prefiltered-fast-state design
 
 Acceptance criteria:
