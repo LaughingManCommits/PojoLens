@@ -8,12 +8,12 @@
 
 ## Active Work
 
-- `TODO.md` remains the source-of-truth backlog.
+- `TODO.md` was cleared on `2026-03-16` and is now intentionally empty; use the AI state files and benchmark artifacts as the active follow-up record until the backlog is repopulated.
 - WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
 - WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.
 - A new low-risk consolidation pass now shares repeated cold-path collection helpers through `CollectionUtil` instead of keeping separate `firstNonNull(...)` and limit-copy helpers in builder, filter, chart, and SQL-like code.
-- `TODO.md` now makes consolidation guidance explicit: share plans/metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
+- Consolidation guidance remains unchanged: share plans and metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
 - WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
 
 ## Landed WP18 Shape

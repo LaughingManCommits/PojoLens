@@ -2,12 +2,13 @@
 
 ## Resume Order
 
-- Load hot context, then `TODO.md` if the task touches active performance work.
+- Load hot context first; `TODO.md` was cleared on `2026-03-16`, so rely on the AI state files unless that backlog file is repopulated.
 - Load `ai/state/benchmark-state.md` and `ai/core/benchmark-context.md` only for benchmark, profiler, or threshold tasks.
 - Rebuild the benchmark runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package` before quoting fresh JMH numbers.
 
 ## Current Priority
 
+- `TODO.md` was cleared on `2026-03-16` by request and no longer carries the active backlog.
 - WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.
@@ -44,13 +45,12 @@
 - Do not reopen the broader `FilterImpl` raw-row delegation without a new hypothesis; it regressed the short `size=10000` reruns and was not kept.
 - Do not reopen WP17 micro-tuning unless a fresh clean-tree profile shows a high-confidence win on the selective single-join path.
 - Judge SQL-like work by absolute `ms/op`, allocation, and product value; fluent-vs-SQL-like ratios are diagnostic only.
-- Follow the `TODO.md` consolidation guidance: share plans and metadata first, and do not merge specialized bean, `QueryRow`, or `Object[]` execution loops just to remove duplication.
+- For future consolidation, share plans and metadata first, and do not merge specialized bean, `QueryRow`, or `Object[]` execution loops just to remove duplication.
 - Do not spend more time on prepared-view vs copy micro-tuning for this stats shape unless a fresh profile reopens it; the dominant 2026-03-15 setup cost was mostly removed by the 2026-03-16 single-group fast-stats and bucket-format pass.
 - Do not reopen WP19 without a structurally different hypothesis. Both the prefiltered-fast-state redesign and the deferred-materialization/projected-output redesign already regressed the warmed target and were not kept.
 
 ## Useful Files
 
-- `TODO.md`
 - `BENCHMARKS.md`
 - `ai/state/benchmark-state.md`
 - `benchmarks/thresholds.json`
