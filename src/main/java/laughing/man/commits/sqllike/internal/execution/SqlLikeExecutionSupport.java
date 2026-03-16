@@ -1,7 +1,6 @@
 package laughing.man.commits.sqllike.internal.execution;
 
 import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.ast.SelectAst;
@@ -10,6 +9,7 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.CollectionUtil;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
@@ -148,15 +148,7 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static Object queryRowFieldValue(QueryRow row, String fieldName) {
-        if (row.getFields() == null) {
-            return null;
-        }
-        for (QueryField field : row.getFields()) {
-            if (fieldName.equals(field.getFieldName())) {
-                return field.getValue();
-            }
-        }
-        return null;
+        return QueryFieldLookupUtil.findFieldValue(row.getFields(), fieldName);
     }
 
     private record AliasedProjectionPlan(List<String> outputSchema, int[] sourceIndexes) {

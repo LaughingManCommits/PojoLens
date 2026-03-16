@@ -6,6 +6,7 @@ import laughing.man.commits.domain.QueryField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import laughing.man.commits.builder.QueryMetric;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -28,13 +29,7 @@ final class RuleCleaner {
             while (iterator.hasNext()) {
                 Map.Entry<Integer, String> groups = iterator.next();
                 String fieldName = groups.getValue();
-                boolean remove = true;
-                for (QueryField field : allFields) {
-                    if (fieldName.equals(field.getFieldName())) {
-                        remove = false;
-                        break;
-                    }
-                }
+                boolean remove = !QueryFieldLookupUtil.containsField(allFields, fieldName);
                 if (remove && builder.getTimeBuckets().containsKey(fieldName)) {
                     remove = false;
                 }
@@ -68,13 +63,7 @@ final class RuleCleaner {
             for (Map.Entry<String, String> filters : builder.getFilterFields().entrySet()) {
                 String uniqueID = filters.getKey();
                 String fieldName = filters.getValue();
-                boolean remove = true;
-                for (QueryField field : allFields) {
-                    if (fieldName.equals(field.getFieldName())) {
-                        remove = false;
-                        break;
-                    }
-                }
+                boolean remove = !QueryFieldLookupUtil.containsField(allFields, fieldName);
                 if (remove) {
                     LOG.info("No field with the name[" + fieldName + "]"
                             + " was found in row fields. "
@@ -107,13 +96,7 @@ final class RuleCleaner {
             Iterator<String> fieldIterator = builder.getReturnFields().iterator();
             while (fieldIterator.hasNext()) {
                 String fieldName = fieldIterator.next();
-                boolean remove = true;
-                for (QueryField field : allFields) {
-                    if (fieldName.equals(field.getFieldName())) {
-                        remove = false;
-                        break;
-                    }
-                }
+                boolean remove = !QueryFieldLookupUtil.containsField(allFields, fieldName);
                 if (remove && builder.getTimeBuckets().containsKey(fieldName)) {
                     remove = false;
                 }

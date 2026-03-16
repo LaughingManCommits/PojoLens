@@ -6,6 +6,7 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -56,8 +57,8 @@ final class JoinEngine {
                     continue;
                 }
 
-                int parentFieldIndex = findFieldIndex(parentLoop.get(0).getFields(), joinParentField);
-                int childFieldIndex = findFieldIndex(childLoop.get(0).getFields(), joinChildFieldName);
+                int parentFieldIndex = QueryFieldLookupUtil.findFieldIndex(parentLoop.get(0).getFields(), joinParentField);
+                int childFieldIndex = QueryFieldLookupUtil.findFieldIndex(childLoop.get(0).getFields(), joinChildFieldName);
                 if (parentFieldIndex < 0 || childFieldIndex < 0) {
                     continue;
                 }
@@ -138,15 +139,6 @@ final class JoinEngine {
             index.computeIfAbsent(key, ignored -> new ArrayList<>()).add(row);
         }
         return index;
-    }
-
-    private int findFieldIndex(List<? extends QueryField> fields, String fieldName) {
-        for (int i = 0; i < fields.size(); i++) {
-            if (fieldName.equals(fields.get(i).getFieldName())) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     private MergePlan buildMergePlan(List<? extends QueryField> parentFields,

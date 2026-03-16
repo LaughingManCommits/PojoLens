@@ -1,9 +1,9 @@
 package laughing.man.commits.chart;
 
 import laughing.man.commits.chart.validation.ChartValidation;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.CollectionUtil;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
@@ -274,23 +274,7 @@ public final class ChartMapper {
     }
 
     private static Object readQueryRowField(QueryRow row, String fieldName, int fieldIndex) {
-        List<? extends QueryField> fields = row.getFields();
-        if (fields == null || fields.isEmpty()) {
-            return null;
-        }
-        if (fieldIndex >= 0 && fieldIndex < fields.size()) {
-            QueryField indexedField = fields.get(fieldIndex);
-            if (indexedField != null && fieldName.equals(indexedField.getFieldName())) {
-                return indexedField.getValue();
-            }
-        }
-        for (int i = 0; i < fields.size(); i++) {
-            QueryField field = fields.get(i);
-            if (field != null && fieldName.equals(field.getFieldName())) {
-                return field.getValue();
-            }
-        }
-        return null;
+        return QueryFieldLookupUtil.findFieldValue(row.getFields(), fieldName, fieldIndex);
     }
 
     private static Object readArrayRowField(Object[] row, int fieldIndex) {
