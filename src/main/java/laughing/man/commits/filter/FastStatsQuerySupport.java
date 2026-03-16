@@ -5,6 +5,7 @@ import laughing.man.commits.builder.QueryMetric;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
@@ -34,7 +35,7 @@ public final class FastStatsQuerySupport {
         }
 
         List<?> source = builder.getSourceBeansForExecution();
-        Object sample = firstNonNull(source);
+        Object sample = CollectionUtil.firstNonNull(source);
         if (sample == null) {
             return null;
         }
@@ -116,7 +117,7 @@ public final class FastStatsQuerySupport {
                     || !builder.getComputedFieldRegistry().isEmpty()) {
                 return false;
             }
-            return !(firstNonNull(builder.getSourceBeansForExecution()) instanceof QueryRow);
+            return !(CollectionUtil.firstNonNull(builder.getSourceBeansForExecution()) instanceof QueryRow);
         }
         return false;
     }
@@ -315,18 +316,6 @@ public final class FastStatsQuerySupport {
         Object[] copy = new Object[size];
         System.arraycopy(values, 0, copy, 0, size);
         return copy;
-    }
-
-    private static Object firstNonNull(List<?> rows) {
-        if (rows == null) {
-            return null;
-        }
-        for (Object row : rows) {
-            if (row != null) {
-                return row;
-            }
-        }
-        return null;
     }
 
     private static int expectedMapSize(int sourceSize) {

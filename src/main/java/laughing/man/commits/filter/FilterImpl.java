@@ -12,6 +12,7 @@ import laughing.man.commits.builder.QueryTimeBucket;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -165,7 +166,7 @@ public class FilterImpl implements Filter {
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                         List<QueryRow> orderedHaving = havingCore.orderByFields(havingFiltered, sortMethod, havingPlan);
                         emitOrderStage(executionBuilder, orderStarted, havingFiltered.size(), orderedHaving.size());
-                        results = applyLimit(orderedHaving, executionBuilder.getLimit());
+                        results = CollectionUtil.applyLimit(orderedHaving, executionBuilder.getLimit());
                     } else {
                         FilterQueryBuilder aggregateBuilder = executionBuilder.snapshotForRows(aggregated);
                         FilterCore aggregateCore = new FilterCore(aggregateBuilder);
@@ -173,7 +174,7 @@ public class FilterImpl implements Filter {
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                         List<QueryRow> orderedAggregated = aggregateCore.orderByFields(aggregated, sortMethod, aggregatePlan);
                         emitOrderStage(executionBuilder, orderStarted, aggregated.size(), orderedAggregated.size());
-                        results = applyLimit(orderedAggregated, executionBuilder.getLimit());
+                        results = CollectionUtil.applyLimit(orderedAggregated, executionBuilder.getLimit());
                     }
                 } else {
                     if (hasHavingPredicates(executionBuilder)) {
@@ -185,7 +186,7 @@ public class FilterImpl implements Filter {
                     emitOrderStage(executionBuilder, orderStarted, filterClasses.size(), sortedList.size());
                     // Project configured display fields.
                     List<QueryRow> projected = core.filterDisplayFields(sortedList, plan);
-                    results = applyLimit(projected, executionBuilder.getLimit());
+                    results = CollectionUtil.applyLimit(projected, executionBuilder.getLimit());
                 }
             }
         } catch (Exception e) {
@@ -236,16 +237,6 @@ public class FilterImpl implements Filter {
                         "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
                 ));
         return chart;
-    }
-
-    private List<QueryRow> applyLimit(List<QueryRow> rows, Integer limit) {
-        if (rows == null || limit == null || limit >= rows.size()) {
-            return rows;
-        }
-        if (limit <= 0) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(rows.subList(0, limit));
     }
 
     private FilterExecutionPlan resolveExecutionPlan(FilterCore core,

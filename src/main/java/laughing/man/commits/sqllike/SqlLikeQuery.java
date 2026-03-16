@@ -35,6 +35,7 @@ import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -636,7 +637,7 @@ public final class SqlLikeQuery {
             afterOrder = sizeOf(orderedRows);
 
             beforeLimit = afterOrder;
-            List<QueryRow> limitedRows = applyLimit(orderedRows, working.getLimit());
+            List<QueryRow> limitedRows = CollectionUtil.applyLimit(orderedRows, working.getLimit());
             afterLimit = sizeOf(limitedRows);
         }
 
@@ -763,7 +764,7 @@ public final class SqlLikeQuery {
                         orderedRows.size(),
                         QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size()));
             }
-            return applyLimit(orderedRows, working.getLimit());
+            return CollectionUtil.applyLimit(orderedRows, working.getLimit());
         }
 
         if (hasHavingPredicates(working)) {
@@ -781,7 +782,7 @@ public final class SqlLikeQuery {
                     QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size()));
         }
         List<QueryRow> projectedRows = core.filterDisplayFields(orderedRows, plan);
-        return applyLimit(projectedRows, working.getLimit());
+        return CollectionUtil.applyLimit(projectedRows, working.getLimit());
     }
 
     private static boolean hasWherePredicates(FilterQueryBuilder builder) {
@@ -810,16 +811,6 @@ public final class SqlLikeQuery {
 
     private static int sizeOf(List<?> rows) {
         return rows == null ? 0 : rows.size();
-    }
-
-    private static List<QueryRow> applyLimit(List<QueryRow> rows, Integer limit) {
-        if (rows == null || limit == null || limit >= rows.size()) {
-            return rows;
-        }
-        if (limit <= 0) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(rows.subList(0, limit));
     }
 
     private void emitStage(FilterQueryBuilder builder,

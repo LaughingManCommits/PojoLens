@@ -20,6 +20,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import static laughing.man.commits.util.ObjectUtil.castToString;
@@ -204,7 +205,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             addJoinRows(parentField, new ArrayList<>(), childField, joinMethod);
             return this;
         }
-        Object first = firstNonNull(children);
+        Object first = CollectionUtil.firstNonNull(children);
         if (first instanceof QueryRow) {
             List<QueryRow> childRows = toSourceRows(children);
             addJoinRows(parentField, childRows, childField, joinMethod);
@@ -1039,7 +1040,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void bindPreparedSourceRows(List<?> pojos) {
         spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
         refreshFieldTypes();
-        Object first = firstNonNull(pojos);
+        Object first = CollectionUtil.firstNonNull(pojos);
         if (first instanceof QueryRow) {
             sourceBeans = List.of();
             fullyMaterializedSourceRows = false;
@@ -1056,7 +1057,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void bindPreparedJoinSource(int joinIndex, List<?> children) {
         Map<String, Class<?>> childFieldTypes = inferSourceFieldTypes(children);
         spec.getJoinSourceFieldTypes().put(joinIndex, new LinkedHashMap<>(childFieldTypes));
-        Object first = firstNonNull(children);
+        Object first = CollectionUtil.firstNonNull(children);
         if (first instanceof QueryRow) {
             spec.getJoinClasses().put(joinIndex, materializedRows(queryRows(children)));
             return;
@@ -1069,7 +1070,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void initializeSourceRows(List<?> pojos) {
-        Object first = firstNonNull(pojos);
+        Object first = CollectionUtil.firstNonNull(pojos);
         if (first instanceof QueryRow) {
             sourceBeans = List.of();
             clearMaterializedSourceRows();
@@ -1082,7 +1083,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private Map<String, Class<?>> inferSourceFieldTypes(List<?> pojos) {
-        Object first = firstNonNull(pojos);
+        Object first = CollectionUtil.firstNonNull(pojos);
         if (first == null) {
             return Map.of();
         }
@@ -1093,7 +1094,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private List<QueryRow> toSourceRows(List<?> pojos) {
-        Object first = firstNonNull(pojos);
+        Object first = CollectionUtil.firstNonNull(pojos);
         if (first instanceof QueryRow) {
             return queryRows(pojos);
         }
@@ -1447,24 +1448,12 @@ public class FilterQueryBuilder implements QueryBuilder {
         return rows;
     }
 
-    private Object firstNonNull(List<?> pojos) {
-        if (pojos == null) {
-            return null;
-        }
-        for (Object pojo : pojos) {
-            if (pojo != null) {
-                return pojo;
-            }
-        }
-        return null;
-    }
-
     private boolean supportsPreparedExecutionView(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
-        if (firstNonNull(pojos) instanceof QueryRow) {
+        if (CollectionUtil.firstNonNull(pojos) instanceof QueryRow) {
             return false;
         }
         for (List<?> rows : joinSourcesByIndex.values()) {
-            if (firstNonNull(rows) instanceof QueryRow) {
+            if (CollectionUtil.firstNonNull(rows) instanceof QueryRow) {
                 return false;
             }
         }

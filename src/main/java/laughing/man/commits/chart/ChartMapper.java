@@ -3,6 +3,7 @@ package laughing.man.commits.chart;
 import laughing.man.commits.chart.validation.ChartValidation;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ public final class ChartMapper {
             return chartData;
         }
 
-        Object firstRow = firstNonNull(rows);
+        Object firstRow = CollectionUtil.firstNonNull(rows);
         if (firstRow == null) {
             return chartData;
         }
@@ -79,15 +80,6 @@ public final class ChartMapper {
         chartData.setLabels(new ArrayList<>());
         chartData.setDatasets(new ArrayList<>());
         return chartData;
-    }
-
-    private static Object firstNonNull(List<?> rows) {
-        for (Object row : rows) {
-            if (row != null) {
-                return row;
-            }
-        }
-        return null;
     }
 
     private static <T> ChartData mapSingleSeries(List<T> rows, ChartSpec spec, ChartData chartData) {

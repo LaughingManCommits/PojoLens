@@ -10,6 +10,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
@@ -40,8 +41,8 @@ final class FastArrayQuerySupport {
 
         List<?> parents = builder.getSourceBeansForExecution();
         List<?> children = builder.getJoinSourceBeansForExecution().get(joinIndex);
-        Object parentSample = firstNonNull(parents);
-        Object childSample = firstNonNull(children);
+        Object parentSample = CollectionUtil.firstNonNull(parents);
+        Object childSample = CollectionUtil.firstNonNull(children);
         if (parentSample == null || childSample == null) {
             return null;
         }
@@ -104,7 +105,7 @@ final class FastArrayQuerySupport {
         List<Object[]> ordered = orderRows(filtered, sortMethod, plan);
         List<String> outputSchema = outputSchema(builder, state.schemaFields(), plan);
         int[] outputIndexes = outputIndexes(builder, state.schemaFields(), plan);
-        List<Object[]> limited = applyLimit(ordered, builder.getLimit());
+        List<Object[]> limited = CollectionUtil.applyLimit(ordered, builder.getLimit());
         return ReflectionUtil.toClassList(projectionClass, limited, outputSchema, outputIndexes);
     }
 
@@ -658,28 +659,6 @@ final class FastArrayQuerySupport {
             indexes[i] = returnIndexes.get(i);
         }
         return indexes;
-    }
-
-    private static List<Object[]> applyLimit(List<Object[]> rows, Integer limit) {
-        if (rows == null || limit == null || limit >= rows.size()) {
-            return rows;
-        }
-        if (limit <= 0) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(rows.subList(0, limit));
-    }
-
-    private static Object firstNonNull(List<?> rows) {
-        if (rows == null) {
-            return null;
-        }
-        for (Object row : rows) {
-            if (row != null) {
-                return row;
-            }
-        }
-        return null;
     }
 
     private static Object castNumericValue(double value, Class<?> outputType) {

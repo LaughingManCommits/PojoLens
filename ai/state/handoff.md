@@ -11,6 +11,7 @@
 - WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.
+- A low-risk consolidation pass also landed: `CollectionUtil` now centralizes repeated cold-path `firstNonNull(...)` and generic limit-copy helpers used across builder, filter, chart, and SQL-like code.
 - If performance work continues, reopen WP19 only with a materially different structural idea, or reopen WP18 only if a fresh scatter/chart profile points beyond the remaining broader row/query overhead.
 - A narrow `ReflectionUtil` follow-up now skips no-op projection casts when the raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows.
 - The rebuilt `2026-03-16` hotspot suite (`target/benchmarks/hotspots-gc-2026-03-16.json`) now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`.
@@ -23,7 +24,7 @@
 - A direct scatter-specific follow-up on `2026-03-16` measured warmed `ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping)` at about `1.476` / `13.848 ms/op` for fluent and `1.536` / `14.639 ms/op` for SQL-like at `size=10000/100000`, which was enough to reopen WP18 for one focused pass.
 - That scatter pass changed `ChartMapper` to accumulate multi-series charts through dense label/series indexes and cache validated x-axis labels once per distinct x instead of building nested per-series maps keyed by repeated formatted x strings.
 - Matching warmed reruns after the pass now measure about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000`, `-prof gc` reruns fell from about `41,297,324` / `38,497,149 B/op` to about `36,595,578` / `33,795,681 B/op`.
-- Focused chart regressions plus full `mvn -q test` passed after the scatter pass, and the suite now covers `436` tests.
+- Focused chart regressions plus full `mvn -q test` passed after the scatter pass, and the suite now covers `441` tests after the latest consolidation helper coverage.
 - A rebuilt full chart guardrail rerun still passed `45/45`, but the cold scatter entries drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; treat that suite as guardrail validation, not patch attribution.
 - A refreshed warmed JFR now exists at `target/wp19-current-2026-03-16.jfr`; it measured the join benchmark at about `0.666 ms/op` with JFR overhead and kept the same dominant class cluster: `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
 - First-repo-frame allocation in that warmed JFR is still led by `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), and `FastArrayQuerySupport.buildChildIndex` (`3117`).
@@ -51,6 +52,7 @@
 - `src/main/java/laughing/man/commits/chart/ChartMapper.java`
 - `src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java`
 - `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
+- `src/main/java/laughing/man/commits/util/CollectionUtil.java`
 - `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`
 - `src/main/java/laughing/man/commits/util/ObjectUtil.java`
 - `target/benchmarks/hotspots-gc-2026-03-16.json`
@@ -69,6 +71,7 @@
 - Do not reopen WP20 unless the computed-field join implementation changes again enough to invalidate the new `25/200 ms/op` cold budgets.
 - Do not reopen WP18 just because the cold chart suite drifts; use targeted warmed reruns or a direct profile to isolate chart-specific cost first.
 - If continuing performance work, prefer WP19 only with a materially different structural idea, or reopen WP18 only with fresh scatter/chart evidence that points past the new `ChartMapper` accumulator pass.
+- If continuing consolidation work, prefer more cold-path helper sharing like schema/adapter planning and avoid merging specialized bean, `QueryRow`, and `Object[]` executors.
 - Only reopen WP19 with a materially different structural idea than the reverted prefiltered-fast-state spike.
 - After code changes, rerun focused regressions plus `mvn -q test`.
 - Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.

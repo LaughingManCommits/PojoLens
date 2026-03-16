@@ -9,6 +9,7 @@ import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -24,12 +25,9 @@ public final class SqlLikeExecutionSupport {
     }
 
     public static <T> Class<?> inferSourceClass(List<?> pojos, Class<T> fallback) {
-        if (pojos != null) {
-            for (Object pojo : pojos) {
-                if (pojo != null) {
-                    return pojo.getClass();
-                }
-            }
+        Object sample = CollectionUtil.firstNonNull(pojos);
+        if (sample != null) {
+            return sample.getClass();
         }
         return fallback;
     }
