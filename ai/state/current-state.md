@@ -3,7 +3,7 @@
 ## Repository Health
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-16`, which passed with `444` tests.
+- The latest recorded full suite is `mvn -q test` on `2026-03-16`, which passed with `446` tests.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
 ## Active Work
@@ -37,6 +37,8 @@
 - `CollectionUtil.expectedMapCapacity(...)` now also centralizes the repeated map-capacity sizing rule previously duplicated in `AggregationEngine`, `FilterCore`, `GroupEngine`, `JoinEngine`, `FastArrayQuerySupport`, and `FastStatsQuerySupport`.
 - `QueryRowAdapterSupport` now centralizes the duplicated cold-path `Object[] -> QueryRow` materializer previously repeated in `FastArrayQuerySupport` and `FastStatsQuerySupport`.
 - `QueryRowAdapterSupportTest` now pins that adapter behavior so later consolidation can keep sharing row-shape adapters without touching the fast executors.
+- `SchemaIndexUtil` now centralizes exact-name field-index planning for both raw field-name schemas and `QueryRow` field lists, and `ChartMapper` plus `SqlLikeExecutionSupport` now reuse it instead of keeping local exact-name indexing loops.
+- `SchemaIndexUtilTest` now pins that exact-name index behavior so later consolidation can keep sharing schema-planning logic without touching the specialized executors.
 
 ## Current Evidence
 
@@ -49,7 +51,8 @@
 - A rebuilt full chart guardrail rerun on `2026-03-16` still passed `45/45`; the largest remaining cold chart-mapping scores were scatter mapping at about `2.924 ms/op` fluent and `4.613 ms/op` SQL-like for `size=10000`, and about `19.743` / `24.991 ms/op` at `size=100000`.
 - A direct WP18 scatter follow-up on `2026-03-16` reopened that remaining candidate: fresh warmed reruns of `ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping)` measured about `1.476` / `13.848 ms/op` for fluent and `1.536` / `14.639 ms/op` for SQL-like at `size=10000/100000`.
 - `ChartMapper` now accumulates multi-series charts through dense label/series indexes and caches validated x-axis labels once per distinct x instead of building nested per-series maps keyed by repeated formatted x strings.
-- Focused chart regressions (`ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeChartIntegrationTest`) plus full `mvn -q test` passed after that scatter pass, and the full suite now totals `444` tests after the latest consolidation helper and adapter coverage.
+- Focused chart regressions (`ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeChartIntegrationTest`) plus full `mvn -q test` passed after that scatter pass, and the full suite now totals `446` tests after the latest consolidation helper, adapter, and schema-index coverage.
+- A follow-up consolidation pass on `2026-03-16` added `SchemaIndexUtil` for exact-name schema/index planning, switched `ChartMapper` and `SqlLikeExecutionSupport` to it, and passed focused regressions (`SchemaIndexUtilTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
 - Matching warmed reruns after the scatter pass now measure about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000`, `-prof gc` reruns fell from about `41,297,324` / `38,497,149 B/op` to about `36,595,578` / `33,795,681 B/op` for fluent / SQL-like scatter.
 - A rebuilt full chart guardrail rerun after the scatter pass still passed `45/45`, but its cold scatter scores drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; use that suite as a guardrail, not as the attribution source for this pass.
 - A rebuilt full hotspot-suite rerun on `2026-03-16` with `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`, versus the recorded `2026-03-14` snapshot of `1115.501 us/op` / `1,400,238 B/op` and `557.219 us/op` / `2,840,027 B/op`.

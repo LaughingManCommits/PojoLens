@@ -5,6 +5,7 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.SchemaIndexUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -220,15 +221,7 @@ public final class ChartMapper {
             if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
                 continue;
             }
-            LinkedHashMap<String, Integer> fieldIndexes = new LinkedHashMap<>();
-            List<? extends QueryField> fields = row.getFields();
-            for (int i = 0; i < fields.size(); i++) {
-                QueryField field = fields.get(i);
-                if (field == null || field.getFieldName() == null || field.getFieldName().isBlank()) {
-                    continue;
-                }
-                fieldIndexes.putIfAbsent(field.getFieldName(), i);
-            }
+            Map<String, Integer> fieldIndexes = SchemaIndexUtil.indexQueryFields(row.getFields());
             return new IndexedRowReadPlan(
                     requireQueryRowFieldIndex(fieldIndexes, spec.xField()),
                     requireQueryRowFieldIndex(fieldIndexes, spec.yField()),
@@ -242,14 +235,7 @@ public final class ChartMapper {
         if (fieldNames == null || fieldNames.isEmpty()) {
             throw new IllegalArgumentException("Unknown chart field '" + spec.xField() + "'");
         }
-        LinkedHashMap<String, Integer> fieldIndexes = new LinkedHashMap<>();
-        for (int i = 0; i < fieldNames.size(); i++) {
-            String fieldName = fieldNames.get(i);
-            if (fieldName == null || fieldName.isBlank()) {
-                continue;
-            }
-            fieldIndexes.putIfAbsent(fieldName, i);
-        }
+        Map<String, Integer> fieldIndexes = SchemaIndexUtil.indexFieldNames(fieldNames);
         return new IndexedRowReadPlan(
                 requireQueryRowFieldIndex(fieldIndexes, spec.xField()),
                 requireQueryRowFieldIndex(fieldIndexes, spec.yField()),
@@ -258,8 +244,8 @@ public final class ChartMapper {
     }
 
     private static int requireQueryRowFieldIndex(Map<String, Integer> fieldIndexes, String fieldName) {
-        Integer index = fieldIndexes.get(fieldName);
-        if (index == null) {
+        int index = SchemaIndexUtil.findFieldIndex(fieldIndexes, fieldName);
+        if (index < 0) {
             throw new IllegalArgumentException("Unknown chart field '" + fieldName + "'");
         }
         return index;

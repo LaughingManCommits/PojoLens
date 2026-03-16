@@ -11,10 +11,12 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.SchemaIndexUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Internal helpers for SQL-like runtime execution.
@@ -119,6 +121,7 @@ public final class SqlLikeExecutionSupport {
         if (select == null || select.fields().isEmpty()) {
             return new AliasedProjectionPlan(List.of(), new int[0]);
         }
+        Map<String, Integer> sourceFieldIndexes = SchemaIndexUtil.indexFieldNames(sourceFieldSchema);
         ArrayList<String> outputSchema = new ArrayList<>(select.fields().size());
         int[] sourceIndexes = new int[select.fields().size()];
         int mapped = 0;
@@ -128,10 +131,11 @@ public final class SqlLikeExecutionSupport {
                         "Computed select fields require row-based alias projection",
                         null);
             }
-            int sourceIndex = findSourceFieldIndex(sourceFieldSchema, projectionSourceField(field));
+            String sourceFieldName = projectionSourceField(field);
+            int sourceIndex = SchemaIndexUtil.findFieldIndex(sourceFieldIndexes, sourceFieldName);
             if (sourceIndex < 0) {
                 throw SqlLikeErrors.state(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED,
-                        "Failed to resolve aliased SQL-like projection field '" + projectionSourceField(field) + "'",
+                        "Failed to resolve aliased SQL-like projection field '" + sourceFieldName + "'",
                         null);
             }
             outputSchema.add(field.outputName());
@@ -141,18 +145,6 @@ public final class SqlLikeExecutionSupport {
                 List.copyOf(outputSchema),
                 mapped == sourceIndexes.length ? sourceIndexes : Arrays.copyOf(sourceIndexes, mapped)
         );
-    }
-
-    private static int findSourceFieldIndex(List<String> sourceFieldSchema, String fieldName) {
-        if (sourceFieldSchema == null || fieldName == null) {
-            return -1;
-        }
-        for (int i = 0; i < sourceFieldSchema.size(); i++) {
-            if (fieldName.equals(sourceFieldSchema.get(i))) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     private static Object queryRowFieldValue(QueryRow row, String fieldName) {
