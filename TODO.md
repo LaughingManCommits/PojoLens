@@ -351,7 +351,7 @@ Strong success criteria:
 
 ### WP18: Reduce absolute overhead on chart and SQL-like chart flows
 
-Status: good enough for now; parked unless a fresh profile reopens scatter or another chart-heavy path
+Status: good enough for now; parked again after the 2026-03-16 scatter pass unless a fresh profile exposes another chart-specific root cause
 
 Priority: high
 
@@ -409,6 +409,13 @@ Current evidence from 2026-03-14 to 2026-03-16:
 - follow-up `2026-03-16` exact targeted reruns also measure grouped stats query/chart at about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart at `size=10000`, which shows the same single-group fast-stats pass also generalizes to non-time-bucket grouped stats work
 - matching `2026-03-16` exact targeted reruns for multi-series chart mapping now measure fluent line/area about `0.566` / `0.575 ms/op` and SQL-like line/area about `0.577` / `0.572 ms/op` at `size=10000`, so grouped chart assembly no longer looks like a major WP18 bottleneck on those shapes either
 - a rebuilt `2026-03-16` full chart guardrail rerun still passes `45/45`; after the current fixes the clearest remaining larger cold chart workload is scatter mapping (`2.924 ms/op` fluent / `4.613 ms/op` SQL-like at `size=10000`, `19.743` / `24.991 ms/op` at `size=100000`)
+- a direct 2026-03-16 scatter-specific follow-up then reopened WP18: fresh warmed reruns of `ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping)` at `size=10000/100000`, `-f 1 -wi 3 -i 5 -r 200ms`, measured about `1.476` / `13.848 ms/op` for fluent and `1.536` / `14.639 ms/op` for SQL-like
+- a tenth 2026-03-16 scatter pass now lets `ChartMapper` accumulate multi-series charts through dense label/series indexes and cache validated x-axis labels once per distinct x instead of building nested per-series maps and re-stringifying duplicate x values on every row
+- focused chart regressions (`ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeChartIntegrationTest`) plus full `mvn -q test` passed after the scatter pass; the suite now covers `436` tests
+- matching warmed reruns after the scatter pass now measure about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`, which is about a `10.5%` / `28.2%` drop for fluent and about a `15.3%` / `33.3%` drop for SQL-like versus the direct pre-pass reruns
+- matching `size=100000`, `-f 1 -wi 2 -i 3 -r 200ms -prof gc` reruns also dropped fluent scatter from about `14.470 ms/op` / `41,297,324 B/op` to about `9.841 ms/op` / `36,595,578 B/op`, and SQL-like scatter from about `14.520 ms/op` / `38,497,149 B/op` to about `9.945 ms/op` / `33,795,681 B/op`
+- a rebuilt full chart guardrail rerun after the scatter pass still passed `45/45`, but the cold scatter entries drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; treat that rerun as guardrail validation, not clean patch attribution
+- interpretation: this pass materially improved the remaining scatter-specific chart work, but the residual `size=100000` cost now looks less chart-specific and more likely tied to broader row-materialization/query overhead than to `ChartMapper` alone
 
 Tasks:
 
@@ -421,7 +428,7 @@ Tasks:
 - now that aliased stats charts preserve projection names on both the fast path and the grouped fallback path and the latest short rerun again keeps SQL-like chart below query, profile the remaining SQL-like query/setup cost specifically and only revisit chart assembly if a direct profile points there
 - use the dedicated prepared SQL-like fast-stats microbenchmark or a fresh profile to separate rebind cost from full fast-stats state creation; short whole-query JMH is still conflating setup and row-scan variance
 - after the 2026-03-16 single-group fast-stats win, validate whether any material WP18 cost remains in other grouped, aliased, or multi-series SQL-like/chart shapes before spending more time on the bean-backed single-group time-bucket path
-- after the 2026-03-16 grouped and multi-series validation pass, treat scatter mapping as the next likely WP18 candidate only if a direct profile shows real product-value leverage; otherwise consider the current grouped/chart work largely complete and shift attention to WP19
+- after the 2026-03-16 scatter pass, only reopen WP18 if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead
 
 Boundary with WP19:
 

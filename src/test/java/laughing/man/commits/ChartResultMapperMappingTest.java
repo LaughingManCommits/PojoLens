@@ -12,6 +12,7 @@ import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -176,6 +177,28 @@ public class ChartResultMapperMappingTest {
     }
 
     @Test
+    public void toChartDataShouldMapScatterMultiSeriesQueryRows() {
+        List<QueryRow> rows = List.of(
+                queryRow("x", 2, "series", "A", "y", 20L),
+                queryRow("x", 1, "series", "B", "y", 10L),
+                queryRow("x", 1, "series", "A", "y", 15L),
+                queryRow("x", 2, "series", "A", "y", 25L)
+        );
+
+        ChartData data = ChartResultMapper.toChartData(
+                rows,
+                ChartSpec.of(ChartType.SCATTER, "x", "y", "series").withSortedLabels(true)
+        );
+
+        assertEquals(List.of("1", "2"), data.getLabels());
+        assertEquals(2, data.getDatasets().size());
+        assertEquals("A", data.getDatasets().get(0).getLabel());
+        assertEquals(List.of(15d, 25d), data.getDatasets().get(0).getValues());
+        assertEquals("B", data.getDatasets().get(1).getLabel());
+        assertEquals(Arrays.asList(10d, null), data.getDatasets().get(1).getValues());
+    }
+
+    @Test
     public void toChartDataShouldMapMultiSeries() {
         List<ChartResultMapperFixtures.DepartmentMetricRow> rows = new ArrayList<>();
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Engineering", "2025-01", 2, 300));
@@ -337,6 +360,29 @@ public class ChartResultMapperMappingTest {
 
         QueryRow row = new QueryRow();
         row.setFields(List.of(first, second));
+        return row;
+    }
+
+    private static QueryRow queryRow(String firstField,
+                                     Object firstValue,
+                                     String secondField,
+                                     Object secondValue,
+                                     String thirdField,
+                                     Object thirdValue) {
+        QueryField first = new QueryField();
+        first.setFieldName(firstField);
+        first.setValue(firstValue);
+
+        QueryField second = new QueryField();
+        second.setFieldName(secondField);
+        second.setValue(secondValue);
+
+        QueryField third = new QueryField();
+        third.setFieldName(thirdField);
+        third.setValue(thirdValue);
+
+        QueryRow row = new QueryRow();
+        row.setFields(List.of(first, second, third));
         return row;
     }
 }

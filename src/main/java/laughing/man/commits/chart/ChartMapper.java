@@ -6,10 +6,10 @@ import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -165,65 +165,31 @@ public final class ChartMapper {
     }
 
     private static <T> ChartData mapMultiSeries(List<T> rows, ChartSpec spec, ChartData chartData) {
-        LinkedHashSet<String> orderedLabels = new LinkedHashSet<>();
-        LinkedHashSet<String> orderedSeries = new LinkedHashSet<>();
-        Map<String, Map<String, Double>> valuesBySeries = new LinkedHashMap<>();
+        MultiSeriesAccumulator accumulator = new MultiSeriesAccumulator(spec);
 
         for (T row : rows) {
             if (row == null) {
                 continue;
             }
-            String x = ChartValidation.validateXValue(readField(row, spec.xField()), spec.xField(), spec.dateFormat());
+            Object x = readField(row, spec.xField());
             String series = stringSeriesValue(readField(row, spec.seriesField()));
             Double value = ChartValidation.validateYValue(readField(row, spec.yField()), spec.yField());
-            orderedLabels.add(x);
-            orderedSeries.add(series);
-            valuesBySeries.computeIfAbsent(series, key -> new LinkedHashMap<>()).put(x, value);
+            accumulator.addPoint(x, series, value);
         }
-
-        List<String> labels = new ArrayList<>(orderedLabels);
-        if (spec.sortLabels()) {
-            labels.sort(Comparator.nullsFirst(String::compareTo));
-        }
-
-        List<ChartDataset> datasets = new ArrayList<>();
-        for (String series : orderedSeries) {
-            Map<String, Double> points = valuesBySeries.getOrDefault(series, Collections.emptyMap());
-            List<Double> values = new ArrayList<>(labels.size());
-            for (String label : labels) {
-                Double point = points.get(label);
-                if (point == null && NullPointPolicy.ZERO.equals(spec.nullPointPolicy())) {
-                    point = 0d;
-                }
-                values.add(point);
-            }
-            datasets.add(newDataset(spec, series, values));
-        }
-        if (spec.percentStacked()) {
-            applyPercentStacking(datasets, labels.size());
-        }
-        chartData.setLabels(labels);
-        chartData.setDatasets(datasets);
-        return chartData;
+        return accumulator.finish(chartData);
     }
 
     private static ChartData mapMultiSeriesQueryRows(List<QueryRow> rows,
                                                      ChartSpec spec,
                                                      ChartData chartData,
                                                      IndexedRowReadPlan readPlan) {
-        LinkedHashSet<String> orderedLabels = new LinkedHashSet<>();
-        LinkedHashSet<String> orderedSeries = new LinkedHashSet<>();
-        Map<String, Map<String, Double>> valuesBySeries = new LinkedHashMap<>();
+        MultiSeriesAccumulator accumulator = new MultiSeriesAccumulator(spec);
 
         for (QueryRow row : rows) {
             if (row == null) {
                 continue;
             }
-            String x = ChartValidation.validateXValue(
-                    readQueryRowField(row, spec.xField(), readPlan.xFieldIndex()),
-                    spec.xField(),
-                    spec.dateFormat()
-            );
+            Object x = readQueryRowField(row, spec.xField(), readPlan.xFieldIndex());
             String series = stringSeriesValue(
                     readQueryRowField(row, spec.seriesField(), readPlan.seriesFieldIndex())
             );
@@ -231,88 +197,30 @@ public final class ChartMapper {
                     readQueryRowField(row, spec.yField(), readPlan.yFieldIndex()),
                     spec.yField()
             );
-            orderedLabels.add(x);
-            orderedSeries.add(series);
-            valuesBySeries.computeIfAbsent(series, key -> new LinkedHashMap<>()).put(x, value);
+            accumulator.addPoint(x, series, value);
         }
-
-        List<String> labels = new ArrayList<>(orderedLabels);
-        if (spec.sortLabels()) {
-            labels.sort(Comparator.nullsFirst(String::compareTo));
-        }
-
-        List<ChartDataset> datasets = new ArrayList<>();
-        for (String series : orderedSeries) {
-            Map<String, Double> points = valuesBySeries.getOrDefault(series, Collections.emptyMap());
-            List<Double> values = new ArrayList<>(labels.size());
-            for (String label : labels) {
-                Double point = points.get(label);
-                if (point == null && NullPointPolicy.ZERO.equals(spec.nullPointPolicy())) {
-                    point = 0d;
-                }
-                values.add(point);
-            }
-            datasets.add(newDataset(spec, series, values));
-        }
-        if (spec.percentStacked()) {
-            applyPercentStacking(datasets, labels.size());
-        }
-        chartData.setLabels(labels);
-        chartData.setDatasets(datasets);
-        return chartData;
+        return accumulator.finish(chartData);
     }
 
     private static ChartData mapMultiSeriesArrayRows(List<Object[]> rows,
                                                      ChartSpec spec,
                                                      ChartData chartData,
                                                      IndexedRowReadPlan readPlan) {
-        LinkedHashSet<String> orderedLabels = new LinkedHashSet<>();
-        LinkedHashSet<String> orderedSeries = new LinkedHashSet<>();
-        Map<String, Map<String, Double>> valuesBySeries = new LinkedHashMap<>();
+        MultiSeriesAccumulator accumulator = new MultiSeriesAccumulator(spec);
 
         for (Object[] row : rows) {
             if (row == null) {
                 continue;
             }
-            String x = ChartValidation.validateXValue(
-                    readArrayRowField(row, readPlan.xFieldIndex()),
-                    spec.xField(),
-                    spec.dateFormat()
-            );
+            Object x = readArrayRowField(row, readPlan.xFieldIndex());
             String series = stringSeriesValue(readArrayRowField(row, readPlan.seriesFieldIndex()));
             Double value = ChartValidation.validateYValue(
                     readArrayRowField(row, readPlan.yFieldIndex()),
                     spec.yField()
             );
-            orderedLabels.add(x);
-            orderedSeries.add(series);
-            valuesBySeries.computeIfAbsent(series, key -> new LinkedHashMap<>()).put(x, value);
+            accumulator.addPoint(x, series, value);
         }
-
-        List<String> labels = new ArrayList<>(orderedLabels);
-        if (spec.sortLabels()) {
-            labels.sort(Comparator.nullsFirst(String::compareTo));
-        }
-
-        List<ChartDataset> datasets = new ArrayList<>();
-        for (String series : orderedSeries) {
-            Map<String, Double> points = valuesBySeries.getOrDefault(series, Collections.emptyMap());
-            List<Double> values = new ArrayList<>(labels.size());
-            for (String label : labels) {
-                Double point = points.get(label);
-                if (point == null && NullPointPolicy.ZERO.equals(spec.nullPointPolicy())) {
-                    point = 0d;
-                }
-                values.add(point);
-            }
-            datasets.add(newDataset(spec, series, values));
-        }
-        if (spec.percentStacked()) {
-            applyPercentStacking(datasets, labels.size());
-        }
-        chartData.setLabels(labels);
-        chartData.setDatasets(datasets);
-        return chartData;
+        return accumulator.finish(chartData);
     }
 
     private static IndexedRowReadPlan queryRowReadPlan(List<QueryRow> rows, ChartSpec spec) {
@@ -427,12 +335,7 @@ public final class ChartMapper {
     }
 
     private static void sortSingleSeries(List<String> labels, List<Double> values) {
-        List<Integer> indexes = new ArrayList<>(labels.size());
-        for (int i = 0; i < labels.size(); i++) {
-            indexes.add(i);
-        }
-        indexes.sort((left, right) -> Comparator.nullsFirst(String::compareTo)
-                .compare(labels.get(left), labels.get(right)));
+        List<Integer> indexes = sortedLabelIndexes(labels);
 
         List<String> sortedLabels = new ArrayList<>(labels.size());
         List<Double> sortedValues = new ArrayList<>(values.size());
@@ -446,6 +349,16 @@ public final class ChartMapper {
         values.addAll(sortedValues);
     }
 
+    private static List<Integer> sortedLabelIndexes(List<String> labels) {
+        List<Integer> indexes = new ArrayList<>(labels.size());
+        for (int i = 0; i < labels.size(); i++) {
+            indexes.add(i);
+        }
+        indexes.sort((left, right) -> Comparator.nullsFirst(String::compareTo)
+                .compare(labels.get(left), labels.get(right)));
+        return indexes;
+    }
+
     private static ChartDataset newDataset(ChartSpec spec, String label, List<Double> values) {
         return new ChartDataset(
                 label,
@@ -454,6 +367,119 @@ public final class ChartMapper {
                 spec.stackGroupIdForDataset(label),
                 spec.axisIdForDataset(label)
         );
+    }
+
+    private static final class MultiSeriesAccumulator {
+        private final ChartSpec spec;
+        private final Map<Object, String> labelTextCache;
+        private final LinkedHashMap<String, Integer> labelIndexes;
+        private final LinkedHashMap<String, Integer> seriesIndexes;
+        private final List<String> labels;
+        private final List<String> series;
+        private final List<List<Double>> valuesBySeries;
+
+        private MultiSeriesAccumulator(ChartSpec spec) {
+            this.spec = spec;
+            this.labelTextCache = new HashMap<>();
+            this.labelIndexes = new LinkedHashMap<>();
+            this.seriesIndexes = new LinkedHashMap<>();
+            this.labels = new ArrayList<>();
+            this.series = new ArrayList<>();
+            this.valuesBySeries = new ArrayList<>();
+        }
+
+        private void addPoint(Object rawX, String seriesValue, Double value) {
+            int labelIndex = labelIndex(rawX);
+            int seriesIndex = seriesIndex(seriesValue);
+            valuesBySeries.get(seriesIndex).set(labelIndex, value);
+        }
+
+        private ChartData finish(ChartData chartData) {
+            List<Integer> sortedLabelIndexes = spec.sortLabels() ? sortedLabelIndexes(labels) : null;
+            List<String> finalLabels = materializeLabels(sortedLabelIndexes);
+            List<ChartDataset> datasets = new ArrayList<>(series.size());
+            for (int i = 0; i < series.size(); i++) {
+                datasets.add(newDataset(spec, series.get(i), materializeValues(valuesBySeries.get(i), sortedLabelIndexes)));
+            }
+            if (spec.percentStacked()) {
+                applyPercentStacking(datasets, finalLabels.size());
+            }
+            chartData.setLabels(finalLabels);
+            chartData.setDatasets(datasets);
+            return chartData;
+        }
+
+        private int labelIndex(Object rawX) {
+            String label = labelText(rawX);
+            Integer index = labelIndexes.get(label);
+            if (index != null) {
+                return index;
+            }
+            int newIndex = labels.size();
+            labelIndexes.put(label, newIndex);
+            labels.add(label);
+            for (List<Double> values : valuesBySeries) {
+                values.add(null);
+            }
+            return newIndex;
+        }
+
+        private String labelText(Object rawX) {
+            if (labelTextCache.containsKey(rawX)) {
+                return labelTextCache.get(rawX);
+            }
+            String label = ChartValidation.validateXValue(rawX, spec.xField(), spec.dateFormat());
+            labelTextCache.put(rawX, label);
+            return label;
+        }
+
+        private int seriesIndex(String seriesValue) {
+            Integer index = seriesIndexes.get(seriesValue);
+            if (index != null) {
+                return index;
+            }
+            int newIndex = series.size();
+            seriesIndexes.put(seriesValue, newIndex);
+            series.add(seriesValue);
+            List<Double> values = new ArrayList<>(labels.size());
+            for (int i = 0; i < labels.size(); i++) {
+                values.add(null);
+            }
+            valuesBySeries.add(values);
+            return newIndex;
+        }
+
+        private List<String> materializeLabels(List<Integer> sortedLabelIndexes) {
+            if (sortedLabelIndexes == null) {
+                return new ArrayList<>(labels);
+            }
+            List<String> sortedLabels = new ArrayList<>(labels.size());
+            for (Integer index : sortedLabelIndexes) {
+                sortedLabels.add(labels.get(index));
+            }
+            return sortedLabels;
+        }
+
+        private List<Double> materializeValues(List<Double> values, List<Integer> sortedLabelIndexes) {
+            List<Double> materialized = new ArrayList<>(values.size());
+            if (sortedLabelIndexes == null) {
+                for (Double value : values) {
+                    materialized.add(zeroFilled(value));
+                }
+                return materialized;
+            }
+            for (Integer index : sortedLabelIndexes) {
+                materialized.add(zeroFilled(values.get(index)));
+            }
+            return materialized;
+        }
+
+        private Double zeroFilled(Double value) {
+            if (value == null && NullPointPolicy.ZERO.equals(spec.nullPointPolicy())) {
+                return 0d;
+            }
+            return value;
+        }
     }
 
     private record IndexedRowReadPlan(int xFieldIndex, int yFieldIndex, int seriesFieldIndex) {

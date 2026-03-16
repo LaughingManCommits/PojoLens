@@ -2,6 +2,7 @@ package laughing.man.commits.chart;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,6 +53,29 @@ public class ChartMapperArrayRowsTest {
         assertEquals(List.of(300d, 150d), data.getDatasets().get(0).getValues());
         assertEquals("Finance", data.getDatasets().get(1).getLabel());
         assertEquals(List.of(0d, 200d), data.getDatasets().get(1).getValues());
+    }
+
+    @Test
+    public void toChartDataShouldMapScatterMultiSeriesArrayRows() {
+        List<Object[]> rows = List.of(
+                new Object[]{2, "A", 20L},
+                new Object[]{1, "B", 10L},
+                new Object[]{1, "A", 15L},
+                new Object[]{2, "A", 25L}
+        );
+
+        ChartData data = ChartMapper.toChartData(
+                rows,
+                List.of("x", "series", "y"),
+                ChartSpec.of(ChartType.SCATTER, "x", "y", "series").withSortedLabels(true)
+        );
+
+        assertEquals(List.of("1", "2"), data.getLabels());
+        assertEquals(2, data.getDatasets().size());
+        assertEquals("A", data.getDatasets().get(0).getLabel());
+        assertEquals(List.of(15d, 25d), data.getDatasets().get(0).getValues());
+        assertEquals("B", data.getDatasets().get(1).getLabel());
+        assertEquals(Arrays.asList(10d, null), data.getDatasets().get(1).getValues());
     }
 
     @Test
