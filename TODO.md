@@ -548,3 +548,24 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 4. WP17 only if broader work exposes a clear reopen case
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.
+
+## Consolidation Guidance
+
+Maintainability work should follow a "share plans, not hot loops" rule while WP18 and WP19 remain active.
+
+Consolidate now when it removes duplicated setup or metadata work without forcing different row shapes through one generic executor:
+
+- share plan, schema, and index preparation where SQL-like, filter, stats, and chart flows repeat the same non-row-processing work
+- prefer shared cached metadata for field-name or field-index resolution, aliased output schema, and other adapter planning used by `SqlLikeQuery`, `FilterImpl`, `FastStatsQuerySupport`, `FastArrayQuerySupport`, and `ChartMapper`
+- extract helpers when two paths repeat validation, schema remapping, or cache-key construction but still need separate bean, `QueryRow`, or `Object[]` loops
+
+Consolidate later after WP18 and WP19 stabilize:
+
+- revisit orchestration overlap between `FilterImpl.filterRows(...)` and `SqlLikeQuery.executeRawRows(...)` only with a fresh profile and a design that does not route all execution through the slower generic path
+- revisit duplicate `toQueryRows(...)` materializers and chart row-shape adapters as cold-path cleanup unless profiling shows they materially affect product-visible latency
+
+Do not consolidate just for deduplication:
+
+- do not force `FastStatsQuerySupport` and `FastArrayQuerySupport` through one shared executor
+- do not collapse `ChartMapper` bean, `QueryRow`, and `Object[]` specializations into one reflective abstraction
+- do not remove the `preparedExecutionView(...)` / `preparedExecutionCopy(...)` split while the prepared-view microbenchmark is still an active decision tool

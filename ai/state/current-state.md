@@ -10,6 +10,7 @@
 
 - `TODO.md` remains the source-of-truth backlog.
 - WP18 is the active package: reduce absolute SQL-like stats/query and chart overhead by product value and `ms/op`, not by fluent-vs-SQL-like ratios.
+- `TODO.md` now makes consolidation guidance explicit: share plans/metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
 - WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
 
 ## Landed WP18 Shape
