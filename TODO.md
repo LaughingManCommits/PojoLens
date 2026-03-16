@@ -465,6 +465,10 @@ Current evidence from 2026-03-14 to 2026-03-16:
   - `computedFieldJoinSelectiveMaterialization|size=10000` at about `303.247 us/op` / `3,532,314 B/op`
   - `groupedMultiMetricAggregation|size=10000` at about `353.796 us/op` / `1,043,042 B/op`
 - versus the recorded `2026-03-14` hotspot snapshot, reflection latency is down materially (`reflectionToClassList` about `24%`, `reflectionToDomainRows` about `25%`) but allocation on those conversion paths is still essentially flat, so WP19 should stay open until warmed JFR confirms that the class-level hotspot cluster also moved
+- a refreshed warmed JFR on `2026-03-16` using `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField -p size=10000 -f 1 -wi 5 -i 10 -r 300ms` produced `target/wp19-current-2026-03-16.jfr` and measured about `0.666 ms/op` with JFR overhead, which is effectively flat versus the last recorded warm-profile cycle
+- that refreshed warmed JFR still concentrates first-repo-frame CPU in the same class cluster: `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`)
+- the same warmed JFR still concentrates first-repo-frame allocation in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`)
+- two smaller `2026-03-16` follow-up experiments after the refreshed JFR were benchmark-flat and were not kept: a specialized nested-write path inside `ReflectionUtil.ResolvedFieldPath` and a `Double` fast path inside `FastArrayQuerySupport.applyComputedValues`
 
 Tasks:
 
@@ -473,6 +477,7 @@ Tasks:
 - decide whether compiled accessors or other specialized conversion plans should become the default for the common benchmark shapes
 - rerun the hotspot suite with `-prof gc` and compare against the current `BENCHMARKS.md` snapshot
 - rerun warmed JFR on the current tree before the next larger WP19 refactor so the remaining `ReflectionUtil` and `FastArrayQuerySupport` cluster is measured on the same code that produced the new hotspot-suite checkpoint
+- prefer the next larger WP19 attempt in `FastArrayQuerySupport.materializeJoinedRow` / `buildChildIndex` or a more structural `ReflectionUtil` read-path reuse change; the latest smaller branch-level experiments did not move the benchmark enough to keep
 
 Acceptance criteria:
 

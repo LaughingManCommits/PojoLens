@@ -66,6 +66,10 @@ Generated from a full local benchmark sweep on 2026-03-14.
 | groupedMultiMetricAggregation             | 457.742 us/op  | 353.796 us/op | 1043041.796 B/op |
 
 - Interpretation: the reflection/conversion workloads are materially faster than the last recorded hotspot-suite snapshot, but their allocation footprint did not meaningfully move. `computedFieldJoinSelectiveMaterialization` still owns the largest absolute `B/op`, and warmed JFR should be rerun before claiming the class-level `ReflectionUtil` / `FastArrayQuerySupport` hotspot cluster is solved.
+- A refreshed warmed JFR on `2026-03-16` using `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField -p size=10000 -f 1 -wi 5 -i 10 -r 300ms -jvmArgsAppend "-XX:StartFlightRecording=filename=target/wp19-current-2026-03-16.jfr,settings=profile,dumponexit=true"` measured about `0.666 ms/op` with JFR overhead and confirmed that the class-level hotspot cluster has not materially shifted yet.
+- In that refreshed warmed JFR, first-repo-frame CPU still centered in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
+- First-repo-frame allocation in the same warmed JFR still centered in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`).
+- Two smaller post-profile experiments on `2026-03-16` were benchmark-flat and were not kept: a specialized `ResolvedFieldPath` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`. The next likely WP19 leverage point is joined-row materialization/indexing rather than more branch shaving.
 
 ## Core Guardrail Suite
 
@@ -240,4 +244,5 @@ Interpretation:
 - `target/benchmarks/cache.json`
 - `target/benchmarks/hotspots-gc.json`
 - `target/benchmarks/hotspots-gc-2026-03-16.json`
+- `target/wp19-current-2026-03-16.jfr`
 - `target/benchmarks/pojolens-legacy.json`
