@@ -4,6 +4,7 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
@@ -43,7 +44,8 @@ final class AggregationEngine {
                                                    List<FilterExecutionPlan.GroupColumn> columns,
                                                    List<FilterExecutionPlan.MetricPlan> metrics) {
         int columnCount = columns.size();
-        Map<QueryKey, GroupAccumulator> grouped = new LinkedHashMap<>(expectedMapSize(rows == null ? 0 : rows.size()));
+        Map<QueryKey, GroupAccumulator> grouped =
+                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows == null ? 0 : rows.size()));
 
         if (rows != null) {
             for (QueryRow row : rows) {
@@ -297,13 +299,6 @@ final class AggregationEngine {
             }
             throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
         }
-    }
-
-    private int expectedMapSize(int sourceSize) {
-        if (sourceSize <= 0) {
-            return 16;
-        }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
     }
 }
 

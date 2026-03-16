@@ -9,6 +9,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.StringUtil;
 import org.slf4j.Logger;
@@ -246,7 +247,8 @@ public class FilterCore {
     public List<QueryRow> filterDistinctFields(FilterExecutionPlan plan) {
         try {
             if (!builder.getDistinctFields().isEmpty()) {
-                Map<QueryKey, QueryRow> distinct = new LinkedHashMap<>(expectedMapSize(builder.getRows().size()));
+                Map<QueryKey, QueryRow> distinct =
+                        new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(builder.getRows().size()));
                 if (builder.getRows().isEmpty()) {
                     return builder.getRows();
                 }
@@ -387,13 +389,5 @@ public class FilterCore {
         }
         return fields.get(index).getValue();
     }
-
-    private int expectedMapSize(int sourceSize) {
-        if (sourceSize <= 0) {
-            return 16;
-        }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
-    }
-
 }
 

@@ -3,6 +3,7 @@ package laughing.man.commits.filter;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
@@ -30,7 +31,8 @@ final class GroupEngine {
         if (!builder.getGroupFields().isEmpty() && rows != null && !rows.isEmpty()) {
             List<FilterExecutionPlan.GroupColumn> columns = plan.getGroupColumns();
             int columnCount = columns.size();
-            Map<QueryKey, List<QueryRow>> grouped = new LinkedHashMap<>(expectedMapSize(rows.size()));
+            Map<QueryKey, List<QueryRow>> grouped =
+                    new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows.size()));
 
             for (int index = 0; index < rows.size(); index++) {
                 QueryRow row = rows.get(index);
@@ -66,13 +68,6 @@ final class GroupEngine {
         }
 
         return results;
-    }
-
-    private int expectedMapSize(int sourceSize) {
-        if (sourceSize <= 0) {
-            return 16;
-        }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
     }
 }
 

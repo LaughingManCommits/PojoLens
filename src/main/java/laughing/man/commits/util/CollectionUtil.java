@@ -32,4 +32,11 @@ public final class CollectionUtil {
         }
         return new ArrayList<>(rows.subList(0, limit));
     }
+
+    public static int expectedMapCapacity(int sourceSize) {
+        if (sourceSize <= 0) {
+            return 16;
+        }
+        return (int) ((sourceSize / 0.75f) + 1.0f);
+    }
 }

@@ -396,7 +396,7 @@ final class FastArrayQuerySupport {
     }
 
     private static Map<Object, Object> buildChildIndex(List<?> children, JoinCompilePlan plan) {
-        HashMap<Object, Object> index = new HashMap<>(expectedMapSize(children.size()));
+        HashMap<Object, Object> index = new HashMap<>(CollectionUtil.expectedMapCapacity(children.size()));
         for (Object child : children) {
             if (child == null) {
                 continue;
@@ -665,14 +665,6 @@ final class FastArrayQuerySupport {
         }
         return value;
     }
-
-    private static int expectedMapSize(int sourceSize) {
-        if (sourceSize <= 0) {
-            return 16;
-        }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
-    }
-
     static record FastArrayState(List<String> schemaFields,
                                  Map<String, Class<?>> schemaTypes,
                                  List<Object[]> rows) {

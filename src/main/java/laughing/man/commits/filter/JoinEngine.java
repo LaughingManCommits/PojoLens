@@ -4,6 +4,7 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
@@ -123,7 +124,7 @@ final class JoinEngine {
     }
 
     private Map<String, List<QueryRow>> buildFieldIndex(List<QueryRow> classes, int fieldIndex) {
-        Map<String, List<QueryRow>> index = new HashMap<>(expectedMapSize(classes.size()));
+        Map<String, List<QueryRow>> index = new HashMap<>(CollectionUtil.expectedMapCapacity(classes.size()));
         for (QueryRow row : classes) {
             List<? extends QueryField> fields = row.getFields();
             if (fields == null) {
@@ -216,14 +217,6 @@ final class JoinEngine {
         }
         return candidate;
     }
-
-    private int expectedMapSize(int sourceSize) {
-        if (sourceSize <= 0) {
-            return 16;
-        }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
-    }
-
     private QueryField newQueryField(String fieldName, Object value) {
         QueryField field = new QueryField();
         field.setFieldName(fieldName);

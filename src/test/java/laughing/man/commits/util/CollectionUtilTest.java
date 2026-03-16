@@ -49,4 +49,12 @@ class CollectionUtilTest {
         assertTrue(CollectionUtil.applyLimit(List.of("a", "b"), 0).isEmpty());
         assertTrue(CollectionUtil.applyLimit(List.of("a", "b"), -1).isEmpty());
     }
+
+    @Test
+    void expectedMapCapacityShouldMatchExistingSizingRule() {
+        assertEquals(16, CollectionUtil.expectedMapCapacity(0));
+        assertEquals(16, CollectionUtil.expectedMapCapacity(-1));
+        assertEquals(2, CollectionUtil.expectedMapCapacity(1));
+        assertEquals(14, CollectionUtil.expectedMapCapacity(10));
+    }
 }
