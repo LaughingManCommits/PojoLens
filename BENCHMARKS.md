@@ -28,6 +28,21 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - Highest hotspot allocation: computedFieldJoinSelectiveMaterialization|size=10000 at 3532314.399 B/op.
 - Highest hotspot latency: reflectionToClassList|size=10000 at 1115.501 us/op.
 - Targeted chart follow-up on 2026-03-15: after removing per-point `String.format(...)` work and pre-sizing the benchmark JSON exporter buffer, a rebuilt comparable chart-suite rerun still passed thresholds and reduced `scatterPayloadJsonExport` to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`.
+- Targeted stats follow-up on 2026-03-16: after replacing per-row time-bucket `String.format(...)` work and removing single-group `QueryKey` churn from the fast-stats path, the prepared stats setup microbenchmark fell to about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view at `size=10000`, while exact targeted whole-query reruns on the bean-backed month-bucket stats workload measured about `0.529`, `0.531`, `0.519`, and `0.526 ms/op` for fluent query, fluent chart, SQL-like query, and SQL-like chart respectively.
+
+## Targeted WP18 Follow-up (2026-03-16)
+
+- Root cause on the old bean-backed single-group time-bucket stats path was no longer chart mapping or prepared-builder rebinding; it was per-row bucket string formatting in `TimeBucketUtil` plus per-row single-group `QueryKey` allocation/copy churn inside `FastStatsQuerySupport`.
+- Replacing the bucket `String.format(...)` calls with direct fixed-shape string builders and giving the common single-group fast-stats path its own grouped-map implementation removed most of that cost without changing the generic multi-group execution path.
+- The updated prepared fast-stats setup microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` measured:
+  - `sqlLikePreparedStatsFastPathSetupCopy`: about `509.906 us/op` / `2,145,675 B/op`
+  - `sqlLikePreparedStatsFastPathSetupView`: about `512.749 us/op` / `2,145,195 B/op`
+- Matching exact targeted end-to-end reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
+  - `StatsQueryJmhBenchmark.fluentTimeBucketMetrics`: about `0.529 ms/op`
+  - `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart`: about `0.531 ms/op`
+  - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics`: about `0.519 ms/op`
+  - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart`: about `0.526 ms/op`
+- Interpretation: this specific WP18 benchmark shape is now largely solved; follow-up work should validate other grouped, aliased, or multi-series SQL-like/chart shapes before doing more tuning here.
 
 ## Core Guardrail Suite
 

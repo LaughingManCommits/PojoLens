@@ -3,12 +3,14 @@
 Load only when the task is about benchmarks, thresholds, parity, profiling, or performance regressions.
 
 - Full benchmark-surface snapshot date: `2026-03-14`.
-- Latest targeted follow-up date: `2026-03-15`.
+- Latest targeted follow-up date: `2026-03-16`.
 - Guardrail status from the recorded runs: core `42/42` pass, chart `45/45` pass.
 - The `2026-03-15` chart follow-up kept `45/45` passing after the exporter rewrite.
 - `ChartPayloadJsonExporter` is no longer a primary cost center: comparable cold reruns measured about `0.066`, `0.634`, and `1.146 ms/op` for `scatterPayloadJsonExport` at sizes `1000`, `10000`, and `100000`, and a targeted `size=10000` `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
 - A new prepared SQL-like stats hotspot microbenchmark now isolates rebinding from full fast-stats setup. Its first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured rebind view at about `0.324 us/op` / `3,120 B/op` versus copy at about `0.668 us/op` / `3,528 B/op`, while full rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy.
-- For the targeted bean-backed stats workload, old chart mapping/export overhead no longer looks like the main issue; the remaining WP18 gap is more likely SQL-like setup/query execution.
-- The new microbenchmark suggests builder rebinding still matters in isolation, but it is no longer the dominant cost once fast-stats state creation scans and aggregates the full dataset.
+- A follow-up `2026-03-16` fast-stats pass replaced per-row bucket `String.format(...)` work in `TimeBucketUtil`, short-circuited string group-key conversion, and specialized the common single-group fast-stats aggregation path to avoid per-row `QueryKey` churn.
+- The rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` then measured full setup at about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view, which means the old 7.3-7.5 ms / 16.8 MB setup hotspot is largely gone on that benchmark shape.
+- Matching exact targeted whole-query reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured fluent query/chart about `0.529` / `0.531 ms/op` and SQL-like query/chart about `0.519` / `0.526 ms/op`.
+- For the targeted bean-backed single-group time-bucket stats workload, old chart mapping/export overhead and prepared-builder rebinding no longer look like the main issue; further WP18 work should first confirm whether other grouped, aliased, or multi-series shapes still need attention.
 - Persistent non-WP18 stress still exists in cold filter-vs-baseline gaps, cache plan-build throughput, and recurring reflection/conversion hotspots centered in `ReflectionUtil` and `FastArrayQuerySupport`.
 - Use `BENCHMARKS.md` for detailed measurements and `ai/core/benchmark-context.md` for suite and profiler interpretation rules.

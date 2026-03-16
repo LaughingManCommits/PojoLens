@@ -365,7 +365,7 @@ Scope:
 - `src/main/java/laughing/man/commits/chart`
 - `target/benchmarks/chart.json`
 
-Current evidence from 2026-03-14 to 2026-03-15:
+Current evidence from 2026-03-14 to 2026-03-16:
 
 - chart thresholds passed `45/45`
 - the prior chart parity report failed in `5/15` comparisons, but that ratio is now diagnostic-only because SQL-like includes parse/translation work that fluent does not
@@ -401,6 +401,11 @@ Current evidence from 2026-03-14 to 2026-03-15:
 - focused regressions now cover repeated aliased fast-stats filter rebinding, aliased stats charts with and without `ORDER BY`, and aliased stats chart cache reuse; focused suites plus full `mvn -q test` passed again after that pass
 - the latest short targeted rerun after the alias/chart pass measured fluent query/chart about `6.452` and `6.737 ms/op`, while SQL-like query/chart measured about `6.735` and `4.764 ms/op`; treat that as evidence the chart path stayed low while the remaining SQL-like query/setup cost is still unresolved, not as a clean overall speed win
 - a dedicated prepared SQL-like stats setup microbenchmark now lives in `HotspotMicroJmhBenchmark`; the first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured `sqlLikePreparedStatsRebindView` at about `0.324 us/op` and `3,120 B/op` versus `0.668 us/op` and `3,528 B/op` for `sqlLikePreparedStatsRebindCopy`, while the combined rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy, which is evidence that builder-copy savings remain real but are now buried under the row-scan/aggregation work in full fast-stats state creation
+- a ninth 2026-03-16 fast-stats pass now replaces `TimeBucketUtil` `String.format(...)` bucket rendering with direct fixed-shape string builders, short-circuits `FastStatsQuerySupport.toGroupKeyValue(...)` for string outputs, and gives the common single-group fast-stats path its own grouped accumulator map so it no longer allocates a `QueryKey` plus copied key array for every scanned row
+- focused regressions (`TimeBucketAggregationTest`, `SqlLikeChartIntegrationTest`, `SqlLikeQueryContractTest`, `TimeBucketUtilTest`) plus full `mvn -q test` passed on `2026-03-16`
+- a rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` now measures `sqlLikePreparedStatsFastPathSetupCopy` at about `509.906 us/op` / `2,145,675 B/op` and `sqlLikePreparedStatsFastPathSetupView` at about `512.749 us/op` / `2,145,195 B/op`, down materially from the prior `7.306/7.517 ms/op` and `16.8 MB/op` snapshot; the old view-vs-copy gap is now effectively buried in noise because the row-scan/grouping cost fell so much
+- exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` at about `0.529 ms/op`, `fluentTimeBucketMetricsToChart` at about `0.531 ms/op`, `sqlLikeParseAndTimeBucketMetrics` at about `0.519 ms/op`, and `sqlLikeParseAndTimeBucketMetricsToChart` at about `0.526 ms/op`, which moves this bean-backed single-group time-bucket stats workload out of the old WP18 problem range
+- the direct root cause on this benchmark shape was not prepared-builder rebinding after all; it was per-row time-bucket string formatting plus single-group key churn inside `FastStatsQuerySupport` / `TimeBucketUtil`
 
 Tasks:
 
@@ -412,6 +417,7 @@ Tasks:
 - if work stays on prepared-builder setup cost, use a direct profile or dedicated microbenchmark to isolate what still remains after the lighter prepared view; short whole-query JMH alone is still too drift-heavy for patch attribution
 - now that aliased stats charts preserve projection names on both the fast path and the grouped fallback path and the latest short rerun again keeps SQL-like chart below query, profile the remaining SQL-like query/setup cost specifically and only revisit chart assembly if a direct profile points there
 - use the dedicated prepared SQL-like fast-stats microbenchmark or a fresh profile to separate rebind cost from full fast-stats state creation; short whole-query JMH is still conflating setup and row-scan variance
+- after the 2026-03-16 single-group fast-stats win, validate whether any material WP18 cost remains in other grouped, aliased, or multi-series SQL-like/chart shapes before spending more time on the bean-backed single-group time-bucket path
 
 Boundary with WP19:
 

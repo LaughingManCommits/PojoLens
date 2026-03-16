@@ -168,6 +168,9 @@ public final class FastStatsQuerySupport {
                                                         List<FilterExecutionPlan.GroupColumn> groupColumns,
                                                         List<FilterExecutionPlan.MetricPlan> metricPlans) {
         int columnCount = groupColumns.size();
+        if (columnCount == 1) {
+            return aggregateSingleGroup(source, readPlan, groupColumns.get(0), metricPlans);
+        }
         LinkedHashMap<QueryKey, GroupAccumulator> grouped =
                 new LinkedHashMap<>(expectedMapSize(source.size()));
         Object[] rowValues = new Object[readPlan.size()];
@@ -209,6 +212,48 @@ public final class FastStatsQuerySupport {
             System.arraycopy(accumulator.groupProjection(), 0, result, 0, columnCount);
             Object[] metricResults = metricResults(accumulator.metricAccumulators());
             System.arraycopy(metricResults, 0, result, columnCount, metricResults.length);
+            rows.add(result);
+        }
+        return rows;
+    }
+
+    private static ArrayList<Object[]> aggregateSingleGroup(List<?> source,
+                                                            ReflectionUtil.FlatRowReadPlan readPlan,
+                                                            FilterExecutionPlan.GroupColumn groupColumn,
+                                                            List<FilterExecutionPlan.MetricPlan> metricPlans) {
+        LinkedHashMap<String, GroupAccumulator> grouped =
+                new LinkedHashMap<>(expectedMapSize(source.size()));
+        Object[] rowValues = new Object[readPlan.size()];
+
+        for (Object bean : source) {
+            if (bean == null) {
+                continue;
+            }
+            try {
+                ReflectionUtil.readFlatRowValues(bean, readPlan, rowValues, 0);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException("Failed to read stats row values", e);
+            }
+
+            Object rawValue = valueAt(rowValues, groupColumn.fieldIndex());
+            Object projectedValue = groupColumn.timeBucket() == null
+                    ? rawValue
+                    : TimeBucketUtil.bucketValue(rawValue, groupColumn.timeBucket());
+            String key = toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+            GroupAccumulator accumulator = grouped.get(key);
+            if (accumulator == null) {
+                accumulator = new GroupAccumulator(new Object[]{projectedValue}, metricPlans);
+                grouped.put(key, accumulator);
+            }
+            accumulator.accumulate(rowValues);
+        }
+
+        ArrayList<Object[]> rows = new ArrayList<>(grouped.size());
+        for (GroupAccumulator accumulator : grouped.values()) {
+            Object[] result = new Object[1 + metricPlans.size()];
+            result[0] = accumulator.groupProjection()[0];
+            Object[] metricResults = metricResults(accumulator.metricAccumulators());
+            System.arraycopy(metricResults, 0, result, 1, metricResults.length);
             rows.add(result);
         }
         return rows;
@@ -258,6 +303,9 @@ public final class FastStatsQuerySupport {
     private static String toGroupKeyValue(Object rawValue, String dateFormat) {
         if (rawValue == null) {
             return NULL_GROUP_KEY;
+        }
+        if (rawValue instanceof String value) {
+            return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;
         }
         String value = ObjectUtil.castToString(rawValue, dateFormat);
         return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;

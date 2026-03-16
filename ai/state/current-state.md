@@ -3,7 +3,7 @@
 ## Repository Health
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-15`, which passed with `431` tests.
+- The latest recorded full suite is `mvn -q test` on `2026-03-16`, which passed with `433` tests.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
 ## Active Work
@@ -20,9 +20,13 @@
 - `ChartPayloadJsonExporter` now writes fixed-scale numeric payloads directly instead of using per-point `String.format(...)`.
 - Prepared non-join stats shapes precompute reusable execution-plan cache keys, snapshot construction avoids a duplicate `QuerySpec` copy, `preparedExecutionView(...)` avoids full builder cloning on the bean-backed prepared path, `ReflectionUtil` caches flat read plans, and SQL-like execution reuses one per-call run state.
 - Aliased fast-stats filter/chart execution now keeps projection names correct on both direct and grouped fallback paths.
+- `FastStatsQuerySupport` now has a dedicated single-group aggregation path, and `TimeBucketUtil` now renders fixed-shape bucket strings directly instead of using `String.format(...)` on every scanned row.
 
 ## Current Evidence
 
+- Focused regressions (`TimeBucketAggregationTest`, `SqlLikeChartIntegrationTest`, `SqlLikeQueryContractTest`, `TimeBucketUtilTest`) plus full `mvn -q test` passed on `2026-03-16`.
+- A rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` now measures `sqlLikePreparedStatsFastPathSetupCopy` at about `509.906 us/op` / `2,145,675 B/op` and `sqlLikePreparedStatsFastPathSetupView` at about `512.749 us/op` / `2,145,195 B/op`, down materially from the prior `7.306/7.517 ms/op` and `16.8 MB/op` snapshot.
+- Exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `fluentTimeBucketMetrics` at about `0.529 ms/op`, `fluentTimeBucketMetricsToChart` at about `0.531 ms/op`, `sqlLikeParseAndTimeBucketMetrics` at about `0.519 ms/op`, and `sqlLikeParseAndTimeBucketMetricsToChart` at about `0.526 ms/op`.
 - Chart guardrails still pass; the latest rebuilt chart-suite rerun on `2026-03-15` stayed `45/45`.
 - Exact targeted reruns from `2026-03-14` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
   - `sqlLikeParseAndTimeBucketMetrics`: about `4.728 ms/op`
@@ -35,5 +39,6 @@
 ## Current Risks
 
 - Short whole-query JMH remains too noisy for patch attribution on its own.
-- Builder rebinding is no longer the default suspect on its own; the new microbenchmark shows the remaining full fast-stats setup cost is dominated by row-scan/aggregation work.
-- The next likely WP18 gain is to profile or microbenchmark the remaining SQL-like query/setup path beyond rebinding before another broad refactor.
+- This bean-backed single-group time-bucket stats shape now looks mostly solved; do not keep tuning it unless a fresh profile shows a new hotspot.
+- Do not assume the same win automatically carries over to other grouped, aliased, or multi-series SQL-like/chart workloads without targeted validation.
+- Prepared-view vs copy is no longer the dominant question on the full fast-stats setup path; further rebinding micro-tuning should stay parked unless a new profile reopens it.
