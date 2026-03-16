@@ -4,7 +4,6 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -110,20 +109,7 @@ final class FastArrayQuerySupport {
     }
 
     static List<QueryRow> toQueryRows(FastArrayState state) {
-        ArrayList<QueryRow> rows = new ArrayList<>(state.rows().size());
-        for (Object[] values : state.rows()) {
-            ArrayList<QueryField> fields = new ArrayList<>(state.schemaFields().size());
-            for (int i = 0; i < state.schemaFields().size(); i++) {
-                QueryField field = new QueryField();
-                field.setFieldName(state.schemaFields().get(i));
-                field.setValue(i < values.length ? values[i] : null);
-                fields.add(field);
-            }
-            QueryRow row = new QueryRow();
-            row.setFields(fields);
-            rows.add(row);
-        }
-        return rows;
+        return QueryRowAdapterSupport.toQueryRows(state.schemaFields(), state.rows());
     }
 
     private static boolean canUseFastJoinPath(FilterQueryBuilder builder) {

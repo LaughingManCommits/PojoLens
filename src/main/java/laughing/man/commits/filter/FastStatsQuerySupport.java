@@ -2,7 +2,6 @@ package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryMetric;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
@@ -76,20 +75,7 @@ public final class FastStatsQuerySupport {
     }
 
     public static List<QueryRow> toQueryRows(FastStatsState state) {
-        ArrayList<QueryRow> rows = new ArrayList<>(state.rows().size());
-        for (Object[] values : state.rows()) {
-            ArrayList<QueryField> fields = new ArrayList<>(state.schemaFields().size());
-            for (int i = 0; i < state.schemaFields().size(); i++) {
-                QueryField field = new QueryField();
-                field.setFieldName(state.schemaFields().get(i));
-                field.setValue(i < values.length ? values[i] : null);
-                fields.add(field);
-            }
-            QueryRow row = new QueryRow();
-            row.setFields(fields);
-            rows.add(row);
-        }
-        return rows;
+        return QueryRowAdapterSupport.toQueryRows(state.schemaFields(), state.rows());
     }
 
     private static boolean canUseFastStatsPath(FilterQueryBuilder builder) {
