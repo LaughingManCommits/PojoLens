@@ -29,6 +29,7 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - Highest hotspot latency: reflectionToClassList|size=10000 at 1115.501 us/op.
 - Targeted chart follow-up on 2026-03-15: after removing per-point `String.format(...)` work and pre-sizing the benchmark JSON exporter buffer, a rebuilt comparable chart-suite rerun still passed thresholds and reduced `scatterPayloadJsonExport` to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`.
 - Targeted stats follow-up on 2026-03-16: after replacing per-row time-bucket `String.format(...)` work and removing single-group `QueryKey` churn from the fast-stats path, the prepared stats setup microbenchmark fell to about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view at `size=10000`, while exact targeted whole-query reruns on the bean-backed month-bucket stats workload measured about `0.529`, `0.531`, `0.519`, and `0.526 ms/op` for fluent query, fluent chart, SQL-like query, and SQL-like chart respectively.
+- Targeted WP19 follow-up on 2026-03-16: after a narrow `ReflectionUtil` projection-cast fast path and a rebuilt hotspot-suite rerun, `reflectionToClassList|size=10000` measured about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` about `418.191 us/op` / `2,840,026 B/op`, down materially in latency versus the recorded 2026-03-14 hotspot snapshot while allocations stayed essentially flat.
 
 ## Targeted WP18 Follow-up (2026-03-16)
 
@@ -42,7 +43,29 @@ Generated from a full local benchmark sweep on 2026-03-14.
   - `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart`: about `0.531 ms/op`
   - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics`: about `0.519 ms/op`
   - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart`: about `0.526 ms/op`
+- Additional exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
+  - grouped stats query/chart about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart
+  - multi-series chart mapping about `0.566`, `0.575`, `0.577`, and `0.572 ms/op` for fluent line, fluent area, SQL-like line, and SQL-like area
+- A rebuilt full chart guardrail rerun on `2026-03-16` still passed `45/45`, which means the latest fast-stats/runtime changes did not disturb chart guardrails.
+- In that cold chart rerun, the clearest remaining larger chart workload was scatter mapping rather than grouped stats/chart work:
+  - `fluentScatterMapping`: about `2.924 ms/op` at `size=10000` and `19.743 ms/op` at `size=100000`
+  - `sqlLikeScatterMapping`: about `4.613 ms/op` at `size=10000` and `24.991 ms/op` at `size=100000`
 - Interpretation: this specific WP18 benchmark shape is now largely solved; follow-up work should validate other grouped, aliased, or multi-series SQL-like/chart shapes before doing more tuning here.
+
+## Targeted WP19 Follow-up (2026-03-16)
+
+- A narrow reflection/conversion follow-up now skips `ObjectUtil.castValue(...)` during projection writes when the source value already matches the resolved leaf type. `ReflectionUtilTest` also now covers nested projection materialization from `Object[]` rows so the array-row write path stays pinned while WP19 continues.
+- The rebuilt hotspot-suite rerun used `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` and wrote `target/benchmarks/hotspots-gc-2026-03-16.json`.
+- Compared to the recorded `2026-03-14` hotspot snapshot, the latest `size=10000` checkpoint is:
+
+| Benchmark                                 | 2026-03-14 | 2026-03-16 | Alloc 2026-03-16 |
+|-------------------------------------------|------------|------------|------------------|
+| reflectionToClassList                     | 1115.501 us/op | 852.025 us/op | 1400236.317 B/op |
+| reflectionToDomainRows                    | 557.219 us/op  | 418.191 us/op | 2840026.133 B/op |
+| computedFieldJoinSelectiveMaterialization | 469.259 us/op  | 303.247 us/op | 3532313.559 B/op |
+| groupedMultiMetricAggregation             | 457.742 us/op  | 353.796 us/op | 1043041.796 B/op |
+
+- Interpretation: the reflection/conversion workloads are materially faster than the last recorded hotspot-suite snapshot, but their allocation footprint did not meaningfully move. `computedFieldJoinSelectiveMaterialization` still owns the largest absolute `B/op`, and warmed JFR should be rerun before claiming the class-level `ReflectionUtil` / `FastArrayQuerySupport` hotspot cluster is solved.
 
 ## Core Guardrail Suite
 
@@ -216,4 +239,5 @@ Interpretation:
 - `target/benchmarks/baseline.json`
 - `target/benchmarks/cache.json`
 - `target/benchmarks/hotspots-gc.json`
+- `target/benchmarks/hotspots-gc-2026-03-16.json`
 - `target/benchmarks/pojolens-legacy.json`

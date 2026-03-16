@@ -351,9 +351,9 @@ Strong success criteria:
 
 ### WP18: Reduce absolute overhead on chart and SQL-like chart flows
 
-Status: active
+Status: good enough for now; parked unless a fresh profile reopens scatter or another chart-heavy path
 
-Priority: highest
+Priority: high
 
 Goal: reduce absolute chart and SQL-like chart latency where it materially improves the product, without using fluent-vs-SQL-like ratio checks as a gate.
 
@@ -406,6 +406,9 @@ Current evidence from 2026-03-14 to 2026-03-16:
 - a rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` now measures `sqlLikePreparedStatsFastPathSetupCopy` at about `509.906 us/op` / `2,145,675 B/op` and `sqlLikePreparedStatsFastPathSetupView` at about `512.749 us/op` / `2,145,195 B/op`, down materially from the prior `7.306/7.517 ms/op` and `16.8 MB/op` snapshot; the old view-vs-copy gap is now effectively buried in noise because the row-scan/grouping cost fell so much
 - exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` at about `0.529 ms/op`, `fluentTimeBucketMetricsToChart` at about `0.531 ms/op`, `sqlLikeParseAndTimeBucketMetrics` at about `0.519 ms/op`, and `sqlLikeParseAndTimeBucketMetricsToChart` at about `0.526 ms/op`, which moves this bean-backed single-group time-bucket stats workload out of the old WP18 problem range
 - the direct root cause on this benchmark shape was not prepared-builder rebinding after all; it was per-row time-bucket string formatting plus single-group key churn inside `FastStatsQuerySupport` / `TimeBucketUtil`
+- follow-up `2026-03-16` exact targeted reruns also measure grouped stats query/chart at about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart at `size=10000`, which shows the same single-group fast-stats pass also generalizes to non-time-bucket grouped stats work
+- matching `2026-03-16` exact targeted reruns for multi-series chart mapping now measure fluent line/area about `0.566` / `0.575 ms/op` and SQL-like line/area about `0.577` / `0.572 ms/op` at `size=10000`, so grouped chart assembly no longer looks like a major WP18 bottleneck on those shapes either
+- a rebuilt `2026-03-16` full chart guardrail rerun still passes `45/45`; after the current fixes the clearest remaining larger cold chart workload is scatter mapping (`2.924 ms/op` fluent / `4.613 ms/op` SQL-like at `size=10000`, `19.743` / `24.991 ms/op` at `size=100000`)
 
 Tasks:
 
@@ -418,6 +421,7 @@ Tasks:
 - now that aliased stats charts preserve projection names on both the fast path and the grouped fallback path and the latest short rerun again keeps SQL-like chart below query, profile the remaining SQL-like query/setup cost specifically and only revisit chart assembly if a direct profile points there
 - use the dedicated prepared SQL-like fast-stats microbenchmark or a fresh profile to separate rebind cost from full fast-stats state creation; short whole-query JMH is still conflating setup and row-scan variance
 - after the 2026-03-16 single-group fast-stats win, validate whether any material WP18 cost remains in other grouped, aliased, or multi-series SQL-like/chart shapes before spending more time on the bean-backed single-group time-bucket path
+- after the 2026-03-16 grouped and multi-series validation pass, treat scatter mapping as the next likely WP18 candidate only if a direct profile shows real product-value leverage; otherwise consider the current grouped/chart work largely complete and shift attention to WP19
 
 Boundary with WP19:
 
@@ -431,9 +435,9 @@ Acceptance criteria:
 
 ### WP19: Reduce recurring reflection and conversion hotspot clusters
 
-Status: pending
+Status: active
 
-Priority: high
+Priority: highest
 
 Goal: cut the class-level overhead that recurs across warmed JFRs and the hotspot microbenchmark suite, especially in `ReflectionUtil` and `FastArrayQuerySupport`.
 
@@ -449,11 +453,18 @@ Scope:
 - `target/benchmarks/hotspots-gc.json`
 - warmed JFR artifacts under `target/*.jfr`
 
-Current evidence from 2026-03-14:
+Current evidence from 2026-03-14 to 2026-03-16:
 
 - hottest microbenchmark latency is `reflectionToClassList|size=10000` at `1115.501 us/op`
 - hottest microbenchmark allocation is `computedFieldJoinSelectiveMaterialization|size=10000` at `3,532,314 B/op`
 - recurring warmed JFR hotspot classes are `ReflectionUtil` and `FastArrayQuerySupport`
+- a narrow `2026-03-16` `ReflectionUtil` follow-up now skips `ObjectUtil.castValue(...)` when the projected raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows as a guardrail for the array-row path
+- a rebuilt `2026-03-16` hotspot-suite rerun with `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` now measures:
+  - `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op`
+  - `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`
+  - `computedFieldJoinSelectiveMaterialization|size=10000` at about `303.247 us/op` / `3,532,314 B/op`
+  - `groupedMultiMetricAggregation|size=10000` at about `353.796 us/op` / `1,043,042 B/op`
+- versus the recorded `2026-03-14` hotspot snapshot, reflection latency is down materially (`reflectionToClassList` about `24%`, `reflectionToDomainRows` about `25%`) but allocation on those conversion paths is still essentially flat, so WP19 should stay open until warmed JFR confirms that the class-level hotspot cluster also moved
 
 Tasks:
 
@@ -461,6 +472,7 @@ Tasks:
 - reduce recurring projection/conversion cost in `instantiateNoArg`, `applyProjectionWritePlan`, `setResolvedFieldValue`, and numeric casts
 - decide whether compiled accessors or other specialized conversion plans should become the default for the common benchmark shapes
 - rerun the hotspot suite with `-prof gc` and compare against the current `BENCHMARKS.md` snapshot
+- rerun warmed JFR on the current tree before the next larger WP19 refactor so the remaining `ReflectionUtil` and `FastArrayQuerySupport` cluster is measured on the same code that produced the new hotspot-suite checkpoint
 
 Acceptance criteria:
 
@@ -548,9 +560,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP18
-2. WP19
-3. WP20
+1. WP19
+2. WP20
+3. WP18 only if a fresh profile reopens scatter or another chart-heavy path
 4. WP17 only if broader work exposes a clear reopen case
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.

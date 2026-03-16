@@ -97,6 +97,26 @@ class ReflectionUtilTest {
     }
 
     @Test
+    void toClassListShouldMaterializeNestedProjectionFromArrayRows() {
+        List<Object[]> rows = List.<Object[]>of(new Object[]{7, "alpha", "Amsterdam", "NL", 1011});
+
+        List<ProjectedRootBean> projected = ReflectionUtil.toClassList(
+                ProjectedRootBean.class,
+                rows,
+                List.of("id", "name", "address.city", "address.geo.countryCode", "address.geo.zipCode")
+        );
+
+        assertEquals(1, projected.size());
+        assertEquals(7, projected.get(0).id);
+        assertEquals("alpha", projected.get(0).name);
+        assertNotNull(projected.get(0).address);
+        assertEquals("Amsterdam", projected.get(0).address.city);
+        assertNotNull(projected.get(0).address.geo);
+        assertEquals("NL", projected.get(0).address.geo.countryCode);
+        assertEquals(1011, projected.get(0).address.geo.zipCode);
+    }
+
+    @Test
     void toClassListShouldReuseProjectionPlanForRepeatedSchema() throws Exception {
         int before = projectionPlanCache().size();
         List<QueryRow> rows = List.of(queryRow(

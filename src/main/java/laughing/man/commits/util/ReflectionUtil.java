@@ -631,7 +631,11 @@ public final class ReflectionUtil {
             if (sourceField == null || sourceField.getValue() == null) {
                 continue;
             }
-            Object value = ObjectUtil.castValue(sourceField.getValue(), step.fieldPath().leafType());
+            Object rawValue = sourceField.getValue();
+            Class<?> leafType = step.fieldPath().leafType();
+            Object value = leafType.isInstance(rawValue)
+                    ? rawValue
+                    : ObjectUtil.castValue(rawValue, leafType);
             setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
         }
     }
@@ -656,7 +660,10 @@ public final class ReflectionUtil {
             if (rawValue == null) {
                 continue;
             }
-            Object value = ObjectUtil.castValue(rawValue, step.fieldPath().leafType());
+            Class<?> leafType = step.fieldPath().leafType();
+            Object value = leafType.isInstance(rawValue)
+                    ? rawValue
+                    : ObjectUtil.castValue(rawValue, leafType);
             setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
         }
     }
