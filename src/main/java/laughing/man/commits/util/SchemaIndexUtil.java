@@ -1,7 +1,9 @@
 package laughing.man.commits.util;
 
 import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.QueryRow;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,32 @@ public final class SchemaIndexUtil {
             fieldIndexes.putIfAbsent(field.getFieldName(), i);
         }
         return fieldIndexes;
+    }
+
+    public static List<String> queryFieldNames(List<? extends QueryField> fields) {
+        if (fields == null || fields.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> names = new ArrayList<>(fields.size());
+        for (int i = 0; i < fields.size(); i++) {
+            QueryField field = fields.get(i);
+            names.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
+        }
+        return List.copyOf(names);
+    }
+
+    public static List<String> firstQueryRowFieldNames(List<QueryRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            QueryRow row = rows.get(i);
+            if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
+                continue;
+            }
+            return queryFieldNames(row.getFields());
+        }
+        return List.of();
     }
 
     public static int findFieldIndex(Map<String, Integer> fieldIndexes, String fieldName) {

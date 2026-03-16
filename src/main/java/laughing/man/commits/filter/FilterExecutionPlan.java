@@ -3,12 +3,11 @@ package laughing.man.commits.filter;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryMetric;
 import laughing.man.commits.builder.QueryTimeBucket;
-import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.util.SchemaIndexUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +32,7 @@ public final class FilterExecutionPlan {
     private final List<MetricPlan> metricPlans;
 
     FilterExecutionPlan(FilterQueryBuilder builder) {
-        this(builder, fieldNames(builder.getRows()));
+        this(builder, SchemaIndexUtil.firstQueryRowFieldNames(builder.getRows()));
     }
 
     static FilterExecutionPlan forSchema(FilterQueryBuilder builder, List<String> fieldNames) {
@@ -232,22 +231,6 @@ public final class FilterExecutionPlan {
             frozen.put(entry.getKey(), List.copyOf(entry.getValue()));
         }
         return Collections.unmodifiableMap(frozen);
-    }
-
-    private static List<String> fieldNames(List<QueryRow> rows) {
-        if (rows == null || rows.isEmpty()) {
-            return List.of();
-        }
-        List<? extends QueryField> firstFields = rows.get(0).getFields();
-        if (firstFields == null || firstFields.isEmpty()) {
-            return List.of();
-        }
-        ArrayList<String> names = new ArrayList<>(firstFields.size());
-        for (int i = 0; i < firstFields.size(); i++) {
-            QueryField field = firstFields.get(i);
-            names.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
-        }
-        return List.copyOf(names);
     }
 
     static record OrderColumn(int fieldIndex, String dateFormat) {

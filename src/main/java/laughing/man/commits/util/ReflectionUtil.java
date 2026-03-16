@@ -579,7 +579,7 @@ public final class ReflectionUtil {
     }
 
     private static ProjectionWritePlan projectionWritePlan(Class<?> projectionClass, List<QueryRow> rows) {
-        return projectionWritePlanForSchema(projectionClass, projectionSourceSchema(rows));
+        return projectionWritePlanForSchema(projectionClass, SchemaIndexUtil.firstQueryRowFieldNames(rows));
     }
 
     private static ProjectionWritePlan projectionWritePlanForSchema(Class<?> projectionClass, List<String> sourceFieldSchema) {
@@ -600,26 +600,6 @@ public final class ReflectionUtil {
             steps.add(new ProjectionWriteStep(i, fieldName, fieldPath));
         }
         return new ProjectionWritePlan(steps);
-    }
-
-    private static List<String> projectionSourceSchema(List<QueryRow> rows) {
-        if (rows == null || rows.isEmpty()) {
-            return List.of();
-        }
-        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
-            QueryRow row = rows.get(rowIndex);
-            if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
-                continue;
-            }
-            List<? extends QueryField> fields = row.getFields();
-            ArrayList<String> schema = new ArrayList<>(fields.size());
-            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
-                QueryField field = fields.get(fieldIndex);
-                schema.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
-            }
-            return List.copyOf(schema);
-        }
-        return List.of();
     }
 
     private static void applyProjectionWritePlan(Object target,

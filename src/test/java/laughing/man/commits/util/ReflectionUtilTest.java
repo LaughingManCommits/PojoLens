@@ -139,6 +139,28 @@ class ReflectionUtilTest {
     }
 
     @Test
+    void toClassListShouldSkipLeadingEmptyRowsWhenDerivingProjectionSchema() {
+        QueryRow empty = new QueryRow();
+        empty.setFields(List.of());
+        QueryRow populated = queryRow(
+                queryField("alpha", 3),
+                queryField("nested.beta", "value")
+        );
+
+        List<ProjectionPlanProbe> projected = ReflectionUtil.toClassList(
+                ProjectionPlanProbe.class,
+                List.of(empty, populated)
+        );
+
+        assertEquals(2, projected.size());
+        assertEquals(0, projected.get(0).alpha);
+        assertNull(projected.get(0).nested);
+        assertEquals(3, projected.get(1).alpha);
+        assertNotNull(projected.get(1).nested);
+        assertEquals("value", projected.get(1).nested.beta);
+    }
+
+    @Test
     void compileFlatRowReadPlanShouldReuseCacheForEquivalentSelection() throws Exception {
         int before = flatRowReadPlanCache().size();
 
