@@ -435,7 +435,7 @@ Acceptance criteria:
 
 ### WP19: Reduce recurring reflection and conversion hotspot clusters
 
-Status: active
+Status: parked after a failed structural spike; reopen only with a new larger hypothesis
 
 Priority: highest
 
@@ -469,6 +469,8 @@ Current evidence from 2026-03-14 to 2026-03-16:
 - that refreshed warmed JFR still concentrates first-repo-frame CPU in the same class cluster: `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`)
 - the same warmed JFR still concentrates first-repo-frame allocation in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`)
 - two smaller `2026-03-16` follow-up experiments after the refreshed JFR were benchmark-flat and were not kept: a specialized nested-write path inside `ReflectionUtil.ResolvedFieldPath` and a `Double` fast path inside `FastArrayQuerySupport.applyComputedValues`
+- one larger `2026-03-16` structural spike then tried to prefilter fast-array joined rows during `tryBuildJoinedState()` so only rule-matching rows were copied into the stored fast state, but on the actual warmed target it regressed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` from about `0.584 ms/op` to about `0.700 ms/op`
+- that structural spike was reverted immediately; a clean warmed rerun on the reverted code recovered to about `0.595 ms/op`, so the hard-stop condition fired and WP19 is now parked pending a genuinely new larger hypothesis
 
 Tasks:
 
@@ -478,6 +480,7 @@ Tasks:
 - rerun the hotspot suite with `-prof gc` and compare against the current `BENCHMARKS.md` snapshot
 - rerun warmed JFR on the current tree before the next larger WP19 refactor so the remaining `ReflectionUtil` and `FastArrayQuerySupport` cluster is measured on the same code that produced the new hotspot-suite checkpoint
 - prefer the next larger WP19 attempt in `FastArrayQuerySupport.materializeJoinedRow` / `buildChildIndex` or a more structural `ReflectionUtil` read-path reuse change; the latest smaller branch-level experiments did not move the benchmark enough to keep
+- do not run more WP19 spikes until there is a new structural idea that is materially different from the reverted prefiltered-fast-state design
 
 Acceptance criteria:
 
@@ -565,9 +568,9 @@ java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.Be
 
 ## Recommended Order
 
-1. WP19
-2. WP20
-3. WP18 only if a fresh profile reopens scatter or another chart-heavy path
+1. WP20
+2. WP18 only if a fresh profile reopens scatter or another chart-heavy path
+3. WP19 only with a new structural hypothesis
 4. WP17 only if broader work exposes a clear reopen case
 
 Do not reopen WP5 unless someone intentionally wants a new feature scope beyond the accepted selective/single-join boundary.

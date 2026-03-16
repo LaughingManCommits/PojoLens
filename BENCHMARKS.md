@@ -70,6 +70,8 @@ Generated from a full local benchmark sweep on 2026-03-14.
 - In that refreshed warmed JFR, first-repo-frame CPU still centered in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
 - First-repo-frame allocation in the same warmed JFR still centered in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`).
 - Two smaller post-profile experiments on `2026-03-16` were benchmark-flat and were not kept: a specialized `ResolvedFieldPath` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`. The next likely WP19 leverage point is joined-row materialization/indexing rather than more branch shaving.
+- A larger structural spike on `2026-03-16` then tried to prefilter fast-array joined rows during `tryBuildJoinedState()` so only matching rows were copied into the stored fast state. On the actual warmed target that regressed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted.
+- A clean warmed rerun after the revert recovered to about `0.595 ms/op`. Interpretation: park WP19 for now. The hotspot cluster is real, but the obvious prefiltered-fast-state redesign is not a win on this benchmark shape.
 
 ## Core Guardrail Suite
 

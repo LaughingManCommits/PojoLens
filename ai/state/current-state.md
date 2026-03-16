@@ -9,7 +9,8 @@
 ## Active Work
 
 - `TODO.md` remains the source-of-truth backlog.
-- WP19 is now the active package: reduce recurring reflection/conversion hotspot clusters in `ReflectionUtil` and `FastArrayQuerySupport`, and judge progress by both hotspot-suite numbers and warmed JFR movement.
+- WP20 is now the next recommended package if performance work continues.
+- WP19 is parked after a failed structural spike; reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked as good enough for now after the 2026-03-16 stats/chart validation pass; reopen it only if a fresh profile shows real leverage in scatter mapping or another chart-heavy path.
 - `TODO.md` now makes consolidation guidance explicit: share plans/metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
 - WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
@@ -42,6 +43,7 @@
 - A refreshed warmed JFR on `2026-03-16` produced `target/wp19-current-2026-03-16.jfr` and measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` at about `0.666 ms/op` with JFR overhead, which is effectively flat versus the last recorded warm-profile cycle.
 - That refreshed warmed JFR still concentrates CPU in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`); allocation still centers in `ResolvedFieldPath.read` (`4220`), `materializeJoinedRow` (`3684`), and `buildChildIndex` (`3117`).
 - Two post-profile micro-optimizations on `2026-03-16` were benchmark-flat and were not kept: a specialized nested-write path in `ReflectionUtil` and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
+- A larger structural spike that tried to prefilter fast-array joined rows during join-state creation regressed the real warmed target from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted. A clean warmed rerun on the reverted code recovered to about `0.595 ms/op`.
 - Exact targeted reruns from `2026-03-14` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
   - `sqlLikeParseAndTimeBucketMetrics`: about `4.728 ms/op`
   - `sqlLikeParseAndTimeBucketMetricsToChart`: about `4.891 ms/op`
@@ -58,4 +60,4 @@
 - Prepared-view vs copy is no longer the dominant question on the full fast-stats setup path; further rebinding micro-tuning should stay parked unless a new profile reopens it.
 - If WP18 stays open, scatter mapping is now the clearest remaining chart workload to profile directly because grouped stats and grouped line/area chart shapes are already well below their guardrails.
 - WP19 is not done just because the hotspot-suite latencies fell; reflection/conversion allocations are still essentially flat and the refreshed warmed JFR kept the same dominant class cluster.
-- The refreshed warmed JFR now exists, and it shows the same class cluster still dominating. The next WP19 attempt should go after `FastArrayQuerySupport.materializeJoinedRow` / `buildChildIndex` or a more structural `ReflectionUtil` read-path reuse idea, not more branch-level micro-tweaks.
+- Do not keep spending time on WP19 without a materially different structural idea. The obvious prefiltered-fast-state redesign already regressed the warmed target and was not kept.
