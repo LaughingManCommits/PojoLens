@@ -5,6 +5,7 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
@@ -209,22 +210,18 @@ public class FilterCore {
             return new ArrayList<>();
         }
         List<Integer> returnIndexes = plan.getReturnFieldIndexes();
+        List<String> returnNames = plan.getReturnFieldNames();
+        int projectedSize = returnNames.size();
         List<QueryRow> results = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
-            List<? extends QueryField> allFields = row.getFields();
-            if (allFields == null) {
+            if (row == null) {
                 continue;
             }
-            List<QueryField> fieldList = new ArrayList<>(returnIndexes.size());
-            for (int fieldIndex : returnIndexes) {
-                if (fieldIndex < allFields.size()) {
-                    fieldList.add(allFields.get(fieldIndex));
-                }
+            Object[] values = new Object[projectedSize];
+            for (int slot = 0; slot < projectedSize; slot++) {
+                values[slot] = row.getValueAt(returnIndexes.get(slot));
             }
-
-            QueryRow projectedRow = new QueryRow();
-            projectedRow.setFields(fieldList);
-            results.add(projectedRow);
+            results.add(new RawQueryRow(values, returnNames));
         }
         return results;
     }
@@ -258,17 +255,13 @@ public class FilterCore {
                 int distinctFieldCount = fieldIndexes.size();
 
                 for (QueryRow row : builder.getRows()) {
-                    List<? extends QueryField> allFields = row.getFields();
-                    if (allFields == null) {
+                    if (row == null) {
                         continue;
                     }
                     String[] distValues = new String[distinctFieldCount];
                     int valueCount = 0;
                     for (int fieldIndex : fieldIndexes) {
-                        if (fieldIndex >= allFields.size()) {
-                            continue;
-                        }
-                        String fieldValue = ObjectUtil.castToString(allFields.get(fieldIndex).getValue());
+                        String fieldValue = ObjectUtil.castToString(row.getValueAt(fieldIndex));
                         if (!StringUtil.isNull(fieldValue)) {
                             distValues[valueCount++] = fieldValue;
                         }

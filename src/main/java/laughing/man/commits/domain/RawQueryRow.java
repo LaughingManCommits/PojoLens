@@ -22,12 +22,25 @@ public final class RawQueryRow extends QueryRow {
 
     @Override
     public Object getValueAt(int index) {
-        return (index >= 0 && index < values.length) ? values[index] : null;
+        if (index < 0) {
+            return null;
+        }
+        if (index < values.length) {
+            return values[index];
+        }
+        // Fall back to the cached field list for indices beyond the original values array
+        // (e.g. computed fields appended after row construction).
+        List<? extends QueryField> cached = super.getFields();
+        if (cached != null && index < cached.size()) {
+            return cached.get(index).getValue();
+        }
+        return null;
     }
 
     @Override
     public int getFieldCount() {
-        return values.length;
+        List<? extends QueryField> cached = super.getFields();
+        return cached != null ? cached.size() : values.length;
     }
 
     @Override

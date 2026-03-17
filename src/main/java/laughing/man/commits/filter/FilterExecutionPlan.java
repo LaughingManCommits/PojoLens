@@ -27,6 +27,7 @@ public final class FilterExecutionPlan {
     private final Map<Integer, List<CompiledRule>> rulesByFieldIndex;
     private final Map<Integer, List<CompiledRule>> havingRulesByFieldIndex;
     private final List<Integer> returnFieldIndexes;
+    private final List<String> returnFieldNames;
     private final List<Integer> distinctFieldIndexes;
     private final List<OrderColumn> orderColumns;
     private final List<GroupColumn> groupColumns;
@@ -63,6 +64,7 @@ public final class FilterExecutionPlan {
                 builder.getHavingDateFormats()
         ));
         returnFieldIndexes = List.copyOf(resolveFieldIndexes(builder.getReturnFields()));
+        returnFieldNames = List.copyOf(resolveFieldNames(returnFieldIndexes, fieldNames));
         distinctFieldIndexes = List.copyOf(compileDistinctFieldIndexes(builder));
         orderColumns = List.copyOf(compileOrderColumns(builder));
         groupColumns = List.copyOf(compileGroupColumns(builder));
@@ -79,6 +81,10 @@ public final class FilterExecutionPlan {
 
     List<Integer> getReturnFieldIndexes() {
         return returnFieldIndexes;
+    }
+
+    List<String> getReturnFieldNames() {
+        return returnFieldNames;
     }
 
     List<Integer> getDistinctFieldIndexes() {
@@ -122,6 +128,19 @@ public final class FilterExecutionPlan {
             }
         }
         return indexes;
+    }
+
+    private static List<String> resolveFieldNames(List<Integer> indexes, List<String> allFieldNames) {
+        if (indexes.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<String> names = new ArrayList<>(indexes.size());
+        for (int index : indexes) {
+            if (index >= 0 && index < allFieldNames.size()) {
+                names.add(allFieldNames.get(index));
+            }
+        }
+        return names;
     }
 
     private Map<Integer, List<CompiledRule>> compileRules(Map<String, List<String>> idsByField,

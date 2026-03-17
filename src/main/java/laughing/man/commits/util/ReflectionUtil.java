@@ -67,13 +67,12 @@ public final class ReflectionUtil {
                 }
 
                 T object = instantiateNoArg(cls);
-                List<? extends QueryField> fields = row.getFields();
-                if (fields == null || fields.isEmpty() || plan.steps().isEmpty()) {
+                if (row.getFieldCount() == 0 || plan.steps().isEmpty()) {
                     result.add(object);
                     continue;
                 }
 
-                applyProjectionWritePlan(object, fields, plan);
+                applyProjectionWritePlan(object, row, plan);
 
                 result.add(object);
             }
@@ -625,6 +624,23 @@ public final class ReflectionUtil {
                 continue;
             }
             Object rawValue = sourceField.getValue();
+            Class<?> leafType = step.fieldPath().leafType();
+            Object value = leafType.isInstance(rawValue)
+                    ? rawValue
+                    : ObjectUtil.castValue(rawValue, leafType);
+            setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
+        }
+    }
+
+    private static void applyProjectionWritePlan(Object target,
+                                                 QueryRow row,
+                                                 ProjectionWritePlan plan) throws Exception {
+        for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
+            ProjectionWriteStep step = plan.steps().get(stepIndex);
+            Object rawValue = row.getValueAt(step.sourceIndex());
+            if (rawValue == null) {
+                continue;
+            }
             Class<?> leafType = step.fieldPath().leafType();
             Object value = leafType.isInstance(rawValue)
                     ? rawValue
