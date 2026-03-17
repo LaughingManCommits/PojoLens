@@ -17,6 +17,9 @@ import laughing.man.commits.sqllike.SqlLikeTemplate;
  */
 public class PojoLens {
 
+    private PojoLens() {
+    }
+
     public static final String SDF = EngineDefaults.SDF;
     public static final String EMPTY_GROUPING = EngineDefaults.EMPTY_GROUPING;
 
