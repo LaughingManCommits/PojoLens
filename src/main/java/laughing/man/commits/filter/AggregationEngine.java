@@ -46,23 +46,22 @@ final class AggregationEngine {
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows == null ? 0 : rows.size()));
 
         if (rows != null) {
+            String[] keyParts = new String[columnCount];
+            Object[] projectedValues = new Object[columnCount];
+            QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
             for (QueryRow row : rows) {
                 if (row == null) {
                     continue;
                 }
-                String[] keyParts = new String[columnCount];
-                Object[] projectedValues = new Object[columnCount];
                 for (int i = 0; i < columnCount; i++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(i);
                     Object rawValue = row.getValueAt(column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
-                    String keyPart = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
-                    keyParts[i] = keyPart;
+                    keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
                     projectedValues[i] = projectedValue;
                 }
-
-                QueryKey key = new QueryKey(keyParts, columnCount);
-                GroupAccumulator accumulator = grouped.get(key);
+                lookupKey.refresh();
+                GroupAccumulator accumulator = grouped.get(lookupKey);
                 if (accumulator == null) {
                     List<QueryField> groupProjection = new ArrayList<>(columnCount);
                     for (int i = 0; i < columnCount; i++) {
@@ -73,7 +72,7 @@ final class AggregationEngine {
                         groupProjection.add(projectionField);
                     }
                     accumulator = new GroupAccumulator(groupProjection, metrics);
-                    grouped.put(key, accumulator);
+                    grouped.put(new QueryKey(keyParts, columnCount), accumulator);
                 }
                 accumulator.accumulate(row);
             }

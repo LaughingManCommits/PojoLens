@@ -159,6 +159,7 @@ public final class FastStatsQuerySupport {
         Object[] rowValues = new Object[readPlan.size()];
         String[] keyParts = new String[columnCount];
         Object[] projectedValues = new Object[columnCount];
+        QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
 
         for (Object bean : source) {
             if (bean == null) {
@@ -180,11 +181,11 @@ public final class FastStatsQuerySupport {
                 keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
             }
 
-            QueryKey key = new QueryKey(keyParts, columnCount);
-            GroupAccumulator accumulator = grouped.get(key);
+            lookupKey.refresh();
+            GroupAccumulator accumulator = grouped.get(lookupKey);
             if (accumulator == null) {
                 accumulator = new GroupAccumulator(copyValues(projectedValues, columnCount), metricPlans);
-                grouped.put(key, accumulator);
+                grouped.put(new QueryKey(keyParts, columnCount), accumulator);
             }
             accumulator.accumulate(rowValues);
         }

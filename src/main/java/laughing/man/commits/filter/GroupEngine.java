@@ -31,18 +31,22 @@ final class GroupEngine {
             Map<QueryKey, List<QueryRow>> grouped =
                     new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows.size()));
 
+            String[] groupParts = new String[columnCount];
+            QueryKey lookupKey = QueryKey.forMutableLookup(groupParts, columnCount);
             for (int index = 0; index < rows.size(); index++) {
                 QueryRow row = rows.get(index);
-                String[] groupParts = new String[columnCount];
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(columnIndex);
                     Object raw = row.getValueAt(column.fieldIndex());
                     Object projected = column.timeBucket() == null ? raw : TimeBucketUtil.bucketValue(raw, column.timeBucket());
                     groupParts[columnIndex] = GroupKeyUtil.toGroupKeyValue(projected, column.dateFormat());
                 }
-                QueryKey groupKey = new QueryKey(groupParts, columnCount);
-
-                List<QueryRow> groupedRows = grouped.computeIfAbsent(groupKey, ignored -> new ArrayList<>(4));
+                lookupKey.refresh();
+                List<QueryRow> groupedRows = grouped.get(lookupKey);
+                if (groupedRows == null) {
+                    groupedRows = new ArrayList<>(4);
+                    grouped.put(new QueryKey(groupParts, columnCount), groupedRows);
+                }
 
                 if (displayFields == null || index >= displayFields.size()) {
                     continue;

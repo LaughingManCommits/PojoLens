@@ -7,7 +7,7 @@ final class QueryKey {
 
     private static final String[] EMPTY_VALUES = new String[0];
     private final String[] values;
-    private final int hashCode;
+    private int hashCode;
 
     QueryKey(List<String> values) {
         if (values == null || values.isEmpty()) {
@@ -25,6 +25,29 @@ final class QueryKey {
             this.values = Arrays.copyOf(values, size);
         }
         this.hashCode = Arrays.hashCode(this.values);
+    }
+
+    /**
+     * Creates a transient lookup key that shares {@code sharedBuffer} directly
+     * without copying.  Only safe for map {@code get}/{@code containsKey}
+     * operations — never put this key into a map.  Call {@link #refresh()}
+     * after mutating the shared buffer before each lookup.
+     */
+    static QueryKey forMutableLookup(String[] sharedBuffer, int size) {
+        return new QueryKey(sharedBuffer, size, false);
+    }
+
+    private QueryKey(String[] sharedBuffer, int size, boolean unused) {
+        this.values = (sharedBuffer != null && size > 0) ? sharedBuffer : EMPTY_VALUES;
+        this.hashCode = Arrays.hashCode(this.values);
+    }
+
+    /**
+     * Recomputes the cached hash code from the shared buffer.
+     * Must be called after mutating the buffer and before each map lookup.
+     */
+    void refresh() {
+        this.hashCode = Arrays.hashCode(values);
     }
 
     boolean isEmpty() {
