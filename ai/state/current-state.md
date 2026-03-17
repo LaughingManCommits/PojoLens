@@ -4,6 +4,7 @@
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
 - The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `482` tests.
+- The Java lint profile still runs via `mvn -B -ntp -Plint verify -DskipTests`, but baseline enforcement is currently red on `2026-03-17`: `target/checkstyle-result.xml` contained `11,214` violations versus the `5,770`-entry baseline, with `7,424` reported as new and `1,980` baseline entries now gone, so `scripts/checkstyle-baseline.txt` is materially stale relative to the current tree.
 - A full benchmark sweep was run on `2026-03-17`: core `42/42`, chart `45/45`. `BENCHMARKS.md` was cleared and rewritten with fresh 2026-03-17 numbers. Hotspot artifacts are at `target/benchmarks/hotspots-gc-2026-03-17.json`.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
@@ -92,6 +93,7 @@
 ## Current Risks
 
 - Short whole-query JMH remains too noisy for patch attribution on its own.
+- Do not treat the current checkstyle baseline failure as a small incremental lint regression; the baseline file is badly out of sync with the current codebase and needs a deliberate refresh or a scoped cleanup plan before the CI lint gate is trustworthy again.
 - This bean-backed single-group time-bucket stats shape now looks mostly solved; do not keep tuning it unless a fresh profile shows a new hotspot.
 - Do not assume the same win automatically carries over to other grouped, aliased, or multi-series SQL-like/chart workloads without targeted validation.
 - Prepared-view vs copy is no longer the dominant question on the full fast-stats setup path; further rebinding micro-tuning should stay parked unless a new profile reopens it.

@@ -9,6 +9,7 @@
 ## Current Priority
 
 - `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 based on the fresh benchmark sweep.
+- The Java lint gate needs deliberate follow-up before treating it as actionable CI signal again: a local `2026-03-17` run of `mvn -B -ntp -Plint verify -DskipTests` plus `scripts/check-lint-baseline.ps1` reported `11,214` current violations versus the `5,770`-entry baseline, with `7,424` marked new and `1,980` baseline entries no longer present.
 - WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.
@@ -52,6 +53,7 @@
 ## Guardrails
 
 - Do not reopen the broader `FilterImpl` raw-row delegation without a new hypothesis; it regressed the short `size=10000` reruns and was not kept.
+- Do not assume the current lint-baseline failure is a handful of fresh style violations; most of the delta reflects baseline drift across many edited files, so either refresh `scripts/checkstyle-baseline.txt` deliberately or scope a targeted cleanup before using that gate for patch attribution.
 - Do not reopen WP17 micro-tuning unless a fresh clean-tree profile shows a high-confidence win on the selective single-join path.
 - Judge SQL-like work by absolute `ms/op`, allocation, and product value; fluent-vs-SQL-like ratios are diagnostic only.
 - For future consolidation, share plans and metadata first, and do not merge specialized bean, `QueryRow`, or `Object[]` execution loops just to remove duplication.
