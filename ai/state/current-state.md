@@ -4,6 +4,7 @@
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
 - The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `471` tests.
+- A full benchmark sweep was run on `2026-03-17`: core `42/42`, chart `45/45`. `BENCHMARKS.md` was cleared and rewritten with fresh 2026-03-17 numbers. Hotspot artifacts are at `target/benchmarks/hotspots-gc-2026-03-17.json`.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
 ## Active Work

@@ -2,13 +2,13 @@
 
 ## Resume Order
 
-- Load hot context first; `TODO.md` was cleared on `2026-03-16`, so rely on the AI state files unless that backlog file is repopulated.
+- Load hot context first; `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 from the fresh benchmark sweep — use it as the primary backlog.
 - Load `ai/state/benchmark-state.md` and `ai/core/benchmark-context.md` only for benchmark, profiler, or threshold tasks.
 - Rebuild the benchmark runner with `mvn -B -ntp -Pbenchmark-runner -DskipTests package` before quoting fresh JMH numbers.
 
 ## Current Priority
 
-- `TODO.md` was cleared on `2026-03-16` by request and no longer carries the active backlog.
+- `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 based on the fresh benchmark sweep.
 - WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.

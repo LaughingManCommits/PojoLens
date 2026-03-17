@@ -1,6 +1,6 @@
 # Benchmark Report
 
-Generated from a full local benchmark sweep on 2026-03-14.
+Generated from a full local benchmark sweep on 2026-03-17.
 
 ## Scope
 
@@ -14,275 +14,164 @@ Generated from a full local benchmark sweep on 2026-03-14.
 
 ## Caveats
 
-- The core/chart/baseline/cache/legacy runs are cold guardrail-style snapshots with `0` warmup iterations and a single `100ms` measurement. They are useful for regression control, not for comparing directly to warmed WP17 tuning runs.
+- The core/chart/baseline/cache/legacy runs are cold guardrail-style snapshots with `0` warmup iterations and a single `100ms` measurement. They are useful for regression control, not for comparing directly to warmed tuning runs.
 - Hotspot numbers use `-prof gc`, `1` warmup iteration, and `3` measurement iterations. Use those for allocation and stress analysis, not for direct comparison with the cold guardrail suite.
 - Cache results are `thrpt` (`ops/s`) and should not be compared numerically to average-time (`ms/op` or `us/op`) workloads.
-- Streams/manual comparisons are semantically aligned but still reflect cold JMH setup overhead. Treat ratios as directional, not as marketing numbers.
+- Streams/manual comparisons are semantically aligned but still reflect cold JMH setup overhead. Treat ratios as directional, not absolute.
+- Cold single-iteration runs drift significantly; do not use them as patch attribution sources.
 
 ## Executive Summary
 
-- Core threshold status: 42/42 entries passed `benchmarks/thresholds.json`.
-- Chart threshold status: 45/45 entries passed `benchmarks/chart-thresholds.json`.
-- Historical chart parity note: 5 failures out of 15 fluent vs SQL-like comparisons were observed in this 2026-03-14 snapshot, but that ratio is now treated as diagnostic-only rather than as a gate.
-- Highest cold core budget usage: laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline|size=1000 at 36.8%.
-- Highest hotspot allocation: computedFieldJoinSelectiveMaterialization|size=10000 at 3532314.399 B/op.
-- Highest hotspot latency: reflectionToClassList|size=10000 at 1115.501 us/op.
-- Targeted chart follow-up on 2026-03-15: after removing per-point `String.format(...)` work and pre-sizing the benchmark JSON exporter buffer, a rebuilt comparable chart-suite rerun still passed thresholds and reduced `scatterPayloadJsonExport` to about `0.066`, `0.634`, and `1.146 ms/op` at sizes `1000`, `10000`, and `100000`.
-- Targeted stats follow-up on 2026-03-16: after replacing per-row time-bucket `String.format(...)` work and removing single-group `QueryKey` churn from the fast-stats path, the prepared stats setup microbenchmark fell to about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view at `size=10000`, while exact targeted whole-query reruns on the bean-backed month-bucket stats workload measured about `0.529`, `0.531`, `0.519`, and `0.526 ms/op` for fluent query, fluent chart, SQL-like query, and SQL-like chart respectively.
-- Targeted WP19 follow-up on 2026-03-16: after a narrow `ReflectionUtil` projection-cast fast path and a rebuilt hotspot-suite rerun, `reflectionToClassList|size=10000` measured about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` about `418.191 us/op` / `2,840,026 B/op`, down materially in latency versus the recorded 2026-03-14 hotspot snapshot while allocations stayed essentially flat.
-- Targeted WP20 follow-up on 2026-03-16: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`; warmed `-prof gc` reruns measured about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`, while the hotspot path stayed around `34.472 us/op` / `364,232 B/op` and `319.695 us/op` / `3,532,314 B/op`. Based on that rebaseline, the core computed-field join budgets were tightened to `25/200 ms/op` and the hotspot stayed diagnostic-only.
-- Targeted WP18 scatter follow-up on 2026-03-16: `ChartMapper` now accumulates multi-series charts through dense label/series indexes and caches validated x-axis labels once per distinct x instead of building nested per-series maps and re-stringifying duplicate x values on every row. Matching warmed scatter reruns improved from about `1.476` / `13.848 ms/op` to `1.321` / `9.939 ms/op` for fluent and from about `1.536` / `14.639 ms/op` to `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000` `-prof gc` reruns dropped from about `41.3 MB/op` / `38.5 MB/op` to about `36.6 MB/op` / `33.8 MB/op`. A rebuilt full chart guardrail rerun still passed `45/45`, but its cold single-iteration scatter scores stayed drift-heavy, so treat that suite as guardrail validation rather than the attribution source for this pass.
-
-## Targeted WP18 Follow-up (2026-03-16)
-
-- Root cause on the old bean-backed single-group time-bucket stats path was no longer chart mapping or prepared-builder rebinding; it was per-row bucket string formatting in `TimeBucketUtil` plus per-row single-group `QueryKey` allocation/copy churn inside `FastStatsQuerySupport`.
-- Replacing the bucket `String.format(...)` calls with direct fixed-shape string builders and giving the common single-group fast-stats path its own grouped-map implementation removed most of that cost without changing the generic multi-group execution path.
-- The updated prepared fast-stats setup microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` measured:
-  - `sqlLikePreparedStatsFastPathSetupCopy`: about `509.906 us/op` / `2,145,675 B/op`
-  - `sqlLikePreparedStatsFastPathSetupView`: about `512.749 us/op` / `2,145,195 B/op`
-- Matching exact targeted end-to-end reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
-  - `StatsQueryJmhBenchmark.fluentTimeBucketMetrics`: about `0.529 ms/op`
-  - `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart`: about `0.531 ms/op`
-  - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics`: about `0.519 ms/op`
-  - `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart`: about `0.526 ms/op`
-- Additional exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
-  - grouped stats query/chart about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart
-  - multi-series chart mapping about `0.566`, `0.575`, `0.577`, and `0.572 ms/op` for fluent line, fluent area, SQL-like line, and SQL-like area
-- A rebuilt full chart guardrail rerun on `2026-03-16` still passed `45/45`, which means the latest fast-stats/runtime changes did not disturb chart guardrails.
-- In that cold chart rerun, the clearest remaining larger chart workload was scatter mapping rather than grouped stats/chart work:
-  - `fluentScatterMapping`: about `2.924 ms/op` at `size=10000` and `19.743 ms/op` at `size=100000`
-  - `sqlLikeScatterMapping`: about `4.613 ms/op` at `size=10000` and `24.991 ms/op` at `size=100000`
-- Interpretation: this specific WP18 benchmark shape is now largely solved; follow-up work should validate other grouped, aliased, or multi-series SQL-like/chart shapes before doing more tuning here.
-- A direct scatter-specific follow-up on `2026-03-16` then reopened the last remaining obvious chart candidate:
-  - fresh warmed reruns before the pass measured `fluentScatterMapping` about `1.476 ms/op` at `size=10000` and `13.848 ms/op` at `size=100000`, with `sqlLikeScatterMapping` about `1.536` and `14.639 ms/op`
-  - `ChartMapper` now accumulates multi-series charts through dense label/series indexes and caches validated x-axis labels once per distinct x instead of rebuilding nested per-series maps keyed by repeated formatted x strings
-  - matching warmed reruns after the pass measured `fluentScatterMapping` about `1.321` and `9.939 ms/op`, with `sqlLikeScatterMapping` about `1.300` and `9.760 ms/op`
-  - matching `size=100000`, `-prof gc` reruns moved fluent scatter from about `14.470 ms/op` / `41,297,324 B/op` to `9.841 ms/op` / `36,595,578 B/op`, and SQL-like scatter from about `14.520 ms/op` / `38,497,149 B/op` to `9.945 ms/op` / `33,795,681 B/op`
-  - focused chart regressions plus full `mvn -q test` passed after the scatter pass, and a rebuilt full chart guardrail rerun still passed `45/45`
-  - that cold guardrail rerun measured scatter at about `5.403` / `8.460 ms/op` for fluent / SQL-like at `size=10000` and about `22.605` / `36.384 ms/op` at `size=100000`, which is why the full chart suite should remain a guardrail and not the attribution source for this patch
-- Interpretation after the scatter pass: the remaining `size=100000` scatter cost is lower, but it now looks less chart-specific and more like broader row-materialization/query overhead. WP18 can park again unless a fresh profile isolates another chart-specific root cause.
-
-## Targeted WP19 Follow-up (2026-03-16)
-
-- A narrow reflection/conversion follow-up now skips `ObjectUtil.castValue(...)` during projection writes when the source value already matches the resolved leaf type. `ReflectionUtilTest` also now covers nested projection materialization from `Object[]` rows so the array-row write path stays pinned while WP19 continues.
-- The rebuilt hotspot-suite rerun used `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` and wrote `target/benchmarks/hotspots-gc-2026-03-16.json`.
-- Compared to the recorded `2026-03-14` hotspot snapshot, the latest `size=10000` checkpoint is:
-
-| Benchmark                                 | 2026-03-14 | 2026-03-16 | Alloc 2026-03-16 |
-|-------------------------------------------|------------|------------|------------------|
-| reflectionToClassList                     | 1115.501 us/op | 852.025 us/op | 1400236.317 B/op |
-| reflectionToDomainRows                    | 557.219 us/op  | 418.191 us/op | 2840026.133 B/op |
-| computedFieldJoinSelectiveMaterialization | 469.259 us/op  | 303.247 us/op | 3532313.559 B/op |
-| groupedMultiMetricAggregation             | 457.742 us/op  | 353.796 us/op | 1043041.796 B/op |
-
-- Interpretation: the reflection/conversion workloads are materially faster than the last recorded hotspot-suite snapshot, but their allocation footprint did not meaningfully move. `computedFieldJoinSelectiveMaterialization` still owns the largest absolute `B/op`, and warmed JFR should be rerun before claiming the class-level `ReflectionUtil` / `FastArrayQuerySupport` hotspot cluster is solved.
-- A refreshed warmed JFR on `2026-03-16` using `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField -p size=10000 -f 1 -wi 5 -i 10 -r 300ms -jvmArgsAppend "-XX:StartFlightRecording=filename=target/wp19-current-2026-03-16.jfr,settings=profile,dumponexit=true"` measured about `0.666 ms/op` with JFR overhead and confirmed that the class-level hotspot cluster has not materially shifted yet.
-- In that refreshed warmed JFR, first-repo-frame CPU still centered in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
-- First-repo-frame allocation in the same warmed JFR still centered in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`).
-- Two smaller post-profile experiments on `2026-03-16` were benchmark-flat and were not kept: a specialized `ResolvedFieldPath` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`. The next likely WP19 leverage point is joined-row materialization/indexing rather than more branch shaving.
-- A larger structural spike on `2026-03-16` then tried to prefilter fast-array joined rows during `tryBuildJoinedState()` so only matching rows were copied into the stored fast state. On the actual warmed target that regressed `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted.
-- A second structural spike on `2026-03-16` then tried to defer fast-array joined-row materialization and filter directly to compact projected rows on the no-order path. Comparable short `-prof gc` reruns measured about `0.073 ms/op` / `220,040 B/op` at `size=1000` and `0.712 ms/op` / `2,022,740 B/op` at `size=10000`, versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation improved, but absolute latency regressed, so it was reverted.
-- A clean warmed rerun after the revert recovered to about `0.595 ms/op`. Interpretation: park WP19 for now. The hotspot cluster is real, but the obvious prefiltered-fast-state redesign is not a win on this benchmark shape.
-
-## Targeted WP20 Follow-up (2026-03-16)
-
-- Rebuilt benchmark runner: `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
-- Repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` used `-f 1 -wi 0 -i 1 -r 100ms` and measured:
-  - `size=1000`: about `2.597`, `3.766`, and `6.020 ms/op`
-  - `size=10000`: about `114.241`, `113.818`, and `60.348 ms/op`
-- Matching warmed `-prof gc` reruns at `-f 1 -wi 1 -i 3 -r 100ms` measured:
-
-| Benchmark | Size | Score | Alloc |
-|-----------|------|-------|-------|
-| `manualHashJoinLeftComputedField` | `1000` | `0.009 ms/op` | `84,512 B/op` |
-| `manualHashJoinLeftComputedField` | `10000` | `0.098 ms/op` | `927,128 B/op` |
-| `pojoLensJoinLeftComputedField` | `1000` | `0.063 ms/op` | `247,520 B/op` |
-| `pojoLensJoinLeftComputedField` | `10000` | `0.603 ms/op` | `2,302,715 B/op` |
-
-- A fresh hotspot rerun of `computedFieldJoinSelectiveMaterialization` at `-f 1 -wi 1 -i 3 -r 100ms -prof gc` measured:
-
-| Size | Score | Alloc |
-|------|-------|-------|
-| `1000` | `34.472 us/op` | `364,232 B/op` |
-| `10000` | `319.695 us/op` | `3,532,314 B/op` |
-
-- Threshold policy decision:
-  - tighten the core end-to-end `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` budgets in `benchmarks/thresholds.json` from `250/500 ms/op` to `25/200 ms/op`
-  - keep `HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization` diagnostic-only because the path is still allocation-heavy at `size=10000` and remains better suited to local tuning than to a strict merge gate
-- A rebuilt core strict-suite rerun against the new thresholds wrote `target/wp20-core-benchmarks.json`; `BenchmarkThresholdChecker` passed in `--strict` mode, and `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` measured about `5.263 ms/op` at `size=1000` and `118.793 ms/op` at `size=10000` on that validation run.
+- Core threshold status: **42/42** entries passed `benchmarks/thresholds.json`.
+- Chart threshold status: **45/45** entries passed `benchmarks/chart-thresholds.json`.
+- Highest core budget usage: `pojoLensJoinLeftComputedField|size=10000` at 31.5% (62.924 ms/op vs 200 ms budget).
+- Highest hotspot allocation: `computedFieldJoinSelectiveMaterialization|size=10000` at 3,532,314 B/op.
+- Highest hotspot latency: `reflectionToClassList|size=10000` at 826.706 us/op.
+- All stats, chart, and SQL-like guardrail workloads are well within budget after the WP18/WP19/WP20 and consolidation passes.
 
 ## Core Guardrail Suite
 
-- All core threshold checks passed.
-- The worst relative budget consumers are still comfortably below budget, which suggests the current core thresholds remain conservative.
+All 42 core threshold checks passed.
 
-| Workload                                                                              | Score      | Budget        | Budget Use | Headroom |
-|---------------------------------------------------------------------------------------|------------|---------------|------------|----------|
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline         | size=1000  | 110.463 ms/op | 300 ms/op  | 36.8%    | 189.537 ms/op |
-| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField | size=10000 | 136.208 ms/op | 500 ms/op  | 27.2%    | 363.792 ms/op |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline        | size=10000 | 129.008 ms/op | 750 ms/op  | 17.2%    | 620.992 ms/op |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline         | size=10000 | 139.857 ms/op | 900 ms/op  | 15.5%    | 760.143 ms/op |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving       | size=10000 | 131.85 ms/op  | 1300 ms/op | 10.1%    | 1168.15 ms/op |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart  | size=10000 | 133.176 ms/op | 1600 ms/op | 8.3%     | 1466.824 ms/op |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving       | size=1000  | 56.468 ms/op  | 700 ms/op  | 8.1%     | 643.532 ms/op |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics         | size=10000 | 111.317 ms/op | 1400 ms/op | 8.0%     | 1288.683 ms/op |
+Highest budget consumers:
 
-Slowest cold core workloads:
+| Workload | Score | Budget | Budget Use |
+|---|---|---|---|
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` size=10000 | 62.924 ms/op | 200 ms | 31.5% |
+| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` size=1000 | 51.121 ms/op | 300 ms | 17.0% |
+| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` size=10000 | 113.933 ms/op | 750 ms | 15.2% |
+| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` size=10000 | 125.657 ms/op | 900 ms | 14.0% |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` size=1000 | 3.100 ms/op | 25 ms | 12.4% |
+| `SqlLikePipelineJmhBenchmark.parseAndFilterHaving` size=10000 | 127.418 ms/op | 1300 ms | 9.8% |
+| `SqlLikePipelineJmhBenchmark.parseAndFilterHaving` size=1000 | 52.948 ms/op | 700 ms | 7.6% |
 
-| Workload                                                                                      | Score      | Budget Use    |
-|-----------------------------------------------------------------------------------------------|------------|---------------|
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline                 | size=10000 | 139.857 ms/op | 15.5% |
-| laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField         | size=10000 | 136.208 ms/op | 27.2% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart | size=10000 | 135.007 ms/op | 7.5% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart          | size=10000 | 133.176 ms/op | 8.3% |
-| laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving               | size=10000 | 131.85 ms/op  | 10.1% |
-| laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline                | size=10000 | 129.008 ms/op | 17.2% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics        | size=10000 | 118.594 ms/op | 7.9% |
-| laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics                 | size=10000 | 111.317 ms/op | 8.0% |
+Full cold core scores:
 
-## Chart Suite
+| Workload | size=1000 | size=10000 |
+|---|---|---|
+| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | 3.523 ms/op | 113.933 ms/op |
+| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | 51.121 ms/op | 125.657 ms/op |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | 2.270 ms/op | 28.790 ms/op |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | 3.100 ms/op | 62.924 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseOnly` | 0.005 ms/op | 0.006 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseAndFilter` | 0.648 ms/op | 6.018 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseAndFilterHaving` | 52.948 ms/op | 127.418 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseAndExplain` | 0.003 ms/op | 0.006 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseAndFilterBooleanDepth` | 1.954 ms/op | 36.186 ms/op |
+| `SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed` | 1.320 ms/op | 20.433 ms/op |
+| `StatsQueryJmhBenchmark.fluentGroupedMetrics` | 0.101 ms/op | 0.778 ms/op |
+| `StatsQueryJmhBenchmark.fluentGroupedMetricsToChart` | 0.116 ms/op | 0.782 ms/op |
+| `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` | 0.511 ms/op | 4.080 ms/op |
+| `StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart` | 0.438 ms/op | 3.714 ms/op |
+| `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetrics` | 0.088 ms/op | 0.729 ms/op |
+| `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart` | 0.092 ms/op | 0.750 ms/op |
+| `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics` | 0.428 ms/op | 3.903 ms/op |
+| `StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart` | 0.436 ms/op | 3.478 ms/op |
+| `StatsQueryJmhBenchmark.fluentGroupedMetricsExplain` | 0.004 ms/op | 0.009 ms/op |
+| `StatsQueryJmhBenchmark.sqlLikeGroupedMetricsExplain` | 0.002 ms/op | 0.002 ms/op |
 
-- All chart thresholds passed.
-- Historical chart parity data from this run showed the SQL-like path exceeding the old fluent ratio guardrail in 5 cases, but that ratio is no longer treated as a benchmark gate because SQL-like intentionally includes query translation work.
+## Chart Guardrail Suite
 
-Targeted WP18 follow-up on 2026-03-15:
+All 45 chart threshold checks passed.
 
-- Root cause for the old scatter export hotspot was benchmark-only JSON serialization work in `ChartPayloadJsonExporter`, especially per-point `String.format(Locale.ROOT, "%.6f", value)` plus repeated `StringBuilder` growth.
-- After replacing that with direct fixed-scale appends and a capacity estimate, a rebuilt comparable chart-suite rerun still passed `45/45` thresholds and reduced the scatter export path materially.
+Chart mapping cold scores:
 
-| Workload                                                                               | 2026-03-14 cold | 2026-03-15 cold | Budget Use After |
-|----------------------------------------------------------------------------------------|-----------------|-----------------|------------------|
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=1000       | 3.91 ms/op      | 0.066 ms/op      | 1.2% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=10000      | 43.157 ms/op    | 0.634 ms/op      | 1.0% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=100000     | 82.048 ms/op    | 1.146 ms/op      | 0.6% |
+| Workload | size=1000 | size=10000 | size=100000 |
+|---|---|---|---|
+| `fluentBarMapping` | 0.059 ms/op | 0.402 ms/op | 1.920 ms/op |
+| `fluentPieMapping` | 0.056 ms/op | 0.363 ms/op | 1.904 ms/op |
+| `fluentLineMapping` | 0.134 ms/op | 0.786 ms/op | 5.413 ms/op |
+| `fluentAreaMapping` | 0.170 ms/op | 0.814 ms/op | 5.624 ms/op |
+| `fluentScatterMapping` | 0.523 ms/op | 4.853 ms/op | 24.599 ms/op |
+| `sqlLikeBarMapping` | 0.052 ms/op | 0.555 ms/op | 2.482 ms/op |
+| `sqlLikePieMapping` | 0.055 ms/op | 0.568 ms/op | 2.280 ms/op |
+| `sqlLikeLineMapping` | 0.123 ms/op | 0.918 ms/op | 7.407 ms/op |
+| `sqlLikeAreaMapping` | 0.170 ms/op | 0.961 ms/op | 6.833 ms/op |
+| `sqlLikeScatterMapping` | 0.786 ms/op | 6.552 ms/op | 53.196 ms/op |
+| `scatterPayloadJsonExport` | 0.090 ms/op | 0.587 ms/op | 1.027 ms/op |
+| `linePayloadJsonExport` | 0.003 ms/op | 0.004 ms/op | 0.004 ms/op |
+| `areaPayloadJsonExport` | 0.003 ms/op | 0.003 ms/op | 0.003 ms/op |
+| `barPayloadJsonExport` | 0.001 ms/op | 0.001 ms/op | 0.001 ms/op |
+| `piePayloadJsonExport` | 0.001 ms/op | 0.001 ms/op | 0.001 ms/op |
 
-- A targeted warmed rerun at `size=10000`, `-f 1 -wi 2 -i 3 -r 200ms`, measured `scatterPayloadJsonExport` at about `0.560 ms/op`; the matching `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
+Highest chart budget consumers:
 
-Worst chart threshold consumers:
-
-| Workload                                                                               | Score       | Budget       | Budget Use    |
-|----------------------------------------------------------------------------------------|-------------|--------------|---------------|
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=1000   | 3.91 ms/op   | 5.386 ms/op   | 72.6% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=10000  | 43.157 ms/op | 62.583 ms/op  | 69.0% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport | size=100000 | 82.048 ms/op | 176.555 ms/op | 46.5% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport    | size=1000   | 0.303 ms/op  | 0.794 ms/op   | 38.1% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=100000 | 0.292 ms/op  | 0.797 ms/op   | 36.6% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=10000  | 0.35 ms/op   | 0.969 ms/op   | 36.1% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.linePayloadJsonExport    | size=100000 | 0.243 ms/op  | 0.766 ms/op   | 31.7% |
-| laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.areaPayloadJsonExport    | size=1000   | 0.299 ms/op  | 0.953 ms/op   | 31.4% |
-
-Historical chart parity snapshot:
-
-| Chart   | Size  | Fluent         | SQL-like       | Ratio     | Limit     |
-|---------|-------|----------------|----------------|-----------|-----------|
-| SCATTER | 1000  | 0.952225 ms/op | 1.757569 ms/op | 1.845750x | 1.750000x |
-| BAR     | 10000 | 1.009345 ms/op | 1.802326 ms/op | 1.785639x | 1.750000x |
-| LINE    | 10000 | 1.409154 ms/op | 2.498889 ms/op | 1.773326x | 1.750000x |
-| PIE     | 10000 | 0.996702 ms/op | 1.786875 ms/op | 1.792788x | 1.750000x |
-| SCATTER | 10000 | 5.418491 ms/op | 9.485809 ms/op | 1.750637x | 1.750000x |
+| Workload | Score | Budget | Budget Use |
+|---|---|---|---|
+| `sqlLikeScatterMapping` size=10000 | 6.552 ms/op | 112.833 ms | 5.8% |
+| `fluentScatterMapping` size=10000 | 4.853 ms/op | 91.318 ms | 5.3% |
+| `sqlLikeScatterMapping` size=100000 | 53.196 ms/op | 1205.989 ms | 4.4% |
+| `scatterPayloadJsonExport` size=1000 | 0.090 ms/op | 5.386 ms | 1.7% |
+| `scatterPayloadJsonExport` size=10000 | 0.587 ms/op | 62.583 ms | 0.9% |
 
 ## Streams Baseline Suite
 
-| Workload          | Size  | PojoLens      | Streams     | Ratio   |
-|-------------------|-------|---------------|-------------|---------|
-| FilterProjection  | 1000  | 18.317 ms/op  | 0.012 ms/op | 1497.6x |
-| FilterProjection  | 10000 | 126.115 ms/op | 0.13 ms/op  | 973.6x  |
-| GroupedMetrics    | 1000  | 0.94 ms/op    | 0.008 ms/op | 118.0x  |
-| GroupedMetrics    | 10000 | 11.435 ms/op  | 0.072 ms/op | 159.9x  |
-| TimeBucketMetrics | 1000  | 17.301 ms/op  | 0.098 ms/op | 176.7x  |
-| TimeBucketMetrics | 10000 | 147.092 ms/op | 1.398 ms/op | 105.2x  |
+| Workload | PojoLens | Streams | Ratio |
+|---|---|---|---|
+| `fluentFilterProjection` size=1000 | 4.945 ms/op | 0.012 ms/op | 412x |
+| `fluentFilterProjection` size=10000 | 120.522 ms/op | 0.124 ms/op | 972x |
+| `fluentGroupedMetrics` size=1000 | 0.143 ms/op | 0.008 ms/op | 18x |
+| `fluentGroupedMetrics` size=10000 | 1.238 ms/op | 0.069 ms/op | 18x |
+| `fluentTimeBucketMetrics` size=1000 | 0.591 ms/op | 0.087 ms/op | 7x |
+| `fluentTimeBucketMetrics` size=10000 | 8.229 ms/op | 0.984 ms/op | 8x |
 
 ## Standalone Legacy Filter Benchmark
 
-- `PojoLensJmhBenchmark` is not currently part of the published suite manifests, but it is still useful as a cold filter/distinct/order sanity check.
-
-| Size  | Manual      | PojoLens     | Ratio   |
-|-------|-------------|--------------|---------|
-| 1000  | 0.002 ms/op | 5.683 ms/op  | 3701.1x |
-| 10000 | 0.016 ms/op | 126.65 ms/op | 7874.4x |
+| Size | Manual | PojoLens | Ratio |
+|---|---|---|---|
+| 1000 | 0.002 ms/op | 5.655 ms/op | 2828x |
+| 10000 | 0.015 ms/op | 118.385 ms/op | 7892x |
 
 ## Cache Concurrency Suite
 
-| Benchmark                      | Mode  | Threads | Score               |
-|--------------------------------|-------|---------|---------------------|
-| sqlLikeParseHotSetConcurrent   | thrpt | 8       | 312607925.225 ops/s |
-| statsPlanBuildHotSetConcurrent | thrpt | 8       | 114.799 ops/s       |
+| Benchmark | Mode | Threads | Score |
+|---|---|---|---|
+| `sqlLikeParseHotSetConcurrent` | thrpt | 8 | 439,893,240 ops/s |
+| `statsPlanBuildHotSetConcurrent` | thrpt | 8 | 173.254 ops/s |
 
 ## Hotspot Suite (`-prof gc`)
 
-Highest hotspot latencies:
+Run at `-f 1 -wi 1 -i 3 -r 100ms -prof gc`. Results written to `target/benchmarks/hotspots-gc-2026-03-17.json`.
 
-| Benchmark                                 | Latency    | Alloc          |
-|-------------------------------------------|------------|----------------|
-| reflectionToClassList                     | size=10000 | 1115.501 us/op | 1400237.743 B/op |
-| reflectionToDomainRows                    | size=10000 | 557.219 us/op  | 2840026.819 B/op |
-| computedFieldJoinSelectiveMaterialization | size=10000 | 469.259 us/op  | 3532314.399 B/op |
-| groupedMultiMetricAggregation             | size=10000 | 457.742 us/op  | 1043042.326 B/op |
-| reflectionToClassList                     | size=1000  | 117.549 us/op  | 140232.608 B/op |
-| reflectionToDomainRows                    | size=1000  | 56.647 us/op   | 284040.289 B/op |
-| computedFieldJoinSelectiveMaterialization | size=1000  | 50.712 us/op   | 364312.281 B/op |
-| groupedMultiMetricAggregation             | size=1000  | 47.289 us/op   | 121120.242 B/op |
-
-Highest hotspot allocations:
-
-| Benchmark                                 | Alloc      | Latency          |
-|-------------------------------------------|------------|------------------|
-| computedFieldJoinSelectiveMaterialization | size=10000 | 3532314.399 B/op | 469.259 us/op |
-| reflectionToDomainRows                    | size=10000 | 2840026.819 B/op | 557.219 us/op |
-| reflectionToClassList                     | size=10000 | 1400237.743 B/op | 1115.501 us/op |
-| groupedMultiMetricAggregation             | size=10000 | 1043042.326 B/op | 457.742 us/op |
-| computedFieldJoinSelectiveMaterialization | size=1000  | 364312.281 B/op  | 50.712 us/op |
-| reflectionToDomainRows                    | size=1000  | 284040.289 B/op  | 56.647 us/op |
-| reflectionToClassList                     | size=1000  | 140232.608 B/op  | 117.549 us/op |
-| groupedMultiMetricAggregation             | size=1000  | 121120.242 B/op  | 47.289 us/op |
-
-## Recurring Warm JFR Hotspots
-
-Compared warmed artifacts:
-
-- `target/pojolens-fastpath-current.jfr`
-- `target/wp17-after-readpath.jfr`
-- `target/wp17-after-parent-buffer.jfr`
-
-Recurring first-repo-frame CPU clusters:
-
-- `ReflectionUtil` read-side access remained dominant across all three profiles: `readResolvedFieldValue` / `ResolvedFieldPath.read` moved from about `589` to `875` to `925` samples as earlier bottlenecks were removed.
-- `FastArrayQuerySupport` stayed as the other dominant warmed cluster: `ComputedFieldPlan.resolveValue` moved from about `200` to `253` to `331`, while `tryBuildJoinedState` and `buildChildIndex` remained present in every profile.
-- `FastArrayQuerySupport.filterRows` was very large in the earliest profile (`961`) and much smaller in the later two (`126`, `122`), which confirms the matcher work helped but did not remove the class from the hot set.
-- `ReflectionUtil.applyProjectionWritePlan` / `setResolvedFieldValue` stayed visible in the later profiles, so projection writes remain part of the tail after join-build and read-path cleanup.
-
-Recurring first-repo-frame allocation clusters:
-
-- `FastArrayQuerySupport.buildChildIndex` remained the largest recurring allocation site and grew from about `1271` to `3676` to `5353` samples as parent-side allocation was reduced.
-- `ReflectionUtil` extraction work remained heavy through `readFlatRowValues`, `readResolvedFieldValue`, and `ResolvedFieldPath.read`.
-- `FastArrayQuerySupport.materializeJoinedRow` remained a top allocation site in all three warmed profiles.
-- `FastArrayQuerySupport.castNumericValue` emerged in the later two warmed profiles once earlier costs dropped.
-- `ReflectionUtil.instantiateNoArg` fell sharply in the newest profile but still belongs to the recurring projection/conversion cost family.
+| Benchmark | size | Latency | Alloc |
+|---|---|---|---|
+| `reflectionToClassList` | 1000 | 77.475 us/op | 140,232 B/op |
+| `reflectionToClassList` | 10000 | 826.706 us/op | 1,400,236 B/op |
+| `reflectionToDomainRows` | 1000 | 40.501 us/op | 284,040 B/op |
+| `reflectionToDomainRows` | 10000 | 412.950 us/op | 2,840,026 B/op |
+| `computedFieldJoinSelectiveMaterialization` | 1000 | 31.818 us/op | 364,312 B/op |
+| `computedFieldJoinSelectiveMaterialization` | 10000 | 330.570 us/op | 3,532,314 B/op |
+| `groupedMultiMetricAggregation` | 1000 | 35.669 us/op | 121,120 B/op |
+| `groupedMultiMetricAggregation` | 10000 | 351.328 us/op | 1,043,042 B/op |
+| `sqlLikePreparedStatsFastPathSetupCopy` | 1000 | 50.074 us/op | 220,304 B/op |
+| `sqlLikePreparedStatsFastPathSetupCopy` | 10000 | 494.452 us/op | 2,145,643 B/op |
+| `sqlLikePreparedStatsFastPathSetupView` | 1000 | 49.216 us/op | 219,880 B/op |
+| `sqlLikePreparedStatsFastPathSetupView` | 10000 | 496.686 us/op | 2,145,218 B/op |
+| `sqlLikePreparedStatsRebindCopy` | 1000 | 0.503 us/op | 3,528 B/op |
+| `sqlLikePreparedStatsRebindCopy` | 10000 | 0.464 us/op | 3,528 B/op |
+| `sqlLikePreparedStatsRebindView` | 1000 | 0.260 us/op | 3,120 B/op |
+| `sqlLikePreparedStatsRebindView` | 10000 | 0.257 us/op | 3,120 B/op |
+| `statsPlanCacheHit` | 1000 | 0.004 us/op | ~0 B/op |
+| `statsPlanCacheHit` | 10000 | 0.004 us/op | ~0 B/op |
 
 Interpretation:
-
-- The main recurring warmed overhead is now concentrated in `ReflectionUtil` and `FastArrayQuerySupport`, not in the older `ComputedFieldSupport`, `JoinEngine`, or `collectQueryRowFieldTypes` path.
-- That class-level concentration matches the hotspot suite, which is why `TODO.md` now treats reflection/conversion work and class-level JFR clusters as first-class backlog items instead of only extending WP17 method-by-method.
+- `computedFieldJoinSelectiveMaterialization|size=10000` still owns the largest absolute allocation (3,532,314 B/op); kept diagnostic-only per WP20 policy.
+- Reflection/conversion latency (`reflectionToClassList`, `reflectionToDomainRows`) has fallen materially from the 2026-03-14 baseline (1115/557 us/op) but allocation footprint is essentially unchanged.
+- Prepared fast-stats setup cost has collapsed from the pre-WP18 baseline (~7.3 ms/op) to ~494 us/op; rebinding overhead is negligible at ~0.5 us/op.
+- `groupedMultiMetricAggregation` allocation is flat and consistent with previous snapshots.
 
 ## Stress Points
 
-- Absolute chart and SQL-like chart latency still matters, but fluent-vs-SQL-like ratio is no longer treated as a release gate because the entry styles do different work by design.
-- The prior scatter export hotspot is now largely gone on the 2026-03-15 follow-up, so the next WP18 gains are more likely in SQL-like setup/query execution or other chart assembly paths than in benchmark JSON serialization.
-- Cold end-to-end performance remains most exposed on older filter/baseline comparisons rather than on hard threshold failures. `StreamsBaselineJmhBenchmark.fluentFilterProjection|size=10000` came in at `126.115 ms/op` versus `0.130 ms/op` for the Streams baseline, and the legacy `PojoLensJmhBenchmark.pojoLensFilter|size=10000` came in at `126.650 ms/op` versus `0.016 ms/op` for the manual baseline.
-- Allocation stress is still concentrated in conversion/materialization paths. The largest `B/op` values are `computedFieldJoinSelectiveMaterialization|size=10000` (`3,532,314 B/op`), `reflectionToDomainRows|size=10000` (`2,840,027 B/op`), and `reflectionToClassList|size=10000` (`1,400,238 B/op`).
-- Cross-JFR warm profiling shows the recurring class-level hotspot concentration is now mostly `ReflectionUtil` plus `FastArrayQuerySupport`, which is the main common stress point behind the current WP17 and hotspot-microbenchmark backlog.
-- Cache throughput shows a sharp split between pure parse-cache reuse (`sqlLikeParseHotSetConcurrent` at `312,607,925 ops/s`) and concurrent stats plan building (`114.799 ops/s`). That is expected semantically, but it remains the cache-side stress concentration.
-- The core and chart budget files both have large remaining headroom. If the intent is tighter regression detection rather than conservative guardrails, the current data supports future rebaselining work.
+- `computedFieldJoinSelectiveMaterialization` allocation remains large; `warmed JFR` should be refreshed before any new WP19 structural hypothesis.
+- Cold filter-vs-streams gap (`fluentFilterProjection|size=10000` at 972x overhead) is the most visible absolute ratio, but it reflects cold JMH setup overhead, not a regression.
+- Cache plan-build throughput (`statsPlanBuildHotSetConcurrent` at 173 ops/s vs 440M ops/s for parse-cache) is the expected hot/cold split.
+- Core and chart budgets both have large remaining headroom; current thresholds remain conservative guardrails.
 
 ## Raw Artifacts
 
 - `target/benchmarks/core.json`
-- `target/benchmarks/core-report.csv`
 - `target/benchmarks/chart.json`
-- `target/benchmarks/chart-report.csv`
 - `target/benchmarks/baseline.json`
 - `target/benchmarks/cache.json`
-- `target/benchmarks/hotspots-gc.json`
-- `target/benchmarks/hotspots-gc-2026-03-16.json`
-- `target/wp19-current-2026-03-16.jfr`
+- `target/benchmarks/hotspots-gc-2026-03-17.json`
 - `target/benchmarks/pojolens-legacy.json`
