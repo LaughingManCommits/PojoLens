@@ -10,7 +10,8 @@
 ## Active Work
 
 - `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 from the fresh benchmark sweep.
-- WP22 (cold filter pipeline overhead) now has a `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()`: for POJO-source simple filter queries (no joins, stats, computed fields, or explicit rule groups), filter rules are evaluated directly against POJO objects using the cached `FlatRowReadPlan`, and only matching rows are materialized as `QueryRow`. The suite now covers 482 tests after `FastPojoFilterSupportTest` (11 new tests).
+- WP22 landed: `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()` materializes `QueryRow` only for matching rows. Cold score unchanged (JIT startup dominates). Warmed: 0.082 / 0.751 ms/op with 71K / 557K B/op. WP22 parked.
+- WP23 investigated: warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads); cold 173 ops/s is JVM startup noise. Map over-allocation in `aggregateSingleGroup`/`aggregateGrouped` capped at `Math.min(source.size(), 1024)`. WP23 parked. Suite still at 482 tests.
 - WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
 - WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.

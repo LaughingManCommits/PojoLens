@@ -40,21 +40,24 @@ And allocation centered in:
 
 **Root cause (from investigation):** The dominant cold cost was `ReflectionUtil.toDomainRows` creating 10,000 QueryRow + ArrayList + QueryField objects for all input beans before any filtering. With the fast path, a reused `Object[]` buffer is filled per bean and only matching beans become QueryRow objects.
 
-**Gate:** `fullFilterPipeline|size=10000` cold budget is 113.933 ms/op vs 750 ms (15.2%). Rebuild the benchmark runner and rerun cold + warmed to confirm movement. Do not reopen if cold drift is within normal single-iteration noise.
+**Benchmark results after fast path (2026-03-17):**
+- Cold guardrail (`-wi 0 -i 1`): 6.093 / 115.338 ms/op — within normal drift from 3.523 / 113.933 baseline; 42/42 thresholds pass.
+- Warmed (`-wi 2 -i 3 -prof gc`): 0.082 ms/op / 71,648 B/op at size=1000 and 0.751 ms/op / 557,211 B/op at size=10000.
 
-**Remaining scope:** The benchmark creates a fresh builder per call (fully cold), so plan-cache reuse cannot help. Any further improvement requires either faster reflection reads (MethodHandle) or accepting current cold numbers as inherent JVM startup cost.
+**Finding:** Cold cost (~115ms at size=10000) is dominated by JVM JIT compilation overhead on the first call, not by O(n) POJO materialization. The fast path reduces warmed allocation (fewer QueryRow/QueryField objects for non-matching rows) but cannot reduce first-call JIT compilation cost. No further WP22 work planned.
 
 ---
 
-## WP23 — Stats plan build concurrency throughput
+## WP23 — Stats plan build concurrency throughput (PARKED — inherent O(n) workload)
 
-**Problem:** `statsPlanBuildHotSetConcurrent` measures 173.254 ops/s at 8 threads — a known sharp split from the parse-cache path (439M ops/s). Any concurrent query that requires plan building hits this ceiling.
+**Investigation finding (2026-03-17):**
+- The 173 ops/s cold number is JVM startup / JIT compilation noise, not a real throughput ceiling.
+- Warmed (`-wi 3 -i 3 -r 250ms`) measures ~18,834 ops/s at 8 threads — 109x better.
+- The remaining warmed gap vs `sqlLikeParse` (439M ops/s) is fundamental: `statsPlanBuild` does O(n=20K) reflection reads per call; `sqlLikeParse` returns a cached plan in O(1).
+- No synchronization bottleneck found; Caffeine cache uses fine-grained segment locks, plan cache hits are lock-free.
+- **Map over-allocation fixed**: `aggregateSingleGroup` and `aggregateGrouped` now cap initial `LinkedHashMap` capacity at `Math.min(source.size(), 1024)` to avoid pre-allocating ~214KB for typical low-cardinality group queries. Cold score unchanged (177 ops/s, within drift).
 
-**Candidates to investigate:**
-- Lock contention or synchronization in stats plan construction
-- Whether partial plan reuse or a finer-grained lock scope is viable
-
-**Gate:** Run `CacheConcurrencyJmhBenchmark` before and after any change.
+**Policy:** Do not reopen unless a warmed profile shows lock contention or a structural O(n) reduction is found.
 
 ---
 

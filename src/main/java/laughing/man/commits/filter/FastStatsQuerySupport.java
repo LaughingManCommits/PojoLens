@@ -156,7 +156,7 @@ public final class FastStatsQuerySupport {
             return aggregateSingleGroup(source, readPlan, groupColumns.get(0), metricPlans);
         }
         LinkedHashMap<QueryKey, GroupAccumulator> grouped =
-                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(source.size()));
+                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), 1024)));
         Object[] rowValues = new Object[readPlan.size()];
         String[] keyParts = new String[columnCount];
         Object[] projectedValues = new Object[columnCount];
@@ -206,7 +206,7 @@ public final class FastStatsQuerySupport {
                                                             FilterExecutionPlan.GroupColumn groupColumn,
                                                             List<FilterExecutionPlan.MetricPlan> metricPlans) {
         LinkedHashMap<String, GroupAccumulator> grouped =
-                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(source.size()));
+                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), 1024)));
         Object[] rowValues = new Object[readPlan.size()];
 
         for (Object bean : source) {
