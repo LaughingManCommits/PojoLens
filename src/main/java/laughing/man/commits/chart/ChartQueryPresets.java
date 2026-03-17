@@ -4,6 +4,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -151,7 +152,7 @@ public final class ChartQueryPresets {
     }
 
     private static String requireName(String value, String label) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " must not be null/blank");
         }
         return value;

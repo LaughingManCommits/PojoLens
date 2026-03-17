@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -71,7 +72,7 @@ public final class SqlParams {
         }
 
         private static String normalizeName(String name) {
-            if (name == null || name.isBlank()) {
+            if (StringUtil.isNullOrBlank(name)) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.PARAM_NAME_INVALID,
                         "Parameter name must not be null/blank");
             }

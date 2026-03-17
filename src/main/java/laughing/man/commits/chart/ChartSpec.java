@@ -2,6 +2,7 @@ package laughing.man.commits.chart;
 
 import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.builder.FieldSelectors;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -268,10 +269,10 @@ public final class ChartSpec {
     }
 
     private static void putOrRemove(Map<String, String> map, String key, String value) {
-        if (key == null || key.isBlank()) {
+        if (StringUtil.isNullOrBlank(key)) {
             throw new IllegalArgumentException("datasetLabel is required");
         }
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             map.remove(key);
             return;
         }

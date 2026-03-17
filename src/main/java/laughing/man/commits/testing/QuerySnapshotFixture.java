@@ -2,6 +2,7 @@ package laughing.man.commits.testing;
 
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ public final class QuerySnapshotFixture {
     }
 
     private static String requireName(String value) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException("name must not be null/blank");
         }
         return value;

@@ -37,6 +37,7 @@ import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -260,7 +261,7 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(codes, "codes must not be null");
         TreeSet<String> normalized = new TreeSet<>(suppressedLintCodes);
         for (String code : codes) {
-            if (code == null || code.isBlank()) {
+            if (StringUtil.isNullOrBlank(code)) {
                 throw new IllegalArgumentException("lint warning code must not be null/blank");
             }
             normalized.add(code.trim());

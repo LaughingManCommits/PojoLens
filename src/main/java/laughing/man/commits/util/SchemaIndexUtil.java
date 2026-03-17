@@ -25,7 +25,7 @@ public final class SchemaIndexUtil {
         }
         for (int i = 0; i < fieldNames.size(); i++) {
             String fieldName = fieldNames.get(i);
-            if (fieldName == null || fieldName.isBlank()) {
+            if (StringUtil.isNullOrBlank(fieldName)) {
                 continue;
             }
             fieldIndexes.putIfAbsent(fieldName, i);
@@ -42,7 +42,7 @@ public final class SchemaIndexUtil {
         }
         for (int i = 0; i < fields.size(); i++) {
             QueryField field = fields.get(i);
-            if (field == null || field.getFieldName() == null || field.getFieldName().isBlank()) {
+            if (field == null || StringUtil.isNullOrBlank(field.getFieldName())) {
                 continue;
             }
             fieldIndexes.putIfAbsent(field.getFieldName(), i);

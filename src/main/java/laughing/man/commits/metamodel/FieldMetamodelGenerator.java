@@ -1,6 +1,7 @@
 package laughing.man.commits.metamodel;
 
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,7 +42,7 @@ public final class FieldMetamodelGenerator {
     }
 
     private static String normalizePackageName(String packageName) {
-        if (packageName == null || packageName.isBlank()) {
+        if (StringUtil.isNullOrBlank(packageName)) {
             return "";
         }
         String normalized = packageName.trim();
@@ -54,7 +55,7 @@ public final class FieldMetamodelGenerator {
     }
 
     private static String normalizeSimpleName(String simpleName) {
-        if (simpleName == null || simpleName.isBlank()) {
+        if (StringUtil.isNullOrBlank(simpleName)) {
             throw new IllegalArgumentException("simpleName must not be null/blank");
         }
         String normalized = simpleName.trim();

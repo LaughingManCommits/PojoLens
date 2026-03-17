@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike.internal.expression;
 
+import laughing.man.commits.util.StringUtil;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -105,7 +107,7 @@ public final class SqlExpressionEvaluator {
     }
 
     private static List<Token> tokenize(String expression) {
-        if (expression == null || expression.trim().isEmpty()) {
+        if (StringUtil.isNullOrBlank(expression)) {
             throw new IllegalArgumentException("Expression must not be blank");
         }
         List<Token> tokens = new ArrayList<>();

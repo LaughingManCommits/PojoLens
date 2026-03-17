@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike.ast;
 
+import laughing.man.commits.util.StringUtil;
+
 import java.util.Objects;
 
 /**
@@ -10,7 +12,7 @@ public final class ParameterValueAst {
     private final String name;
 
     public ParameterValueAst(String name) {
-        if (name == null || name.isBlank()) {
+        if (StringUtil.isNullOrBlank(name)) {
             throw new IllegalArgumentException("parameter name must not be null/blank");
         }
         this.name = name;

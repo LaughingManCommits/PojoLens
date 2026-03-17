@@ -230,7 +230,7 @@ public final class ReflectionUtil {
         Object value = null;
 
         try {
-            if (cls == null || fieldName == null || fieldName.isBlank()) {
+            if (cls == null || StringUtil.isNullOrBlank(fieldName)) {
                 return null;
             }
 
@@ -536,7 +536,7 @@ public final class ReflectionUtil {
     }
 
     private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
-        if (rootType == null || fieldName == null || fieldName.isBlank()) {
+        if (rootType == null || StringUtil.isNullOrBlank(fieldName)) {
             return MISSING_FIELD_PATH;
         }
 

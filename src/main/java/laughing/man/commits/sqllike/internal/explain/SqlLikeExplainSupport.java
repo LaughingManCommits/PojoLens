@@ -15,6 +15,7 @@ import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.util.StringUtil;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -260,7 +261,7 @@ public final class SqlLikeExplainSupport {
     }
 
     private static void collectComputedNames(String value, ComputedFieldRegistry registry, Set<String> used) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             return;
         }
         if (registry.contains(value)) {

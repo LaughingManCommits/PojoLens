@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -106,7 +107,7 @@ public final class SqlLikeTemplate {
     }
 
     private static String normalizeName(String value, String label) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " must not be null/blank");
         }
         return value;

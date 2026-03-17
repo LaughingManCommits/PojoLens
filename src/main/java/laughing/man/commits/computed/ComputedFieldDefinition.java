@@ -1,6 +1,7 @@
 package laughing.man.commits.computed;
 
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.LinkedHashSet;
 import java.util.Objects;
@@ -52,14 +53,14 @@ public final class ComputedFieldDefinition {
     }
 
     private static String requireIdentifier(String value, String label) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " must not be null/blank");
         }
         return value.trim();
     }
 
     private static String requireExpression(String expression) {
-        if (expression == null || expression.isBlank()) {
+        if (StringUtil.isNullOrBlank(expression)) {
             throw new IllegalArgumentException("expression must not be null/blank");
         }
         String normalized = expression.trim();

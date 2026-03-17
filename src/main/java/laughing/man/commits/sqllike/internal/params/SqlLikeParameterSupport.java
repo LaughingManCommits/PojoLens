@@ -9,6 +9,7 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,7 +86,7 @@ public final class SqlLikeParameterSupport {
         LinkedHashMap<String, Object> normalized = new LinkedHashMap<>();
         for (Map.Entry<String, ?> entry : parameters.entrySet()) {
             String key = entry.getKey();
-            if (key == null || key.isBlank()) {
+            if (StringUtil.isNullOrBlank(key)) {
                 throw parameter(SqlLikeErrorCodes.PARAM_NAME_INVALID,
                         "Parameter name must not be null/blank");
             }

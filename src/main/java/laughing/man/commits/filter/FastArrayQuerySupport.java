@@ -12,6 +12,7 @@ import laughing.man.commits.enums.Sort;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 
 import java.util.ArrayList;
@@ -323,7 +324,7 @@ final class FastArrayQuerySupport {
                                              Set<String> childSelected,
                                              Set<String> neededComputedNames,
                                              Set<String> visitingComputedNames) {
-        if (fieldName == null || fieldName.isBlank()) {
+        if (StringUtil.isNullOrBlank(fieldName)) {
             return false;
         }
 

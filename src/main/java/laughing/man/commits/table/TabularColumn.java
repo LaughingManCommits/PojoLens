@@ -1,5 +1,7 @@
 package laughing.man.commits.table;
 
+import laughing.man.commits.util.StringUtil;
+
 import java.util.Objects;
 
 /**
@@ -46,7 +48,7 @@ public final class TabularColumn {
     }
 
     private static String requireText(String value, String label) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " must not be null/blank");
         }
         return value;

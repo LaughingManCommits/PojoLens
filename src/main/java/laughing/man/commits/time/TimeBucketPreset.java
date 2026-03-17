@@ -1,6 +1,7 @@
 package laughing.man.commits.time;
 
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.util.StringUtil;
 
 import java.time.DayOfWeek;
 import java.time.ZoneId;
@@ -150,7 +151,7 @@ public final class TimeBucketPreset {
     }
 
     private static ZoneId parseZoneId(String value) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException("Time zone is required");
         }
         try {
@@ -161,7 +162,7 @@ public final class TimeBucketPreset {
     }
 
     private static DayOfWeek parseDayOfWeek(String value) {
-        if (value == null || value.isBlank()) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException("Week start is required");
         }
         try {

@@ -36,6 +36,13 @@ public class StringUtil {
     }
 
     /**
+     * Returns {@code true} when the value is {@code null} or blank.
+     */
+    public static boolean isNullOrBlank(String str) {
+        return str == null || str.isBlank();
+    }
+
+    /**
      * Checks whether the full input string can be parsed as a number.
      */
     public static boolean isNumber(String str) {

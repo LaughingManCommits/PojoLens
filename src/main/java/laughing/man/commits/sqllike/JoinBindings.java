@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.util.StringUtil;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -80,7 +81,7 @@ public final class JoinBindings {
         }
 
         private static String normalizeSource(String sourceName) {
-            if (sourceName == null || sourceName.isBlank()) {
+            if (StringUtil.isNullOrBlank(sourceName)) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.JOIN_SOURCE_NAME_INVALID,
                         "sourceName must not be null/blank");
             }
