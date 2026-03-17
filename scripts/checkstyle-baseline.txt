@@ -3096,6 +3096,7 @@ src/main/java/laughing/man/commits/filter/AggregationEngine.java|60|0|com.puppyc
 src/main/java/laughing/man/commits/filter/AggregationEngine.java|68|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/AggregationEngine.java|76|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/AggregationEngine.java|85|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
+src/main/java/laughing/man/commits/filter/CompiledRule.java|10|18|com.puppycrawl.tools.checkstyle.checks.design.VisibilityModifierCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|10|5|com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocVariableCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|12|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|12|18|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
@@ -3106,8 +3107,11 @@ src/main/java/laughing/man/commits/filter/CompiledRule.java|12|55|com.puppycrawl
 src/main/java/laughing/man/commits/filter/CompiledRule.java|12|65|com.puppycrawl.tools.checkstyle.checks.coding.HiddenFieldCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|12|76|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|12|83|com.puppycrawl.tools.checkstyle.checks.coding.HiddenFieldCheck
+src/main/java/laughing/man/commits/filter/CompiledRule.java|7|18|com.puppycrawl.tools.checkstyle.checks.design.VisibilityModifierCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|7|5|com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocVariableCheck
+src/main/java/laughing/man/commits/filter/CompiledRule.java|8|19|com.puppycrawl.tools.checkstyle.checks.design.VisibilityModifierCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|8|5|com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocVariableCheck
+src/main/java/laughing/man/commits/filter/CompiledRule.java|9|21|com.puppycrawl.tools.checkstyle.checks.design.VisibilityModifierCheck
 src/main/java/laughing/man/commits/filter/CompiledRule.java|9|5|com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocVariableCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|100|31|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|101|31|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
@@ -3220,7 +3224,6 @@ src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|498|0|com.p
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|498|46|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|498|60|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|514|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
-src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|521|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|532|44|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|544|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java|544|43|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
@@ -3282,7 +3285,6 @@ src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|102|0|com.p
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|102|41|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|108|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|120|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
-src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|127|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|138|0|com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|138|40|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
 src/main/java/laughing/man/commits/filter/FastPojoFilterSupport.java|138|57|com.puppycrawl.tools.checkstyle.checks.FinalParametersCheck
