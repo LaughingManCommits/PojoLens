@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
 import java.util.ArrayList;
@@ -158,7 +159,7 @@ public final class FilterExecutionPlan {
     }
 
     private List<Integer> compileDistinctFieldIndexes(FilterQueryBuilder builder) {
-        List<Map.Entry<Integer, String>> entries = sortedIntegerEntries(builder.getDistinctFields());
+        List<Map.Entry<Integer, String>> entries = CollectionUtil.sortedEntriesByKey(builder.getDistinctFields());
         List<Integer> indexes = new ArrayList<>(entries.size());
         for (Map.Entry<Integer, String> entry : entries) {
             int fieldIndex = findFieldIndex(entry.getValue());
@@ -170,7 +171,7 @@ public final class FilterExecutionPlan {
     }
 
     private List<OrderColumn> compileOrderColumns(FilterQueryBuilder builder) {
-        List<Map.Entry<Integer, String>> entries = sortedIntegerEntries(builder.getOrderFields());
+        List<Map.Entry<Integer, String>> entries = CollectionUtil.sortedEntriesByKey(builder.getOrderFields());
         List<OrderColumn> columns = new ArrayList<>(entries.size());
         for (Map.Entry<Integer, String> entry : entries) {
             int fieldIndex = findFieldIndexIgnoreCase(entry.getValue());
@@ -184,7 +185,7 @@ public final class FilterExecutionPlan {
     }
 
     private List<GroupColumn> compileGroupColumns(FilterQueryBuilder builder) {
-        List<Map.Entry<Integer, String>> entries = sortedIntegerEntries(builder.getGroupFields());
+        List<Map.Entry<Integer, String>> entries = CollectionUtil.sortedEntriesByKey(builder.getGroupFields());
         List<GroupColumn> columns = new ArrayList<>(entries.size());
         for (Map.Entry<Integer, String> entry : entries) {
             String fieldName = entry.getValue();
@@ -214,12 +215,6 @@ public final class FilterExecutionPlan {
             plans.add(new MetricPlan(metric.getField(), metric.getMetric(), metric.getAlias(), fieldIndex));
         }
         return plans;
-    }
-
-    private static List<Map.Entry<Integer, String>> sortedIntegerEntries(Map<Integer, String> configuredFields) {
-        List<Map.Entry<Integer, String>> entries = new ArrayList<>(configuredFields.entrySet());
-        entries.sort(Map.Entry.comparingByKey());
-        return entries;
     }
 
     private static Map<Integer, List<CompiledRule>> freezeCompiledRules(Map<Integer, List<CompiledRule>> compiled) {

@@ -9,6 +9,7 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.table.TabularColumn;
 import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -31,8 +32,7 @@ public final class TabularSchemaSupport {
 
         if (!builder.getMetrics().isEmpty()) {
             if (!builder.getGroupFields().isEmpty()) {
-                List<Map.Entry<Integer, String>> groups = new ArrayList<>(builder.getGroupFields().entrySet());
-                groups.sort(Map.Entry.comparingByKey());
+                List<Map.Entry<Integer, String>> groups = CollectionUtil.sortedEntriesByKey(builder.getGroupFields());
                 for (Map.Entry<Integer, String> entry : groups) {
                     String fieldName = entry.getValue();
                     QueryTimeBucket timeBucket = builder.getTimeBuckets().get(fieldName);

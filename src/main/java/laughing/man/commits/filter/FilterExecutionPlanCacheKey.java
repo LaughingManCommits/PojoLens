@@ -4,6 +4,8 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryMetric;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryTimeBucket;
+import laughing.man.commits.util.CollectionUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -185,8 +187,7 @@ public final class FilterExecutionPlanCacheKey {
                                                          Map<String, String> dateFormats,
                                                          Map<String, Object> values) {
         ArrayList<RuleFieldShape> fields = new ArrayList<>(idsByField.size());
-        ArrayList<Map.Entry<String, List<String>>> entries = new ArrayList<>(idsByField.entrySet());
-        entries.sort(Map.Entry.comparingByKey());
+        List<Map.Entry<String, List<String>>> entries = CollectionUtil.sortedEntriesByKey(idsByField);
         for (Map.Entry<String, List<String>> entry : entries) {
             ArrayList<RuleShape> rules = new ArrayList<>();
             for (String ruleId : entry.getValue()) {
@@ -209,8 +210,7 @@ public final class FilterExecutionPlanCacheKey {
 
     private static List<NamedValue> indexedFieldShapes(Map<Integer, String> fields) {
         ArrayList<NamedValue> entries = new ArrayList<>(fields.size());
-        ArrayList<Map.Entry<Integer, String>> sorted = new ArrayList<>(fields.entrySet());
-        sorted.sort(Map.Entry.comparingByKey());
+        List<Map.Entry<Integer, String>> sorted = CollectionUtil.sortedEntriesByKey(fields);
         for (Map.Entry<Integer, String> entry : sorted) {
             entries.add(new NamedValue(String.valueOf(entry.getKey()), entry.getValue()));
         }
@@ -219,8 +219,7 @@ public final class FilterExecutionPlanCacheKey {
 
     private static List<NamedValue> namedValues(Map<String, String> values) {
         ArrayList<NamedValue> entries = new ArrayList<>(values.size());
-        ArrayList<Map.Entry<String, String>> sorted = new ArrayList<>(values.entrySet());
-        sorted.sort(Map.Entry.comparingByKey());
+        List<Map.Entry<String, String>> sorted = CollectionUtil.sortedEntriesByKey(values);
         for (Map.Entry<String, String> entry : sorted) {
             entries.add(new NamedValue(entry.getKey(), entry.getValue()));
         }
@@ -229,8 +228,7 @@ public final class FilterExecutionPlanCacheKey {
 
     private static List<TimeBucketShape> timeBucketShapes(Map<String, QueryTimeBucket> buckets) {
         ArrayList<TimeBucketShape> shapes = new ArrayList<>(buckets.size());
-        ArrayList<Map.Entry<String, QueryTimeBucket>> sorted = new ArrayList<>(buckets.entrySet());
-        sorted.sort(Map.Entry.comparingByKey());
+        List<Map.Entry<String, QueryTimeBucket>> sorted = CollectionUtil.sortedEntriesByKey(buckets);
         for (Map.Entry<String, QueryTimeBucket> entry : sorted) {
             QueryTimeBucket bucket = entry.getValue();
             shapes.add(new TimeBucketShape(entry.getKey(), bucket.getDateField(), bucket.getPreset().explainToken()));

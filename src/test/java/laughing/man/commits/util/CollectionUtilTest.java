@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -56,5 +58,24 @@ class CollectionUtilTest {
         assertEquals(16, CollectionUtil.expectedMapCapacity(-1));
         assertEquals(2, CollectionUtil.expectedMapCapacity(1));
         assertEquals(14, CollectionUtil.expectedMapCapacity(10));
+    }
+
+    @Test
+    void sortedEntriesByKeyShouldReturnEntriesInKeyOrder() {
+        LinkedHashMap<Integer, String> values = new LinkedHashMap<>();
+        values.put(3, "c");
+        values.put(1, "a");
+        values.put(2, "b");
+
+        List<Map.Entry<Integer, String>> sorted = CollectionUtil.sortedEntriesByKey(values);
+
+        assertEquals(List.of(1, 2, 3), sorted.stream().map(Map.Entry::getKey).toList());
+        assertEquals(List.of("a", "b", "c"), sorted.stream().map(Map.Entry::getValue).toList());
+    }
+
+    @Test
+    void sortedEntriesByKeyShouldHandleNullAndEmptyMaps() {
+        assertTrue(CollectionUtil.sortedEntriesByKey(null).isEmpty());
+        assertTrue(CollectionUtil.sortedEntriesByKey(Map.<Integer, String>of()).isEmpty());
     }
 }

@@ -18,6 +18,7 @@
 - A fourth consolidation pass now centralizes exact-name schema/index planning in `SchemaIndexUtil`, which `ChartMapper` and `SqlLikeExecutionSupport` now reuse instead of keeping local exact-name indexing loops.
 - A fifth consolidation pass now centralizes exact-name `QueryField` index and value lookup in `QueryFieldLookupUtil`, which `ChartMapper`, `SqlLikeExecutionSupport`, `JoinEngine`, and `RuleCleaner` now reuse instead of keeping local exact-name scans.
 - A sixth consolidation pass now extends `SchemaIndexUtil` with ordered schema-name extraction for `QueryField` and `QueryRow` shapes, which `FilterExecutionPlan` and `ReflectionUtil` now reuse instead of keeping local schema-name loops.
+- A seventh consolidation pass now adds `CollectionUtil.sortedEntriesByKey(...)` for deterministic map-entry planning, which `FilterExecutionPlan`, `FilterExecutionPlanCacheKey`, and `TabularSchemaSupport` now reuse instead of keeping local sorted-entry setup.
 - If performance work continues, reopen WP19 only with a materially different structural idea, or reopen WP18 only if a fresh scatter/chart profile points beyond the remaining broader row/query overhead.
 - A narrow `ReflectionUtil` follow-up now skips no-op projection casts when the raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows.
 - The rebuilt `2026-03-16` hotspot suite (`target/benchmarks/hotspots-gc-2026-03-16.json`) now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`.
@@ -34,6 +35,7 @@
 - The exact-name schema/index helper pass also passed focused regressions (`SchemaIndexUtilTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
 - The exact-name `QueryField` lookup helper pass also passed focused regressions (`QueryFieldLookupUtilTest`, `SchemaIndexUtilTest`, `FilterCoreTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
 - A later schema-name helper follow-up also passed focused regressions (`SchemaIndexUtilTest`, `ReflectionUtilTest`, `FilterCoreTest`) plus `mvn -q test`; the suite now covers `451` tests.
+- The map-entry sorting helper follow-up also passed focused regressions (`CollectionUtilTest`, `FilterExecutionPlanCacheKeyTest`, `FilterCoreTest`) plus `mvn -q test`; the suite now covers `453` tests.
 - A rebuilt full chart guardrail rerun still passed `45/45`, but the cold scatter entries drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; treat that suite as guardrail validation, not patch attribution.
 - A refreshed warmed JFR now exists at `target/wp19-current-2026-03-16.jfr`; it measured the join benchmark at about `0.666 ms/op` with JFR overhead and kept the same dominant class cluster: `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
 - First-repo-frame allocation in that warmed JFR is still led by `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), and `FastArrayQuerySupport.buildChildIndex` (`3117`).
@@ -61,8 +63,10 @@
 - `src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java`
 - `src/main/java/laughing/man/commits/util/ReflectionUtil.java`
 - `src/main/java/laughing/man/commits/util/CollectionUtil.java`
+- `src/main/java/laughing/man/commits/table/internal/TabularSchemaSupport.java`
 - `src/main/java/laughing/man/commits/util/SchemaIndexUtil.java`
 - `src/main/java/laughing/man/commits/util/QueryFieldLookupUtil.java`
+- `src/test/java/laughing/man/commits/util/CollectionUtilTest.java`
 - `src/main/java/laughing/man/commits/filter/QueryRowAdapterSupport.java`
 - `src/main/java/laughing/man/commits/filter/AggregationEngine.java`
 - `src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java`
