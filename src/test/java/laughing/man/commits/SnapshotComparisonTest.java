@@ -36,13 +36,13 @@ public class SnapshotComparisonTest {
         assertEquals(1, summary.unchangedCount());
 
         SnapshotDeltaRow<Employee, Integer> changed = comparison.changed().stream()
-                .filter(row -> Integer.valueOf(1).equals(row.key))
+                .filter(row -> Integer.valueOf(1).equals(row.getKey()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals("CHANGED", changed.changeType);
-        assertEquals(2, changed.changedFieldCount);
-        assertTrue(changed.changedFieldSummary.contains("salary"));
-        assertTrue(changed.changedFieldSummary.contains("active"));
+        assertEquals("CHANGED", changed.getChangeType());
+        assertEquals(2, changed.getChangedFieldCount());
+        assertTrue(changed.getChangedFieldSummary().contains("salary"));
+        assertTrue(changed.getChangedFieldSummary().contains("active"));
     }
 
     @Test

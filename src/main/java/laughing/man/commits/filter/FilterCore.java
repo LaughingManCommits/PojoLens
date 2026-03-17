@@ -169,14 +169,14 @@ public class FilterCore {
                     QueryField field = fields.get(fieldIndex);
                     Object fieldValue = field.getValue();
                     for (CompiledRule rule : rules) {
-                        boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                        if (Separator.AND.equals(rule.separator)) {
+                        boolean matched = ObjectUtil.compareObject(fieldValue, rule.getCompareValue(), rule.getClause(), rule.getDateFormat());
+                        if (Separator.AND.equals(rule.getSeparator())) {
                             if (matched) {
                                 andMatched = true;
                             } else {
                                 andFailed = true;
                             }
-                        } else if (Separator.OR.equals(rule.separator) && matched) {
+                        } else if (Separator.OR.equals(rule.getSeparator()) && matched) {
                             orMatched = true;
                         }
 

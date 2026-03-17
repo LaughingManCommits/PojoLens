@@ -12,22 +12,78 @@ import java.util.List;
  */
 public final class SnapshotDeltaRow<T, K> {
 
-    public K key;
-    public String keyText;
-    public String changeType;
-    public boolean added;
-    public boolean removed;
-    public boolean changed;
-    public boolean unchanged;
-    public boolean currentPresent;
-    public boolean previousPresent;
-    public int changedFieldCount;
-    public String changedFieldSummary;
-    public List<String> changedFields;
-    public T current;
-    public T previous;
+    private K key;
+    private String keyText;
+    private String changeType;
+    private boolean added;
+    private boolean removed;
+    private boolean changed;
+    private boolean unchanged;
+    private boolean currentPresent;
+    private boolean previousPresent;
+    private int changedFieldCount;
+    private String changedFieldSummary;
+    private List<String> changedFields;
+    private T current;
+    private T previous;
 
     public SnapshotDeltaRow() {
+    }
+
+    public K getKey() {
+        return key;
+    }
+
+    public String getKeyText() {
+        return keyText;
+    }
+
+    public String getChangeType() {
+        return changeType;
+    }
+
+    public boolean isAdded() {
+        return added;
+    }
+
+    public boolean isRemoved() {
+        return removed;
+    }
+
+    public boolean isChanged() {
+        return changed;
+    }
+
+    public boolean isUnchanged() {
+        return unchanged;
+    }
+
+    public boolean isCurrentPresent() {
+        return currentPresent;
+    }
+
+    public boolean isPreviousPresent() {
+        return previousPresent;
+    }
+
+    public int getChangedFieldCount() {
+        return changedFieldCount;
+    }
+
+    public String getChangedFieldSummary() {
+        return changedFieldSummary;
+    }
+
+    public List<String> getChangedFields() {
+        return changedFields;
+    }
+
+    public T getCurrent() {
+        return current;
+    }
+
+    public T getPrevious() {
+        return previous;
     }
 
     static <T, K> SnapshotDeltaRow<T, K> added(K key, T current) {
@@ -73,4 +129,3 @@ public final class SnapshotDeltaRow<T, K> {
         return row;
     }
 }
-

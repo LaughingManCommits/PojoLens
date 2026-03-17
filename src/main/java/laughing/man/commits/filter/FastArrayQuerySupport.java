@@ -477,7 +477,7 @@ final class FastArrayQuerySupport {
         if (rule == null) {
             return MatchAllRowMatcher.INSTANCE;
         }
-        if (rule.compareValue instanceof Number number && isNumericClause(rule.clause)) {
+        if (rule.getCompareValue() instanceof Number number && isNumericClause(rule.getClause())) {
             return new SingleNumericRuleMatcher(fieldIndex, number.doubleValue(), rule);
         }
         return new SingleRuleMatcher(fieldIndex, rule);
@@ -511,14 +511,14 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             for (CompiledRule rule : group.rules()) {
-                boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                if (Separator.AND.equals(rule.separator)) {
+                boolean matched = ObjectUtil.compareObject(fieldValue, rule.getCompareValue(), rule.getClause(), rule.getDateFormat());
+                if (Separator.AND.equals(rule.getSeparator())) {
                     if (matched) {
                         andMatched = true;
                     } else {
                         andFailed = true;
                     }
-                } else if (Separator.OR.equals(rule.separator) && matched) {
+                } else if (Separator.OR.equals(rule.getSeparator()) && matched) {
                     orMatched = true;
                 }
                 if (andFailed && orMatched) {
@@ -716,7 +716,7 @@ final class FastArrayQuerySupport {
             if (row == null || fieldIndex < 0 || fieldIndex >= row.length) {
                 return false;
             }
-            return ObjectUtil.compareObject(row[fieldIndex], rule.compareValue, rule.clause, rule.dateFormat);
+            return ObjectUtil.compareObject(row[fieldIndex], rule.getCompareValue(), rule.getClause(), rule.getDateFormat());
         }
     }
 
@@ -730,9 +730,9 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             if (fieldValue instanceof Number number) {
-                return compareNumbers(number.doubleValue(), compareValue, rule.clause);
+                return compareNumbers(number.doubleValue(), compareValue, rule.getClause());
             }
-            return ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
+            return ObjectUtil.compareObject(fieldValue, rule.getCompareValue(), rule.getClause(), rule.getDateFormat());
         }
     }
 }

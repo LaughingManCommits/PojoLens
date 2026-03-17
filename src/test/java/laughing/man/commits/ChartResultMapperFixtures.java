@@ -13,10 +13,10 @@ final class ChartResultMapperFixtures {
         public long total;
         public long payroll;
 
-        public DepartmentMetricRow() {
+        DepartmentMetricRow() {
         }
 
-        public DepartmentMetricRow(String department, String period, long total, long payroll) {
+        DepartmentMetricRow(String department, String period, long total, long payroll) {
             this.department = department;
             this.period = period;
             this.total = total;
@@ -28,10 +28,10 @@ final class ChartResultMapperFixtures {
         public Date period;
         public long payroll;
 
-        public DateMetricRow() {
+        DateMetricRow() {
         }
 
-        public DateMetricRow(Date period, long payroll) {
+        DateMetricRow(Date period, long payroll) {
             this.period = period;
             this.payroll = payroll;
         }
@@ -41,10 +41,10 @@ final class ChartResultMapperFixtures {
         public String department;
         public String payroll;
 
-        public InvalidMetricRow() {
+        InvalidMetricRow() {
         }
 
-        public InvalidMetricRow(String department, String payroll) {
+        InvalidMetricRow(String department, String payroll) {
             this.department = department;
             this.payroll = payroll;
         }
@@ -54,10 +54,10 @@ final class ChartResultMapperFixtures {
         public Object x;
         public int value;
 
-        public UnsupportedXRow() {
+        UnsupportedXRow() {
         }
 
-        public UnsupportedXRow(Object x, int value) {
+        UnsupportedXRow(Object x, int value) {
             this.x = x;
             this.value = value;
         }
@@ -67,10 +67,10 @@ final class ChartResultMapperFixtures {
         public String department;
         public Long payroll;
 
-        public NullableYRow() {
+        NullableYRow() {
         }
 
-        public NullableYRow(String department, Long payroll) {
+        NullableYRow(String department, Long payroll) {
             this.department = department;
             this.payroll = payroll;
         }
@@ -80,10 +80,10 @@ final class ChartResultMapperFixtures {
         public int x;
         public int y;
 
-        public ScatterRow() {
+        ScatterRow() {
         }
 
-        public ScatterRow(int x, int y) {
+        ScatterRow(int x, int y) {
             this.x = x;
             this.y = y;
         }
@@ -94,10 +94,10 @@ final class ChartResultMapperFixtures {
         private String period;
         private long payroll;
 
-        public TypedMetricRow() {
+        TypedMetricRow() {
         }
 
-        public TypedMetricRow(String department, String period, long payroll) {
+        TypedMetricRow(String department, String period, long payroll) {
             this.department = department;
             this.period = period;
             this.payroll = payroll;

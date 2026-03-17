@@ -29,10 +29,10 @@ final class PojoLensBehaviorFixtures {
         String name;
         boolean active;
 
-        public BoolBean() {
+        BoolBean() {
         }
 
-        public BoolBean(String name, boolean active) {
+        BoolBean(String name, boolean active) {
             this.name = name;
             this.active = active;
         }
@@ -42,10 +42,10 @@ final class PojoLensBehaviorFixtures {
         int id;
         String name;
 
-        public ParentBean() {
+        ParentBean() {
         }
 
-        public ParentBean(int id, String name) {
+        ParentBean(int id, String name) {
             this.id = id;
             this.name = name;
         }
@@ -55,10 +55,10 @@ final class PojoLensBehaviorFixtures {
         int parentId;
         String tag;
 
-        public ChildBean() {
+        ChildBean() {
         }
 
-        public ChildBean(int parentId, String tag) {
+        ChildBean(int parentId, String tag) {
             this.parentId = parentId;
             this.tag = tag;
         }
@@ -68,10 +68,10 @@ final class PojoLensBehaviorFixtures {
         int parentId;
         String name;
 
-        public ChildCollisionBean() {
+        ChildCollisionBean() {
         }
 
-        public ChildCollisionBean(int parentId, String name) {
+        ChildCollisionBean(int parentId, String name) {
             this.parentId = parentId;
             this.name = name;
         }
@@ -83,7 +83,7 @@ final class PojoLensBehaviorFixtures {
         int parentId;
         String child_name;
 
-        public JoinedCollisionProjection() {
+        JoinedCollisionProjection() {
         }
     }
 
@@ -92,10 +92,10 @@ final class PojoLensBehaviorFixtures {
         String name;
         String child_name;
 
-        public ParentCollisionBean() {
+        ParentCollisionBean() {
         }
 
-        public ParentCollisionBean(int id, String name, String child_name) {
+        ParentCollisionBean(int id, String name, String child_name) {
             this.id = id;
             this.name = name;
             this.child_name = child_name;
@@ -108,10 +108,10 @@ final class PojoLensBehaviorFixtures {
         String child_name;
         String child_name_1;
 
-        public ParentMultiCollisionBean() {
+        ParentMultiCollisionBean() {
         }
 
-        public ParentMultiCollisionBean(int id, String name, String child_name, String child_name_1) {
+        ParentMultiCollisionBean(int id, String name, String child_name, String child_name_1) {
             this.id = id;
             this.name = name;
             this.child_name = child_name;
@@ -126,7 +126,7 @@ final class PojoLensBehaviorFixtures {
         String child_name;
         String child_name_1;
 
-        public JoinedCollisionProjectionWithSuffix() {
+        JoinedCollisionProjectionWithSuffix() {
         }
     }
 
@@ -138,7 +138,7 @@ final class PojoLensBehaviorFixtures {
         String child_name_1;
         String child_name_2;
 
-        public JoinedCollisionProjectionWithDeepSuffix() {
+        JoinedCollisionProjectionWithDeepSuffix() {
         }
     }
 
@@ -149,7 +149,7 @@ final class PojoLensBehaviorFixtures {
         String child_name;
         String child_child_name;
 
-        public RightJoinCollisionProjection() {
+        RightJoinCollisionProjection() {
         }
     }
 

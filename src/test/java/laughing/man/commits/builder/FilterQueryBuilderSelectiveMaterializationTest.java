@@ -365,7 +365,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String name;
         public String tag;
 
-        public JoinProjection() {
+        JoinProjection() {
         }
     }
 
@@ -389,7 +389,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String name;
         public double totalComp;
 
-        public CompensationProjection() {
+        CompensationProjection() {
         }
     }
 
@@ -397,7 +397,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String department;
         public double totalCompSum;
 
-        public DepartmentCompensationProjection() {
+        DepartmentCompensationProjection() {
         }
     }
 
@@ -431,7 +431,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String name;
         public double totalComp;
 
-        public JoinComputedProjection() {
+        JoinComputedProjection() {
         }
     }
 
@@ -441,7 +441,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String tag;
         public double totalComp;
 
-        public JoinComputedDetailProjection() {
+        JoinComputedDetailProjection() {
         }
     }
 
@@ -474,7 +474,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public double bonus;
         public int child_bonus;
 
-        public ComputedCollisionProjection() {
+        ComputedCollisionProjection() {
         }
     }
 
@@ -504,7 +504,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String tag;
         public String child_name;
 
-        public CollisionJoinProjection() {
+        CollisionJoinProjection() {
         }
     }
 
@@ -547,7 +547,7 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         public String label;
         public String code;
 
-        public MultiJoinProjection() {
+        MultiJoinProjection() {
         }
     }
 }

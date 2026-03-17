@@ -58,7 +58,7 @@ public final class SnapshotComparison<T, K> {
     private List<SnapshotDeltaRow<T, K>> filterByType(String type) {
         ArrayList<SnapshotDeltaRow<T, K>> filtered = new ArrayList<>();
         for (SnapshotDeltaRow<T, K> row : rows) {
-            if (type.equals(row.changeType)) {
+            if (type.equals(row.getChangeType())) {
                 filtered.add(row);
             }
         }
