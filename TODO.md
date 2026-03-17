@@ -34,16 +34,15 @@ And allocation centered in:
 
 ---
 
-## WP22 — Cold filter pipeline overhead
+## WP22 — Cold filter pipeline overhead (FAST PATH LANDED)
 
-**Problem:** Cold `fluentFilterProjection|size=10000` comes in at 120.522 ms/op vs 0.124 ms/op for the Streams baseline (972x ratio). Legacy `pojoLensFilter|size=10000` at 118.385 ms/op vs 0.015 ms/op manual (7892x). These numbers reflect real cold-path setup cost, not just JMH overhead.
+**Status:** `FastPojoFilterSupport` fast path now lives in `FilterImpl.filterRows()`. For POJO-source simple filter queries (no joins, stats, computed fields, or explicit rule groups), filter rules are evaluated directly against POJO objects using the cached `FlatRowReadPlan`, and only matching rows are materialized as `QueryRow`. This reduces O(n) materialization to O(matched) allocations.
 
-**Candidates to investigate:**
-- Rule compilation and field-index resolution on first call
-- `FilterExecutionPlan` construction cost (schema derivation, rule compile)
-- Whether a lighter-weight warm-up / plan-reuse path exists for the filter-only (no group/join) shape
+**Root cause (from investigation):** The dominant cold cost was `ReflectionUtil.toDomainRows` creating 10,000 QueryRow + ArrayList + QueryField objects for all input beans before any filtering. With the fast path, a reused `Object[]` buffer is filled per bean and only matching beans become QueryRow objects.
 
-**Gate:** Use `fullFilterPipeline|size=10000` (current 113.933 ms/op vs 750 ms budget) as the regression gate. Winning means moving that number, not the streams ratio.
+**Gate:** `fullFilterPipeline|size=10000` cold budget is 113.933 ms/op vs 750 ms (15.2%). Rebuild the benchmark runner and rerun cold + warmed to confirm movement. Do not reopen if cold drift is within normal single-iteration noise.
+
+**Remaining scope:** The benchmark creates a fresh builder per call (fully cold), so plan-cache reuse cannot help. Any further improvement requires either faster reflection reads (MethodHandle) or accepting current cold numbers as inherent JVM startup cost.
 
 ---
 

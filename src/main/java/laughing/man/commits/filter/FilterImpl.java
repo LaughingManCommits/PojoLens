@@ -129,18 +129,31 @@ public class FilterImpl implements Filter {
 
         List<QueryRow> results = new ArrayList<>();
         FilterQueryBuilder executionBuilder = builderState;
+
+        // Fast path: for POJO-source simple filter queries, materialize only matching rows.
+        boolean fastPojoFilterApplied = false;
+        if (FastPojoFilterSupport.isApplicable(executionBuilder)) {
+            List<QueryRow> fastRows = FastPojoFilterSupport.tryFilterRows(executionBuilder);
+            if (fastRows != null) {
+                executionBuilder.setMaterializedRows(fastRows, executionBuilder.getSourceFieldTypesForExecution());
+                fastPojoFilterApplied = true;
+            }
+        }
+
         FilterCore core = new FilterCore(executionBuilder);
         try {
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
                 FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, false);
-                if (executionBuilder.requiresRuntimeSchemaCleaning()) {
+                if (!fastPojoFilterApplied && executionBuilder.requiresRuntimeSchemaCleaning()) {
                     core.clean(core.getBuilder().getRows().get(0));
                 }
                 // Remove duplicate rows when distinct columns are configured.
                 List<QueryRow> distinctClasses = core.filterDistinctFields(plan);
                 // Apply rule filtering (AND/OR and grouped operators).
                 long filterStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                List<QueryRow> filterClasses = core.filterFields(distinctClasses, plan);
+                List<QueryRow> filterClasses = fastPojoFilterApplied
+                        ? distinctClasses
+                        : core.filterFields(distinctClasses, plan);
                 emitStage(executionBuilder,
                         QueryTelemetryStage.FILTER,
                         filterStarted,

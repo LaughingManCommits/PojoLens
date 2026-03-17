@@ -3,13 +3,14 @@
 ## Repository Health
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `471` tests.
+- The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `482` tests.
 - A full benchmark sweep was run on `2026-03-17`: core `42/42`, chart `45/45`. `BENCHMARKS.md` was cleared and rewritten with fresh 2026-03-17 numbers. Hotspot artifacts are at `target/benchmarks/hotspots-gc-2026-03-17.json`.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
 ## Active Work
 
-- `TODO.md` was cleared on `2026-03-16` and is now intentionally empty; use the AI state files and benchmark artifacts as the active follow-up record until the backlog is repopulated.
+- `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 from the fresh benchmark sweep.
+- WP22 (cold filter pipeline overhead) now has a `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()`: for POJO-source simple filter queries (no joins, stats, computed fields, or explicit rule groups), filter rules are evaluated directly against POJO objects using the cached `FlatRowReadPlan`, and only matching rows are materialized as `QueryRow`. The suite now covers 482 tests after `FastPojoFilterSupportTest` (11 new tests).
 - WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
 - WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
 - WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.

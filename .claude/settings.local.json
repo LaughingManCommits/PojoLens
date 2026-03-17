@@ -18,7 +18,8 @@
       "Bash(python3 -c \":*)",
       "Bash(python -c \":*)",
       "Bash(java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc)",
-      "Bash(java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms)"
+      "Bash(java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms)",
+      "Bash(mvn -q test -pl . -Dtest=\"FastPojoFilterSupportTest\" -DfailIfNoTests=false)"
     ]
   }
 }
