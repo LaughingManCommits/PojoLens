@@ -3,6 +3,7 @@ package laughing.man.commits.filter;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ObjectUtil;
@@ -136,15 +137,6 @@ final class FastPojoFilterSupport {
     }
 
     private static QueryRow toQueryRow(Object[] values, List<String> fieldNames) {
-        List<QueryField> fields = new ArrayList<>(fieldNames.size());
-        for (int i = 0; i < fieldNames.size(); i++) {
-            QueryField field = new QueryField();
-            field.setFieldName(fieldNames.get(i));
-            field.setValue(values[i]);
-            fields.add(field);
-        }
-        QueryRow row = new QueryRow();
-        row.setFields(fields);
-        return row;
+        return new RawQueryRow(values.clone(), fieldNames);
     }
 }

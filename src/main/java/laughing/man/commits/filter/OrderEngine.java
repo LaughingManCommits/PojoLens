@@ -2,7 +2,6 @@ package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.util.ObjectUtil;
 
@@ -28,15 +27,9 @@ final class OrderEngine {
                                  QueryRow right,
                                  List<FilterExecutionPlan.OrderColumn> columns,
                                  Sort sortMethod) {
-        List<? extends QueryField> leftFields = left.getFields();
-        List<? extends QueryField> rightFields = right.getFields();
         for (FilterExecutionPlan.OrderColumn column : columns) {
-            Object leftValue = column.fieldIndex() < leftFields.size()
-                    ? leftFields.get(column.fieldIndex()).getValue()
-                    : null;
-            Object rightValue = column.fieldIndex() < rightFields.size()
-                    ? rightFields.get(column.fieldIndex()).getValue()
-                    : null;
+            Object leftValue = left.getValueAt(column.fieldIndex());
+            Object rightValue = right.getValueAt(column.fieldIndex());
             int cmp = compareValues(leftValue, rightValue, column.dateFormat());
             if (cmp != 0) {
                 return Sort.DESC.equals(sortMethod) ? -cmp : cmp;

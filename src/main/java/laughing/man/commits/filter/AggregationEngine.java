@@ -47,15 +47,14 @@ final class AggregationEngine {
 
         if (rows != null) {
             for (QueryRow row : rows) {
-                List<? extends QueryField> fields = row == null ? null : row.getFields();
-                if (fields == null) {
+                if (row == null) {
                     continue;
                 }
                 String[] keyParts = new String[columnCount];
                 Object[] projectedValues = new Object[columnCount];
                 for (int i = 0; i < columnCount; i++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(i);
-                    Object rawValue = fieldValue(fields, column.fieldIndex());
+                    Object rawValue = row.getValueAt(column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
                     String keyPart = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
                     keyParts[i] = keyPart;
@@ -76,7 +75,7 @@ final class AggregationEngine {
                     accumulator = new GroupAccumulator(groupProjection, metrics);
                     grouped.put(key, accumulator);
                 }
-                accumulator.accumulate(fields);
+                accumulator.accumulate(row);
             }
         }
 
@@ -135,11 +134,10 @@ final class AggregationEngine {
             return stats;
         }
         for (QueryRow row : rows) {
-            List<? extends QueryField> fields = row == null ? null : row.getFields();
-            if (fields == null || fieldIndex >= fields.size()) {
+            if (row == null) {
                 continue;
             }
-            Object value = fields.get(fieldIndex).getValue();
+            Object value = row.getValueAt(fieldIndex);
             if (value == null) {
                 continue;
             }
@@ -170,13 +168,6 @@ final class AggregationEngine {
         return stats;
     }
 
-    private Object fieldValue(List<? extends QueryField> fields, int fieldIndex) {
-        if (fieldIndex < 0 || fieldIndex >= fields.size()) {
-            return null;
-        }
-        return fields.get(fieldIndex).getValue();
-    }
-
     private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {
         if (column.timeBucket() == null) {
             return rawValue;
@@ -205,9 +196,9 @@ final class AggregationEngine {
             }
         }
 
-        private void accumulate(List<? extends QueryField> fields) {
+        private void accumulate(QueryRow row) {
             for (MetricAccumulator metricAccumulator : metricAccumulators) {
-                metricAccumulator.accumulate(fields);
+                metricAccumulator.accumulate(row);
             }
         }
     }
@@ -225,7 +216,7 @@ final class AggregationEngine {
             this.metric = metric;
         }
 
-        private void accumulate(List<? extends QueryField> fields) {
+        private void accumulate(QueryRow row) {
             if (Metric.COUNT.equals(metric.metric())) {
                 count++;
                 return;
@@ -235,11 +226,8 @@ final class AggregationEngine {
             if (fieldIndex < 0) {
                 throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
             }
-            if (fields == null || fieldIndex >= fields.size()) {
-                return;
-            }
 
-            Object value = fields.get(fieldIndex).getValue();
+            Object value = row.getValueAt(fieldIndex);
             if (value == null) {
                 return;
             }

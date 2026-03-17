@@ -2,7 +2,6 @@ package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
@@ -34,15 +33,10 @@ final class GroupEngine {
 
             for (int index = 0; index < rows.size(); index++) {
                 QueryRow row = rows.get(index);
-                List<? extends QueryField> allFields = row.getFields();
                 String[] groupParts = new String[columnCount];
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(columnIndex);
-                    if (column.fieldIndex() >= allFields.size()) {
-                        groupParts[columnIndex] = GroupKeyUtil.NULL_GROUP_KEY;
-                        continue;
-                    }
-                    Object raw = allFields.get(column.fieldIndex()).getValue();
+                    Object raw = row.getValueAt(column.fieldIndex());
                     Object projected = column.timeBucket() == null ? raw : TimeBucketUtil.bucketValue(raw, column.timeBucket());
                     groupParts[columnIndex] = GroupKeyUtil.toGroupKeyValue(projected, column.dateFormat());
                 }

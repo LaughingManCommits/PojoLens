@@ -3,6 +3,7 @@ package laughing.man.commits.util;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.domain.RawQueryRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,6 +180,8 @@ public final class ReflectionUtil {
 
         FieldGraphDescriptor descriptor = fieldGraph(firstBean.getClass());
         List<FlattenedFieldDescriptor> flattenedFields = selectedFlattenedFields(descriptor, selectedFieldNames);
+        int fieldCount = flattenedFields.size();
+        List<String> sharedSchema = buildSchema(flattenedFields);
         List<QueryRow> domainRows = new ArrayList<>(conversionList.size());
 
         for (int i = 0; i < conversionList.size(); i++) {
@@ -188,9 +191,11 @@ public final class ReflectionUtil {
             }
 
             try {
-                QueryRow domainRow = new QueryRow();
-                domainRow.setFields(extractQueryFields(currentBean, flattenedFields));
-                domainRows.add(domainRow);
+                Object[] values = new Object[fieldCount];
+                for (int j = 0; j < fieldCount; j++) {
+                    values[j] = readResolvedFieldValue(currentBean, flattenedFields.get(j).fieldPath());
+                }
+                domainRows.add(new RawQueryRow(values, sharedSchema));
             } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
                 LOG.error("Failed to Convert Objects [{}] to new List", currentBean.getClass().getSimpleName(), e);
                 throw new IllegalStateException("Failed to flatten object fields", e);
@@ -467,6 +472,14 @@ public final class ReflectionUtil {
         } finally {
             activePath.remove(type);
         }
+    }
+
+    private static List<String> buildSchema(List<FlattenedFieldDescriptor> flattenedFields) {
+        List<String> names = new ArrayList<>(flattenedFields.size());
+        for (int i = 0; i < flattenedFields.size(); i++) {
+            names.add(flattenedFields.get(i).fieldName());
+        }
+        return Collections.unmodifiableList(names);
     }
 
     private static List<QueryField> extractQueryFields(Object bean,

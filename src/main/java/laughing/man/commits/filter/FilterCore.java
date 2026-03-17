@@ -148,8 +148,8 @@ public class FilterCore {
         if (!rulesByField.isEmpty()) {
             List<QueryRow> results = new ArrayList<>(rows.size());
             for (QueryRow row : rows) {
-                List<? extends QueryField> fields = row.getFields();
-                if (fields == null) {
+                int fieldCount = row.getFieldCount();
+                if (fieldCount == 0) {
                     continue;
                 }
                 boolean andMatched = false;
@@ -159,15 +159,14 @@ public class FilterCore {
                 outer:
                 for (Map.Entry<Integer, List<CompiledRule>> ruleEntry : rulesByField.entrySet()) {
                     int fieldIndex = ruleEntry.getKey();
-                    if (fieldIndex < 0 || fieldIndex >= fields.size()) {
+                    if (fieldIndex < 0 || fieldIndex >= fieldCount) {
                         continue;
                     }
                     List<CompiledRule> rules = ruleEntry.getValue();
                     if (rules == null || rules.isEmpty()) {
                         continue;
                     }
-                    QueryField field = fields.get(fieldIndex);
-                    Object fieldValue = field.getValue();
+                    Object fieldValue = row.getValueAt(fieldIndex);
                     for (CompiledRule rule : rules) {
                         boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
                         if (Separator.AND.equals(rule.separator)) {
@@ -354,7 +353,7 @@ public class FilterCore {
     private boolean matchesRule(QueryRow row, QueryRule rule, FilterExecutionPlan plan) {
         int fieldIndex = plan.findFieldIndex(rule.getColumn());
         Object fieldValue;
-        if (fieldIndex < 0 || fieldIndex >= row.getFields().size()) {
+        if (fieldIndex < 0 || fieldIndex >= row.getFieldCount()) {
             if (!SqlExpressionEvaluator.looksLikeExpression(rule.getColumn())) {
                 return false;
             }
@@ -363,7 +362,7 @@ public class FilterCore {
                     identifier -> resolveRowValue(row, plan, identifier)
             );
         } else {
-            fieldValue = row.getFields().get(fieldIndex).getValue();
+            fieldValue = row.getValueAt(fieldIndex);
         }
         if (rule.getValue() == null) {
             if (Clauses.EQUAL.equals(rule.getClause())) {
@@ -383,11 +382,10 @@ public class FilterCore {
 
     private Object resolveRowValue(QueryRow row, FilterExecutionPlan plan, String identifier) {
         int index = plan.findFieldIndex(identifier);
-        List<? extends QueryField> fields = row.getFields();
-        if (fields == null || index < 0 || index >= fields.size()) {
+        if (index < 0 || index >= row.getFieldCount()) {
             return null;
         }
-        return fields.get(index).getValue();
+        return row.getValueAt(index);
     }
 }
 

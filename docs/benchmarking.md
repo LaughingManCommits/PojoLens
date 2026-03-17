@@ -143,7 +143,18 @@ java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.H
 
 For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
 
-As of the 2026-03-17 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `45.668 us/op` / `364,312 B/op` at `size=1000` and `348.266 us/op` / `3,532,314 B/op` at `size=10000`, so the path is still too allocation-heavy to freeze into a strict merge gate.
+Representative warmed `-prof gc` numbers as of `2026-03-17` (after `RawQueryRow` allocation reduction):
+
+| Benchmark | size | us/op | B/op |
+|---|---|---:|---:|
+| `reflectionToDomainRows` | 1k | ~39 us/op | 100,136 B/op |
+| `reflectionToDomainRows` | 10k | ~427 us/op | 1,000,122 B/op |
+| `reflectionToClassList` | 1k | ~87 us/op | 140,232 B/op |
+| `reflectionToClassList` | 10k | ~996 us/op | 1,400,236 B/op |
+| `groupedMultiMetricAggregation` | 1k | ~22 us/op | 73,120 B/op |
+| `groupedMultiMetricAggregation` | 10k | ~303 us/op | 1,043,042 B/op |
+
+As of the 2026-03-17 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `28.0 us/op` / `212,656 B/op` at `size=1000` and `256.0 us/op` / `2,012,761 B/op` at `size=10000` (down from `364,312 B/op` and `3,532,314 B/op` before the `RawQueryRow` allocation reduction), so the path is still too allocation-heavy to freeze into a strict merge gate.
 
 ## Semantic Guardrails
 
@@ -170,7 +181,7 @@ The PojoLens path is part of the core guardrail suite through `scripts/benchmark
 
 As of the 2026-03-17 rebaseline, a strict-style cold run (`-f 1 -wi 0 -i 1 -r 100ms`) measured `2.650 ms/op` at `size=1000` and `121.266 ms/op` at `size=10000`. The core guardrail remains at `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000` in `benchmarks/thresholds.json`, preserving headroom for machine noise on the cold strict suite.
 
-Matching warmed `-prof gc` reruns on `2026-03-17` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.062 ms/op` / `247,432 B/op` for `size=1000` and `0.589 ms/op` / `2,302,619 B/op` for `size=10000`, while the manual comparison baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.094 ms/op` / `927,128 B/op`.
+Matching warmed `-prof gc` reruns on `2026-03-17` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.062 ms/op` / `247,432 B/op` for `size=1000` and `0.589 ms/op` / `2,302,619 B/op` for `size=10000`, while the manual comparison baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.094 ms/op` / `927,128 B/op`. (The `RawQueryRow` improvement primarily benefits the `reflectionToDomainRows` path: `2,840,026 B/op` → `1,000,122 B/op` at `size=10000`, a 64.8% allocation reduction.)
 
 Keep `manualHashJoinLeftComputedField` as a local comparison baseline rather than a merge gate. Use the profiled local command above when you need allocation context or want to compare the current PojoLens path against the manual baseline directly. These budgets are intentionally based on the colder no-warmup strict-suite configuration, not the warmer `-wi 1 -i 3 -prof gc` profiling runs.
 
