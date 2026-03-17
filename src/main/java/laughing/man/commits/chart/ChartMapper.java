@@ -217,7 +217,7 @@ public final class ChartMapper {
 
     private static IndexedRowReadPlan queryRowReadPlan(List<QueryRow> rows, ChartSpec spec) {
         for (QueryRow row : rows) {
-            if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
+            if (row == null || row.getFieldCount() == 0) {
                 continue;
             }
             Map<String, Integer> fieldIndexes = SchemaIndexUtil.indexQueryFields(row.getFields());
@@ -273,7 +273,7 @@ public final class ChartMapper {
     }
 
     private static Object readQueryRowField(QueryRow row, String fieldName, int fieldIndex) {
-        return QueryFieldLookupUtil.findFieldValue(row.getFields(), fieldName, fieldIndex);
+        return row.getValueAt(fieldIndex);
     }
 
     private static Object readArrayRowField(Object[] row, int fieldIndex) {

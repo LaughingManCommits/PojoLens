@@ -192,7 +192,7 @@ public final class ComputedFieldSupport {
         if (row == null) {
             return null;
         }
-        List<QueryField> materializedFields = materializeFields(row, plan);
+        List<QueryField> materializedFields = materializeFields(row, plan, !copyRow);
         if (!copyRow) {
             row.setFields(materializedFields);
             return row;
@@ -267,15 +267,27 @@ public final class ComputedFieldSupport {
         }
     }
 
-    private static List<QueryField> materializeFields(QueryRow row, MaterializationPlan plan) {
+    private static List<QueryField> materializeFields(QueryRow row, MaterializationPlan plan, boolean inPlace) {
         List<? extends QueryField> sourceFields = row.getFields();
         if (sourceFields == null || sourceFields.size() != plan.baseFieldCount()) {
             return materializeFieldsLegacy(sourceFields, plan.compiledDefinitions());
         }
 
-        ArrayList<QueryField> fields = new ArrayList<>(plan.totalFieldCount());
-        for (int i = 0; i < sourceFields.size(); i++) {
-            fields.add(sourceFields.get(i));
+        // For the in-place path, reuse the existing mutable list to avoid allocating a new
+        // ArrayList and copying all source field references. Safe because: (1) appended computed
+        // fields are added beyond the source indices that resolveValue reads; (2) for replacesExisting
+        // fields, later computed deps resolve via computedValues[], not sourceFields.
+        final ArrayList<QueryField> fields;
+        if (inPlace && sourceFields instanceof ArrayList) {
+            @SuppressWarnings("unchecked")
+            ArrayList<QueryField> mutable = (ArrayList<QueryField>) sourceFields;
+            fields = mutable;
+            fields.ensureCapacity(plan.totalFieldCount());
+        } else {
+            fields = new ArrayList<>(plan.totalFieldCount());
+            for (int i = 0; i < sourceFields.size(); i++) {
+                fields.add(sourceFields.get(i));
+            }
         }
 
         Object[] computedValues = new Object[plan.compiledDefinitions().length];
