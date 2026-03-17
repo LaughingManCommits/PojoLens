@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -q test -pl . -Dtest=\"GroupKeyUtilTest,AggregationEngineTest,FastStatsQuerySupportTest,GroupEngineTest,FilterCoreTest\" -DfailIfNoTests=false)",
+      "Bash(mvn -q test)",
+      "Bash(mvn test:*)"
+    ]
+  }
+}

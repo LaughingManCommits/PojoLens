@@ -3,7 +3,7 @@
 ## Repository Health
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `453` tests.
+- The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `471` tests.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
 
 ## Active Work
@@ -14,6 +14,7 @@
 - WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.
 - A new low-risk consolidation pass now shares repeated cold-path collection helpers through `CollectionUtil` instead of keeping separate `firstNonNull(...)` and limit-copy helpers in builder, filter, chart, and SQL-like code.
 - A follow-up low-risk consolidation pass now also shares deterministic map-entry sorting through `CollectionUtil.sortedEntriesByKey(...)` instead of keeping local sorted-entry planning in execution-plan, cache-key, and tabular-schema code.
+- An eighth consolidation pass now centralizes the duplicated `NULL_GROUP_KEY` constant and `toGroupKeyValue(...)` group-key normalization logic in `GroupKeyUtil`, which `AggregationEngine`, `FastStatsQuerySupport`, and `GroupEngine` now reuse instead of keeping local copies.
 - Consolidation guidance remains unchanged: share plans and metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
 - WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
 
@@ -63,6 +64,7 @@
 - Another follow-up consolidation pass on `2026-03-16` added `QueryFieldLookupUtil` for exact-name `QueryField` access, switched `ChartMapper`, `SqlLikeExecutionSupport`, `JoinEngine`, and `RuleCleaner` to it, and passed focused regressions (`QueryFieldLookupUtilTest`, `SchemaIndexUtilTest`, `FilterCoreTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
 - A later `2026-03-16` consolidation follow-up extended `SchemaIndexUtil` with ordered schema-name extraction for `QueryField`/`QueryRow` shapes, switched `FilterExecutionPlan` and `ReflectionUtil` to it, and passed focused regressions (`SchemaIndexUtilTest`, `ReflectionUtilTest`, `FilterCoreTest`) plus `mvn -q test`; the full suite now totals `451` tests.
 - A `2026-03-17` consolidation follow-up added `CollectionUtil.sortedEntriesByKey(...)` for deterministic map-entry planning, switched `FilterExecutionPlan`, `FilterExecutionPlanCacheKey`, and `TabularSchemaSupport` to it, added two more `CollectionUtilTest` cases, and passed focused regressions plus `mvn -q test`; the full suite now totals `453` tests.
+- A `2026-03-17` consolidation follow-up added `GroupKeyUtil` to centralize the `NULL_GROUP_KEY` constant and `toGroupKeyValue(...)` logic, switched `AggregationEngine`, `FastStatsQuerySupport`, and `GroupEngine` to it, added `GroupKeyUtilTest` (5 cases), and passed `mvn test`; the full suite now totals `471` tests.
 - Matching warmed reruns after the scatter pass now measure about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000`, `-prof gc` reruns fell from about `41,297,324` / `38,497,149 B/op` to about `36,595,578` / `33,795,681 B/op` for fluent / SQL-like scatter.
 - A rebuilt full chart guardrail rerun after the scatter pass still passed `45/45`, but its cold scatter scores drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; use that suite as a guardrail, not as the attribution source for this pass.
 - A rebuilt full hotspot-suite rerun on `2026-03-16` with `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`, versus the recorded `2026-03-14` snapshot of `1115.501 us/op` / `1,400,238 B/op` and `557.219 us/op` / `2,840,027 B/op`.

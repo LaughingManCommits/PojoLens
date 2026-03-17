@@ -5,9 +5,8 @@ import laughing.man.commits.builder.QueryMetric;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
-import laughing.man.commits.util.ObjectUtil;
+import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.ReflectionUtil;
-import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
@@ -17,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 public final class FastStatsQuerySupport {
-
-    private static final String NULL_GROUP_KEY = "<NULL>";
 
     private FastStatsQuerySupport() {
     }
@@ -181,7 +178,7 @@ public final class FastStatsQuerySupport {
                         ? rawValue
                         : TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
                 projectedValues[i] = projectedValue;
-                keyParts[i] = toGroupKeyValue(projectedValue, column.dateFormat());
+                keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
             }
 
             QueryKey key = new QueryKey(keyParts, columnCount);
@@ -226,7 +223,7 @@ public final class FastStatsQuerySupport {
             Object projectedValue = groupColumn.timeBucket() == null
                     ? rawValue
                     : TimeBucketUtil.bucketValue(rawValue, groupColumn.timeBucket());
-            String key = toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+            String key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
             GroupAccumulator accumulator = grouped.get(key);
             if (accumulator == null) {
                 accumulator = new GroupAccumulator(new Object[]{projectedValue}, metricPlans);
@@ -285,17 +282,6 @@ public final class FastStatsQuerySupport {
             return null;
         }
         return values[fieldIndex];
-    }
-
-    private static String toGroupKeyValue(Object rawValue, String dateFormat) {
-        if (rawValue == null) {
-            return NULL_GROUP_KEY;
-        }
-        if (rawValue instanceof String value) {
-            return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;
-        }
-        String value = ObjectUtil.castToString(rawValue, dateFormat);
-        return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;
     }
 
     private static Object[] copyValues(Object[] values, int size) {

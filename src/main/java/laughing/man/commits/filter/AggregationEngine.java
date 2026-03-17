@@ -5,8 +5,7 @@ import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
-import laughing.man.commits.util.ObjectUtil;
-import laughing.man.commits.util.StringUtil;
+import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ import java.util.Map;
 
 final class AggregationEngine {
 
-    private static final String NULL_GROUP_KEY = "<NULL>";
     private final FilterQueryBuilder builder;
 
     AggregationEngine(FilterQueryBuilder builder) {
@@ -59,7 +57,7 @@ final class AggregationEngine {
                     FilterExecutionPlan.GroupColumn column = columns.get(i);
                     Object rawValue = fieldValue(fields, column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
-                    String keyPart = toGroupKeyValue(projectedValue, column.dateFormat());
+                    String keyPart = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
                     keyParts[i] = keyPart;
                     projectedValues[i] = projectedValue;
                 }
@@ -177,14 +175,6 @@ final class AggregationEngine {
             return null;
         }
         return fields.get(fieldIndex).getValue();
-    }
-
-    private String toGroupKeyValue(Object rawValue, String dateFormat) {
-        if (rawValue == null) {
-            return NULL_GROUP_KEY;
-        }
-        String value = ObjectUtil.castToString(rawValue, dateFormat);
-        return StringUtil.isNull(value) ? NULL_GROUP_KEY : value;
     }
 
     private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {

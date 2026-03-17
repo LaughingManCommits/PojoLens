@@ -4,8 +4,7 @@ import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.util.CollectionUtil;
-import laughing.man.commits.util.ObjectUtil;
-import laughing.man.commits.util.StringUtil;
+import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
@@ -17,7 +16,6 @@ import static laughing.man.commits.EngineDefaults.EMPTY_GROUPING;
 
 final class GroupEngine {
 
-    private static final String NULL_GROUP_KEY = "<NULL>";
     private final FilterQueryBuilder builder;
 
     GroupEngine(FilterQueryBuilder builder) {
@@ -41,13 +39,12 @@ final class GroupEngine {
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(columnIndex);
                     if (column.fieldIndex() >= allFields.size()) {
-                        groupParts[columnIndex] = NULL_GROUP_KEY;
+                        groupParts[columnIndex] = GroupKeyUtil.NULL_GROUP_KEY;
                         continue;
                     }
                     Object raw = allFields.get(column.fieldIndex()).getValue();
                     Object projected = column.timeBucket() == null ? raw : TimeBucketUtil.bucketValue(raw, column.timeBucket());
-                    String groupedValue = ObjectUtil.castToString(projected, column.dateFormat());
-                    groupParts[columnIndex] = StringUtil.isNull(groupedValue) ? NULL_GROUP_KEY : groupedValue;
+                    groupParts[columnIndex] = GroupKeyUtil.toGroupKeyValue(projected, column.dateFormat());
                 }
                 QueryKey groupKey = new QueryKey(groupParts, columnCount);
 
