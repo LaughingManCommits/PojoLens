@@ -335,6 +335,8 @@ public final class FastStatsQuerySupport {
         private boolean present;
         private Number min;
         private Number max;
+        private double minDouble;
+        private double maxDouble;
         private double sum;
         private boolean hasFraction;
 
@@ -364,12 +366,16 @@ public final class FastStatsQuerySupport {
             if (!present) {
                 min = number;
                 max = number;
+                minDouble = asDouble;
+                maxDouble = asDouble;
                 present = true;
             } else {
-                if (asDouble < min.doubleValue()) {
+                if (asDouble < minDouble) {
+                    minDouble = asDouble;
                     min = number;
                 }
-                if (asDouble > max.doubleValue()) {
+                if (asDouble > maxDouble) {
+                    maxDouble = asDouble;
                     max = number;
                 }
             }

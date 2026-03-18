@@ -386,8 +386,12 @@ public final class ChartMapper {
         }
 
         private String labelText(Object rawX) {
+            String cached = labelTextCache.get(rawX);
+            if (cached != null) {
+                return cached;
+            }
             if (labelTextCache.containsKey(rawX)) {
-                return labelTextCache.get(rawX);
+                return null;
             }
             String label = ChartValidation.validateXValue(rawX, spec.xField(), spec.dateFormat());
             labelTextCache.put(rawX, label);
