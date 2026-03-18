@@ -97,15 +97,28 @@ public final class ChartPayloadJsonExporter {
             sb.append("null");
             return;
         }
-        sb.append("\"");
-        for (int i = 0; i < value.length(); i++) {
+        int len = value.length();
+        boolean needsEscape = false;
+        for (int i = 0; i < len; i++) {
             char c = value.charAt(i);
             if (c == '"' || c == '\\') {
-                sb.append('\\');
+                needsEscape = true;
+                break;
             }
-            sb.append(c);
         }
-        sb.append("\"");
+        sb.append('"');
+        if (!needsEscape) {
+            sb.append(value);
+        } else {
+            for (int i = 0; i < len; i++) {
+                char c = value.charAt(i);
+                if (c == '"' || c == '\\') {
+                    sb.append('\\');
+                }
+                sb.append(c);
+            }
+        }
+        sb.append('"');
     }
 
     private static int estimatedCapacity(ChartData chartData) {
@@ -145,22 +158,17 @@ public final class ChartPayloadJsonExporter {
     }
 
     private static void appendFraction(StringBuilder sb, long fraction) {
-        if (fraction < 100000L) {
-            sb.append('0');
+        if (fraction == 0L) {
+            sb.append("000000");
+            return;
         }
-        if (fraction < 10000L) {
-            sb.append('0');
-        }
-        if (fraction < 1000L) {
-            sb.append('0');
-        }
-        if (fraction < 100L) {
-            sb.append('0');
-        }
-        if (fraction < 10L) {
-            sb.append('0');
-        }
-        sb.append(fraction);
+        int f = (int) fraction;
+        sb.append((char) ('0' + f / 100000));
+        sb.append((char) ('0' + f / 10000 % 10));
+        sb.append((char) ('0' + f / 1000 % 10));
+        sb.append((char) ('0' + f / 100 % 10));
+        sb.append((char) ('0' + f / 10 % 10));
+        sb.append((char) ('0' + f % 10));
     }
 }
 
