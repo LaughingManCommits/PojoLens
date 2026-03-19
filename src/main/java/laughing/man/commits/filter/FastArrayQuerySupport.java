@@ -66,7 +66,7 @@ final class FastArrayQuerySupport {
             return null;
         }
 
-        Map<Object, Object> childIndex = buildChildIndex(children, plan);
+        ChildIndex childIndex = buildChildIndex(children, plan);
         ArrayList<Object[]> joinedRows = new ArrayList<>(parents.size());
         Object[] parentValues = new Object[plan.parentReadPlan().size()];
         for (Object parent : parents) {
@@ -398,30 +398,150 @@ final class FastArrayQuerySupport {
         return selected;
     }
 
-    private static Map<Object, Object> buildChildIndex(List<?> children, JoinCompilePlan plan) {
-        HashMap<Object, Object> index = new HashMap<>(CollectionUtil.expectedMapCapacity(children.size()));
+    private static ChildIndex buildChildIndex(List<?> children, JoinCompilePlan plan) {
+        int childJoinIndex = plan.childJoinIndex();
+        int denseMaxLength = maxDenseIndexLength(children.size());
+        boolean denseEligible = denseMaxLength > 0;
+        Object[] denseIndex = denseEligible ? new Object[Math.min(16, denseMaxLength)] : null;
+        int maxDenseKey = -1;
+        int childRowCount = 0;
+        HashMap<Object, Object> hashIndex = null;
         for (Object child : children) {
             if (child == null) {
                 continue;
             }
             Object[] childValues = ReflectionUtil.readFlatRowValues(child, plan.childReadPlan());
-            Object joinKey = childValues[plan.childJoinIndex()];
-            Object existing = index.putIfAbsent(joinKey, childValues);
-            if (existing == null) {
+            childRowCount++;
+            Object joinKey = childValues[childJoinIndex];
+            if (denseEligible
+                    && joinKey instanceof Integer intKey
+                    && intKey >= 0
+                    && intKey < denseMaxLength) {
+                if (intKey >= denseIndex.length) {
+                    denseIndex = growDenseIndex(denseIndex, intKey + 1, denseMaxLength);
+                }
+                putDenseChildValue(denseIndex, intKey, childValues);
+                maxDenseKey = Math.max(maxDenseKey, intKey);
                 continue;
             }
-            if (existing instanceof Object[] existingValues) {
-                ArrayList<Object[]> bucket = new ArrayList<>(2);
-                bucket.add(existingValues);
-                bucket.add(childValues);
-                index.put(joinKey, bucket);
+
+            if (hashIndex == null) {
+                hashIndex = new HashMap<>(CollectionUtil.expectedMapCapacity(Math.max(childRowCount, 1)));
+            }
+            if (denseEligible) {
+                denseEligible = false;
+                transferDenseToHashIndex(hashIndex, denseIndex);
+            }
+            putHashedChildValue(hashIndex, joinKey, childValues);
+        }
+
+        if (denseEligible && isDenseKeyRangeReasonable(maxDenseKey, childRowCount)) {
+            return new DenseIntChildIndex(trimDenseIndex(denseIndex, maxDenseKey + 1));
+        }
+        if (hashIndex == null) {
+            hashIndex = new HashMap<>(CollectionUtil.expectedMapCapacity(Math.max(childRowCount, 1)));
+        }
+        if (denseEligible) {
+            transferDenseToHashIndex(hashIndex, denseIndex);
+        }
+        return new HashChildIndex(hashIndex);
+    }
+
+    private static int maxDenseIndexLength(int sourceSize) {
+        if (sourceSize <= 0) {
+            return 0;
+        }
+        long maxLength = (long) sourceSize * 4L;
+        return maxLength > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxLength;
+    }
+
+    private static Object[] growDenseIndex(Object[] current, int minLength, int maxLength) {
+        int newLength = current.length;
+        while (newLength < minLength && newLength < maxLength) {
+            newLength = Math.min(maxLength, Math.max(newLength << 1, 1));
+        }
+        if (newLength < minLength) {
+            newLength = minLength;
+        }
+        Object[] grown = new Object[newLength];
+        System.arraycopy(current, 0, grown, 0, current.length);
+        return grown;
+    }
+
+    private static Object[] trimDenseIndex(Object[] denseIndex, int length) {
+        if (denseIndex == null || length <= 0) {
+            return new Object[0];
+        }
+        if (denseIndex.length == length) {
+            return denseIndex;
+        }
+        Object[] trimmed = new Object[length];
+        System.arraycopy(denseIndex, 0, trimmed, 0, length);
+        return trimmed;
+    }
+
+    private static void putDenseChildValue(Object[] denseIndex, int intKey, Object[] childValues) {
+        Object existing = denseIndex[intKey];
+        if (existing == null) {
+            denseIndex[intKey] = childValues;
+            return;
+        }
+        if (existing instanceof Object[] existingValues) {
+            ArrayList<Object[]> bucket = new ArrayList<>(2);
+            bucket.add(existingValues);
+            bucket.add(childValues);
+            denseIndex[intKey] = bucket;
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> bucket = (List<Object[]>) existing;
+        bucket.add(childValues);
+    }
+
+    private static void transferDenseToHashIndex(Map<Object, Object> hashIndex, Object[] denseIndex) {
+        if (denseIndex == null) {
+            return;
+        }
+        for (int key = 0; key < denseIndex.length; key++) {
+            Object slotValue = denseIndex[key];
+            if (slotValue == null) {
+                continue;
+            }
+            if (slotValue instanceof Object[] childValues) {
+                putHashedChildValue(hashIndex, key, childValues);
                 continue;
             }
             @SuppressWarnings("unchecked")
-            List<Object[]> bucket = (List<Object[]>) existing;
-            bucket.add(childValues);
+            List<Object[]> bucket = (List<Object[]>) slotValue;
+            for (Object[] childValues : bucket) {
+                putHashedChildValue(hashIndex, key, childValues);
+            }
         }
-        return index;
+    }
+
+    private static void putHashedChildValue(Map<Object, Object> index, Object joinKey, Object[] childValues) {
+        Object existing = index.putIfAbsent(joinKey, childValues);
+        if (existing == null) {
+            return;
+        }
+        if (existing instanceof Object[] existingValues) {
+            ArrayList<Object[]> bucket = new ArrayList<>(2);
+            bucket.add(existingValues);
+            bucket.add(childValues);
+            index.put(joinKey, bucket);
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> bucket = (List<Object[]>) existing;
+        bucket.add(childValues);
+    }
+
+    private static boolean isDenseKeyRangeReasonable(int maxDenseKey, int populatedKeys) {
+        if (maxDenseKey < 0 || populatedKeys <= 0) {
+            return false;
+        }
+        int denseArrayLength = maxDenseKey + 1;
+        return denseArrayLength <= populatedKeys * 4;
     }
 
     private static Object[] materializeJoinedRow(Object[] parentValues,
@@ -817,6 +937,30 @@ final class FastArrayQuerySupport {
     private record ComputedFieldPlan(ComputedFieldDefinition definition,
                                      SqlExpressionEvaluator.BoundExpression expression,
                                      int outputIndex) {
+    }
+
+    private interface ChildIndex {
+        Object get(Object joinKey);
+    }
+
+    private record HashChildIndex(Map<Object, Object> index) implements ChildIndex {
+        @Override
+        public Object get(Object joinKey) {
+            return index.get(joinKey);
+        }
+    }
+
+    private record DenseIntChildIndex(Object[] slots) implements ChildIndex {
+        @Override
+        public Object get(Object joinKey) {
+            if (!(joinKey instanceof Integer intKey)) {
+                return null;
+            }
+            if (intKey < 0 || intKey >= slots.length) {
+                return null;
+            }
+            return slots[intKey];
+        }
     }
 
     private record FastRuleGroup(int fieldIndex, CompiledRule[] rules) {

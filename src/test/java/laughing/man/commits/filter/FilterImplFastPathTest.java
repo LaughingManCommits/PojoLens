@@ -111,6 +111,31 @@ class FilterImplFastPathTest {
         }
     }
 
+    @Test
+    void fastArrayDenseIndexShouldPreserveOneToManyJoinRows() throws Exception {
+        List<Parent> parents = List.of(new Parent(1, "p1", 100));
+        List<ChildWithTag> children = List.of(
+                new ChildWithTag(1, 5, "a"),
+                new ChildWithTag(1, 7, "b")
+        );
+
+        Filter filter = PojoLens.newQueryBuilder(parents)
+                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
+                .addField("name")
+                .addField("tag")
+                .initFilter();
+        filter.join();
+
+        List<JoinTagRow> rows = filter.filter(JoinTagRow.class);
+        rows.sort(Comparator.comparing(r -> r.tag));
+
+        assertEquals(2, rows.size());
+        assertEquals("p1", rows.get(0).name);
+        assertEquals("a", rows.get(0).tag);
+        assertEquals("p1", rows.get(1).name);
+        assertEquals("b", rows.get(1).tag);
+    }
+
     static final class Parent {
         int id;
         String name;
@@ -133,11 +158,31 @@ class FilterImplFastPathTest {
         }
     }
 
+    static final class ChildWithTag {
+        int parentId;
+        int bonus;
+        String tag;
+
+        ChildWithTag(int parentId, int bonus, String tag) {
+            this.parentId = parentId;
+            this.bonus = bonus;
+            this.tag = tag;
+        }
+    }
+
     public static final class JoinOrderRow {
         public String name;
         public int salary;
 
         public JoinOrderRow() {
+        }
+    }
+
+    public static final class JoinTagRow {
+        public String name;
+        public String tag;
+
+        public JoinTagRow() {
         }
     }
 }
