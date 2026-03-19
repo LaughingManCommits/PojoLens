@@ -10,6 +10,7 @@ import laughing.man.commits.enums.Sort;
 import laughing.man.commits.util.ReflectionUtil;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -176,5 +177,38 @@ class FastPojoFilterSupportTest {
         FilterQueryBuilder builder = new FilterQueryBuilder(sampleFoos());
 
         assertFalse(FastPojoFilterSupport.isApplicable(builder));
+    }
+
+    @Test
+    void tryFilterRowsShouldReadOnlyRequiredFieldsWhenProjectionIsExplicit() {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleFoos());
+        builder.addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND);
+        builder.addOrder("integerField", 1);
+        builder.addDistinct("stringField", 1);
+        builder.addField("stringField");
+
+        List<QueryRow> rows = FastPojoFilterSupport.tryFilterRows(builder);
+
+        assertFalse(rows.isEmpty());
+        assertEquals(List.of("stringField", "integerField"), rowFieldNames(rows.get(0)));
+    }
+
+    @Test
+    void tryFilterRowsShouldKeepFullSchemaForOpenEndedProjection() {
+        FilterQueryBuilder builder = new FilterQueryBuilder(sampleFoos());
+        builder.addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND);
+
+        List<QueryRow> rows = FastPojoFilterSupport.tryFilterRows(builder);
+
+        assertFalse(rows.isEmpty());
+        assertEquals(List.of("stringField", "dateField", "integerField"), rowFieldNames(rows.get(0)));
+    }
+
+    private static List<String> rowFieldNames(QueryRow row) {
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < row.getFields().size(); i++) {
+            names.add(row.getFields().get(i).getFieldName());
+        }
+        return names;
     }
 }

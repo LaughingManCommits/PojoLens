@@ -24,6 +24,9 @@
 - If performance work continues, reopen WP19 only with a materially different structural idea, or reopen WP18 only if a fresh scatter/chart profile points beyond the remaining broader row/query overhead.
 - A narrow `ReflectionUtil` follow-up now skips no-op projection casts when the raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows.
 - WP22 now has a `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()`: for POJO-source simple filter queries (no joins, stats, computed fields, or explicit rule groups), filter rules are evaluated directly against POJO objects using the cached `FlatRowReadPlan`, materializing `QueryRow` only for matching rows. The dominant O(n) materialization cost (`toDomainRows`) is reduced to O(matched) allocations. The suite now covers 482 tests.
+- A 2026-03-19 follow-up on that path is currently uncommitted in the working tree: `FilterImpl` limits before projection, `ReflectionUtil.toDomainRows(...)` now pulls `paths/schema` from a compiled flat read plan directly, and `FastPojoFilterSupport` now selects only required source fields (filter/order/display/distinct) while preserving full-schema reads when return fields are open-ended.
+- Matching 2026-03-19 targeted reruns (`target/wip-bench-before-2026-03-19.json` vs `target/wip-bench-after-2026-03-19.json`) measured directional latency wins on `reflectionToDomainRows`, `fullFilterPipeline`, `parseAndFilter`, and `fluentFilterProjection` at both `size=1000` and `size=10000`, with allocation/op mostly flat except modest reductions on fluent filter projection.
+- 2026-03-19 validation reran focused regressions (`FastPojoFilterSupportTest`, `ReflectionUtilTest`, `StreamsBenchmarkParityTest`) and full `mvn -q test`; both passed and the suite now totals `484` tests.
 - Post-landing WP22 benchmark (2026-03-17): cold `fullFilterPipeline` at 6.093 / 115.338 ms/op (42/42 pass); warmed at 0.082 / 0.751 ms/op with 71,648 / 557,211 B/op. Cold cost is dominated by JIT compilation overhead, not materialization — WP22 is now parked.
 - WP23 investigated (2026-03-17): cold 173 ops/s is JVM startup noise; warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads). No lock contention found; remaining gap vs sqlLikeParse reflects inherent O(n=20K) vs O(1) workload difference. Map over-allocation fix landed: `aggregateSingleGroup`/`aggregateGrouped` now cap initial capacity at `Math.min(source.size(), 1024)`. WP23 parked.
 - The rebuilt `2026-03-16` hotspot suite (`target/benchmarks/hotspots-gc-2026-03-16.json`) now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`.
@@ -88,6 +91,8 @@
 - `target/wp20-computed-join-warm-gc.json`
 - `target/wp20-computed-join-hotspot-gc.json`
 - `target/wp19-current-2026-03-16.jfr`
+- `target/wip-bench-before-2026-03-19.json`
+- `target/wip-bench-after-2026-03-19.json`
 
 ## Next Validation
 
@@ -97,4 +102,5 @@
 - If continuing consolidation work, prefer more cold-path helper sharing like schema/adapter planning and avoid merging specialized bean, `QueryRow`, and `Object[]` executors.
 - Only reopen WP19 with a materially different structural idea than the reverted prefiltered-fast-state spike.
 - After code changes, rerun focused regressions plus `mvn -q test`.
+- If this 2026-03-19 uncommitted filter/reflection follow-up is kept, rerun the same anchored four-target JMH command and compare against `target/wip-bench-before-2026-03-19.json` for drift control before updating guardrails or docs.
 - Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.

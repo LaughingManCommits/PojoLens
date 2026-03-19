@@ -177,10 +177,10 @@ public final class ReflectionUtil {
             return new ArrayList<>(0);
         }
 
-        FieldGraphDescriptor descriptor = fieldGraph(firstBean.getClass());
-        List<FlattenedFieldDescriptor> flattenedFields = selectedFlattenedFields(descriptor, selectedFieldNames);
-        int fieldCount = flattenedFields.size();
-        List<String> sharedSchema = buildSchema(flattenedFields);
+        FlatRowReadPlan readPlan = compileFlatRowReadPlan(firstBean.getClass(), selectedFieldNames);
+        int fieldCount = readPlan.size();
+        List<String> sharedSchema = readPlan.fieldNames();
+        ResolvedFieldPath[] paths = readPlan.fieldPaths();
         List<QueryRow> domainRows = new ArrayList<>(conversionList.size());
 
         for (int i = 0; i < conversionList.size(); i++) {
@@ -192,7 +192,7 @@ public final class ReflectionUtil {
             try {
                 Object[] values = new Object[fieldCount];
                 for (int j = 0; j < fieldCount; j++) {
-                    values[j] = readResolvedFieldValue(currentBean, flattenedFields.get(j).fieldPath());
+                    values[j] = readResolvedFieldValue(currentBean, paths[j]);
                 }
                 domainRows.add(new RawQueryRow(values, sharedSchema));
             } catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {

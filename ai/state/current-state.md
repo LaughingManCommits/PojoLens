@@ -3,7 +3,7 @@
 ## Repository Health
 
 - The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-17`, which passed with `482` tests.
+- The latest recorded full suite is `mvn -q test` on `2026-03-19`, which passed with `484` tests.
 - The Java lint profile still runs via `mvn -B -ntp -Plint verify -DskipTests`, and on `2026-03-17` the committed checkstyle baseline was refreshed to match the current report. `scripts/checkstyle-baseline.txt` now contains `11,214` entries, and the repository baseline gate (`scripts/check-lint-baseline.ps1`) now passes with `new=0` and `fixed=0`.
 - A full benchmark sweep was run on `2026-03-17`: core `42/42`, chart `45/45`. `BENCHMARKS.md` was cleared and rewritten with fresh 2026-03-17 numbers. Hotspot artifacts are at `target/benchmarks/hotspots-gc-2026-03-17.json`.
 - AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
@@ -12,6 +12,7 @@
 
 - `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 from the fresh benchmark sweep.
 - WP22 landed: `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()` materializes `QueryRow` only for matching rows. Cold score unchanged (JIT startup dominates). Warmed: 0.082 / 0.751 ms/op with 71K / 557K B/op. WP22 parked.
+- A 2026-03-19 WP22-style follow-up is in progress in the working tree: `FilterImpl` now applies `limit` before display projection, `ReflectionUtil.toDomainRows(...)` now reuses `compileFlatRowReadPlan(...)` directly, and `FastPojoFilterSupport` now reads only required source fields (filter/order/display/distinct) with a full-schema fallback for open-ended projections.
 - WP23 investigated: warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads); cold 173 ops/s is JVM startup noise. Map over-allocation in `aggregateSingleGroup`/`aggregateGrouped` capped at `Math.min(source.size(), 1024)`. WP23 parked. Suite still at 482 tests.
 - WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
 - WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
@@ -55,6 +56,8 @@
 ## Current Evidence
 
 - Focused regressions (`CollectionUtilTest`, `FilterExecutionPlanCacheKeyTest`, `FilterCoreTest`) plus full `mvn -q test` passed on `2026-03-17`.
+- A fresh 2026-03-19 benchmark rerun (`mvn -B -ntp -Pbenchmark-runner -DskipTests package` then `java -jar target/pojo-lens-1.0.0-benchmarks.jar "^laughing\\.man\\.commits\\.benchmark\\.(HotspotMicroJmhBenchmark\\.reflectionToDomainRows|PojoLensPipelineJmhBenchmark\\.fullFilterPipeline|SqlLikePipelineJmhBenchmark\\.parseAndFilter|StreamsBaselineJmhBenchmark\\.fluentFilterProjection)$" -f 1 -wi 3 -i 5 -r 250ms -prof gc`) wrote `target/wip-bench-before-2026-03-19.json` and `target/wip-bench-after-2026-03-19.json` and showed directionally lower latency for all four targets (about `-20%` to `-34%`) with allocation/op mostly flat except modest reductions on the fluent filter path.
+- 2026-03-19 focused regressions (`FastPojoFilterSupportTest`, `ReflectionUtilTest`, `StreamsBenchmarkParityTest`) and a full `mvn -q test` rerun both passed; the suite now totals `484` tests.
 - A rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` now measures `sqlLikePreparedStatsFastPathSetupCopy` at about `509.906 us/op` / `2,145,675 B/op` and `sqlLikePreparedStatsFastPathSetupView` at about `512.749 us/op` / `2,145,195 B/op`, down materially from the prior `7.306/7.517 ms/op` and `16.8 MB/op` snapshot.
 - Exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `fluentTimeBucketMetrics` at about `0.529 ms/op`, `fluentTimeBucketMetricsToChart` at about `0.531 ms/op`, `sqlLikeParseAndTimeBucketMetrics` at about `0.519 ms/op`, and `sqlLikeParseAndTimeBucketMetricsToChart` at about `0.526 ms/op`.
 - Matching exact targeted reruns on `2026-03-16` now also measure grouped stats query/chart at about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart at `size=10000`.

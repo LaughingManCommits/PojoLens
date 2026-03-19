@@ -10,6 +10,7 @@ import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -65,7 +66,7 @@ final class FastPojoFilterSupport {
             return new ArrayList<>(0);
         }
 
-        List<String> fieldNames = new ArrayList<>(builder.getSourceFieldTypesForExecution().keySet());
+        List<String> fieldNames = requiredReadFieldNames(builder);
         if (fieldNames.isEmpty()) {
             return null;
         }
@@ -97,6 +98,51 @@ final class FastPojoFilterSupport {
             }
         }
         return matched;
+    }
+
+    /**
+     * Returns only the source field names that are actually needed: filter fields,
+     * order fields, display/return fields, and distinct fields. Reading fewer fields
+     * per row reduces the reflection overhead in the hot loop.
+     * Falls back to the full source schema if no specific fields can be identified.
+     */
+    private static List<String> requiredReadFieldNames(FilterQueryBuilder builder) {
+        Map<String, Class<?>> sourceFieldTypes = builder.getSourceFieldTypesForExecution();
+        if (sourceFieldTypes.isEmpty()) {
+            return List.of();
+        }
+
+        if (builder.getReturnFields().isEmpty()) {
+            return new ArrayList<>(sourceFieldTypes.keySet());
+        }
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
+        addKnownFields(selected, sourceFieldTypes, builder.getOrderFields().values());
+        addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
+        addKnownFields(selected, sourceFieldTypes, builder.getDistinctFields().values());
+
+        if (selected.isEmpty()) {
+            return new ArrayList<>(sourceFieldTypes.keySet());
+        }
+
+        ArrayList<String> ordered = new ArrayList<>(selected.size());
+        for (String fieldName : sourceFieldTypes.keySet()) {
+            if (selected.contains(fieldName)) {
+                ordered.add(fieldName);
+            }
+        }
+        return ordered.isEmpty() ? new ArrayList<>(sourceFieldTypes.keySet()) : ordered;
+    }
+
+    private static void addKnownFields(LinkedHashSet<String> selected,
+                                       Map<String, Class<?>> sourceFieldTypes,
+                                       Iterable<String> candidateFieldNames) {
+        for (String fieldName : candidateFieldNames) {
+            if (sourceFieldTypes.containsKey(fieldName)) {
+                selected.add(fieldName);
+            }
+        }
     }
 
     private static boolean passesFilter(Object[] values,

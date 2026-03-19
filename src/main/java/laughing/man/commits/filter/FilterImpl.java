@@ -194,9 +194,10 @@ public class FilterImpl implements Filter {
                     long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                     List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan);
                     emitOrderStage(executionBuilder, orderStarted, filterClasses.size(), sortedList.size());
+                    // Apply limit before display projection to avoid projecting rows that will be discarded.
+                    List<QueryRow> limited = CollectionUtil.applyLimit(sortedList, executionBuilder.getLimit());
                     // Project configured display fields.
-                    List<QueryRow> projected = core.filterDisplayFields(sortedList, plan);
-                    results = CollectionUtil.applyLimit(projected, executionBuilder.getLimit());
+                    results = core.filterDisplayFields(limited, plan);
                 }
             }
         } catch (Exception e) {
