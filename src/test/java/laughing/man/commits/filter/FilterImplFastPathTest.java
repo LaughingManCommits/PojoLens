@@ -6,11 +6,15 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class FilterImplFastPathTest {
@@ -70,6 +74,43 @@ class FilterImplFastPathTest {
         assertNotNull(fastArrayState.get(filter));
     }
 
+    @Test
+    void fastArrayPathShouldRespectOrderAndLimit() throws Exception {
+        ArrayList<Parent> parents = new ArrayList<>(400);
+        ArrayList<Child> children = new ArrayList<>(400);
+        for (int i = 0; i < 400; i++) {
+            parents.add(new Parent(i, "p" + i, i % 80));
+            children.add(new Child(i, 0));
+        }
+
+        Filter filter = PojoLens.newQueryBuilder(parents)
+                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
+                .addOrder("salary", 1)
+                .limit(20)
+                .addField("name")
+                .addField("salary")
+                .initFilter();
+
+        filter.join();
+
+        Field fastArrayState = FilterImpl.class.getDeclaredField("fastArrayState");
+        fastArrayState.setAccessible(true);
+        assertNotNull(fastArrayState.get(filter));
+
+        List<JoinOrderRow> actual = filter.filter(Sort.ASC, JoinOrderRow.class);
+
+        ArrayList<Parent> expectedSorted = new ArrayList<>(parents);
+        expectedSorted.sort(Comparator.comparingInt(p -> p.salary));
+
+        assertEquals(20, actual.size());
+        for (int i = 0; i < 20; i++) {
+            Parent expected = expectedSorted.get(i);
+            JoinOrderRow row = actual.get(i);
+            assertEquals(expected.name, row.name);
+            assertEquals(expected.salary, row.salary);
+        }
+    }
+
     static final class Parent {
         int id;
         String name;
@@ -89,6 +130,14 @@ class FilterImplFastPathTest {
         Child(int parentId, int bonus) {
             this.parentId = parentId;
             this.bonus = bonus;
+        }
+    }
+
+    public static final class JoinOrderRow {
+        public String name;
+        public int salary;
+
+        public JoinOrderRow() {
         }
     }
 }

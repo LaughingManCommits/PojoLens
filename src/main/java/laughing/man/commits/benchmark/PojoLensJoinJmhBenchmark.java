@@ -5,6 +5,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.Sort;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -15,6 +16,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +99,21 @@ public class PojoLensJoinJmhBenchmark {
     }
 
     @Benchmark
+    public List<ComputedJoinProjection> pojoLensJoinLeftComputedFieldOrderedLimited() throws Exception {
+        return PojoLens.newQueryBuilder(computedParents)
+                .computedFields(computedFieldRegistry)
+                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addOrder("totalComp", 1)
+                .limit(100)
+                .addField("name")
+                .addField("totalComp")
+                .initFilter()
+                .join()
+                .filter(Sort.ASC, ComputedJoinProjection.class);
+    }
+
+    @Benchmark
     public List<ComputedJoinProjection> manualHashJoinLeftComputedField() {
         Map<Integer, ComputedChildRow> childByParent = new HashMap<>(computedChildren.size() * 2);
         for (ComputedChildRow child : computedChildren) {
@@ -115,6 +132,31 @@ public class PojoLensJoinJmhBenchmark {
             }
         }
         return out;
+    }
+
+    @Benchmark
+    public List<ComputedJoinProjection> manualHashJoinLeftComputedFieldOrderedLimited() {
+        Map<Integer, ComputedChildRow> childByParent = new HashMap<>(computedChildren.size() * 2);
+        for (ComputedChildRow child : computedChildren) {
+            childByParent.put(child.parentId, child);
+        }
+        List<ComputedJoinProjection> out = new ArrayList<>(computedParents.size());
+        for (ComputedParentRow parent : computedParents) {
+            ComputedChildRow child = childByParent.get(parent.id);
+            int bonus = child == null ? 0 : child.bonus;
+            double totalComp = parent.salary + bonus;
+            if (totalComp >= minimumTotalComp) {
+                ComputedJoinProjection row = new ComputedJoinProjection();
+                row.name = parent.name;
+                row.totalComp = totalComp;
+                out.add(row);
+            }
+        }
+        out.sort(Comparator.comparingDouble(r -> r.totalComp));
+        if (out.size() <= 100) {
+            return out;
+        }
+        return new ArrayList<>(out.subList(0, 100));
     }
 
     public static class ParentRow {

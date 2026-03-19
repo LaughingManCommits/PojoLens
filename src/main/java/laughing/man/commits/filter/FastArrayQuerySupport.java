@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Set;
 
 final class FastArrayQuerySupport {
+    private static final int TOP_K_MIN_INPUT_ROWS = 64;
+    private static final int TOP_K_MAX_LIMIT = 512;
 
     private FastArrayQuerySupport() {
     }
@@ -102,7 +104,7 @@ final class FastArrayQuerySupport {
                               Class<T> projectionClass) {
         FilterExecutionPlan plan = FilterExecutionPlan.forSchema(builder, state.schemaFields());
         List<Object[]> filtered = filterRows(state.rows(), plan);
-        List<Object[]> ordered = orderRows(filtered, sortMethod, plan);
+        List<Object[]> ordered = orderRows(filtered, sortMethod, plan, builder.getLimit());
         List<String> outputSchema = outputSchema(builder, state.schemaFields(), plan);
         int[] outputIndexes = outputIndexes(builder, state.schemaFields(), plan);
         List<Object[]> limited = CollectionUtil.applyLimit(ordered, builder.getLimit());
@@ -554,6 +556,13 @@ final class FastArrayQuerySupport {
     }
 
     private static List<Object[]> orderRows(List<Object[]> rows, Sort sortMethod, FilterExecutionPlan plan) {
+        return orderRows(rows, sortMethod, plan, null);
+    }
+
+    private static List<Object[]> orderRows(List<Object[]> rows,
+                                            Sort sortMethod,
+                                            FilterExecutionPlan plan,
+                                            Integer limit) {
         if (sortMethod == null || rows == null || rows.isEmpty()) {
             return rows;
         }
@@ -561,9 +570,132 @@ final class FastArrayQuerySupport {
         if (columns.isEmpty()) {
             return rows;
         }
+        int topKLimit = normalizedTopKLimit(limit, rows.size());
+        if (shouldUseTopK(topKLimit, rows.size())) {
+            return topKOrderedRows(rows, columns, sortMethod, topKLimit);
+        }
         ArrayList<Object[]> ordered = new ArrayList<>(rows);
         ordered.sort((left, right) -> compareByColumns(left, right, columns, sortMethod));
         return ordered;
+    }
+
+    private static int normalizedTopKLimit(Integer limit, int rowCount) {
+        if (limit == null || limit <= 0 || rowCount <= 0 || limit >= rowCount) {
+            return -1;
+        }
+        return limit;
+    }
+
+    private static boolean shouldUseTopK(int limit, int rowCount) {
+        return limit > 0
+                && rowCount >= TOP_K_MIN_INPUT_ROWS
+                && limit <= TOP_K_MAX_LIMIT
+                && limit * 4 <= rowCount;
+    }
+
+    private static List<Object[]> topKOrderedRows(List<Object[]> rows,
+                                                  List<FilterExecutionPlan.OrderColumn> columns,
+                                                  Sort sortMethod,
+                                                  int limit) {
+        int[] heap = new int[limit];
+        int size = 0;
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            if (size < limit) {
+                heap[size] = rowIndex;
+                siftUpWorst(heap, size, rows, columns, sortMethod);
+                size++;
+                continue;
+            }
+            if (compareRowIndexes(rowIndex, heap[0], rows, columns, sortMethod) < 0) {
+                heap[0] = rowIndex;
+                siftDownWorst(heap, 0, size, rows, columns, sortMethod);
+            }
+        }
+
+        int[] orderedIndexes = drainHeapBestFirst(heap, size, rows, columns, sortMethod);
+        ArrayList<Object[]> results = new ArrayList<>(size);
+        for (int i = 0; i < orderedIndexes.length; i++) {
+            results.add(rows.get(orderedIndexes[i]));
+        }
+        return results;
+    }
+
+    private static void siftUpWorst(int[] heap,
+                                    int index,
+                                    List<Object[]> rows,
+                                    List<FilterExecutionPlan.OrderColumn> columns,
+                                    Sort sortMethod) {
+        int current = index;
+        while (current > 0) {
+            int parent = (current - 1) >>> 1;
+            if (compareRowIndexes(heap[current], heap[parent], rows, columns, sortMethod) <= 0) {
+                break;
+            }
+            swap(heap, current, parent);
+            current = parent;
+        }
+    }
+
+    private static void siftDownWorst(int[] heap,
+                                      int index,
+                                      int size,
+                                      List<Object[]> rows,
+                                      List<FilterExecutionPlan.OrderColumn> columns,
+                                      Sort sortMethod) {
+        int current = index;
+        while (true) {
+            int left = (current << 1) + 1;
+            if (left >= size) {
+                return;
+            }
+            int right = left + 1;
+            int worstChild = left;
+            if (right < size && compareRowIndexes(heap[right], heap[left], rows, columns, sortMethod) > 0) {
+                worstChild = right;
+            }
+            if (compareRowIndexes(heap[worstChild], heap[current], rows, columns, sortMethod) <= 0) {
+                return;
+            }
+            swap(heap, current, worstChild);
+            current = worstChild;
+        }
+    }
+
+    private static int[] drainHeapBestFirst(int[] heap,
+                                            int size,
+                                            List<Object[]> rows,
+                                            List<FilterExecutionPlan.OrderColumn> columns,
+                                            Sort sortMethod) {
+        int[] ordered = new int[size];
+        int heapSize = size;
+        for (int target = size - 1; target >= 0; target--) {
+            ordered[target] = heap[0];
+            heapSize--;
+            if (heapSize == 0) {
+                break;
+            }
+            heap[0] = heap[heapSize];
+            siftDownWorst(heap, 0, heapSize, rows, columns, sortMethod);
+        }
+        return ordered;
+    }
+
+    private static int compareRowIndexes(int leftIndex,
+                                         int rightIndex,
+                                         List<Object[]> rows,
+                                         List<FilterExecutionPlan.OrderColumn> columns,
+                                         Sort sortMethod) {
+        int compared = compareByColumns(rows.get(leftIndex), rows.get(rightIndex), columns, sortMethod);
+        if (compared != 0) {
+            return compared;
+        }
+        return Integer.compare(leftIndex, rightIndex);
+    }
+
+    private static void swap(int[] array, int left, int right) {
+        int temp = array[left];
+        array[left] = array[right];
+        array[right] = temp;
     }
 
     private static int compareByColumns(Object[] left,
