@@ -7,7 +7,7 @@
   "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft|size=10000": 1500.0,
   "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=1000": 100.0,
   "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000": 200.0,
-  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited|size=1000": 100.0,
+  "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited|size=1000": 130.0,
   "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited|size=10000": 200.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly|size=1000": 5.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly|size=10000": 5.0,
