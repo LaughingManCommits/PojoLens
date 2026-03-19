@@ -65,9 +65,16 @@ public class FilterCore {
     }
 
     public List<QueryRow> orderByFields(List<QueryRow> rows,
-                                           Sort sortMethod,
-                                           FilterExecutionPlan plan) {
+                                            Sort sortMethod,
+                                            FilterExecutionPlan plan) {
         return orderEngine.orderByFields(rows, sortMethod, plan);
+    }
+
+    public List<QueryRow> orderByFields(List<QueryRow> rows,
+                                        Sort sortMethod,
+                                        FilterExecutionPlan plan,
+                                        Integer limit) {
+        return orderEngine.orderByFields(rows, sortMethod, plan, limit);
     }
 
     /**
@@ -381,4 +388,3 @@ public class FilterCore {
         return row.getValueAt(index);
     }
 }
-

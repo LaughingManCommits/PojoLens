@@ -63,6 +63,40 @@ public class FilterCoreTest {
     }
 
     @Test
+    public void orderByFieldsWithLimitShouldMatchFullSortThenLimitForAsc() {
+        FilterCore core = new FilterCore(builder(manyFoosWithTies()));
+        core.getBuilder().addOrder("integerField", 1);
+        FilterExecutionPlan plan = core.buildExecutionPlan();
+
+        List<QueryRow> source = core.getBuilder().getRows();
+        List<QueryRow> expected = core.orderByFields(source, Sort.ASC, plan).subList(0, 20);
+        List<QueryRow> actual = core.orderByFields(source, Sort.ASC, plan, 20);
+
+        assertEquals(expected.size(), actual.size());
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(fieldValue(expected.get(i), "stringField"), fieldValue(actual.get(i), "stringField"));
+            assertEquals(fieldValue(expected.get(i), "integerField"), fieldValue(actual.get(i), "integerField"));
+        }
+    }
+
+    @Test
+    public void orderByFieldsWithLimitShouldMatchFullSortThenLimitForDesc() {
+        FilterCore core = new FilterCore(builder(manyFoosWithTies()));
+        core.getBuilder().addOrder("integerField", 1);
+        FilterExecutionPlan plan = core.buildExecutionPlan();
+
+        List<QueryRow> source = core.getBuilder().getRows();
+        List<QueryRow> expected = core.orderByFields(source, Sort.DESC, plan).subList(0, 20);
+        List<QueryRow> actual = core.orderByFields(source, Sort.DESC, plan, 20);
+
+        assertEquals(expected.size(), actual.size());
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(fieldValue(expected.get(i), "stringField"), fieldValue(actual.get(i), "stringField"));
+            assertEquals(fieldValue(expected.get(i), "integerField"), fieldValue(actual.get(i), "integerField"));
+        }
+    }
+
+    @Test
     public void joinShouldWorkWithBeanInput() {
         List<Parent> parents = Arrays.asList(new Parent(1, "p1"), new Parent(2, "p2"));
         List<Child> children = List.of(new Child(1, "c1"));
@@ -231,6 +265,15 @@ public class FilterCoreTest {
                 new Foo("a", now, 1),
                 new Foo("b", now, 3)
         );
+    }
+
+    private static List<Foo> manyFoosWithTies() {
+        Date now = new Date();
+        List<Foo> rows = new ArrayList<>(300);
+        for (int i = 0; i < 300; i++) {
+            rows.add(new Foo("row" + i, now, i % 50));
+        }
+        return rows;
     }
 
     private static int intField(QueryRow row, String fieldName) {

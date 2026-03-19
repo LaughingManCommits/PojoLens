@@ -751,12 +751,12 @@ public final class SqlLikeQuery {
             if (!working.getOrderFields().isEmpty()) {
                 long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
                 if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan);
+                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan, working.getLimit());
                 } else {
                     FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                     FilterCore orderCore = new FilterCore(orderBuilder);
                     FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan);
+                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan, working.getLimit());
                 }
                 emitStage(working,
                         QueryTelemetryStage.ORDER,
@@ -773,7 +773,7 @@ public final class SqlLikeQuery {
         }
 
         long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan);
+        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan, working.getLimit());
         if (!working.getOrderFields().isEmpty()) {
             emitStage(working,
                     QueryTelemetryStage.ORDER,
@@ -782,8 +782,8 @@ public final class SqlLikeQuery {
                     orderedRows.size(),
                     QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size()));
         }
-        List<QueryRow> projectedRows = core.filterDisplayFields(orderedRows, plan);
-        return CollectionUtil.applyLimit(projectedRows, working.getLimit());
+        List<QueryRow> limitedRows = CollectionUtil.applyLimit(orderedRows, working.getLimit());
+        return core.filterDisplayFields(limitedRows, plan);
     }
 
     private static boolean hasWherePredicates(FilterQueryBuilder builder) {
@@ -1174,4 +1174,3 @@ public final class SqlLikeQuery {
     }
 
 }
-

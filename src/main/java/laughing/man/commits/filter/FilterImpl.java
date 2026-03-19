@@ -174,7 +174,8 @@ public class FilterImpl implements Filter {
                         List<QueryRow> havingFiltered = havingCore.filterHavingFields(aggregated, havingPlan);
                         // ORDER BY for stats queries is evaluated on post-aggregation rows.
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                        List<QueryRow> orderedHaving = havingCore.orderByFields(havingFiltered, sortMethod, havingPlan);
+                        List<QueryRow> orderedHaving = havingCore.orderByFields(
+                                havingFiltered, sortMethod, havingPlan, executionBuilder.getLimit());
                         emitOrderStage(executionBuilder, orderStarted, havingFiltered.size(), orderedHaving.size());
                         results = CollectionUtil.applyLimit(orderedHaving, executionBuilder.getLimit());
                     } else {
@@ -182,7 +183,8 @@ public class FilterImpl implements Filter {
                         FilterCore aggregateCore = new FilterCore(aggregateBuilder);
                         FilterExecutionPlan aggregatePlan = aggregateCore.buildExecutionPlan();
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                        List<QueryRow> orderedAggregated = aggregateCore.orderByFields(aggregated, sortMethod, aggregatePlan);
+                        List<QueryRow> orderedAggregated = aggregateCore.orderByFields(
+                                aggregated, sortMethod, aggregatePlan, executionBuilder.getLimit());
                         emitOrderStage(executionBuilder, orderStarted, aggregated.size(), orderedAggregated.size());
                         results = CollectionUtil.applyLimit(orderedAggregated, executionBuilder.getLimit());
                     }
@@ -192,7 +194,7 @@ public class FilterImpl implements Filter {
                     }
                     // Keep ordering semantics consistent for non-aggregation queries.
                     long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                    List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan);
+                    List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan, executionBuilder.getLimit());
                     emitOrderStage(executionBuilder, orderStarted, filterClasses.size(), sortedList.size());
                     // Apply limit before display projection to avoid projecting rows that will be discarded.
                     List<QueryRow> limited = CollectionUtil.applyLimit(sortedList, executionBuilder.getLimit());
@@ -361,4 +363,3 @@ public class FilterImpl implements Filter {
     }
 
 }
-
