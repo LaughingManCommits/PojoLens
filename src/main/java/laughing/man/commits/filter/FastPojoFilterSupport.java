@@ -80,6 +80,7 @@ final class FastPojoFilterSupport {
         ReflectionUtil.FlatRowReadPlan readPlan =
                 ReflectionUtil.compileFlatRowReadPlan(firstBean.getClass(), fieldNames);
         List<String> readFieldNames = readPlan.fieldNames();
+        CompiledRuleBundle ruleBundle = compileRuleBundle(rulesByField, readPlan.size());
         Object[] buffer = new Object[readPlan.size()];
         List<QueryRow> matched = new ArrayList<>();
 
@@ -93,7 +94,7 @@ final class FastPojoFilterSupport {
             } catch (IllegalAccessException e) {
                 return null;
             }
-            if (passesFilter(buffer, rulesByField)) {
+            if (passesFilter(buffer, ruleBundle)) {
                 matched.add(toQueryRow(buffer, readFieldNames));
             }
         }
@@ -145,23 +146,47 @@ final class FastPojoFilterSupport {
         }
     }
 
+    private static CompiledRuleBundle compileRuleBundle(Map<Integer, List<CompiledRule>> rulesByField,
+                                                        int valueCount) {
+        int validCount = 0;
+        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
+            int fieldIndex = entry.getKey();
+            List<CompiledRule> rules = entry.getValue();
+            if (fieldIndex >= 0 && fieldIndex < valueCount && rules != null && !rules.isEmpty()) {
+                validCount++;
+            }
+        }
+        if (validCount == 0) {
+            return new CompiledRuleBundle(new int[0], new CompiledRule[0][]);
+        }
+
+        int[] fieldIndexes = new int[validCount];
+        CompiledRule[][] compiledRules = new CompiledRule[validCount][];
+        int position = 0;
+        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
+            int fieldIndex = entry.getKey();
+            List<CompiledRule> rules = entry.getValue();
+            if (fieldIndex < 0 || fieldIndex >= valueCount || rules == null || rules.isEmpty()) {
+                continue;
+            }
+            fieldIndexes[position] = fieldIndex;
+            compiledRules[position] = rules.toArray(new CompiledRule[0]);
+            position++;
+        }
+        return new CompiledRuleBundle(fieldIndexes, compiledRules);
+    }
+
     private static boolean passesFilter(Object[] values,
-                                        Map<Integer, List<CompiledRule>> rulesByField) {
+                                        CompiledRuleBundle rulesByField) {
         boolean andMatched = false;
         boolean andFailed = false;
         boolean orMatched = false;
 
         outer:
-        for (Map.Entry<Integer, List<CompiledRule>> ruleEntry : rulesByField.entrySet()) {
-            int fieldIndex = ruleEntry.getKey();
-            if (fieldIndex < 0 || fieldIndex >= values.length) {
-                continue;
-            }
-            List<CompiledRule> rules = ruleEntry.getValue();
-            if (rules == null || rules.isEmpty()) {
-                continue;
-            }
+        for (int i = 0; i < rulesByField.fieldIndexes().length; i++) {
+            int fieldIndex = rulesByField.fieldIndexes()[i];
             Object fieldValue = values[fieldIndex];
+            CompiledRule[] rules = rulesByField.compiledRules()[i];
             for (CompiledRule rule : rules) {
                 boolean matched = ObjectUtil.compareObject(
                         fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
@@ -184,5 +209,8 @@ final class FastPojoFilterSupport {
 
     private static QueryRow toQueryRow(Object[] values, List<String> fieldNames) {
         return new RawQueryRow(values.clone(), fieldNames);
+    }
+
+    private record CompiledRuleBundle(int[] fieldIndexes, CompiledRule[][] compiledRules) {
     }
 }

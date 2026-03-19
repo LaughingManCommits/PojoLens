@@ -25,7 +25,9 @@
 - A narrow `ReflectionUtil` follow-up now skips no-op projection casts when the raw value already matches the resolved leaf type, and `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows.
 - WP22 now has a `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()`: for POJO-source simple filter queries (no joins, stats, computed fields, or explicit rule groups), filter rules are evaluated directly against POJO objects using the cached `FlatRowReadPlan`, materializing `QueryRow` only for matching rows. The dominant O(n) materialization cost (`toDomainRows`) is reduced to O(matched) allocations. The suite now covers 482 tests.
 - A 2026-03-19 follow-up on that path is currently uncommitted in the working tree: `FilterImpl` limits before projection, `ReflectionUtil.toDomainRows(...)` now pulls `paths/schema` from a compiled flat read plan directly, and `FastPojoFilterSupport` now selects only required source fields (filter/order/display/distinct) while preserving full-schema reads when return fields are open-ended.
+- A second uncommitted 2026-03-19 follow-up now also compiles `rulesByField` into array-backed bundles in `FastPojoFilterSupport` before scanning rows, so the per-row hot loop no longer allocates/iterates `Map` entry iterators for rule evaluation.
 - Matching 2026-03-19 targeted reruns (`target/wip-bench-before-2026-03-19.json` vs `target/wip-bench-after-2026-03-19.json`) measured directional latency wins on `reflectionToDomainRows`, `fullFilterPipeline`, `parseAndFilter`, and `fluentFilterProjection` at both `size=1000` and `size=10000`, with allocation/op mostly flat except modest reductions on fluent filter projection.
+- A second 2026-03-19 rerun (`target/wip-bench-after-2026-03-19.json` vs `target/wip-bench-after2-2026-03-19.json`) measured mostly neutral latency (roughly `-3%` to `+3%`) but a large drop in fluent-path allocation/op (roughly `-38%` to `-58%` on the two fluent filter benchmarks).
 - 2026-03-19 validation reran focused regressions (`FastPojoFilterSupportTest`, `ReflectionUtilTest`, `StreamsBenchmarkParityTest`) and full `mvn -q test`; both passed and the suite now totals `484` tests.
 - Post-landing WP22 benchmark (2026-03-17): cold `fullFilterPipeline` at 6.093 / 115.338 ms/op (42/42 pass); warmed at 0.082 / 0.751 ms/op with 71,648 / 557,211 B/op. Cold cost is dominated by JIT compilation overhead, not materialization — WP22 is now parked.
 - WP23 investigated (2026-03-17): cold 173 ops/s is JVM startup noise; warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads). No lock contention found; remaining gap vs sqlLikeParse reflects inherent O(n=20K) vs O(1) workload difference. Map over-allocation fix landed: `aggregateSingleGroup`/`aggregateGrouped` now cap initial capacity at `Math.min(source.size(), 1024)`. WP23 parked.
@@ -93,6 +95,7 @@
 - `target/wp19-current-2026-03-16.jfr`
 - `target/wip-bench-before-2026-03-19.json`
 - `target/wip-bench-after-2026-03-19.json`
+- `target/wip-bench-after2-2026-03-19.json`
 
 ## Next Validation
 
@@ -103,4 +106,5 @@
 - Only reopen WP19 with a materially different structural idea than the reverted prefiltered-fast-state spike.
 - After code changes, rerun focused regressions plus `mvn -q test`.
 - If this 2026-03-19 uncommitted filter/reflection follow-up is kept, rerun the same anchored four-target JMH command and compare against `target/wip-bench-before-2026-03-19.json` for drift control before updating guardrails or docs.
+- If keeping the compiled-rule-bundle fast-path change, compare `target/wip-bench-after-2026-03-19.json` and `target/wip-bench-after2-2026-03-19.json` together (latency and allocation) and decide whether allocation reduction is worth the small/noisy latency tradeoff on large fluent projection.
 - Use exact targeted `StatsQueryJmhBenchmark` reruns only as follow-up evidence, not as the sole attribution source when the session is already drift-heavy.
