@@ -627,12 +627,12 @@ public final class SqlLikeQuery {
             List<QueryRow> orderedRows = havingRows;
             if (orderApplied) {
                 if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, context.sort(), groupedPlan);
+                    orderedRows = groupedCore.orderByFields(havingRows, context.sort(), groupedPlan, working.getLimit());
                 } else {
                     FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                     FilterCore orderCore = new FilterCore(orderBuilder);
                     FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, context.sort(), orderPlan);
+                    orderedRows = orderCore.orderByFields(havingRows, context.sort(), orderPlan, working.getLimit());
                 }
             }
             afterOrder = sizeOf(orderedRows);
