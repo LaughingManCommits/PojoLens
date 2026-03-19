@@ -9,7 +9,7 @@
 ## Current Priority
 
 - `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 based on the fresh benchmark sweep.
-- The Java lint baseline was refreshed on `2026-03-17`: `scripts/checkstyle-baseline.txt` now matches the `11,214`-entry current report, and the repo’s baseline gate (`scripts/check-lint-baseline.ps1`) now passes with `new=0` and `fixed=0`.
+- The Java lint baseline was refreshed on `2026-03-19`: `scripts/checkstyle-baseline.txt` now matches the `11,429`-entry current report, and the repo’s baseline gate (`scripts/check-lint-baseline.ps1`) now passes with `new=0` and `fixed=0`.
 - WP19 is now parked after two reverted structural spikes.
 - WP20 is now complete; the computed-field join core budgets were rebased and the hotspot policy is explicit.
 - WP18 also landed one more 2026-03-16 scatter-specific increment and is parked again unless a fresh profile exposes another chart-specific root cause.
@@ -70,7 +70,7 @@
 ## Guardrails
 
 - Do not reopen the broader `FilterImpl` raw-row delegation without a new hypothesis; it regressed the short `size=10000` reruns and was not kept.
-- Do not treat the currently green Java lint gate as evidence of a clean codebase; it now reflects a refreshed `11,214`-entry checkstyle baseline, so any future lint cleanup should be scoped deliberately and validated as a real reduction from that inherited set.
+- Do not treat the currently green Java lint gate as evidence of a clean codebase; it now reflects a refreshed `11,429`-entry checkstyle baseline, so any future lint cleanup should be scoped deliberately and validated as a real reduction from that inherited set.
 - Do not reopen WP17 micro-tuning unless a fresh clean-tree profile shows a high-confidence win on the selective single-join path.
 - Judge SQL-like work by absolute `ms/op`, allocation, and product value; fluent-vs-SQL-like ratios are diagnostic only.
 - For future consolidation, share plans and metadata first, and do not merge specialized bean, `QueryRow`, or `Object[]` execution loops just to remove duplication.
