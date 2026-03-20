@@ -4,6 +4,7 @@ import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -29,6 +30,8 @@ public class PojoLensPipelineJmhBenchmark {
 
     private List<BenchmarkFoo> source;
     private String matchValue;
+    private Filter filterPipeline;
+    private Filter groupPipeline;
 
     @Setup
     public void setup() {
@@ -39,31 +42,31 @@ public class PojoLensPipelineJmhBenchmark {
             source.add(new BenchmarkFoo(value, new Date(BenchmarkProfiles.BASE_EPOCH_MILLIS + i), integerField));
         }
         matchValue = "s42";
-    }
-
-    @Benchmark
-    public List<BenchmarkFoo> fullFilterPipeline() throws Exception {
-        return PojoLens.newQueryBuilder(source)
+        filterPipeline = PojoLens.newQueryBuilder(source)
                 .addDistinct("stringField", 1)
                 .addRule("stringField", matchValue, Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 100, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
                 .addField("stringField")
                 .addField("integerField")
-                .initFilter()
-                .filter(Sort.ASC, BenchmarkFoo.class);
-    }
-
-    @Benchmark
-    public Map<String, List<BenchmarkFoo>> fullGroupPipeline() throws Exception {
-        return PojoLens.newQueryBuilder(source)
+                .initFilter();
+        groupPipeline = PojoLens.newQueryBuilder(source)
                 .addRule("integerField", 200, Clauses.SMALLER_EQUAL, Separator.AND)
                 .addGroup("stringField", 1)
                 .addGroup("integerField", 2)
                 .addField("stringField")
                 .addField("integerField")
-                .initFilter()
-                .filterGroups(BenchmarkFoo.class);
+                .initFilter();
+    }
+
+    @Benchmark
+    public List<BenchmarkFoo> fullFilterPipeline() throws Exception {
+        return filterPipeline.filter(Sort.ASC, BenchmarkFoo.class);
+    }
+
+    @Benchmark
+    public Map<String, List<BenchmarkFoo>> fullGroupPipeline() throws Exception {
+        return groupPipeline.filterGroups(BenchmarkFoo.class);
     }
 }
 

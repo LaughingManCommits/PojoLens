@@ -1,6 +1,7 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -31,6 +32,11 @@ public class SqlLikePipelineJmhBenchmark {
     private String explainQuery;
     private String booleanDepthQuery;
     private String havingComputedQuery;
+    private SqlLikeQuery parsedQuery;
+    private SqlLikeQuery parsedHavingQuery;
+    private SqlLikeQuery parsedExplainQuery;
+    private SqlLikeQuery parsedBooleanDepthQuery;
+    private SqlLikeQuery parsedHavingComputedQuery;
 
     @Setup
     public void setup() {
@@ -60,6 +66,11 @@ public class SqlLikePipelineJmhBenchmark {
                 + "group by stringField "
                 + "having totalValue / total >= 200 and (total >= 5 or total = 3) "
                 + "order by totalValue desc limit 20";
+        parsedQuery = PojoLens.parse(query);
+        parsedHavingQuery = PojoLens.parse(havingQuery);
+        parsedExplainQuery = PojoLens.parse(explainQuery);
+        parsedBooleanDepthQuery = PojoLens.parse(booleanDepthQuery);
+        parsedHavingComputedQuery = PojoLens.parse(havingComputedQuery);
     }
 
     @Benchmark
@@ -69,27 +80,27 @@ public class SqlLikePipelineJmhBenchmark {
 
     @Benchmark
     public List<BenchmarkFoo> parseAndFilter() {
-        return PojoLens.parse(query).filter(source, BenchmarkFoo.class);
+        return parsedQuery.filter(source, BenchmarkFoo.class);
     }
 
     @Benchmark
     public List<BenchmarkGroupRow> parseAndFilterHaving() {
-        return PojoLens.parse(havingQuery).filter(source, BenchmarkGroupRow.class);
+        return parsedHavingQuery.filter(source, BenchmarkGroupRow.class);
     }
 
     @Benchmark
     public Map<String, Object> parseAndExplain() {
-        return PojoLens.parse(explainQuery).explain();
+        return parsedExplainQuery.explain();
     }
 
     @Benchmark
     public List<BenchmarkFoo> parseAndFilterBooleanDepth() {
-        return PojoLens.parse(booleanDepthQuery).filter(source, BenchmarkFoo.class);
+        return parsedBooleanDepthQuery.filter(source, BenchmarkFoo.class);
     }
 
     @Benchmark
     public List<BenchmarkHavingRow> parseAndFilterHavingComputed() {
-        return PojoLens.parse(havingComputedQuery).filter(source, BenchmarkHavingRow.class);
+        return parsedHavingComputedQuery.filter(source, BenchmarkHavingRow.class);
     }
 
     @Benchmark

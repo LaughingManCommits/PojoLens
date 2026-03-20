@@ -75,21 +75,23 @@ The budget files are the source of truth:
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
 
+**Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLens.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
+
 Representative core budgets from `benchmarks/thresholds.json`:
 
 | Workload | Category | Size 1k | Size 10k |
 |---|---|---:|---:|
-| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `350 ms/op` | `750 ms/op` |
-| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `300 ms/op` | `900 ms/op` |
-| `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `500 ms/op` | `1500 ms/op` |
-| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `25 ms/op` | `200 ms/op` |
-| `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `5 ms/op` | `5 ms/op` |
-| `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `500 ms/op` | `900 ms/op` |
-| `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `1 ms/op` | `1 ms/op` |
-| `StatsQueryJmhBenchmark.fluentGroupedMetrics` | `GROUP` | `600 ms/op` | `1100 ms/op` |
-| `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` | `TIME_BUCKET` | `700 ms/op` | `1400 ms/op` |
-| `StatsQueryJmhBenchmark.fluentGroupedMetricsExplain` | `EXPLAIN` | `250 ms/op` | `650 ms/op` |
-| `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart` | `CHART` | `900 ms/op` | `1600 ms/op` |
+| `PojoLensPipelineJmhBenchmark.fullFilterPipeline` | `FILTER` | `169.3 ms/op` | `185.4 ms/op` |
+| `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `219.8 ms/op` | `290.0 ms/op` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `182.4 ms/op` | `243.5 ms/op` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `82.2 ms/op` | `205.7 ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `0.2 ms/op` | `0.2 ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `198.3 ms/op` | `235.3 ms/op` |
+| `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `0.1 ms/op` | `0.1 ms/op` |
+| `StatsQueryJmhBenchmark.fluentGroupedMetrics` | `GROUP` | `6.7 ms/op` | `52.9 ms/op` |
+| `StatsQueryJmhBenchmark.fluentTimeBucketMetrics` | `TIME_BUCKET` | `38.1 ms/op` | `162.1 ms/op` |
+| `StatsQueryJmhBenchmark.fluentGroupedMetricsExplain` | `EXPLAIN` | `0.3 ms/op` | `0.3 ms/op` |
+| `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart` | `CHART` | `12.7 ms/op` | `81.0 ms/op` |
 
 The chart threshold file carries the full chart-type matrix for `BAR`, `LINE`, `PIE`, `AREA`, and `SCATTER` mapping/export paths across `1k`, `10k`, and `100k` datasets.
 
@@ -179,9 +181,9 @@ java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.
 
 The PojoLens path is part of the core guardrail suite through `scripts/benchmark-suite-main.args`.
 
-As of the 2026-03-17 rebaseline, a strict-style cold run (`-f 1 -wi 0 -i 1 -r 100ms`) measured `2.650 ms/op` at `size=1000` and `121.266 ms/op` at `size=10000`. The core guardrail remains at `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000` in `benchmarks/thresholds.json`, preserving headroom for machine noise on the cold strict suite.
+As of 2026-03-20 (execution-only methodology), a strict-style cold run (`-f 1 -wi 0 -i 1 -r 100ms`) measured `2.232 ms/op` at `size=1000` and `32.074 ms/op` at `size=10000`. The core guardrail is at `82.2 ms/op` at `size=1000` and `205.7 ms/op` at `size=10000` in `benchmarks/thresholds.json`, preserving headroom for machine noise on the cold strict suite. The previous cold score at `size=10000` was `121.266 ms/op` under the old setup-bundled methodology; the reduction reflects query plan compilation being excluded from the measured iteration.
 
-Matching warmed `-prof gc` reruns on `2026-03-17` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.062 ms/op` / `247,432 B/op` for `size=1000` and `0.589 ms/op` / `2,302,619 B/op` for `size=10000`, while the manual comparison baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.094 ms/op` / `927,128 B/op`. (The `RawQueryRow` improvement primarily benefits the `reflectionToDomainRows` path: `2,840,026 B/op` → `1,000,122 B/op` at `size=10000`, a 64.8% allocation reduction.)
+Warmed `-prof gc` reruns on `2026-03-17` (under the old setup-bundled methodology) measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.062 ms/op` / `247,432 B/op` for `size=1000` and `0.589 ms/op` / `2,302,619 B/op` for `size=10000`, while the manual comparison baseline measured about `0.009 ms/op` / `84,512 B/op` and `0.094 ms/op` / `927,128 B/op`. (The `RawQueryRow` improvement primarily benefits the `reflectionToDomainRows` path: `2,840,026 B/op` → `1,000,122 B/op` at `size=10000`, a 64.8% allocation reduction.) These warmed numbers need a refresh under the current execution-only methodology before being used as profiling baselines.
 
 Keep `manualHashJoinLeftComputedField` as a local comparison baseline rather than a merge gate. Use the profiled local command above when you need allocation context or want to compare the current PojoLens path against the manual baseline directly. These budgets are intentionally based on the colder no-warmup strict-suite configuration, not the warmer `-wi 1 -i 3 -prof gc` profiling runs.
 

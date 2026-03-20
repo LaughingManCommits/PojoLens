@@ -3,6 +3,7 @@ package laughing.man.commits.benchmark;
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -27,6 +28,7 @@ public class PojoLensJmhBenchmark {
 
     private List<BenchmarkFoo> source;
     private String matchValue;
+    private Filter pojoLensFilterPlan;
 
     @Setup
     public void setup() {
@@ -37,16 +39,16 @@ public class PojoLensJmhBenchmark {
             source.add(new BenchmarkFoo(value, new Date(BenchmarkProfiles.BASE_EPOCH_MILLIS + i), integerField));
         }
         matchValue = "v25";
+        pojoLensFilterPlan = PojoLens.newQueryBuilder(source)
+                .addRule("stringField", matchValue, Clauses.EQUAL, Separator.OR)
+                .addDistinct("stringField", 1)
+                .addOrder("integerField", 1)
+                .initFilter();
     }
 
     @Benchmark
     public List<BenchmarkFoo> pojoLensFilter() throws Exception {
-        return PojoLens.newQueryBuilder(source)
-                .addRule("stringField", matchValue, Clauses.EQUAL, Separator.OR)
-                .addDistinct("stringField", 1)
-                .addOrder("integerField", 1)
-                .initFilter()
-                .filter(BenchmarkFoo.class);
+        return pojoLensFilterPlan.filter(BenchmarkFoo.class);
     }
 
     @Benchmark

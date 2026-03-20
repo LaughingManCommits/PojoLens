@@ -1,11 +1,14 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
+import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -34,6 +37,13 @@ public class StatsQueryJmhBenchmark {
     private String bucketSql;
     private ChartSpec groupedChartSpec;
     private ChartSpec bucketChartSpec;
+    private Filter fluentGroupedFilter;
+    private Filter fluentTimeBucketFilter;
+    private Filter fluentGroupedToChartFilter;
+    private Filter fluentTimeBucketToChartFilter;
+    private QueryBuilder fluentGroupedExplainBuilder;
+    private SqlLikeQuery parsedGroupedSql;
+    private SqlLikeQuery parsedBucketSql;
 
     @Setup
     public void setup() {
@@ -61,80 +71,83 @@ public class StatsQueryJmhBenchmark {
         PojoLens.setSqlLikeCacheEnabled(true);
         PojoLens.setSqlLikeCacheStatsEnabled(true);
         PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
+
+        fluentGroupedFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("stringField")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+        fluentTimeBucketFilter = PojoLens.newQueryBuilder(source)
+                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+        fluentGroupedToChartFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("stringField")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+        fluentTimeBucketToChartFilter = PojoLens.newQueryBuilder(source)
+                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+        fluentGroupedExplainBuilder = PojoLens.newQueryBuilder(source)
+                .addGroup("stringField")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue");
+        parsedGroupedSql = PojoLens.parse(groupedSql);
+        parsedBucketSql = PojoLens.parse(bucketSql);
     }
 
     @Benchmark
     public List<GroupedStatsRow> fluentGroupedMetrics() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("stringField")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .filter(GroupedStatsRow.class);
+        return fluentGroupedFilter.filter(GroupedStatsRow.class);
     }
 
     @Benchmark
     public List<BucketedStatsRow> fluentTimeBucketMetrics() {
-        return PojoLens.newQueryBuilder(source)
-                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .filter(BucketedStatsRow.class);
+        return fluentTimeBucketFilter.filter(BucketedStatsRow.class);
     }
 
     @Benchmark
     public List<GroupedStatsRow> sqlLikeParseAndGroupedMetrics() {
-        return PojoLens.parse(groupedSql).filter(source, GroupedStatsRow.class);
+        return parsedGroupedSql.filter(source, GroupedStatsRow.class);
     }
 
     @Benchmark
     public List<BucketedStatsRow> sqlLikeParseAndTimeBucketMetrics() {
-        return PojoLens.parse(bucketSql).filter(source, BucketedStatsRow.class);
+        return parsedBucketSql.filter(source, BucketedStatsRow.class);
     }
 
     @Benchmark
     public ChartData fluentGroupedMetricsToChart() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("stringField")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .chart(GroupedStatsRow.class, groupedChartSpec);
+        return fluentGroupedToChartFilter.chart(GroupedStatsRow.class, groupedChartSpec);
     }
 
     @Benchmark
     public ChartData fluentTimeBucketMetricsToChart() {
-        return PojoLens.newQueryBuilder(source)
-                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .chart(BucketedStatsRow.class, bucketChartSpec);
+        return fluentTimeBucketToChartFilter.chart(BucketedStatsRow.class, bucketChartSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeParseAndGroupedMetricsToChart() {
-        return PojoLens.parse(groupedSql).chart(source, GroupedStatsRow.class, groupedChartSpec);
+        return parsedGroupedSql.chart(source, GroupedStatsRow.class, groupedChartSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeParseAndTimeBucketMetricsToChart() {
-        return PojoLens.parse(bucketSql).chart(source, BucketedStatsRow.class, bucketChartSpec);
+        return parsedBucketSql.chart(source, BucketedStatsRow.class, bucketChartSpec);
     }
 
     @Benchmark
     public Map<String, Object> fluentGroupedMetricsExplain() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("stringField")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .explain();
+        return fluentGroupedExplainBuilder.explain();
     }
 
     @Benchmark
     public Map<String, Object> sqlLikeGroupedMetricsExplain() {
-        return PojoLens.parse(groupedSql).explain();
+        return parsedGroupedSql.explain();
     }
 
     public static class GroupedStatsRow {

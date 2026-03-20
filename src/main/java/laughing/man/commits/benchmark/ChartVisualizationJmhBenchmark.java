@@ -6,6 +6,8 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chart.NullPointPolicy;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.filter.Filter;
+import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -43,6 +45,16 @@ public class ChartVisualizationJmhBenchmark {
     private ChartData pieData;
     private ChartData areaData;
     private ChartData scatterData;
+    private Filter barFilter;
+    private Filter lineFilter;
+    private Filter pieFilter;
+    private Filter areaFilter;
+    private Filter scatterFilter;
+    private SqlLikeQuery parsedBarSql;
+    private SqlLikeQuery parsedLineSql;
+    private SqlLikeQuery parsedPieSql;
+    private SqlLikeQuery parsedAreaSql;
+    private SqlLikeQuery parsedScatterSql;
 
     @Setup
     public void setup() {
@@ -74,81 +86,88 @@ public class ChartVisualizationJmhBenchmark {
         areaSql = "select period, series, sum(amount) as total group by period, series";
         scatterSql = "select xValue, yValue, series";
 
-        barData = fluentBarMapping();
-        lineData = fluentLineMapping();
-        pieData = fluentPieMapping();
-        areaData = fluentAreaMapping();
-        scatterData = fluentScatterMapping();
+        barFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("department")
+                .addMetric("amount", Metric.SUM, "total")
+                .initFilter();
+        lineFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("period")
+                .addGroup("series")
+                .addMetric("amount", Metric.SUM, "total")
+                .initFilter();
+        pieFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("department")
+                .addMetric("amount", Metric.SUM, "total")
+                .initFilter();
+        areaFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("period")
+                .addGroup("series")
+                .addMetric("amount", Metric.SUM, "total")
+                .initFilter();
+        scatterFilter = PojoLens.newQueryBuilder(source)
+                .initFilter();
+
+        parsedBarSql = PojoLens.parse(barSql);
+        parsedLineSql = PojoLens.parse(lineSql);
+        parsedPieSql = PojoLens.parse(pieSql);
+        parsedAreaSql = PojoLens.parse(areaSql);
+        parsedScatterSql = PojoLens.parse(scatterSql);
+
+        barData = barFilter.chart(CategoryTotalRow.class, barSpec);
+        lineData = lineFilter.chart(PeriodSeriesTotalRow.class, lineSpec);
+        pieData = pieFilter.chart(CategoryTotalRow.class, pieSpec);
+        areaData = areaFilter.chart(PeriodSeriesTotalRow.class, areaSpec);
+        scatterData = scatterFilter.chart(ScatterRow.class, scatterSpec);
     }
 
     @Benchmark
     public ChartData fluentBarMapping() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("department")
-                .addMetric("amount", Metric.SUM, "total")
-                .initFilter()
-                .chart(CategoryTotalRow.class, barSpec);
+        return barFilter.chart(CategoryTotalRow.class, barSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeBarMapping() {
-        return PojoLens.parse(barSql).chart(source, CategoryTotalRow.class, barSpec);
+        return parsedBarSql.chart(source, CategoryTotalRow.class, barSpec);
     }
 
     @Benchmark
     public ChartData fluentLineMapping() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("period")
-                .addGroup("series")
-                .addMetric("amount", Metric.SUM, "total")
-                .initFilter()
-                .chart(PeriodSeriesTotalRow.class, lineSpec);
+        return lineFilter.chart(PeriodSeriesTotalRow.class, lineSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeLineMapping() {
-        return PojoLens.parse(lineSql).chart(source, PeriodSeriesTotalRow.class, lineSpec);
+        return parsedLineSql.chart(source, PeriodSeriesTotalRow.class, lineSpec);
     }
 
     @Benchmark
     public ChartData fluentPieMapping() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("department")
-                .addMetric("amount", Metric.SUM, "total")
-                .initFilter()
-                .chart(CategoryTotalRow.class, pieSpec);
+        return pieFilter.chart(CategoryTotalRow.class, pieSpec);
     }
 
     @Benchmark
     public ChartData sqlLikePieMapping() {
-        return PojoLens.parse(pieSql).chart(source, CategoryTotalRow.class, pieSpec);
+        return parsedPieSql.chart(source, CategoryTotalRow.class, pieSpec);
     }
 
     @Benchmark
     public ChartData fluentAreaMapping() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("period")
-                .addGroup("series")
-                .addMetric("amount", Metric.SUM, "total")
-                .initFilter()
-                .chart(PeriodSeriesTotalRow.class, areaSpec);
+        return areaFilter.chart(PeriodSeriesTotalRow.class, areaSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeAreaMapping() {
-        return PojoLens.parse(areaSql).chart(source, PeriodSeriesTotalRow.class, areaSpec);
+        return parsedAreaSql.chart(source, PeriodSeriesTotalRow.class, areaSpec);
     }
 
     @Benchmark
     public ChartData fluentScatterMapping() {
-        return PojoLens.newQueryBuilder(source)
-                .initFilter()
-                .chart(ScatterRow.class, scatterSpec);
+        return scatterFilter.chart(ScatterRow.class, scatterSpec);
     }
 
     @Benchmark
     public ChartData sqlLikeScatterMapping() {
-        return PojoLens.parse(scatterSql).chart(source, ScatterRow.class, scatterSpec);
+        return parsedScatterSql.chart(source, ScatterRow.class, scatterSpec);
     }
 
     @Benchmark

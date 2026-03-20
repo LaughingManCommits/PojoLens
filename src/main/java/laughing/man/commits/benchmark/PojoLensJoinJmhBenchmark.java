@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -36,6 +37,9 @@ public class PojoLensJoinJmhBenchmark {
     private List<ComputedChildRow> computedChildren;
     private ComputedFieldRegistry computedFieldRegistry;
     private double minimumTotalComp;
+    private Filter joinLeftFilter;
+    private Filter computedJoinFilter;
+    private Filter computedJoinOrderedFilter;
 
     @Setup
     public void setup() {
@@ -55,15 +59,30 @@ public class PojoLensJoinJmhBenchmark {
                 .add("totalComp", "salary + bonus", Double.class)
                 .build();
         minimumTotalComp = 140_000d;
+        joinLeftFilter = PojoLens.newQueryBuilder(parents)
+                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
+                .initFilter();
+        computedJoinFilter = PojoLens.newQueryBuilder(computedParents)
+                .computedFields(computedFieldRegistry)
+                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp")
+                .initFilter();
+        computedJoinOrderedFilter = PojoLens.newQueryBuilder(computedParents)
+                .computedFields(computedFieldRegistry)
+                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addOrder("totalComp", 1)
+                .limit(100)
+                .addField("name")
+                .addField("totalComp")
+                .initFilter();
     }
 
     @Benchmark
     public List<ParentRow> pojoLensJoinLeft() throws Exception {
-        return PojoLens.newQueryBuilder(parents)
-                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
-                .initFilter()
-                .join()
-                .filter(ParentRow.class);
+        return joinLeftFilter.join().filter(ParentRow.class);
     }
 
     @Benchmark
@@ -87,30 +106,12 @@ public class PojoLensJoinJmhBenchmark {
 
     @Benchmark
     public List<ComputedJoinProjection> pojoLensJoinLeftComputedField() throws Exception {
-        return PojoLens.newQueryBuilder(computedParents)
-                .computedFields(computedFieldRegistry)
-                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
-                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
-                .addField("name")
-                .addField("totalComp")
-                .initFilter()
-                .join()
-                .filter(ComputedJoinProjection.class);
+        return computedJoinFilter.join().filter(ComputedJoinProjection.class);
     }
 
     @Benchmark
     public List<ComputedJoinProjection> pojoLensJoinLeftComputedFieldOrderedLimited() throws Exception {
-        return PojoLens.newQueryBuilder(computedParents)
-                .computedFields(computedFieldRegistry)
-                .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
-                .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
-                .addOrder("totalComp", 1)
-                .limit(100)
-                .addField("name")
-                .addField("totalComp")
-                .initFilter()
-                .join()
-                .filter(Sort.ASC, ComputedJoinProjection.class);
+        return computedJoinOrderedFilter.join().filter(Sort.ASC, ComputedJoinProjection.class);
     }
 
     @Benchmark

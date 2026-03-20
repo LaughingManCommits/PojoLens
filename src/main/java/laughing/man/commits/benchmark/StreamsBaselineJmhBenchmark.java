@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -30,6 +31,9 @@ public class StreamsBaselineJmhBenchmark {
 
     private List<BenchmarkFoo> source;
     private String matchValue;
+    private Filter filterProjectionFilter;
+    private Filter groupedMetricsFilter;
+    private Filter timeBucketMetricsFilter;
 
     @Setup
     public void setup() {
@@ -41,19 +45,29 @@ public class StreamsBaselineJmhBenchmark {
             source.add(new BenchmarkFoo(value, date, integerField));
         }
         matchValue = "dept3";
-    }
-
-    @Benchmark
-    public List<StreamsBaselineSupport.FilterProjectionRow> fluentFilterProjection() {
-        return PojoLens.newQueryBuilder(source)
+        filterProjectionFilter = PojoLens.newQueryBuilder(source)
                 .addRule("stringField", matchValue, Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 100, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
                 .limit(200)
                 .addField("stringField")
                 .addField("integerField")
-                .initFilter()
-                .filter(Sort.ASC, StreamsBaselineSupport.FilterProjectionRow.class);
+                .initFilter();
+        groupedMetricsFilter = PojoLens.newQueryBuilder(source)
+                .addGroup("stringField")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+        timeBucketMetricsFilter = PojoLens.newQueryBuilder(source)
+                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
+                .addCount("total")
+                .addMetric("integerField", Metric.SUM, "totalValue")
+                .initFilter();
+    }
+
+    @Benchmark
+    public List<StreamsBaselineSupport.FilterProjectionRow> fluentFilterProjection() {
+        return filterProjectionFilter.filter(Sort.ASC, StreamsBaselineSupport.FilterProjectionRow.class);
     }
 
     @Benchmark
@@ -63,12 +77,7 @@ public class StreamsBaselineJmhBenchmark {
 
     @Benchmark
     public List<StreamsBaselineSupport.GroupedStatsRow> fluentGroupedMetrics() {
-        return PojoLens.newQueryBuilder(source)
-                .addGroup("stringField")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .filter(StreamsBaselineSupport.GroupedStatsRow.class);
+        return groupedMetricsFilter.filter(StreamsBaselineSupport.GroupedStatsRow.class);
     }
 
     @Benchmark
@@ -78,12 +87,7 @@ public class StreamsBaselineJmhBenchmark {
 
     @Benchmark
     public List<StreamsBaselineSupport.BucketedStatsRow> fluentTimeBucketMetrics() {
-        return PojoLens.newQueryBuilder(source)
-                .addTimeBucket("dateField", TimeBucket.MONTH, "period")
-                .addCount("total")
-                .addMetric("integerField", Metric.SUM, "totalValue")
-                .initFilter()
-                .filter(StreamsBaselineSupport.BucketedStatsRow.class);
+        return timeBucketMetricsFilter.filter(StreamsBaselineSupport.BucketedStatsRow.class);
     }
 
     @Benchmark
