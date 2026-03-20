@@ -11,6 +11,7 @@
 
 - No active implementation tasks are open right now (`TODO.md` is empty).
 - Latest commit on `main` is `b074644` (`2026-03-20`), which updates benchmark classes/docs to execution-only benchmarking methodology.
+- Working tree now also includes uncommitted release-coordinate prep for Central namespace verification: `groupId` is switched to `io.github.laughingmancommits` in `pom.xml`, with matching README install snippet and aligned AI repo-purpose metadata.
 - Local validation checkpoint for this session: `mvn -q test` passed on `2026-03-20` with `488` tests.
 - Lint baseline checkpoint for this session: `mvn -B -ntp -Plint verify -DskipTests` generated `target/checkstyle-result.xml`; `scripts/check-lint-baseline.ps1` initially reported drift (`report=11513 baseline=11457 new=548 fixed=492`), and after `scripts/check-lint-baseline.ps1 -WriteBaseline` the gate passed with `report=11513 baseline=11513 new=0 fixed=0`.
 - Keep current benchmark guardrails from `benchmarks/thresholds.json` (2026-03-19 CI rebaseline) unless new measured evidence requires another systematic rebaseline.

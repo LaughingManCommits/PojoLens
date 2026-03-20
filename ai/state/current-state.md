@@ -3,7 +3,7 @@
 ## Repository Health
 
 - Repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- Branch is `main` and the working tree is clean at `b074644` (`latest benchmarks result`).
+- Branch is `main`; release-coordinate updates are now staged in the working tree after `b074644`.
 - `TODO.md` currently reports: `No active work items.`
 - Latest local validation on `2026-03-20`: `mvn -q test` passed with `488` tests.
 - Java lint baseline was refreshed on `2026-03-20` to `11,513` entries in `scripts/checkstyle-baseline.txt`; baseline gate now passes with `new=0` and `fixed=0`.
@@ -16,6 +16,10 @@
   - `@Benchmark` methods measure execution (`filter`, `filterGroups`, `join`, `chart`, etc.) rather than setup + execution together
 - `docs/benchmarking.md` now documents this methodology explicitly and updates representative strict-suite context.
 - Existing warmed `-prof gc` computed-join comparison numbers in docs are marked as old-methodology values and should be refreshed before reuse as profiling baselines.
+- Release coordinates were updated to GitHub namespace style for Central publishing prep:
+  - Maven `groupId` changed from `laughing.man.commits` to `io.github.laughingmancommits` in `pom.xml`
+  - README dependency snippet now matches the new `groupId`
+  - `ai/core/repo-purpose.md` was aligned with the new coordinate
 
 ## Active Work
 

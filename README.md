@@ -17,7 +17,7 @@ chart payload mapping.
 
 ```xml
 <dependency>
-  <groupId>laughing.man.commits</groupId>
+  <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
   <version>1.0.0</version>
 </dependency>
@@ -345,4 +345,3 @@ Grouped SQL-like queries also support:
 - aliasing grouped plain fields, for example `select department as dept, count(*) as total group by dept`
 - using grouped aliases in `HAVING`
 - ordering by aggregate expressions such as `order by sum(salary) desc` even when that aggregate is not selected
-
