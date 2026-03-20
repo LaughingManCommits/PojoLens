@@ -32,6 +32,8 @@
   - new GitHub Actions workflow `.github/workflows/release.yml` now supports tag (`v*`) or manual release with Central token + GPG secrets and enforces tag-to-POM-version parity before deploy
   - new helper script `scripts/export-release-secrets.ps1` now exports GPG private/public keys and writes a GitHub-secrets template/next-steps bundle under `target/release-secrets`
   - local validation for this setup passed: `mvn -B -ntp -Prelease-central -DskipTests package`
+  - first CI deploy attempt showed `central-publishing` `401` because `${env.CENTRAL_TOKEN_USERNAME}` was passed literally; workflow now sets Central token env vars at job scope so Maven resolves `${env.*}` placeholders during the deploy step
+  - `pom.xml` no longer sets deprecated `maven-gpg-plugin` `passphrase` config; workflow now supplies `MAVEN_GPG_PASSPHRASE` environment variable instead
 
 ## Active Work
 

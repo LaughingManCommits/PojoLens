@@ -18,6 +18,7 @@
   - `.github/workflows/release.yml` publishes on `v*` tags or manual dispatch using Central token + GPG secrets
   - release workflow enforces tag version parity (`vX.Y.Z` vs `pom.xml` version)
   - `scripts/export-release-secrets.ps1` generates GPG export files plus a GitHub secrets template into `target/release-secrets`
+  - latest CI deploy failure root cause/fix: Central token env placeholders were unresolved during deploy (`401`); workflow now exports `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD` at job scope and uses `MAVEN_GPG_PASSPHRASE` for gpg signing
 - Local validation checkpoint for this session: `mvn -q test` passed on `2026-03-20` with `488` tests.
 - Lint baseline checkpoint for this session: `mvn -B -ntp -Plint verify -DskipTests` generated `target/checkstyle-result.xml`; `scripts/check-lint-baseline.ps1` initially reported drift (`report=11513 baseline=11457 new=548 fixed=492`), and after `scripts/check-lint-baseline.ps1 -WriteBaseline` the gate passed with `report=11513 baseline=11513 new=0 fixed=0`.
 - Keep current benchmark guardrails from `benchmarks/thresholds.json` (2026-03-19 CI rebaseline) unless new measured evidence requires another systematic rebaseline.
