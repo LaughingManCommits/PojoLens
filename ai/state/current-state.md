@@ -2,124 +2,33 @@
 
 ## Repository Health
 
-- The repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- The latest recorded full suite is `mvn -q test` on `2026-03-19`, which passed with `486` tests.
-- The Java lint profile still runs via `mvn -B -ntp -Plint verify -DskipTests`, and on `2026-03-19` the committed checkstyle baseline was refreshed again to match the current report. `scripts/checkstyle-baseline.txt` now contains `11,429` entries, and the repository baseline gate (`scripts/check-lint-baseline.ps1`) now passes with `new=0` and `fixed=0`.
-- A full benchmark sweep was run on `2026-03-17`: core `42/42`, chart `45/45`. `BENCHMARKS.md` was cleared and rewritten with fresh 2026-03-17 numbers. Hotspot artifacts are at `target/benchmarks/hotspots-gc-2026-03-17.json`.
-- AI memory was compacted on `2026-03-15`; hot context now carries only startup-critical facts, while detailed benchmark history stays in `ai/state/benchmark-state.md` and `BENCHMARKS.md`.
+- Repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
+- Branch is `main` and the working tree is clean at `b074644` (`latest benchmarks result`).
+- `TODO.md` currently reports: `No active work items.`
+- Latest local validation on `2026-03-20`: `mvn -q test` passed with `488` tests.
+- Java lint baseline was refreshed on `2026-03-20` to `11,513` entries in `scripts/checkstyle-baseline.txt`; baseline gate now passes with `new=0` and `fixed=0`.
+- Core benchmark thresholds were rebaselined from CI on `2026-03-19` using `ceil(score * 1.5, 0.1ms)` and are still the active guardrail source in `benchmarks/thresholds.json`.
+
+## Latest Landed Work (2026-03-20)
+
+- Benchmark sources and docs were updated in `b074644` to execution-only methodology:
+  - benchmark query/setup construction now happens in `@Setup`
+  - `@Benchmark` methods measure execution (`filter`, `filterGroups`, `join`, `chart`, etc.) rather than setup + execution together
+- `docs/benchmarking.md` now documents this methodology explicitly and updates representative strict-suite context.
+- Existing warmed `-prof gc` computed-join comparison numbers in docs are marked as old-methodology values and should be refreshed before reuse as profiling baselines.
 
 ## Active Work
 
-- `TODO.md` was repopulated on `2026-03-17` with WP19–WP23 from the fresh benchmark sweep.
-- WP22 landed: `FastPojoFilterSupport` fast path in `FilterImpl.filterRows()` materializes `QueryRow` only for matching rows. Cold score unchanged (JIT startup dominates). Warmed: 0.082 / 0.751 ms/op with 71K / 557K B/op. WP22 parked.
-- A 2026-03-19 WP22-style follow-up is in progress in the working tree: `FilterImpl` now applies `limit` before display projection, `ReflectionUtil.toDomainRows(...)` now reuses `compileFlatRowReadPlan(...)` directly, and `FastPojoFilterSupport` now reads only required source fields (filter/order/display/distinct) with a full-schema fallback for open-ended projections.
-- A second 2026-03-19 follow-up is also in progress: `FastPojoFilterSupport` now compiles rule maps into array-backed bundles before the row loop, removing per-row `Map`/iterator traversal from the hot rule-evaluation path.
-- A third 2026-03-19 follow-up is now in progress: `OrderEngine` gained a limit-aware stable top-K path (array heap with original-index tie-break), and `FilterImpl` now passes `limit` through ordering on both non-aggregation and aggregate/having order stages.
-- A fourth 2026-03-19 follow-up is now in progress: top-K final ordering now drains the heap (`O(k log k)`), the top-K minimum row gate is now `64` (still with conservative `limit * 4 <= rowCount` and `limit <= 512`), and `SqlLikeQuery.executeRawRows(...)` now passes limit-aware ordering into order stages and limits before display projection.
-- A fifth 2026-03-19 follow-up is now in progress: `FastArrayQuerySupport` now has the same limit-aware top-K ordering capability and its fast-array filter path now passes `builder.getLimit()` into ordering. `FilterImplFastPathTest` now also covers ordered+limited fast-array output parity on a tie-heavy dataset sized to trigger top-K.
-- A sixth 2026-03-19 follow-up is now in progress: the remaining SQL-like stage-count ORDER path now also passes limit-aware ordering (`orderByFields(..., limit)`) so explain-stage counting stays aligned with runtime limit-aware ordering behavior.
-- A new 2026-03-19 join follow-up is now in progress: `FastArrayQuerySupport.buildChildIndex(...)` now uses a dense integer-key child index when join keys are non-negative `Integer` values in a reasonable range, with fallback to the prior hash index for non-dense keys.
-- The benchmark guardrail CI path was fixed on 2026-03-19 by adding thresholds for `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited|size=1000/10000`, then fully rebaselined from the CI report to tighter budgets using `ceil(score * 1.5, 0.1ms)` across all core keys.
-- WP23 investigated: warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads); cold 173 ops/s is JVM startup noise. Map over-allocation in `aggregateSingleGroup`/`aggregateGrouped` capped at `Math.min(source.size(), 1024)`. WP23 parked.
-- WP20 is complete; the computed-field join core budgets now reflect the post-WP17/WP19 implementation, and the hotspot remains diagnostic-only.
-- WP19 is parked after two failed structural spikes; the newest deferred-materialization/projected-output attempt cut allocation but regressed the real warmed join target, so reopen it only with a genuinely new larger hypothesis.
-- WP18 is parked again after a 2026-03-16 scatter-specific follow-up; reopen it only if a fresh profile shows another chart-specific root cause beyond the remaining broader row/query overhead.
-- A new low-risk consolidation pass now shares repeated cold-path collection helpers through `CollectionUtil` instead of keeping separate `firstNonNull(...)` and limit-copy helpers in builder, filter, chart, and SQL-like code.
-- A follow-up low-risk consolidation pass now also shares deterministic map-entry sorting through `CollectionUtil.sortedEntriesByKey(...)` instead of keeping local sorted-entry planning in execution-plan, cache-key, and tabular-schema code.
-- An eighth consolidation pass now centralizes the duplicated `NULL_GROUP_KEY` constant and `toGroupKeyValue(...)` group-key normalization logic in `GroupKeyUtil`, which `AggregationEngine`, `FastStatsQuerySupport`, and `GroupEngine` now reuse instead of keeping local copies.
-- Consolidation guidance remains unchanged: share plans and metadata first, and keep bean, `QueryRow`, and `Object[]` hot loops specialized unless a merged path is benchmark-positive.
-- WP17 selective single-join fast-path work is parked as good enough for now; reopen it only if a fresh profile shows a clear benchmark-backed win.
+- No active implementation work is currently in progress.
 
-## Landed WP18 Shape
+## Next Tasks
 
-- Non-subquery SQL-like executions now reuse prepared validated/bound shapes and rebind per-call builders.
-- Chart execution maps directly from internal rows, and fast stats charts can stay on indexed `Object[]` rows.
-- `ChartPayloadJsonExporter` now writes fixed-scale numeric payloads directly instead of using per-point `String.format(...)`.
-- Prepared non-join stats shapes precompute reusable execution-plan cache keys, snapshot construction avoids a duplicate `QuerySpec` copy, `preparedExecutionView(...)` avoids full builder cloning on the bean-backed prepared path, `ReflectionUtil` caches flat read plans, and SQL-like execution reuses one per-call run state.
-- Aliased fast-stats filter/chart execution now keeps projection names correct on both direct and grouped fallback paths.
-- `FastStatsQuerySupport` now has a dedicated single-group aggregation path, and `TimeBucketUtil` now renders fixed-shape bucket strings directly instead of using `String.format(...)` on every scanned row.
-
-## Landed WP19 Increment
-
-- `ReflectionUtil.applyProjectionWritePlan(...)` now skips no-op `ObjectUtil.castValue(...)` calls when the projected raw value already matches the resolved leaf type.
-- `ReflectionUtilTest` now covers nested projection materialization from `Object[]` rows so future WP19 refactors keep the array-row projection path correct.
-
-## Landed Consolidation Increment
-
-- `CollectionUtil` now centralizes repeated `firstNonNull(...)` and generic limit-copy behavior used by `FilterQueryBuilder`, `FastArrayQuerySupport`, `FastStatsQuerySupport`, `FilterImpl`, `ChartMapper`, `SqlLikeQuery`, and `SqlLikeExecutionSupport`.
-- `CollectionUtilTest` now pins that helper behavior so later cleanup can keep consolidating cold-path plumbing without reintroducing local copies.
-- `CollectionUtil.expectedMapCapacity(...)` now also centralizes the repeated map-capacity sizing rule previously duplicated in `AggregationEngine`, `FilterCore`, `GroupEngine`, `JoinEngine`, `FastArrayQuerySupport`, and `FastStatsQuerySupport`.
-- `CollectionUtil.sortedEntriesByKey(...)` now also centralizes deterministic cold-path map-entry sorting previously repeated in `FilterExecutionPlan`, `FilterExecutionPlanCacheKey`, and `TabularSchemaSupport`.
-- `CollectionUtilTest` now also pins that sorted-entry behavior so later cleanup can keep sharing ordered planning helpers without reintroducing local sorting loops.
-- `QueryRowAdapterSupport` now centralizes the duplicated cold-path `Object[] -> QueryRow` materializer previously repeated in `FastArrayQuerySupport` and `FastStatsQuerySupport`.
-- `QueryRowAdapterSupportTest` now pins that adapter behavior so later consolidation can keep sharing row-shape adapters without touching the fast executors.
-- `SchemaIndexUtil` now centralizes exact-name field-index planning for both raw field-name schemas and `QueryRow` field lists, and `ChartMapper` plus `SqlLikeExecutionSupport` now reuse it instead of keeping local exact-name indexing loops.
-- `SchemaIndexUtilTest` now pins that exact-name index behavior so later consolidation can keep sharing schema-planning logic without touching the specialized executors.
-- `SchemaIndexUtil` now also centralizes ordered schema-name extraction for `QueryField` lists and first-usable `QueryRow` rows, and `FilterExecutionPlan` plus `ReflectionUtil` now reuse it instead of keeping local schema-derivation loops.
-- `SchemaIndexUtilTest` plus `ReflectionUtilTest` now pin that shared schema extraction behavior, including leading empty-row handling for query-row projection schema derivation.
-- `QueryFieldLookupUtil` now centralizes exact-name `QueryField` index and value lookup, and `ChartMapper`, `SqlLikeExecutionSupport`, `JoinEngine`, and `RuleCleaner` now reuse it instead of keeping local exact-name scans.
-- `QueryFieldLookupUtilTest` now pins that lookup behavior so later consolidation can keep sharing `QueryRow`/`QueryField` lookup logic without touching the specialized array and bean executors.
-
-## Current Evidence
-
-- Focused regressions (`CollectionUtilTest`, `FilterExecutionPlanCacheKeyTest`, `FilterCoreTest`) plus full `mvn -q test` passed on `2026-03-17`.
-- A fresh 2026-03-19 benchmark rerun (`mvn -B -ntp -Pbenchmark-runner -DskipTests package` then `java -jar target/pojo-lens-1.0.0-benchmarks.jar "^laughing\\.man\\.commits\\.benchmark\\.(HotspotMicroJmhBenchmark\\.reflectionToDomainRows|PojoLensPipelineJmhBenchmark\\.fullFilterPipeline|SqlLikePipelineJmhBenchmark\\.parseAndFilter|StreamsBaselineJmhBenchmark\\.fluentFilterProjection)$" -f 1 -wi 3 -i 5 -r 250ms -prof gc`) wrote `target/wip-bench-before-2026-03-19.json` and `target/wip-bench-after-2026-03-19.json` and showed directionally lower latency for all four targets (about `-20%` to `-34%`) with allocation/op mostly flat except modest reductions on the fluent filter path.
-- A second rerun on 2026-03-19 after the compiled-rule-bundle pass (`target/wip-bench-after2-2026-03-19.json`) showed mostly neutral latency (about `-3%` to `+3%` across fluent/sql-like paths) while materially reducing fluent-path allocation/op (`fullFilterPipeline` about `-44%/-58%` at `size=1000/10000`, `fluentFilterProjection` about `-38%/-50%`).
-- A third rerun on 2026-03-19 after the top-K order pass (`target/wip-bench-after3-2026-03-19.json`) was globally drift-heavy (including unrelated reflection flattening), so treat it as guardrail-level signal only; do not use it alone for attribution of the top-K pass.
-- A follow-up focused rerun on 2026-03-19 with the conservative top-K gate restored (`limit * 4 <= rowCount`) wrote `target/wip-bench-after5-2026-03-19.json` and returned to stable ranges on fluent filter workloads; relative to `target/wip-bench-after2-2026-03-19.json`, latency was roughly neutral to slightly improved (about `-0.3%` to `-1.5%`) with effectively flat allocation/op.
-- A dedicated 2026-03-19 top-K follow-up benchmark pair (`target/wip-bench-topk-baseline-2026-03-19.json` vs `target/wip-bench-topk-after6-2026-03-19.json`) measured neutral-to-better latency on most tracked shapes and clear wins on limit-heavy workloads, especially `SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed` (about `-38%/-36%` at `size=1000/10000`) and `StreamsBaselineJmhBenchmark.fluentFilterProjection` (about `-23%/-22%`).
-- A control rerun on the same date with only `TOP_K_MIN_INPUT_ROWS` reverted to `128` (`target/wip-bench-topk-control128-2026-03-19.json`) moved those limit-heavy workloads back near prior ranges, supporting attribution for the `64` gate on small-limit order paths.
-- A new join-focused benchmark shape now exists in `PojoLensJoinJmhBenchmark`: `pojoLensJoinLeftComputedFieldOrderedLimited` plus manual baseline. On 2026-03-19, `target/wip-bench-fastarray-topk-step2-2026-03-19.json` measured about `0.066/0.549 ms/op` (`size=1000/10000`) for PojoLens and about `0.021/0.321 ms/op` for manual.
-- A direct A/B control for fast-array step 2 on the same date (`target/wip-bench-fastarray-topk-step2-control-2026-03-19.json`, with limit-aware fast-array ordering temporarily disabled) measured PojoLens at about `0.074/0.929 ms/op`. Restoring limit-aware fast-array ordering returned to about `0.066/0.549 ms/op`, a relative gain of about `-10.6%` (`size=1000`) and `-40.9%` (`size=10000`), with modest allocation reductions (about `-1.3%` and `-2.1%` B/op).
-- A short-lived 2026-03-19 sidecar spike for numeric computed fields (primitive storage + row-identity lookups) regressed both latency and allocation and was not kept.
-- A follow-up 2026-03-19 dense child-index pass for integer join keys wrote `target/wip-bench-dense-index-2026-03-19.json` and `target/wip-bench-dense-index-gc-2026-03-19.json`; versus `target/wip-bench-sidecar-off-2026-03-19.json` / `target/wip-bench-sidecar-off-gc-2026-03-19.json`, it measured about `-11.3%/-1.9%` on computed join and `-13.5%/+2.6%` on ordered-limited (size `1000/10000`), with `size=10000` allocation reductions of about `-11.6%` and `-12.3%`.
-- After that core-threshold rebaseline, the local CI-equivalent strict check still passed on 2026-03-19: `java -cp <benchmarks-jar> laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict`.
-- Top-K correctness is pinned by new `FilterCoreTest` parity checks that compare `orderByFields(..., limit)` against full sort then limit for both ASC and DESC on large tie-heavy inputs.
-- 2026-03-19 focused regressions (`FastPojoFilterSupportTest`, `ReflectionUtilTest`, `StreamsBenchmarkParityTest`, `FilterImplFastPathTest`) and full `mvn -q test` reruns both passed; the suite now totals `487` tests.
-- A rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` now measures `sqlLikePreparedStatsFastPathSetupCopy` at about `509.906 us/op` / `2,145,675 B/op` and `sqlLikePreparedStatsFastPathSetupView` at about `512.749 us/op` / `2,145,195 B/op`, down materially from the prior `7.306/7.517 ms/op` and `16.8 MB/op` snapshot.
-- Exact targeted reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` now measure `fluentTimeBucketMetrics` at about `0.529 ms/op`, `fluentTimeBucketMetricsToChart` at about `0.531 ms/op`, `sqlLikeParseAndTimeBucketMetrics` at about `0.519 ms/op`, and `sqlLikeParseAndTimeBucketMetricsToChart` at about `0.526 ms/op`.
-- Matching exact targeted reruns on `2026-03-16` now also measure grouped stats query/chart at about `0.273`, `0.273`, `0.277`, and `0.264 ms/op` for fluent grouped query, fluent grouped chart, SQL-like grouped query, and SQL-like grouped chart at `size=10000`.
-- Exact targeted reruns on `2026-03-16` further measure multi-series line/area chart mapping at about `0.566`, `0.575`, `0.577`, and `0.572 ms/op` for fluent line, fluent area, SQL-like line, and SQL-like area at `size=10000`.
-- Chart guardrails still pass; the latest rebuilt chart-suite rerun on `2026-03-15` stayed `45/45`.
-- A rebuilt full chart guardrail rerun on `2026-03-16` still passed `45/45`; the largest remaining cold chart-mapping scores were scatter mapping at about `2.924 ms/op` fluent and `4.613 ms/op` SQL-like for `size=10000`, and about `19.743` / `24.991 ms/op` at `size=100000`.
-- A direct WP18 scatter follow-up on `2026-03-16` reopened that remaining candidate: fresh warmed reruns of `ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping)` measured about `1.476` / `13.848 ms/op` for fluent and `1.536` / `14.639 ms/op` for SQL-like at `size=10000/100000`.
-- `ChartMapper` now accumulates multi-series charts through dense label/series indexes and caches validated x-axis labels once per distinct x instead of building nested per-series maps keyed by repeated formatted x strings.
-- Focused chart regressions (`ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeChartIntegrationTest`) plus full `mvn -q test` passed after that scatter pass, and the full suite now totals `448` tests after the latest consolidation helper, adapter, schema-index, and query-field lookup coverage.
-- A follow-up consolidation pass on `2026-03-16` added `SchemaIndexUtil` for exact-name schema/index planning, switched `ChartMapper` and `SqlLikeExecutionSupport` to it, and passed focused regressions (`SchemaIndexUtilTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
-- Another follow-up consolidation pass on `2026-03-16` added `QueryFieldLookupUtil` for exact-name `QueryField` access, switched `ChartMapper`, `SqlLikeExecutionSupport`, `JoinEngine`, and `RuleCleaner` to it, and passed focused regressions (`QueryFieldLookupUtilTest`, `SchemaIndexUtilTest`, `FilterCoreTest`, `ChartMapperArrayRowsTest`, `ChartResultMapperMappingTest`, `SqlLikeAliasTest`, `SqlLikeChartIntegrationTest`) plus `mvn -q test` and `scripts/check-doc-consistency.ps1`.
-- A later `2026-03-16` consolidation follow-up extended `SchemaIndexUtil` with ordered schema-name extraction for `QueryField`/`QueryRow` shapes, switched `FilterExecutionPlan` and `ReflectionUtil` to it, and passed focused regressions (`SchemaIndexUtilTest`, `ReflectionUtilTest`, `FilterCoreTest`) plus `mvn -q test`; the full suite now totals `451` tests.
-- A `2026-03-17` consolidation follow-up added `CollectionUtil.sortedEntriesByKey(...)` for deterministic map-entry planning, switched `FilterExecutionPlan`, `FilterExecutionPlanCacheKey`, and `TabularSchemaSupport` to it, added two more `CollectionUtilTest` cases, and passed focused regressions plus `mvn -q test`; the full suite now totals `453` tests.
-- A `2026-03-17` consolidation follow-up added `GroupKeyUtil` to centralize the `NULL_GROUP_KEY` constant and `toGroupKeyValue(...)` logic, switched `AggregationEngine`, `FastStatsQuerySupport`, and `GroupEngine` to it, added `GroupKeyUtilTest` (5 cases), and passed `mvn test`; the full suite now totals `471` tests.
-- Matching warmed reruns after the scatter pass now measure about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000`, `-prof gc` reruns fell from about `41,297,324` / `38,497,149 B/op` to about `36,595,578` / `33,795,681 B/op` for fluent / SQL-like scatter.
-- A rebuilt full chart guardrail rerun after the scatter pass still passed `45/45`, but its cold scatter scores drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`; use that suite as a guardrail, not as the attribution source for this pass.
-- A rebuilt full hotspot-suite rerun on `2026-03-16` with `@scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms -prof gc` now measures `reflectionToClassList|size=10000` at about `852.025 us/op` / `1,400,236 B/op` and `reflectionToDomainRows|size=10000` at about `418.191 us/op` / `2,840,026 B/op`, versus the recorded `2026-03-14` snapshot of `1115.501 us/op` / `1,400,238 B/op` and `557.219 us/op` / `2,840,027 B/op`.
-- The same `2026-03-16` hotspot-suite rerun measures `computedFieldJoinSelectiveMaterialization|size=10000` at about `303.247 us/op` / `3,532,314 B/op` and `groupedMultiMetricAggregation|size=10000` at about `353.796 us/op` / `1,043,042 B/op`.
-- WP20 reran the computed-field benchmarks on `2026-03-16`: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at `-f 1 -wi 0 -i 1 -r 100ms` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`.
-- Matching warmed `-prof gc` reruns on `2026-03-16` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`, versus `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
-- A fresh WP20 hotspot rerun on `2026-03-16` measured `computedFieldJoinSelectiveMaterialization` at about `34.472 us/op` / `364,232 B/op` for `size=1000` and `319.695 us/op` / `3,532,314 B/op` for `size=10000`; the latency is improved, but the allocation profile is still too large for a stable strict gate.
-- `benchmarks/thresholds.json` has now been rebaselined again on `2026-03-19` from the latest CI benchmark report, replacing the previously loose historical budgets (including the earlier `25/200` computed-field join pair) with tighter per-key limits.
-- A refreshed warmed JFR on `2026-03-16` produced `target/wp19-current-2026-03-16.jfr` and measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` at about `0.666 ms/op` with JFR overhead, which is effectively flat versus the last recorded warm-profile cycle.
-- That refreshed warmed JFR still concentrates CPU in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`); allocation still centers in `ResolvedFieldPath.read` (`4220`), `materializeJoinedRow` (`3684`), and `buildChildIndex` (`3117`).
-- Two post-profile micro-optimizations on `2026-03-16` were benchmark-flat and were not kept: a specialized nested-write path in `ReflectionUtil` and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`.
-- A larger structural spike that tried to prefilter fast-array joined rows during join-state creation regressed the real warmed target from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted. A clean warmed rerun on the reverted code recovered to about `0.595 ms/op`.
-- A second structural spike on `2026-03-16` then tried to defer fast-array joined-row materialization and filter directly to compact projected rows. Comparable short `-prof gc` reruns measured about `0.073 ms/op` / `220,040 B/op` at `size=1000` and `0.712 ms/op` / `2,022,740 B/op` at `size=10000`, versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation improved, but latency regressed, so it was reverted as well.
-- Exact targeted reruns from `2026-03-14` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured:
-  - `sqlLikeParseAndTimeBucketMetrics`: about `4.728 ms/op`
-  - `sqlLikeParseAndTimeBucketMetricsToChart`: about `4.891 ms/op`
-  - `fluentTimeBucketMetrics`: about `4.990 ms/op`
-  - `fluentTimeBucketMetricsToChart`: about `5.045 ms/op`
-- Later short `2026-03-15` reruns were drift-heavy, but after the alias/chart pass SQL-like chart still ran below SQL-like query (`4.764 ms/op` vs `6.735 ms/op`), which points more toward remaining setup/query cost than chart assembly.
-- A new prepared SQL-like stats hotspot microbenchmark now isolates rebinding from full fast-stats setup. Its first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured rebind view at about `0.324 us/op` / `3,120 B/op` versus copy at about `0.668 us/op` / `3,528 B/op`, while full rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy.
+- If performance work resumes, keep WP19 parked unless there is a materially new structural hypothesis.
+- Reopen WP18 only with fresh scatter/chart profiling that isolates a chart-specific bottleneck.
+- Refresh warmed `-prof gc` computed-join baselines under the new execution-only methodology before using those values for profiling guidance.
+- After any code change, rerun focused regressions plus `mvn -q test`.
 
 ## Current Risks
 
-- Short whole-query JMH remains too noisy for patch attribution on its own.
-- The Java lint gate is currently green only because the committed checkstyle baseline now matches the present tree; any real style reduction work should be treated as a deliberate cleanup against a very large inherited baseline, not as a small follow-up.
-- This bean-backed single-group time-bucket stats shape now looks mostly solved; do not keep tuning it unless a fresh profile shows a new hotspot.
-- Do not assume the same win automatically carries over to other grouped, aliased, or multi-series SQL-like/chart workloads without targeted validation.
-- Prepared-view vs copy is no longer the dominant question on the full fast-stats setup path; further rebinding micro-tuning should stay parked unless a new profile reopens it.
-- If WP18 stays open, scatter mapping is now the clearest remaining chart workload to profile directly because grouped stats and grouped line/area chart shapes are already well below their guardrails.
-- After the scatter pass, the remaining `size=100000` scatter cost looks less chart-specific and more like broader row-materialization/query overhead; do not keep tuning `ChartMapper` without a fresh profile that isolates another chart-specific bottleneck.
-- Strict computed-field join budgets remain conservative because `-wi 0 -i 1` cold runs drift materially; only tighten again after repeated strict reruns on the same CI class.
-- WP19 is not done just because the hotspot-suite latencies fell; reflection/conversion allocations are still essentially flat and the refreshed warmed JFR kept the same dominant class cluster.
-- Do not keep spending time on WP19 without a materially different structural idea. Both the prefiltered-fast-state redesign and the deferred-materialization/projected-output redesign regressed the warmed target and were not kept.
+- Hot memory previously referenced uncommitted 2026-03-19 follow-ups; those are now committed and should no longer be treated as pending.
+- Benchmark interpretation can drift if old setup-bundled and new execution-only numbers are mixed in the same decision.
