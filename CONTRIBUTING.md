@@ -84,3 +84,30 @@ Keep deterministic profile constants in `BenchmarkProfiles` unchanged unless int
 - `profile=deterministic-v1`
 - `seed=20260301`
 - fixed epoch baselines (`1700000000000`, `1735689600000`)
+
+## Release Pipeline
+
+Automated Central publishing is handled by `.github/workflows/release.yml`.
+
+Triggers:
+- tag push `v*`
+- manual workflow dispatch
+
+Required repository secrets:
+- `CENTRAL_TOKEN_USERNAME`
+- `CENTRAL_TOKEN_PASSWORD`
+- `GPG_PRIVATE_KEY`
+- `GPG_PASSPHRASE`
+
+Helper script to export GPG files and a GitHub secrets template:
+
+```powershell
+./scripts/export-release-secrets.ps1 -ListKeys
+./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
+```
+
+The release workflow runs tests and publishes with:
+
+```bash
+mvn -B -ntp -Prelease-central -DskipTests deploy
+```

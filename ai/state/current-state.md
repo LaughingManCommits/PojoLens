@@ -26,6 +26,12 @@
   - `RELEASE.md` now includes current Central namespace/publish guidance while preserving required benchmark/subquery/join invariants
   - `MIGRATION.md` now records the coordinate change and fixes malformed explicit-rule-group examples
   - `scripts/check-doc-consistency.ps1` now passes on the updated docs set
+- Release automation prep now exists in the working tree:
+  - `pom.xml` now includes required Central metadata (`name`, `description`, `url`, `licenses`, `developers`, `scm`)
+  - new `release-central` Maven profile now attaches sources/javadocs, signs via GPG, and publishes through `central-publishing-maven-plugin` (`0.10.0`, `autoPublish=true`, `waitUntil=published`)
+  - new GitHub Actions workflow `.github/workflows/release.yml` now supports tag (`v*`) or manual release with Central token + GPG secrets and enforces tag-to-POM-version parity before deploy
+  - new helper script `scripts/export-release-secrets.ps1` now exports GPG private/public keys and writes a GitHub-secrets template/next-steps bundle under `target/release-secrets`
+  - local validation for this setup passed: `mvn -B -ntp -Prelease-central -DskipTests package`
 
 ## Active Work
 

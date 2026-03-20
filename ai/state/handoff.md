@@ -13,6 +13,11 @@
 - Latest commit on `main` is `b074644` (`2026-03-20`), which updates benchmark classes/docs to execution-only benchmarking methodology.
 - Working tree now also includes uncommitted release-coordinate prep for Central namespace verification: `groupId` is switched to `io.github.laughingmancommits` in `pom.xml`, with matching README install snippet and aligned AI repo-purpose metadata.
 - Working tree also includes an uncommitted docs refresh pass across `README.md`, `CONTRIBUTING.md`, `RELEASE.md`, and `MIGRATION.md`; `scripts/check-doc-consistency.ps1` passes on that updated set.
+- Working tree now also includes uncommitted Central release automation:
+  - `pom.xml` has a `release-central` profile (sources, javadocs, gpg signing, central publishing plugin)
+  - `.github/workflows/release.yml` publishes on `v*` tags or manual dispatch using Central token + GPG secrets
+  - release workflow enforces tag version parity (`vX.Y.Z` vs `pom.xml` version)
+  - `scripts/export-release-secrets.ps1` generates GPG export files plus a GitHub secrets template into `target/release-secrets`
 - Local validation checkpoint for this session: `mvn -q test` passed on `2026-03-20` with `488` tests.
 - Lint baseline checkpoint for this session: `mvn -B -ntp -Plint verify -DskipTests` generated `target/checkstyle-result.xml`; `scripts/check-lint-baseline.ps1` initially reported drift (`report=11513 baseline=11457 new=548 fixed=492`), and after `scripts/check-lint-baseline.ps1 -WriteBaseline` the gate passed with `report=11513 baseline=11513 new=0 fixed=0`.
 - Keep current benchmark guardrails from `benchmarks/thresholds.json` (2026-03-19 CI rebaseline) unless new measured evidence requires another systematic rebaseline.
@@ -28,6 +33,9 @@
   - run strict checker against `target/benchmarks.json` and `benchmarks/thresholds.json`
   - keep chart guardrail checks aligned with `benchmarks/chart-thresholds.json`
 - Refresh warmed `-prof gc` computed-join comparison numbers under execution-only methodology before treating them as active profiling baselines.
+- For release automation changes, rerun:
+  - `mvn -B -ntp -Prelease-central -DskipTests package`
+  - `scripts/check-doc-consistency.ps1`
 
 ## Guardrails
 

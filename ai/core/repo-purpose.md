@@ -5,4 +5,4 @@
 - Core behavior includes filtering, ordering, grouping, HAVING, metrics, time buckets, joins, typed projection, and explain or schema support.
 - Adjacent library features include chart payload mapping, chart or query presets, reusable reports, dataset bundles, snapshot comparison, telemetry hooks, tabular schema metadata, field metamodel generation, regression fixtures, and benchmark tooling.
 - The repository does not own a web service, CLI application, deployment manifests, or database pushdown integration.
-- No publication target is declared in `pom.xml`.
+- `pom.xml` now includes a `release-central` profile for Maven Central publishing (sources, javadocs, gpg signing, and central publishing plugin).

@@ -6,6 +6,29 @@
     <artifactId>pojo-lens</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
+    <name>PojoLens</name>
+    <description>POJO-first in-memory query engine for Java with fluent and SQL-like APIs.</description>
+    <url>https://github.com/LaughingManCommits/PojoLens</url>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <id>laughingmancommits</id>
+            <name>LaughingManCommits</name>
+            <email>laughingmancommits@users.noreply.github.com</email>
+            <url>https://github.com/LaughingManCommits</url>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:git://github.com/LaughingManCommits/PojoLens.git</connection>
+        <developerConnection>scm:git:ssh://github.com/LaughingManCommits/PojoLens.git</developerConnection>
+        <url>https://github.com/LaughingManCommits/PojoLens</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <dependencies>
         <dependency>
@@ -192,6 +215,73 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>release-central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <passphrase>${env.GPG_PASSPHRASE}</passphrase>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.10.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
-    <name>PojoLens</name>
 </project>
