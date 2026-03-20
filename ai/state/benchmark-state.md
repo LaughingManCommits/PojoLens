@@ -1,36 +1,31 @@
 # Benchmark State
 
-Load only when the task is about benchmarks, thresholds, parity, profiling, or performance regressions.
+Load this file only for benchmark, threshold, or profiling tasks.
 
-- Full benchmark-surface snapshot date: `2026-03-17`.
-- Latest targeted follow-up date: `2026-03-17`.
-- Guardrail status from the recorded runs: core `42/42` pass, chart `45/45` pass.
-- The `2026-03-15` chart follow-up kept `45/45` passing after the exporter rewrite.
-- `ChartPayloadJsonExporter` is no longer a primary cost center: comparable cold reruns measured about `0.066`, `0.634`, and `1.146 ms/op` for `scatterPayloadJsonExport` at sizes `1000`, `10000`, and `100000`, and a targeted `size=10000` `-prof gc` rerun measured about `0.367 ms/op` and `580,857 B/op`.
-- A new prepared SQL-like stats hotspot microbenchmark now isolates rebinding from full fast-stats setup. Its first `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` run measured rebind view at about `0.324 us/op` / `3,120 B/op` versus copy at about `0.668 us/op` / `3,528 B/op`, while full rebind-plus-fast-stats setup stayed around `7.517 ms/op` / `16,785,798 B/op` for view versus `7.306 ms/op` / `16,786,181 B/op` for copy.
-- A follow-up `2026-03-16` fast-stats pass replaced per-row bucket `String.format(...)` work in `TimeBucketUtil`, short-circuited string group-key conversion, and specialized the common single-group fast-stats aggregation path to avoid per-row `QueryKey` churn.
-- The rebuilt `2026-03-16` prepared fast-stats microbenchmark at `size=10000`, `-f 1 -wi 2 -i 5 -r 100ms -prof gc` then measured full setup at about `509.906 us/op` / `2,145,675 B/op` for copy and `512.749 us/op` / `2,145,195 B/op` for view, which means the old 7.3-7.5 ms / 16.8 MB setup hotspot is largely gone on that benchmark shape.
-- Matching exact targeted whole-query reruns on `2026-03-16` at `size=10000`, `-f 1 -wi 3 -i 5 -r 250ms` measured fluent query/chart about `0.529` / `0.531 ms/op` and SQL-like query/chart about `0.519` / `0.526 ms/op`.
-- Additional exact targeted reruns on `2026-03-16` measured grouped stats query/chart about `0.273` / `0.273 ms/op` for fluent and `0.277` / `0.264 ms/op` for SQL-like at `size=10000`, while multi-series line/area chart mapping measured about `0.566`, `0.575`, `0.577`, and `0.572 ms/op`.
-- A rebuilt full chart guardrail suite on `2026-03-16` still passed `45/45`; the clearest remaining larger cold chart workload is scatter mapping (`2.924 ms/op` fluent / `4.613 ms/op` SQL-like at `size=10000`, `19.743` / `24.991 ms/op` at `size=100000`).
-- A direct 2026-03-16 scatter-specific follow-up then reopened WP18. Fresh warmed reruns of `ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping)` measured about `1.476` / `13.848 ms/op` for fluent and `1.536` / `14.639 ms/op` for SQL-like at `size=10000/100000`.
-- That scatter pass changed `ChartMapper` to accumulate multi-series charts through dense label/series indexes and cache validated x-axis labels once per distinct x instead of building nested per-series maps keyed by repeated formatted x strings.
-- Matching warmed reruns after the pass measured about `1.321` / `9.939 ms/op` for fluent and `1.300` / `9.760 ms/op` for SQL-like at `size=10000/100000`; matching `size=100000`, `-prof gc` reruns fell from about `41,297,324` / `38,497,149 B/op` to about `36,595,578` / `33,795,681 B/op`.
-- A rebuilt full chart guardrail suite after the scatter pass still passed `45/45`, but the cold scatter entries drifted to about `5.403` / `8.460 ms/op` at `size=10000` and `22.605` / `36.384 ms/op` at `size=100000`, so use the full chart suite as a guardrail rather than the attribution source for this pass.
-- For the targeted bean-backed single-group time-bucket stats workload, old chart mapping/export overhead and prepared-builder rebinding no longer look like the main issue; further WP18 work should first confirm whether other grouped, aliased, or multi-series shapes still need attention.
-- A rebuilt hotspot-suite rerun on `2026-03-16` now lives at `target/benchmarks/hotspots-gc-2026-03-16.json`. At `size=10000` it measures `reflectionToClassList` at about `852.025 us/op` / `1,400,236 B/op`, `reflectionToDomainRows` at about `418.191 us/op` / `2,840,026 B/op`, `computedFieldJoinSelectiveMaterialization` at about `303.247 us/op` / `3,532,314 B/op`, and `groupedMultiMetricAggregation` at about `353.796 us/op` / `1,043,042 B/op`.
-- Versus the recorded `2026-03-14` hotspot snapshot, reflection/conversion latency is materially lower but allocation is effectively unchanged, so WP19 should stay open until warmed JFR is refreshed on the same code.
-- The warmed JFR refresh is now done: `target/wp19-current-2026-03-16.jfr` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField|size=10000` at about `0.666 ms/op` with JFR overhead. First-repo-frame CPU still centers in `ReflectionUtil$ResolvedFieldPath.read` (`837`), `FastArrayQuerySupport.applyComputedValues` (`399`), `ReflectionUtil.applyProjectionWritePlan` (`270`), `FastArrayQuerySupport.tryBuildJoinedState` (`241`), and `FastArrayQuerySupport.buildChildIndex` (`211`).
-- First-repo-frame allocation in that warmed JFR still centers in `ReflectionUtil$ResolvedFieldPath.read` (`4220`), `FastArrayQuerySupport.materializeJoinedRow` (`3684`), `FastArrayQuerySupport.buildChildIndex` (`3117`), `ReflectionUtil.readFlatRowValues` (`1240`), `ReflectionUtil.instantiateNoArg` (`1017`), and `FastArrayQuerySupport.castNumericValue` (`865`).
-- Two smaller post-profile experiments on `2026-03-16` were benchmark-flat and were not kept: a specialized `ReflectionUtil` nested-write path and a `Double` fast path in `FastArrayQuerySupport.applyComputedValues`. The next WP19 leverage is more likely in joined-row materialization/indexing or a more structural reflection-read reuse change.
-- A larger structural spike that tried to prefilter fast-array joined rows during join-state creation regressed the real warmed target from about `0.584 ms/op` to about `0.700 ms/op`, so it was reverted. A clean warmed rerun on the reverted code recovered to about `0.595 ms/op`.
-- A second structural spike on `2026-03-16` then tried to defer fast-array joined-row materialization and filter directly to compact projected rows. Comparable short `-prof gc` reruns measured PojoLens at about `0.073 ms/op` / `220,040 B/op` for `size=1000` and `0.712 ms/op` / `2,022,740 B/op` for `size=10000`, versus the current warmed checkpoint of about `0.063 ms/op` / `247,520 B/op` and `0.603 ms/op` / `2,302,715 B/op`; allocation improved, but the warmed target regressed, so that spike was also reverted.
-- WP19 is now parked pending a materially different structural hypothesis.
-- WP20 is now complete: repeated strict-style cold reruns of `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` on `2026-03-16` measured about `2.597`, `3.766`, and `6.020 ms/op` at `size=1000` and about `114.241`, `113.818`, and `60.348 ms/op` at `size=10000`.
-- Matching warmed `-prof gc` reruns on `2026-03-16` measured `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` at about `0.063 ms/op` / `247,520 B/op` for `size=1000` and `0.603 ms/op` / `2,302,715 B/op` for `size=10000`, versus `manualHashJoinLeftComputedField` at about `0.009 ms/op` / `84,512 B/op` and `0.098 ms/op` / `927,128 B/op`.
-- A fresh WP20 hotspot rerun measured `computedFieldJoinSelectiveMaterialization` at about `34.472 us/op` / `364,232 B/op` for `size=1000` and `319.695 us/op` / `3,532,314 B/op` for `size=10000`, so the hotspot stays diagnostic-only rather than becoming a strict threshold.
-- `benchmarks/thresholds.json` now tightens `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to `25 ms/op` at `size=1000` and `200 ms/op` at `size=10000`, and a rebuilt strict core suite on `2026-03-16` still passed `42/42` with that workload measuring about `5.263` and `118.793 ms/op`.
-- WP22 `FastPojoFilterSupport` fast path landed on 2026-03-17: warmed `fullFilterPipeline` measured at 0.082 / 0.751 ms/op with 71,648 / 557,211 B/op at size=1000/10000; cold score unchanged at ~115ms (JIT compilation dominates, not materialization).
-- WP23 investigated 2026-03-17: warmed `statsPlanBuildHotSetConcurrent` at ~18,834 ops/s (8 threads, `-wi 3 -i 3 -r 250ms`). Map over-allocation fix landed in `aggregateSingleGroup`/`aggregateGrouped`. WP23 is parked — remaining gap vs sqlLikeParse is inherent O(n) vs O(1) work difference.
-- Persistent non-WP18 stress still exists in cache plan-build throughput (`statsPlanBuildHotSetConcurrent` at 173 ops/s, WP23) and recurring reflection/conversion hotspots centered in `ReflectionUtil` and `FastArrayQuerySupport`.
-- Use `BENCHMARKS.md` for detailed measurements and `ai/core/benchmark-context.md` for suite and profiler interpretation rules.
+## Current Baselines
+
+- Benchmark methodology is execution-only in benchmark methods (setup moved to `@Setup`).
+- Core guardrails: `benchmarks/thresholds.json` (rebaselined on 2026-03-19 from CI data).
+- Chart guardrails: `benchmarks/chart-thresholds.json`.
+- Strict benchmark checker remains the gate for threshold validation.
+
+## Current Position
+
+- No active benchmark optimization work is open.
+- WP19 is intentionally parked; do not reopen without a materially different structural hypothesis.
+- Warmed profiler hotspots have repeatedly concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
+
+## Operational Rules
+
+- Keep cold guardrail runs and warmed tuning runs separate.
+- Rebuild benchmark runner before quoting fresh numbers:
+  `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- Use benchmark suite args from `scripts/benchmark-suite-*.args`.
+- Do not run concurrent Maven builds in the same workspace `target/` directory.
+
+## Sources
+
+- `docs/benchmarking.md`
+- `benchmarks/thresholds.json`
+- `benchmarks/chart-thresholds.json`
+- `target/benchmarks/*.json` (generated artifacts, not source of truth)

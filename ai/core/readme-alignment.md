@@ -1,17 +1,17 @@
 # README Alignment
 
-Aligned with code and tests:
+## Confirmed Alignment
 
-- `README.md` correctly positions the repo as a POJO-first in-memory query library with fluent and SQL-like entry points.
-- README quick starts for fluent queries, SQL-like queries, parameters, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are backed by contract or docs-example tests.
-- README staging around `PojoLens`, `PojoLensCore`, `PojoLensSql`, and `PojoLensChart` matches the codebase.
+- `README.md` positions the repository correctly as an in-memory POJO query library with fluent and SQL-like APIs.
+- README quick starts for fluent queries, SQL-like queries, parameters, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are covered by tests.
+- Public entry points in README (`PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, `PojoLensRuntime`) match current code.
 
-Current documentation alignment outside the README:
+## Process-Doc Alignment
 
-- `CONTRIBUTING.md` now resolves benchmark jars dynamically instead of hardcoding a versioned filename.
-- `MIGRATION.md` and `RELEASE.md` now describe limited `WHERE ... IN (select oneField ...)` subquery support and chained SQL-like joins consistently with code and tests.
-- `scripts/check-doc-consistency.ps1` and `scripts/check-doc-consistency.py` now check for benchmark-version drift and stale SQL-like capability wording in those process docs.
+- `CONTRIBUTING.md` uses dynamic benchmark-jar resolution guidance.
+- `MIGRATION.md` and `RELEASE.md` match current SQL-like capability constraints and release flow.
+- `scripts/check-doc-consistency.ps1` and `scripts/check-doc-consistency.py` enforce key doc invariants.
 
-Open documentation gap:
+## Current Gap
 
-- no artifact publication target is documented or declared in `pom.xml`
+- No known high-impact README drift is currently open.

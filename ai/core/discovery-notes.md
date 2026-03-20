@@ -1,7 +1,7 @@
 # Discovery Notes
 
-- `TODO.md` is the only active backlog-style document in the repository.
+- `TODO.md` is the backlog-style document and is currently empty.
 - No separate roadmap, ADR directory, or design-notes folder is present.
-- `target/` contains generated outputs and should not be treated as repository truth.
-- No `distributionManagement` block or publication workflow was found.
-- Benchmark runner usage depends on resolving the generated `target/*-benchmarks.jar` path instead of hardcoding a versioned filename.
+- `target/` contains generated outputs and is not source of truth.
+- Maven Central publishing is implemented via `release-central` profile in `pom.xml` and `.github/workflows/release.yml`.
+- Benchmark runner usage should resolve `target/*-benchmarks.jar` dynamically instead of hardcoding a versioned filename.

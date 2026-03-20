@@ -1,6 +1,6 @@
-﻿{
-    "schema_version":  2,
-    "last_full_scan_commit":  "28b24675c858f091c92d3b8d6cee85aa5f4dc7fe",
-    "index_build_time":  "2026-03-15T20:35:08.4005268+01:00",
-    "confidence":  "high"
+{
+  "schema_version": 2,
+  "last_full_scan_commit": "a20a5b79bca62a187fb8afe854e73270e9aaf392",
+  "index_build_time": "2026-03-20T17:23:53.5556535+01:00",
+  "confidence": "high"
 }

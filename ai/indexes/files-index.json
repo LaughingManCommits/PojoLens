@@ -1,256 +1,240 @@
-﻿{
-    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
-    "notes":  "Current high-signal repository roots and files for cold-context lookup. Generated outputs under target/ are excluded from repository truth.",
-    "counts":  {
-                   "mainJavaFiles":  134,
-                   "testJavaFiles":  65,
-                   "testClasses":  61,
-                   "markdownDocs":  37,
-                   "aiCoreFiles":  11,
-                   "aiIndexFiles":  5
-               },
-    "roots":  [
-                  {
-                      "path":  ".github/workflows",
-                      "kind":  "ci"
-                  },
-                  {
-                      "path":  "ai/core",
-                      "kind":  "ai-core-cold-hot"
-                  },
-                  {
-                      "path":  "ai/state",
-                      "kind":  "ai-state-hot"
-                  },
-                  {
-                      "path":  "ai/indexes",
-                      "kind":  "ai-indexes-cold"
-                  },
-                  {
-                      "path":  "ai/log",
-                      "kind":  "ai-log-cold"
-                  },
-                  {
-                      "path":  "benchmarks",
-                      "kind":  "benchmark-config"
-                  },
-                  {
-                      "path":  "docs",
-                      "kind":  "documentation"
-                  },
-                  {
-                      "path":  "scripts",
-                      "kind":  "repo-scripts"
-                  },
-                  {
-                      "path":  "src/main/java/laughing/man/commits",
-                      "kind":  "source-root"
-                  },
-                  {
-                      "path":  "src/test/java/laughing/man/commits",
-                      "kind":  "test-root"
-                  },
-                  {
-                      "path":  "src/test/resources/fixtures",
-                      "kind":  "test-fixtures"
-                  }
-              ],
-    "importantFiles":  [
-                           {
-                               "path":  "pom.xml",
-                               "kind":  "build"
-                           },
-                           {
-                               "path":  "README.md",
-                               "kind":  "product-doc"
-                           },
-                           {
-                               "path":  "TODO.md",
-                               "kind":  "planning"
-                           },
-                           {
-                               "path":  "MAINTENANCE.md",
-                               "kind":  "memory-maintenance"
-                           },
-                           {
-                               "path":  "AGENTS.md",
-                               "kind":  "memory-entry"
-                           },
-                           {
-                               "path":  "ai/AGENTS.md",
-                               "kind":  "memory-maintenance"
-                           },
-                           {
-                               "path":  "ai/memory-state.json",
-                               "kind":  "memory-freshness"
-                           },
-                           {
-                               "path":  ".github/workflows/ci.yml",
-                               "kind":  "ci"
-                           },
-                           {
-                               "path":  "scripts/check-doc-consistency.ps1",
-                               "kind":  "validation-script"
-                           },
-                           {
-                               "path":  "scripts/check-lint-baseline.ps1",
-                               "kind":  "validation-script"
-                           },
-                           {
-                               "path":  "scripts/benchmark-suite-main.args",
-                               "kind":  "benchmark-suite"
-                           },
-                           {
-                               "path":  "scripts/benchmark-suite-chart.args",
-                               "kind":  "benchmark-suite"
-                           },
-                           {
-                               "path":  "scripts/benchmark-suite-hotspots.args",
-                               "kind":  "benchmark-suite"
-                           },
-                           {
-                               "path":  "scripts/benchmark-suite-baseline.args",
-                               "kind":  "benchmark-suite"
-                           },
-                           {
-                               "path":  "scripts/benchmark-suite-cache.args",
-                               "kind":  "benchmark-suite"
-                           },
-                           {
-                               "path":  "benchmarks/thresholds.json",
-                               "kind":  "benchmark-thresholds"
-                           },
-                           {
-                               "path":  "benchmarks/chart-thresholds.json",
-                               "kind":  "benchmark-thresholds"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/PojoLens.java",
-                               "kind":  "public-entry"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/PojoLensRuntime.java",
-                               "kind":  "public-entry"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/filter/FilterImpl.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/filter/JoinEngine.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/util/ReflectionUtil.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java",
-                               "kind":  "engine"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java",
-                               "kind":  "benchmark"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/chart/ChartMapper.java",
-                               "kind":  "feature"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/chart/ChartResultMapper.java",
-                               "kind":  "feature"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/report/ReportDefinition.java",
-                               "kind":  "feature"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
-                               "kind":  "feature"
-                           },
-                           {
-                               "path":  "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
-                               "kind":  "feature"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/PublicApiCoverageTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
-                               "kind":  "test-anchor"
-                           },
-                           {
-                               "path":  "BENCHMARKS.md",
-                               "kind":  "benchmark-report"
-                           },
-                           {
-                               "path":  "ai/core/benchmark-context.md",
-                               "kind":  "memory-benchmark-context"
-                           },
-                           {
-                               "path":  "ai/state/benchmark-state.md",
-                               "kind":  "memory-benchmark-state"
-                           }
-                       ]
+{
+  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "notes": "High-signal repository roots and anchor files for cold-context lookup. Generated outputs under target/ are excluded from source-of-truth memory.",
+  "counts": {
+    "mainJavaFiles": 141,
+    "testJavaFiles": 73,
+    "testClasses": 69,
+    "markdownDocs": 36,
+    "aiCoreFiles": 11,
+    "aiIndexFiles": 5
+  },
+  "roots": [
+    {
+      "path": ".github/workflows",
+      "kind": "ci"
+    },
+    {
+      "path": "ai/core",
+      "kind": "ai-core"
+    },
+    {
+      "path": "ai/state",
+      "kind": "ai-state"
+    },
+    {
+      "path": "ai/indexes",
+      "kind": "ai-indexes"
+    },
+    {
+      "path": "ai/log",
+      "kind": "ai-log"
+    },
+    {
+      "path": "benchmarks",
+      "kind": "benchmark-config"
+    },
+    {
+      "path": "docs",
+      "kind": "documentation"
+    },
+    {
+      "path": "scripts",
+      "kind": "repo-scripts"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits",
+      "kind": "source-root"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits",
+      "kind": "test-root"
+    },
+    {
+      "path": "src/test/resources/fixtures",
+      "kind": "test-fixtures"
+    }
+  ],
+  "importantFiles": [
+    {
+      "path": "pom.xml",
+      "kind": "build"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "ci"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "kind": "release-ci"
+    },
+    {
+      "path": "README.md",
+      "kind": "product-doc"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "kind": "process-doc"
+    },
+    {
+      "path": "MIGRATION.md",
+      "kind": "process-doc"
+    },
+    {
+      "path": "RELEASE.md",
+      "kind": "process-doc"
+    },
+    {
+      "path": "TODO.md",
+      "kind": "planning"
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "kind": "memory-maintenance"
+    },
+    {
+      "path": "scripts/check-doc-consistency.ps1",
+      "kind": "validation-script"
+    },
+    {
+      "path": "scripts/check-lint-baseline.ps1",
+      "kind": "validation-script"
+    },
+    {
+      "path": "scripts/export-release-secrets.ps1",
+      "kind": "release-script"
+    },
+    {
+      "path": "scripts/benchmark-suite-main.args",
+      "kind": "benchmark-suite"
+    },
+    {
+      "path": "scripts/benchmark-suite-chart.args",
+      "kind": "benchmark-suite"
+    },
+    {
+      "path": "scripts/benchmark-suite-hotspots.args",
+      "kind": "benchmark-suite"
+    },
+    {
+      "path": "scripts/benchmark-suite-baseline.args",
+      "kind": "benchmark-suite"
+    },
+    {
+      "path": "scripts/benchmark-suite-cache.args",
+      "kind": "benchmark-suite"
+    },
+    {
+      "path": "benchmarks/thresholds.json",
+      "kind": "benchmark-thresholds"
+    },
+    {
+      "path": "benchmarks/chart-thresholds.json",
+      "kind": "benchmark-thresholds"
+    },
+    {
+      "path": "docs/benchmarking.md",
+      "kind": "benchmark-doc"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLens.java",
+      "kind": "public-entry"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensCore.java",
+      "kind": "public-entry"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensSql.java",
+      "kind": "public-entry"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java",
+      "kind": "public-entry"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/FilterImpl.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/filter/JoinEngine.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
+      "kind": "engine"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/chart/ChartMapper.java",
+      "kind": "feature"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java",
+      "kind": "feature"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
+      "kind": "feature"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
+      "kind": "feature"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/benchmark/JmhRunner.java",
+      "kind": "benchmark"
+    },
+    {
+      "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java",
+      "kind": "benchmark"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/PublicApiCoverageTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+      "kind": "test-anchor"
+    },
+    {
+      "path": "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
+      "kind": "test-anchor"
+    }
+  ]
 }

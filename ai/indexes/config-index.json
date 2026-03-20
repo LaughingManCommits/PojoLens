@@ -1,88 +1,97 @@
-﻿{
-    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
-    "build":  {
-                  "path":  "pom.xml",
-                  "groupId":  "laughing.man.commits",
-                  "artifactId":  "pojo-lens",
-                  "version":  "1.0.0",
-                  "packaging":  "jar",
-                  "javaRelease":  17,
-                  "profiles":  [
-                                   "benchmark",
-                                   "benchmark-runner",
-                                   "lint",
-                                   "static-analysis"
-                               ],
-                  "runtimeDependencies":  [
-                                              "org.slf4j:slf4j-api",
-                                              "com.github.ben-manes.caffeine:caffeine"
-                                          ],
-                  "optionalDependencies":  [
-                                               "org.knowm.xchart:xchart",
-                                               "org.openjdk.jmh:jmh-core"
-                                           ],
-                  "testDependencies":  [
-                                           "org.slf4j:slf4j-simple",
-                                           "org.junit.jupiter:junit-jupiter"
-                                       ]
-              },
-    "ci":  {
-               "path":  ".github/workflows/ci.yml",
-               "jobs":  [
-                            "push",
-                            "lint-workflows",
-                            "test",
-                            "lint-java",
-                            "static-analysis",
-                            "doc-consistency",
-                            "benchmark-guardrail",
-                            "cache-concurrency-stress",
-                            "chart-artifacts",
-                            "benchmark-plot-artifacts"
-                        ],
-               "testJavaVersions":  [
-                                        17,
-                                        21
-                                    ]
-           },
-    "aiMemory":  {
-                     "hotContext":  [
-                                        "ai/core/agent-invariants.md",
-                                        "ai/core/repo-purpose.md",
-                                        "ai/state/current-state.md",
-                                        "ai/state/handoff.md"
-                                    ],
-                     "coldContext":  [
-                                         "ai/core/module-index.md",
-                                         "ai/core/readme-alignment.md",
-                                         "ai/core/runbook.md",
-                                         "ai/core/documentation-index.md",
-                                         "ai/core/system-boundaries.md",
-                                         "ai/core/architecture-map.md",
-                                         "ai/core/test-strategy.md",
-                                         "ai/core/discovery-notes.md",
-                                         "ai/core/benchmark-context.md",
-                                         "ai/state/benchmark-state.md",
-                                         "ai/indexes/*",
-                                         "ai/log/events.jsonl"
-                                     ],
-                     "memoryStatePath":  "ai/memory-state.json"
-                 },
-    "planning":  {
-                     "primaryBacklog":  "TODO.md"
-                 },
-    "validationScripts":  [
-                              "scripts/check-doc-consistency.ps1",
-                              "scripts/check-doc-consistency.py",
-                              "scripts/check-lint-baseline.ps1"
-                          ],
-    "benchmarkConfigs":  [
-                             "benchmarks/thresholds.json",
-                             "benchmarks/chart-thresholds.json",
-                             "scripts/benchmark-suite-main.args",
-                             "scripts/benchmark-suite-chart.args",
-                             "scripts/benchmark-suite-hotspots.args",
-                             "scripts/benchmark-suite-baseline.args",
-                             "scripts/benchmark-suite-cache.args"
-                         ]
+{
+  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "build": {
+    "path": "pom.xml",
+    "groupId": "io.github.laughingmancommits",
+    "artifactId": "pojo-lens",
+    "version": "1.0.0",
+    "packaging": "jar",
+    "javaRelease": 17,
+    "profiles": [
+      "benchmark",
+      "benchmark-runner",
+      "lint",
+      "static-analysis",
+      "release-central"
+    ],
+    "runtimeDependencies": [
+      "org.slf4j:slf4j-api",
+      "com.github.ben-manes.caffeine:caffeine"
+    ],
+    "optionalDependencies": [
+      "org.knowm.xchart:xchart",
+      "org.openjdk.jmh:jmh-core"
+    ],
+    "testDependencies": [
+      "org.slf4j:slf4j-simple",
+      "org.junit.jupiter:junit-jupiter"
+    ]
+  },
+  "ci": {
+    "workflows": [
+      {
+        "path": ".github/workflows/ci.yml",
+        "jobs": [
+          "lint-workflows",
+          "test",
+          "lint-java",
+          "static-analysis",
+          "doc-consistency",
+          "benchmark-guardrail",
+          "cache-concurrency-stress",
+          "chart-artifacts",
+          "benchmark-plot-artifacts"
+        ],
+        "testJavaVersions": [
+          17,
+          21
+        ]
+      },
+      {
+        "path": ".github/workflows/release.yml",
+        "jobs": [
+          "publish-central"
+        ],
+        "triggerTags": [
+          "v*"
+        ],
+        "manualDispatch": true
+      }
+    ]
+  },
+  "aiMemory": {
+    "hotContext": [
+      "ai/core/agent-invariants.md",
+      "ai/core/repo-purpose.md",
+      "ai/state/current-state.md",
+      "ai/state/handoff.md"
+    ],
+    "coldContext": [
+      "ai/core/*",
+      "ai/indexes/*",
+      "ai/log/events.jsonl",
+      "ai/state/benchmark-state.md"
+    ],
+    "memoryStatePath": "ai/memory-state.json"
+  },
+  "planning": {
+    "primaryBacklog": "TODO.md"
+  },
+  "validationScripts": [
+    "scripts/check-doc-consistency.ps1",
+    "scripts/check-doc-consistency.py",
+    "scripts/check-lint-baseline.ps1"
+  ],
+  "releaseScripts": [
+    "scripts/export-release-secrets.ps1"
+  ],
+  "benchmarkConfigs": [
+    "benchmarks/thresholds.json",
+    "benchmarks/chart-thresholds.json",
+    "scripts/benchmark-suite-main.args",
+    "scripts/benchmark-suite-chart.args",
+    "scripts/benchmark-suite-hotspots.args",
+    "scripts/benchmark-suite-baseline.args",
+    "scripts/benchmark-suite-cache.args"
+  ]
 }

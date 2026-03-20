@@ -1,210 +1,200 @@
-﻿{
-    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
-    "documents":  [
-                      {
-                          "path":  "AGENTS.md",
-                          "category":  "agent-guide",
-                          "relevance":  "high"
-                      },
-                      {
-                          "path":  "ai/AGENTS.md",
-                          "category":  "ai-memory-guide",
-                          "relevance":  "high",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/agent-invariants.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/architecture-map.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/benchmark-context.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/discovery-notes.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/documentation-index.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/module-index.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/readme-alignment.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/repo-purpose.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/runbook.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/system-boundaries.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/core/test-strategy.md",
-                          "category":  "ai-cold-core",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/state/benchmark-state.md",
-                          "category":  "ai-cold-state",
-                          "relevance":  "medium",
-                          "loadTier":  "cold"
-                      },
-                      {
-                          "path":  "ai/state/current-state.md",
-                          "category":  "ai-hot-context",
-                          "relevance":  "medium",
-                          "loadTier":  "hot"
-                      },
-                      {
-                          "path":  "ai/state/handoff.md",
-                          "category":  "ai-hot-context",
-                          "relevance":  "medium",
-                          "loadTier":  "hot"
-                      },
-                      {
-                          "path":  "BENCHMARKS.md",
-                          "category":  "benchmark-report",
-                          "relevance":  "high"
-                      },
-                      {
-                          "path":  "CONTRIBUTING.md",
-                          "category":  "contributing",
-                          "relevance":  "low",
-                          "alignment":  "aligned"
-                      },
-                      {
-                          "path":  "docs/benchmarking.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/caching.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/charts.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/computed-fields.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/metamodel.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/modules.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/regression-fixtures.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/reports.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/snapshot-comparison.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/sql-like.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/tabular-schema.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/telemetry.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "docs/time-buckets.md",
-                          "category":  "product-doc",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "LICENSE.md",
-                          "category":  "license",
-                          "relevance":  "low"
-                      },
-                      {
-                          "path":  "MAINTENANCE.md",
-                          "category":  "memory-maintenance",
-                          "relevance":  "medium"
-                      },
-                      {
-                          "path":  "MIGRATION.md",
-                          "category":  "migration",
-                          "relevance":  "low",
-                          "alignment":  "aligned"
-                      },
-                      {
-                          "path":  "README.md",
-                          "category":  "readme",
-                          "relevance":  "high",
-                          "alignment":  "aligned"
-                      },
-                      {
-                          "path":  "RELEASE.md",
-                          "category":  "release",
-                          "relevance":  "low",
-                          "alignment":  "aligned"
-                      },
-                      {
-                          "path":  "TODO.md",
-                          "category":  "todo",
-                          "relevance":  "high",
-                          "alignment":  "aligned"
-                      }
-                  ]
+{
+  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "documents": [
+    {
+      "path": "AGENTS.md",
+      "category": "agent-guide",
+      "relevance": "high"
+    },
+    {
+      "path": "ai/AGENTS.md",
+      "category": "ai-memory-guide",
+      "relevance": "high",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/agent-invariants.md",
+      "category": "ai-hot-context",
+      "relevance": "high",
+      "loadTier": "hot"
+    },
+    {
+      "path": "ai/core/repo-purpose.md",
+      "category": "ai-hot-context",
+      "relevance": "high",
+      "loadTier": "hot"
+    },
+    {
+      "path": "ai/state/current-state.md",
+      "category": "ai-hot-context",
+      "relevance": "high",
+      "loadTier": "hot"
+    },
+    {
+      "path": "ai/state/handoff.md",
+      "category": "ai-hot-context",
+      "relevance": "high",
+      "loadTier": "hot"
+    },
+    {
+      "path": "ai/state/benchmark-state.md",
+      "category": "ai-cold-state",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/architecture-map.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/benchmark-context.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/discovery-notes.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/documentation-index.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/module-index.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/readme-alignment.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/runbook.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/system-boundaries.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "ai/core/test-strategy.md",
+      "category": "ai-cold-core",
+      "relevance": "medium",
+      "loadTier": "cold"
+    },
+    {
+      "path": "README.md",
+      "category": "readme",
+      "relevance": "high"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "category": "contributing",
+      "relevance": "high"
+    },
+    {
+      "path": "MIGRATION.md",
+      "category": "migration",
+      "relevance": "medium"
+    },
+    {
+      "path": "RELEASE.md",
+      "category": "release",
+      "relevance": "high"
+    },
+    {
+      "path": "TODO.md",
+      "category": "todo",
+      "relevance": "high"
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "category": "memory-maintenance",
+      "relevance": "medium"
+    },
+    {
+      "path": "LICENSE.md",
+      "category": "license",
+      "relevance": "low"
+    },
+    {
+      "path": "docs/sql-like.md",
+      "category": "product-doc",
+      "relevance": "high"
+    },
+    {
+      "path": "docs/charts.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/benchmarking.md",
+      "category": "product-doc",
+      "relevance": "high"
+    },
+    {
+      "path": "docs/caching.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/computed-fields.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/metamodel.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/modules.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/regression-fixtures.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/reports.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/snapshot-comparison.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/tabular-schema.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/telemetry.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    },
+    {
+      "path": "docs/time-buckets.md",
+      "category": "product-doc",
+      "relevance": "medium"
+    }
+  ]
 }

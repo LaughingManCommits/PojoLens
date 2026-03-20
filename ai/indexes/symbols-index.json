@@ -1,205 +1,150 @@
-﻿{
-    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
-    "groups":  [
-                   {
-                       "component":  "facades",
-                       "symbols":  [
-                                       {
-                                           "name":  "PojoLens",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLens.java"
-                                       },
-                                       {
-                                           "name":  "PojoLensCore",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLensCore.java"
-                                       },
-                                       {
-                                           "name":  "PojoLensSql",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLensSql.java"
-                                       },
-                                       {
-                                           "name":  "PojoLensChart",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLensChart.java"
-                                       },
-                                       {
-                                           "name":  "PojoLensRuntime",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLensRuntime.java"
-                                       },
-                                       {
-                                           "name":  "PojoLensRuntimePreset",
-                                           "kind":  "enum",
-                                           "path":  "src/main/java/laughing/man/commits/PojoLensRuntimePreset.java"
-                                       }
-                                   ]
-                   },
-                   {
-                       "component":  "fluent-engine",
-                       "symbols":  [
-                                       {
-                                           "name":  "QueryBuilder",
-                                           "kind":  "interface",
-                                           "path":  "src/main/java/laughing/man/commits/builder/QueryBuilder.java"
-                                       },
-                                       {
-                                           "name":  "FilterQueryBuilder",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java"
-                                       },
-                                       {
-                                           "name":  "Filter",
-                                           "kind":  "interface",
-                                           "path":  "src/main/java/laughing/man/commits/filter/Filter.java"
-                                       },
-                                       {
-                                           "name":  "FilterImpl",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/filter/FilterImpl.java"
-                                       },
-                                       {
-                                           "name":  "FastArrayQuerySupport",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java"
-                                       },
-                                       {
-                                           "name":  "FastStatsQuerySupport",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java"
-                                       },
-                                       {
-                                           "name":  "FilterExecutionPlan",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/filter/FilterExecutionPlan.java"
-                                       },
-                                       {
-                                           "name":  "JoinEngine",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/filter/JoinEngine.java"
-                                       },
-                                       {
-                                           "name":  "ReflectionUtil",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/util/ReflectionUtil.java"
-                                       }
-                                   ]
-                   },
-                   {
-                       "component":  "sql-like",
-                       "symbols":  [
-                                       {
-                                           "name":  "SqlLikeQuery",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java"
-                                       },
-                                       {
-                                           "name":  "SqlLikeTemplate",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/SqlLikeTemplate.java"
-                                       },
-                                       {
-                                           "name":  "SqlLikeBoundQuery",
-                                           "kind":  "interface",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/SqlLikeBoundQuery.java"
-                                       },
-                                       {
-                                           "name":  "SqlParams",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/SqlParams.java"
-                                       },
-                                       {
-                                           "name":  "JoinBindings",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/JoinBindings.java"
-                                       },
-                                       {
-                                           "name":  "SqlLikeParser",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
-                                       },
-                                       {
-                                           "name":  "SqlLikeValidator",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
-                                       },
-                                       {
-                                           "name":  "SqlExpressionEvaluator",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java"
-                                       },
-                                       {
-                                           "name":  "SqlLikeExecutionSupport",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java"
-                                       }
-                                   ]
-                   },
-                   {
-                       "component":  "reporting-and-utilities",
-                       "symbols":  [
-                                       {
-                                           "name":  "ChartMapper",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/chart/ChartMapper.java"
-                                       },
-                                       {
-                                           "name":  "ChartResultMapper",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/chart/ChartResultMapper.java"
-                                       },
-                                       {
-                                           "name":  "ChartData",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/chart/ChartData.java"
-                                       },
-                                       {
-                                           "name":  "ChartSpec",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/chart/ChartSpec.java"
-                                       },
-                                       {
-                                           "name":  "ChartQueryPresets",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/chart/ChartQueryPresets.java"
-                                       },
-                                       {
-                                           "name":  "ReportDefinition",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/report/ReportDefinition.java"
-                                       },
-                                       {
-                                           "name":  "DatasetBundle",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/DatasetBundle.java"
-                                       },
-                                       {
-                                           "name":  "SnapshotComparison",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java"
-                                       },
-                                       {
-                                           "name":  "ComputedFieldRegistry",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/computed/ComputedFieldRegistry.java"
-                                       },
-                                       {
-                                           "name":  "FieldMetamodelGenerator",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java"
-                                       },
-                                       {
-                                           "name":  "TimeBucketPreset",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/time/TimeBucketPreset.java"
-                                       },
-                                       {
-                                           "name":  "QueryRegressionFixture",
-                                           "kind":  "class",
-                                           "path":  "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java"
-                                       }
-                                   ]
-                   }
-               ]
+{
+  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "groups": [
+    {
+      "component": "facades",
+      "symbols": [
+        {
+          "name": "PojoLens",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLens.java"
+        },
+        {
+          "name": "PojoLensCore",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensCore.java"
+        },
+        {
+          "name": "PojoLensSql",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensSql.java"
+        },
+        {
+          "name": "PojoLensChart",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensChart.java"
+        },
+        {
+          "name": "PojoLensRuntime",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java"
+        }
+      ]
+    },
+    {
+      "component": "fluent-engine",
+      "symbols": [
+        {
+          "name": "FilterQueryBuilder",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java"
+        },
+        {
+          "name": "FilterImpl",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/FilterImpl.java"
+        },
+        {
+          "name": "FastArrayQuerySupport",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java"
+        },
+        {
+          "name": "FastStatsQuerySupport",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java"
+        },
+        {
+          "name": "JoinEngine",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/filter/JoinEngine.java"
+        }
+      ]
+    },
+    {
+      "component": "sql-like",
+      "symbols": [
+        {
+          "name": "SqlLikeQuery",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java"
+        },
+        {
+          "name": "SqlLikeParser",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
+        },
+        {
+          "name": "SqlLikeValidator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
+        },
+        {
+          "name": "SqlExpressionEvaluator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java"
+        },
+        {
+          "name": "SqlLikeExecutionSupport",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java"
+        }
+      ]
+    },
+    {
+      "component": "feature-layers",
+      "symbols": [
+        {
+          "name": "ChartMapper",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartMapper.java"
+        },
+        {
+          "name": "ChartResultMapper",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/chart/ChartResultMapper.java"
+        },
+        {
+          "name": "ReportDefinition",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java"
+        },
+        {
+          "name": "SnapshotComparison",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java"
+        },
+        {
+          "name": "QueryRegressionFixture",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java"
+        },
+        {
+          "name": "FieldMetamodelGenerator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java"
+        }
+      ]
+    },
+    {
+      "component": "benchmark-tooling",
+      "symbols": [
+        {
+          "name": "JmhRunner",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/benchmark/JmhRunner.java"
+        },
+        {
+          "name": "BenchmarkThresholdChecker",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java"
+        },
+        {
+          "name": "BenchmarkMetricsPlotGenerator",
+          "kind": "class",
+          "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGenerator.java"
+        }
+      ]
+    }
+  ]
 }

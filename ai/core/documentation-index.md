@@ -1,13 +1,13 @@
 # Documentation Index
 
-Primary product docs:
+## Primary Product Docs
 
 - `README.md`
 - `docs/sql-like.md`
 - `docs/charts.md`
 - `docs/benchmarking.md`
 
-Feature reference docs:
+## Feature Reference Docs
 
 - `docs/caching.md`
 - `docs/computed-fields.md`
@@ -20,19 +20,19 @@ Feature reference docs:
 - `docs/telemetry.md`
 - `docs/time-buckets.md`
 
-Process and repository docs:
+## Process Docs
 
 - `CONTRIBUTING.md`
 - `MIGRATION.md`
 - `RELEASE.md`
 - `TODO.md`
 - `MAINTENANCE.md`
-- `LICENSE.md`
 - `AGENTS.md`
 - `ai/AGENTS.md`
+- `LICENSE.md`
 
-Documentation notes:
+## Notes
 
-- `TODO.md` is the active backlog document.
+- `TODO.md` is the backlog file and is currently empty.
 - `MAINTENANCE.md` applies only to `/ai` memory cleanup passes.
-- `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` are the main process docs that need periodic drift checks against code and tests.
+- Keep `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` aligned with `pom.xml` and workflows.

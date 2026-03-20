@@ -1,81 +1,81 @@
-﻿{
-    "generatedAt":  "2026-03-15T20:35:08.4005268+01:00",
-    "testRoots":  [
-                      "src/test/java/laughing/man/commits",
-                      "src/test/resources/fixtures"
-                  ],
-    "counts":  {
-                   "testJavaFiles":  65,
-                   "testClasses":  61
-               },
-    "latestKnownFullRun":  {
-                               "command":  "mvn -q test",
-                               "date":  "2026-03-15",
-                               "status":  "passed",
-                               "testsRun":  431,
-                               "note":  "Passed after adding prepared SQL-like stats setup hotspot microbenchmarks and the related docs/suite updates."
-                           },
-    "suites":  [
-                   {
-                       "category":  "public-surface",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
-                                     "src/test/java/laughing/man/commits/PublicApiCoverageTest.java"
-                                 ]
-                   },
-                   {
-                       "category":  "docs-examples",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
-                                     "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java"
-                                 ]
-                   },
-                   {
-                       "category":  "sql-like",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/SqlLikeParserTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeValidationTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
-                                     "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java"
-                                 ]
-                   },
-                   {
-                       "category":  "fluent-and-joins",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
-                                     "src/test/java/laughing/man/commits/AggregationFluentTest.java",
-                                     "src/test/java/laughing/man/commits/AggregationGroupByFluentTest.java",
-                                     "src/test/java/laughing/man/commits/NestedPathQueryTest.java",
-                                     "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
-                                     "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
-                                     "src/test/java/laughing/man/commits/filter/FilterCoreTest.java"
-                                 ]
-                   },
-                   {
-                       "category":  "runtime-and-cache",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
-                                     "src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
-                                     "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
-                                     "src/test/java/laughing/man/commits/SqlLikeQueryCacheTest.java"
-                                 ]
-                   },
-                   {
-                       "category":  "charts-reports-and-tools",
-                       "files":  [
-                                     "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
-                                     "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
-                                     "src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java",
-                                     "src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java",
-                                     "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
-                                     "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
-                                     "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
-                                     "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
-                                     "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java"
-                                 ]
-                   }
-               ]
+{
+  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "testRoots": [
+    "src/test/java/laughing/man/commits",
+    "src/test/resources/fixtures"
+  ],
+  "counts": {
+    "testJavaFiles": 73,
+    "testClasses": 69
+  },
+  "latestKnownFullRun": {
+    "command": "mvn -q test",
+    "date": "2026-03-20",
+    "status": "passed",
+    "testsRun": 488,
+    "note": "Passed after release-flow and documentation updates."
+  },
+  "suites": [
+    {
+      "category": "public-surface",
+      "files": [
+        "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
+        "src/test/java/laughing/man/commits/PublicApiCoverageTest.java"
+      ]
+    },
+    {
+      "category": "docs-examples",
+      "files": [
+        "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
+        "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java"
+      ]
+    },
+    {
+      "category": "sql-like",
+      "files": [
+        "src/test/java/laughing/man/commits/SqlLikeParserTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeValidationTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
+        "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java"
+      ]
+    },
+    {
+      "category": "fluent-and-joins",
+      "files": [
+        "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
+        "src/test/java/laughing/man/commits/AggregationFluentTest.java",
+        "src/test/java/laughing/man/commits/AggregationGroupByFluentTest.java",
+        "src/test/java/laughing/man/commits/NestedPathQueryTest.java",
+        "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
+        "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
+        "src/test/java/laughing/man/commits/filter/FilterCoreTest.java"
+      ]
+    },
+    {
+      "category": "runtime-and-cache",
+      "files": [
+        "src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
+        "src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
+        "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
+        "src/test/java/laughing/man/commits/SqlLikeQueryCacheTest.java"
+      ]
+    },
+    {
+      "category": "charts-reports-and-tools",
+      "files": [
+        "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+        "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+        "src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java",
+        "src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java",
+        "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
+        "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
+        "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
+        "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
+        "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java"
+      ]
+    }
+  ]
 }
