@@ -1,5 +1,14 @@
 # Migration Notes
 
+## Maven Coordinates
+
+Published coordinates now use GitHub namespace style:
+
+- old: `laughing.man.commits:pojo-lens`
+- new: `io.github.laughingmancommits:pojo-lens`
+
+Update your dependency declarations accordingly.
+
 ## Typed Selector API
 
 You can replace string field names with method references for compile-time safety.
@@ -68,29 +77,19 @@ Runtime logging moved from `commons-logging` to `slf4j`:
 For clearer semantics on complex boolean logic, prefer grouped rules:
 
 ```java
-import static builder.pojo.lens.QueryRule.of;
+import static laughing.man.commits.builder.QueryRule.of;
 
 PojoLens.newQueryBuilder(rows)
-    .
-
-allOf(
-        of(Foo::getStringField, "abc",Clauses.EQUAL),
-
-of(Foo::getIntegerField, 10,Clauses.BIGGER_EQUAL)
+    .allOf(
+        of(Foo::getStringField, "abc", Clauses.EQUAL),
+        of(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
     )
-            .
-
-anyOf(
-        of(Foo::getIntegerField, 20,Clauses.EQUAL),
-
-of(Foo::getIntegerField, 30,Clauses.EQUAL)
+    .anyOf(
+        of(Foo::getIntegerField, 20, Clauses.EQUAL),
+        of(Foo::getIntegerField, 30, Clauses.EQUAL)
     )
-            .
-
-initFilter()
-    .
-
-filter(Foo .class);
+    .initFilter()
+    .filter(Foo.class);
 ```
 
 Evaluation model:

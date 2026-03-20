@@ -3,7 +3,7 @@
 ## Repository Health
 
 - Repository remains a single-module Maven Java library that builds a `jar` on Java `17`.
-- Branch is `main`; release-coordinate updates are now staged in the working tree after `b074644`.
+- Branch is `main`; release-coordinate and documentation refresh updates are now staged in the working tree after `b074644`.
 - `TODO.md` currently reports: `No active work items.`
 - Latest local validation on `2026-03-20`: `mvn -q test` passed with `488` tests.
 - Java lint baseline was refreshed on `2026-03-20` to `11,513` entries in `scripts/checkstyle-baseline.txt`; baseline gate now passes with `new=0` and `fixed=0`.
@@ -20,6 +20,12 @@
   - Maven `groupId` changed from `laughing.man.commits` to `io.github.laughingmancommits` in `pom.xml`
   - README dependency snippet now matches the new `groupId`
   - `ai/core/repo-purpose.md` was aligned with the new coordinate
+- Documentation refresh landed for release-readiness and readability:
+  - `README.md` was rewritten for clearer onboarding (installation, quick starts, capability map, docs map)
+  - `CONTRIBUTING.md` was reorganized with clearer lint/benchmark flows and Bash/PowerShell jar-resolution guidance
+  - `RELEASE.md` now includes current Central namespace/publish guidance while preserving required benchmark/subquery/join invariants
+  - `MIGRATION.md` now records the coordinate change and fixes malformed explicit-rule-group examples
+  - `scripts/check-doc-consistency.ps1` now passes on the updated docs set
 
 ## Active Work
 
