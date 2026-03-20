@@ -52,6 +52,7 @@ public final class SqlLikeExplainSupport {
         explain.put("groupBy", new ArrayList<>(ast.groupByFields()));
         explain.put("orderBy", orderEntries(ast));
         explain.put("resolvedSortDirection", resolvedSortDirection(ast));
+        explain.put("offset", ast.offset());
         explain.put("limit", ast.limit());
         explain.put("select", selectEntries(ast));
         explain.put("projectionMode", projectionMode(ast));
@@ -279,4 +280,3 @@ public final class SqlLikeExplainSupport {
         }
     }
 }
-

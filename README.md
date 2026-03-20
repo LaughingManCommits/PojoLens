@@ -70,7 +70,8 @@ List<Company> rows = PojoLens
 
 ## Capability Snapshot
 
-- Filtering and ordering (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`)
+- Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
+- Keyset/cursor query patterns for stable deep-page APIs
 - Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
 - Time buckets (`day`, `week`, `month`, `quarter`, `year`)
 - SQL-like named parameters and typed bind-first execution
@@ -113,6 +114,7 @@ Preset intent:
 
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
+- Real-world scenarios: [docs/usecases.md](docs/usecases.md)
 - Benchmarking and guardrails: [docs/benchmarking.md](docs/benchmarking.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
 - Cache behavior: [docs/caching.md](docs/caching.md)

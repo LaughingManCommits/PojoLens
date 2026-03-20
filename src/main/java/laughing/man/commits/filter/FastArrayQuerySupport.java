@@ -104,10 +104,11 @@ final class FastArrayQuerySupport {
                               Class<T> projectionClass) {
         FilterExecutionPlan plan = FilterExecutionPlan.forSchema(builder, state.schemaFields());
         List<Object[]> filtered = filterRows(state.rows(), plan);
-        List<Object[]> ordered = orderRows(filtered, sortMethod, plan, builder.getLimit());
+        Integer paginationWindow = CollectionUtil.pagingWindow(builder.getOffset(), builder.getLimit());
+        List<Object[]> ordered = orderRows(filtered, sortMethod, plan, paginationWindow);
         List<String> outputSchema = outputSchema(builder, state.schemaFields(), plan);
         int[] outputIndexes = outputIndexes(builder, state.schemaFields(), plan);
-        List<Object[]> limited = CollectionUtil.applyLimit(ordered, builder.getLimit());
+        List<Object[]> limited = CollectionUtil.applyOffsetAndLimit(ordered, builder.getOffset(), builder.getLimit());
         return ReflectionUtil.toClassList(projectionClass, limited, outputSchema, outputIndexes);
     }
 

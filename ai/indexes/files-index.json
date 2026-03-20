@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "generatedAt": "2026-03-20T18:31:04.0519769+01:00",
   "notes": "High-signal repository roots and anchor files for cold-context lookup. Generated outputs under target/ are excluded from source-of-truth memory.",
   "counts": {
     "mainJavaFiles": 141,
     "testJavaFiles": 73,
     "testClasses": 69,
-    "markdownDocs": 36,
+    "markdownDocs": 37,
     "aiCoreFiles": 11,
     "aiIndexFiles": 5
   },
@@ -70,6 +70,10 @@
     },
     {
       "path": "README.md",
+      "kind": "product-doc"
+    },
+    {
+      "path": "docs/usecases.md",
       "kind": "product-doc"
     },
     {

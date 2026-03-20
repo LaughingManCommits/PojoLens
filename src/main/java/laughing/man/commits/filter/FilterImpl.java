@@ -139,6 +139,7 @@ public class FilterImpl implements Filter {
 
         FilterCore core = new FilterCore(executionBuilder);
         try {
+            Integer paginationWindow = CollectionUtil.pagingWindow(executionBuilder.getOffset(), executionBuilder.getLimit());
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
                 FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, false);
                 if (!fastPojoFilterApplied && executionBuilder.requiresRuntimeSchemaCleaning()) {
@@ -175,18 +176,26 @@ public class FilterImpl implements Filter {
                         // ORDER BY for stats queries is evaluated on post-aggregation rows.
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                         List<QueryRow> orderedHaving = havingCore.orderByFields(
-                                havingFiltered, sortMethod, havingPlan, executionBuilder.getLimit());
+                                havingFiltered, sortMethod, havingPlan, paginationWindow);
                         emitOrderStage(executionBuilder, orderStarted, havingFiltered.size(), orderedHaving.size());
-                        results = CollectionUtil.applyLimit(orderedHaving, executionBuilder.getLimit());
+                        results = CollectionUtil.applyOffsetAndLimit(
+                                orderedHaving,
+                                executionBuilder.getOffset(),
+                                executionBuilder.getLimit()
+                        );
                     } else {
                         FilterQueryBuilder aggregateBuilder = executionBuilder.snapshotForRows(aggregated);
                         FilterCore aggregateCore = new FilterCore(aggregateBuilder);
                         FilterExecutionPlan aggregatePlan = aggregateCore.buildExecutionPlan();
                         long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
                         List<QueryRow> orderedAggregated = aggregateCore.orderByFields(
-                                aggregated, sortMethod, aggregatePlan, executionBuilder.getLimit());
+                                aggregated, sortMethod, aggregatePlan, paginationWindow);
                         emitOrderStage(executionBuilder, orderStarted, aggregated.size(), orderedAggregated.size());
-                        results = CollectionUtil.applyLimit(orderedAggregated, executionBuilder.getLimit());
+                        results = CollectionUtil.applyOffsetAndLimit(
+                                orderedAggregated,
+                                executionBuilder.getOffset(),
+                                executionBuilder.getLimit()
+                        );
                     }
                 } else {
                     if (hasHavingPredicates(executionBuilder)) {
@@ -194,10 +203,14 @@ public class FilterImpl implements Filter {
                     }
                     // Keep ordering semantics consistent for non-aggregation queries.
                     long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                    List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan, executionBuilder.getLimit());
+                    List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan, paginationWindow);
                     emitOrderStage(executionBuilder, orderStarted, filterClasses.size(), sortedList.size());
-                    // Apply limit before display projection to avoid projecting rows that will be discarded.
-                    List<QueryRow> limited = CollectionUtil.applyLimit(sortedList, executionBuilder.getLimit());
+                    // Apply offset/limit before display projection to avoid projecting rows that will be discarded.
+                    List<QueryRow> limited = CollectionUtil.applyOffsetAndLimit(
+                            sortedList,
+                            executionBuilder.getOffset(),
+                            executionBuilder.getLimit()
+                    );
                     // Project configured display fields.
                     results = core.filterDisplayFields(limited, plan);
                 }

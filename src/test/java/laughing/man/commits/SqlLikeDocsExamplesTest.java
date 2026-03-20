@@ -79,6 +79,46 @@ public class SqlLikeDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipeOffsetPaginationShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Finance", 90000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Engineering", 110000, now, true)
+        );
+
+        List<Employee> rows = PojoLens
+                .parse("where active = true order by salary desc limit 2 offset 1")
+                .filter(source, Employee.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Alice", rows.get(0).name);
+        assertEquals("Dan", rows.get(1).name);
+    }
+
+    @Test
+    public void docsRecipeKeysetPaginationPatternShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Finance", 90000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Engineering", 110000, now, true)
+        );
+
+        List<Employee> rows = PojoLens
+                .parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
+                        + "order by salary desc, id desc limit 20")
+                .params(Map.of("lastSalary", 120000, "lastId", 1))
+                .filter(source, Employee.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Dan", rows.get(0).name);
+        assertEquals("Bob", rows.get(1).name);
+    }
+
+    @Test
     public void readmeSqlLikeParameterizedExampleShouldWork() {
         Date now = new Date();
         List<Employee> source = Arrays.asList(

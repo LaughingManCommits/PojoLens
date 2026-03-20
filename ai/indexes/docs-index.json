@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "generatedAt": "2026-03-20T18:31:04.0519769+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -99,6 +99,11 @@
     {
       "path": "README.md",
       "category": "readme",
+      "relevance": "high"
+    },
+    {
+      "path": "docs/usecases.md",
+      "category": "product-doc",
       "relevance": "high"
     },
     {

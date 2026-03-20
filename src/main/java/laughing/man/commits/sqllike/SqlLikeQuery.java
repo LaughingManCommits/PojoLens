@@ -581,7 +581,8 @@ public final class SqlLikeQuery {
         boolean groupApplied = !working.getMetrics().isEmpty();
         boolean havingApplied = hasHavingPredicates(working);
         boolean orderApplied = !working.getOrderFields().isEmpty();
-        boolean limitApplied = working.getLimit() != null;
+        boolean limitApplied = working.getLimit() != null || (working.getOffset() != null && working.getOffset() > 0);
+        Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
 
         int beforeWhere = sizeOf(working.getRows());
         int afterWhere = beforeWhere;
@@ -627,18 +628,22 @@ public final class SqlLikeQuery {
             List<QueryRow> orderedRows = havingRows;
             if (orderApplied) {
                 if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, context.sort(), groupedPlan, working.getLimit());
+                    orderedRows = groupedCore.orderByFields(havingRows, context.sort(), groupedPlan, paginationWindow);
                 } else {
                     FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                     FilterCore orderCore = new FilterCore(orderBuilder);
                     FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, context.sort(), orderPlan, working.getLimit());
+                    orderedRows = orderCore.orderByFields(havingRows, context.sort(), orderPlan, paginationWindow);
                 }
             }
             afterOrder = sizeOf(orderedRows);
 
             beforeLimit = afterOrder;
-            List<QueryRow> limitedRows = CollectionUtil.applyLimit(orderedRows, working.getLimit());
+            List<QueryRow> limitedRows = CollectionUtil.applyOffsetAndLimit(
+                    orderedRows,
+                    working.getOffset(),
+                    working.getLimit()
+            );
             afterLimit = sizeOf(limitedRows);
         }
 
@@ -750,13 +755,14 @@ public final class SqlLikeQuery {
             List<QueryRow> orderedRows = havingRows;
             if (!working.getOrderFields().isEmpty()) {
                 long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
+                Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
                 if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan, working.getLimit());
+                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan, paginationWindow);
                 } else {
                     FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
                     FilterCore orderCore = new FilterCore(orderBuilder);
                     FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan, working.getLimit());
+                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan, paginationWindow);
                 }
                 emitStage(working,
                         QueryTelemetryStage.ORDER,
@@ -765,7 +771,7 @@ public final class SqlLikeQuery {
                         orderedRows.size(),
                         QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size()));
             }
-            return CollectionUtil.applyLimit(orderedRows, working.getLimit());
+            return CollectionUtil.applyOffsetAndLimit(orderedRows, working.getOffset(), working.getLimit());
         }
 
         if (hasHavingPredicates(working)) {
@@ -773,7 +779,8 @@ public final class SqlLikeQuery {
         }
 
         long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan, working.getLimit());
+        Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
+        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan, paginationWindow);
         if (!working.getOrderFields().isEmpty()) {
             emitStage(working,
                     QueryTelemetryStage.ORDER,
@@ -782,7 +789,11 @@ public final class SqlLikeQuery {
                     orderedRows.size(),
                     QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size()));
         }
-        List<QueryRow> limitedRows = CollectionUtil.applyLimit(orderedRows, working.getLimit());
+        List<QueryRow> limitedRows = CollectionUtil.applyOffsetAndLimit(
+                orderedRows,
+                working.getOffset(),
+                working.getLimit()
+        );
         return core.filterDisplayFields(limitedRows, plan);
     }
 

@@ -59,6 +59,18 @@ public class SqlLikeParserTest {
         assertEquals(Sort.ASC, ast.orders().get(1).sort());
 
         assertEquals(Integer.valueOf(25), ast.limit());
+        assertNull(ast.offset());
+    }
+
+    @Test
+    public void shouldParseLimitWithOffsetAndOffsetOnly() {
+        QueryAst paged = SqlLikeParser.parse("where active = true order by integerField desc limit 25 offset 10");
+        assertEquals(Integer.valueOf(25), paged.limit());
+        assertEquals(Integer.valueOf(10), paged.offset());
+
+        QueryAst offsetOnly = SqlLikeParser.parse("where active = true order by integerField desc offset 3");
+        assertNull(offsetOnly.limit());
+        assertEquals(Integer.valueOf(3), offsetOnly.offset());
     }
 
     @Test
@@ -307,6 +319,23 @@ public class SqlLikeParserTest {
     }
 
     @Test
+    public void shouldRejectInvalidOffset() {
+        try {
+            PojoLens.parse("where active = true offset 1.5");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("OFFSET must be an integer"));
+        }
+
+        try {
+            PojoLens.parse("where active = true offset -1");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("OFFSET"));
+        }
+    }
+
+    @Test
     public void shouldRejectBlankParameterNameToken() {
         try {
             PojoLens.parse("where salary >= :");
@@ -404,4 +433,3 @@ public class SqlLikeParserTest {
         }
     }
 }
-

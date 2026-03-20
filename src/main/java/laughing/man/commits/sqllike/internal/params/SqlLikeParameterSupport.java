@@ -60,7 +60,8 @@ public final class SqlLikeParameterSupport {
                 resolvedHaving,
                 resolvedHavingExpr,
                 ast.orders(),
-                ast.limit()
+                ast.limit(),
+                ast.offset()
         );
     }
 
@@ -176,4 +177,3 @@ public final class SqlLikeParameterSupport {
         return SqlLikeErrors.argument(code, message);
     }
 }
-

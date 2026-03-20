@@ -11,6 +11,7 @@
 - time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - `ORDER BY`
 - `LIMIT`
+- `OFFSET`
 
 Current non-goals:
 - full SQL-engine subqueries
@@ -25,7 +26,7 @@ Supported operators in `WHERE`:
 `HAVING` is defined for grouped/aggregated SQL-like queries and is evaluated after aggregation.
 
 Clause order:
-- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT`
+- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT ... OFFSET`
 
 Allowed references in `HAVING`:
 - aggregate expressions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
@@ -102,6 +103,31 @@ List<Employee> rows = PojoLens
     .params(Map.of("dept", "Engineering", "minSalary", 120000, "active", true))
     .filter(source, Employee.class);
 ```
+
+### Recipe: Offset Pagination
+
+```java
+List<Employee> rows = PojoLens
+    .parse("where active = true order by salary desc limit 20 offset 40")
+    .filter(source, Employee.class);
+```
+
+Use `ORDER BY` with `LIMIT/OFFSET` for deterministic page windows.
+
+### Recipe: Keyset/Cursor Pagination Pattern
+
+```java
+List<Employee> rows = PojoLens
+    .parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
+        + "order by salary desc, id desc limit 20")
+    .params(Map.of("lastSalary", 120000, "lastId", 1))
+    .filter(source, Employee.class);
+```
+
+Keyset guidance:
+- include all sort fields in the cursor
+- include a deterministic tie-breaker field (for example `id`)
+- keep `ORDER BY` direction and comparison operators aligned with cursor direction
 
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
@@ -193,6 +219,27 @@ Manual overrides still apply after preset selection:
 PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
 runtime.setLintMode(true);
 runtime.setStrictParameterTypes(true);
+```
+
+### Recipe: Runtime API Introspection and Preset Re-Application
+
+If you need to inspect or re-apply runtime configuration programmatically:
+
+```java
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+
+boolean strict = runtime.isStrictParameterTypes();
+boolean lint = runtime.isLintMode();
+QueryTelemetryListener listener = runtime.getTelemetryListener();
+ComputedFieldRegistry registry = runtime.getComputedFieldRegistry();
+
+runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets caches/stats
+```
+
+Equivalent preset creation through the facade is also available:
+
+```java
+PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
 ```
 
 ### Recipe: WHERE IN Subquery
@@ -423,7 +470,7 @@ For parameterized queries, `parameterSnapshot` reports parameter names with reda
 Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWarnings`. Current warning codes:
 
 - `EQ-SQL-LINT-001`: broad `select *`
-- `EQ-SQL-LINT-002`: `limit` without `order by`
+- `EQ-SQL-LINT-002`: `limit`/`offset` without `order by`
 - `EQ-SQL-LINT-003`: inline string literal filter values; prefer named parameters
 
 ### Anti-Patterns
@@ -433,6 +480,7 @@ Avoid these patterns when writing SQL-like integrations:
 - bind-first SQL-like calls that repeat sort and projection class; use `bindTyped(...)`
 - ad-hoc join maps for long-lived code paths; prefer `JoinBindings`
 - rebuilding the same multi-source snapshot repeatedly; prefer `DatasetBundle`
+- deep `offset` pagination on high-cardinality feeds when cursor semantics are available
 
 ## SQL-like Error Reference
 

@@ -114,6 +114,15 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder offset(int rowOffset) {
+        if (rowOffset < 0) {
+            throw new IllegalArgumentException("rowOffset must be >= 0");
+        }
+        spec.setOffset(rowOffset);
+        return this;
+    }
+
+    @Override
     public Filter initFilter() {
         return new FilterImpl(copyOnBuild ? snapshotForExecution() : this);
     }
@@ -123,6 +132,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         Map<String, Object> explain = new LinkedHashMap<>();
         explain.put("type", "fluent");
         explain.put("copyOnBuild", copyOnBuild);
+        explain.put("offset", spec.getOffset());
         explain.put("limit", spec.getLimit());
         explain.put("selectedFields", new ArrayList<>(spec.getReturnFields()));
         explain.put("groupBy", new TreeMap<>(spec.getGroupFields()));
@@ -695,6 +705,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public Integer getLimit() {
         return spec.getLimit();
+    }
+
+    public Integer getOffset() {
+        return spec.getOffset();
     }
 
     private int nextJoinIndex() {

@@ -406,11 +406,25 @@ public class PublicApiCoverageTest {
             assertTrue(ex.getMessage().contains("maxRows must be >= 0"));
         }
 
+        try {
+            PojoLens.newQueryBuilder(source).offset(-1);
+            fail("Expected IllegalArgumentException for negative offset");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("rowOffset must be >= 0"));
+        }
+
         List<Foo> empty = PojoLens.newQueryBuilder(source)
                 .limit(0)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(0, empty.size());
+
+        List<Foo> offsetRows = PojoLens.newQueryBuilder(source)
+                .offset(1)
+                .initFilter()
+                .filter(Foo.class);
+        assertEquals(1, offsetRows.size());
+        assertEquals("b", offsetRows.get(0).getStringField());
     }
 
     @Test
@@ -586,4 +600,3 @@ public class PublicApiCoverageTest {
     }
 
 }
-

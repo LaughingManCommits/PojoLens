@@ -28,6 +28,13 @@ List<DepartmentCount> rows = runtime
 
 Runtime-level hooks are the cleanest way to capture SQL-like `PARSE` events because parsing happens before a `SqlLikeQuery` instance is returned.
 
+You can inspect or clear the current runtime listener:
+
+```java
+QueryTelemetryListener current = runtime.getTelemetryListener();
+runtime.setTelemetryListener(null); // disables telemetry callbacks
+```
+
 ## Fluent Hook
 
 Attach a listener directly to a fluent builder:

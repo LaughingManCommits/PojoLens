@@ -31,24 +31,46 @@ Set `maxWeight > 0` to switch to weighted eviction.
 SQL-like cache:
 
 - `setSqlLikeCacheEnabled(boolean)`
+- `isSqlLikeCacheEnabled()`
 - `setSqlLikeCacheStatsEnabled(boolean)`
+- `isSqlLikeCacheStatsEnabled()`
 - `setSqlLikeCacheMaxEntries(int)`
+- `getSqlLikeCacheMaxEntries()`
 - `setSqlLikeCacheMaxWeight(long)`
+- `getSqlLikeCacheMaxWeight()`
 - `setSqlLikeCacheExpireAfterWriteMillis(long)`
+- `getSqlLikeCacheExpireAfterWriteMillis()`
 - `clearSqlLikeCache()`
 - `resetSqlLikeCacheStats()`
+- `getSqlLikeCacheHits()`
+- `getSqlLikeCacheMisses()`
+- `getSqlLikeCacheSize()`
+- `getSqlLikeCacheEvictions()`
 - `getSqlLikeCacheSnapshot()`
 
 stats-plan cache:
 
 - `setStatsPlanCacheEnabled(boolean)`
+- `isStatsPlanCacheEnabled()`
 - `setStatsPlanCacheStatsEnabled(boolean)`
+- `isStatsPlanCacheStatsEnabled()`
 - `setStatsPlanCacheMaxEntries(int)`
+- `getStatsPlanCacheMaxEntries()`
 - `setStatsPlanCacheMaxWeight(long)`
+- `getStatsPlanCacheMaxWeight()`
 - `setStatsPlanCacheExpireAfterWriteMillis(long)`
+- `getStatsPlanCacheExpireAfterWriteMillis()`
 - `clearStatsPlanCache()`
 - `resetStatsPlanCacheStats()`
+- `getStatsPlanCacheHits()`
+- `getStatsPlanCacheMisses()`
+- `getStatsPlanCacheSize()`
+- `getStatsPlanCacheEvictions()`
 - `getStatsPlanCacheSnapshot()`
+
+Observability note:
+- `get*Snapshot()` returns a structured map useful for dashboards/logging.
+- `get*Hits/Misses/Size/Evictions` are direct counters/gauges when you want individual metrics.
 
 ## Instance-Scoped Runtime (DI / Multi-Tenant)
 

@@ -47,6 +47,7 @@ final class QuerySpec {
     private List<List<QueryRule>> havingAllOfGroups = new ArrayList<>();
     private List<List<QueryRule>> havingAnyOfGroups = new ArrayList<>();
     private Integer limit;
+    private Integer offset;
 
     List<QueryRow> getRows() {
         return rows;
@@ -196,6 +197,14 @@ final class QuerySpec {
         this.limit = limit;
     }
 
+    Integer getOffset() {
+        return offset;
+    }
+
+    void setOffset(Integer offset) {
+        this.offset = offset;
+    }
+
     void addFilterRule(CriteriaRule rule) {
         upsertCriteriaRule(rule, filterRules, filterValues, filterFields, filterClause, filterSeparator, filterDateFormats, filterIDs);
     }
@@ -259,6 +268,7 @@ final class QuerySpec {
         copy.havingAllOfGroups = havingAllOfGroups;
         copy.havingAnyOfGroups = havingAnyOfGroups;
         copy.limit = limit;
+        copy.offset = offset;
         return copy;
     }
 
@@ -311,6 +321,7 @@ final class QuerySpec {
         target.havingAnyOfGroups.clear();
         target.havingAnyOfGroups.addAll(copyRuleGroups(havingAnyOfGroups));
         target.limit = limit;
+        target.offset = offset;
     }
 
     private static <K, V> void replaceMap(Map<K, V> target, Map<K, V> source) {

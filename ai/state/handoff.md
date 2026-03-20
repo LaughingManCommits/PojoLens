@@ -9,15 +9,18 @@
 
 ## Current Focus
 
-- No open backlog items.
-- Primary pending operational task is Maven Central release completion.
-- Release pipeline and docs are in place; remaining issue is signer-key discovery/propagation on Central keyservers.
+- Spike 1 (pagination) is active:
+  - `OFFSET` is implemented in fluent + SQL-like flows.
+  - keyset/cursor usage is documented and tested as query patterns.
+  - first-class keyset/cursor API primitives are still pending.
+- Maven Central release completion remains pending operational work.
 
 ## Next Validation
 
 - After any code change: run focused tests, then `mvn -q test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -Prelease-central -DskipTests package`.
+- Lint note: `scripts/check-lint-baseline.ps1` currently reports large baseline drift and is not a clean gate without baseline maintenance.
 
 ## Release Retry Checklist
 
@@ -25,3 +28,9 @@
 - Ensure release tag matches `pom.xml` version (`vX.Y.Z` vs `project.version`).
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
+
+## Pagination Follow-Up Checklist
+
+- Define public keyset/cursor API surface (builder helpers and cursor token contract).
+- Add deterministic tie-breaker contract docs (null handling, sort-field requirements).
+- Add parity + edge-case tests on tie-heavy datasets.

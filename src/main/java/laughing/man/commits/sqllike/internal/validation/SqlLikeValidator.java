@@ -414,7 +414,8 @@ public final class SqlLikeValidator {
                 normalizedHaving,
                 normalizedHavingExpression,
                 normalizedOrders,
-                ast.limit()
+                ast.limit(),
+                ast.offset()
         );
     }
 
@@ -605,4 +606,3 @@ public final class SqlLikeValidator {
         return SqlLikeErrors.argument(code, message);
     }
 }
-

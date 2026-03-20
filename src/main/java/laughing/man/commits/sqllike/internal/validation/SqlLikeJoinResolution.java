@@ -88,7 +88,8 @@ public final class SqlLikeJoinResolution {
                 canonicalizeFilters(ast.havingFilters(), plan, "HAVING"),
                 canonicalizeExpression(ast.havingExpression(), plan, "HAVING"),
                 canonicalizeOrders(ast.orders(), plan),
-                ast.limit()
+                ast.limit(),
+                ast.offset()
         );
     }
 

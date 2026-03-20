@@ -13,6 +13,7 @@ public final class QueryAst {
     private final FilterExpressionAst havingExpression;
     private final List<OrderAst> orders;
     private final Integer limit;
+    private final Integer offset;
 
     public QueryAst(SelectAst select,
                     List<JoinAst> joins,
@@ -22,7 +23,8 @@ public final class QueryAst {
                     List<FilterAst> havingFilters,
                     FilterExpressionAst havingExpression,
                     List<OrderAst> orders,
-                    Integer limit) {
+                    Integer limit,
+                    Integer offset) {
         this.select = select;
         this.joins = List.copyOf(joins);
         this.filters = List.copyOf(filters);
@@ -32,6 +34,7 @@ public final class QueryAst {
         this.havingExpression = havingExpression;
         this.orders = List.copyOf(orders);
         this.limit = limit;
+        this.offset = offset;
     }
 
     public SelectAst select() {
@@ -72,6 +75,10 @@ public final class QueryAst {
 
     public Integer limit() {
         return limit;
+    }
+
+    public Integer offset() {
+        return offset;
     }
 
     public boolean hasJoins() {

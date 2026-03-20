@@ -33,11 +33,13 @@ public class ExplainToolingTest {
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                 .addHaving("total", 1, Clauses.BIGGER_EQUAL)
                 .addOrder("totalSalary", 1)
+                .offset(1)
                 .limit(5);
 
         Map<String, Object> explain = builder.explain();
 
         assertEquals("fluent", explain.get("type"));
+        assertEquals(1, explain.get("offset"));
         assertEquals(5, explain.get("limit"));
         assertEquals(1, ((Number) explain.get("whereRuleCount")).intValue());
         assertEquals(1, ((Number) explain.get("havingRuleCount")).intValue());
@@ -52,18 +54,19 @@ public class ExplainToolingTest {
         Map<String, Object> explain = PojoLens
                 .parse("select department, count(*) as total, bucket(hireDate,'month') as period "
                         + "where active = true and department = :dept "
-                        + "group by department, period having total >= :minTotal order by total desc limit 3")
+                        + "group by department, period having total >= :minTotal order by total desc limit 3 offset 2")
                 .explain();
 
         assertEquals("sql-like", explain.get("type"));
         assertEquals(
                 "select department, count(*) as total, bucket(hireDate,'month') as period "
                         + "where active = true and department = :dept "
-                        + "group by department, period having total >= :minTotal order by total desc limit 3",
+                        + "group by department, period having total >= :minTotal order by total desc limit 3 offset 2",
                 explain.get("source"));
         assertEquals(explain.get("source"), explain.get("normalizedQuery"));
         assertEquals(2, ((Number) explain.get("whereRuleCount")).intValue());
         assertEquals(1, ((Number) explain.get("havingRuleCount")).intValue());
+        assertEquals(2, explain.get("offset"));
         assertEquals(3, explain.get("limit"));
         assertEquals("DESC", explain.get("resolvedSortDirection"));
         assertEquals("alias/computed", explain.get("projectionMode"));
@@ -125,12 +128,13 @@ public class ExplainToolingTest {
     @Test
     public void sqlLikeExecutionExplainShouldIncludeStageCountsForNonAggregateQueries() {
         Map<String, Object> explain = PojoLens
-                .parse("where active = true order by salary desc limit 2")
+                .parse("where active = true order by salary desc limit 1 offset 1")
                 .explain(sampleEmployees(), Employee.class);
 
         assertEquals("direct", explain.get("projectionMode"));
         assertEquals("DESC", explain.get("resolvedSortDirection"));
-        assertEquals("where active = true order by salary desc limit 2", explain.get("normalizedQuery"));
+        assertEquals("where active = true order by salary desc limit 1 offset 1", explain.get("normalizedQuery"));
+        assertEquals(1, explain.get("offset"));
         assertTrue(parameterSnapshot(explain).isEmpty());
         assertTrue(joinSourceBindings(explain).isEmpty());
 
@@ -139,7 +143,7 @@ public class ExplainToolingTest {
         assertStage(stageCounts, "group", false, 3, 3);
         assertStage(stageCounts, "having", false, 3, 3);
         assertStage(stageCounts, "order", true, 3, 3);
-        assertStage(stageCounts, "limit", true, 3, 2);
+        assertStage(stageCounts, "limit", true, 3, 1);
     }
 
     @Test

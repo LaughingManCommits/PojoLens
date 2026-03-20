@@ -47,6 +47,35 @@ public class SqlLikeMappingParityTest {
     }
 
     @Test
+    public void sqlLikeWhereOrderLimitOffsetShouldMatchFluentPipeline() {
+        List<Foo> source = Arrays.asList(
+                new Foo("abc", new Date(), 1),
+                new Foo("abc", new Date(), 9),
+                new Foo("abc", new Date(), 4),
+                new Foo("xyz", new Date(), 2)
+        );
+
+        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+                .addRule("stringField", "abc", Clauses.EQUAL, Separator.AND)
+                .addRule("integerField", 1, Clauses.BIGGER, Separator.AND)
+                .addOrder("integerField", 1)
+                .offset(1)
+                .limit(1)
+                .initFilter()
+                .filter(Sort.DESC, Foo.class);
+
+        List<Foo> sqlLike = PojoLens
+                .parse("select * from rows where stringField = 'abc' and integerField > 1 "
+                        + "order by integerField desc limit 1 offset 1")
+                .filter(source, Foo.class);
+
+        FluentSqlLikeParity.assertOrderedEquals(fluent, sqlLike,
+                row -> row.getStringField() + ":" + row.getIntegerField());
+        assertEquals(1, sqlLike.size());
+        assertEquals(4, sqlLike.get(0).getIntegerField());
+    }
+
+    @Test
     public void sqlLikeSelectProjectionShouldMatchFluentProjection() {
         List<Foo> source = Arrays.asList(
                 new Foo("abc", new Date(), 1),

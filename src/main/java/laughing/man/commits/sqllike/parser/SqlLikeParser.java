@@ -37,7 +37,7 @@ public final class SqlLikeParser {
     private static final int MAX_SELECT_FIELDS = 100;
     private static final int MAX_GROUP_FIELDS = 20;
     private static final Set<String> KEYWORDS = Set.of(
-            "SELECT", "FROM", "WHERE", "ORDER", "BY", "LIMIT", "ASC", "DESC",
+            "SELECT", "FROM", "WHERE", "ORDER", "BY", "LIMIT", "OFFSET", "ASC", "DESC",
             "AND", "OR", "TRUE", "FALSE", "NULL", "CONTAINS", "MATCHES", "IN", "AS",
             "GROUP", "HAVING", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
             "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET"
@@ -84,6 +84,7 @@ public final class SqlLikeParser {
         FilterExpressionAst havingExpression = null;
         List<OrderAst> orders = new ArrayList<>();
         Integer limit = null;
+        Integer offset = null;
 
         if (matchKeyword("SELECT")) {
             enterClause("SELECT", tokens.get(index - 1).position);
@@ -123,18 +124,27 @@ public final class SqlLikeParser {
             enterClause("LIMIT", tokens.get(index - 1).position);
             limit = parseLimit();
             exitClause();
+            if (matchKeyword("OFFSET")) {
+                enterClause("OFFSET", tokens.get(index - 1).position);
+                offset = parseOffset();
+                exitClause();
+            }
+        } else if (matchKeyword("OFFSET")) {
+            enterClause("OFFSET", tokens.get(index - 1).position);
+            offset = parseOffset();
+            exitClause();
         }
 
         Token extra = peek();
         if (extra.type != TokenType.EOF) {
             enterClause("QUERY", extra.position);
             if (isKeyword(extra, "JOIN")) {
-                throw error("JOIN must appear after FROM and before WHERE/ORDER/LIMIT", extra.position);
+                throw error("JOIN must appear after FROM and before WHERE/ORDER/LIMIT/OFFSET", extra.position);
             }
             throw error("Unexpected token '" + extra.text + "'", extra.position);
         }
         validateSelectOutputNames(select);
-        return new QueryAst(select, joins, filters, whereExpression, groupByFields, havingFilters, havingExpression, orders, limit);
+        return new QueryAst(select, joins, filters, whereExpression, groupByFields, havingFilters, havingExpression, orders, limit, offset);
     }
 
     private boolean peekJoinStart() {
@@ -601,7 +611,8 @@ public final class SqlLikeParser {
                 || "GROUP".equalsIgnoreCase(value)
                 || "HAVING".equalsIgnoreCase(value)
                 || "ORDER".equalsIgnoreCase(value)
-                || "LIMIT".equalsIgnoreCase(value);
+                || "LIMIT".equalsIgnoreCase(value)
+                || "OFFSET".equalsIgnoreCase(value);
     }
 
     private Clauses parseClause() {
@@ -809,6 +820,26 @@ public final class SqlLikeParser {
             return limit;
         } catch (NumberFormatException e) {
             throw error("LIMIT value is too large", token.position);
+        }
+    }
+
+    private Integer parseOffset() {
+        Token token = peek();
+        if (token.type != TokenType.NUMBER) {
+            throw error("Expected numeric OFFSET value", token.position);
+        }
+        next();
+        if (token.text.contains(".")) {
+            throw error("OFFSET must be an integer", token.position);
+        }
+        try {
+            int offset = Integer.parseInt(token.text);
+            if (offset < 0) {
+                throw error("OFFSET must be >= 0", token.position);
+            }
+            return offset;
+        } catch (NumberFormatException e) {
+            throw error("OFFSET value is too large", token.position);
         }
     }
 

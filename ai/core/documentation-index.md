@@ -3,6 +3,7 @@
 ## Primary Product Docs
 
 - `README.md`
+- `docs/usecases.md`
 - `docs/sql-like.md`
 - `docs/charts.md`
 - `docs/benchmarking.md`

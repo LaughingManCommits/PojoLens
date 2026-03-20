@@ -132,6 +132,9 @@ public final class SqlLikeBinder {
         if (normalizedAst.limit() != null) {
             builder.limit(normalizedAst.limit());
         }
+        if (normalizedAst.offset() != null) {
+            builder.offset(normalizedAst.offset());
+        }
 
         for (SqlLikeJoinResolution.ResolvedJoin join : joinPlan.joins()) {
             List<?> children = joinSources.get(join.join().childSource());

@@ -60,6 +60,14 @@ public interface QueryBuilder {
     QueryBuilder limit(int maxRows);
 
     /**
+     * Skips the first {@code rowOffset} rows after ordering and before projection.
+     *
+     * @param rowOffset number of rows to skip; must be >= 0
+     * @return builder
+     */
+    QueryBuilder offset(int rowOffset);
+
+    /**
      * Builds an executable filter pipeline from the currently configured query.
      *
      * @return filter executor

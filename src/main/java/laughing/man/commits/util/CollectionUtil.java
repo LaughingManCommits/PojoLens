@@ -25,13 +25,48 @@ public final class CollectionUtil {
     }
 
     public static <T> List<T> applyLimit(List<T> rows, Integer limit) {
-        if (rows == null || limit == null || limit >= rows.size()) {
+        return applyOffsetAndLimit(rows, null, limit);
+    }
+
+    public static <T> List<T> applyOffsetAndLimit(List<T> rows, Integer offset, Integer limit) {
+        if (rows == null) {
+            return null;
+        }
+        int rowCount = rows.size();
+        if (rowCount == 0) {
             return rows;
         }
-        if (limit <= 0) {
+
+        int normalizedOffset = offset == null ? 0 : Math.max(0, offset);
+        if (normalizedOffset >= rowCount) {
             return new ArrayList<>();
         }
-        return new ArrayList<>(rows.subList(0, limit));
+        if (limit != null && limit <= 0) {
+            return new ArrayList<>();
+        }
+
+        int start = normalizedOffset;
+        int endExclusive = rowCount;
+        if (limit != null) {
+            long end = (long) start + limit;
+            endExclusive = (int) Math.min(rowCount, end);
+        }
+        if (start == 0 && endExclusive == rowCount) {
+            return rows;
+        }
+        return new ArrayList<>(rows.subList(start, endExclusive));
+    }
+
+    public static Integer pagingWindow(Integer offset, Integer limit) {
+        if (limit == null) {
+            return null;
+        }
+        int normalizedOffset = offset == null ? 0 : Math.max(0, offset);
+        long window = (long) normalizedOffset + limit;
+        if (window > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) window;
     }
 
     public static int expectedMapCapacity(int sourceSize) {

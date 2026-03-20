@@ -6,12 +6,14 @@
 - Coordinates are `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - `pom.xml` includes `release-central` profile for Maven Central publishing.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` has no active work items.
+- `TODO.md` tracks active high-value work; pagination spike is in progress.
 
 ## Latest Validation
 
-- `2026-03-20`: `mvn -q test` passed with `488` tests.
-- `2026-03-20`: lint baseline refreshed; `scripts/check-lint-baseline.ps1` passes with `new=0` and `fixed=0` against `scripts/checkstyle-baseline.txt` (`11,513` entries).
+- `2026-03-20`: `mvn -q test` passed after pagination changes (`OFFSET` support + docs/tests updates).
+- `2026-03-20`: focused suite passed (`SqlLikeDocsExamplesTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `ExplainToolingTest`, `PublicApiCoverageTest`).
+- `2026-03-20`: `scripts/check-doc-consistency.ps1` passed.
+- `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
 
@@ -22,9 +24,15 @@
 
 ## Active Work
 
-- No active implementation work in progress.
+- Pagination spike 1 progressed:
+  - Fluent + SQL-like `OFFSET` implemented.
+  - Explain payloads include `offset`.
+  - SQL-like grammar supports `OFFSET` and `LIMIT ... OFFSET`.
+  - Docs/tests include offset and keyset/cursor query patterns.
+- Remaining in spike 1: first-class keyset/cursor API primitives (beyond documented query patterns).
 
 ## Next Actions
 
-- Retry release workflow for `v1.0.0` (or manual dispatch) after key propagation.
-- Confirm Central deployment reaches `published` status.
+- Complete keyset/cursor API design + implementation for spike 1.
+- Decide lint baseline policy (refresh baseline vs reduce inherited violations).
+- Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.
