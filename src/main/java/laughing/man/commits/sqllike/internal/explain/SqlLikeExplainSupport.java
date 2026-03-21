@@ -113,6 +113,7 @@ public final class SqlLikeExplainSupport {
         TreeMap<String, Map<String, Object>> snapshot = new TreeMap<>();
         collectParameterSnapshots(ast.filters(), snapshot);
         collectParameterSnapshots(ast.havingFilters(), snapshot);
+        collectPaginationParameterSnapshots(ast, snapshot);
         return Collections.unmodifiableMap(new LinkedHashMap<>(snapshot));
     }
 
@@ -127,7 +128,18 @@ public final class SqlLikeExplainSupport {
             } else if (value instanceof SubqueryValueAst subqueryValueAst) {
                 collectParameterSnapshots(subqueryValueAst.query().filters(), snapshot);
                 collectParameterSnapshots(subqueryValueAst.query().havingFilters(), snapshot);
+                collectPaginationParameterSnapshots(subqueryValueAst.query(), snapshot);
             }
+        }
+    }
+
+    private static void collectPaginationParameterSnapshots(QueryAst ast,
+                                                            Map<String, Map<String, Object>> snapshot) {
+        if (ast.limitParameter() != null) {
+            snapshot.putIfAbsent(ast.limitParameter(), unresolvedParameter());
+        }
+        if (ast.offsetParameter() != null) {
+            snapshot.putIfAbsent(ast.offsetParameter(), unresolvedParameter());
         }
     }
 

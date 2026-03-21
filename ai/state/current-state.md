@@ -13,6 +13,9 @@
 - `2026-03-20`: `mvn -q test` passed after pagination changes (`OFFSET` support + docs/tests updates).
 - `2026-03-20`: focused suite passed (`SqlLikeDocsExamplesTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `ExplainToolingTest`, `PublicApiCoverageTest`).
 - `2026-03-20`: `scripts/check-doc-consistency.ps1` passed.
+- `2026-03-21`: focused SQL-like suite passed (`SqlLikeParserTest`, `SqlLikePaginationParameterSupportTest`, `SqlLikeDocsExamplesTest`, `SqlLikeErrorCodesContractTest`, `SqlLikeStrictParameterTypeModeTest`).
+- `2026-03-21`: `mvn -q test` passed after adding SQL-like `LIMIT/OFFSET` named parameter support.
+- `2026-03-21`: `scripts/check-doc-consistency.ps1` passed.
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -26,6 +29,7 @@
 
 - Pagination spike 1 progressed:
   - Fluent + SQL-like `OFFSET` implemented.
+  - SQL-like pagination now supports named parameters in `LIMIT/OFFSET` with integer/non-negative validation.
   - Explain payloads include `offset`.
   - SQL-like grammar supports `OFFSET` and `LIMIT ... OFFSET`.
   - Docs/tests include offset and keyset/cursor query patterns.

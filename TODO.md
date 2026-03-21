@@ -3,6 +3,7 @@
 ## High-Value Features (Current Focus)
 
 - [x] Add `OFFSET` pagination primitives for fluent + SQL-like query flows.
+- [x] Add SQL-like named parameter support for pagination clauses (`LIMIT :limit OFFSET :offset`).
 - [ ] Add first-class keyset/cursor pagination API primitives (beyond documented query patterns).
 - [ ] Add streaming execution output (iterator/stream) to avoid full materialization on large datasets.
 - [ ] Add optional in-memory indexes for hot filter/join paths to improve repeated-query latency.
@@ -24,12 +25,14 @@ Spike goal:
 
 Spike steps:
 1. [x] Define fluent and SQL-like syntax/contracts for `OFFSET`.
-2. [ ] Design keyset/cursor API shape (token format, sort-field requirements, null-handling).
-3. [ ] Validate behavior with large sorted datasets and tie-heavy keys.
-4. [x] Document guidance on when to prefer offset vs keyset.
+2. [x] Add SQL-like named parameter support for `LIMIT/OFFSET` (`:limit`, `:offset`) with integer and non-negative validation.
+3. [ ] Design keyset/cursor API shape (token format, sort-field requirements, null-handling).
+4. [ ] Validate behavior with large sorted datasets and tie-heavy keys.
+5. [x] Document guidance on when to prefer offset vs keyset.
 
 Acceptance criteria:
 - Offset pagination is supported in fluent and SQL-like flows.
+- SQL-like pagination supports both numeric literals and named parameters for `LIMIT/OFFSET`.
 - Keyset/cursor pagination has a documented API contract and tests.
 - Docs include stability guidance for deterministic paging.
 

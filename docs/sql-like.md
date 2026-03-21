@@ -114,6 +114,15 @@ List<Employee> rows = PojoLens
 
 Use `ORDER BY` with `LIMIT/OFFSET` for deterministic page windows.
 
+### Recipe: Parameterized Offset Pagination
+
+```java
+List<Employee> rows = PojoLens
+    .parse("where active = true order by salary desc limit :limit offset :offset")
+    .params(Map.of("limit", 20, "offset", 40))
+    .filter(source, Employee.class);
+```
+
 ### Recipe: Keyset/Cursor Pagination Pattern
 
 ```java
@@ -514,7 +523,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
 | `EQ-SQL-PRM-003` | Query execution started with unresolved parameters. | Call `params(...)` before `filter()`, `bindTyped()`, or `chart()`. |
 | `EQ-SQL-PRM-004` | Parameter name was blank/invalid. | Use non-blank parameter names in maps and `SqlParams`. |
-| `EQ-SQL-PRM-005` | Strict parameter typing rejected a mismatched value. | Pass a value compatible with the referenced field type or disable strict mode. |
+| `EQ-SQL-PRM-005` | A bound parameter type/value is invalid for its usage. | For filters/HAVING, pass a value compatible with the referenced field type (or disable strict mode). For pagination params, pass non-negative integer values. |
 | `EQ-SQL-BIND-001` | `ORDER BY` directions are mixed. | Use all `ASC` or all `DESC`. |
 | `EQ-SQL-BIND-002` | Boolean expression exploded during normalization. | Simplify nested `AND`/`OR` logic. |
 | `EQ-SQL-JOIN-001` | Duplicate typed JOIN binding name. | Register each JOIN source once. |
@@ -677,10 +686,13 @@ Fix:
 ### Error Code EQ-SQL-PRM-005
 
 Meaning:
-- Strict parameter typing detected that a bound parameter type does not match the referenced field/output type.
+- A bound parameter value is invalid for its usage:
+- strict parameter typing detected a mismatch with a referenced field/output type, or
+- pagination parameter values for `LIMIT`/`OFFSET` were not non-negative integers.
 
 Fix:
 - Pass a value compatible with the referenced field type, or leave strict parameter typing disabled if coercion-on-compare is acceptable.
+- For `LIMIT`/`OFFSET` parameters, pass non-negative integer values (for example `20`, `0`, `100L`).
 
 ### Error Code EQ-SQL-BIND-001
 

@@ -84,7 +84,9 @@ public final class SqlLikeParser {
         FilterExpressionAst havingExpression = null;
         List<OrderAst> orders = new ArrayList<>();
         Integer limit = null;
+        String limitParameter = null;
         Integer offset = null;
+        String offsetParameter = null;
 
         if (matchKeyword("SELECT")) {
             enterClause("SELECT", tokens.get(index - 1).position);
@@ -122,16 +124,22 @@ public final class SqlLikeParser {
         }
         if (matchKeyword("LIMIT")) {
             enterClause("LIMIT", tokens.get(index - 1).position);
-            limit = parseLimit();
+            PaginationClauseValue limitValue = parseLimit();
+            limit = limitValue.literal();
+            limitParameter = limitValue.parameterName();
             exitClause();
             if (matchKeyword("OFFSET")) {
                 enterClause("OFFSET", tokens.get(index - 1).position);
-                offset = parseOffset();
+                PaginationClauseValue offsetValue = parseOffset();
+                offset = offsetValue.literal();
+                offsetParameter = offsetValue.parameterName();
                 exitClause();
             }
         } else if (matchKeyword("OFFSET")) {
             enterClause("OFFSET", tokens.get(index - 1).position);
-            offset = parseOffset();
+            PaginationClauseValue offsetValue = parseOffset();
+            offset = offsetValue.literal();
+            offsetParameter = offsetValue.parameterName();
             exitClause();
         }
 
@@ -144,7 +152,20 @@ public final class SqlLikeParser {
             throw error("Unexpected token '" + extra.text + "'", extra.position);
         }
         validateSelectOutputNames(select);
-        return new QueryAst(select, joins, filters, whereExpression, groupByFields, havingFilters, havingExpression, orders, limit, offset);
+        return new QueryAst(
+                select,
+                joins,
+                filters,
+                whereExpression,
+                groupByFields,
+                havingFilters,
+                havingExpression,
+                orders,
+                limit,
+                limitParameter,
+                offset,
+                offsetParameter
+        );
     }
 
     private boolean peekJoinStart() {
@@ -803,8 +824,12 @@ public final class SqlLikeParser {
         return buildExpressionText(start, index);
     }
 
-    private Integer parseLimit() {
+    private PaginationClauseValue parseLimit() {
         Token token = peek();
+        if (token.type == TokenType.PARAM) {
+            next();
+            return PaginationClauseValue.parameter(token.text.substring(1));
+        }
         if (token.type != TokenType.NUMBER) {
             throw error("Expected numeric LIMIT value", token.position);
         }
@@ -817,14 +842,18 @@ public final class SqlLikeParser {
             if (limit < 0) {
                 throw error("LIMIT must be >= 0", token.position);
             }
-            return limit;
+            return PaginationClauseValue.literal(limit);
         } catch (NumberFormatException e) {
             throw error("LIMIT value is too large", token.position);
         }
     }
 
-    private Integer parseOffset() {
+    private PaginationClauseValue parseOffset() {
         Token token = peek();
+        if (token.type == TokenType.PARAM) {
+            next();
+            return PaginationClauseValue.parameter(token.text.substring(1));
+        }
         if (token.type != TokenType.NUMBER) {
             throw error("Expected numeric OFFSET value", token.position);
         }
@@ -837,7 +866,7 @@ public final class SqlLikeParser {
             if (offset < 0) {
                 throw error("OFFSET must be >= 0", token.position);
             }
-            return offset;
+            return PaginationClauseValue.literal(offset);
         } catch (NumberFormatException e) {
             throw error("OFFSET value is too large", token.position);
         }
@@ -1247,6 +1276,16 @@ public final class SqlLikeParser {
         private ParsedReference(String text, boolean computed) {
             this.text = text;
             this.computed = computed;
+        }
+    }
+
+    private record PaginationClauseValue(Integer literal, String parameterName) {
+        private static PaginationClauseValue literal(int value) {
+            return new PaginationClauseValue(value, null);
+        }
+
+        private static PaginationClauseValue parameter(String name) {
+            return new PaginationClauseValue(null, name);
         }
     }
 }

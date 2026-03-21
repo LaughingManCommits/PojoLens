@@ -30,7 +30,7 @@ public final class SqlLikeLintSupport {
                 "Avoid SELECT * in long-lived SQL-like queries; prefer explicit fields or aliases");
         addIfNotSuppressed(warnings,
                 suppressedCodes,
-                (ast.limit() != null || ast.offset() != null) && ast.orders().isEmpty(),
+                (ast.hasLimitClause() || ast.hasOffsetClause()) && ast.orders().isEmpty(),
                 SqlLikeLintCodes.LIMIT_WITHOUT_ORDER,
                 "LIMIT/OFFSET without ORDER BY can yield unstable result ordering");
         addIfNotSuppressed(warnings,

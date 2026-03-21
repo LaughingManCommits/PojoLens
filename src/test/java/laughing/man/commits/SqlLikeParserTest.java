@@ -74,6 +74,17 @@ public class SqlLikeParserTest {
     }
 
     @Test
+    public void shouldParseParameterizedLimitAndOffset() {
+        QueryAst ast = SqlLikeParser.parse("where active = true order by integerField desc limit :limit offset :offset");
+        assertNull(ast.limit());
+        assertEquals("limit", ast.limitParameter());
+        assertNull(ast.offset());
+        assertEquals("offset", ast.offsetParameter());
+        assertTrue(ast.hasLimitClause());
+        assertTrue(ast.hasOffsetClause());
+    }
+
+    @Test
     public void shouldParseSelectAliases() {
         QueryAst ast = SqlLikeParser.parse("select stringField as label, integerField as amount where integerField >= 2");
         assertNotNull(ast.select());

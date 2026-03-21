@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike.ast;
 
+import laughing.man.commits.util.StringUtil;
+
 import java.util.List;
 
 public final class QueryAst {
@@ -13,7 +15,9 @@ public final class QueryAst {
     private final FilterExpressionAst havingExpression;
     private final List<OrderAst> orders;
     private final Integer limit;
+    private final String limitParameter;
     private final Integer offset;
+    private final String offsetParameter;
 
     public QueryAst(SelectAst select,
                     List<JoinAst> joins,
@@ -25,6 +29,21 @@ public final class QueryAst {
                     List<OrderAst> orders,
                     Integer limit,
                     Integer offset) {
+        this(select, joins, filters, whereExpression, groupByFields, havingFilters, havingExpression, orders, limit, null, offset, null);
+    }
+
+    public QueryAst(SelectAst select,
+                    List<JoinAst> joins,
+                    List<FilterAst> filters,
+                    FilterExpressionAst whereExpression,
+                    List<String> groupByFields,
+                    List<FilterAst> havingFilters,
+                    FilterExpressionAst havingExpression,
+                    List<OrderAst> orders,
+                    Integer limit,
+                    String limitParameter,
+                    Integer offset,
+                    String offsetParameter) {
         this.select = select;
         this.joins = List.copyOf(joins);
         this.filters = List.copyOf(filters);
@@ -34,7 +53,11 @@ public final class QueryAst {
         this.havingExpression = havingExpression;
         this.orders = List.copyOf(orders);
         this.limit = limit;
+        this.limitParameter = limitParameter;
         this.offset = offset;
+        this.offsetParameter = offsetParameter;
+        validatePaginationState("LIMIT", limit, limitParameter);
+        validatePaginationState("OFFSET", offset, offsetParameter);
     }
 
     public SelectAst select() {
@@ -77,8 +100,24 @@ public final class QueryAst {
         return limit;
     }
 
+    public String limitParameter() {
+        return limitParameter;
+    }
+
     public Integer offset() {
         return offset;
+    }
+
+    public String offsetParameter() {
+        return offsetParameter;
+    }
+
+    public boolean hasLimitClause() {
+        return limit != null || limitParameter != null;
+    }
+
+    public boolean hasOffsetClause() {
+        return offset != null || offsetParameter != null;
     }
 
     public boolean hasJoins() {
@@ -95,6 +134,15 @@ public final class QueryAst {
             }
         }
         return false;
+    }
+
+    private static void validatePaginationState(String clause, Integer value, String parameter) {
+        if (value != null && parameter != null) {
+            throw new IllegalArgumentException(clause + " cannot declare both literal and parameter value");
+        }
+        if (parameter != null && StringUtil.isNullOrBlank(parameter)) {
+            throw new IllegalArgumentException(clause + " parameter name must not be null/blank");
+        }
     }
 }
 

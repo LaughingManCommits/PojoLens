@@ -79,5 +79,16 @@ public class SqlLikeLintModeTest {
         assertTrue(bothModesQuery.isLintModeEnabled());
         assertTrue(bothModesQuery.isStrictParameterTypesEnabled());
     }
+
+    @Test
+    public void lintWarningsShouldDetectParameterizedPaginationWithoutOrderBy() {
+        SqlLikeQuery query = PojoLens
+                .parse("select * from companies limit :limit");
+
+        List<SqlLikeLintWarning> warnings = query.lintWarnings();
+        assertEquals(2, warnings.size());
+        assertEquals(SqlLikeLintCodes.SELECT_WILDCARD, warnings.get(0).code());
+        assertEquals(SqlLikeLintCodes.LIMIT_WITHOUT_ORDER, warnings.get(1).code());
+    }
 }
 

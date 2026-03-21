@@ -11,6 +11,7 @@
 
 - Spike 1 (pagination) is active:
   - `OFFSET` is implemented in fluent + SQL-like flows.
+  - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
   - keyset/cursor usage is documented and tested as query patterns.
   - first-class keyset/cursor API primitives are still pending.
 - Maven Central release completion remains pending operational work.

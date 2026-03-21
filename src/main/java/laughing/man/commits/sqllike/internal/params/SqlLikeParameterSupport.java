@@ -11,6 +11,7 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.util.StringUtil;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -50,6 +51,8 @@ public final class SqlLikeParameterSupport {
         FilterExpressionAst resolvedWhere = resolveExpression(ast.whereExpression(), normalized);
         List<FilterAst> resolvedHaving = resolveFilters(ast.havingFilters(), normalized);
         FilterExpressionAst resolvedHavingExpr = resolveExpression(ast.havingExpression(), normalized);
+        Integer resolvedLimit = resolvePagination(ast.limit(), ast.limitParameter(), "LIMIT", normalized);
+        Integer resolvedOffset = resolvePagination(ast.offset(), ast.offsetParameter(), "OFFSET", normalized);
 
         return new QueryAst(
                 ast.select(),
@@ -60,8 +63,8 @@ public final class SqlLikeParameterSupport {
                 resolvedHaving,
                 resolvedHavingExpr,
                 ast.orders(),
-                ast.limit(),
-                ast.offset()
+                resolvedLimit,
+                resolvedOffset
         );
     }
 
@@ -102,6 +105,12 @@ public final class SqlLikeParameterSupport {
         collectParameterNames(ast.havingFilters(), names);
         collectParameterNames(ast.whereExpression(), names);
         collectParameterNames(ast.havingExpression(), names);
+        if (ast.limitParameter() != null) {
+            names.add(ast.limitParameter());
+        }
+        if (ast.offsetParameter() != null) {
+            names.add(ast.offsetParameter());
+        }
         return names;
     }
 
@@ -175,5 +184,60 @@ public final class SqlLikeParameterSupport {
 
     private static IllegalArgumentException parameter(String code, String message) {
         return SqlLikeErrors.argument(code, message);
+    }
+
+    private static Integer resolvePagination(Integer literalValue,
+                                             String parameterName,
+                                             String clauseName,
+                                             Map<String, Object> parameters) {
+        if (parameterName == null) {
+            return literalValue;
+        }
+        if (!parameters.containsKey(parameterName)) {
+            throw parameter(SqlLikeErrorCodes.PARAM_MISSING,
+                    "Missing SQL-like parameter(s): [" + parameterName + "]");
+        }
+        Object value = parameters.get(parameterName);
+        return coercePaginationParameter(parameterName, clauseName, value);
+    }
+
+    private static Integer coercePaginationParameter(String parameterName, String clauseName, Object value) {
+        if (!(value instanceof Number)) {
+            throw parameter(SqlLikeErrorCodes.PARAM_TYPE_MISMATCH,
+                    "Pagination " + clauseName + " parameter '" + parameterName
+                            + "' must be a non-negative integer, but received "
+                            + typeName(value));
+        }
+        BigDecimal decimal;
+        try {
+            decimal = new BigDecimal(value.toString());
+        } catch (NumberFormatException ex) {
+            throw parameter(SqlLikeErrorCodes.PARAM_TYPE_MISMATCH,
+                    "Pagination " + clauseName + " parameter '" + parameterName
+                            + "' must be a non-negative integer, but received "
+                            + typeName(value));
+        }
+        if (decimal.signum() < 0) {
+            throw parameter(SqlLikeErrorCodes.PARAM_TYPE_MISMATCH,
+                    "Pagination " + clauseName + " parameter '" + parameterName
+                            + "' must be >= 0");
+        }
+        BigDecimal normalized = decimal.stripTrailingZeros();
+        if (normalized.scale() > 0) {
+            throw parameter(SqlLikeErrorCodes.PARAM_TYPE_MISMATCH,
+                    "Pagination " + clauseName + " parameter '" + parameterName
+                            + "' must be an integer");
+        }
+        try {
+            return normalized.intValueExact();
+        } catch (ArithmeticException ex) {
+            throw parameter(SqlLikeErrorCodes.PARAM_TYPE_MISMATCH,
+                    "Pagination " + clauseName + " parameter '" + parameterName
+                            + "' is too large");
+        }
+    }
+
+    private static String typeName(Object value) {
+        return value == null ? "null" : value.getClass().getSimpleName();
     }
 }
