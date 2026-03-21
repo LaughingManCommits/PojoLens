@@ -37,6 +37,11 @@
   - focused API suites: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCoverageTest`
   - full regression: `mvn -q test`
   - docs guardrail: `scripts/check-doc-consistency.ps1`
+- `2026-03-21`: binary compatibility hardening validations passed:
+  - baseline tag worktree install: `v1.0.0` -> `mvn -q -DskipTests install`
+  - compatibility check: `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=1.0.0 verify`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -75,10 +80,16 @@
   - Linked stability policy from `README.md` and `docs/modules.md`.
   - Added stable contract enforcement test: `StablePublicApiContractTest` (entry-point method presence + baseline fluent/SQL-like/runtime behavior flows).
   - Marked TODO platform hardening stable-API item complete.
+- Binary compatibility spike 5 baseline delivered:
+  - Added `binary-compat` Maven profile with `japicmp` (`pom.xml`) gated by `compat.baseline.version`.
+  - Scoped compatibility checks to the documented stable API types and enabled fail-on binary/source incompatibilities.
+  - Added CI `binary-compat` job (`.github/workflows/ci.yml`) that resolves latest `v*` tag baseline, installs baseline artifact via detached worktree, and runs compatibility verification.
+  - Added local run guidance to `CONTRIBUTING.md`.
+  - Updated stable API policy enforcement note in `docs/public-api-stability.md`.
+  - Marked TODO binary compatibility item complete.
 
 ## Next Actions
 
-- Evaluate and wire binary compatibility checks in CI (`revapi` or `japicmp`).
 - Decide artifact boundary for benchmark tooling (move benchmark/JMH classes out of default runtime jar or split artifact/module).
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.

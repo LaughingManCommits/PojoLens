@@ -36,6 +36,19 @@ SpotBugs report (non-blocking rollout stage):
 mvn -B -ntp -Pstatic-analysis verify -DskipTests
 ```
 
+## Binary Compatibility Gate
+
+Run `japicmp` against the latest release tag baseline:
+
+```bash
+BASELINE_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+BASELINE_DIR="../pojolens-baseline"
+git worktree add --detach "$BASELINE_DIR" "$BASELINE_TAG"
+(cd "$BASELINE_DIR" && mvn -B -ntp -DskipTests install)
+git worktree remove "$BASELINE_DIR" --force
+mvn -B -ntp -Pbinary-compat -DskipTests -Dcompat.baseline.version="${BASELINE_TAG#v}" verify
+```
+
 ## Benchmark Guardrails
 
 Build benchmark runner:

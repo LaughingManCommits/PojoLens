@@ -106,4 +106,4 @@ For `Advanced` APIs:
 ## Enforcement
 
 - Contract tests in `StablePublicApiContractTest` validate stable entry-point availability and baseline behavior.
-- Binary compatibility checks are tracked as a separate hardening task.
+- CI runs `japicmp` through the `binary-compat` Maven profile against the latest `v*` tag baseline and fails on binary/source-incompatible stable-surface changes.

@@ -71,6 +71,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <jmh.version>1.37</jmh.version>
         <slf4j.version>2.0.17</slf4j.version>
+        <japicmp.version>0.23.1</japicmp.version>
     </properties>
     <build>
         <plugins>
@@ -211,6 +212,79 @@
                                 </goals>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>binary-compat</id>
+            <activation>
+                <property>
+                    <name>compat.baseline.version</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>${japicmp.version}</version>
+                        <executions>
+                            <execution>
+                                <id>binary-compat-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>cmp</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <oldVersion>
+                                <dependency>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${compat.baseline.version}</version>
+                                </dependency>
+                            </oldVersion>
+                            <newVersion>
+                                <file>
+                                    <path>${project.build.directory}/${project.build.finalName}.jar</path>
+                                </file>
+                            </newVersion>
+                            <parameter>
+                                <accessModifier>public</accessModifier>
+                                <onlyModified>true</onlyModified>
+                                <ignoreMissingClasses>true</ignoreMissingClasses>
+                                <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+                                <includes>
+                                    <include>laughing.man.commits.PojoLens</include>
+                                    <include>laughing.man.commits.PojoLensCore</include>
+                                    <include>laughing.man.commits.PojoLensSql</include>
+                                    <include>laughing.man.commits.PojoLensRuntime</include>
+                                    <include>laughing.man.commits.PojoLensRuntimePreset</include>
+                                    <include>laughing.man.commits.DatasetBundle</include>
+                                    <include>laughing.man.commits.builder.QueryBuilder</include>
+                                    <include>laughing.man.commits.filter.Filter</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikeQuery</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikeBoundQuery</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikeTemplate</include>
+                                    <include>laughing.man.commits.sqllike.SqlParams</include>
+                                    <include>laughing.man.commits.sqllike.SqlLikeCursor</include>
+                                    <include>laughing.man.commits.sqllike.JoinBindings</include>
+                                    <include>laughing.man.commits.enums.Clauses</include>
+                                    <include>laughing.man.commits.enums.Join</include>
+                                    <include>laughing.man.commits.enums.Metric</include>
+                                    <include>laughing.man.commits.enums.Separator</include>
+                                    <include>laughing.man.commits.enums.Sort</include>
+                                    <include>laughing.man.commits.enums.TimeBucket</include>
+                                    <include>laughing.man.commits.chart.ChartSpec</include>
+                                    <include>laughing.man.commits.chart.ChartData</include>
+                                    <include>laughing.man.commits.chart.ChartDataset</include>
+                                    <include>laughing.man.commits.chart.ChartType</include>
+                                </includes>
+                            </parameter>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

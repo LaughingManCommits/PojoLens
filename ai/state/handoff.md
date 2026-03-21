@@ -32,7 +32,12 @@
   - `README.md` and `docs/modules.md` link and summarize the stability contract.
   - `StablePublicApiContractTest` enforces stable entry-point availability and baseline fluent/SQL-like/runtime behavior.
   - `TODO.md` marks stable-API hardening item complete.
-- Next high-value hardening work is binary compatibility CI checks + artifact/module slimming.
+- Binary compatibility spike 5 baseline is now implemented:
+  - `pom.xml` includes `binary-compat` profile with `japicmp` fail-on binary/source incompatible changes, activated by `compat.baseline.version`.
+  - `.github/workflows/ci.yml` now has a `binary-compat` job that resolves latest `v*` tag baseline, installs baseline artifact from detached worktree, and runs compatibility verify.
+  - `CONTRIBUTING.md` includes local binary-compat run instructions.
+  - `TODO.md` marks binary-compat hardening item complete.
+- Next high-value hardening work is artifact/module slimming.
 - Scope audit (`2026-03-21`) found broad public surface and packaging bleed:
   - entry contracts are large (`PojoLens` static API ~52 methods, `QueryBuilder` ~40 methods, `SqlLikeQuery` ~50 public members)
   - main runtime jar currently includes benchmark/JMH classes (`198` benchmark entries, `134` under `benchmark/jmh_generated`)
@@ -47,6 +52,7 @@
 - For release-path changes: run `mvn -B -ntp -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
+- For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
 - Lint note: `scripts/check-lint-baseline.ps1` currently reports large baseline drift and is not a clean gate without baseline maintenance.
 
 ## Release Retry Checklist
