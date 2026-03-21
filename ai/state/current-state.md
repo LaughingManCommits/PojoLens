@@ -7,6 +7,7 @@
 - `pom.xml` includes `release-central` profile for Maven Central publishing.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
 - `TODO.md` now has pagination, streaming, and optional index spikes completed.
+- `2026-03-21` artifact-scope check found benchmark packaging bleed: `target/pojo-lens-1.0.0.jar` contains `198` benchmark entries, including `134` `benchmark/jmh_generated` entries.
 
 ## Latest Validation
 
@@ -31,6 +32,11 @@
 - `2026-03-21`: index benchmark suites executed:
   - warm forked run: `target/benchmarks/index-hint-forked.json` (`-f 1 -wi 1 -i 3 -prof gc`)
   - cold forked run: `target/benchmarks/index-hint-cold.json` (`-f 1 -wi 0 -i 1 -prof gc`)
+- `2026-03-21`: updated `TODO.md` platform hardening backlog with explicit artifact/module boundary slimming spike and validated docs consistency (`scripts/check-doc-consistency.ps1`).
+- `2026-03-21`: stable API hardening validations passed:
+  - focused API suites: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCoverageTest`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -64,10 +70,15 @@
   - Execution prototype narrows simple POJO filter candidates through indexed equality predicates and falls back safely to scan when inapplicable.
   - Added parity and behavior coverage tests (`OptionalIndexExecutionTest`, `IndexHintJmhBenchmarkParityTest`, `PublicApiCoverageTest` updates).
   - Benchmark notes now include warm/cold gain-loss tradeoffs for index hints.
+- Stable API surface spike 4 started and baseline delivered:
+  - Added explicit stability policy doc: `docs/public-api-stability.md` (stable/advanced/internal tiers, inclusion rules, compatibility/deprecation policy).
+  - Linked stability policy from `README.md` and `docs/modules.md`.
+  - Added stable contract enforcement test: `StablePublicApiContractTest` (entry-point method presence + baseline fluent/SQL-like/runtime behavior flows).
+  - Marked TODO platform hardening stable-API item complete.
 
 ## Next Actions
 
-- Start platform hardening spike 4: define/document stable public API surface with compatibility guarantees.
 - Evaluate and wire binary compatibility checks in CI (`revapi` or `japicmp`).
+- Decide artifact boundary for benchmark tooling (move benchmark/JMH classes out of default runtime jar or split artifact/module).
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.

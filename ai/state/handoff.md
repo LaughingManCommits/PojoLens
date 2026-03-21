@@ -27,7 +27,17 @@
   - safe fallback to scan preserved for inapplicable shapes/fields.
   - benchmark parity and behavior tests added.
   - benchmark notes recorded for warm/cold tradeoffs.
-- Next high-value work is platform hardening (stable API surface + binary compatibility CI checks).
+- Stable API surface spike 4 baseline is now implemented:
+  - `docs/public-api-stability.md` defines stable/advanced/internal tiers for `1.x`.
+  - `README.md` and `docs/modules.md` link and summarize the stability contract.
+  - `StablePublicApiContractTest` enforces stable entry-point availability and baseline fluent/SQL-like/runtime behavior.
+  - `TODO.md` marks stable-API hardening item complete.
+- Next high-value hardening work is binary compatibility CI checks + artifact/module slimming.
+- Scope audit (`2026-03-21`) found broad public surface and packaging bleed:
+  - entry contracts are large (`PojoLens` static API ~52 methods, `QueryBuilder` ~40 methods, `SqlLikeQuery` ~50 public members)
+  - main runtime jar currently includes benchmark/JMH classes (`198` benchmark entries, `134` under `benchmark/jmh_generated`)
+  - fold artifact-slimming decisions into platform hardening work.
+- `TODO.md` now explicitly tracks artifact/module-boundary slimming as a dedicated spike (parent + runtime + benchmarks split path).
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
@@ -35,6 +45,8 @@
 - After any code change: run focused tests, then `mvn -q test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -Prelease-central -DskipTests package`.
+- For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
+- For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - Lint note: `scripts/check-lint-baseline.ps1` currently reports large baseline drift and is not a clean gate without baseline maintenance.
 
 ## Release Retry Checklist

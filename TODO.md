@@ -10,8 +10,9 @@
 
 ## Platform Hardening (Phase 2)
 
-- [ ] Define and document a small **stable public API surface** (vs advanced/internal APIs), with explicit compatibility guarantees.
+- [x] Define and document a small **stable public API surface** (vs advanced/internal APIs), with explicit compatibility guarantees.
 - [ ] Add **binary compatibility checks** to CI (for example `revapi` or `japicmp`) to block accidental breaking API changes before release.
+- [ ] Slim runtime artifact scope by separating benchmark/JMH tooling from the default `pojo-lens` runtime jar.
 
 ## Spike Plan
 
@@ -111,3 +112,23 @@ Acceptance criteria:
 - Compatibility check runs in CI on PRs/releases.
 - CI fails on an unapproved binary break.
 - Project docs include "how to approve an intentional break" instructions.
+
+### 6) Artifact/Module Boundary Slimming
+
+Problem:
+- Main runtime jar currently ships benchmark/JMH classes, expanding consumer classpath and muddying module boundaries.
+
+Spike goal:
+- Keep `pojo-lens` focused on runtime query/chart APIs and move benchmark tooling to a dedicated artifact/module.
+
+Spike steps:
+1. Create a multi-module Maven layout with a parent POM and at least `pojo-lens` (runtime) + `pojo-lens-benchmarks` modules.
+2. Move `laughing.man.commits.benchmark.*` and JMH generated classes into `pojo-lens-benchmarks`.
+3. Ensure benchmark-only dependencies/plugins (`jmh`, shade benchmark runner, plotting tools) are scoped to the benchmark module.
+4. Keep runtime API source compatibility (`PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`) and verify consumer dependency remains `io.github.laughingmancommits:pojo-lens`.
+5. Add a CI/package assertion that runtime jar does not contain `laughing/man/commits/benchmark/**`.
+
+Acceptance criteria:
+- `pojo-lens` runtime jar contains no benchmark/JMH classes.
+- Benchmark suites run from the dedicated benchmark module/artifact.
+- README/release docs describe the new artifact boundary and benchmark run commands.

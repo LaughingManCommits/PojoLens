@@ -8,6 +8,9 @@ runtime boundaries are explicitly separated by entry point:
 - `PojoLensChart`: chart payload mapping helpers
 - `PojoLens`: compatibility facade that delegates to the three entry points above
 
+Compatibility tiers for these entry points and related contracts are defined in
+[public-api-stability.md](public-api-stability.md).
+
 ## Dependency Footprint
 
 - `xchart` is optional and used only by benchmark plotting utilities.

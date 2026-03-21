@@ -91,6 +91,16 @@ List<Company> rows = PojoLens
 - `PojoLensSql`: SQL-like entry point
 - `PojoLensChart`: chart mapping entry point
 
+## Public API Stability
+
+PojoLens uses three API tiers:
+- `Stable`: compatibility-guaranteed for `1.x`
+- `Advanced`: public but faster-evolving (best-effort compatibility)
+- `Internal`: no compatibility guarantee (`*.internal.*`)
+
+The explicit stable-surface contract and deprecation policy are documented in
+[docs/public-api-stability.md](docs/public-api-stability.md).
+
 ## Runtime Presets
 
 ```java
@@ -119,6 +129,7 @@ Preset intent:
 - Real-world scenarios: [docs/usecases.md](docs/usecases.md)
 - Benchmarking and guardrails: [docs/benchmarking.md](docs/benchmarking.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
+- Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
 - Cache behavior: [docs/caching.md](docs/caching.md)
 - Time buckets: [docs/time-buckets.md](docs/time-buckets.md)
 - Telemetry: [docs/telemetry.md](docs/telemetry.md)
