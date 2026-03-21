@@ -5,7 +5,7 @@
 - [x] Add `OFFSET` pagination primitives for fluent + SQL-like query flows.
 - [x] Add SQL-like named parameter support for pagination clauses (`LIMIT :limit OFFSET :offset`).
 - [x] Add first-class keyset/cursor pagination API primitives (beyond documented query patterns).
-- [ ] Add streaming execution output (iterator/stream) to avoid full materialization on large datasets.
+- [x] Add streaming execution output (iterator/stream) to avoid full materialization on large datasets.
 - [ ] Add optional in-memory indexes for hot filter/join paths to improve repeated-query latency.
 
 ## Platform Hardening (Phase 2)
@@ -45,10 +45,10 @@ Spike goal:
 - Provide a streaming/iterator execution mode for memory-efficient consumption.
 
 Spike steps:
-1. Evaluate API shape (`Iterator<T>`, `Stream<T>`, or both) and resource lifecycle.
-2. Implement fluent and SQL-like streaming prototypes.
-3. Validate behavior with filtering, joins, grouping, and projection paths.
-4. Benchmark memory/latency tradeoffs vs existing list materialization.
+1. [x] Evaluate API shape (`Iterator<T>`, `Stream<T>`, or both) and resource lifecycle.
+2. [x] Implement fluent and SQL-like streaming prototypes.
+3. [x] Validate behavior with filtering and projection paths, with list-backed fallback on complex shapes (join/group/having/ordered windows).
+4. [x] Benchmark memory/latency tradeoffs vs existing list materialization.
 
 Acceptance criteria:
 - At least one stable streaming API is available and documented.

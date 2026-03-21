@@ -117,6 +117,36 @@ Why the baseline is narrow:
 
 This keeps the comparison honest instead of forcing fake apples-to-apples claims.
 
+## Streaming Short-Circuit Tradeoffs
+
+Streaming has two different behaviors depending on consumer usage:
+- full-drain consumers still process all matching rows
+- short-circuit consumers (`limit(n)`, first-page extraction, early break) can avoid materializing tail rows
+
+Dedicated benchmark suite:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
+```
+
+Benchmark shape (`StreamingExecutionJmhBenchmark`):
+- Query matches most rows (`where integerField >= 100`) over `size=10000`.
+- List path computes first-page checksum after calling `filter(...)`, so full result materialization still occurs.
+- Stream path computes the same checksum from `stream(...).limit(50)`, so iteration stops early.
+
+Representative `2026-03-21` results (`size=10000`, forked warmed run):
+
+| Workload | us/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `fluentFilterListMaterialized` | `493.186` | `1,118,258.562` |
+| `fluentFilterStreamLazy` | `6.267` | `18,608.032` |
+| `sqlLikeFilterListMaterialized` | `644.118` | `1,594,643.260` |
+| `sqlLikeFilterStreamLazy` | `6.776` | `22,392.035` |
+
+Interpretation:
+- For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
+- These gains come from avoiding full result list materialization when callers only need an initial window.
+
 ## Hotspot Microbenchmarks
 
 The hotspot suite isolates the conversion and cache paths that the end-to-end suites intentionally blur together:
@@ -220,4 +250,3 @@ The Streams baseline suite is intentionally reproducible but not currently a mer
 - Do not use fluent-vs-SQL-like performance ratios as a merge gate; SQL-like intentionally pays query-translation cost that fluent does not.
 - Do not compare `PojoLens` to databases or unrelated libraries as if the workloads were equivalent.
 - When a comparison needs caveats, write the caveats next to the number.
-

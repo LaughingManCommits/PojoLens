@@ -26,6 +26,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -346,6 +347,26 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(90000, rows.get(0).salary);
         assertEquals(120000, rows.get(1).salary);
         assertEquals(130000, rows.get(2).salary);
+    }
+
+    @Test
+    public void docsRecipeStreamingExecutionOutputShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Finance", 90000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Engineering", 110000, now, false)
+        );
+
+        List<String> names;
+        try (Stream<Employee> rows = PojoLens
+                .parse("where active = true limit 2")
+                .stream(source, Employee.class)) {
+            names = rows.map(r -> r.name).toList();
+        }
+
+        assertEquals(Arrays.asList("Alice", "Bob"), names);
     }
 
     @Test

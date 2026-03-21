@@ -72,6 +72,7 @@ List<Company> rows = PojoLens
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
 - First-class keyset/cursor pagination primitives with token support
+- Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
 - Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
 - Time buckets (`day`, `week`, `month`, `quarter`, `year`)
 - SQL-like named parameters and typed bind-first execution

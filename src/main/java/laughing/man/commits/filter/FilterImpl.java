@@ -13,9 +13,11 @@ import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,6 +114,29 @@ public class FilterImpl implements Filter {
             return ReflectionUtil.toClassList(cls, statsState.rows(), statsState.schemaFields());
         }
         return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
+    }
+
+    @Override
+    public <T> Iterator<T> iterator(Class<T> cls) {
+        return iterator(null, cls);
+    }
+
+    @Override
+    public <T> Stream<T> stream(Class<T> cls) {
+        return stream(null, cls);
+    }
+
+    @Override
+    public <T> Iterator<T> iterator(Sort sortMethod, Class<T> cls) {
+        return stream(sortMethod, cls).iterator();
+    }
+
+    @Override
+    public <T> Stream<T> stream(Sort sortMethod, Class<T> cls) {
+        if (sortMethod == null && FastPojoStreamSupport.isApplicable(builderState)) {
+            return FastPojoStreamSupport.stream(builderState, cls);
+        }
+        return filter(sortMethod, cls).stream();
     }
 
     private List<QueryRow> filterRows(Sort sortMethod) {

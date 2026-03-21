@@ -15,7 +15,13 @@
   - first-class SQL-like keyset cursor primitives are implemented (`SqlLikeCursor`, `keysetAfter`, `keysetBefore`) with token encode/decode support.
   - keyset cursor contract docs now include field matching rules and non-null value requirements.
   - large/tie-heavy keyset behavior is validated in dedicated tests.
-- Spike 2 (streaming execution output) is the next feature focus.
+- Spike 2 (streaming execution output) is completed:
+  - fluent `Filter` now exposes `iterator(...)` and `stream(...)`.
+  - SQL-like query/bind flows now expose `stream/iterator`.
+  - simple query shapes stream lazily without full result materialization.
+  - complex query shapes intentionally fall back to list-backed streams for deterministic behavior.
+  - benchmark notes were added via `StreamingExecutionJmhBenchmark` and `docs/benchmarking.md`.
+- Next high-value feature is Spike 3 (optional in-memory indexes for hot filter/join paths).
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
@@ -32,8 +38,11 @@
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
 
-## Pagination Follow-Up Checklist
+## Streaming Follow-Up Checklist
 
-- (Completed) Public keyset/cursor API surface and token contract.
-- (Completed) Deterministic tie-breaker/sort-field requirements and null-handling contract docs.
-- (Completed) Tie-heavy/large dataset validation tests.
+- Benchmark command (forked warmed run):
+  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json`
+- Results file for latest notes:
+  `target/benchmarks/streaming-execution-forked.json`
+- Current conclusion:
+  streaming provides strong wins for short-circuit/first-page consumers (`stream().limit(50)`) by avoiding full list materialization.

@@ -15,8 +15,10 @@ import laughing.man.commits.util.SchemaIndexUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Internal helpers for SQL-like runtime execution.
@@ -87,6 +89,38 @@ public final class SqlLikeExecutionSupport {
             return builder.initFilter().join().filter(sort, targetClass);
         }
         return builder.initFilter().filter(sort, targetClass);
+    }
+
+    public static <T> Iterator<T> executeIteratorWithOptionalJoin(QueryBuilder builder,
+                                                                  Sort sort,
+                                                                  boolean applyJoin,
+                                                                  Class<T> targetClass) {
+        if (sort == null) {
+            if (applyJoin) {
+                return builder.initFilter().join().iterator(targetClass);
+            }
+            return builder.initFilter().iterator(targetClass);
+        }
+        if (applyJoin) {
+            return builder.initFilter().join().iterator(sort, targetClass);
+        }
+        return builder.initFilter().iterator(sort, targetClass);
+    }
+
+    public static <T> Stream<T> executeStreamWithOptionalJoin(QueryBuilder builder,
+                                                              Sort sort,
+                                                              boolean applyJoin,
+                                                              Class<T> targetClass) {
+        if (sort == null) {
+            if (applyJoin) {
+                return builder.initFilter().join().stream(targetClass);
+            }
+            return builder.initFilter().stream(targetClass);
+        }
+        if (applyJoin) {
+            return builder.initFilter().join().stream(sort, targetClass);
+        }
+        return builder.initFilter().stream(sort, targetClass);
     }
 
     private static Object resolveFieldValue(Object sourceRow, String fieldName) {

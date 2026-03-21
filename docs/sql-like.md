@@ -203,6 +203,21 @@ List<Employee> rows = runtime
     .filter(source, Employee.class);
 ```
 
+### Recipe: Streaming Execution Output
+
+```java
+try (Stream<Employee> rows = PojoLens
+        .parse("where active = true limit 200")
+        .stream(source, Employee.class)) {
+    List<String> names = rows.map(r -> r.name).toList();
+}
+```
+
+Streaming notes:
+- simple non-joined/non-aggregate SQL-like queries can stream rows lazily
+- complex query shapes (join/group/having/ordered windows) fall back to list-backed streams
+- `bindTyped(...).stream()` is available for bind-first SQL-like flows
+
 ### Recipe: Lint Mode
 
 Per query:

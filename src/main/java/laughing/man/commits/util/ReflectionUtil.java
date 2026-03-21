@@ -85,6 +85,27 @@ public final class ReflectionUtil {
     }
 
     /**
+     * Converts a single internal domain row to a typed object.
+     */
+    public static <T> T toClass(Class<T> cls, QueryRow row) {
+        if (row == null) {
+            return null;
+        }
+        try {
+            ProjectionWritePlan plan = projectionWritePlan(cls, List.of(row));
+            T object = instantiateNoArg(cls);
+            if (row.getFieldCount() == 0 || plan.steps().isEmpty()) {
+                return object;
+            }
+            applyProjectionWritePlan(object, row, plan);
+            return object;
+        } catch (Exception e) {
+            LOG.error("Failed to Convert Object [{}] to {}", row, cls.getSimpleName(), e);
+            throw new IllegalStateException("Failed to convert domain row to " + cls.getSimpleName(), e);
+        }
+    }
+
+    /**
      * Sets a mutable field value by name.
      */
     public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue) throws Exception {

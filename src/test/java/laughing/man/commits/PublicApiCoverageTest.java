@@ -225,6 +225,33 @@ public class PublicApiCoverageTest {
     }
 
     @Test
+    public void streamingControlsShouldBeUsableFromPublicApi() {
+        List<String> fluentNames = PojoLens.newQueryBuilder(sampleEmployees())
+                .addRule("active", true, Clauses.EQUAL)
+                .limit(2)
+                .initFilter()
+                .stream(Employee.class)
+                .map(row -> row.name)
+                .toList();
+        assertEquals(List.of("Alice", "Bob"), fluentNames);
+
+        List<String> sqlNames = PojoLens
+                .parse("where active = true limit 2")
+                .stream(sampleEmployees(), Employee.class)
+                .map(row -> row.name)
+                .toList();
+        assertEquals(List.of("Alice", "Bob"), sqlNames);
+
+        List<String> sqlBoundNames = PojoLens
+                .parse("where active = true limit 2")
+                .bindTyped(sampleEmployees(), Employee.class)
+                .stream()
+                .map(row -> row.name)
+                .toList();
+        assertEquals(List.of("Alice", "Bob"), sqlBoundNames);
+    }
+
+    @Test
     public void lintControlsShouldBeUsableFromPublicApi() {
         PojoLensRuntime runtime = PojoLens.newRuntime();
         assertFalse(runtime.isLintMode());

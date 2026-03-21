@@ -42,6 +42,7 @@ import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 /**
  * SQL-like query API contract.
@@ -424,6 +426,115 @@ public final class SqlLikeQuery {
         return filter(pojos, joinBindings.asMap(), cls);
     }
 
+    /**
+     * Executes this SQL-like query and exposes rows through an iterator.
+     *
+     * @param pojos input data
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result iterator
+     */
+    public <T> Iterator<T> iterator(List<?> pojos, Class<T> cls) {
+        return stream(pojos, cls).iterator();
+    }
+
+    /**
+     * Executes this SQL-like query against the provided dataset bundle and
+     * exposes rows through an iterator.
+     *
+     * @param datasetBundle execution dataset bundle
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result iterator
+     */
+    public <T> Iterator<T> iterator(DatasetBundle datasetBundle, Class<T> cls) {
+        return stream(datasetBundle, cls).iterator();
+    }
+
+    /**
+     * Executes query against provided rows with optional SQL-like JOIN sources
+     * and exposes rows through an iterator.
+     *
+     * @param pojos parent/source rows
+     * @param joinSources join source rows keyed by JOIN source name
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result iterator
+     */
+    public <T> Iterator<T> iterator(List<?> pojos, Map<String, List<?>> joinSources, Class<T> cls) {
+        return stream(pojos, joinSources, cls).iterator();
+    }
+
+    /**
+     * Executes query with typed SQL-like JOIN source bindings and exposes rows
+     * through an iterator.
+     *
+     * @param pojos parent/source rows
+     * @param joinBindings typed join source bindings
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result iterator
+     */
+    public <T> Iterator<T> iterator(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
+        return stream(pojos, joinBindings, cls).iterator();
+    }
+
+    /**
+     * Executes this SQL-like query and exposes rows through a stream.
+     *
+     * @param pojos input data
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result stream
+     */
+    public <T> Stream<T> stream(List<?> pojos, Class<T> cls) {
+        return stream(pojos, Collections.emptyMap(), cls);
+    }
+
+    /**
+     * Executes this SQL-like query against the provided dataset bundle and
+     * exposes rows through a stream.
+     *
+     * @param datasetBundle execution dataset bundle
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result stream
+     */
+    public <T> Stream<T> stream(DatasetBundle datasetBundle, Class<T> cls) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return stream(datasetBundle.primaryRows(), datasetBundle.joinSources(), cls);
+    }
+
+    /**
+     * Executes query against provided rows with optional SQL-like JOIN sources
+     * and exposes rows through a stream.
+     *
+     * @param pojos parent/source rows
+     * @param joinSources join source rows keyed by JOIN source name
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result stream
+     */
+    public <T> Stream<T> stream(List<?> pojos, Map<String, List<?>> joinSources, Class<T> cls) {
+        ExecutionContext context = prepareExecution(pojos, joinSources, cls);
+        return executeStream(context, cls);
+    }
+
+    /**
+     * Executes query with typed SQL-like JOIN source bindings and exposes rows
+     * through a stream.
+     *
+     * @param pojos parent/source rows
+     * @param joinBindings typed join source bindings
+     * @param cls projection class
+     * @param <T> projection type
+     * @return result stream
+     */
+    public <T> Stream<T> stream(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return stream(pojos, joinBindings.asMap(), cls);
+    }
+
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
         ExecutionRun run = context.newRun();
         FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
@@ -450,6 +561,30 @@ public final class SqlLikeQuery {
             );
         }
         return SqlLikeExecutionSupport.executeWithOptionalJoin(
+                run.builder(),
+                context.sort(),
+                context.applyJoin(),
+                projectionClass
+        );
+    }
+
+    private <T> Stream<T> executeStream(ExecutionContext context, Class<T> projectionClass) {
+        ExecutionRun run = context.newRun();
+        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
+        SelectAst select = context.select();
+        if (select != null
+                && !select.wildcard()
+                && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
+            return executeFilter(context, projectionClass).stream();
+        }
+        if (statsState != null) {
+            return ReflectionUtil.toClassList(
+                    projectionClass,
+                    statsState.rows(),
+                    statsState.schemaFields()
+            ).stream();
+        }
+        return SqlLikeExecutionSupport.executeStreamWithOptionalJoin(
                 run.builder(),
                 context.sort(),
                 context.applyJoin(),
@@ -1217,6 +1352,16 @@ public final class SqlLikeQuery {
         @Override
         public List<T> filter() {
             return executeFilter(context, projectionClass);
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return stream().iterator();
+        }
+
+        @Override
+        public Stream<T> stream() {
+            return executeStream(context, projectionClass);
         }
 
         @Override

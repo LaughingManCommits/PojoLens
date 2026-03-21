@@ -5,6 +5,8 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.enums.Sort;
 import java.util.List;
 import java.util.Map;
+import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * Filter execution contract.
@@ -43,6 +45,44 @@ public interface Filter {
      * @throws IllegalStateException when query execution fails
      */
     <T extends Object> List<T> filter(Sort sortMethod, Class<T> cls);
+
+    /**
+     * Runs the configured query and returns a result iterator.
+     * <p>
+     * Implementations may use lazy row evaluation when query shape allows it.
+     *
+     * @param cls output type
+     * @return lazy result iterator
+     */
+    <T extends Object> Iterator<T> iterator(Class<T> cls);
+
+    /**
+     * Runs the configured query and returns a result stream.
+     * <p>
+     * Implementations may use lazy row evaluation when query shape allows it.
+     *
+     * @param cls output type
+     * @return lazy result stream
+     */
+    <T extends Object> Stream<T> stream(Class<T> cls);
+
+    /**
+     * Runs the configured query with sorting and returns a result iterator.
+     *
+     * @param sortMethod sort direction
+     * @param cls output type
+     * @return result iterator
+     */
+    <T extends Object> Iterator<T> iterator(Sort sortMethod, Class<T> cls);
+
+    /**
+     * Runs the configured query with sorting and returns a result stream.
+     *
+     * @param sortMethod sort direction
+     * @param cls output type
+     * @return result stream
+     */
+    <T extends Object> Stream<T> stream(Sort sortMethod, Class<T> cls);
 
     /**
      * Runs the configured query and maps results to chart data payload.
