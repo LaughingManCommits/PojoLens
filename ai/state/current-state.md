@@ -16,6 +16,9 @@
 - `2026-03-21`: focused SQL-like suite passed (`SqlLikeParserTest`, `SqlLikePaginationParameterSupportTest`, `SqlLikeDocsExamplesTest`, `SqlLikeErrorCodesContractTest`, `SqlLikeStrictParameterTypeModeTest`).
 - `2026-03-21`: `mvn -q test` passed after adding SQL-like `LIMIT/OFFSET` named parameter support.
 - `2026-03-21`: `scripts/check-doc-consistency.ps1` passed.
+- `2026-03-21`: expanded focused suite passed after keyset cursor primitives (`SqlLikeKeysetCursorTest`, `SqlLikeDocsExamplesTest`, `SqlLikeErrorCodesContractTest`, `PublicApiCoverageTest`, plus parser/lint/explain/strict suites).
+- `2026-03-21`: `mvn -q test` passed after adding first-class SQL-like keyset cursor API and token support.
+- `2026-03-21`: `scripts/check-doc-consistency.ps1` passed after keyset docs updates.
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -27,16 +30,18 @@
 
 ## Active Work
 
-- Pagination spike 1 progressed:
+- Pagination spike 1 completed:
   - Fluent + SQL-like `OFFSET` implemented.
   - SQL-like pagination now supports named parameters in `LIMIT/OFFSET` with integer/non-negative validation.
+  - First-class SQL-like keyset cursor API is implemented (`SqlLikeCursor`, `keysetAfter`, `keysetBefore`) with cursor token support.
+  - Cursor contract is documented (token format, required sort-field matching, non-null value requirements).
+  - Tie-heavy/large dataset behavior is validated in tests.
   - Explain payloads include `offset`.
   - SQL-like grammar supports `OFFSET` and `LIMIT ... OFFSET`.
-  - Docs/tests include offset and keyset/cursor query patterns.
-- Remaining in spike 1: first-class keyset/cursor API primitives (beyond documented query patterns).
+  - Docs/tests include offset, pattern-based keyset pagination, and first-class cursor flows.
 
 ## Next Actions
 
-- Complete keyset/cursor API design + implementation for spike 1.
+- Start spike 2: evaluate and design streaming execution output API (`Iterator<T>`/`Stream<T>` shape and lifecycle).
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.

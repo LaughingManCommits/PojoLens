@@ -18,6 +18,7 @@ import laughing.man.commits.metamodel.FieldMetamodel;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -201,6 +202,26 @@ public class PublicApiCoverageTest {
         assertTrue(strictQuery.isStrictParameterTypesEnabled());
         assertFalse(strictQuery.strictParameterTypes(false).isStrictParameterTypesEnabled());
         assertTrue(PojoLens.parse("where salary >= :minSalary").strictParameterTypes().isStrictParameterTypesEnabled());
+    }
+
+    @Test
+    public void keysetCursorControlsShouldBeUsableFromPublicApi() {
+        SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+                .put("salary", 120000)
+                .put("id", 1)
+                .build();
+
+        String token = cursor.toToken();
+        SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+        assertEquals(cursor, decoded);
+
+        List<Employee> rows = PojoLens
+                .parse("where active = true order by salary desc, id desc limit 20")
+                .keysetAfter(decoded)
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("Bob", rows.get(0).name);
     }
 
     @Test

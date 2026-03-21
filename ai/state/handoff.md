@@ -9,11 +9,13 @@
 
 ## Current Focus
 
-- Spike 1 (pagination) is active:
+- Spike 1 (pagination) is completed:
   - `OFFSET` is implemented in fluent + SQL-like flows.
   - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
-  - keyset/cursor usage is documented and tested as query patterns.
-  - first-class keyset/cursor API primitives are still pending.
+  - first-class SQL-like keyset cursor primitives are implemented (`SqlLikeCursor`, `keysetAfter`, `keysetBefore`) with token encode/decode support.
+  - keyset cursor contract docs now include field matching rules and non-null value requirements.
+  - large/tie-heavy keyset behavior is validated in dedicated tests.
+- Spike 2 (streaming execution output) is the next feature focus.
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
@@ -32,6 +34,6 @@
 
 ## Pagination Follow-Up Checklist
 
-- Define public keyset/cursor API surface (builder helpers and cursor token contract).
-- Add deterministic tie-breaker contract docs (null handling, sort-field requirements).
-- Add parity + edge-case tests on tie-heavy datasets.
+- (Completed) Public keyset/cursor API surface and token contract.
+- (Completed) Deterministic tie-breaker/sort-field requirements and null-handling contract docs.
+- (Completed) Tie-heavy/large dataset validation tests.

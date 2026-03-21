@@ -22,6 +22,7 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
+import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.explain.SqlLikeExplainSupport;
@@ -153,6 +154,46 @@ public final class SqlLikeQuery {
     public SqlLikeQuery params(SqlParams parameters) {
         Objects.requireNonNull(parameters, "parameters must not be null");
         return params(parameters.asMap());
+    }
+
+    /**
+     * Applies keyset "next page" cursor predicates aligned with this query's
+     * {@code ORDER BY} fields.
+     *
+     * @param cursor keyset cursor values keyed by ORDER BY field name
+     * @return query with cursor predicates merged into WHERE
+     */
+    public SqlLikeQuery keysetAfter(SqlLikeCursor cursor) {
+        Objects.requireNonNull(cursor, "cursor must not be null");
+        return new SqlLikeQuery(
+                source,
+                SqlLikeKeysetSupport.applyAfter(ast, cursor),
+                strictParameterTypes,
+                lintMode,
+                suppressedLintCodes,
+                telemetryListener,
+                computedFieldRegistry
+        );
+    }
+
+    /**
+     * Applies keyset "previous page" cursor predicates aligned with this
+     * query's {@code ORDER BY} fields.
+     *
+     * @param cursor keyset cursor values keyed by ORDER BY field name
+     * @return query with cursor predicates merged into WHERE
+     */
+    public SqlLikeQuery keysetBefore(SqlLikeCursor cursor) {
+        Objects.requireNonNull(cursor, "cursor must not be null");
+        return new SqlLikeQuery(
+                source,
+                SqlLikeKeysetSupport.applyBefore(ast, cursor),
+                strictParameterTypes,
+                lintMode,
+                suppressedLintCodes,
+                telemetryListener,
+                computedFieldRegistry
+        );
     }
 
     /**

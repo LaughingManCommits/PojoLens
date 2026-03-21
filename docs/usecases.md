@@ -72,10 +72,14 @@ List<EmployeeFeedRow> rows = PojoLens
 Use keyset for deep pages:
 
 ```java
+SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+    .put("salary", 120000)
+    .put("id", 1)
+    .build();
+
 List<EmployeeFeedRow> rows = PojoLens
-    .parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
-        + "order by salary desc, id desc limit 20")
-    .params(Map.of("lastSalary", 120000, "lastId", 1))
+    .parse("where active = true order by salary desc, id desc limit 20")
+    .keysetAfter(cursor)
     .filter(employees, EmployeeFeedRow.class);
 ```
 

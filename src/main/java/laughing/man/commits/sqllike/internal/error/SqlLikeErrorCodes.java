@@ -33,6 +33,11 @@ public final class SqlLikeErrorCodes {
     public static final String PARAM_NAME_INVALID = "EQ-SQL-PRM-004";
     public static final String PARAM_TYPE_MISMATCH = "EQ-SQL-PRM-005";
 
+    public static final String CURSOR_ORDER_REQUIRED = "EQ-SQL-CUR-001";
+    public static final String CURSOR_FIELD_MISMATCH = "EQ-SQL-CUR-002";
+    public static final String CURSOR_TOKEN_INVALID = "EQ-SQL-CUR-003";
+    public static final String CURSOR_VALUE_INVALID = "EQ-SQL-CUR-004";
+
     public static final String BIND_MIXED_ORDER_DIRECTIONS = "EQ-SQL-BIND-001";
     public static final String BIND_BOOLEAN_COMPLEXITY = "EQ-SQL-BIND-002";
 

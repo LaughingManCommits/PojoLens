@@ -71,7 +71,7 @@ List<Company> rows = PojoLens
 ## Capability Snapshot
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- Keyset/cursor query patterns for stable deep-page APIs
+- First-class keyset/cursor pagination primitives with token support
 - Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
 - Time buckets (`day`, `week`, `month`, `quarter`, `year`)
 - SQL-like named parameters and typed bind-first execution

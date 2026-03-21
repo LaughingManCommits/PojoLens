@@ -11,6 +11,7 @@ import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
+import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
@@ -136,6 +137,35 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(2, rows.size());
         assertEquals("Dan", rows.get(0).name);
         assertEquals("Bob", rows.get(1).name);
+    }
+
+    @Test
+    public void docsRecipeFirstClassKeysetCursorShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Finance", 90000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Engineering", 110000, now, true)
+        );
+
+        SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+                .put("salary", 120000)
+                .put("id", 1)
+                .build();
+
+        List<Employee> rows = PojoLens
+                .parse("where active = true order by salary desc, id desc limit 20")
+                .keysetAfter(cursor)
+                .filter(source, Employee.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Dan", rows.get(0).name);
+        assertEquals("Bob", rows.get(1).name);
+
+        String token = cursor.toToken();
+        SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+        assertEquals(cursor, decoded);
     }
 
     @Test

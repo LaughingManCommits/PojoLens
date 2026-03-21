@@ -1,6 +1,7 @@
 package laughing.man.commits;
 
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.parser.SqlLikeParseException;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -90,6 +91,19 @@ public class SqlLikeErrorCodesContractTest {
             assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED));
             assertTrue(ex.getMessage().contains(
                     SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED)));
+        }
+    }
+
+    @Test
+    public void cursorErrorsShouldExposeStableCodeAndTroubleshootingLink() {
+        try {
+            PojoLens.parse("where active = true limit 10")
+                    .keysetAfter(SqlLikeCursor.builder().put("salary", 120000).build());
+            fail("Expected cursor error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.CURSOR_ORDER_REQUIRED));
+            assertTrue(ex.getMessage().contains(
+                    SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.CURSOR_ORDER_REQUIRED)));
         }
     }
 

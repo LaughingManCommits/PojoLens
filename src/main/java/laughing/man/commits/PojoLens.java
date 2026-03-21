@@ -9,6 +9,7 @@ import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 
@@ -54,6 +55,25 @@ public class PojoLens {
      */
     public static SqlLikeTemplate template(String sqlLikeQuery, String... expectedParams) {
         return PojoLensSql.template(sqlLikeQuery, expectedParams);
+    }
+
+    /**
+     * Creates a keyset cursor builder for SQL-like keyset pagination.
+     *
+     * @return keyset cursor builder
+     */
+    public static SqlLikeCursor.Builder newKeysetCursorBuilder() {
+        return SqlLikeCursor.builder();
+    }
+
+    /**
+     * Decodes a previously issued keyset cursor token.
+     *
+     * @param token keyset cursor token
+     * @return decoded keyset cursor
+     */
+    public static SqlLikeCursor parseKeysetCursor(String token) {
+        return SqlLikeCursor.fromToken(token);
     }
 
     public static DatasetBundle bundle(List<?> primaryRows) {
@@ -239,4 +259,3 @@ public class PojoLens {
     }
 
 }
-
