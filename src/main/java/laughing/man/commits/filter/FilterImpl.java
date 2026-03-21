@@ -14,6 +14,7 @@ import laughing.man.commits.util.ReflectionUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +37,7 @@ public class FilterImpl implements Filter {
     private volatile long planCacheKeyVersion = Long.MIN_VALUE;
     private volatile FastArrayQuerySupport.FastArrayState fastArrayState;
     private volatile FastStatsQuerySupport.FastStatsState fastStatsState;
+    private volatile SourceIndexCache sourceIndexCache;
 
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
@@ -155,7 +157,11 @@ public class FilterImpl implements Filter {
         // Fast path: for POJO-source simple filter queries, materialize only matching rows.
         boolean fastPojoFilterApplied = false;
         if (FastPojoFilterSupport.isApplicable(executionBuilder)) {
-            List<QueryRow> fastRows = FastPojoFilterSupport.tryFilterRows(executionBuilder);
+            List<?> indexedCandidates = FastPojoIndexSupport.indexedCandidates(
+                    executionBuilder,
+                    (fieldName, value) -> lookupIndexedSourceRows(executionBuilder, fieldName, value)
+            );
+            List<QueryRow> fastRows = FastPojoFilterSupport.tryFilterRows(executionBuilder, indexedCandidates);
             if (fastRows != null) {
                 executionBuilder.setMaterializedRows(fastRows, executionBuilder.getSourceFieldTypesForExecution());
                 fastPojoFilterApplied = true;
@@ -361,6 +367,7 @@ public class FilterImpl implements Filter {
     public synchronized Filter join() {
         FilterQueryBuilder executionBuilder = builderState;
         this.fastStatsState = null;
+        this.sourceIndexCache = null;
         FastArrayQuerySupport.FastArrayState fastState = FastArrayQuerySupport.tryBuildJoinedState(executionBuilder);
         if (fastState != null) {
             executionBuilder.setExecutionSchema(fastState.schemaTypes());
@@ -390,6 +397,7 @@ public class FilterImpl implements Filter {
             FilterQueryBuilder executionBuilder = builderState;
             executionBuilder.setRows(FastStatsQuerySupport.toQueryRows(statsState));
             fastStatsState = null;
+            sourceIndexCache = null;
             return;
         }
         FilterQueryBuilder executionBuilder = builderState;
@@ -398,6 +406,92 @@ public class FilterImpl implements Filter {
                 fastState.schemaTypes()
         );
         fastArrayState = null;
+        sourceIndexCache = null;
+    }
+
+    private List<?> lookupIndexedSourceRows(FilterQueryBuilder builder, String fieldName, Object value) {
+        List<?> sourceBeans = builder.getSourceBeansForExecution();
+        if (sourceBeans == null || sourceBeans.isEmpty()) {
+            return List.of();
+        }
+        if (!builder.getSourceFieldTypesForExecution().containsKey(fieldName)) {
+            return null;
+        }
+
+        SourceIndexCache cache = sourceIndexCache;
+        if (cache == null || cache.sourceBeans() != sourceBeans) {
+            cache = new SourceIndexCache(sourceBeans);
+            sourceIndexCache = cache;
+        }
+        return cache.lookup(fieldName, value);
+    }
+
+    private static final class SourceIndexCache {
+        private final List<?> sourceBeans;
+        private final HashMap<String, Map<Object, List<?>>> byField = new HashMap<>();
+        private final HashMap<String, Boolean> buildFailures = new HashMap<>();
+
+        private SourceIndexCache(List<?> sourceBeans) {
+            this.sourceBeans = sourceBeans;
+        }
+
+        private List<?> sourceBeans() {
+            return sourceBeans;
+        }
+
+        private List<?> lookup(String fieldName, Object value) {
+            Map<Object, List<?>> index = byField.get(fieldName);
+            if (index == null && !Boolean.TRUE.equals(buildFailures.get(fieldName))) {
+                index = buildFieldIndex(fieldName);
+                if (index == null) {
+                    buildFailures.put(fieldName, true);
+                } else {
+                    byField.put(fieldName, index);
+                }
+            }
+            if (index == null) {
+                return null;
+            }
+            List<?> matches = index.get(value);
+            return matches == null ? List.of() : matches;
+        }
+
+        private Map<Object, List<?>> buildFieldIndex(String fieldName) {
+            Object firstBean = CollectionUtil.firstNonNull(sourceBeans);
+            if (firstBean == null) {
+                return new LinkedHashMap<>();
+            }
+            ReflectionUtil.FlatRowReadPlan readPlan =
+                    ReflectionUtil.compileFlatRowReadPlan(firstBean.getClass(), List.of(fieldName));
+            if (readPlan.size() != 1) {
+                return null;
+            }
+
+            LinkedHashMap<Object, List<?>> index = new LinkedHashMap<>();
+            Object[] buffer = new Object[1];
+            try {
+                for (Object bean : sourceBeans) {
+                    if (bean == null) {
+                        continue;
+                    }
+                    ReflectionUtil.readFlatRowValues(bean, readPlan, buffer, 0);
+                    Object key = buffer[0];
+                    List<?> existing = index.get(key);
+                    if (existing == null) {
+                        ArrayList<Object> rows = new ArrayList<>();
+                        rows.add(bean);
+                        index.put(key, rows);
+                    } else {
+                        @SuppressWarnings("unchecked")
+                        List<Object> typed = (List<Object>) existing;
+                        typed.add(bean);
+                    }
+                }
+            } catch (IllegalAccessException e) {
+                return null;
+            }
+            return index;
+        }
     }
 
 }

@@ -21,7 +21,13 @@
   - simple query shapes stream lazily without full result materialization.
   - complex query shapes intentionally fall back to list-backed streams for deterministic behavior.
   - benchmark notes were added via `StreamingExecutionJmhBenchmark` and `docs/benchmarking.md`.
-- Next high-value feature is Spike 3 (optional in-memory indexes for hot filter/join paths).
+- Spike 3 (optional in-memory indexes) is completed:
+  - fluent index API added: `QueryBuilder.addIndex(String)` and typed selector overload.
+  - indexed candidate narrowing implemented for compatible simple POJO equality filters.
+  - safe fallback to scan preserved for inapplicable shapes/fields.
+  - benchmark parity and behavior tests added.
+  - benchmark notes recorded for warm/cold tradeoffs.
+- Next high-value work is platform hardening (stable API surface + binary compatibility CI checks).
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
@@ -38,11 +44,11 @@
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
 
-## Streaming Follow-Up Checklist
+## Index Benchmark Notes
 
-- Benchmark command (forked warmed run):
-  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json`
-- Results file for latest notes:
-  `target/benchmarks/streaming-execution-forked.json`
+- Warm run command:
+  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json`
+- Cold run command:
+  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json`
 - Current conclusion:
-  streaming provides strong wins for short-circuit/first-page consumers (`stream().limit(50)`) by avoiding full list materialization.
+  index hints improved warmed latency for this selective equality workload, but increased allocation and can regress cold one-shot runs.

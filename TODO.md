@@ -6,7 +6,7 @@
 - [x] Add SQL-like named parameter support for pagination clauses (`LIMIT :limit OFFSET :offset`).
 - [x] Add first-class keyset/cursor pagination API primitives (beyond documented query patterns).
 - [x] Add streaming execution output (iterator/stream) to avoid full materialization on large datasets.
-- [ ] Add optional in-memory indexes for hot filter/join paths to improve repeated-query latency.
+- [x] Add optional in-memory indexes for hot filter/join paths to improve repeated-query latency.
 
 ## Platform Hardening (Phase 2)
 
@@ -64,10 +64,10 @@ Spike goal:
 - Introduce opt-in index structures for frequently queried fields.
 
 Spike steps:
-1. Identify high-impact query shapes (equality filters, join keys, compound predicates).
-2. Design index lifecycle and invalidation strategy for snapshot data.
-3. Prototype index-assisted execution path with fallback to scan.
-4. Measure gain/loss across warm and cold benchmarks.
+1. [x] Identify high-impact query shapes (equality filters, join keys, compound predicates).
+2. [x] Design index lifecycle and invalidation strategy for snapshot data.
+3. [x] Prototype index-assisted execution path with fallback to scan.
+4. [x] Measure gain/loss across warm and cold benchmarks.
 
 Acceptance criteria:
 - Optional index API is defined and documented.

@@ -6,7 +6,7 @@
 - Coordinates are `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - `pom.xml` includes `release-central` profile for Maven Central publishing.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination + streaming spikes completed; next high-value feature is optional in-memory indexes.
+- `TODO.md` now has pagination, streaming, and optional index spikes completed.
 
 ## Latest Validation
 
@@ -25,6 +25,12 @@
 - `2026-03-21`: streaming benchmark suite (`StreamingExecutionJmhBenchmark`) executed with forked warmed run (`-f 1 -wi 1 -i 3 -prof gc`) and results captured in `target/benchmarks/streaming-execution-forked.json`.
 - `2026-03-21`: `mvn -q test` passed after adding streaming benchmark scaffolding and benchmark docs/TODO updates.
 - `2026-03-21`: `scripts/check-doc-consistency.ps1` passed after adding streaming tradeoff notes to `docs/benchmarking.md`.
+- `2026-03-21`: focused index suite passed (`OptionalIndexExecutionTest`, `IndexHintJmhBenchmarkParityTest`, `PublicApiCoverageTest`) after adding fluent optional index hints and indexed candidate narrowing.
+- `2026-03-21`: full `mvn -q test` passed after index API/prototype/docs updates.
+- `2026-03-21`: doc consistency passed after index use-case + benchmarking updates.
+- `2026-03-21`: index benchmark suites executed:
+  - warm forked run: `target/benchmarks/index-hint-forked.json` (`-f 1 -wi 1 -i 3 -prof gc`)
+  - cold forked run: `target/benchmarks/index-hint-cold.json` (`-f 1 -wi 0 -i 1 -prof gc`)
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -52,9 +58,16 @@
   - Complex shapes (join/group/having/ordered windows/stats paths) fall back to list-backed streams for deterministic behavior.
   - Docs/tests cover fluent + SQL-like stream usage.
   - Benchmarks now document short-circuit tradeoffs (`stream().limit(50)` vs list materialization) with large allocation/latency wins for first-page consumers.
+- Optional index spike 3 completed:
+  - Fluent API now supports optional index hints via `addIndex(String)` and `addIndex(FieldSelector<...>)`.
+  - Query explain now surfaces configured `indexes`.
+  - Execution prototype narrows simple POJO filter candidates through indexed equality predicates and falls back safely to scan when inapplicable.
+  - Added parity and behavior coverage tests (`OptionalIndexExecutionTest`, `IndexHintJmhBenchmarkParityTest`, `PublicApiCoverageTest` updates).
+  - Benchmark notes now include warm/cold gain-loss tradeoffs for index hints.
 
 ## Next Actions
 
-- Start spike 3: optional in-memory indexes for repeated hot filter/join paths.
+- Start platform hardening spike 4: define/document stable public API surface with compatibility guarantees.
+- Evaluate and wire binary compatibility checks in CI (`revapi` or `japicmp`).
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.

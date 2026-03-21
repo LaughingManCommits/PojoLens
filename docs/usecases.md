@@ -8,8 +8,10 @@ Each section answers: when to use it, what to copy, and what outcome you get.
 | If you need...                         | Go to      | Main API                          |
 |----------------------------------------|------------|-----------------------------------|
 | A service-owned search endpoint        | Use Case 1 | `PojoLens.newQueryBuilder(...)`   |
-| Config-driven dynamic queries          | Use Case 2 | `PojoLens.parse(...).params(...)` |
-| Deterministic API pagination           | Use Case 2B | `LIMIT/OFFSET` + keyset pattern   |
+| Config-driven dynamic queries          | Use Case 2 | `PojoLens.parse(...).params(SqlParams)` |
+| Deterministic API pagination           | Use Case 2B | `LIMIT/OFFSET` + `keysetAfter(...)` |
+| Large data, first-page consumers       | Use Case 2C | `.stream(...)` / `.iterator(...)` |
+| Repeated hot equality filters          | Use Case 2D | `.addIndex(...)` + normal rules |
 | Time-based finance/product summaries   | Use Case 3 | `bucket(...) + group by + having` |
 | Multi-source views with joins          | Use Case 4 | `JoinBindings` / `DatasetBundle`  |
 | Chart payloads for frontend/reporting  | Use Case 5 | `.chart(...)` + `ChartData`       |
@@ -49,12 +51,15 @@ List<EmployeeCompRow> rows = PojoLens
     .parse("select name, department, salary "
         + "where department = :dept and salary >= :minSalary "
         + "order by salary desc limit 50")
-    .params(Map.of("dept", "Engineering", "minSalary", 120000))
+    .params(SqlParams.builder()
+        .put("dept", "Engineering")
+        .put("minSalary", 120000)
+        .build())
     .filter(employees, EmployeeCompRow.class);
 ```
 
 Outcome:
-- Query logic in config, runtime values in named params.
+- Query logic in config, runtime values in typed named params.
 
 ## Use Case 2B: Cursor-Friendly Pagination API
 
@@ -85,6 +90,44 @@ List<EmployeeFeedRow> rows = PojoLens
 
 Outcome:
 - Predictable page windows and stable next-page behavior with deterministic sort keys.
+
+## Use Case 2C: Memory-Efficient First-Page Reads
+
+Problem:
+- A pipeline only needs the first page/window and should avoid full list materialization.
+
+Use:
+
+```java
+List<EmployeeCompRow> firstPage = PojoLens
+    .parse("select name, department, salary where salary >= 100000")
+    .stream(employees, EmployeeCompRow.class)
+    .limit(50)
+    .toList();
+```
+
+Outcome:
+- Low-allocation first-page extraction via lazy streaming/iteration.
+
+## Use Case 2D: Repeated Filter Endpoint on the Same Snapshot
+
+Problem:
+- A service executes the same equality-heavy filters repeatedly over one in-memory snapshot.
+
+Use:
+
+```java
+List<EmployeeDirectoryRow> rows = PojoLens.newQueryBuilder(employees)
+    .addIndex("department")
+    .addIndex("active")
+    .addRule("department", "Engineering", Clauses.EQUAL)
+    .addRule("active", true, Clauses.EQUAL)
+    .initFilter()
+    .filter(EmployeeDirectoryRow.class);
+```
+
+Outcome:
+- Optional index hints narrow candidate rows for compatible equality filters, with automatic fallback to scan when inapplicable.
 
 ## Use Case 3: Monthly Payroll Trend
 

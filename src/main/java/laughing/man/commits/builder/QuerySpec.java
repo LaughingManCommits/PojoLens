@@ -40,6 +40,7 @@ final class QuerySpec {
     private Map<Integer, String> joinParentFields = new HashMap<>();
     private Map<Integer, String> joinChildFields = new HashMap<>();
     private List<String> returnFields = new ArrayList<>();
+    private List<String> indexedFields = new ArrayList<>();
     private List<QueryMetric> metrics = new ArrayList<>();
     private Map<String, QueryTimeBucket> timeBuckets = new HashMap<>();
     private List<List<QueryRule>> allOfGroups = new ArrayList<>();
@@ -165,6 +166,10 @@ final class QuerySpec {
         return returnFields;
     }
 
+    List<String> getIndexedFields() {
+        return indexedFields;
+    }
+
     List<QueryMetric> getMetrics() {
         return metrics;
     }
@@ -261,6 +266,7 @@ final class QuerySpec {
         copy.joinParentFields = joinParentFields;
         copy.joinChildFields = joinChildFields;
         copy.returnFields = returnFields;
+        copy.indexedFields = indexedFields;
         copy.metrics = metrics;
         copy.timeBuckets = timeBuckets;
         copy.allOfGroups = allOfGroups;
@@ -308,6 +314,8 @@ final class QuerySpec {
         replaceMap(target.joinChildFields, joinChildFields);
         target.returnFields.clear();
         target.returnFields.addAll(returnFields);
+        target.indexedFields.clear();
+        target.indexedFields.addAll(indexedFields);
         target.metrics.clear();
         target.metrics.addAll(metrics);
         target.timeBuckets.clear();

@@ -138,6 +138,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("groupBy", new TreeMap<>(spec.getGroupFields()));
         explain.put("orderBy", new TreeMap<>(spec.getOrderFields()));
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
+        explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
         explain.put("havingRuleCount", spec.getHavingValues().size());
         explain.put("joinCount", spec.getJoinClasses().size());
@@ -366,6 +367,22 @@ public class FilterQueryBuilder implements QueryBuilder {
     @Override
     public <T, R> FilterQueryBuilder addField(FieldSelector<T, R> selector) {
         return addField(FieldSelectors.resolve(selector));
+    }
+
+    @Override
+    public FilterQueryBuilder addIndex(String column) {
+        String normalizedColumn = requireIdentifier(column, "column");
+        List<String> indexes = spec.getIndexedFields();
+        if (!indexes.contains(normalizedColumn)) {
+            indexes.add(normalizedColumn);
+            markExecutionPlanShapeChanged();
+        }
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addIndex(FieldSelector<T, R> selector) {
+        return addIndex(FieldSelectors.resolve(selector));
     }
 
     @Override
@@ -677,6 +694,10 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public List<String> getReturnFields() {
         return spec.getReturnFields();
+    }
+
+    public List<String> getIndexedFields() {
+        return spec.getIndexedFields();
     }
 
     public List<QueryMetric> getMetrics() {

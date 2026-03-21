@@ -147,6 +147,37 @@ Interpretation:
 - For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
 - These gains come from avoiding full result list materialization when callers only need an initial window.
 
+## Optional Index Hint Tradeoffs
+
+Optional fluent index hints are now benchmarked with a selective equality workload (`IndexHintJmhBenchmark`):
+- query shape: `stringField = :exactKey and integerField >= 0`
+- baseline: normal scan path
+- indexed: `.addIndex("stringField")`
+
+Warm (repeated) run command:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
+```
+
+Cold run command:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
+```
+
+Representative `2026-03-21` results (`size=10000`):
+
+| Scenario | Scan us/op | Indexed us/op | Scan B/op | Indexed B/op |
+|---|---:|---:|---:|---:|
+| Warm (`-wi 1 -i 3`) | `842.561` | `205.164` | `254,012.391` | `1,428,193.059` |
+| Cold (`-wi 0 -i 1`) | `115,657.800` | `123,970.100` | `6,578,744.000` | `7,768,168.000` |
+
+Interpretation:
+- Warm repeated workloads see a strong latency win (`~4.1x` faster in this run) from candidate narrowing.
+- Allocation cost is higher (`~5.6x` in the warm run) because index construction/allocation overhead is paid in this prototype path.
+- Cold one-shot runs can regress (here, indexed was slower and allocated more), so index hints should be used for repeated hot snapshots rather than one-off scans.
+
 ## Hotspot Microbenchmarks
 
 The hotspot suite isolates the conversion and cache paths that the end-to-end suites intentionally blur together:

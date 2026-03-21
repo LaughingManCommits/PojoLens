@@ -252,6 +252,44 @@ public class PublicApiCoverageTest {
     }
 
     @Test
+    public void optionalIndexControlsShouldBeUsableFromPublicApi() {
+        List<Employee> baseline = PojoLens.newQueryBuilder(sampleEmployees())
+                .addRule("department", "Engineering", Clauses.EQUAL)
+                .addRule("active", true, Clauses.EQUAL)
+                .initFilter()
+                .filter(Employee.class);
+
+        List<Employee> indexed = PojoLens.newQueryBuilder(sampleEmployees())
+                .addIndex("department")
+                .addIndex("active")
+                .addRule("department", "Engineering", Clauses.EQUAL)
+                .addRule("active", true, Clauses.EQUAL)
+                .initFilter()
+                .filter(Employee.class);
+
+        assertEquals(
+                baseline.stream().map(row -> row.id).toList(),
+                indexed.stream().map(row -> row.id).toList()
+        );
+        assertEquals(
+                List.of("department", "active"),
+                PojoLens.newQueryBuilder(sampleEmployees())
+                        .addIndex("department")
+                        .addIndex("active")
+                        .explain()
+                        .get("indexes")
+        );
+
+        Object typedIndexes = PojoLens.newQueryBuilder(Arrays.asList(
+                        new Foo("a", new Date(), 1),
+                        new Foo("b", new Date(), 2)))
+                .addIndex(Foo::getStringField)
+                .explain()
+                .get("indexes");
+        assertEquals(List.of("stringField"), typedIndexes);
+    }
+
+    @Test
     public void lintControlsShouldBeUsableFromPublicApi() {
         PojoLensRuntime runtime = PojoLens.newRuntime();
         assertFalse(runtime.isLintMode());

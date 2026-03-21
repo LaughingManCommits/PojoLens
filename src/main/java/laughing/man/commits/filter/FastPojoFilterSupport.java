@@ -60,7 +60,17 @@ final class FastPojoFilterSupport {
      * Returns {@code null} to signal fallback to the normal execution path.
      */
     static List<QueryRow> tryFilterRows(FilterQueryBuilder builder) {
-        List<?> sourceBeans = builder.getSourceBeansForExecution();
+        return tryFilterRows(builder, null);
+    }
+
+    /**
+     * Materializes only POJO rows that pass the configured filter rules from
+     * the provided candidate source rows.
+     */
+    static List<QueryRow> tryFilterRows(FilterQueryBuilder builder, List<?> candidateSourceBeans) {
+        List<?> sourceBeans = candidateSourceBeans == null
+                ? builder.getSourceBeansForExecution()
+                : candidateSourceBeans;
         Object firstBean = CollectionUtil.firstNonNull(sourceBeans);
         if (firstBean == null) {
             return new ArrayList<>(0);

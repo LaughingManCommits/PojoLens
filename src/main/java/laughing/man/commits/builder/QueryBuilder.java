@@ -152,6 +152,19 @@ public interface QueryBuilder {
     <T, R> QueryBuilder addField(FieldSelector<T, R> selector);
 
     /**
+     * Declares an optional in-memory index for the provided source field.
+     * <p>
+     * Indexes are hints: execution falls back to scan when an index is
+     * inapplicable for a given query shape.
+     *
+     * @param column source field name to index
+     * @return builder
+     */
+    QueryBuilder addIndex(String column);
+
+    <T, R> QueryBuilder addIndex(FieldSelector<T, R> selector);
+
+    /**
      * Adds an aggregate metric projected under the provided alias.
      */
     QueryBuilder addMetric(String field, Metric metric, String alias);
