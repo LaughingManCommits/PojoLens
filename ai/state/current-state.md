@@ -12,6 +12,11 @@
 
 ## Latest Validation
 
+- `2026-03-22`: SQL-like maintainability refactor slice passed:
+  - extracted prepared-execution cache/binding internals out of `SqlLikeQuery` into new package-private helper `SqlLikePreparedExecutionSupport`
+  - focused SQL-like regression: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeParserTest,SqlLikeMappingParityTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-22`: starter distribution + integration hardening passed:
   - starter module integration smoke test (app context + endpoint): `mvn -q -pl pojo-lens-spring-boot-starter -am test`
   - full regression: `mvn -q test`
@@ -135,6 +140,10 @@
   - Updated release policy to publish starter/autoconfigure artifacts to Central alongside runtime artifact.
   - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
   - Updated README/modules documentation with starter usage and property examples.
+- SQL-like maintainability hardening delivered (slice 1):
+  - `SqlLikeQuery` prepared-execution/binding cache internals were split into new helper class `SqlLikePreparedExecutionSupport`.
+  - `SqlLikeQuery` size reduced from `1254` to `1002` lines while preserving public API behavior.
+  - Execution context/run/shape key internals are now isolated and easier to evolve/test incrementally.
 
 ## Next Actions
 

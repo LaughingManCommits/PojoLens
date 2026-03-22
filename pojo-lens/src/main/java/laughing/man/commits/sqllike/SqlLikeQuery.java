@@ -39,6 +39,10 @@ import laughing.man.commits.table.internal.TabularSchemaSupport;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
+import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionContext;
+import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionRun;
+import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionShapeKey;
+import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.PreparedExecution;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1022,124 +1026,17 @@ public final class SqlLikeQuery {
     private <T> ExecutionContext prepareExecution(List<?> pojos,
                                                   Map<String, List<?>> joinSources,
                                                   Class<T> projectionClass) {
-        Objects.requireNonNull(pojos, "pojos must not be null");
-        Objects.requireNonNull(joinSources, "joinSources must not be null");
-        SqlLikeParameterSupport.assertFullyBound(ast);
-        long bindStarted = QueryTelemetrySupport.start(telemetryListener);
-        Class<?> sourceClass = SqlLikeExecutionSupport.inferSourceClass(pojos, projectionClass);
-        PreparedExecution prepared;
-        if (containsSubqueries(ast)) {
-            prepared = buildPreparedExecution(sourceClass, projectionClass, pojos, joinSources);
-        } else {
-            ExecutionShapeKey shapeKey = ExecutionShapeKey.of(ast, sourceClass, projectionClass, joinSources);
-            prepared = preparedExecutions.computeIfAbsent(
-                    shapeKey,
-                    ignored -> buildPreparedExecution(sourceClass, projectionClass, pojos, joinSources)
-            );
-        }
-        QueryTelemetrySupport.emit(
-                telemetryListener,
-                QueryTelemetryStage.BIND,
-                "sql-like",
+        return SqlLikePreparedExecutionSupport.prepareExecution(
                 source,
-                bindStarted,
-                pojos.size(),
-                pojos.size(),
-                QueryTelemetrySupport.metadata(
-                        "projectionClass", projectionClass.getSimpleName(),
-                        "joinSourceCount", joinSources.size(),
-                        "applyJoin", prepared.applyJoin()
-                )
-        );
-        return new ExecutionContext(prepared, pojos, joinSources);
-    }
-
-    private <T> PreparedExecution buildPreparedExecution(Class<?> sourceClass,
-                                                         Class<T> projectionClass,
-                                                         List<?> pojos,
-                                                         Map<String, List<?>> joinSources) {
-        QueryAst normalizedAst = SqlLikeValidator.validateForFilter(
                 ast,
-                sourceClass,
-                projectionClass,
-                joinSources,
                 strictParameterTypes,
-                computedFieldRegistry
-        );
-        FilterQueryBuilder boundBuilder = (FilterQueryBuilder) SqlLikeBinder.bind(
-                normalizedAst,
+                computedFieldRegistry,
+                telemetryListener,
+                preparedExecutions,
                 pojos,
                 joinSources,
-                sourceClass,
-                computedFieldRegistry
+                projectionClass
         );
-        FilterExecutionPlanCacheKey rawExecutionPlanCacheKey =
-                shouldCacheRawExecutionPlan(normalizedAst, boundBuilder)
-                        ? FilterExecutionPlanCacheKey.from(boundBuilder)
-                        : null;
-        return new PreparedExecution(
-                boundBuilder.snapshotForPreparedExecution(),
-                extractJoinSourceNames(normalizedAst),
-                SqlLikeBinder.resolveSort(normalizedAst),
-                normalizedAst.hasJoins(),
-                normalizedAst.select(),
-                rawExecutionPlanCacheKey
-        );
-    }
-
-    private static boolean shouldCacheRawExecutionPlan(QueryAst ast, FilterQueryBuilder builder) {
-        return !ast.hasJoins()
-                && (!builder.getMetrics().isEmpty()
-                || !builder.getGroupFields().isEmpty()
-                || !builder.getTimeBuckets().isEmpty());
-    }
-
-    private static List<String> extractJoinSourceNames(QueryAst ast) {
-        if (!ast.hasJoins()) {
-            return List.of();
-        }
-        ArrayList<String> joinSourceNames = new ArrayList<>(ast.joins().size());
-        ast.joins().forEach(join -> joinSourceNames.add(join.childSource()));
-        return List.copyOf(joinSourceNames);
-    }
-
-    private static Class<?> inferJoinSourceClass(List<?> rows) {
-        if (rows == null || rows.isEmpty()) {
-            throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_INVALID_JOIN_ROWS,
-                    "JOIN source rows must not be null/empty");
-        }
-        for (Object row : rows) {
-            if (row != null) {
-                return row.getClass();
-            }
-        }
-        throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_INVALID_JOIN_ROWS,
-                "JOIN source rows must contain at least one non-null element");
-    }
-
-    private static boolean containsSubqueries(QueryAst ast) {
-        for (FilterAst filter : ast.filters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
-                return true;
-            }
-        }
-        for (FilterAst filter : ast.havingFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
-                return true;
-            }
-        }
-        return containsSubquery(ast.whereExpression()) || containsSubquery(ast.havingExpression());
-    }
-
-    private static boolean containsSubquery(FilterExpressionAst expression) {
-        if (expression == null) {
-            return false;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return predicateAst.filter().value() instanceof SubqueryValueAst;
-        }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        return containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
     }
 
     private void emitChartTelemetry(long chartStarted, int rowCount, ChartData chart) {
@@ -1157,187 +1054,6 @@ public final class SqlLikeQuery {
                         "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
                 )
         );
-    }
-
-    private final class ExecutionContext {
-        private final PreparedExecution prepared;
-        private final List<?> pojos;
-        private final Map<String, List<?>> joinSources;
-
-        private ExecutionContext(PreparedExecution prepared,
-                                 List<?> pojos,
-                                 Map<String, List<?>> joinSources) {
-            this.prepared = prepared;
-            this.pojos = pojos;
-            this.joinSources = joinSources;
-        }
-
-        private FilterQueryBuilder newExecutionBuilder() {
-            return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
-        }
-
-        private Sort sort() {
-            return prepared.sort();
-        }
-
-        private boolean applyJoin() {
-            return prepared.applyJoin();
-        }
-
-        private SelectAst select() {
-            return prepared.select();
-        }
-
-        private FilterExecutionPlan resolveRawExecutionPlan(FilterCore core, FilterQueryBuilder builder) {
-            FilterExecutionPlanCacheKey cachedKey = prepared.rawExecutionPlanCacheKey();
-            if (cachedKey == null) {
-                return core.buildExecutionPlan();
-            }
-            return builder.getExecutionPlanCache().getOrBuild(cachedKey, core::buildExecutionPlan);
-        }
-
-        private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {
-            return prepared.rawExecutionPlanCacheKey();
-        }
-
-        private ExecutionRun newRun() {
-            return new ExecutionRun(this);
-        }
-    }
-
-    private final class ExecutionRun {
-        private final ExecutionContext context;
-        private FilterQueryBuilder builder;
-        private FastStatsQuerySupport.FastStatsState fastStatsState;
-        private boolean fastStatsResolved;
-
-        private ExecutionRun(ExecutionContext context) {
-            this.context = context;
-        }
-
-        private FilterQueryBuilder builder() {
-            if (builder == null) {
-                builder = context.newExecutionBuilder();
-            }
-            return builder;
-        }
-
-        private FastStatsQuerySupport.FastStatsState fastStatsState() {
-            if (!fastStatsResolved) {
-                if (!context.applyJoin()) {
-                    fastStatsState = FastStatsQuerySupport.tryBuildState(
-                            builder(),
-                            context.rawExecutionPlanCacheKey()
-                    );
-                }
-                fastStatsResolved = true;
-            }
-            return fastStatsState;
-        }
-
-        private boolean applyJoin() {
-            return context.applyJoin();
-        }
-
-        private Sort sort() {
-            return context.sort();
-        }
-
-        private FilterExecutionPlan resolveRawExecutionPlan(FilterCore core) {
-            return context.resolveRawExecutionPlan(core, builder());
-        }
-    }
-
-    private static final class PreparedExecution {
-        private final FilterQueryBuilder templateBuilder;
-        private final List<String> joinSourceNames;
-        private final Sort sort;
-        private final boolean applyJoin;
-        private final SelectAst select;
-        private final FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
-
-        private PreparedExecution(FilterQueryBuilder templateBuilder,
-                                  List<String> joinSourceNames,
-                                  Sort sort,
-                                  boolean applyJoin,
-                                  SelectAst select,
-                                  FilterExecutionPlanCacheKey rawExecutionPlanCacheKey) {
-            this.templateBuilder = templateBuilder;
-            this.joinSourceNames = joinSourceNames;
-            this.sort = sort;
-            this.applyJoin = applyJoin;
-            this.select = select;
-            this.rawExecutionPlanCacheKey = rawExecutionPlanCacheKey;
-        }
-
-        private FilterQueryBuilder newExecutionBuilder(List<?> pojos,
-                                                       Map<String, List<?>> joinSources,
-                                                       QueryTelemetryListener telemetryListener,
-                                                       String source) {
-            FilterQueryBuilder builder = templateBuilder.preparedExecutionView(
-                    pojos,
-                    joinSourcesByIndex(joinSources)
-            );
-            builder.telemetry(telemetryListener);
-            builder.telemetryContext("sql-like", source, telemetryListener);
-            return builder;
-        }
-
-        private Map<Integer, List<?>> joinSourcesByIndex(Map<String, List<?>> joinSources) {
-            if (joinSourceNames.isEmpty()) {
-                return Collections.emptyMap();
-            }
-            LinkedHashMap<Integer, List<?>> byIndex = new LinkedHashMap<>(joinSourceNames.size());
-            for (int i = 0; i < joinSourceNames.size(); i++) {
-                String joinSourceName = joinSourceNames.get(i);
-                List<?> rows = joinSources.get(joinSourceName);
-                if (rows == null) {
-                    throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + joinSourceName + "'");
-                }
-                byIndex.put(i + 1, rows);
-            }
-            return byIndex;
-        }
-
-        private Sort sort() {
-            return sort;
-        }
-
-        private boolean applyJoin() {
-            return applyJoin;
-        }
-
-        private SelectAst select() {
-            return select;
-        }
-
-        private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {
-            return rawExecutionPlanCacheKey;
-        }
-    }
-
-    private record ExecutionShapeKey(Class<?> sourceClass,
-                                     Class<?> projectionClass,
-                                     List<JoinSourceShape> joinSources) {
-        private static ExecutionShapeKey of(QueryAst ast,
-                                            Class<?> sourceClass,
-                                            Class<?> projectionClass,
-                                            Map<String, List<?>> joinSources) {
-            ArrayList<JoinSourceShape> joinShapes = new ArrayList<>(ast.joins().size());
-            ast.joins().forEach(join -> {
-                List<?> rows = joinSources.get(join.childSource());
-                if (rows == null) {
-                    throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + join.childSource() + "'");
-                }
-                joinShapes.add(new JoinSourceShape(join.childSource(), inferJoinSourceClass(rows)));
-            });
-            return new ExecutionShapeKey(sourceClass, projectionClass, List.copyOf(joinShapes));
-        }
-    }
-
-    private record JoinSourceShape(String sourceName, Class<?> rowClass) {
     }
 
     private final class DefaultSqlLikeBoundQuery<T> implements SqlLikeBoundQuery<T> {

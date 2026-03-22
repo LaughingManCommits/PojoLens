@@ -54,6 +54,10 @@
   - starter module now has an integration smoke test (`PojoLensStarterSmokeIntegrationTest`) that boots a web context and exercises a real endpoint using injected `PojoLensRuntime`.
   - release distribution decision is now to publish three Central artifacts: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter` (benchmarks/examples remain non-published).
   - behavior is covered by `PojoLensSpringBootAutoConfigurationTest` (defaults, overrides, backoff, micrometer toggle).
+- SQL-like maintainability refactor slice 1 is implemented:
+  - extracted prepared-execution internals (`prepareExecution`, shape key cache modeling, prepared execution/run context plumbing) from `SqlLikeQuery` into new package-private helper `SqlLikePreparedExecutionSupport`.
+  - `SqlLikeQuery` is now smaller (`1002` lines, down from `1254`) with unchanged public API surface.
+  - validated with focused SQL-like suites + full `mvn -q test` + docs consistency.
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
