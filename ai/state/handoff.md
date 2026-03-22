@@ -58,6 +58,15 @@
   - extracted prepared-execution internals (`prepareExecution`, shape key cache modeling, prepared execution/run context plumbing) from `SqlLikeQuery` into new package-private helper `SqlLikePreparedExecutionSupport`.
   - `SqlLikeQuery` is now smaller (`1002` lines, down from `1254`) with unchanged public API surface.
   - validated with focused SQL-like suites + full `mvn -q test` + docs consistency.
+- SQL-like maintainability refactor slices 2/3 are now implemented:
+  - extracted execution-flow internals from `SqlLikeQuery` into new package-private helper `SqlLikeExecutionFlowSupport` (`executeFilter`, `executeStream`, `executeChart`, raw-row pipeline, stage-row-count explain path, telemetry stage emitters).
+  - extracted parser tokenization internals from `SqlLikeParser` into new package-private helper `SqlLikeTokenizationSupport` (tokenizer, token/position model).
+  - class size reductions now at: `SqlLikeQuery` `1254 -> 748`, `SqlLikeParser` `1292 -> 1070`.
+  - validated with focused SQL-like suites, full `mvn -q test`, and docs consistency.
+- Lint baseline refresh is completed:
+  - ran lint profile: `mvn -B -ntp -Plint verify -DskipTests`
+  - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - post-refresh gate check passes with `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation
@@ -68,7 +77,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: `scripts/check-lint-baseline.ps1` currently reports large baseline drift and is not a clean gate without baseline maintenance.
+- Lint note: baseline currently matches lint report (`new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 

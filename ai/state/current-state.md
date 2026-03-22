@@ -12,6 +12,17 @@
 
 ## Latest Validation
 
+- `2026-03-22`: SQL-like maintainability refactor slices 2/3 + lint baseline refresh passed:
+  - extracted SQL-like execution flow/stage telemetry internals out of `SqlLikeQuery` into new package-private helper `SqlLikeExecutionFlowSupport`
+  - extracted SQL-like tokenization internals (`tokenize`, token model, position map) out of `SqlLikeParser` into new package-private helper `SqlLikeTokenizationSupport`
+  - size reductions: `SqlLikeQuery` `1002 -> 748` lines, `SqlLikeParser` `1292 -> 1070` lines
+  - focused SQL-like regression: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeParserTest,SqlLikeMappingParityTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline refresh:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - `2026-03-22`: SQL-like maintainability refactor slice passed:
   - extracted prepared-execution cache/binding internals out of `SqlLikeQuery` into new package-private helper `SqlLikePreparedExecutionSupport`
   - focused SQL-like regression: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeParserTest,SqlLikeMappingParityTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`
@@ -74,7 +85,7 @@
   - binary compatibility: `mvn -q "-Pbinary-compat" "-DskipTests" "-Dcompat.baseline.version=1.0.0" verify`
   - docs guardrail: `scripts/check-doc-consistency.ps1`
   - runtime jar scope assertion: `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` -> `0`
-- `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
+- `2026-03-22`: lint baseline was intentionally refreshed after SQL-like decomposition (`scripts/checkstyle-baseline.txt`, `10779` entries) and currently reports `new=0`, `fixed=0`.
 
 ## Release Status
 
@@ -140,12 +151,13 @@
   - Updated release policy to publish starter/autoconfigure artifacts to Central alongside runtime artifact.
   - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
   - Updated README/modules documentation with starter usage and property examples.
-- SQL-like maintainability hardening delivered (slice 1):
+- SQL-like maintainability hardening delivered (slices 1-3):
   - `SqlLikeQuery` prepared-execution/binding cache internals were split into new helper class `SqlLikePreparedExecutionSupport`.
-  - `SqlLikeQuery` size reduced from `1254` to `1002` lines while preserving public API behavior.
-  - Execution context/run/shape key internals are now isolated and easier to evolve/test incrementally.
+  - `SqlLikeQuery` execution flow, raw-row execution, stage row counts, and chart telemetry paths were split into new helper class `SqlLikeExecutionFlowSupport`.
+  - `SqlLikeParser` tokenization internals were split into new helper class `SqlLikeTokenizationSupport` (tokens, token types, position map, tokenizer).
+  - size reductions now at `SqlLikeQuery`: `1254 -> 748`, `SqlLikeParser`: `1292 -> 1070`, with public API behavior preserved by regression suites.
 
 ## Next Actions
 
-- Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
+- Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

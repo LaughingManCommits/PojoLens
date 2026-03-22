@@ -18,6 +18,9 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.time.TimeBucketPreset;
+import laughing.man.commits.sqllike.parser.SqlLikeTokenizationSupport.PositionMap;
+import laughing.man.commits.sqllike.parser.SqlLikeTokenizationSupport.Token;
+import laughing.man.commits.sqllike.parser.SqlLikeTokenizationSupport.TokenType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -979,161 +982,12 @@ public final class SqlLikeParser {
     }
 
     private List<Token> tokenize(String value) {
-        List<Token> output = new ArrayList<>();
-        int i = 0;
-        while (i < value.length()) {
-            char ch = value.charAt(i);
-            if (Character.isWhitespace(ch)) {
-                i++;
-                continue;
-            }
-            if (ch == ',') {
-                addToken(output, new Token(TokenType.COMMA, ",", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)));
-                continue;
-            }
-            if (ch == '(') {
-                addToken(output, new Token(TokenType.LEFT_PAREN, "(", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)));
-                continue;
-            }
-            if (ch == ')') {
-                addToken(output, new Token(TokenType.RIGHT_PAREN, ")", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)));
-                continue;
-            }
-            if (ch == '*') {
-                addToken(output, new Token(TokenType.STAR, "*", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)));
-                continue;
-            }
-            if (ch == '\'') {
-                int start = i++;
-                StringBuilder sb = new StringBuilder();
-                boolean terminated = false;
-                while (i < value.length()) {
-                    char c = value.charAt(i);
-                    if (c == '\'') {
-                        if (i + 1 < value.length() && value.charAt(i + 1) == '\'') {
-                            sb.append('\'');
-                            i += 2;
-                            continue;
-                        }
-                        i++;
-                        terminated = true;
-                        break;
-                    }
-                    sb.append(c);
-                    i++;
-                }
-                if (!terminated) {
-                    throw error("Unterminated string literal", start);
-                }
-                addToken(output, new Token(TokenType.STRING, sb.toString(), start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                continue;
-            }
-            if (ch == ':') {
-                int start = i++;
-                if (i >= value.length() || !isIdentifierStart(value.charAt(i))) {
-                    throw error("Expected parameter name after ':'", start);
-                }
-                while (i < value.length() && isIdentifierPart(value.charAt(i))) {
-                    i++;
-                }
-                addToken(output, new Token(
-                        TokenType.PARAM,
-                        value.substring(start, i),
-                        start,
-                        positionMap.lineOf(start),
-                        positionMap.columnOf(start)
-                ));
-                continue;
-            }
-            if (ch == '!' || ch == '<' || ch == '>' || ch == '=' || ch == '+' || ch == '/' || ch == '-') {
-                int start = i;
-                if (ch == '-' && i + 1 < value.length() && Character.isDigit(value.charAt(i + 1))) {
-                    i++;
-                    while (i < value.length() && Character.isDigit(value.charAt(i))) {
-                        i++;
-                    }
-                    if (i < value.length() && value.charAt(i) == '.') {
-                        i++;
-                        if (i >= value.length() || !Character.isDigit(value.charAt(i))) {
-                            throw error("Invalid decimal number", i);
-                        }
-                        while (i < value.length() && Character.isDigit(value.charAt(i))) {
-                            i++;
-                        }
-                    }
-                    addToken(output, new Token(TokenType.NUMBER, value.substring(start, i), start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                    continue;
-                }
-                if (i + 1 < value.length()) {
-                    String two = value.substring(i, i + 2);
-                    if ("!=".equals(two) || ">=".equals(two) || "<=".equals(two) || "<>".equals(two)) {
-                        addToken(output, new Token(TokenType.OPERATOR, two, start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                        i += 2;
-                        continue;
-                    }
-                }
-                addToken(output, new Token(TokenType.OPERATOR, String.valueOf(ch), start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                i++;
-                continue;
-            }
-            if (Character.isDigit(ch)) {
-                int start = i;
-                i++;
-                while (i < value.length() && Character.isDigit(value.charAt(i))) {
-                    i++;
-                }
-                if (i < value.length() && value.charAt(i) == '.') {
-                    i++;
-                    if (i >= value.length() || !Character.isDigit(value.charAt(i))) {
-                        throw error("Invalid decimal number", i);
-                    }
-                    while (i < value.length() && Character.isDigit(value.charAt(i))) {
-                        i++;
-                    }
-                }
-                addToken(output, new Token(TokenType.NUMBER, value.substring(start, i), start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                continue;
-            }
-            if (isIdentifierStart(ch)) {
-                int start = i++;
-                while (i < value.length() && isIdentifierPart(value.charAt(i))) {
-                    i++;
-                }
-                String word = value.substring(start, i);
-                if (isKeyword(word)) {
-                    addToken(output, new Token(TokenType.KEYWORD, word, start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                } else {
-                    addToken(output, new Token(TokenType.IDENTIFIER, word, start, positionMap.lineOf(start), positionMap.columnOf(start)));
-                }
-                continue;
-            }
-            throw error("Unexpected character '" + ch + "'", i);
-        }
-        addToken(output, new Token(
-                TokenType.EOF,
-                "",
-                value.length(),
-                positionMap.lineOf(value.length()),
-                positionMap.columnOf(value.length())
-        ));
-        return output;
-    }
-
-    private void addToken(List<Token> tokens, Token token) {
-        if (tokens.size() >= MAX_TOKENS) {
-            throw error(SqlLikeErrorCodes.PARSE_TOKEN_LIMIT,
-                    "Query exceeds maximum token count of " + MAX_TOKENS,
-                    token.position);
-        }
-        tokens.add(token);
-    }
-
-    private boolean isIdentifierStart(char ch) {
-        return Character.isLetter(ch) || ch == '_';
-    }
-
-    private boolean isIdentifierPart(char ch) {
-        return Character.isLetterOrDigit(ch) || ch == '_' || ch == '.';
+        return SqlLikeTokenizationSupport.tokenize(
+                value,
+                positionMap,
+                KEYWORDS,
+                MAX_TOKENS
+        );
     }
 
     private boolean isMetricKeyword(String word) {
@@ -1163,10 +1017,6 @@ public final class SqlLikeParser {
         }
     }
 
-    private boolean isKeyword(String word) {
-        return KEYWORDS.contains(word.toUpperCase(Locale.ROOT));
-    }
-
     private static Map<String, Metric> buildMetricKeywordMap() {
         Map<String, Metric> metrics = new HashMap<>();
         metrics.put("COUNT", Metric.COUNT);
@@ -1175,78 +1025,6 @@ public final class SqlLikeParser {
         metrics.put("MIN", Metric.MIN);
         metrics.put("MAX", Metric.MAX);
         return metrics;
-    }
-
-    private enum TokenType {
-        IDENTIFIER,
-        KEYWORD,
-        STRING,
-        NUMBER,
-        PARAM,
-        OPERATOR,
-        COMMA,
-        LEFT_PAREN,
-        RIGHT_PAREN,
-        STAR,
-        EOF
-    }
-
-    private static final class Token {
-        private final TokenType type;
-        private final String text;
-        private final int position;
-        private final int line;
-        private final int column;
-
-        private Token(TokenType type, String text, int position, int line, int column) {
-            this.type = type;
-            this.text = text;
-            this.position = position;
-            this.line = line;
-            this.column = column;
-        }
-    }
-
-    private static final class PositionMap {
-        private final int[] lines;
-        private final int[] columns;
-
-        private PositionMap(int[] lines, int[] columns) {
-            this.lines = lines;
-            this.columns = columns;
-        }
-
-        private static PositionMap build(String input) {
-            int[] lines = new int[input.length() + 1];
-            int[] columns = new int[input.length() + 1];
-            int line = 1;
-            int column = 1;
-            for (int i = 0; i <= input.length(); i++) {
-                lines[i] = line;
-                columns[i] = column;
-                if (i == input.length()) {
-                    break;
-                }
-                char ch = input.charAt(i);
-                if (ch == '\n') {
-                    line++;
-                    column = 1;
-                } else {
-                    column++;
-                }
-            }
-            return new PositionMap(lines, columns);
-        }
-
-        private int lineOf(int index) {
-            int safe = Math.max(0, Math.min(index, lines.length - 1));
-            return lines[safe];
-        }
-
-        private int columnOf(int index) {
-            int safe = Math.max(0, Math.min(index, columns.length - 1));
-            return columns[safe];
-        }
     }
 
     private static final class QualifiedField {
