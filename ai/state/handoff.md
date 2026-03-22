@@ -50,6 +50,7 @@
   - autoconfigure module now provides `PojoLensRuntime` bean wiring via `pojo-lens.*` properties (`preset`, strict/lint flags, cache overrides).
   - optional micrometer bridge auto-registers a `QueryTelemetryListener` when `MeterRegistry` is present and `pojo-lens.telemetry.micrometer.enabled=true` (default).
   - starter module now exposes a single Boot dependency entry-point for PojoLens.
+  - standalone runnable starter demo app now exists at `examples/spring-boot-starter-basic` with `/api/employees/top-paid` and `/api/employees/runtime` endpoints.
   - behavior is covered by `PojoLensSpringBootAutoConfigurationTest` (defaults, overrides, backoff, micrometer toggle).
 - Maven Central release completion remains pending operational work.
 

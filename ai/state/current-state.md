@@ -16,6 +16,11 @@
 - `2026-03-22`: Spring Boot dependency baseline updated to `4.0.4` in parent BOM import and validated with:
   - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
   - full regression: `mvn -q test`
+- `2026-03-22`: Added runnable Spring Boot starter example project (`examples/spring-boot-starter-basic`) and validated with:
+  - local starter install for example resolution: `mvn -q -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+  - example package: `mvn -q -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-22`: Spring Boot starter/autoconfigure baseline passed:
   - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
   - full regression: `mvn -q test`
@@ -118,6 +123,7 @@
   - Added optional Micrometer telemetry bridge (`QueryTelemetryListener`) with low-cardinality `stage`/`query_type` tags.
   - Added `pojo-lens-spring-boot-starter` for simplified Boot dependency wiring.
   - Parent build now imports Spring Boot BOM version `4.0.4` for starter/autoconfigure dependency alignment.
+  - Added standalone runnable example app at `examples/spring-boot-starter-basic` with starter-driven `PojoLensRuntime` injection and a basic SQL-like REST use case.
   - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
   - Updated README/modules documentation with starter usage and property examples.
 

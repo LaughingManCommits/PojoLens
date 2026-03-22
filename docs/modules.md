@@ -7,6 +7,10 @@ PojoLens now uses a parent + module split:
 - `pojo-lens-spring-boot-starter` (starter dependency for Boot apps)
 - `pojo-lens-benchmarks` (benchmark/JMH tooling module)
 
+Standalone runnable examples live under `examples/` (for example,
+`examples/spring-boot-starter-basic`) and are intentionally not published as
+release artifacts.
+
 Runtime boundaries remain explicitly separated by entry point:
 
 - `PojoLensCore`: fluent query builder + filter execution + stats-plan cache controls

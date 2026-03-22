@@ -43,6 +43,9 @@ pojo-lens:
       enabled: true
 ```
 
+Runnable example project:
+- `examples/spring-boot-starter-basic` (REST endpoint + starter auto-configuration usage)
+
 ## Why PojoLens
 
 - Query existing domain classes directly (no ORM model rewrite).
