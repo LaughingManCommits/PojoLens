@@ -1,7 +1,6 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.PojoLens;
-import laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -11,8 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.lang.reflect.Field;
 import java.util.List;
+import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -46,23 +45,21 @@ class FilterImplFastPathTest {
 
     @Test
     void benchmarkShapeShouldActivateFastArrayState() throws Exception {
-        PojoLensJoinJmhBenchmark benchmark = new PojoLensJoinJmhBenchmark();
-        benchmark.size = 10;
-        benchmark.setup();
+        ArrayList<Parent> parents = new ArrayList<>(250);
+        ArrayList<Child> children = new ArrayList<>(250);
+        for (int i = 0; i < 250; i++) {
+            parents.add(new Parent(i, "parent-" + i, 90_000 + (i % 120)));
+            children.add(new Child(i, 3_000 + (i % 4_000)));
+        }
 
-        Field computedParents = PojoLensJoinJmhBenchmark.class.getDeclaredField("computedParents");
-        computedParents.setAccessible(true);
-        Field computedChildren = PojoLensJoinJmhBenchmark.class.getDeclaredField("computedChildren");
-        computedChildren.setAccessible(true);
-        Field computedFieldRegistry = PojoLensJoinJmhBenchmark.class.getDeclaredField("computedFieldRegistry");
-        computedFieldRegistry.setAccessible(true);
-        Field minimumTotalComp = PojoLensJoinJmhBenchmark.class.getDeclaredField("minimumTotalComp");
-        minimumTotalComp.setAccessible(true);
+        ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
+                .add("totalComp", "salary + bonus", Double.class)
+                .build();
 
-        Filter filter = PojoLens.newQueryBuilder((List<?>) computedParents.get(benchmark))
-                .computedFields((ComputedFieldRegistry) computedFieldRegistry.get(benchmark))
-                .addJoinBeans("id", (List<?>) computedChildren.get(benchmark), "parentId", Join.LEFT_JOIN)
-                .addRule("totalComp", minimumTotalComp.getDouble(benchmark), Clauses.BIGGER_EQUAL, Separator.AND)
+        Filter filter = PojoLens.newQueryBuilder(parents)
+                .computedFields(registry)
+                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", 93_000.0, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("name")
                 .addField("totalComp")
                 .initFilter();

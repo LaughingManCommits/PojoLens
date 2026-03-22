@@ -1,0 +1,4 @@
+package laughing.man.commits.benchmark.jmh_generated;
+public class HotspotMicroJmhBenchmark_ComputedFieldJoinState_jmhType extends HotspotMicroJmhBenchmark_ComputedFieldJoinState_jmhType_B3 {
+}
+

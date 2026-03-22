@@ -1,7 +1,11 @@
-# Module Boundaries (Staged)
+# Module Boundaries
 
-This project still ships as one compatibility artifact (`PojoLens`), but
-runtime boundaries are explicitly separated by entry point:
+PojoLens now uses a parent + module split:
+- `pojo-lens-parent` (build parent, packaging `pom`)
+- `pojo-lens` (runtime library artifact for consumers)
+- `pojo-lens-benchmarks` (benchmark/JMH tooling module)
+
+Runtime boundaries remain explicitly separated by entry point:
 
 - `PojoLensCore`: fluent query builder + filter execution + stats-plan cache controls
 - `PojoLensSql`: SQL-like parser + SQL-like cache controls
@@ -11,13 +15,29 @@ runtime boundaries are explicitly separated by entry point:
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).
 
-## Dependency Footprint
+## Artifact Scope
 
-- `xchart` is optional and used only by benchmark plotting utilities.
-- `jmh-core` is optional and used only for benchmark execution.
+Consumer dependency remains unchanged:
 
-Core-only consumers can keep using `PojoLensCore` and avoid pulling optional
-benchmark plotting runtime dependencies transitively.
+```xml
+<dependency>
+  <groupId>io.github.laughingmancommits</groupId>
+  <artifactId>pojo-lens</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+Benchmark/JMH classes are packaged in `pojo-lens-benchmarks` and excluded from
+the runtime `pojo-lens` jar. Benchmark-only dependencies such as `jmh-core` and
+`xchart` are isolated to the benchmark module.
+
+To build the forked benchmark runner jar:
+
+```bash
+mvn -B -ntp -Pbenchmark-runner -DskipTests package
+```
+
+This writes `target/pojo-lens-<version>-benchmarks.jar` at repository root.
 
 ## Migration Guidance
 

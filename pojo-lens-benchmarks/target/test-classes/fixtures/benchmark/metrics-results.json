@@ -1,0 +1,38 @@
+[
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.fluentBarMapping",
+    "params": {"size": "1000"},
+    "primaryMetric": {"score": 10.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.sqlLikeBarMapping",
+    "params": {"size": "1000"},
+    "primaryMetric": {"score": 14.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.fluentLineMapping",
+    "params": {"size": "10000"},
+    "primaryMetric": {"score": 55.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.sqlLikeLineMapping",
+    "params": {"size": "10000"},
+    "primaryMetric": {"score": 60.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.scatterPayloadJsonExport",
+    "params": {"size": "100000"},
+    "primaryMetric": {"score": 120.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.sqlLikeScatterMapping",
+    "params": {"size": "100000"},
+    "primaryMetric": {"score": 900.000}
+  },
+  {
+    "benchmark": "laughing.man.commits.benchmark.StreamsBaselineJmhBenchmark.streamsFilterProjection",
+    "params": {"size": "10000"},
+    "primaryMetric": {"score": 45.000}
+  }
+]
+

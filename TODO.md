@@ -12,7 +12,7 @@
 
 - [x] Define and document a small **stable public API surface** (vs advanced/internal APIs), with explicit compatibility guarantees.
 - [x] Add **binary compatibility checks** to CI (for example `revapi` or `japicmp`) to block accidental breaking API changes before release.
-- [ ] Slim runtime artifact scope by separating benchmark/JMH tooling from the default `pojo-lens` runtime jar.
+- [x] Slim runtime artifact scope by separating benchmark/JMH tooling from the default `pojo-lens` runtime jar.
 
 ## Spike Plan
 

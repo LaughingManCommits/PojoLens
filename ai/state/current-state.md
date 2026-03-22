@@ -2,12 +2,12 @@
 
 ## Repository Health
 
-- Repository is a single-module Maven Java library (`jar`) on Java 17.
-- Coordinates are `io.github.laughingmancommits:pojo-lens:1.0.0`.
-- `pom.xml` includes `release-central` profile for Maven Central publishing.
+- Repository is a multi-module Maven Java library on Java 17 (`pojo-lens-parent` + `pojo-lens` + `pojo-lens-benchmarks`).
+- Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
+- Runtime Central publishing profile lives in `pojo-lens/pom.xml` (`release-central`).
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination, streaming, and optional index spikes completed.
-- `2026-03-21` artifact-scope check found benchmark packaging bleed: `target/pojo-lens-1.0.0.jar` contains `198` benchmark entries, including `134` `benchmark/jmh_generated` entries.
+- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, and artifact/module-boundary spikes completed.
+- `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 
 ## Latest Validation
 
@@ -42,6 +42,12 @@
   - compatibility check: `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=1.0.0 verify`
   - full regression: `mvn -q test`
   - docs guardrail: `scripts/check-doc-consistency.ps1`
+- `2026-03-21`: artifact/module-boundary slimming validations passed:
+  - release path package: `mvn -B -ntp -Prelease-central -DskipTests package` (runtime javadocs now pass with benchmark source exclusion)
+  - full regression: `mvn -ntp test`
+  - binary compatibility: `mvn -q "-Pbinary-compat" "-DskipTests" "-Dcompat.baseline.version=1.0.0" verify`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - runtime jar scope assertion: `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` -> `0`
 - `2026-03-20`: lint baseline script currently reports baseline drift (`new=1549`, `fixed=5417`) and needs intentional baseline refresh strategy before treating as a gate.
 
 ## Release Status
@@ -87,9 +93,16 @@
   - Added local run guidance to `CONTRIBUTING.md`.
   - Updated stable API policy enforcement note in `docs/public-api-stability.md`.
   - Marked TODO binary compatibility item complete.
+- Artifact/module boundary spike 6 delivered:
+  - Converted root build to parent POM (`pojo-lens-parent`) with modules `pojo-lens` and `pojo-lens-benchmarks`.
+  - Runtime module now excludes `**/benchmark/**` from compile/test/javadocs and keeps release-central publishing for runtime artifact.
+  - Benchmark module now owns benchmark/JMH compile path, JMH annotation processing, and benchmark runner shading.
+  - Runtime test coupling to benchmark classes was removed (`FilterImplFastPathTest` now uses local fixture generation).
+  - Benchmark tests were updated to module-aware resource paths.
+  - CI now includes runtime artifact-scope assertion to block benchmark-class bleed into runtime jar.
+  - TODO artifact-slimming item is marked complete.
 
 ## Next Actions
 
-- Decide artifact boundary for benchmark tooling (move benchmark/JMH classes out of default runtime jar or split artifact/module).
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.

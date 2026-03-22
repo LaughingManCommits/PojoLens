@@ -37,12 +37,13 @@
   - `.github/workflows/ci.yml` now has a `binary-compat` job that resolves latest `v*` tag baseline, installs baseline artifact from detached worktree, and runs compatibility verify.
   - `CONTRIBUTING.md` includes local binary-compat run instructions.
   - `TODO.md` marks binary-compat hardening item complete.
-- Next high-value hardening work is artifact/module slimming.
-- Scope audit (`2026-03-21`) found broad public surface and packaging bleed:
-  - entry contracts are large (`PojoLens` static API ~52 methods, `QueryBuilder` ~40 methods, `SqlLikeQuery` ~50 public members)
-  - main runtime jar currently includes benchmark/JMH classes (`198` benchmark entries, `134` under `benchmark/jmh_generated`)
-  - fold artifact-slimming decisions into platform hardening work.
-- `TODO.md` now explicitly tracks artifact/module-boundary slimming as a dedicated spike (parent + runtime + benchmarks split path).
+- Artifact/module boundary spike 6 is now implemented:
+  - root `pom.xml` is now parent build `pojo-lens-parent` with `pojo-lens` + `pojo-lens-benchmarks` modules.
+  - runtime module (`pojo-lens`) excludes benchmark sources from compile/test/source/javadoc packaging.
+  - benchmark module (`pojo-lens-benchmarks`) owns benchmark/JMH compile path and benchmark runner shading profile.
+  - runtime jar scope is clean (`jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` returns empty).
+  - CI now has `runtime-artifact-scope` job that fails if benchmark classes leak into runtime jar.
+  - `TODO.md` artifact-slimming item is marked complete.
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation

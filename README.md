@@ -16,6 +16,10 @@ From `List<T>` to query and chart-ready results, without a database.
 Requirements:
 - JDK `17+`
 
+Build layout:
+- `pojo-lens` is the consumer runtime artifact.
+- Benchmark/JMH tooling is isolated in the `pojo-lens-benchmarks` module.
+
 ## Why PojoLens
 
 - Query existing domain classes directly (no ORM model rewrite).
