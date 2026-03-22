@@ -35,6 +35,8 @@ When building the benchmark runner locally, resolve the real jar from `target/*-
 Current release coordinates:
 - `groupId`: `io.github.laughingmancommits`
 - `artifactId`: `pojo-lens`
+- `artifactId`: `pojo-lens-spring-boot-autoconfigure`
+- `artifactId`: `pojo-lens-spring-boot-starter`
 
 Namespace ownership must be verified in Sonatype Central before publishing.
 
@@ -48,10 +50,11 @@ If using GitHub namespace verification:
 After namespace verification and publish credentials are configured in `~/.m2/settings.xml`:
 
 ```bash
-mvn -B -ntp -Prelease-central clean deploy -DskipTests
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests
 ```
 
 The `release-central` profile attaches source/javadoc jars, signs artifacts, and publishes via the Central plugin.
+Benchmark and example modules remain non-published.
 
 ### 5.1) Pipeline Release (GitHub Actions)
 
@@ -77,7 +80,7 @@ Optional helper for generating `GPG_PRIVATE_KEY` export + template files:
 The release job validates `v<version>` tag vs `pom.xml` version, runs tests, and executes:
 
 ```bash
-mvn -B -ntp -Prelease-central -DskipTests deploy
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
 ```
 
 The Central plugin is configured with `autoPublish=true` and `waitUntil=published`, so successful pipeline runs should complete publication without manual portal confirmation.

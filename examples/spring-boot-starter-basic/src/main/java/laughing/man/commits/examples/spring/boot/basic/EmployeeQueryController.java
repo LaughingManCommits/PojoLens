@@ -30,9 +30,12 @@ public class EmployeeQueryController {
     }
 
     @GetMapping("/top-paid")
-    public List<EmployeeView> topPaid(@RequestParam(defaultValue = "Engineering") String department,
-                                      @RequestParam(defaultValue = "100000") int minSalary,
-                                      @RequestParam(defaultValue = "3") int limit) {
+    public List<EmployeeView> topPaid(@RequestParam(name = "department", defaultValue = "Engineering")
+                                      String department,
+                                      @RequestParam(name = "minSalary", defaultValue = "100000")
+                                      int minSalary,
+                                      @RequestParam(name = "limit", defaultValue = "3")
+                                      int limit) {
         int cappedLimit = Math.max(1, Math.min(limit, 25));
         return pojoLensRuntime
                 .parse("select id, name, department, salary "
@@ -56,10 +59,28 @@ public class EmployeeQueryController {
         );
     }
 
-    private record Employee(long id, String name, String department, int salary) {
+    public static final class Employee {
+        public long id;
+        public String name;
+        public String department;
+        public int salary;
+
+        public Employee(long id, String name, String department, int salary) {
+            this.id = id;
+            this.name = name;
+            this.department = department;
+            this.salary = salary;
+        }
     }
 
-    public record EmployeeView(long id, String name, String department, int salary) {
+    public static final class EmployeeView {
+        public long id;
+        public String name;
+        public String department;
+        public int salary;
+
+        public EmployeeView() {
+        }
     }
 
     public record RuntimeInfo(boolean strictParameterTypes,

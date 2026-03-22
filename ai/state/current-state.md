@@ -4,7 +4,7 @@
 
 - Repository is a multi-module Maven Java library on Java 17 (`pojo-lens-parent` + `pojo-lens` + `pojo-lens-spring-boot-autoconfigure` + `pojo-lens-spring-boot-starter` + `pojo-lens-benchmarks`).
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
-- Runtime Central publishing profile lives in `pojo-lens/pom.xml` (`release-central`).
+- Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
 - `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, and artifact/module-boundary spikes completed.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
@@ -12,7 +12,12 @@
 
 ## Latest Validation
 
-- `2026-03-22`: module-scoped release profile package passed (`mvn -B -ntp -f pojo-lens/pom.xml -Prelease-central -DskipTests package`) after tightening release workflow publish scope to runtime module only.
+- `2026-03-22`: starter distribution + integration hardening passed:
+  - starter module integration smoke test (app context + endpoint): `mvn -q -pl pojo-lens-spring-boot-starter -am test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - release-path package validation for publishable modules:
+    `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`
 - `2026-03-22`: Spring Boot dependency baseline updated to `4.0.4` in parent BOM import and validated with:
   - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
   - full regression: `mvn -q test`
@@ -70,7 +75,8 @@
 
 - Central namespace is verified for `io.github.laughingmancommits`.
 - Release workflow supports tag-triggered (`v*`) and manual publish.
-- Release workflow now validates version and runs `deploy` against `pojo-lens/pom.xml` directly, so CD publishes only the runtime `pojo-lens` artifact path (benchmark module remains deploy-skipped).
+- Release workflow now validates root version and deploys module set
+  `pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter` with `-Prelease-central` (benchmark module remains deploy-skipped).
 - Most recent Central publish reached bundle upload but failed signature verification because Central could not find the signer public key.
 - Public key was then uploaded to `keyserver.ubuntu.com` and `keys.openpgp.org`; publish should be retried after keyserver propagation.
 
@@ -112,7 +118,7 @@
   - Marked TODO binary compatibility item complete.
 - Artifact/module boundary spike 6 delivered:
   - Converted root build to parent POM (`pojo-lens-parent`) with modules `pojo-lens` and `pojo-lens-benchmarks`.
-  - Runtime module now owns module-local runtime source/tests/resources under `pojo-lens/src/...` and keeps `release-central` publishing for runtime artifact.
+  - Runtime module now owns module-local runtime source/tests/resources under `pojo-lens/src/...` and participates in `release-central` publishing alongside Spring Boot integration modules.
   - Benchmark module now owns module-local benchmark source/tests/resources under `pojo-lens-benchmarks/src/...`, plus JMH annotation processing and benchmark runner shading.
   - Runtime test coupling to benchmark classes was removed (`FilterImplFastPathTest` now uses local fixture generation).
   - Benchmark tests were updated to module-aware resource paths.
@@ -122,12 +128,15 @@
   - Added `pojo-lens-spring-boot-autoconfigure` with `pojo-lens.*` configuration properties and `PojoLensRuntime` auto-configuration.
   - Added optional Micrometer telemetry bridge (`QueryTelemetryListener`) with low-cardinality `stage`/`query_type` tags.
   - Added `pojo-lens-spring-boot-starter` for simplified Boot dependency wiring.
+  - Starter now includes `micrometer-core` to prevent Boot 4 classpath introspection failure when evaluating micrometer-conditional auto-config methods.
   - Parent build now imports Spring Boot BOM version `4.0.4` for starter/autoconfigure dependency alignment.
   - Added standalone runnable example app at `examples/spring-boot-starter-basic` with starter-driven `PojoLensRuntime` injection and a basic SQL-like REST use case.
+  - Added starter integration smoke test `PojoLensStarterSmokeIntegrationTest` (context + endpoint).
+  - Updated release policy to publish starter/autoconfigure artifacts to Central alongside runtime artifact.
   - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
   - Updated README/modules documentation with starter usage and property examples.
 
 ## Next Actions
 
 - Decide lint baseline policy (refresh baseline vs reduce inherited violations).
-- Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status.
+- Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.

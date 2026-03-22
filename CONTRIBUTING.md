@@ -122,5 +122,5 @@ Helper script to export GPG files and a GitHub secrets template:
 The release workflow runs tests and publishes with:
 
 ```bash
-mvn -B -ntp -Prelease-central -DskipTests deploy
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
 ```

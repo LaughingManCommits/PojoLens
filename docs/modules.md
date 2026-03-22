@@ -11,6 +11,10 @@ Standalone runnable examples live under `examples/` (for example,
 `examples/spring-boot-starter-basic`) and are intentionally not published as
 release artifacts.
 
+Distribution decision:
+- Published to Central: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`
+- Not published: `pojo-lens-benchmarks`, `examples/*`
+
 Runtime boundaries remain explicitly separated by entry point:
 
 - `PojoLensCore`: fluent query builder + filter execution + stats-plan cache controls

@@ -49,8 +49,10 @@
   - root parent imports Spring Boot BOM version `4.0.4`.
   - autoconfigure module now provides `PojoLensRuntime` bean wiring via `pojo-lens.*` properties (`preset`, strict/lint flags, cache overrides).
   - optional micrometer bridge auto-registers a `QueryTelemetryListener` when `MeterRegistry` is present and `pojo-lens.telemetry.micrometer.enabled=true` (default).
-  - starter module now exposes a single Boot dependency entry-point for PojoLens.
+  - starter module now exposes a single Boot dependency entry-point for PojoLens and includes `micrometer-core` for stable Boot 4 auto-config introspection.
   - standalone runnable starter demo app now exists at `examples/spring-boot-starter-basic` with `/api/employees/top-paid` and `/api/employees/runtime` endpoints.
+  - starter module now has an integration smoke test (`PojoLensStarterSmokeIntegrationTest`) that boots a web context and exercises a real endpoint using injected `PojoLensRuntime`.
+  - release distribution decision is now to publish three Central artifacts: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter` (benchmarks/examples remain non-published).
   - behavior is covered by `PojoLensSpringBootAutoConfigurationTest` (defaults, overrides, backoff, micrometer toggle).
 - Maven Central release completion remains pending operational work.
 
@@ -58,7 +60,7 @@
 
 - After any code change: run focused tests, then `mvn -q test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
-- For release-path changes: run `mvn -B -ntp -Prelease-central -DskipTests package`.
+- For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
@@ -68,7 +70,7 @@
 
 - Confirm GitHub secrets exist: `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
 - Ensure release tag matches `pom.xml` version (`vX.Y.Z` vs `project.version`).
-- Release workflow now resolves version and publishes via `pojo-lens/pom.xml` (`mvn ... -f pojo-lens/pom.xml -Prelease-central ...`), keeping publish scope on runtime artifact path.
+- Release workflow now resolves root version and publishes module set `pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter` via reactor `deploy` with `-Prelease-central`.
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
 

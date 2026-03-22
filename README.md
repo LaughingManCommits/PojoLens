@@ -21,6 +21,10 @@ Build layout:
 - `pojo-lens-spring-boot-starter` provides optional Spring Boot integration.
 - Benchmark/JMH tooling is isolated in the `pojo-lens-benchmarks` module.
 
+Central distribution:
+- Published: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`
+- Not published: benchmark and example modules
+
 ### Spring Boot starter
 
 ```xml
