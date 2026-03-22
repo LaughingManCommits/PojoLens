@@ -1,1 +1,0 @@
-{"type":"bar","data":{"labels":["Engineering","Finance","HR"],"datasets":[{"label":"payroll","data":[220.0,90.0,80.0]}]},"options":{"stacked":false,"percentStacked":false,"nullPointPolicy":"PRESERVE","title":null,"xLabel":null,"yLabel":null}}

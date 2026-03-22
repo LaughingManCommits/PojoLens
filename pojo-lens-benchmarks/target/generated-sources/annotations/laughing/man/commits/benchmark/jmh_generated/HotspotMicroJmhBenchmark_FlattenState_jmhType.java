@@ -1,4 +1,0 @@
-package laughing.man.commits.benchmark.jmh_generated;
-public class HotspotMicroJmhBenchmark_FlattenState_jmhType extends HotspotMicroJmhBenchmark_FlattenState_jmhType_B3 {
-}
-

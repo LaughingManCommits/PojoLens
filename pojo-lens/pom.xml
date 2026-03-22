@@ -130,7 +130,6 @@
                             <effort>Max</effort>
                             <threshold>Low</threshold>
                             <xmlOutput>true</xmlOutput>
-                            <spotbugsXmlOutput>true</spotbugsXmlOutput>
                             <failOnError>false</failOnError>
                         </configuration>
                         <executions>

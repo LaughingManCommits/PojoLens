@@ -9,3 +9,6 @@
 
 .claude/settings.local.json
 /.claude/
+
+pojo-lens-benchmarks/target/
+pojo-lens/target/

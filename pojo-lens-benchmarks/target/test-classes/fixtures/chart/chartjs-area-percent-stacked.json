@@ -1,1 +1,0 @@
-{"type":"line","data":{"labels":["2025-01","2025-02"],"datasets":[{"label":"Engineering","data":[75.0,50.0]},{"label":"Finance","data":[25.0,50.0]}]},"options":{"stacked":true,"percentStacked":true,"nullPointPolicy":"ZERO","title":null,"xLabel":null,"yLabel":null}}

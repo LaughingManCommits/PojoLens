@@ -1,4 +1,0 @@
-package laughing.man.commits.benchmark.jmh_generated;
-public class HotspotMicroJmhBenchmark_PreparedSqlLikeStatsState_jmhType extends HotspotMicroJmhBenchmark_PreparedSqlLikeStatsState_jmhType_B3 {
-}
-
