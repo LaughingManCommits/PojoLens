@@ -10,5 +10,6 @@
 .claude/settings.local.json
 /.claude/
 
+pojo-lens-spring-boot-autoconfigure/target/
 pojo-lens-benchmarks/target/
 pojo-lens/target/

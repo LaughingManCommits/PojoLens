@@ -13,6 +13,9 @@
 ## Latest Validation
 
 - `2026-03-22`: module-scoped release profile package passed (`mvn -B -ntp -f pojo-lens/pom.xml -Prelease-central -DskipTests package`) after tightening release workflow publish scope to runtime module only.
+- `2026-03-22`: Spring Boot dependency baseline updated to `4.0.4` in parent BOM import and validated with:
+  - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
+  - full regression: `mvn -q test`
 - `2026-03-22`: Spring Boot starter/autoconfigure baseline passed:
   - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
   - full regression: `mvn -q test`
@@ -114,6 +117,7 @@
   - Added `pojo-lens-spring-boot-autoconfigure` with `pojo-lens.*` configuration properties and `PojoLensRuntime` auto-configuration.
   - Added optional Micrometer telemetry bridge (`QueryTelemetryListener`) with low-cardinality `stage`/`query_type` tags.
   - Added `pojo-lens-spring-boot-starter` for simplified Boot dependency wiring.
+  - Parent build now imports Spring Boot BOM version `4.0.4` for starter/autoconfigure dependency alignment.
   - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
   - Updated README/modules documentation with starter usage and property examples.
 
