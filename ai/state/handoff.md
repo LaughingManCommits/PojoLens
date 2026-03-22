@@ -60,6 +60,7 @@
 
 - Confirm GitHub secrets exist: `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
 - Ensure release tag matches `pom.xml` version (`vX.Y.Z` vs `project.version`).
+- Release workflow now resolves version and publishes via `pojo-lens/pom.xml` (`mvn ... -f pojo-lens/pom.xml -Prelease-central ...`), keeping publish scope on runtime artifact path.
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
 

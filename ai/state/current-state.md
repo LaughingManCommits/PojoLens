@@ -12,6 +12,7 @@
 
 ## Latest Validation
 
+- `2026-03-22`: module-scoped release profile package passed (`mvn -B -ntp -f pojo-lens/pom.xml -Prelease-central -DskipTests package`) after tightening release workflow publish scope to runtime module only.
 - `2026-03-22`: `mvn -q test` passed after moving all source/test/resource trees into module-local `src` directories and simplifying module POM source configuration.
 - `2026-03-22`: `scripts/check-doc-consistency.ps1` passed after source-layout migration.
 - `2026-03-20`: `mvn -q test` passed after pagination changes (`OFFSET` support + docs/tests updates).
@@ -57,6 +58,7 @@
 
 - Central namespace is verified for `io.github.laughingmancommits`.
 - Release workflow supports tag-triggered (`v*`) and manual publish.
+- Release workflow now validates version and runs `deploy` against `pojo-lens/pom.xml` directly, so CD publishes only the runtime `pojo-lens` artifact path (benchmark module remains deploy-skipped).
 - Most recent Central publish reached bundle upload but failed signature verification because Central could not find the signer public key.
 - Public key was then uploaded to `keyserver.ubuntu.com` and `keys.openpgp.org`; publish should be retried after keyserver propagation.
 
