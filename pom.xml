@@ -37,6 +37,8 @@
 
     <modules>
         <module>pojo-lens</module>
+        <module>pojo-lens-spring-boot-autoconfigure</module>
+        <module>pojo-lens-spring-boot-starter</module>
         <module>pojo-lens-benchmarks</module>
     </modules>
 
@@ -44,7 +46,20 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <slf4j.version>2.0.17</slf4j.version>
+        <spring.boot.version>3.3.0</spring.boot.version>
         <jmh.version>1.37</jmh.version>
         <japicmp.version>0.23.1</japicmp.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

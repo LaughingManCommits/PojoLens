@@ -44,6 +44,12 @@
   - runtime jar scope is clean (`jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` returns empty).
   - CI now has `runtime-artifact-scope` job that fails if benchmark classes leak into runtime jar.
   - `TODO.md` artifact-slimming item is marked complete.
+- Spring Boot support baseline is now implemented:
+  - added modules `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter`.
+  - autoconfigure module now provides `PojoLensRuntime` bean wiring via `pojo-lens.*` properties (`preset`, strict/lint flags, cache overrides).
+  - optional micrometer bridge auto-registers a `QueryTelemetryListener` when `MeterRegistry` is present and `pojo-lens.telemetry.micrometer.enabled=true` (default).
+  - starter module now exposes a single Boot dependency entry-point for PojoLens.
+  - behavior is covered by `PojoLensSpringBootAutoConfigurationTest` (defaults, overrides, backoff, micrometer toggle).
 - Maven Central release completion remains pending operational work.
 
 ## Next Validation

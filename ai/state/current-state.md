@@ -2,7 +2,7 @@
 
 ## Repository Health
 
-- Repository is a multi-module Maven Java library on Java 17 (`pojo-lens-parent` + `pojo-lens` + `pojo-lens-benchmarks`).
+- Repository is a multi-module Maven Java library on Java 17 (`pojo-lens-parent` + `pojo-lens` + `pojo-lens-spring-boot-autoconfigure` + `pojo-lens-spring-boot-starter` + `pojo-lens-benchmarks`).
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Runtime Central publishing profile lives in `pojo-lens/pom.xml` (`release-central`).
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
@@ -13,6 +13,10 @@
 ## Latest Validation
 
 - `2026-03-22`: module-scoped release profile package passed (`mvn -B -ntp -f pojo-lens/pom.xml -Prelease-central -DskipTests package`) after tightening release workflow publish scope to runtime module only.
+- `2026-03-22`: Spring Boot starter/autoconfigure baseline passed:
+  - focused module regression: `mvn -q -pl pojo-lens-spring-boot-autoconfigure -am test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-22`: `mvn -q test` passed after moving all source/test/resource trees into module-local `src` directories and simplifying module POM source configuration.
 - `2026-03-22`: `scripts/check-doc-consistency.ps1` passed after source-layout migration.
 - `2026-03-20`: `mvn -q test` passed after pagination changes (`OFFSET` support + docs/tests updates).
@@ -106,6 +110,12 @@
   - Benchmark tests were updated to module-aware resource paths.
   - CI now includes runtime artifact-scope assertion to block benchmark-class bleed into runtime jar.
   - TODO artifact-slimming item is marked complete.
+- Spring Boot integration baseline delivered:
+  - Added `pojo-lens-spring-boot-autoconfigure` with `pojo-lens.*` configuration properties and `PojoLensRuntime` auto-configuration.
+  - Added optional Micrometer telemetry bridge (`QueryTelemetryListener`) with low-cardinality `stage`/`query_type` tags.
+  - Added `pojo-lens-spring-boot-starter` for simplified Boot dependency wiring.
+  - Added auto-configuration tests covering defaults, property overrides, bean backoff, and micrometer enable/disable behavior.
+  - Updated README/modules documentation with starter usage and property examples.
 
 ## Next Actions
 

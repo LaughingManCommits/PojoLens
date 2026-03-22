@@ -18,7 +18,30 @@ Requirements:
 
 Build layout:
 - `pojo-lens` is the consumer runtime artifact.
+- `pojo-lens-spring-boot-starter` provides optional Spring Boot integration.
 - Benchmark/JMH tooling is isolated in the `pojo-lens-benchmarks` module.
+
+### Spring Boot starter
+
+```xml
+<dependency>
+  <groupId>io.github.laughingmancommits</groupId>
+  <artifactId>pojo-lens-spring-boot-starter</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+Example application properties:
+
+```yaml
+pojo-lens:
+  preset: PROD
+  strict-parameter-types: false
+  lint-mode: false
+  telemetry:
+    micrometer:
+      enabled: true
+```
 
 ## Why PojoLens
 

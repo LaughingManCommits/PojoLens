@@ -3,6 +3,8 @@
 PojoLens now uses a parent + module split:
 - `pojo-lens-parent` (build parent, packaging `pom`)
 - `pojo-lens` (runtime library artifact for consumers)
+- `pojo-lens-spring-boot-autoconfigure` (Boot auto-configuration module)
+- `pojo-lens-spring-boot-starter` (starter dependency for Boot apps)
 - `pojo-lens-benchmarks` (benchmark/JMH tooling module)
 
 Runtime boundaries remain explicitly separated by entry point:
