@@ -1,134 +1,79 @@
 # TODO
 
-## High-Value Features (Current Focus)
+## Current Roadmap: SQL Window Analytics
 
-- [x] Add `OFFSET` pagination primitives for fluent + SQL-like query flows.
-- [x] Add SQL-like named parameter support for pagination clauses (`LIMIT :limit OFFSET :offset`).
-- [x] Add first-class keyset/cursor pagination API primitives (beyond documented query patterns).
-- [x] Add streaming execution output (iterator/stream) to avoid full materialization on large datasets.
-- [x] Add optional in-memory indexes for hot filter/join paths to improve repeated-query latency.
-
-## Platform Hardening (Phase 2)
-
-- [x] Define and document a small **stable public API surface** (vs advanced/internal APIs), with explicit compatibility guarantees.
-- [x] Add **binary compatibility checks** to CI (for example `revapi` or `japicmp`) to block accidental breaking API changes before release.
-- [x] Slim runtime artifact scope by separating benchmark/JMH tooling from the default `pojo-lens` runtime jar.
-
-## Spike Plan
-
-### 1) Pagination Primitives (`OFFSET` + Keyset/Cursor)
+### 1) Window Functions MVP (`OVER`)
 
 Problem:
-- API consumers need deterministic page navigation; `LIMIT` alone is insufficient.
+- SQL-like queries cannot express ranking and row-aware analytics without collapsing rows.
 
 Spike goal:
-- Add first-class pagination support with predictable ordering semantics.
+- Add first-class window-function support with a minimal, stable MVP scope.
 
 Spike steps:
-1. [x] Define fluent and SQL-like syntax/contracts for `OFFSET`.
-2. [x] Add SQL-like named parameter support for `LIMIT/OFFSET` (`:limit`, `:offset`) with integer and non-negative validation.
-3. [x] Design keyset/cursor API shape (token format, sort-field requirements, null-handling).
-4. [x] Validate behavior with large sorted datasets and tie-heavy keys.
-5. [x] Document guidance on when to prefer offset vs keyset.
+1. [ ] Extend parser/AST for `... OVER (...)` with `PARTITION BY` and `ORDER BY`.
+2. [ ] Support initial functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`.
+3. [ ] Add execution stage to compute window values after `WHERE` and before final projection.
+4. [ ] Validate determinism rules when `ORDER BY` is missing or non-unique.
 
 Acceptance criteria:
-- Offset pagination is supported in fluent and SQL-like flows.
-- SQL-like pagination supports both numeric literals and named parameters for `LIMIT/OFFSET`.
-- Keyset/cursor pagination has a documented API contract and tests.
-- Docs include stability guidance for deterministic paging.
+- SQL-like queries can compute rank-style window values per partition.
+- Window output can be projected and sorted like normal select fields.
+- Behavior is covered by parser + execution contract tests.
 
-### 2) Streaming Execution Output
+### 2) `QUALIFY` Clause
 
 Problem:
-- Full list materialization is expensive for large result sets and pipeline consumers.
+- Filtering by window-function results currently requires awkward post-processing.
 
 Spike goal:
-- Provide a streaming/iterator execution mode for memory-efficient consumption.
+- Add `QUALIFY` so callers can filter rows based on computed window values.
 
 Spike steps:
-1. [x] Evaluate API shape (`Iterator<T>`, `Stream<T>`, or both) and resource lifecycle.
-2. [x] Implement fluent and SQL-like streaming prototypes.
-3. [x] Validate behavior with filtering and projection paths, with list-backed fallback on complex shapes (join/group/having/ordered windows).
-4. [x] Benchmark memory/latency tradeoffs vs existing list materialization.
+1. [ ] Extend grammar with `QUALIFY` and add AST model.
+2. [ ] Enforce clause ordering (`WHERE` -> window compute -> `QUALIFY` -> `ORDER/LIMIT/OFFSET`).
+3. [ ] Support predicates against window aliases and direct window expressions.
+4. [ ] Add explain metadata for qualify-stage row counts.
 
 Acceptance criteria:
-- At least one stable streaming API is available and documented.
-- Behavior is covered by tests across core query features.
-- Benchmark notes show memory benefits on large datasets.
+- Query pattern `... ROW_NUMBER() ... QUALIFY rn <= N` works end-to-end.
+- Invalid clause ordering or unknown aliases return clear SQL-like errors.
+- Explain includes a `qualify` stage when present.
 
-### 3) Optional In-Memory Indexes for Hot Paths
+### 3) Aggregate Windows (Phase 2)
 
 Problem:
-- Repeated filter/join queries on large snapshots still pay full scan costs.
+- Analytics use cases also need running totals and cumulative aggregates.
 
 Spike goal:
-- Introduce opt-in index structures for frequently queried fields.
+- Add aggregate window functions with bounded initial frame semantics.
 
 Spike steps:
-1. [x] Identify high-impact query shapes (equality filters, join keys, compound predicates).
-2. [x] Design index lifecycle and invalidation strategy for snapshot data.
-3. [x] Prototype index-assisted execution path with fallback to scan.
-4. [x] Measure gain/loss across warm and cold benchmarks.
+1. [ ] Add `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` in parser and execution model.
+2. [ ] Start with one frame mode: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+3. [ ] Validate null-handling and type coercion parity with existing aggregate behavior.
+4. [ ] Add guardrails for unsupported frame expressions.
 
 Acceptance criteria:
-- Optional index API is defined and documented.
-- Indexed execution falls back safely when index is unavailable/inapplicable.
-- Benchmarks show clear wins on targeted hot-path scenarios.
+- Running total style queries execute correctly and deterministically.
+- Unsupported frame syntax fails fast with actionable errors.
+- Performance remains acceptable on large in-memory datasets.
 
-### 4) Stable Public API Surface
+### 4) API and Docs Hardening
 
 Problem:
-- The public surface is broad, making long-term compatibility harder to reason about.
+- New SQL-like capabilities need discoverability and stability guarantees.
 
 Spike goal:
-- Define a minimal, versioned "stable" API contract and label remaining APIs as advanced/internal.
+- Ship window features with clear docs, examples, and compatibility tests.
 
 Spike steps:
-1. Inventory public classes and methods currently reachable from `PojoLens`, `PojoLensRuntime`, `PojoLensCore`, and `PojoLensSql`.
-2. Propose a stable subset for 1.x and document inclusion/exclusion rules.
-3. Add a "Public API Stability" section to README and docs, including upgrade guarantees.
-4. Add tests that assert availability/behavior of stable entry points.
+1. [ ] Add docs section with supported syntax and limitations.
+2. [ ] Add sample query recipes (`top N per group`, `dense rank`, `running total`).
+3. [ ] Add public API coverage tests for `PojoLens.parse(...).filter/explain`.
+4. [ ] Add at least one benchmark comparing windowed vs non-windowed query costs.
 
 Acceptance criteria:
-- Stable API list is published in docs.
-- CI has at least one test suite asserting stable contract behavior.
-- A deprecation policy is documented for moving APIs between tiers.
-
-### 5) Binary Compatibility Checks in CI
-
-Problem:
-- Breaking API changes can slip into releases without compile/runtime failures in internal tests.
-
-Spike goal:
-- Add automated binary compatibility verification to release/CI workflows.
-
-Spike steps:
-1. Evaluate `revapi` vs `japicmp` for Maven integration and report quality.
-2. Configure baseline artifact selection (latest release tag or local reference build).
-3. Add CI step that fails on non-allowed binary breaks.
-4. Document suppression/override process for intentional major-version changes.
-
-Acceptance criteria:
-- Compatibility check runs in CI on PRs/releases.
-- CI fails on an unapproved binary break.
-- Project docs include "how to approve an intentional break" instructions.
-
-### 6) Artifact/Module Boundary Slimming
-
-Problem:
-- Main runtime jar currently ships benchmark/JMH classes, expanding consumer classpath and muddying module boundaries.
-
-Spike goal:
-- Keep `pojo-lens` focused on runtime query/chart APIs and move benchmark tooling to a dedicated artifact/module.
-
-Spike steps:
-1. Create a multi-module Maven layout with a parent POM and at least `pojo-lens` (runtime) + `pojo-lens-benchmarks` modules.
-2. Move `laughing.man.commits.benchmark.*` and JMH generated classes into `pojo-lens-benchmarks`.
-3. Ensure benchmark-only dependencies/plugins (`jmh`, shade benchmark runner, plotting tools) are scoped to the benchmark module.
-4. Keep runtime API source compatibility (`PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`) and verify consumer dependency remains `io.github.laughingmancommits:pojo-lens`.
-5. Add a CI/package assertion that runtime jar does not contain `laughing/man/commits/benchmark/**`.
-
-Acceptance criteria:
-- `pojo-lens` runtime jar contains no benchmark/JMH classes.
-- Benchmark suites run from the dedicated benchmark module/artifact.
-- README/release docs describe the new artifact boundary and benchmark run commands.
+- README/docs show practical examples for window + qualify usage.
+- Regression tests lock parser, execution, and explain behavior.
+- Benchmark notes document expected overhead and tradeoffs.
