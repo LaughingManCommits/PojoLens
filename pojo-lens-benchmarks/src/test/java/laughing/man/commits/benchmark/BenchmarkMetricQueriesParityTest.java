@@ -35,8 +35,8 @@ public class BenchmarkMetricQueriesParityTest {
 
     private static List<BenchmarkMetricRow> loadFixtureRows() throws Exception {
         return BenchmarkMetricLoader.load(
-                Path.of("..", "src", "test", "resources", "fixtures", "benchmark", "metrics-results.json"),
-                Path.of("..", "src", "test", "resources", "fixtures", "benchmark", "metrics-thresholds.json"),
+                Path.of("src", "test", "resources", "fixtures", "benchmark", "metrics-results.json"),
+                Path.of("src", "test", "resources", "fixtures", "benchmark", "metrics-thresholds.json"),
                 "chart-suite");
     }
 }

@@ -39,8 +39,8 @@
   - `TODO.md` marks binary-compat hardening item complete.
 - Artifact/module boundary spike 6 is now implemented:
   - root `pom.xml` is now parent build `pojo-lens-parent` with `pojo-lens` + `pojo-lens-benchmarks` modules.
-  - runtime module (`pojo-lens`) excludes benchmark sources from compile/test/source/javadoc packaging.
-  - benchmark module (`pojo-lens-benchmarks`) owns benchmark/JMH compile path and benchmark runner shading profile.
+  - runtime module (`pojo-lens`) now owns runtime source/tests/resources under `pojo-lens/src/...` (module-local source layout).
+  - benchmark module (`pojo-lens-benchmarks`) now owns benchmark source/tests/resources under `pojo-lens-benchmarks/src/...`, plus benchmark/JMH runner shading.
   - runtime jar scope is clean (`jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` returns empty).
   - CI now has `runtime-artifact-scope` job that fails if benchmark classes leak into runtime jar.
   - `TODO.md` artifact-slimming item is marked complete.

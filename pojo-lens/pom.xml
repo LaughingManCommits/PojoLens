@@ -49,26 +49,11 @@
 
     <build>
         <directory>${project.basedir}/../target</directory>
-        <sourceDirectory>${project.basedir}/../src/main/java</sourceDirectory>
-        <testSourceDirectory>${project.basedir}/../src/test/java</testSourceDirectory>
-        <testResources>
-            <testResource>
-                <directory>${project.basedir}/../src/test/resources</directory>
-            </testResource>
-        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/benchmark/**</exclude>
-                    </excludes>
-                    <testExcludes>
-                        <exclude>**/benchmark/**</exclude>
-                    </testExcludes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -93,11 +78,6 @@
                         <configuration>
                             <configLocation>sun_checks.xml</configLocation>
                             <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                            <sourceDirectories>
-                                <sourceDirectory>${project.basedir}/../src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../src/test/java</sourceDirectory>
-                            </sourceDirectories>
-                            <excludes>**/benchmark/**</excludes>
                             <consoleOutput>true</consoleOutput>
                             <logViolationsToConsole>true</logViolationsToConsole>
                             <outputFile>${project.build.directory}/checkstyle-result.xml</outputFile>

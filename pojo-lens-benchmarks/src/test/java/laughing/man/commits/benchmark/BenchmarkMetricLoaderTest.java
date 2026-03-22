@@ -58,7 +58,7 @@ public class BenchmarkMetricLoaderTest {
     }
 
     private static Path fixture(String name) {
-        return Path.of("..", "src", "test", "resources", "fixtures", "benchmark", name);
+        return Path.of("src", "test", "resources", "fixtures", "benchmark", name);
     }
 }
 

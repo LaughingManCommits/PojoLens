@@ -8,9 +8,12 @@
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
 - `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, and artifact/module-boundary spikes completed.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
+- `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-22`: `mvn -q test` passed after moving all source/test/resource trees into module-local `src` directories and simplifying module POM source configuration.
+- `2026-03-22`: `scripts/check-doc-consistency.ps1` passed after source-layout migration.
 - `2026-03-20`: `mvn -q test` passed after pagination changes (`OFFSET` support + docs/tests updates).
 - `2026-03-20`: focused suite passed (`SqlLikeDocsExamplesTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `ExplainToolingTest`, `PublicApiCoverageTest`).
 - `2026-03-20`: `scripts/check-doc-consistency.ps1` passed.
@@ -95,8 +98,8 @@
   - Marked TODO binary compatibility item complete.
 - Artifact/module boundary spike 6 delivered:
   - Converted root build to parent POM (`pojo-lens-parent`) with modules `pojo-lens` and `pojo-lens-benchmarks`.
-  - Runtime module now excludes `**/benchmark/**` from compile/test/javadocs and keeps release-central publishing for runtime artifact.
-  - Benchmark module now owns benchmark/JMH compile path, JMH annotation processing, and benchmark runner shading.
+  - Runtime module now owns module-local runtime source/tests/resources under `pojo-lens/src/...` and keeps `release-central` publishing for runtime artifact.
+  - Benchmark module now owns module-local benchmark source/tests/resources under `pojo-lens-benchmarks/src/...`, plus JMH annotation processing and benchmark runner shading.
   - Runtime test coupling to benchmark classes was removed (`FilterImplFastPathTest` now uses local fixture generation).
   - Benchmark tests were updated to module-aware resource paths.
   - CI now includes runtime artifact-scope assertion to block benchmark-class bleed into runtime jar.

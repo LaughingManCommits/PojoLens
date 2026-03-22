@@ -15,7 +15,8 @@ Coverage emphasis:
 
 Artifacts and fixtures:
 
-- test fixtures live under `src/test/resources/fixtures`
+- runtime test fixtures live under `pojo-lens/src/test/resources/fixtures`
+- benchmark test fixtures live under `pojo-lens-benchmarks/src/test/resources/fixtures`
 - `ChartLibraryInteropTest` generates chart PNG artifacts under `target/generated-charts`
 
 Additional validation paths:
