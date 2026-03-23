@@ -116,6 +116,57 @@ public class SqlLikeParserTest {
     }
 
     @Test
+    public void shouldParseAggregateWindowSelectFieldsWithRequiredFrame() {
+        QueryAst ast = SqlLikeParser.parse(
+                "select department, "
+                        + "sum(salary) over (partition by department order by id asc "
+                        + "rows between unbounded preceding and current row) as runningSalary, "
+                        + "count(*) over (partition by department order by id asc "
+                        + "rows between unbounded preceding and current row) as runningRows");
+
+        assertNotNull(ast.select());
+        assertEquals(3, ast.select().fields().size());
+
+        SelectFieldAst runningSalary = ast.select().fields().get(1);
+        assertTrue(runningSalary.windowField());
+        assertEquals("SUM", runningSalary.windowFunction());
+        assertEquals("salary", runningSalary.windowValueField());
+        assertFalse(runningSalary.windowCountAll());
+        assertEquals("runningSalary", runningSalary.outputName());
+
+        SelectFieldAst runningRows = ast.select().fields().get(2);
+        assertTrue(runningRows.windowField());
+        assertEquals("COUNT", runningRows.windowFunction());
+        assertTrue(runningRows.windowCountAll());
+        assertNull(runningRows.windowValueField());
+        assertEquals("runningRows", runningRows.outputName());
+    }
+
+    @Test
+    public void shouldRejectAggregateWindowWithoutRequiredFrame() {
+        try {
+            SqlLikeParser.parse(
+                    "select sum(salary) over (partition by department order by id asc) as runningSalary");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(
+                    "Aggregate window functions require ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"));
+        }
+    }
+
+    @Test
+    public void shouldRejectUnsupportedAggregateWindowFrame() {
+        try {
+            SqlLikeParser.parse(
+                    "select sum(salary) over (partition by department order by id asc "
+                            + "rows between 1 preceding and current row) as runningSalary");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unsupported window frame expression"));
+        }
+    }
+
+    @Test
     public void shouldParseQualifyClauseWithWindowAliasPredicate() {
         QueryAst ast = SqlLikeParser.parse(
                 "select department, row_number() over (partition by department order by salary desc) as rn "

@@ -186,6 +186,25 @@ public interface QueryBuilder {
                            List<QueryWindowOrder> orderFields);
 
     /**
+     * Adds a window output with explicit value argument metadata.
+     * <p>
+     * Rank windows ignore value arguments. Aggregate windows use
+     * {@code valueField} or {@code countAll} (`COUNT(*)`) to compute running
+     * frame values.
+     */
+    default QueryBuilder addWindow(String alias,
+                                   WindowFunction function,
+                                   String valueField,
+                                   boolean countAll,
+                                   List<String> partitionFields,
+                                   List<QueryWindowOrder> orderFields) {
+        if (countAll || valueField != null) {
+            throw new UnsupportedOperationException("Window value arguments are not supported by this builder");
+        }
+        return addWindow(alias, function, partitionFields, orderFields);
+    }
+
+    /**
      * Adds a grouped time bucket projection for the given date field.
      */
     QueryBuilder addTimeBucket(String dateField, TimeBucket bucket, String alias);

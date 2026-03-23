@@ -21,6 +21,8 @@ public final class SelectFieldAst {
     private final String windowFunction;
     private final List<String> windowPartitionFields;
     private final List<OrderAst> windowOrderFields;
+    private final String windowValueField;
+    private final boolean windowCountAll;
 
     public SelectFieldAst(String field,
                           String alias,
@@ -37,7 +39,9 @@ public final class SelectFieldAst {
                 computedExpression,
                 null,
                 List.of(),
-                List.of()
+                List.of(),
+                null,
+                false
         );
     }
 
@@ -47,7 +51,7 @@ public final class SelectFieldAst {
                           boolean countAll,
                           TimeBucketPreset timeBucketPreset,
                           boolean computedExpression) {
-        this(field, alias, metric, countAll, timeBucketPreset, computedExpression, null, List.of(), List.of());
+        this(field, alias, metric, countAll, timeBucketPreset, computedExpression, null, List.of(), List.of(), null, false);
     }
 
     public SelectFieldAst(String field,
@@ -58,7 +62,9 @@ public final class SelectFieldAst {
                           boolean computedExpression,
                           String windowFunction,
                           List<String> windowPartitionFields,
-                          List<OrderAst> windowOrderFields) {
+                          List<OrderAst> windowOrderFields,
+                          String windowValueField,
+                          boolean windowCountAll) {
         this.field = Objects.requireNonNull(field, "field must not be null");
         this.alias = alias;
         this.metric = metric;
@@ -66,6 +72,8 @@ public final class SelectFieldAst {
         this.timeBucketPreset = timeBucketPreset;
         this.computedExpression = computedExpression;
         this.windowFunction = windowFunction;
+        this.windowValueField = windowValueField;
+        this.windowCountAll = windowCountAll;
         this.windowPartitionFields = Collections.unmodifiableList(new ArrayList<>(
                 windowPartitionFields == null ? List.of() : windowPartitionFields
         ));
@@ -124,6 +132,14 @@ public final class SelectFieldAst {
 
     public List<OrderAst> windowOrderFields() {
         return windowOrderFields;
+    }
+
+    public String windowValueField() {
+        return windowValueField;
+    }
+
+    public boolean windowCountAll() {
+        return windowCountAll;
     }
 
     public String outputName() {

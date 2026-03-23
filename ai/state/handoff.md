@@ -23,6 +23,14 @@
   - execution now applies `QUALIFY` after window computation and before query-level `ORDER BY`/pagination.
   - explain now includes `qualifyRuleCount` and `stageRowCounts.qualify`.
   - docs + tests updated (`SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`, `docs/sql-like.md`, `TODO.md` spike item checked).
+- SQL window analytics spike 3 (aggregate windows) is now completed:
+  - parser/AST now supports `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` including aggregate-window argument metadata (`COUNT(*)` vs value field).
+  - parser guardrails now enforce aggregate frame syntax:
+    `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`; unsupported frame expressions fail fast.
+  - fluent runtime now computes running aggregate windows (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) with null/type behavior aligned to existing aggregate semantics.
+  - SQL-like binder/validation/join-canonicalization now compile aggregate windows to fluent `addWindow(...)` value-argument APIs.
+  - SQL-like alias projection now applies typed value casting before aliased select field assignment to preserve numeric compatibility in projections.
+  - docs/tests updated and `TODO.md` spike-3 checkboxes are marked complete.
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -95,7 +103,7 @@
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
   - post-refresh gate check passes with `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
-- Next roadmap target after `QUALIFY` is spike 3: aggregate window functions with bounded frame semantics.
+- Next roadmap target after aggregate-window completion is spike 4: API/docs hardening for window syntax and recipes.
 
 ## Next Validation
 
@@ -106,6 +114,8 @@
   `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
 - Fluent window/qualify parity suite:
   `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
+- Aggregate-window focused suite (recommended during follow-up):
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCoverageTest,StablePublicApiContractTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

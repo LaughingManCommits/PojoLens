@@ -233,6 +233,8 @@ public final class SqlLikeBinder {
             builder.addWindow(
                     field.outputName(),
                     resolveWindowFunction(field.windowFunction()),
+                    field.windowValueField(),
+                    field.windowCountAll(),
                     field.windowPartitionFields(),
                     toWindowOrderFields(field.windowOrderFields())
             );
@@ -247,6 +249,11 @@ public final class SqlLikeBinder {
             case "ROW_NUMBER" -> WindowFunction.ROW_NUMBER;
             case "RANK" -> WindowFunction.RANK;
             case "DENSE_RANK" -> WindowFunction.DENSE_RANK;
+            case "COUNT" -> WindowFunction.COUNT;
+            case "SUM" -> WindowFunction.SUM;
+            case "AVG" -> WindowFunction.AVG;
+            case "MIN" -> WindowFunction.MIN;
+            case "MAX" -> WindowFunction.MAX;
             default -> throw new IllegalArgumentException("Unsupported window function '" + function + "'");
         };
     }

@@ -422,11 +422,32 @@ public class FilterQueryBuilder implements QueryBuilder {
                                         WindowFunction function,
                                         List<String> partitionFields,
                                         List<QueryWindowOrder> orderFields) {
+        return addWindow(alias, function, null, false, partitionFields, orderFields);
+    }
+
+    @Override
+    public FilterQueryBuilder addWindow(String alias,
+                                        WindowFunction function,
+                                        String valueField,
+                                        boolean countAll,
+                                        List<String> partitionFields,
+                                        List<QueryWindowOrder> orderFields) {
+        WindowFunction normalizedFunction = requireWindowFunction(function);
         String normalizedAlias = requireIdentifier(alias, "alias");
         ensureOutputAliasAvailable(normalizedAlias);
+        String normalizedValueField = valueField;
+        if (normalizedFunction.isAggregateFunction() && !countAll) {
+            normalizedValueField = requireIdentifier(valueField, "valueField");
+            ensureFieldExists(normalizedValueField);
+            if (normalizedFunction.requiresNumericField()) {
+                ensureNumericWindowField(normalizedValueField, normalizedFunction);
+            }
+        }
         QueryWindow window = QueryWindow.of(
                 normalizedAlias,
-                requireWindowFunction(function),
+                normalizedFunction,
+                normalizedValueField,
+                countAll,
                 partitionFields,
                 orderFields
         );
@@ -1100,6 +1121,17 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
     }
 
+    private void ensureNumericWindowField(String fieldName, WindowFunction function) {
+        Class<?> fieldType = configuredFieldType(fieldName);
+        if (fieldType == null) {
+            return;
+        }
+        if (!Number.class.isAssignableFrom(fieldType)) {
+            throw new IllegalArgumentException(
+                    "Window function " + function + " requires numeric field: " + fieldName);
+        }
+    }
+
     private void ensureDateField(String fieldName) {
         Class<?> fieldType = configuredFieldType(fieldName);
         if (fieldType == null) {
@@ -1179,6 +1211,9 @@ public class FilterQueryBuilder implements QueryBuilder {
             }
             entries.add(window.alias()
                     + ":" + window.function().name()
+                    + (window.countAll()
+                    ? ":value=*"
+                    : window.valueField() == null ? "" : ":value=" + window.valueField())
                     + ":partition=" + window.partitionFields()
                     + ":order=[" + orderFields + "]");
         }
@@ -1538,6 +1573,9 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void addWindowSourceFields(LinkedHashSet<String> selected,
                                        Map<String, Class<?>> fieldTypes) {
         for (QueryWindow window : spec.getWindows()) {
+            if (window.valueField() != null) {
+                addSelectedField(selected, fieldTypes, window.valueField());
+            }
             for (String partitionField : window.partitionFields()) {
                 addSelectedField(selected, fieldTypes, partitionField);
             }

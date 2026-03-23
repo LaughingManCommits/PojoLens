@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike.internal.execution;
 
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
@@ -37,10 +38,42 @@ public final class SqlLikeExecutionSupport {
     }
 
     public static <T> List<T> projectAliasedRows(List<?> sourceRows, Class<T> targetClass, SelectAst select) {
-        List<T> results = new ArrayList<>();
+        if (sourceRows == null || sourceRows.isEmpty()) {
+            return new ArrayList<>(0);
+        }
         try {
+            ArrayList<String> outputSchema = new ArrayList<>(select.fields().size());
+            for (SelectFieldAst field : select.fields()) {
+                outputSchema.add(field.outputName());
+            }
+            if (QueryRow.class.equals(targetClass)) {
+                ArrayList<QueryRow> projectedRows = new ArrayList<>(sourceRows.size());
+                for (Object sourceRow : sourceRows) {
+                    Object[] values = new Object[select.fields().size()];
+                    int index = 0;
+                    for (SelectFieldAst field : select.fields()) {
+                        Object value;
+                        if (field.computedField()) {
+                            value = SqlExpressionEvaluator.evaluateNumeric(
+                                    field.field(),
+                                    identifier -> resolveFieldValue(sourceRow, identifier)
+                            );
+                        } else {
+                            value = resolveProjectedFieldValue(sourceRow, field);
+                        }
+                        values[index++] = value;
+                    }
+                    projectedRows.add(new RawQueryRow(values, outputSchema));
+                }
+                @SuppressWarnings("unchecked")
+                List<T> casted = (List<T>) projectedRows;
+                return casted;
+            }
+            ensureNoArgConstructor(targetClass);
+            ArrayList<Object[]> projectedRows = new ArrayList<>(sourceRows.size());
             for (Object sourceRow : sourceRows) {
-                T target = targetClass.getDeclaredConstructor().newInstance();
+                Object[] values = new Object[select.fields().size()];
+                int index = 0;
                 for (SelectFieldAst field : select.fields()) {
                     Object value;
                     if (field.computedField()) {
@@ -51,11 +84,11 @@ public final class SqlLikeExecutionSupport {
                     } else {
                         value = resolveProjectedFieldValue(sourceRow, field);
                     }
-                    ReflectionUtil.setFieldValue(target, field.outputName(), value);
+                    values[index++] = value;
                 }
-                results.add(target);
+                projectedRows.add(values);
             }
-            return results;
+            return ReflectionUtil.toClassList(targetClass, projectedRows, outputSchema);
         } catch (Exception e) {
             throw SqlLikeErrors.state(SqlLikeErrorCodes.RUNTIME_ALIASED_PROJECTION_FAILED,
                     "Failed to project aliased SQL-like query results",
@@ -149,6 +182,10 @@ public final class SqlLikeExecutionSupport {
             return field.outputName();
         }
         return field.field();
+    }
+
+    private static void ensureNoArgConstructor(Class<?> targetClass) throws NoSuchMethodException {
+        targetClass.getDeclaredConstructor();
     }
 
     private static AliasedProjectionPlan aliasedProjectionPlan(List<String> sourceFieldSchema, SelectAst select) {

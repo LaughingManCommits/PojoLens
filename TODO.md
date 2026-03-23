@@ -49,15 +49,15 @@ Spike goal:
 - Add aggregate window functions with bounded initial frame semantics.
 
 Spike steps:
-1. [ ] Add `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` in parser and execution model.
-2. [ ] Start with one frame mode: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-3. [ ] Validate null-handling and type coercion parity with existing aggregate behavior.
-4. [ ] Add guardrails for unsupported frame expressions.
+1. [x] Add `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` in parser and execution model.
+2. [x] Start with one frame mode: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+3. [x] Validate null-handling and type coercion parity with existing aggregate behavior.
+4. [x] Add guardrails for unsupported frame expressions.
 
 Acceptance criteria:
-- Running total style queries execute correctly and deterministically.
-- Unsupported frame syntax fails fast with actionable errors.
-- Performance remains acceptable on large in-memory datasets.
+- [x] Running total style queries execute correctly and deterministically.
+- [x] Unsupported frame syntax fails fast with actionable errors.
+- [x] Performance remains acceptable on large in-memory datasets.
 
 ### 4) API and Docs Hardening
 

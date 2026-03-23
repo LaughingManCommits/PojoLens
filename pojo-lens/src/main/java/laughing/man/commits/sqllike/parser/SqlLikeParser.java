@@ -44,7 +44,8 @@ public final class SqlLikeParser {
             "AND", "OR", "TRUE", "FALSE", "NULL", "CONTAINS", "MATCHES", "IN", "AS",
             "GROUP", "HAVING", "QUALIFY", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
             "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET",
-            "OVER", "PARTITION"
+            "OVER", "PARTITION", "ROWS", "BETWEEN", "UNBOUNDED", "PRECEDING",
+            "CURRENT", "ROW", "RANGE", "GROUPS", "FOLLOWING"
     );
     private static final Map<String, Metric> METRIC_BY_KEYWORD = buildMetricKeywordMap();
 
@@ -336,12 +337,16 @@ public final class SqlLikeParser {
         boolean countAll = false;
         TimeBucketPreset timeBucketPreset = null;
         String windowFunction = null;
+        String windowValueField = null;
+        boolean windowCountAll = false;
         List<String> windowPartitionFields = List.of();
         List<OrderAst> windowOrderFields = List.of();
         ParsedWindowFunction parsedWindowFunction = tryParseWindowFunction();
         if (parsedWindowFunction != null) {
             field = buildExpressionText(startIndex, parsedWindowFunction.endIndex());
             windowFunction = parsedWindowFunction.function();
+            windowValueField = parsedWindowFunction.valueField();
+            windowCountAll = parsedWindowFunction.countAll();
             windowPartitionFields = parsedWindowFunction.partitionFields();
             windowOrderFields = parsedWindowFunction.orderByFields();
         } else if (token.type == TokenType.KEYWORD && isMetricKeyword(token.text)) {
@@ -412,7 +417,9 @@ public final class SqlLikeParser {
                     parsed.computed,
                     null,
                     List.of(),
-                    List.of()
+                    List.of(),
+                    null,
+                    false
             );
         }
         String alias = null;
@@ -431,7 +438,9 @@ public final class SqlLikeParser {
                 false,
                 windowFunction,
                 windowPartitionFields,
-                windowOrderFields
+                windowOrderFields,
+                windowValueField,
+                windowCountAll
         );
     }
 
@@ -443,7 +452,9 @@ public final class SqlLikeParser {
                                                      boolean computed,
                                                      String windowFunction,
                                                      List<String> windowPartitionFields,
-                                                     List<OrderAst> windowOrderFields) {
+                                                     List<OrderAst> windowOrderFields,
+                                                     String windowValueField,
+                                                     boolean windowCountAll) {
         return new SelectFieldAst(
                 field,
                 alias,
@@ -453,7 +464,9 @@ public final class SqlLikeParser {
                 computed,
                 windowFunction,
                 windowPartitionFields,
-                windowOrderFields
+                windowOrderFields,
+                windowValueField,
+                windowCountAll
         );
     }
 
@@ -465,9 +478,25 @@ public final class SqlLikeParser {
         if (index + 1 >= tokens.size() || tokens.get(index + 1).type != TokenType.LEFT_PAREN) {
             return null;
         }
+        if (!looksLikeWindowFunctionInvocation(index)) {
+            return null;
+        }
         String function = token.text.toUpperCase(Locale.ROOT);
+        boolean aggregateWindow = isAggregateWindowFunctionName(function);
+        String valueField = null;
+        boolean countAll = false;
         next();
         expect(TokenType.LEFT_PAREN, "Expected '(' after window function");
+        if (aggregateWindow) {
+            if (match(TokenType.STAR)) {
+                if (!"COUNT".equals(function)) {
+                    throw error(function + " window function does not support '*' argument", peek().position);
+                }
+                countAll = true;
+            } else {
+                valueField = expectIdentifier("Expected field inside window function");
+            }
+        }
         expect(TokenType.RIGHT_PAREN, "Expected ')' after window function");
         expectKeyword("OVER");
         expect(TokenType.LEFT_PAREN, "Expected '(' after OVER");
@@ -482,8 +511,52 @@ public final class SqlLikeParser {
             expectKeyword("BY");
             orderByFields = parseWindowOrderBy();
         }
+        if (aggregateWindow) {
+            if (!matchKeyword("ROWS")) {
+                throw error("Aggregate window functions require ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW",
+                        peek().position);
+            }
+            parseSupportedWindowFrame();
+        } else if (matchKeyword("ROWS")) {
+            parseSupportedWindowFrame();
+        } else if (isKeyword(peek(), "RANGE") || isKeyword(peek(), "GROUPS")) {
+            throw error("Unsupported window frame expression", peek().position);
+        }
         expect(TokenType.RIGHT_PAREN, "Expected ')' after window definition");
-        return new ParsedWindowFunction(function, partitionFields, orderByFields, index);
+        return new ParsedWindowFunction(function, valueField, countAll, partitionFields, orderByFields, index);
+    }
+
+    private void parseSupportedWindowFrame() {
+        if (!matchKeyword("BETWEEN")
+                || !matchKeyword("UNBOUNDED")
+                || !matchKeyword("PRECEDING")
+                || !matchKeyword("AND")
+                || !matchKeyword("CURRENT")
+                || !matchKeyword("ROW")) {
+            throw error("Unsupported window frame expression", peek().position);
+        }
+    }
+
+    private boolean looksLikeWindowFunctionInvocation(int startIndex) {
+        if (startIndex + 1 >= tokens.size() || tokens.get(startIndex + 1).type != TokenType.LEFT_PAREN) {
+            return false;
+        }
+        int depth = 0;
+        for (int i = startIndex + 1; i < tokens.size(); i++) {
+            Token token = tokens.get(i);
+            if (token.type == TokenType.LEFT_PAREN) {
+                depth++;
+            } else if (token.type == TokenType.RIGHT_PAREN) {
+                depth--;
+                if (depth == 0) {
+                    if (i + 1 >= tokens.size()) {
+                        return false;
+                    }
+                    return isKeyword(tokens.get(i + 1), "OVER");
+                }
+            }
+        }
+        return false;
     }
 
     private List<String> parseWindowPartitionBy() {
@@ -518,7 +591,20 @@ public final class SqlLikeParser {
     private boolean isWindowFunctionName(String value) {
         return "ROW_NUMBER".equalsIgnoreCase(value)
                 || "RANK".equalsIgnoreCase(value)
-                || "DENSE_RANK".equalsIgnoreCase(value);
+                || "DENSE_RANK".equalsIgnoreCase(value)
+                || "COUNT".equalsIgnoreCase(value)
+                || "SUM".equalsIgnoreCase(value)
+                || "AVG".equalsIgnoreCase(value)
+                || "MIN".equalsIgnoreCase(value)
+                || "MAX".equalsIgnoreCase(value);
+    }
+
+    private boolean isAggregateWindowFunctionName(String value) {
+        return "COUNT".equalsIgnoreCase(value)
+                || "SUM".equalsIgnoreCase(value)
+                || "AVG".equalsIgnoreCase(value)
+                || "MIN".equalsIgnoreCase(value)
+                || "MAX".equalsIgnoreCase(value);
     }
 
     private List<String> parseGroupBy() {
@@ -1180,6 +1266,8 @@ public final class SqlLikeParser {
     }
 
     private record ParsedWindowFunction(String function,
+                                        String valueField,
+                                        boolean countAll,
                                         List<String> partitionFields,
                                         List<OrderAst> orderByFields,
                                         int endIndex) {

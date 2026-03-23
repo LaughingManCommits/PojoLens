@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -260,6 +261,81 @@ public class SqlLikeMappingParityTest {
                 row -> row.department + ":" + row.name + ":" + row.salary + ":" + row.rn);
     }
 
+    @Test
+    public void sqlLikeAggregateWindowsShouldMatchFluentPipeline() {
+        List<WindowMetricInput> source = Arrays.asList(
+                new WindowMetricInput("A", 1, 10),
+                new WindowMetricInput("A", 2, null),
+                new WindowMetricInput("A", 3, 5),
+                new WindowMetricInput("B", 1, 2),
+                new WindowMetricInput("B", 2, 3),
+                new WindowMetricInput("C", 1, null)
+        );
+
+        List<WindowAggregateRow> fluent = PojoLens.newQueryBuilder(source)
+                .addWindow(
+                        "runningSum",
+                        WindowFunction.SUM,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningCount",
+                        WindowFunction.COUNT,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningCountAll",
+                        WindowFunction.COUNT,
+                        null,
+                        true,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningAvg",
+                        WindowFunction.AVG,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addOrder("department", 1)
+                .addOrder("seq", 2)
+                .initFilter()
+                .filter(Sort.ASC, WindowAggregateRow.class);
+
+        List<WindowAggregateRow> sqlLike = PojoLens
+                .parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningSum, "
+                        + "count(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningCount, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningCountAll, "
+                        + "avg(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningAvg "
+                        + "order by department asc, seq asc")
+                .filter(source, WindowAggregateRow.class);
+
+        FluentSqlLikeParity.assertOrderedEquals(
+                fluent,
+                sqlLike,
+                row -> row.department
+                        + ":" + row.seq
+                        + ":" + Objects.toString(row.amount, "null")
+                        + ":" + Objects.toString(row.runningSum, "null")
+                        + ":" + row.runningCount
+                        + ":" + row.runningCountAll
+                        + ":" + Objects.toString(row.runningAvg, "null")
+        );
+    }
+
     public static class DepartmentAgg {
         public String department;
         public long employeeCount;
@@ -276,6 +352,34 @@ public class SqlLikeMappingParityTest {
         public long rn;
 
         public DepartmentRank() {
+        }
+    }
+
+    public static class WindowMetricInput {
+        public String department;
+        public int seq;
+        public Integer amount;
+
+        public WindowMetricInput() {
+        }
+
+        public WindowMetricInput(String department, int seq, Integer amount) {
+            this.department = department;
+            this.seq = seq;
+            this.amount = amount;
+        }
+    }
+
+    public static class WindowAggregateRow {
+        public String department;
+        public int seq;
+        public Integer amount;
+        public Long runningSum;
+        public Long runningCount;
+        public Long runningCountAll;
+        public Double runningAvg;
+
+        public WindowAggregateRow() {
         }
     }
 }

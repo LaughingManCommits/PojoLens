@@ -33,7 +33,7 @@ final class SqlLikeParameterTypeValidator {
             validateParameterFilterType(filter, "HAVING", resolveHavingExpectedType(filter, havingFieldTypes, sourceFieldTypes));
         }
 
-        Map<String, Class<?>> qualifyFieldTypes = resolveQualifyFieldTypes(ast);
+        Map<String, Class<?>> qualifyFieldTypes = resolveQualifyFieldTypes(ast, queryableFieldTypes);
         for (FilterAst filter : ast.qualifyFilters()) {
             validateParameterFilterType(filter, "QUALIFY", resolveQualifyExpectedType(filter, qualifyFieldTypes));
         }
@@ -87,7 +87,7 @@ final class SqlLikeParameterTypeValidator {
             } else if (field.timeBucketField()) {
                 outputTypes.put(field.outputName(), String.class);
             } else if (field.windowField()) {
-                outputTypes.put(field.outputName(), Long.class);
+                outputTypes.put(field.outputName(), windowOutputType(field, queryableFieldTypes));
             } else if (field.computedField()) {
                 outputTypes.put(field.outputName(), Double.class);
             } else {
@@ -115,7 +115,8 @@ final class SqlLikeParameterTypeValidator {
         return null;
     }
 
-    private static Map<String, Class<?>> resolveQualifyFieldTypes(QueryAst ast) {
+    private static Map<String, Class<?>> resolveQualifyFieldTypes(QueryAst ast,
+                                                                  Map<String, Class<?>> queryableFieldTypes) {
         LinkedHashMap<String, Class<?>> qualifyFieldTypes = new LinkedHashMap<>();
         SelectAst select = ast.select();
         if (select == null || select.wildcard()) {
@@ -125,9 +126,34 @@ final class SqlLikeParameterTypeValidator {
             if (!field.windowField()) {
                 continue;
             }
-            qualifyFieldTypes.put(field.outputName(), Long.class);
+            qualifyFieldTypes.put(field.outputName(), windowOutputType(field, queryableFieldTypes));
         }
         return qualifyFieldTypes;
+    }
+
+    private static Class<?> windowOutputType(SelectFieldAst field,
+                                             Map<String, Class<?>> queryableFieldTypes) {
+        String function = field.windowFunction();
+        if (function == null) {
+            return Number.class;
+        }
+        if ("ROW_NUMBER".equalsIgnoreCase(function)
+                || "RANK".equalsIgnoreCase(function)
+                || "DENSE_RANK".equalsIgnoreCase(function)
+                || "COUNT".equalsIgnoreCase(function)) {
+            return Long.class;
+        }
+        if ("AVG".equalsIgnoreCase(function)) {
+            return Double.class;
+        }
+        if (field.windowValueField() == null) {
+            return Number.class;
+        }
+        Class<?> fieldType = queryableFieldTypes.get(field.windowValueField());
+        if (fieldType == null) {
+            return Number.class;
+        }
+        return wrap(fieldType);
     }
 
     private static Class<?> resolveQualifyExpectedType(FilterAst filter, Map<String, Class<?>> qualifyFieldTypes) {

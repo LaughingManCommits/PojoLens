@@ -6,12 +6,24 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, and SQL window spikes 1-2 (`OVER`, `QUALIFY`) completed.
+- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, and SQL window spikes 1-3 (`OVER`, `QUALIFY`, aggregate windows) completed.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-23`: SQL window spike 3 (aggregate windows) passed:
+  - parser/AST now supports `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` with aggregate-window argument metadata (`COUNT(*)` vs value field).
+  - parser guardrails now enforce initial frame mode `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` for aggregate windows and reject unsupported frames.
+  - fluent window execution now computes running aggregate frames (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) with null/type parity matching existing aggregate behavior.
+  - SQL-like binder/validator/join-canonicalization now compile aggregate window definitions into fluent `addWindow(...)` value-argument form.
+  - SQL-like aliased projection path now casts alias-select values against projection field types before assignment, fixing numeric assignment mismatches in aggregate window projections.
+  - added/updated coverage:
+    `FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `PublicApiCoverageTest`, `StablePublicApiContractTest`.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-23`: SQL-like window/qualify execution now compiles through fluent path and passed:
   - SQL-like binder now maps window select outputs to fluent `addWindow(...)` and maps `QUALIFY` predicates/boolean groups to fluent `addQualify(...)`/`addQualifyAllOf(...)`.
   - SQL-like raw-row execution now delegates to fluent filter execution (`FilterImpl`) instead of maintaining a separate SQL-like window/qualify runtime branch.
@@ -151,6 +163,14 @@
   - Explain payloads now include `qualifyRuleCount` and `stageRowCounts.qualify`.
   - Added parser/runtime/explain/docs test coverage (`SqlLikeParserTest`, `SqlLikeWindowFunctionTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`).
   - Updated SQL-like docs and marked TODO `QUALIFY` spike item complete.
+- SQL window analytics spike 3 (Aggregate Windows Phase 2) completed:
+  - Added parser/AST support for aggregate windows:
+    `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` with `COUNT(*)` and value-argument metadata.
+  - Added aggregate-window frame guardrails for initial supported mode:
+    `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+  - Added fluent runtime support for running aggregate frame computation (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) and kept SQL-like execution compiled through fluent builder/runtime path.
+  - Added coverage for parser/runtime/parity/API contract updates (`FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `PublicApiCoverageTest`, `StablePublicApiContractTest`).
+  - Updated TODO and marked aggregate-window spike item complete.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
   - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
@@ -219,5 +239,5 @@
 ## Next Actions
 
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
-- Continue SQL window analytics roadmap with spike 3 (aggregate windows with bounded frame semantics).
+- Continue SQL window analytics roadmap with spike 4 (API/docs hardening for window syntax, recipes, and benchmark notes).
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

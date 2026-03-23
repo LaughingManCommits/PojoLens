@@ -11,6 +11,7 @@ import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -92,6 +93,137 @@ public class FluentWindowFunctionTest {
         assertTrue(ex.getMessage().contains("Window functions are only supported for non-aggregate fluent queries"));
     }
 
+    @Test
+    public void fluentAggregateWindowsShouldComputeRunningMetricsWithNullParity() {
+        List<WindowMetricProjection> rows = PojoLens.newQueryBuilder(List.of(
+                        new WindowMetricInput("A", 1, 10),
+                        new WindowMetricInput("A", 2, null),
+                        new WindowMetricInput("A", 3, 5),
+                        new WindowMetricInput("B", 1, 2),
+                        new WindowMetricInput("B", 2, 3),
+                        new WindowMetricInput("C", 1, null)
+                ))
+                .addWindow(
+                        "runningSum",
+                        WindowFunction.SUM,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningCount",
+                        WindowFunction.COUNT,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningCountAll",
+                        WindowFunction.COUNT,
+                        null,
+                        true,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningAvg",
+                        WindowFunction.AVG,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningMin",
+                        WindowFunction.MIN,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningMax",
+                        WindowFunction.MAX,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addOrder("department", 1)
+                .addOrder("seq", 2)
+                .initFilter()
+                .filter(Sort.ASC, WindowMetricProjection.class);
+
+        assertEquals(6, rows.size());
+
+        assertEquals("A", rows.get(0).department);
+        assertEquals(10L, rows.get(0).runningSum);
+        assertEquals(1L, rows.get(0).runningCount);
+        assertEquals(1L, rows.get(0).runningCountAll);
+        assertEquals(10D, rows.get(0).runningAvg);
+        assertEquals(10, rows.get(0).runningMin);
+        assertEquals(10, rows.get(0).runningMax);
+
+        assertEquals("A", rows.get(1).department);
+        assertEquals(10L, rows.get(1).runningSum);
+        assertEquals(1L, rows.get(1).runningCount);
+        assertEquals(2L, rows.get(1).runningCountAll);
+        assertEquals(10D, rows.get(1).runningAvg);
+        assertEquals(10, rows.get(1).runningMin);
+        assertEquals(10, rows.get(1).runningMax);
+
+        assertEquals("A", rows.get(2).department);
+        assertEquals(15L, rows.get(2).runningSum);
+        assertEquals(2L, rows.get(2).runningCount);
+        assertEquals(3L, rows.get(2).runningCountAll);
+        assertEquals(7.5D, rows.get(2).runningAvg);
+        assertEquals(5, rows.get(2).runningMin);
+        assertEquals(10, rows.get(2).runningMax);
+
+        assertEquals("B", rows.get(3).department);
+        assertEquals(2L, rows.get(3).runningSum);
+        assertEquals(1L, rows.get(3).runningCount);
+        assertEquals(1L, rows.get(3).runningCountAll);
+        assertEquals(2D, rows.get(3).runningAvg);
+        assertEquals(2, rows.get(3).runningMin);
+        assertEquals(2, rows.get(3).runningMax);
+
+        assertEquals("B", rows.get(4).department);
+        assertEquals(5L, rows.get(4).runningSum);
+        assertEquals(2L, rows.get(4).runningCount);
+        assertEquals(2L, rows.get(4).runningCountAll);
+        assertEquals(2.5D, rows.get(4).runningAvg);
+        assertEquals(2, rows.get(4).runningMin);
+        assertEquals(3, rows.get(4).runningMax);
+
+        assertEquals("C", rows.get(5).department);
+        assertNull(rows.get(5).runningSum);
+        assertEquals(0L, rows.get(5).runningCount);
+        assertEquals(1L, rows.get(5).runningCountAll);
+        assertNull(rows.get(5).runningAvg);
+        assertNull(rows.get(5).runningMin);
+        assertNull(rows.get(5).runningMax);
+    }
+
+    @Test
+    public void fluentAggregateWindowShouldRejectNonNumericValueField() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLens.newQueryBuilder(List.of(new WindowMetricInput("A", 1, 10)))
+                        .addWindow(
+                                "invalid",
+                                WindowFunction.SUM,
+                                "department",
+                                false,
+                                List.of("department"),
+                                List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                        )
+        );
+        assertTrue(ex.getMessage().contains("requires numeric field"));
+    }
+
     public static class DepartmentRank {
         public String department;
         public String name;
@@ -107,6 +239,36 @@ public class FluentWindowFunctionTest {
         public long totalSalary;
 
         public DepartmentAgg() {
+        }
+    }
+
+    public static class WindowMetricInput {
+        public String department;
+        public int seq;
+        public Integer amount;
+
+        public WindowMetricInput() {
+        }
+
+        public WindowMetricInput(String department, int seq, Integer amount) {
+            this.department = department;
+            this.seq = seq;
+            this.amount = amount;
+        }
+    }
+
+    public static class WindowMetricProjection {
+        public String department;
+        public int seq;
+        public Integer amount;
+        public Long runningSum;
+        public Long runningCount;
+        public Long runningCountAll;
+        public Double runningAvg;
+        public Integer runningMin;
+        public Integer runningMax;
+
+        public WindowMetricProjection() {
         }
     }
 }

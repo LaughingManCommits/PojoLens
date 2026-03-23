@@ -53,6 +53,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryBuilder.class, "addMetric", String.class, Metric.class, String.class);
         requirePublicMethod(QueryBuilder.class, "addCount", String.class);
         requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, List.class, List.class);
+        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class);
         requirePublicMethod(QueryBuilder.class, "addHaving", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addQualify", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addJoinBeans", String.class, List.class, String.class, Join.class);

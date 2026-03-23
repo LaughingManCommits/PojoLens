@@ -121,6 +121,26 @@ public final class SqlLikeValidator {
                     throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
                             "Window SELECT expressions require AS alias");
                 }
+                if (isAggregateWindowFunction(field.windowFunction())) {
+                    if (field.windowCountAll() && !"COUNT".equalsIgnoreCase(field.windowFunction())) {
+                        throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                                field.windowFunction() + " window does not support '*' argument");
+                    }
+                    if (!field.windowCountAll()) {
+                        if (field.windowValueField() == null || field.windowValueField().isBlank()) {
+                            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                                    "Window SELECT expression '" + field.windowFunction()
+                                            + "' requires value field argument");
+                        }
+                        requireKnownField(field.windowValueField(), sourceFields, "SELECT");
+                        if (requiresNumericWindowFunction(field.windowFunction())) {
+                            requireNumericField(field.windowValueField(), sourceFieldTypes, field.windowFunction());
+                        }
+                    }
+                } else if (field.windowValueField() != null || field.windowCountAll()) {
+                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                            "Rank window SELECT expressions do not accept value field arguments");
+                }
                 if (field.windowOrderFields().isEmpty()) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
                             "Window SELECT expressions require OVER(... ORDER BY ...)");
@@ -624,6 +644,16 @@ public final class SqlLikeValidator {
         }
     }
 
+    private static void requireNumericField(String fieldName,
+                                            Map<String, Class<?>> fieldTypes,
+                                            String functionName) {
+        Class<?> type = fieldTypes.get(fieldName);
+        if (type == null || !Number.class.isAssignableFrom(type)) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Window function " + functionName + " requires numeric field '" + fieldName + "'");
+        }
+    }
+
     private static void requireKnownField(String field, Set<String> allowedFields, String clauseName) {
         if (!allowedFields.contains(field)) {
             throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
@@ -693,6 +723,22 @@ public final class SqlLikeValidator {
             return "";
         }
         return value.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isAggregateWindowFunction(String functionName) {
+        if (functionName == null) {
+            return false;
+        }
+        return !"ROW_NUMBER".equalsIgnoreCase(functionName)
+                && !"RANK".equalsIgnoreCase(functionName)
+                && !"DENSE_RANK".equalsIgnoreCase(functionName);
+    }
+
+    private static boolean requiresNumericWindowFunction(String functionName) {
+        return "SUM".equalsIgnoreCase(functionName)
+                || "AVG".equalsIgnoreCase(functionName)
+                || "MIN".equalsIgnoreCase(functionName)
+                || "MAX".equalsIgnoreCase(functionName);
     }
 
     private static int levenshteinDistance(String left, String right) {

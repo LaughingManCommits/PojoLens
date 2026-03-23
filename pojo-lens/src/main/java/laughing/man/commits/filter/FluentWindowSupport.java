@@ -69,6 +69,7 @@ final class FluentWindowSupport {
         int[] partitionIndexes = resolveIndexes(window.partitionFields(), sourceFieldIndexes);
         int[] orderIndexes = resolveOrderIndexes(window.orderFields(), sourceFieldIndexes);
         Sort[] orderSorts = resolveOrderSorts(window.orderFields());
+        int valueIndex = resolveValueIndex(window, sourceFieldIndexes);
 
         Map<PartitionKey, List<Integer>> partitions = new LinkedHashMap<>();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
@@ -80,26 +81,98 @@ final class FluentWindowSupport {
         Object[] values = new Object[rows.size()];
         for (List<Integer> partitionRows : partitions.values()) {
             partitionRows.sort((left, right) -> compareRowIndexes(rows, left, right, orderIndexes, orderSorts));
-            long rank = 1L;
-            long denseRank = 1L;
-            for (int position = 0; position < partitionRows.size(); position++) {
-                int rowIndex = partitionRows.get(position);
-                if (position > 0) {
-                    int previousIndex = partitionRows.get(position - 1);
-                    boolean tie = compareOrderValues(rows, rowIndex, previousIndex, orderIndexes, orderSorts) == 0;
-                    if (!tie) {
-                        rank = position + 1L;
-                        denseRank++;
-                    }
-                }
-                values[rowIndex] = switch (window.function()) {
-                    case ROW_NUMBER -> position + 1L;
-                    case RANK -> rank;
-                    case DENSE_RANK -> denseRank;
-                };
+            if (window.function().isRankFunction()) {
+                assignRankValues(rows, window, partitionRows, orderIndexes, orderSorts, values);
+            } else {
+                assignAggregateValues(rows, window, partitionRows, valueIndex, values);
             }
         }
         return values;
+    }
+
+    private static void assignRankValues(List<QueryRow> rows,
+                                         QueryWindow window,
+                                         List<Integer> partitionRows,
+                                         int[] orderIndexes,
+                                         Sort[] orderSorts,
+                                         Object[] values) {
+        long rank = 1L;
+        long denseRank = 1L;
+        for (int position = 0; position < partitionRows.size(); position++) {
+            int rowIndex = partitionRows.get(position);
+            if (position > 0) {
+                int previousIndex = partitionRows.get(position - 1);
+                boolean tie = compareOrderValues(rows, rowIndex, previousIndex, orderIndexes, orderSorts) == 0;
+                if (!tie) {
+                    rank = position + 1L;
+                    denseRank++;
+                }
+            }
+            values[rowIndex] = switch (window.function()) {
+                case ROW_NUMBER -> position + 1L;
+                case RANK -> rank;
+                case DENSE_RANK -> denseRank;
+                default -> throw new IllegalArgumentException(
+                        "Unsupported rank window function '" + window.function() + "'");
+            };
+        }
+    }
+
+    private static void assignAggregateValues(List<QueryRow> rows,
+                                              QueryWindow window,
+                                              List<Integer> partitionRows,
+                                              int valueIndex,
+                                              Object[] values) {
+        long runningCount = 0L;
+        long runningNonNullCount = 0L;
+        double runningSum = 0D;
+        boolean hasFraction = false;
+        boolean minPresent = false;
+        boolean maxPresent = false;
+        double minDouble = 0D;
+        double maxDouble = 0D;
+        Number minValue = null;
+        Number maxValue = null;
+
+        for (int rowIndex : partitionRows) {
+            QueryRow row = rows.get(rowIndex);
+            if (window.countAll()) {
+                runningCount++;
+            } else {
+                Object raw = row == null ? null : row.getValueAt(valueIndex);
+                if (raw != null) {
+                    if (!(raw instanceof Number number)) {
+                        throw new IllegalArgumentException(
+                                "Window function " + window.function() + " requires numeric field: " + window.valueField());
+                    }
+                    double asDouble = number.doubleValue();
+                    runningNonNullCount++;
+                    runningSum += asDouble;
+                    if (number instanceof Float || number instanceof Double) {
+                        hasFraction = true;
+                    }
+                    if (!minPresent || asDouble < minDouble) {
+                        minPresent = true;
+                        minDouble = asDouble;
+                        minValue = number;
+                    }
+                    if (!maxPresent || asDouble > maxDouble) {
+                        maxPresent = true;
+                        maxDouble = asDouble;
+                        maxValue = number;
+                    }
+                }
+            }
+            values[rowIndex] = switch (window.function()) {
+                case COUNT -> window.countAll() ? runningCount : runningNonNullCount;
+                case SUM -> runningNonNullCount == 0 ? null : hasFraction ? runningSum : (long) runningSum;
+                case AVG -> runningNonNullCount == 0 ? null : runningSum / runningNonNullCount;
+                case MIN -> minPresent ? minValue : null;
+                case MAX -> maxPresent ? maxValue : null;
+                default -> throw new IllegalArgumentException(
+                        "Unsupported aggregate window function '" + window.function() + "'");
+            };
+        }
     }
 
     private static int compareRowIndexes(List<QueryRow> rows,
@@ -204,6 +277,13 @@ final class FluentWindowSupport {
             return index;
         }
         throw new IllegalArgumentException("Unknown window field '" + fieldName + "'");
+    }
+
+    private static int resolveValueIndex(QueryWindow window, Map<String, Integer> sourceFieldIndexes) {
+        if (window.function().isRankFunction() || window.countAll()) {
+            return -1;
+        }
+        return resolveIndex(window.valueField(), sourceFieldIndexes);
     }
 
     private static PartitionKey partitionKey(QueryRow row, int[] partitionIndexes) {

@@ -110,7 +110,7 @@ public final class TabularSchemaSupport {
             return String.class;
         }
         if (field.windowField()) {
-            return Long.class;
+            return defaultWindowType(field);
         }
         if (!field.computedField()) {
             return projectionTypes.getOrDefault(field.field(), Object.class);
@@ -123,6 +123,23 @@ public final class TabularSchemaSupport {
             return Double.class;
         }
         return Long.class;
+    }
+
+    private static Class<?> defaultWindowType(SelectFieldAst field) {
+        String function = field.windowFunction();
+        if (function == null) {
+            return Number.class;
+        }
+        if ("ROW_NUMBER".equalsIgnoreCase(function)
+                || "RANK".equalsIgnoreCase(function)
+                || "DENSE_RANK".equalsIgnoreCase(function)
+                || "COUNT".equalsIgnoreCase(function)) {
+            return Long.class;
+        }
+        if ("AVG".equalsIgnoreCase(function)) {
+            return Double.class;
+        }
+        return Number.class;
     }
 
     private static Class<?> fallbackType(Map<String, Class<?>> projectionTypes, String fieldName, Class<?> fallback) {

@@ -313,6 +313,45 @@ public class PublicApiCoverageTest {
     }
 
     @Test
+    public void fluentAggregateWindowOverloadShouldBeUsableFromPublicApi() {
+        List<WindowAggregateInput> source = Arrays.asList(
+                new WindowAggregateInput("A", 1, 10),
+                new WindowAggregateInput("A", 2, 5),
+                new WindowAggregateInput("B", 1, 3)
+        );
+
+        List<WindowAggregateApiRow> rows = PojoLens.newQueryBuilder(source)
+                .addWindow(
+                        "runningSum",
+                        WindowFunction.SUM,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addWindow(
+                        "runningRows",
+                        WindowFunction.COUNT,
+                        null,
+                        true,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC))
+                )
+                .addOrder("department", 1)
+                .addOrder("seq", 2)
+                .initFilter()
+                .filter(Sort.ASC, WindowAggregateApiRow.class);
+
+        assertEquals(3, rows.size());
+        assertEquals(10L, rows.get(0).runningSum);
+        assertEquals(1L, rows.get(0).runningRows);
+        assertEquals(15L, rows.get(1).runningSum);
+        assertEquals(2L, rows.get(1).runningRows);
+        assertEquals(3L, rows.get(2).runningSum);
+        assertEquals(1L, rows.get(2).runningRows);
+    }
+
+    @Test
     public void lintControlsShouldBeUsableFromPublicApi() {
         PojoLensRuntime runtime = PojoLens.newRuntime();
         assertFalse(runtime.isLintMode());
@@ -706,6 +745,31 @@ public class PublicApiCoverageTest {
         public long rn;
 
         public WindowRankRow() {
+        }
+    }
+
+    public static class WindowAggregateInput {
+        public String department;
+        public int seq;
+        public int amount;
+
+        public WindowAggregateInput() {
+        }
+
+        public WindowAggregateInput(String department, int seq, int amount) {
+            this.department = department;
+            this.seq = seq;
+            this.amount = amount;
+        }
+    }
+
+    public static class WindowAggregateApiRow {
+        public String department;
+        public int seq;
+        public long runningSum;
+        public long runningRows;
+
+        public WindowAggregateApiRow() {
         }
     }
 

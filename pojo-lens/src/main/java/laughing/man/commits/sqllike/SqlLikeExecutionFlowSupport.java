@@ -305,6 +305,8 @@ final class SqlLikeExecutionFlowSupport {
             qualifyBuilder.addWindow(
                     window.alias(),
                     window.function(),
+                    window.valueField(),
+                    window.countAll(),
                     window.partitionFields(),
                     window.orderFields()
             );

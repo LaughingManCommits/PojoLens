@@ -105,6 +105,8 @@ public final class SqlLikeJoinResolution {
         for (SelectFieldAst field : select.fields()) {
             String resolvedField = field.field();
             String resolvedWindowFunction = field.windowFunction();
+            String resolvedWindowValueField = field.windowValueField();
+            boolean resolvedWindowCountAll = field.windowCountAll();
             List<String> resolvedWindowPartitions = field.windowPartitionFields();
             List<OrderAst> resolvedWindowOrders = field.windowOrderFields();
             if (field.metricField() && !field.countAll()) {
@@ -120,9 +122,18 @@ public final class SqlLikeJoinResolution {
                 for (OrderAst order : field.windowOrderFields()) {
                     orders.add(new OrderAst(plan.resolveOrSame(order.field(), "SELECT"), order.sort()));
                 }
+                if (field.windowValueField() != null) {
+                    resolvedWindowValueField = plan.resolveOrSame(field.windowValueField(), "SELECT");
+                }
                 resolvedWindowPartitions = List.copyOf(partitions);
                 resolvedWindowOrders = List.copyOf(orders);
-                resolvedField = windowExpression(resolvedWindowFunction, resolvedWindowPartitions, resolvedWindowOrders);
+                resolvedField = windowExpression(
+                        resolvedWindowFunction,
+                        resolvedWindowValueField,
+                        resolvedWindowCountAll,
+                        resolvedWindowPartitions,
+                        resolvedWindowOrders
+                );
             } else if (field.computedField()) {
                 resolvedField = rewriteExpression(field.field(), plan, "SELECT");
             } else {
@@ -137,14 +148,24 @@ public final class SqlLikeJoinResolution {
                     field.computedField(),
                     resolvedWindowFunction,
                     resolvedWindowPartitions,
-                    resolvedWindowOrders
+                    resolvedWindowOrders,
+                    resolvedWindowValueField,
+                    resolvedWindowCountAll
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());
     }
 
-    private static String windowExpression(String function, List<String> partitionFields, List<OrderAst> orders) {
-        StringBuilder expression = new StringBuilder(function).append("() OVER (");
+    private static String windowExpression(String function,
+                                           String valueField,
+                                           boolean countAll,
+                                           List<String> partitionFields,
+                                           List<OrderAst> orders) {
+        StringBuilder expression = new StringBuilder(function).append('(');
+        if (isAggregateWindowFunction(function)) {
+            expression.append(countAll ? "*" : valueField);
+        }
+        expression.append(") OVER (");
         boolean wroteSegment = false;
         if (!partitionFields.isEmpty()) {
             expression.append("PARTITION BY ").append(String.join(", ", partitionFields));
@@ -166,8 +187,23 @@ public final class SqlLikeJoinResolution {
                 }
             }
         }
+        if (isAggregateWindowFunction(function)) {
+            if (wroteSegment) {
+                expression.append(' ');
+            }
+            expression.append("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW");
+        }
         expression.append(')');
         return expression.toString();
+    }
+
+    private static boolean isAggregateWindowFunction(String function) {
+        if (function == null) {
+            return false;
+        }
+        return !"ROW_NUMBER".equalsIgnoreCase(function)
+                && !"RANK".equalsIgnoreCase(function)
+                && !"DENSE_RANK".equalsIgnoreCase(function);
     }
 
     private static List<FilterAst> canonicalizeFilters(List<FilterAst> filters, Plan plan, String clauseName) {
