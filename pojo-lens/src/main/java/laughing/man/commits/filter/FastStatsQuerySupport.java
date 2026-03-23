@@ -95,6 +95,10 @@ public final class FastStatsQuerySupport {
                     || !builder.getAnyOfGroups().isEmpty()
                     || !builder.getHavingAllOfGroups().isEmpty()
                     || !builder.getHavingAnyOfGroups().isEmpty()
+                    || !builder.getQualifyAllOfGroups().isEmpty()
+                    || !builder.getQualifyAnyOfGroups().isEmpty()
+                    || !builder.getQualifyFields().isEmpty()
+                    || !builder.getWindows().isEmpty()
                     || builder.getLimit() != null
                     || !builder.getComputedFieldRegistry().isEmpty()) {
                 return false;

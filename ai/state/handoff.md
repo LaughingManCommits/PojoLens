@@ -23,6 +23,12 @@
   - execution now applies `QUALIFY` after window computation and before query-level `ORDER BY`/pagination.
   - explain now includes `qualifyRuleCount` and `stageRowCounts.qualify`.
   - docs + tests updated (`SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`, `docs/sql-like.md`, `TODO.md` spike item checked).
+- Fluent parity for window analytics is now implemented:
+  - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
+  - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
+  - fluent guardrails now reject aggregate window shapes and invalid qualify references.
+  - fast execution paths now opt out when fluent windows/qualify are configured.
+  - parity/contract coverage added (`FluentWindowFunctionTest`, `SqlLikeMappingParityTest`, `PublicApiCoverageTest`, `StablePublicApiContractTest` updates).
 - Spike 1 (pagination) is completed:
   - `OFFSET` is implemented in fluent + SQL-like flows.
   - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
@@ -91,6 +97,8 @@
   `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
 - `QUALIFY`/explain-focused suite (recommended during window-spike follow-up):
   `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
+- Fluent window/qualify parity suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

@@ -12,6 +12,14 @@
 
 ## Latest Validation
 
+- `2026-03-23`: Fluent window/qualify parity passed:
+  - fluent `QueryBuilder` now supports rank window outputs (`ROW_NUMBER`, `RANK`, `DENSE_RANK`) and `QUALIFY` predicates via new fluent APIs.
+  - fluent execution now applies window computation then qualify filtering for non-aggregate query shapes, aligning with SQL-like stage semantics.
+  - fast-path guards now bypass incompatible fast execution paths when fluent windows/qualify are configured.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-23`: SQL window spike 2 (`QUALIFY`) passed:
   - parser/AST grammar now supports `QUALIFY` with boolean predicates and clause-order enforcement (`WHERE -> window compute -> QUALIFY -> ORDER/LIMIT/OFFSET`)
   - validation now enforces non-aggregate query shape, requires at least one window select output, and rejects unknown/subquery references in `QUALIFY`
@@ -133,6 +141,10 @@
   - Explain payloads now include `qualifyRuleCount` and `stageRowCounts.qualify`.
   - Added parser/runtime/explain/docs test coverage (`SqlLikeParserTest`, `SqlLikeWindowFunctionTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`).
   - Updated SQL-like docs and marked TODO `QUALIFY` spike item complete.
+- Fluent parity for window analytics delivered:
+  - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
+  - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
+  - Added fluent<->SQL-like parity coverage for `ROW_NUMBER ... QUALIFY` and fluent-specific behavior tests.
 - Pagination spike 1 completed:
   - Fluent + SQL-like `OFFSET` implemented.
   - SQL-like pagination now supports named parameters in `LIMIT/OFFSET` with integer/non-negative validation.

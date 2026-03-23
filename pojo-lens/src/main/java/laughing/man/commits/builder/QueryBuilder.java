@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
@@ -177,6 +178,14 @@ public interface QueryBuilder {
     QueryBuilder addCount(String alias);
 
     /**
+     * Adds a rank-style window output projected under the provided alias.
+     */
+    QueryBuilder addWindow(String alias,
+                           WindowFunction function,
+                           List<String> partitionFields,
+                           List<QueryWindowOrder> orderFields);
+
+    /**
      * Adds a grouped time bucket projection for the given date field.
      */
     QueryBuilder addTimeBucket(String dateField, TimeBucket bucket, String alias);
@@ -253,6 +262,32 @@ public interface QueryBuilder {
     <T, R> QueryBuilder addHaving(FieldSelector<T, R> selector, Object value,
                                   Clauses clause);
 
+    /**
+     * Adds a QUALIFY rule with explicit separator (applied after window computation).
+     */
+    QueryBuilder addQualify(String column, Object value,
+                            Clauses clause, Separator separator);
+
+    <T, R> QueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                   Clauses clause, Separator separator);
+
+    QueryBuilder addQualify(String column, Object value,
+                            Clauses clause, Separator separator,
+                            String commonDateFormat);
+
+    <T, R> QueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                   Clauses clause, Separator separator,
+                                   String commonDateFormat);
+
+    /**
+     * Adds a QUALIFY rule using default {@link Separator#AND}.
+     */
+    QueryBuilder addQualify(String column, Object value,
+                            Clauses clause);
+
+    <T, R> QueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                   Clauses clause);
+
     QueryBuilder allOf(QueryRule... rules);
 
     QueryBuilder anyOf(QueryRule... rules);
@@ -260,5 +295,9 @@ public interface QueryBuilder {
     QueryBuilder addHavingAllOf(QueryRule... rules);
 
     QueryBuilder addHavingAnyOf(QueryRule... rules);
+
+    QueryBuilder addQualifyAllOf(QueryRule... rules);
+
+    QueryBuilder addQualifyAnyOf(QueryRule... rules);
 }
 

@@ -50,6 +50,10 @@ final class FastPojoFilterSupport {
                 && builder.getAnyOfGroups().isEmpty()
                 && builder.getHavingAllOfGroups().isEmpty()
                 && builder.getHavingAnyOfGroups().isEmpty()
+                && builder.getQualifyAllOfGroups().isEmpty()
+                && builder.getQualifyAnyOfGroups().isEmpty()
+                && builder.getQualifyFields().isEmpty()
+                && builder.getWindows().isEmpty()
                 && builder.getComputedFieldRegistry().isEmpty()
                 && !builder.getFilterFields().isEmpty();
     }

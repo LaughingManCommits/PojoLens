@@ -19,6 +19,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
@@ -141,9 +142,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
         explain.put("havingRuleCount", spec.getHavingValues().size());
+        explain.put("qualifyRuleCount", spec.getQualifyValues().size());
         explain.put("joinCount", spec.getJoinClasses().size());
         explain.put("metrics", metricEntries(spec.getMetrics()));
         explain.put("timeBuckets", timeBucketEntries(spec.getTimeBuckets()));
+        explain.put("windows", windowEntries(spec.getWindows()));
         explain.put("computedFields", ComputedFieldSupport.explainEntries(computedFieldRegistry, schemaFields()));
         explain.put("statsPlanCache", executionPlanCache.snapshot());
         return Collections.unmodifiableMap(explain);
@@ -415,6 +418,24 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder addWindow(String alias,
+                                        WindowFunction function,
+                                        List<String> partitionFields,
+                                        List<QueryWindowOrder> orderFields) {
+        String normalizedAlias = requireIdentifier(alias, "alias");
+        ensureOutputAliasAvailable(normalizedAlias);
+        QueryWindow window = QueryWindow.of(
+                normalizedAlias,
+                requireWindowFunction(function),
+                partitionFields,
+                orderFields
+        );
+        spec.getWindows().add(window);
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
     public FilterQueryBuilder addTimeBucket(String dateField, TimeBucket bucket, String alias) {
         return addTimeBucket(dateField, TimeBucketPreset.of(bucket), alias);
     }
@@ -535,6 +556,32 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder addQualify(String column, Object value,
+                                         Clauses clause, Separator separator) {
+        addQualify(column, value, clause, separator, null);
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                                Clauses clause, Separator separator) {
+        return addQualify(FieldSelectors.resolve(selector), value, clause, separator);
+    }
+
+    @Override
+    public FilterQueryBuilder addQualify(String column, Object value,
+                                         Clauses clause) {
+        addQualify(column, value, clause, Separator.AND, null);
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                                Clauses clause) {
+        return addQualify(FieldSelectors.resolve(selector), value, clause);
+    }
+
+    @Override
     public FilterQueryBuilder allOf(QueryRule... rules) {
         addRuleGroup(spec.getAllOfGroups(), rules);
         return this;
@@ -555,6 +602,20 @@ public class FilterQueryBuilder implements QueryBuilder {
     @Override
     public FilterQueryBuilder addHavingAnyOf(QueryRule... rules) {
         addRuleGroup(spec.getHavingAnyOfGroups(), rules);
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addQualifyAllOf(QueryRule... rules) {
+        addRuleGroup(spec.getQualifyAllOfGroups(), rules);
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addQualifyAnyOf(QueryRule... rules) {
+        addRuleGroup(spec.getQualifyAnyOfGroups(), rules);
+        markExecutionPlanShapeChanged();
         return this;
     }
 
@@ -589,6 +650,21 @@ public class FilterQueryBuilder implements QueryBuilder {
                                                Clauses clause, Separator separator,
                                                String commonDateFormat) {
         return addHaving(FieldSelectors.resolve(selector), value, clause, separator, commonDateFormat);
+    }
+
+    @Override
+    public FilterQueryBuilder addQualify(String column, Object value,
+                                         Clauses clause, Separator separator,
+                                         String commonDateFormat) {
+        addQualifyCriteriaRule(column, value, clause, separator, commonDateFormat);
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addQualify(FieldSelector<T, R> selector, Object value,
+                                                Clauses clause, Separator separator,
+                                                String commonDateFormat) {
+        return addQualify(FieldSelectors.resolve(selector), value, clause, separator, commonDateFormat);
     }
 
     public Map<String, Object> getFilterValues() {
@@ -635,6 +711,30 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getHavingIDs();
     }
 
+    public Map<String, Object> getQualifyValues() {
+        return spec.getQualifyValues();
+    }
+
+    public Map<String, String> getQualifyFields() {
+        return spec.getQualifyFields();
+    }
+
+    public Map<String, Clauses> getQualifyClause() {
+        return spec.getQualifyClause();
+    }
+
+    public Map<String, Separator> getQualifySeparator() {
+        return spec.getQualifySeparator();
+    }
+
+    public Map<String, String> getQualifyDateFormats() {
+        return spec.getQualifyDateFormats();
+    }
+
+    public Map<String, List<String>> getQualifyIDs() {
+        return spec.getQualifyIDs();
+    }
+
     public Map<Integer, String> getGroupFields() {
         return spec.getGroupFields();
     }
@@ -667,6 +767,16 @@ public class FilterQueryBuilder implements QueryBuilder {
      */
     public FilterQueryBuilder removeHavingRule(String ruleId) {
         spec.removeHavingRule(ruleId);
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    /**
+     * Removes a QUALIFY rule by rule id.
+     * Intended for internal cleaner/normalization flows.
+     */
+    public FilterQueryBuilder removeQualifyRule(String ruleId) {
+        spec.removeQualifyRule(ruleId);
         markExecutionPlanShapeChanged();
         return this;
     }
@@ -724,12 +834,24 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getHavingAnyOfGroups();
     }
 
+    public List<List<QueryRule>> getQualifyAllOfGroups() {
+        return spec.getQualifyAllOfGroups();
+    }
+
+    public List<List<QueryRule>> getQualifyAnyOfGroups() {
+        return spec.getQualifyAnyOfGroups();
+    }
+
     public Integer getLimit() {
         return spec.getLimit();
     }
 
     public Integer getOffset() {
         return spec.getOffset();
+    }
+
+    public List<QueryWindow> getWindows() {
+        return spec.getWindows();
     }
 
     private int nextJoinIndex() {
@@ -785,6 +907,24 @@ public class FilterQueryBuilder implements QueryBuilder {
         } else {
             spec.addFilterRule(rule);
         }
+        markExecutionPlanShapeChanged();
+    }
+
+    private void addQualifyCriteriaRule(String column,
+                                        Object value,
+                                        Clauses clause,
+                                        Separator separator,
+                                        String commonDateFormat) {
+        String ruleId = ReflectionUtil.newUUID();
+        QuerySpec.CriteriaRule rule = new QuerySpec.CriteriaRule(
+                ruleId,
+                column,
+                value,
+                clause,
+                separator == null ? Separator.AND : separator,
+                commonDateFormat
+        );
+        spec.addQualifyRule(rule);
         markExecutionPlanShapeChanged();
     }
 
@@ -933,6 +1073,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (spec.getTimeBuckets().containsKey(alias)) {
             throw new IllegalArgumentException("Time bucket alias already configured: " + alias);
         }
+        for (QueryWindow configured : spec.getWindows()) {
+            if (configured.alias().equals(alias)) {
+                throw new IllegalArgumentException("Window alias already configured: " + alias);
+            }
+        }
     }
 
     private void ensureFieldExists(String fieldName) {
@@ -975,6 +1120,13 @@ public class FilterQueryBuilder implements QueryBuilder {
         return metric;
     }
 
+    private WindowFunction requireWindowFunction(WindowFunction function) {
+        if (function == null) {
+            throw new IllegalArgumentException("function is required");
+        }
+        return function;
+    }
+
     private String requireIdentifier(String value, String label) {
         if (value == null || StringUtil.isNull(value.trim())) {
             throw new IllegalArgumentException(label + " is required");
@@ -1011,6 +1163,25 @@ public class FilterQueryBuilder implements QueryBuilder {
             entries.add(entry.getKey() + ":" + bucket.getDateField() + ":" + bucket.getPreset().explainToken());
         }
         Collections.sort(entries);
+        return entries;
+    }
+
+    private static List<String> windowEntries(List<QueryWindow> windows) {
+        List<String> entries = new ArrayList<>(windows.size());
+        for (QueryWindow window : windows) {
+            StringBuilder orderFields = new StringBuilder();
+            for (int i = 0; i < window.orderFields().size(); i++) {
+                QueryWindowOrder order = window.orderFields().get(i);
+                if (i > 0) {
+                    orderFields.append(",");
+                }
+                orderFields.append(order.field()).append(" ").append(order.sort().name());
+            }
+            entries.add(window.alias()
+                    + ":" + window.function().name()
+                    + ":partition=" + window.partitionFields()
+                    + ":order=[" + orderFields + "]");
+        }
         return entries;
     }
 
@@ -1164,6 +1335,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getDistinctFields().values());
         addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getOrderFields().values());
         addSelectedFields(selected, spec.getSourceFieldTypes(), spec.getJoinParentFields().values());
+        addWindowSourceFields(selected, spec.getSourceFieldTypes());
         addGroupSourceFields(selected);
         addMetricSourceFields(selected);
         addTimeBucketSourceFields(selected);
@@ -1183,7 +1355,9 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (!spec.getAllOfGroups().isEmpty()
                 || !spec.getAnyOfGroups().isEmpty()
                 || !spec.getHavingAllOfGroups().isEmpty()
-                || !spec.getHavingAnyOfGroups().isEmpty()) {
+                || !spec.getHavingAnyOfGroups().isEmpty()
+                || !spec.getQualifyAllOfGroups().isEmpty()
+                || !spec.getQualifyAnyOfGroups().isEmpty()) {
             return true;
         }
         if (requiresOpenEndedRowMaterialization()) {
@@ -1346,6 +1520,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         addSelectedFields(selected, childFieldTypes, spec.getDistinctFields().values());
         addSelectedFields(selected, childFieldTypes, spec.getOrderFields().values());
         addSelectedFields(selected, childFieldTypes, spec.getGroupFields().values());
+        addWindowSourceFields(selected, childFieldTypes);
         for (QueryMetric metric : spec.getMetrics()) {
             if (!Metric.COUNT.equals(metric.getMetric())) {
                 addSelectedField(selected, childFieldTypes, metric.getField());
@@ -1358,6 +1533,18 @@ public class FilterQueryBuilder implements QueryBuilder {
             return SourceMaterializationPlan.fullPlan();
         }
         return SourceMaterializationPlan.selectivePlan(selected);
+    }
+
+    private void addWindowSourceFields(LinkedHashSet<String> selected,
+                                       Map<String, Class<?>> fieldTypes) {
+        for (QueryWindow window : spec.getWindows()) {
+            for (String partitionField : window.partitionFields()) {
+                addSelectedField(selected, fieldTypes, partitionField);
+            }
+            for (QueryWindowOrder orderField : window.orderFields()) {
+                addSelectedField(selected, fieldTypes, orderField.field());
+            }
+        }
     }
 
     private boolean supportsSelectiveJoinMaterialization() {

@@ -1,6 +1,7 @@
 package laughing.man.commits;
 
 import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
@@ -14,6 +15,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.metamodel.FieldMetamodel;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
@@ -287,6 +289,27 @@ public class PublicApiCoverageTest {
                 .explain()
                 .get("indexes");
         assertEquals(List.of("stringField"), typedIndexes);
+    }
+
+    @Test
+    public void fluentWindowAndQualifyControlsShouldBeUsableFromPublicApi() {
+        List<WindowRankRow> rows = PojoLens.newQueryBuilder(sampleEmployees())
+                .addRule("active", true, Clauses.EQUAL)
+                .addWindow(
+                        "rn",
+                        WindowFunction.ROW_NUMBER,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("salary", Sort.DESC))
+                )
+                .addQualify("rn", 1, Clauses.SMALLER_EQUAL)
+                .addOrder("department", 1)
+                .initFilter()
+                .filter(Sort.ASC, WindowRankRow.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(1L, rows.get(0).rn);
     }
 
     @Test
@@ -674,6 +697,15 @@ public class PublicApiCoverageTest {
         public String tag;
 
         public JoinProjection() {
+        }
+    }
+
+    public static class WindowRankRow {
+        public String department;
+        public String name;
+        public long rn;
+
+        public WindowRankRow() {
         }
     }
 

@@ -5,8 +5,10 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.testing.FluentSqlLikeParity;
 import laughing.man.commits.builder.QueryRule;
+import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
 
@@ -230,12 +232,50 @@ public class SqlLikeMappingParityTest {
                 row -> row.getStringField() + ":" + row.getIntegerField());
     }
 
+    @Test
+    public void sqlLikeWindowQualifyShouldMatchFluentPipeline() {
+        List<Employee> employees = sampleEmployees();
+
+        List<DepartmentRank> fluent = PojoLens.newQueryBuilder(employees)
+                .addRule("active", true, Clauses.EQUAL)
+                .addWindow(
+                        "rn",
+                        WindowFunction.ROW_NUMBER,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("salary", Sort.DESC))
+                )
+                .addQualify("rn", 1, Clauses.SMALLER_EQUAL)
+                .addOrder("department", 1)
+                .addOrder("rn", 2)
+                .initFilter()
+                .filter(Sort.ASC, DepartmentRank.class);
+
+        List<DepartmentRank> sqlLike = PojoLens
+                .parse("select department, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 order by department asc, rn asc")
+                .filter(employees, DepartmentRank.class);
+
+        FluentSqlLikeParity.assertOrderedEquals(fluent, sqlLike,
+                row -> row.department + ":" + row.name + ":" + row.salary + ":" + row.rn);
+    }
+
     public static class DepartmentAgg {
         public String department;
         public long employeeCount;
         public long totalSalary;
 
         public DepartmentAgg() {
+        }
+    }
+
+    public static class DepartmentRank {
+        public String department;
+        public String name;
+        public int salary;
+        public long rn;
+
+        public DepartmentRank() {
         }
     }
 }

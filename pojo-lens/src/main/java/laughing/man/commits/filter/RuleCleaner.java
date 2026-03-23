@@ -1,6 +1,7 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.builder.QueryWindow;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import org.slf4j.Logger;
@@ -34,6 +35,9 @@ final class RuleCleaner {
                     remove = false;
                 }
                 if (remove && isMetricAlias(fieldName)) {
+                    remove = false;
+                }
+                if (remove && isWindowAlias(fieldName)) {
                     remove = false;
                 }
 
@@ -103,6 +107,9 @@ final class RuleCleaner {
                 if (remove && isMetricAlias(fieldName)) {
                     remove = false;
                 }
+                if (remove && isWindowAlias(fieldName)) {
+                    remove = false;
+                }
                 if (remove) {
                     LOG.info("No field with the name[" + fieldName + "]"
                             + " was found in row fields. "
@@ -116,6 +123,15 @@ final class RuleCleaner {
     private boolean isMetricAlias(String fieldName) {
         for (QueryMetric metric : builder.getMetrics()) {
             if (fieldName.equals(metric.getAlias())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isWindowAlias(String fieldName) {
+        for (QueryWindow window : builder.getWindows()) {
+            if (fieldName.equals(window.alias())) {
                 return true;
             }
         }

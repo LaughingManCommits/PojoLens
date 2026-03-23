@@ -19,6 +19,7 @@ final class QuerySpec {
     private Map<String, Class<?>> fieldTypes = new LinkedHashMap<>();
     private Map<String, CriteriaRule> filterRules = new LinkedHashMap<>();
     private Map<String, CriteriaRule> havingRules = new LinkedHashMap<>();
+    private Map<String, CriteriaRule> qualifyRules = new LinkedHashMap<>();
     private Map<String, Object> filterValues = new HashMap<>();
     private Map<String, String> filterFields = new HashMap<>();
     private Map<String, Clauses> filterClause = new HashMap<>();
@@ -27,8 +28,14 @@ final class QuerySpec {
     private Map<String, String> havingFields = new HashMap<>();
     private Map<String, Clauses> havingClause = new HashMap<>();
     private Map<String, Separator> havingSeparator = new HashMap<>();
+    private Map<String, Object> qualifyValues = new LinkedHashMap<>();
+    private Map<String, String> qualifyFields = new LinkedHashMap<>();
+    private Map<String, Clauses> qualifyClause = new LinkedHashMap<>();
+    private Map<String, Separator> qualifySeparator = new LinkedHashMap<>();
     private Map<String, String> havingDateFormats = new HashMap<>();
     private Map<String, List<String>> havingIDs = new HashMap<>();
+    private Map<String, String> qualifyDateFormats = new LinkedHashMap<>();
+    private Map<String, List<String>> qualifyIDs = new LinkedHashMap<>();
     private Map<String, String> filterDateFormats = new HashMap<>();
     private Map<Integer, String> groupFields = new HashMap<>();
     private Map<Integer, String> orderFields = new HashMap<>();
@@ -43,10 +50,13 @@ final class QuerySpec {
     private List<String> indexedFields = new ArrayList<>();
     private List<QueryMetric> metrics = new ArrayList<>();
     private Map<String, QueryTimeBucket> timeBuckets = new HashMap<>();
+    private List<QueryWindow> windows = new ArrayList<>();
     private List<List<QueryRule>> allOfGroups = new ArrayList<>();
     private List<List<QueryRule>> anyOfGroups = new ArrayList<>();
     private List<List<QueryRule>> havingAllOfGroups = new ArrayList<>();
     private List<List<QueryRule>> havingAnyOfGroups = new ArrayList<>();
+    private List<List<QueryRule>> qualifyAllOfGroups = new ArrayList<>();
+    private List<List<QueryRule>> qualifyAnyOfGroups = new ArrayList<>();
     private Integer limit;
     private Integer offset;
 
@@ -118,12 +128,40 @@ final class QuerySpec {
         return havingSeparator;
     }
 
+    Map<String, Object> getQualifyValues() {
+        return qualifyValues;
+    }
+
+    Map<String, CriteriaRule> getQualifyRules() {
+        return qualifyRules;
+    }
+
+    Map<String, String> getQualifyFields() {
+        return qualifyFields;
+    }
+
+    Map<String, Clauses> getQualifyClause() {
+        return qualifyClause;
+    }
+
+    Map<String, Separator> getQualifySeparator() {
+        return qualifySeparator;
+    }
+
     Map<String, String> getHavingDateFormats() {
         return havingDateFormats;
     }
 
     Map<String, List<String>> getHavingIDs() {
         return havingIDs;
+    }
+
+    Map<String, String> getQualifyDateFormats() {
+        return qualifyDateFormats;
+    }
+
+    Map<String, List<String>> getQualifyIDs() {
+        return qualifyIDs;
     }
 
     Map<Integer, String> getGroupFields() {
@@ -178,6 +216,10 @@ final class QuerySpec {
         return timeBuckets;
     }
 
+    List<QueryWindow> getWindows() {
+        return windows;
+    }
+
     List<List<QueryRule>> getAllOfGroups() {
         return allOfGroups;
     }
@@ -192,6 +234,14 @@ final class QuerySpec {
 
     List<List<QueryRule>> getHavingAnyOfGroups() {
         return havingAnyOfGroups;
+    }
+
+    List<List<QueryRule>> getQualifyAllOfGroups() {
+        return qualifyAllOfGroups;
+    }
+
+    List<List<QueryRule>> getQualifyAnyOfGroups() {
+        return qualifyAnyOfGroups;
     }
 
     Integer getLimit() {
@@ -218,12 +268,20 @@ final class QuerySpec {
         upsertCriteriaRule(rule, havingRules, havingValues, havingFields, havingClause, havingSeparator, havingDateFormats, havingIDs);
     }
 
+    void addQualifyRule(CriteriaRule rule) {
+        upsertCriteriaRule(rule, qualifyRules, qualifyValues, qualifyFields, qualifyClause, qualifySeparator, qualifyDateFormats, qualifyIDs);
+    }
+
     void removeFilterRule(String ruleId) {
         removeCriteriaRule(ruleId, filterRules, filterValues, filterFields, filterClause, filterSeparator, filterDateFormats, filterIDs);
     }
 
     void removeHavingRule(String ruleId) {
         removeCriteriaRule(ruleId, havingRules, havingValues, havingFields, havingClause, havingSeparator, havingDateFormats, havingIDs);
+    }
+
+    void removeQualifyRule(String ruleId) {
+        removeCriteriaRule(ruleId, qualifyRules, qualifyValues, qualifyFields, qualifyClause, qualifySeparator, qualifyDateFormats, qualifyIDs);
     }
 
     QuerySpec deepCopy() {
@@ -245,6 +303,7 @@ final class QuerySpec {
         copy.fieldTypes = new LinkedHashMap<>(fieldTypes);
         copy.filterRules = filterRules;
         copy.havingRules = havingRules;
+        copy.qualifyRules = qualifyRules;
         copy.filterValues = filterValues;
         copy.filterFields = filterFields;
         copy.filterClause = filterClause;
@@ -253,8 +312,14 @@ final class QuerySpec {
         copy.havingFields = havingFields;
         copy.havingClause = havingClause;
         copy.havingSeparator = havingSeparator;
+        copy.qualifyValues = qualifyValues;
+        copy.qualifyFields = qualifyFields;
+        copy.qualifyClause = qualifyClause;
+        copy.qualifySeparator = qualifySeparator;
         copy.havingDateFormats = havingDateFormats;
         copy.havingIDs = havingIDs;
+        copy.qualifyDateFormats = qualifyDateFormats;
+        copy.qualifyIDs = qualifyIDs;
         copy.filterDateFormats = filterDateFormats;
         copy.groupFields = groupFields;
         copy.orderFields = orderFields;
@@ -269,10 +334,13 @@ final class QuerySpec {
         copy.indexedFields = indexedFields;
         copy.metrics = metrics;
         copy.timeBuckets = timeBuckets;
+        copy.windows = windows;
         copy.allOfGroups = allOfGroups;
         copy.anyOfGroups = anyOfGroups;
         copy.havingAllOfGroups = havingAllOfGroups;
         copy.havingAnyOfGroups = havingAnyOfGroups;
+        copy.qualifyAllOfGroups = qualifyAllOfGroups;
+        copy.qualifyAnyOfGroups = qualifyAnyOfGroups;
         copy.limit = limit;
         copy.offset = offset;
         return copy;
@@ -292,6 +360,7 @@ final class QuerySpec {
         replaceMap(target.fieldTypes, fieldTypes);
         replaceMap(target.filterRules, filterRules);
         replaceMap(target.havingRules, havingRules);
+        replaceMap(target.qualifyRules, qualifyRules);
         replaceMap(target.filterValues, filterValues);
         replaceMap(target.filterFields, filterFields);
         replaceMap(target.filterClause, filterClause);
@@ -300,8 +369,14 @@ final class QuerySpec {
         replaceMap(target.havingFields, havingFields);
         replaceMap(target.havingClause, havingClause);
         replaceMap(target.havingSeparator, havingSeparator);
+        replaceMap(target.qualifyValues, qualifyValues);
+        replaceMap(target.qualifyFields, qualifyFields);
+        replaceMap(target.qualifyClause, qualifyClause);
+        replaceMap(target.qualifySeparator, qualifySeparator);
         replaceMap(target.havingDateFormats, havingDateFormats);
         replaceMap(target.havingIDs, copyFilterIds(havingIDs));
+        replaceMap(target.qualifyDateFormats, qualifyDateFormats);
+        replaceMap(target.qualifyIDs, copyFilterIds(qualifyIDs));
         replaceMap(target.filterDateFormats, filterDateFormats);
         replaceMap(target.groupFields, groupFields);
         replaceMap(target.orderFields, orderFields);
@@ -320,6 +395,8 @@ final class QuerySpec {
         target.metrics.addAll(metrics);
         target.timeBuckets.clear();
         target.timeBuckets.putAll(timeBuckets);
+        target.windows.clear();
+        target.windows.addAll(windows);
         target.allOfGroups.clear();
         target.allOfGroups.addAll(copyRuleGroups(allOfGroups));
         target.anyOfGroups.clear();
@@ -328,6 +405,10 @@ final class QuerySpec {
         target.havingAllOfGroups.addAll(copyRuleGroups(havingAllOfGroups));
         target.havingAnyOfGroups.clear();
         target.havingAnyOfGroups.addAll(copyRuleGroups(havingAnyOfGroups));
+        target.qualifyAllOfGroups.clear();
+        target.qualifyAllOfGroups.addAll(copyRuleGroups(qualifyAllOfGroups));
+        target.qualifyAnyOfGroups.clear();
+        target.qualifyAnyOfGroups.addAll(copyRuleGroups(qualifyAnyOfGroups));
         target.limit = limit;
         target.offset = offset;
     }

@@ -48,8 +48,12 @@ final class FastPojoStreamSupport {
                 && builder.getHavingFields().isEmpty()
                 && builder.getHavingAllOfGroups().isEmpty()
                 && builder.getHavingAnyOfGroups().isEmpty()
+                && builder.getQualifyAllOfGroups().isEmpty()
+                && builder.getQualifyAnyOfGroups().isEmpty()
+                && builder.getQualifyFields().isEmpty()
                 && builder.getAllOfGroups().isEmpty()
                 && builder.getAnyOfGroups().isEmpty()
+                && builder.getWindows().isEmpty()
                 && builder.getComputedFieldRegistry().isEmpty();
     }
 
@@ -306,4 +310,3 @@ final class FastPojoStreamSupport {
     private record CompiledRuleBundle(int[] fieldIndexes, CompiledRule[][] compiledRules) {
     }
 }
-

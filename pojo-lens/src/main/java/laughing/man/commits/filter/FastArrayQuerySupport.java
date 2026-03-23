@@ -139,8 +139,12 @@ final class FastArrayQuerySupport {
                 || !builder.getHavingFields().isEmpty()
                 || !builder.getHavingAllOfGroups().isEmpty()
                 || !builder.getHavingAnyOfGroups().isEmpty()
+                || !builder.getQualifyFields().isEmpty()
+                || !builder.getQualifyAllOfGroups().isEmpty()
+                || !builder.getQualifyAnyOfGroups().isEmpty()
                 || !builder.getAllOfGroups().isEmpty()
-                || !builder.getAnyOfGroups().isEmpty()) {
+                || !builder.getAnyOfGroups().isEmpty()
+                || !builder.getWindows().isEmpty()) {
             return false;
         }
         Join joinMethod = builder.getJoinMethods().values().stream().findFirst().orElse(null);

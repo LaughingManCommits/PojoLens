@@ -83,6 +83,8 @@ public class FilterImpl implements Filter {
 
                 return map;
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             LOG.error("Failed to compare core.getBuilder().getRows()[" + core.getBuilder().getRows() + "] ", e);
             throw new IllegalStateException("Failed to run grouped filter", e);
@@ -103,6 +105,9 @@ public class FilterImpl implements Filter {
      */
     @Override
     public <T> List<T> filter(Sort sortMethod, Class<T> cls) {
+        if (hasWindowOrQualify(builderState)) {
+            return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
+        }
         FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
         if (fastState != null) {
             return FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
@@ -142,9 +147,14 @@ public class FilterImpl implements Filter {
     }
 
     private List<QueryRow> filterRows(Sort sortMethod) {
+        if (hasWindowOrQualify(builderState)) {
+            fastStatsState = null;
+        }
         FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
         if (statsState == null) {
-            statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
+            if (!hasWindowOrQualify(builderState)) {
+                statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
+            }
             fastStatsState = statsState;
         }
         if (statsState != null) {
@@ -170,6 +180,8 @@ public class FilterImpl implements Filter {
 
         FilterCore core = new FilterCore(executionBuilder);
         try {
+            validateWindowShape(executionBuilder);
+            FluentQualifySupport.validate(executionBuilder);
             Integer paginationWindow = CollectionUtil.pagingWindow(executionBuilder.getOffset(), executionBuilder.getLimit());
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
                 FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, false);
@@ -232,20 +244,45 @@ public class FilterImpl implements Filter {
                     if (hasHavingPredicates(executionBuilder)) {
                         throw new IllegalStateException("HAVING requires grouped/aggregate query context");
                     }
-                    // Keep ordering semantics consistent for non-aggregation queries.
+                    boolean hasWindows = hasWindows(executionBuilder);
+                    boolean hasQualify = FluentQualifySupport.hasPredicates(executionBuilder);
+                    List<QueryRow> stagedRows = hasWindows
+                            ? FluentWindowSupport.apply(filterClasses, executionBuilder.getWindows())
+                            : filterClasses;
+                    List<QueryRow> qualifiedRows = hasQualify
+                            ? FluentQualifySupport.apply(executionBuilder, stagedRows)
+                            : stagedRows;
                     long orderStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                    List<QueryRow> sortedList = core.orderByFields(filterClasses, sortMethod, plan, paginationWindow);
-                    emitOrderStage(executionBuilder, orderStarted, filterClasses.size(), sortedList.size());
+                    List<QueryRow> sortedList;
+                    if ((hasWindows || hasQualify) && !executionBuilder.getOrderFields().isEmpty()) {
+                        FilterQueryBuilder orderBuilder = executionBuilder.snapshotForRows(qualifiedRows);
+                        FilterCore orderCore = new FilterCore(orderBuilder);
+                        FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
+                        sortedList = orderCore.orderByFields(qualifiedRows, sortMethod, orderPlan, paginationWindow);
+                    } else if (hasWindows || hasQualify) {
+                        sortedList = qualifiedRows;
+                    } else {
+                        sortedList = core.orderByFields(filterClasses, sortMethod, plan, paginationWindow);
+                    }
+                    emitOrderStage(executionBuilder, orderStarted, qualifiedRows.size(), sortedList.size());
                     // Apply offset/limit before display projection to avoid projecting rows that will be discarded.
                     List<QueryRow> limited = CollectionUtil.applyOffsetAndLimit(
                             sortedList,
                             executionBuilder.getOffset(),
                             executionBuilder.getLimit()
                     );
-                    // Project configured display fields.
-                    results = core.filterDisplayFields(limited, plan);
+                    if (hasWindows || hasQualify) {
+                        FilterQueryBuilder displayBuilder = executionBuilder.snapshotForRows(limited);
+                        FilterCore displayCore = new FilterCore(displayBuilder);
+                        FilterExecutionPlan displayPlan = displayCore.buildExecutionPlan();
+                        results = displayCore.filterDisplayFields(limited, displayPlan);
+                    } else {
+                        results = core.filterDisplayFields(limited, plan);
+                    }
                 }
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             LOG.error("Failed to compare core.getBuilder().getRows()[" + core.getBuilder().getRows() + "] ", e);
             throw new IllegalStateException("Failed to run filter", e);
@@ -260,6 +297,22 @@ public class FilterImpl implements Filter {
 
     @Override
     public <T> ChartData chart(Sort sortMethod, Class<T> cls, ChartSpec spec) {
+        if (hasWindowOrQualify(builderState)) {
+            List<QueryRow> rows = filterRows(sortMethod);
+            long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
+            ChartData chart = ChartMapper.toChartData(rows, spec);
+            emitStage(builderState,
+                    QueryTelemetryStage.CHART,
+                    chartStarted,
+                    rows.size(),
+                    rows.size(),
+                    QueryTelemetrySupport.metadata(
+                            "chartType", chart.getType(),
+                            "labelCount", chart.getLabels() == null ? 0 : chart.getLabels().size(),
+                            "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
+                    ));
+            return chart;
+        }
         FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
         int rowCount;
         long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
@@ -316,6 +369,25 @@ public class FilterImpl implements Filter {
         return !builder.getHavingFields().isEmpty()
                 || !builder.getHavingAllOfGroups().isEmpty()
                 || !builder.getHavingAnyOfGroups().isEmpty();
+    }
+
+    private boolean hasWindows(FilterQueryBuilder builder) {
+        return builder != null && !builder.getWindows().isEmpty();
+    }
+
+    private boolean hasWindowOrQualify(FilterQueryBuilder builder) {
+        return builder != null && (hasWindows(builder) || FluentQualifySupport.hasPredicates(builder));
+    }
+
+    private void validateWindowShape(FilterQueryBuilder builder) {
+        if (!hasWindows(builder)) {
+            return;
+        }
+        if (!builder.getMetrics().isEmpty()
+                || !builder.getGroupFields().isEmpty()
+                || !builder.getTimeBuckets().isEmpty()) {
+            throw new IllegalArgumentException("Window functions are only supported for non-aggregate fluent queries");
+        }
     }
 
     private FilterExecutionPlanCacheKey planCacheKey(FilterQueryBuilder builder) {

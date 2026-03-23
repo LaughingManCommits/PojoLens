@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
@@ -51,7 +52,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryBuilder.class, "addField", String.class);
         requirePublicMethod(QueryBuilder.class, "addMetric", String.class, Metric.class, String.class);
         requirePublicMethod(QueryBuilder.class, "addCount", String.class);
+        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, List.class, List.class);
         requirePublicMethod(QueryBuilder.class, "addHaving", String.class, Object.class, Clauses.class);
+        requirePublicMethod(QueryBuilder.class, "addQualify", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addJoinBeans", String.class, List.class, String.class, Join.class);
         requirePublicMethod(QueryBuilder.class, "limit", int.class);
         requirePublicMethod(QueryBuilder.class, "offset", int.class);
