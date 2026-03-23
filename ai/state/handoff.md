@@ -16,6 +16,13 @@
   - determinism guardrails were added:
     missing window `ORDER BY` fails validation, and non-unique window sort ties are resolved with stable source-row order.
   - docs + tests updated (`SqlLikeWindowFunctionTest`, parser/docs examples, `docs/sql-like.md`, `TODO.md` spike item checked).
+- SQL window analytics spike 2 (`QUALIFY`) is now completed:
+  - parser/AST now supports `QUALIFY` predicates and enforces clause order around window execution.
+  - validator now restricts `QUALIFY` to non-aggregate query shapes with at least one window select output and rejects unknown/subquery references.
+  - `QUALIFY` supports window aliases and direct matching window expressions.
+  - execution now applies `QUALIFY` after window computation and before query-level `ORDER BY`/pagination.
+  - explain now includes `qualifyRuleCount` and `stageRowCounts.qualify`.
+  - docs + tests updated (`SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`, `docs/sql-like.md`, `TODO.md` spike item checked).
 - Spike 1 (pagination) is completed:
   - `OFFSET` is implemented in fluent + SQL-like flows.
   - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
@@ -75,13 +82,15 @@
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
   - post-refresh gate check passes with `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
-- Next roadmap target after window MVP is spike 2: SQL-like `QUALIFY` clause support.
+- Next roadmap target after `QUALIFY` is spike 3: aggregate window functions with bounded frame semantics.
 
 ## Next Validation
 
 - After any code change: run focused tests, then `mvn -q test`.
 - Window-function focused suite:
   `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
+- `QUALIFY`/explain-focused suite (recommended during window-spike follow-up):
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

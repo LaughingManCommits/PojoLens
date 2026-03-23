@@ -9,6 +9,7 @@
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - `GROUP BY`
 - `HAVING` (`AND`/`OR` predicates)
+- `QUALIFY` (`AND`/`OR` predicates against window outputs)
 - time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - `ORDER BY`
 - `LIMIT`
@@ -48,6 +49,28 @@ Validation errors for invalid `HAVING`:
 - `Unknown HAVING reference '<name>'`
 - `Invalid HAVING reference '<name>': expected grouped field or aggregate output`
 
+## QUALIFY v1 Contract
+
+`QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
+
+Clause order:
+- `SELECT ... FROM/implicit source ... WHERE ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
+
+Allowed references in `QUALIFY`:
+- window aliases defined in `SELECT`
+- direct rank-window expressions that match a selected window expression
+
+Disallowed references in `QUALIFY`:
+- non-window source fields
+- unknown names
+- subqueries
+- grouped/aggregate query shapes
+
+Validation errors for invalid `QUALIFY`:
+- `QUALIFY requires at least one window SELECT output`
+- `QUALIFY is only supported for non-aggregate SQL-like queries`
+- `Unknown field '<name>' in QUALIFY clause`
+
 ## Execution Model
 
 `PojoLens.parse(...)` produces a SQL-like query contract that:
@@ -69,6 +92,7 @@ Strict validation rules:
 - select output names must be unique (including alias collisions)
 - join source binding is required for SQL-like joins
 - HAVING references must resolve to grouped fields or aggregate outputs
+- QUALIFY references must resolve to selected window outputs
 - named parameters must be fully bound before execution
 - strict parameter typing can be enabled per query or runtime when early type mismatch failures are preferred
 
@@ -90,6 +114,7 @@ Sort limitation:
 - SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
 - Window functions currently support rank-style functions only and require `OVER(... ORDER BY ...)`.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
+- `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
 - Time bucket input fields must be `java.util.Date` values.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
@@ -155,6 +180,16 @@ Window notes:
 - include `ORDER BY` inside every `OVER(...)` clause to keep ranking deterministic
 - non-unique window sort values are stabilized by original source row order
 - query-level `ORDER BY` can reference window aliases (for example `order by rn asc`)
+
+### Recipe: Top N Per Group with `QUALIFY`
+
+```java
+List<DepartmentSalaryRank> rows = PojoLens
+    .parse("select department as dept, name, salary, "
+        + "row_number() over (partition by department order by salary desc) as rn "
+        + "where active = true qualify rn <= 1 order by dept asc")
+    .filter(source, DepartmentSalaryRank.class);
+```
 
 ### Recipe: First-Class Keyset Cursor API
 
@@ -233,7 +268,7 @@ try (Stream<Employee> rows = PojoLens
 
 Streaming notes:
 - simple non-joined/non-aggregate SQL-like queries can stream rows lazily
-- complex query shapes (join/group/having/ordered windows) fall back to list-backed streams
+- complex query shapes (join/group/having/qualify/ordered windows) fall back to list-backed streams
 - `bindTyped(...).stream()` is available for bind-first SQL-like flows
 
 ### Recipe: Lint Mode
@@ -531,6 +566,7 @@ Map<String, Object> explain = PojoLens
 // where={applied=true, before=4, after=3}
 // group={applied=false, before=3, after=3}
 // having={applied=false, before=3, after=3}
+// qualify={applied=false, before=3, after=3}
 // order={applied=true, before=3, after=3}
 // limit={applied=true, before=3, after=2}
 ```

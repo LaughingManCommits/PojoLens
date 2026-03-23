@@ -13,6 +13,8 @@ public final class QueryAst {
     private final List<String> groupByFields;
     private final List<FilterAst> havingFilters;
     private final FilterExpressionAst havingExpression;
+    private final List<FilterAst> qualifyFilters;
+    private final FilterExpressionAst qualifyExpression;
     private final List<OrderAst> orders;
     private final Integer limit;
     private final String limitParameter;
@@ -29,7 +31,22 @@ public final class QueryAst {
                     List<OrderAst> orders,
                     Integer limit,
                     Integer offset) {
-        this(select, joins, filters, whereExpression, groupByFields, havingFilters, havingExpression, orders, limit, null, offset, null);
+        this(
+                select,
+                joins,
+                filters,
+                whereExpression,
+                groupByFields,
+                havingFilters,
+                havingExpression,
+                List.of(),
+                null,
+                orders,
+                limit,
+                null,
+                offset,
+                null
+        );
     }
 
     public QueryAst(SelectAst select,
@@ -44,6 +61,68 @@ public final class QueryAst {
                     String limitParameter,
                     Integer offset,
                     String offsetParameter) {
+        this(
+                select,
+                joins,
+                filters,
+                whereExpression,
+                groupByFields,
+                havingFilters,
+                havingExpression,
+                List.of(),
+                null,
+                orders,
+                limit,
+                limitParameter,
+                offset,
+                offsetParameter
+        );
+    }
+
+    public QueryAst(SelectAst select,
+                    List<JoinAst> joins,
+                    List<FilterAst> filters,
+                    FilterExpressionAst whereExpression,
+                    List<String> groupByFields,
+                    List<FilterAst> havingFilters,
+                    FilterExpressionAst havingExpression,
+                    List<FilterAst> qualifyFilters,
+                    FilterExpressionAst qualifyExpression,
+                    List<OrderAst> orders,
+                    Integer limit,
+                    Integer offset) {
+        this(
+                select,
+                joins,
+                filters,
+                whereExpression,
+                groupByFields,
+                havingFilters,
+                havingExpression,
+                qualifyFilters,
+                qualifyExpression,
+                orders,
+                limit,
+                null,
+                offset,
+                null
+        );
+    }
+
+    public QueryAst(SelectAst select,
+                    List<JoinAst> joins,
+                    List<FilterAst> filters,
+                    FilterExpressionAst whereExpression,
+                    List<String> groupByFields,
+                    List<FilterAst> havingFilters,
+                    FilterExpressionAst havingExpression,
+                    List<FilterAst> qualifyFilters,
+                    FilterExpressionAst qualifyExpression,
+                    List<OrderAst> orders,
+                    Integer limit,
+                    String limitParameter,
+                    Integer offset,
+                    String offsetParameter) {
         this.select = select;
         this.joins = List.copyOf(joins);
         this.filters = List.copyOf(filters);
@@ -51,6 +130,8 @@ public final class QueryAst {
         this.groupByFields = List.copyOf(groupByFields);
         this.havingFilters = List.copyOf(havingFilters);
         this.havingExpression = havingExpression;
+        this.qualifyFilters = List.copyOf(qualifyFilters);
+        this.qualifyExpression = qualifyExpression;
         this.orders = List.copyOf(orders);
         this.limit = limit;
         this.limitParameter = limitParameter;
@@ -92,6 +173,14 @@ public final class QueryAst {
         return havingExpression;
     }
 
+    public List<FilterAst> qualifyFilters() {
+        return qualifyFilters;
+    }
+
+    public FilterExpressionAst qualifyExpression() {
+        return qualifyExpression;
+    }
+
     public List<OrderAst> orders() {
         return orders;
     }
@@ -118,6 +207,10 @@ public final class QueryAst {
 
     public boolean hasOffsetClause() {
         return offset != null || offsetParameter != null;
+    }
+
+    public boolean hasQualifyClause() {
+        return qualifyExpression != null || !qualifyFilters.isEmpty();
     }
 
     public boolean hasJoins() {

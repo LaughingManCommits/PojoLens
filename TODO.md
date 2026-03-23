@@ -30,15 +30,15 @@ Spike goal:
 - Add `QUALIFY` so callers can filter rows based on computed window values.
 
 Spike steps:
-1. [ ] Extend grammar with `QUALIFY` and add AST model.
-2. [ ] Enforce clause ordering (`WHERE` -> window compute -> `QUALIFY` -> `ORDER/LIMIT/OFFSET`).
-3. [ ] Support predicates against window aliases and direct window expressions.
-4. [ ] Add explain metadata for qualify-stage row counts.
+1. [x] Extend grammar with `QUALIFY` and add AST model.
+2. [x] Enforce clause ordering (`WHERE` -> window compute -> `QUALIFY` -> `ORDER/LIMIT/OFFSET`).
+3. [x] Support predicates against window aliases and direct window expressions.
+4. [x] Add explain metadata for qualify-stage row counts.
 
 Acceptance criteria:
-- Query pattern `... ROW_NUMBER() ... QUALIFY rn <= N` works end-to-end.
-- Invalid clause ordering or unknown aliases return clear SQL-like errors.
-- Explain includes a `qualify` stage when present.
+- [x] Query pattern `... ROW_NUMBER() ... QUALIFY rn <= N` works end-to-end.
+- [x] Invalid clause ordering or unknown aliases return clear SQL-like errors.
+- [x] Explain includes a `qualify` stage when present.
 
 ### 3) Aggregate Windows (Phase 2)
 

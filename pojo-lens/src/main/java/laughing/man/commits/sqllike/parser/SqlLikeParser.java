@@ -42,7 +42,7 @@ public final class SqlLikeParser {
     private static final Set<String> KEYWORDS = Set.of(
             "SELECT", "FROM", "WHERE", "ORDER", "BY", "LIMIT", "OFFSET", "ASC", "DESC",
             "AND", "OR", "TRUE", "FALSE", "NULL", "CONTAINS", "MATCHES", "IN", "AS",
-            "GROUP", "HAVING", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
+            "GROUP", "HAVING", "QUALIFY", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
             "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET",
             "OVER", "PARTITION"
     );
@@ -86,6 +86,8 @@ public final class SqlLikeParser {
         List<String> groupByFields = new ArrayList<>();
         List<FilterAst> havingFilters = new ArrayList<>();
         FilterExpressionAst havingExpression = null;
+        List<FilterAst> qualifyFilters = new ArrayList<>();
+        FilterExpressionAst qualifyExpression = null;
         List<OrderAst> orders = new ArrayList<>();
         Integer limit = null;
         String limitParameter = null;
@@ -120,6 +122,12 @@ public final class SqlLikeParser {
             havingFilters = flattenExpression(havingExpression);
             exitClause();
         }
+        if (matchKeyword("QUALIFY")) {
+            enterClause("QUALIFY", tokens.get(index - 1).position);
+            qualifyExpression = parseBooleanExpression(false, "QUALIFY");
+            qualifyFilters = flattenExpression(qualifyExpression);
+            exitClause();
+        }
         if (matchKeyword("ORDER")) {
             enterClause("ORDER BY", tokens.get(index - 1).position);
             expectKeyword("BY");
@@ -151,7 +159,7 @@ public final class SqlLikeParser {
         if (extra.type != TokenType.EOF) {
             enterClause("QUERY", extra.position);
             if (isKeyword(extra, "JOIN")) {
-                throw error("JOIN must appear after FROM and before WHERE/ORDER/LIMIT/OFFSET", extra.position);
+                throw error("JOIN must appear after FROM and before WHERE/QUALIFY/ORDER/LIMIT/OFFSET", extra.position);
             }
             throw error("Unexpected token '" + extra.text + "'", extra.position);
         }
@@ -164,6 +172,8 @@ public final class SqlLikeParser {
                 groupByFields,
                 havingFilters,
                 havingExpression,
+                qualifyFilters,
+                qualifyExpression,
                 orders,
                 limit,
                 limitParameter,
@@ -745,6 +755,7 @@ public final class SqlLikeParser {
                 || "WHERE".equalsIgnoreCase(value)
                 || "GROUP".equalsIgnoreCase(value)
                 || "HAVING".equalsIgnoreCase(value)
+                || "QUALIFY".equalsIgnoreCase(value)
                 || "ORDER".equalsIgnoreCase(value)
                 || "LIMIT".equalsIgnoreCase(value)
                 || "OFFSET".equalsIgnoreCase(value);

@@ -198,6 +198,30 @@ public class SqlLikeDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipeQualifyTopPerDepartmentShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Engineering", 120000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Finance", 100000, now, true),
+                new Employee(5, "Erin", "Finance", 110000, now, true)
+        );
+
+        List<DepartmentSalaryRank> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 order by dept asc")
+                .filter(source, DepartmentSalaryRank.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals("Finance", rows.get(1).dept);
+        assertEquals("Erin", rows.get(1).name);
+    }
+
+    @Test
     public void readmeSqlLikeParameterizedExampleShouldWork() {
         Date now = new Date();
         List<Employee> source = Arrays.asList(

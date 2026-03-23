@@ -87,9 +87,13 @@ public final class SqlLikeJoinResolution {
                 canonicalizeGroupBy(ast.groupByFields(), plan),
                 canonicalizeFilters(ast.havingFilters(), plan, "HAVING"),
                 canonicalizeExpression(ast.havingExpression(), plan, "HAVING"),
+                canonicalizeFilters(ast.qualifyFilters(), plan, "QUALIFY"),
+                canonicalizeExpression(ast.qualifyExpression(), plan, "QUALIFY"),
                 canonicalizeOrders(ast.orders(), plan),
                 ast.limit(),
-                ast.offset()
+                ast.limitParameter(),
+                ast.offset(),
+                ast.offsetParameter()
         );
     }
 
@@ -169,7 +173,9 @@ public final class SqlLikeJoinResolution {
     private static List<FilterAst> canonicalizeFilters(List<FilterAst> filters, Plan plan, String clauseName) {
         ArrayList<FilterAst> resolved = new ArrayList<>(filters.size());
         for (FilterAst filter : filters) {
-            String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
+            String field = isWindowExpressionReference(filter.field())
+                    ? filter.field()
+                    : SqlExpressionEvaluator.looksLikeExpression(filter.field())
                     ? rewriteExpression(filter.field(), plan, clauseName)
                     : plan.resolveOrSame(filter.field(), clauseName);
             Object value = filter.value();
@@ -187,7 +193,9 @@ public final class SqlLikeJoinResolution {
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
             FilterAst filter = predicateAst.filter();
-            String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
+            String field = isWindowExpressionReference(filter.field())
+                    ? filter.field()
+                    : SqlExpressionEvaluator.looksLikeExpression(filter.field())
                     ? rewriteExpression(filter.field(), plan, clauseName)
                     : plan.resolveOrSame(filter.field(), clauseName);
             Object value = filter.value();
@@ -222,6 +230,14 @@ public final class SqlLikeJoinResolution {
 
     private static String rewriteExpression(String expression, Plan plan, String clauseName) {
         return SqlExpressionEvaluator.rewriteIdentifiers(expression, identifier -> plan.resolveOrSame(identifier, clauseName));
+    }
+
+    private static boolean isWindowExpressionReference(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.toLowerCase();
+        return normalized.contains(" over(") || normalized.contains(" over (");
     }
 
     private static String normalizeChildReference(String childSource, String childField) {

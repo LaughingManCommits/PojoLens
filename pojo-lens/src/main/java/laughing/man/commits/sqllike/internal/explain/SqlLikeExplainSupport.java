@@ -49,6 +49,7 @@ public final class SqlLikeExplainSupport {
         explain.put("hasJoin", ast.hasJoins());
         explain.put("whereRuleCount", ast.filters().size());
         explain.put("havingRuleCount", ast.havingFilters().size());
+        explain.put("qualifyRuleCount", ast.qualifyFilters().size());
         explain.put("groupBy", new ArrayList<>(ast.groupByFields()));
         explain.put("orderBy", orderEntries(ast));
         explain.put("resolvedSortDirection", resolvedSortDirection(ast));
@@ -117,6 +118,7 @@ public final class SqlLikeExplainSupport {
         TreeMap<String, Map<String, Object>> snapshot = new TreeMap<>();
         collectParameterSnapshots(ast.filters(), snapshot);
         collectParameterSnapshots(ast.havingFilters(), snapshot);
+        collectParameterSnapshots(ast.qualifyFilters(), snapshot);
         collectPaginationParameterSnapshots(ast, snapshot);
         return Collections.unmodifiableMap(new LinkedHashMap<>(snapshot));
     }

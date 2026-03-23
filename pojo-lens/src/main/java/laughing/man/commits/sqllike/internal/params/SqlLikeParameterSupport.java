@@ -51,6 +51,8 @@ public final class SqlLikeParameterSupport {
         FilterExpressionAst resolvedWhere = resolveExpression(ast.whereExpression(), normalized);
         List<FilterAst> resolvedHaving = resolveFilters(ast.havingFilters(), normalized);
         FilterExpressionAst resolvedHavingExpr = resolveExpression(ast.havingExpression(), normalized);
+        List<FilterAst> resolvedQualify = resolveFilters(ast.qualifyFilters(), normalized);
+        FilterExpressionAst resolvedQualifyExpr = resolveExpression(ast.qualifyExpression(), normalized);
         Integer resolvedLimit = resolvePagination(ast.limit(), ast.limitParameter(), "LIMIT", normalized);
         Integer resolvedOffset = resolvePagination(ast.offset(), ast.offsetParameter(), "OFFSET", normalized);
 
@@ -62,6 +64,8 @@ public final class SqlLikeParameterSupport {
                 ast.groupByFields(),
                 resolvedHaving,
                 resolvedHavingExpr,
+                resolvedQualify,
+                resolvedQualifyExpr,
                 ast.orders(),
                 resolvedLimit,
                 resolvedOffset
@@ -103,8 +107,10 @@ public final class SqlLikeParameterSupport {
         LinkedHashSet<String> names = new LinkedHashSet<>();
         collectParameterNames(ast.filters(), names);
         collectParameterNames(ast.havingFilters(), names);
+        collectParameterNames(ast.qualifyFilters(), names);
         collectParameterNames(ast.whereExpression(), names);
         collectParameterNames(ast.havingExpression(), names);
+        collectParameterNames(ast.qualifyExpression(), names);
         if (ast.limitParameter() != null) {
             names.add(ast.limitParameter());
         }

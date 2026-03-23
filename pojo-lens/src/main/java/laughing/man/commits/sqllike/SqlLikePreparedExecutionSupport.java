@@ -126,6 +126,7 @@ final class SqlLikePreparedExecutionSupport {
                 SqlLikeBinder.resolveSort(normalizedAst),
                 normalizedAst.hasJoins(),
                 normalizedAst.select(),
+                normalizedAst,
                 rawExecutionPlanCacheKey
         );
     }
@@ -171,7 +172,14 @@ final class SqlLikePreparedExecutionSupport {
                 return true;
             }
         }
-        return containsSubquery(ast.whereExpression()) || containsSubquery(ast.havingExpression());
+        for (FilterAst filter : ast.qualifyFilters()) {
+            if (filter.value() instanceof SubqueryValueAst) {
+                return true;
+            }
+        }
+        return containsSubquery(ast.whereExpression())
+                || containsSubquery(ast.havingExpression())
+                || containsSubquery(ast.qualifyExpression());
     }
 
     private static boolean containsSubquery(FilterExpressionAst expression) {
@@ -218,6 +226,10 @@ final class SqlLikePreparedExecutionSupport {
 
         SelectAst select() {
             return prepared.select();
+        }
+
+        QueryAst ast() {
+            return prepared.ast();
         }
 
         FilterExecutionPlan resolveRawExecutionPlan(FilterCore core, FilterQueryBuilder builder) {
@@ -286,6 +298,7 @@ final class SqlLikePreparedExecutionSupport {
         private final Sort sort;
         private final boolean applyJoin;
         private final SelectAst select;
+        private final QueryAst ast;
         private final FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
 
         PreparedExecution(FilterQueryBuilder templateBuilder,
@@ -293,12 +306,14 @@ final class SqlLikePreparedExecutionSupport {
                           Sort sort,
                           boolean applyJoin,
                           SelectAst select,
+                          QueryAst ast,
                           FilterExecutionPlanCacheKey rawExecutionPlanCacheKey) {
             this.templateBuilder = templateBuilder;
             this.joinSourceNames = joinSourceNames;
             this.sort = sort;
             this.applyJoin = applyJoin;
             this.select = select;
+            this.ast = ast;
             this.rawExecutionPlanCacheKey = rawExecutionPlanCacheKey;
         }
 
@@ -342,6 +357,10 @@ final class SqlLikePreparedExecutionSupport {
 
         SelectAst select() {
             return select;
+        }
+
+        QueryAst ast() {
+            return ast;
         }
 
         FilterExecutionPlanCacheKey rawExecutionPlanCacheKey() {

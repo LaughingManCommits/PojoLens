@@ -116,6 +116,19 @@ public class SqlLikeParserTest {
     }
 
     @Test
+    public void shouldParseQualifyClauseWithWindowAliasPredicate() {
+        QueryAst ast = SqlLikeParser.parse(
+                "select department, row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 2 order by rn asc");
+
+        assertNotNull(ast.qualifyExpression());
+        assertEquals(1, ast.qualifyFilters().size());
+        assertEquals("rn", ast.qualifyFilters().get(0).field());
+        assertEquals(Clauses.SMALLER_EQUAL, ast.qualifyFilters().get(0).clause());
+        assertEquals(2, ast.qualifyFilters().get(0).value());
+    }
+
+    @Test
     public void shouldRejectWindowSelectFieldWithoutAlias() {
         try {
             SqlLikeParser.parse("select row_number() over (order by salary desc) where salary > 0");
@@ -298,6 +311,13 @@ public class SqlLikeParserTest {
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unexpected token 'having'"));
+        }
+
+        try {
+            SqlLikeParser.parse("select department, row_number() over (order by salary desc) as rn order by rn asc qualify rn <= 1");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unexpected token 'qualify'"));
         }
     }
 

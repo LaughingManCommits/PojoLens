@@ -32,6 +32,11 @@ final class SqlLikeParameterTypeValidator {
         for (FilterAst filter : ast.havingFilters()) {
             validateParameterFilterType(filter, "HAVING", resolveHavingExpectedType(filter, havingFieldTypes, sourceFieldTypes));
         }
+
+        Map<String, Class<?>> qualifyFieldTypes = resolveQualifyFieldTypes(ast);
+        for (FilterAst filter : ast.qualifyFilters()) {
+            validateParameterFilterType(filter, "QUALIFY", resolveQualifyExpectedType(filter, qualifyFieldTypes));
+        }
     }
 
     private static Class<?> resolveWhereExpectedType(FilterAst filter, Map<String, Class<?>> queryableFieldTypes) {
@@ -108,6 +113,28 @@ final class SqlLikeParameterTypeValidator {
             return metricOutputType(expression.metric(), fieldType);
         }
         return null;
+    }
+
+    private static Map<String, Class<?>> resolveQualifyFieldTypes(QueryAst ast) {
+        LinkedHashMap<String, Class<?>> qualifyFieldTypes = new LinkedHashMap<>();
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard()) {
+            return qualifyFieldTypes;
+        }
+        for (SelectFieldAst field : select.fields()) {
+            if (!field.windowField()) {
+                continue;
+            }
+            qualifyFieldTypes.put(field.outputName(), Long.class);
+        }
+        return qualifyFieldTypes;
+    }
+
+    private static Class<?> resolveQualifyExpectedType(FilterAst filter, Map<String, Class<?>> qualifyFieldTypes) {
+        if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
+            return Number.class;
+        }
+        return qualifyFieldTypes.get(filter.field());
     }
 
     private static Class<?> metricOutputType(Metric metric, Class<?> fieldType) {

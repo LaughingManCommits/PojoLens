@@ -162,6 +162,23 @@ public class ExplainToolingTest {
     }
 
     @Test
+    public void sqlLikeExecutionExplainShouldIncludeQualifyStageCounts() {
+        Map<String, Object> explain = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 order by dept asc")
+                .explain(sampleEmployees(), RankedEmployee.class);
+
+        Map<String, Object> stageCounts = stageCounts(explain);
+        assertStage(stageCounts, "where", true, 4, 3);
+        assertStage(stageCounts, "group", false, 3, 3);
+        assertStage(stageCounts, "having", false, 3, 3);
+        assertStage(stageCounts, "qualify", true, 3, 2);
+        assertStage(stageCounts, "order", true, 2, 2);
+        assertStage(stageCounts, "limit", false, 2, 2);
+    }
+
+    @Test
     public void explainShouldSurfaceConfiguredComputedFields() {
         ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
                 .add("adjustedSalary", "salary * 1.1", Double.class)
@@ -228,6 +245,16 @@ public class ExplainToolingTest {
         assertEquals(expectedApplied, stage.get("applied"));
         assertEquals(expectedBefore, ((Number) stage.get("before")).intValue());
         assertEquals(expectedAfter, ((Number) stage.get("after")).intValue());
+    }
+
+    public static class RankedEmployee {
+        public String dept;
+        public String name;
+        public int salary;
+        public long rn;
+
+        public RankedEmployee() {
+        }
     }
 }
 

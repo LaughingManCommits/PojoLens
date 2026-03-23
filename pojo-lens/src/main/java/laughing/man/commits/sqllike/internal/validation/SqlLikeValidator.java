@@ -52,6 +52,7 @@ public final class SqlLikeValidator {
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
         normalizedAst = normalizeAggregationAliases(normalizedAst);
+        normalizedAst = normalizeQualifyWindowReferences(normalizedAst);
         Map<String, Class<?>> queryableFieldTypes = joinPlan.isEmpty()
                 ? ComputedFieldSupport.augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
                 : ComputedFieldSupport.augmentFieldTypes(joinPlan.mergedFieldTypes(), computedFieldRegistry);
@@ -61,6 +62,7 @@ public final class SqlLikeValidator {
         validateSelect(normalizedAst, queryableSourceFields, queryableFieldTypes, projectionFields);
         validateFilters(normalizedAst.filters(), queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
         validateHaving(normalizedAst, queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
+        validateQualify(normalizedAst, queryableSourceFields);
         validateOrders(normalizedAst, resolveAllowedOrderFields(normalizedAst, queryableSourceFields), queryableSourceFields);
         if (strictParameterTypes) {
             SqlLikeParameterTypeValidator.validate(normalizedAst, queryableFieldTypes, sourceFieldTypes);
@@ -241,6 +243,42 @@ public final class SqlLikeValidator {
             }
             throw validation(SqlLikeErrorCodes.VALIDATION_HAVING_REFERENCE,
                     "Unknown HAVING reference '" + reference + "'");
+        }
+    }
+
+    private static void validateQualify(QueryAst ast, Set<String> sourceFields) {
+        if (!ast.hasQualifyClause()) {
+            return;
+        }
+        if (ast.hasAggregation() || !ast.groupByFields().isEmpty()) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "QUALIFY is only supported for non-aggregate SQL-like queries");
+        }
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard() || !select.hasWindowFields()) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "QUALIFY requires at least one window SELECT output");
+        }
+        LinkedHashSet<String> qualifyOutputs = new LinkedHashSet<>();
+        for (SelectFieldAst field : select.fields()) {
+            if (field.windowField()) {
+                qualifyOutputs.add(field.outputName());
+            }
+        }
+        for (FilterAst filter : ast.qualifyFilters()) {
+            if (filter.value() instanceof SubqueryValueAst) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                        "Subqueries are only supported in WHERE IN (...) filters");
+            }
+            if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
+                ensureExpressionClauseSupported(filter, "QUALIFY");
+                validateExpressionIdentifiers(filter.field(), qualifyOutputs, "QUALIFY");
+                continue;
+            }
+            if (!qualifyOutputs.contains(filter.field())) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
+                        formatUnknownFieldMessage(filter.field(), qualifyOutputs, "QUALIFY"));
+            }
         }
     }
 
@@ -451,9 +489,74 @@ public final class SqlLikeValidator {
                 normalizedGroups,
                 normalizedHaving,
                 normalizedHavingExpression,
+                ast.qualifyFilters(),
+                ast.qualifyExpression(),
                 normalizedOrders,
                 ast.limit(),
-                ast.offset()
+                ast.limitParameter(),
+                ast.offset(),
+                ast.offsetParameter()
+        );
+    }
+
+    private static QueryAst normalizeQualifyWindowReferences(QueryAst ast) {
+        if (!ast.hasQualifyClause()) {
+            return ast;
+        }
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard()) {
+            return ast;
+        }
+        LinkedHashMap<String, String> windowAliases = new LinkedHashMap<>();
+        for (SelectFieldAst field : select.fields()) {
+            if (!field.windowField()) {
+                continue;
+            }
+            windowAliases.put(canonicalWindowExpression(field.field()), field.outputName());
+        }
+        if (windowAliases.isEmpty()) {
+            return ast;
+        }
+        ArrayList<FilterAst> normalizedQualify = new ArrayList<>(ast.qualifyFilters().size());
+        for (FilterAst filter : ast.qualifyFilters()) {
+            String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
+            normalizedQualify.add(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
+        }
+        FilterExpressionAst normalizedQualifyExpression =
+                normalizeWindowAliasExpression(ast.qualifyExpression(), windowAliases);
+        return new QueryAst(
+                ast.select(),
+                ast.joins(),
+                ast.filters(),
+                ast.whereExpression(),
+                ast.groupByFields(),
+                ast.havingFilters(),
+                ast.havingExpression(),
+                normalizedQualify,
+                normalizedQualifyExpression,
+                ast.orders(),
+                ast.limit(),
+                ast.limitParameter(),
+                ast.offset(),
+                ast.offsetParameter()
+        );
+    }
+
+    private static FilterExpressionAst normalizeWindowAliasExpression(FilterExpressionAst expression,
+                                                                     Map<String, String> windowAliases) {
+        if (expression == null || windowAliases.isEmpty()) {
+            return expression;
+        }
+        if (expression instanceof FilterPredicateAst predicateAst) {
+            FilterAst filter = predicateAst.filter();
+            String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
+            return new FilterPredicateAst(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
+        }
+        FilterBinaryAst binary = (FilterBinaryAst) expression;
+        return new FilterBinaryAst(
+                normalizeWindowAliasExpression(binary.left(), windowAliases),
+                normalizeWindowAliasExpression(binary.right(), windowAliases),
+                binary.operator()
         );
     }
 
@@ -583,6 +686,13 @@ public final class SqlLikeValidator {
 
     private static String normalizeIdentifier(String value) {
         return value.toLowerCase(Locale.ROOT);
+    }
+
+    private static String canonicalWindowExpression(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
     private static int levenshteinDistance(String left, String right) {

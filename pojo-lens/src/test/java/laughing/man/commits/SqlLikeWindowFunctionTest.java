@@ -114,6 +114,75 @@ public class SqlLikeWindowFunctionTest {
         }
     }
 
+    @Test
+    public void qualifyShouldFilterByWindowAlias() {
+        List<WindowEmployee> source = Arrays.asList(
+                new WindowEmployee(1, "Alice", "Engineering", 120000, true),
+                new WindowEmployee(2, "Bob", "Engineering", 120000, true),
+                new WindowEmployee(3, "Cara", "Engineering", 130000, true),
+                new WindowEmployee(4, "Dan", "Finance", 110000, true),
+                new WindowEmployee(5, "Erin", "Finance", 100000, true)
+        );
+
+        List<WindowRowNumberProjection> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 order by dept asc")
+                .filter(source, WindowRowNumberProjection.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(1L, rows.get(0).rn);
+        assertEquals("Finance", rows.get(1).dept);
+        assertEquals("Dan", rows.get(1).name);
+        assertEquals(1L, rows.get(1).rn);
+    }
+
+    @Test
+    public void qualifyShouldSupportDirectWindowExpressionReference() {
+        List<WindowEmployee> source = Arrays.asList(
+                new WindowEmployee(1, "Alice", "Engineering", 120000, true),
+                new WindowEmployee(2, "Bob", "Engineering", 120000, true),
+                new WindowEmployee(3, "Cara", "Engineering", 130000, true),
+                new WindowEmployee(4, "Dan", "Finance", 110000, true),
+                new WindowEmployee(5, "Erin", "Finance", 100000, true)
+        );
+
+        List<WindowRowNumberProjection> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true "
+                        + "qualify row_number() over (partition by department order by salary desc) <= 1 "
+                        + "order by dept asc")
+                .filter(source, WindowRowNumberProjection.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals("Finance", rows.get(1).dept);
+        assertEquals("Dan", rows.get(1).name);
+    }
+
+    @Test
+    public void qualifyShouldRejectUnknownReference() {
+        List<WindowEmployee> source = Arrays.asList(
+                new WindowEmployee(1, "Alice", "Engineering", 120000, true),
+                new WindowEmployee(2, "Bob", "Engineering", 120000, true)
+        );
+
+        try {
+            PojoLens
+                    .parse("select department as dept, name, salary, "
+                            + "row_number() over (partition by department order by salary desc) as rn "
+                            + "where active = true qualify missingRank <= 1")
+                    .filter(source, WindowRowNumberProjection.class);
+            fail("Expected validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field 'missingRank' in QUALIFY clause"));
+        }
+    }
+
     public static class WindowEmployee {
         public int id;
         public String name;

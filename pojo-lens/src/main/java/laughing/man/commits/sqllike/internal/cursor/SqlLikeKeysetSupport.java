@@ -90,6 +90,8 @@ public final class SqlLikeKeysetSupport {
                 ast.groupByFields(),
                 ast.havingFilters(),
                 ast.havingExpression(),
+                ast.qualifyFilters(),
+                ast.qualifyExpression(),
                 ast.orders(),
                 ast.limit(),
                 ast.limitParameter(),
@@ -167,4 +169,3 @@ public final class SqlLikeKeysetSupport {
         BEFORE
     }
 }
-
