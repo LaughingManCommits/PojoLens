@@ -1,11 +1,14 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.builder.QueryRule;
+import laughing.man.commits.builder.QueryWindow;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
@@ -16,8 +19,6 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
-import laughing.man.commits.sqllike.internal.qualify.SqlLikeQualifySupport;
-import laughing.man.commits.sqllike.internal.window.SqlLikeWindowSupport;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
@@ -154,7 +155,6 @@ final class SqlLikeExecutionFlowSupport {
 
     static Map<String, Object> buildStageRowCounts(ExecutionContext context) {
         FilterQueryBuilder working = context.newRun().builder();
-        QueryAst ast = context.ast();
         FilterCore core = new FilterCore(working);
         if (context.applyJoin()) {
             working.setRows(core.join(working.getRows()));
@@ -164,7 +164,7 @@ final class SqlLikeExecutionFlowSupport {
         boolean whereApplied = hasWherePredicates(working);
         boolean groupApplied = !working.getMetrics().isEmpty();
         boolean havingApplied = hasHavingPredicates(working);
-        boolean qualifyApplied = ast != null && ast.hasQualifyClause();
+        boolean qualifyApplied = hasQualifyPredicates(working);
         boolean orderApplied = !working.getOrderFields().isEmpty();
         boolean limitApplied = working.getLimit() != null || (working.getOffset() != null && working.getOffset() > 0);
         Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
@@ -213,16 +213,7 @@ final class SqlLikeExecutionFlowSupport {
             beforeQualify = afterHaving;
             List<QueryRow> qualifyRows = havingRows;
             if (qualifyApplied) {
-                List<QueryRow> qualifySource =
-                        ast.select() != null && ast.select().hasWindowFields()
-                                ? SqlLikeWindowSupport.applyWindowFunctions(havingRows, ast.select())
-                                : havingRows;
-                beforeQualify = sizeOf(qualifySource);
-                qualifyRows = SqlLikeQualifySupport.apply(
-                        qualifySource,
-                        ast.qualifyExpression(),
-                        ast.qualifyFilters()
-                );
+                qualifyRows = applyQualifyStageViaFluent(working, havingRows);
             }
             afterQualify = sizeOf(qualifyRows);
 
@@ -297,6 +288,44 @@ final class SqlLikeExecutionFlowSupport {
         return !builder.getHavingFields().isEmpty()
                 || !builder.getHavingAllOfGroups().isEmpty()
                 || !builder.getHavingAnyOfGroups().isEmpty();
+    }
+
+    private static boolean hasQualifyPredicates(FilterQueryBuilder builder) {
+        return !builder.getQualifyFields().isEmpty()
+                || !builder.getQualifyAllOfGroups().isEmpty()
+                || !builder.getQualifyAnyOfGroups().isEmpty();
+    }
+
+    private static List<QueryRow> applyQualifyStageViaFluent(FilterQueryBuilder sourceBuilder, List<QueryRow> inputRows) {
+        if (inputRows == null || inputRows.isEmpty()) {
+            return inputRows;
+        }
+        FilterQueryBuilder qualifyBuilder = new FilterQueryBuilder(inputRows).copyOnBuild(false);
+        for (QueryWindow window : sourceBuilder.getWindows()) {
+            qualifyBuilder.addWindow(
+                    window.alias(),
+                    window.function(),
+                    window.partitionFields(),
+                    window.orderFields()
+            );
+        }
+        for (Map.Entry<String, String> fieldEntry : sourceBuilder.getQualifyFields().entrySet()) {
+            String ruleId = fieldEntry.getKey();
+            qualifyBuilder.addQualify(
+                    fieldEntry.getValue(),
+                    sourceBuilder.getQualifyValues().get(ruleId),
+                    sourceBuilder.getQualifyClause().get(ruleId),
+                    sourceBuilder.getQualifySeparator().getOrDefault(ruleId, Separator.AND),
+                    sourceBuilder.getQualifyDateFormats().get(ruleId)
+            );
+        }
+        for (List<QueryRule> group : sourceBuilder.getQualifyAllOfGroups()) {
+            qualifyBuilder.addQualifyAllOf(group.toArray(new QueryRule[0]));
+        }
+        for (List<QueryRule> group : sourceBuilder.getQualifyAnyOfGroups()) {
+            qualifyBuilder.addQualifyAnyOf(group.toArray(new QueryRule[0]));
+        }
+        return qualifyBuilder.initFilter().filter(QueryRow.class);
     }
 
     private static int sizeOf(List<?> rows) {

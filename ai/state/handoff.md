@@ -33,8 +33,9 @@
   - `SqlLikeBinder` now translates SQL window definitions into fluent `addWindow(...)` entries.
   - `SqlLikeBinder` now translates `QUALIFY` predicates/boolean expressions into fluent qualify rules/groups (`addQualify(...)`, `addQualifyAllOf(...)`).
   - SQL-like raw-row execution now delegates to fluent filter execution (`FilterImpl`) instead of a separate SQL-like window/qualify branch.
+  - SQL-like explain stage-row-count path now also applies qualify/window through fluent execution (staged fluent builder), so stage counts no longer rely on SQL-like-specific window/qualify runtime helpers.
   - `ReflectionUtil.toClassList(QueryRow.class, ...)` now returns row passthrough to support internal fluent raw-row delegation.
-  - residual duplication is now limited to explain stage-row-count simulation (`SqlLikeExecutionFlowSupport.buildStageRowCounts`) which still uses SQL-like window/qualify helpers.
+  - removed dead SQL-like helper classes `SqlLikeWindowSupport` and `SqlLikeQualifySupport`.
 - Spike 1 (pagination) is completed:
   - `OFFSET` is implemented in fluent + SQL-like flows.
   - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
