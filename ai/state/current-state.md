@@ -12,6 +12,14 @@
 
 ## Latest Validation
 
+- `2026-03-23`: SQL-like window/qualify execution now compiles through fluent path and passed:
+  - SQL-like binder now maps window select outputs to fluent `addWindow(...)` and maps `QUALIFY` predicates/boolean groups to fluent `addQualify(...)`/`addQualifyAllOf(...)`.
+  - SQL-like raw-row execution now delegates to fluent filter execution (`FilterImpl`) instead of maintaining a separate SQL-like window/qualify runtime branch.
+  - `ReflectionUtil.toClassList(...)` now supports direct `QueryRow` projection passthrough, allowing SQL-like internals to consume fluent raw rows safely.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-23`: Fluent window/qualify parity passed:
   - fluent `QueryBuilder` now supports rank window outputs (`ROW_NUMBER`, `RANK`, `DENSE_RANK`) and `QUALIFY` predicates via new fluent APIs.
   - fluent execution now applies window computation then qualify filtering for non-aggregate query shapes, aligning with SQL-like stage semantics.
@@ -145,6 +153,8 @@
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
   - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
   - Added fluent<->SQL-like parity coverage for `ROW_NUMBER ... QUALIFY` and fluent-specific behavior tests.
+  - SQL-like binder now compiles window/qualify configuration into fluent query-builder state, and SQL-like raw execution now runs through fluent `FilterImpl` flow.
+  - SQL-like-specific window/qualify helpers remain only in explain stage-row-count simulation (`stageRowCounts.qualify`) and are no longer used by the normal filter/stream/chart runtime path.
 - Pagination spike 1 completed:
   - Fluent + SQL-like `OFFSET` implemented.
   - SQL-like pagination now supports named parameters in `LIMIT/OFFSET` with integer/non-negative validation.

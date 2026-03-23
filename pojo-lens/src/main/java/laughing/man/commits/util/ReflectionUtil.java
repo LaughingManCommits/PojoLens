@@ -54,6 +54,15 @@ public final class ReflectionUtil {
         if (classes == null || classes.isEmpty()) {
             return new ArrayList<>(0);
         }
+        if (QueryRow.class.isAssignableFrom(cls)) {
+            List<T> rows = new ArrayList<>(classes.size());
+            for (QueryRow row : classes) {
+                if (row != null && cls.isInstance(row)) {
+                    rows.add(cls.cast(row));
+                }
+            }
+            return rows;
+        }
 
         List<T> result = new ArrayList<>(classes.size());
 

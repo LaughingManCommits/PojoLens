@@ -4,8 +4,10 @@ import laughing.man.commits.PojoLens;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -30,6 +32,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -123,6 +126,12 @@ public final class SqlLikeBinder {
         } else {
             applyLegacyHavingFilters(builder, normalizedAst.havingFilters(), aggregateExpressionOutputs, hiddenHavingAliases, pojos, joinSources, computedFieldRegistry);
         }
+        applyWindowDefinitions(builder, select);
+        if (normalizedAst.qualifyExpression() != null) {
+            applyQualifyExpression(builder, normalizedAst.qualifyExpression(), pojos, joinSources, computedFieldRegistry);
+        } else {
+            applyLegacyQualifyFilters(builder, normalizedAst.qualifyFilters(), pojos, joinSources, computedFieldRegistry);
+        }
 
         int orderIndex = 1;
         for (OrderAst order : normalizedAst.orders()) {
@@ -213,6 +222,46 @@ public final class SqlLikeBinder {
         }
     }
 
+    private static void applyWindowDefinitions(QueryBuilder builder, SelectAst select) {
+        if (select == null || select.wildcard()) {
+            return;
+        }
+        for (SelectFieldAst field : select.fields()) {
+            if (!field.windowField()) {
+                continue;
+            }
+            builder.addWindow(
+                    field.outputName(),
+                    resolveWindowFunction(field.windowFunction()),
+                    field.windowPartitionFields(),
+                    toWindowOrderFields(field.windowOrderFields())
+            );
+        }
+    }
+
+    private static WindowFunction resolveWindowFunction(String function) {
+        if (function == null) {
+            throw new IllegalArgumentException("Window function is required");
+        }
+        return switch (function.trim().toUpperCase(Locale.ROOT)) {
+            case "ROW_NUMBER" -> WindowFunction.ROW_NUMBER;
+            case "RANK" -> WindowFunction.RANK;
+            case "DENSE_RANK" -> WindowFunction.DENSE_RANK;
+            default -> throw new IllegalArgumentException("Unsupported window function '" + function + "'");
+        };
+    }
+
+    private static List<QueryWindowOrder> toWindowOrderFields(List<OrderAst> orders) {
+        if (orders == null || orders.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<QueryWindowOrder> orderFields = new ArrayList<>(orders.size());
+        for (OrderAst order : orders) {
+            orderFields.add(QueryWindowOrder.of(order.field(), order.sort()));
+        }
+        return List.copyOf(orderFields);
+    }
+
     private static void applyHavingExpression(QueryBuilder builder,
                                               FilterExpressionAst expression,
                                               Map<String, String> aggregateExpressionOutputs,
@@ -243,6 +292,48 @@ public final class SqlLikeBinder {
                 rules[i] = QueryRule.of(resolved.field(), resolveValue(resolved.value(), pojos, joinSources, computedFieldRegistry), resolved.clause());
             }
             builder.addHavingAllOf(rules);
+        }
+    }
+
+    private static void applyLegacyQualifyFilters(QueryBuilder builder,
+                                                  List<FilterAst> filters,
+                                                  List<?> pojos,
+                                                  Map<String, List<?>> joinSources,
+                                                  ComputedFieldRegistry computedFieldRegistry) {
+        for (FilterAst filter : filters) {
+            Separator separator = filter.separator() == null
+                    ? Separator.AND
+                    : filter.separator();
+            builder.addQualify(
+                    filter.field(),
+                    resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                    filter.clause(),
+                    separator
+            );
+        }
+    }
+
+    private static void applyQualifyExpression(QueryBuilder builder,
+                                               FilterExpressionAst expression,
+                                               List<?> pojos,
+                                               Map<String, List<?>> joinSources,
+                                               ComputedFieldRegistry computedFieldRegistry) {
+        if (expression instanceof FilterPredicateAst) {
+            FilterAst filter = ((FilterPredicateAst) expression).filter();
+            if (!SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
+                builder.addQualify(
+                        filter.field(),
+                        resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                        filter.clause(),
+                        Separator.AND
+                );
+                return;
+            }
+        }
+        List<List<FilterAst>> groups = BooleanExpressionNormalizer.toDnf(expression, MAX_BOOLEAN_DNF_GROUPS);
+        for (List<FilterAst> group : groups) {
+            QueryRule[] rules = toQueryRules(group, pojos, joinSources, computedFieldRegistry);
+            builder.addQualifyAllOf(rules);
         }
     }
 

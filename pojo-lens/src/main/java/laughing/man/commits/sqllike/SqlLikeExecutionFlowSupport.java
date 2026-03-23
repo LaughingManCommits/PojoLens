@@ -52,11 +52,11 @@ final class SqlLikeExecutionFlowSupport {
                         select
                 );
             }
-            List<QueryRow> sourceRows = executeRawRows(run, select, ast);
+            List<QueryRow> sourceRows = executeRawRows(run);
             return SqlLikeExecutionSupport.projectAliasedRows(sourceRows, projectionClass, select);
         }
         if (hasQualify) {
-            return ReflectionUtil.toClassList(projectionClass, executeRawRows(run, select, ast));
+            return ReflectionUtil.toClassList(projectionClass, executeRawRows(run));
         }
         if (statsState != null) {
             return ReflectionUtil.toClassList(
@@ -87,7 +87,7 @@ final class SqlLikeExecutionFlowSupport {
         if (hasQualify) {
             return ReflectionUtil.toClassList(
                     projectionClass,
-                    executeRawRows(run, select, ast)
+                    executeRawRows(run)
             ).stream();
         }
         if (statsState != null) {
@@ -118,7 +118,7 @@ final class SqlLikeExecutionFlowSupport {
         if (statsState != null) {
             if (select != null && !select.wildcard() && (hasQualify || select.hasComputedFields() || select.hasWindowFields())) {
                 List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(
-                        executeRawRows(run, select, ast),
+                        executeRawRows(run),
                         projectionClass,
                         select
                 );
@@ -136,7 +136,7 @@ final class SqlLikeExecutionFlowSupport {
             emitChartTelemetry(chartStarted, statsState.rows().size(), chart, telemetryListener, source);
             return chart;
         }
-        List<QueryRow> rows = executeRawRows(run, select, ast);
+        List<QueryRow> rows = executeRawRows(run);
         if (select != null
                 && !select.wildcard()
                 && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
@@ -262,125 +262,13 @@ final class SqlLikeExecutionFlowSupport {
         return Collections.unmodifiableMap(stageCounts);
     }
 
-    private static List<QueryRow> executeRawRows(ExecutionRun run, SelectAst select, QueryAst ast) {
-        FilterQueryBuilder working = run.builder();
-        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
-        boolean hasWindowFields = select != null && select.hasWindowFields();
-        boolean hasQualifyClause = ast != null && ast.hasQualifyClause();
-        if (statsState != null && !hasWindowFields && !hasQualifyClause) {
-            return FastStatsQuerySupport.toQueryRows(statsState);
-        }
-        FilterCore core = new FilterCore(working);
-        if (run.applyJoin()) {
-            working.setRows(core.join(working.getRows()));
-            core = new FilterCore(working);
-        }
-        if (working.getRows() == null || working.getRows().isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        if (working.requiresRuntimeSchemaCleaning()) {
-            core.clean(working.getRows().get(0));
-        }
-        FilterExecutionPlan plan = run.resolveRawExecutionPlan(core);
-        List<QueryRow> distinctRows = core.filterDistinctFields(plan);
-        long filterStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-        List<QueryRow> whereRows = core.filterFields(distinctRows, plan);
-        emitStage(
-                working,
-                QueryTelemetryStage.FILTER,
-                filterStarted,
-                distinctRows.size(),
-                whereRows.size(),
-                null
+    private static List<QueryRow> executeRawRows(ExecutionRun run) {
+        return SqlLikeExecutionSupport.executeWithOptionalJoin(
+                run.builder(),
+                run.sort(),
+                run.applyJoin(),
+                QueryRow.class
         );
-
-        if (!working.getMetrics().isEmpty()) {
-            long aggregateStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-            List<QueryRow> groupedRows = core.aggregateMetrics(whereRows, plan);
-            emitStage(
-                    working,
-                    QueryTelemetryStage.AGGREGATE,
-                    aggregateStarted,
-                    whereRows.size(),
-                    groupedRows.size(),
-                    QueryTelemetrySupport.metadata("havingApplied", hasHavingPredicates(working))
-            );
-            List<QueryRow> havingRows = groupedRows;
-            FilterCore groupedCore = null;
-            FilterExecutionPlan groupedPlan = null;
-            if (hasHavingPredicates(working)) {
-                FilterQueryBuilder havingBuilder = working.snapshotForRows(groupedRows);
-                groupedCore = new FilterCore(havingBuilder);
-                groupedPlan = groupedCore.buildExecutionPlan();
-                havingRows = groupedCore.filterHavingFields(groupedRows, groupedPlan);
-            }
-            List<QueryRow> orderedRows = havingRows;
-            if (!working.getOrderFields().isEmpty()) {
-                long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-                Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
-                if (groupedPlan != null && groupedCore != null) {
-                    orderedRows = groupedCore.orderByFields(havingRows, run.sort(), groupedPlan, paginationWindow);
-                } else {
-                    FilterQueryBuilder orderBuilder = working.snapshotForRows(havingRows);
-                    FilterCore orderCore = new FilterCore(orderBuilder);
-                    FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(havingRows, run.sort(), orderPlan, paginationWindow);
-                }
-                emitStage(
-                        working,
-                        QueryTelemetryStage.ORDER,
-                        orderStarted,
-                        havingRows.size(),
-                        orderedRows.size(),
-                        QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size())
-                );
-            }
-            return CollectionUtil.applyOffsetAndLimit(orderedRows, working.getOffset(), working.getLimit());
-        }
-
-        if (hasHavingPredicates(working)) {
-            throw new IllegalStateException("HAVING requires grouped/aggregate query context");
-        }
-
-        List<QueryRow> projectedRows = hasWindowFields
-                ? SqlLikeWindowSupport.applyWindowFunctions(whereRows, select)
-                : whereRows;
-        List<QueryRow> qualifiedRows = hasQualifyClause
-                ? SqlLikeQualifySupport.apply(projectedRows, ast.qualifyExpression(), ast.qualifyFilters())
-                : projectedRows;
-        long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
-        Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
-        List<QueryRow> orderedRows;
-        if ((hasWindowFields || hasQualifyClause) && !working.getOrderFields().isEmpty()) {
-            FilterQueryBuilder orderBuilder = working.snapshotForRows(qualifiedRows);
-            FilterCore orderCore = new FilterCore(orderBuilder);
-            FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-            orderedRows = orderCore.orderByFields(qualifiedRows, run.sort(), orderPlan, paginationWindow);
-        } else if (hasWindowFields || hasQualifyClause) {
-            orderedRows = qualifiedRows;
-        } else {
-            orderedRows = core.orderByFields(qualifiedRows, run.sort(), plan, paginationWindow);
-        }
-        if (!working.getOrderFields().isEmpty()) {
-            emitStage(
-                    working,
-                    QueryTelemetryStage.ORDER,
-                    orderStarted,
-                    qualifiedRows.size(),
-                    orderedRows.size(),
-                    QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size())
-            );
-        }
-        List<QueryRow> limitedRows = CollectionUtil.applyOffsetAndLimit(
-                orderedRows,
-                working.getOffset(),
-                working.getLimit()
-        );
-        if (hasWindowFields || hasQualifyClause) {
-            return limitedRows;
-        }
-        return core.filterDisplayFields(limitedRows, plan);
     }
 
     private static boolean hasWherePredicates(FilterQueryBuilder builder) {
