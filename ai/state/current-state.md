@@ -6,12 +6,24 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, and SQL window spikes 1-3 (`OVER`, `QUALIFY`, aggregate windows) completed.
+- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, and SQL window spikes 1-4 (`OVER`, `QUALIFY`, aggregate windows, API/docs hardening) completed.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-23`: SQL window spike 4 (API/docs hardening) passed:
+  - docs/README now document aggregate-window syntax limits and practical recipes for top-N per group, dense rank, and running total usage.
+  - SQL-like docs and public API examples now include aggregate-window parse/filter/explain coverage.
+  - benchmark module now includes window-overhead JMH scenarios and a dedicated args suite (`scripts/benchmark-suite-window.args`), with notes added to `docs/benchmarking.md`.
+  - TODO spike-4 checklist is marked complete.
+  - focused regression: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,PublicApiCoverageTest" test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+- `2026-03-23`: lint baseline refresh passed after spike-4 closure:
+  - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
+  - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - gate check: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11896` entries, `new=0`, `fixed=0`.
 - `2026-03-23`: SQL window spike 3 (aggregate windows) passed:
   - parser/AST now supports `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` with aggregate-window argument metadata (`COUNT(*)` vs value field).
   - parser guardrails now enforce initial frame mode `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` for aggregate windows and reject unsupported frames.
@@ -133,7 +145,7 @@
   - binary compatibility: `mvn -q "-Pbinary-compat" "-DskipTests" "-Dcompat.baseline.version=1.0.0" verify`
   - docs guardrail: `scripts/check-doc-consistency.ps1`
   - runtime jar scope assertion: `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` -> `0`
-- `2026-03-22`: lint baseline was intentionally refreshed after SQL-like decomposition (`scripts/checkstyle-baseline.txt`, `10779` entries) and currently reports `new=0`, `fixed=0`.
+- `2026-03-23`: lint baseline was intentionally refreshed after SQL window spike-4 closure (`scripts/checkstyle-baseline.txt`, `11896` entries) and currently reports `new=0`, `fixed=0`.
 
 ## Release Status
 
@@ -171,6 +183,11 @@
   - Added fluent runtime support for running aggregate frame computation (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) and kept SQL-like execution compiled through fluent builder/runtime path.
   - Added coverage for parser/runtime/parity/API contract updates (`FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `SqlLikeMappingParityTest`, `PublicApiCoverageTest`, `StablePublicApiContractTest`).
   - Updated TODO and marked aggregate-window spike item complete.
+- SQL window analytics spike 4 (API/docs hardening) completed:
+  - Added SQL-like docs hardening for aggregate-window contract/limitations and practical recipes (`top N per group`, `dense rank`, `running total`).
+  - Added public API/docs regression coverage for aggregate-window parse/filter/explain paths.
+  - Added benchmark comparisons for windowed vs non-windowed SQL-like queries and documented overhead notes.
+  - Updated TODO and marked spike-4 items complete.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
   - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
@@ -239,5 +256,5 @@
 ## Next Actions
 
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
-- Continue SQL window analytics roadmap with spike 4 (API/docs hardening for window syntax, recipes, and benchmark notes).
+- Continue TODO roadmap with spike 5 (predefined stats views / easy usage presets).
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

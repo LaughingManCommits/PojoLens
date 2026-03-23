@@ -7,6 +7,7 @@
 - `WHERE`
 - aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
+- aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
 - `GROUP BY`
 - `HAVING` (`AND`/`OR` predicates)
 - `QUALIFY` (`AND`/`OR` predicates against window outputs)
@@ -71,6 +72,22 @@ Validation errors for invalid `QUALIFY`:
 - `QUALIFY is only supported for non-aggregate SQL-like queries`
 - `Unknown field '<name>' in QUALIFY clause`
 
+## Window Functions v1 Contract
+
+Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
+
+Rank windows:
+- `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`
+- require `OVER(... ORDER BY ...)`
+
+Aggregate windows:
+- `COUNT(field)`, `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- `SUM/AVG/MIN/MAX` require numeric value fields
+- currently support one frame mode only:
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+
+Unsupported window frame expressions fail fast with actionable parser errors.
+
 ## Execution Model
 
 `PojoLens.parse(...)` produces a SQL-like query contract that:
@@ -112,7 +129,8 @@ Sort limitation:
 - Subqueries do not support nested joins or aggregate/grouped subquery plans yet.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
-- Window functions currently support rank-style functions only and require `OVER(... ORDER BY ...)`.
+- Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
+- Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
 - `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
 - Time bucket input fields must be `java.util.Date` values.
@@ -181,6 +199,16 @@ Window notes:
 - non-unique window sort values are stabilized by original source row order
 - query-level `ORDER BY` can reference window aliases (for example `order by rn asc`)
 
+### Recipe: Dense Rank Per Group (`DENSE_RANK`)
+
+```java
+List<DepartmentDenseRank> rows = PojoLens
+    .parse("select department as dept, name, salary, "
+        + "dense_rank() over (partition by department order by salary desc) as dr "
+        + "where active = true order by dept asc, dr asc, name asc")
+    .filter(source, DepartmentDenseRank.class);
+```
+
 ### Recipe: Top N Per Group with `QUALIFY`
 
 ```java
@@ -189,6 +217,17 @@ List<DepartmentSalaryRank> rows = PojoLens
         + "row_number() over (partition by department order by salary desc) as rn "
         + "where active = true qualify rn <= 1 order by dept asc")
     .filter(source, DepartmentSalaryRank.class);
+```
+
+### Recipe: Running Total (`SUM(...) OVER (...)`)
+
+```java
+List<DepartmentRunningTotal> rows = PojoLens
+    .parse("select department as dept, name, salary, "
+        + "sum(salary) over (partition by department order by salary desc "
+        + "rows between unbounded preceding and current row) as runningTotal "
+        + "where active = true order by dept asc, runningTotal asc")
+    .filter(source, DepartmentRunningTotal.class);
 ```
 
 ### Recipe: First-Class Keyset Cursor API

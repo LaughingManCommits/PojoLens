@@ -352,6 +352,46 @@ public class PublicApiCoverageTest {
     }
 
     @Test
+    public void sqlLikeAggregateWindowFilterAndExplainShouldBeUsableFromPublicApi() {
+        List<SqlLikeRunningTotalRow> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "sum(salary) over (partition by department order by salary desc "
+                        + "rows between unbounded preceding and current row) as runningTotal "
+                        + "where active = true order by dept asc, runningTotal asc")
+                .filter(sampleEmployees(), SqlLikeRunningTotalRow.class);
+
+        assertEquals(3, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(130000L, rows.get(0).runningTotal);
+        assertEquals("Engineering", rows.get(1).dept);
+        assertEquals("Alice", rows.get(1).name);
+        assertEquals(250000L, rows.get(1).runningTotal);
+        assertEquals("Finance", rows.get(2).dept);
+        assertEquals("Bob", rows.get(2).name);
+        assertEquals(90000L, rows.get(2).runningTotal);
+
+        Map<String, Object> explain = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "sum(salary) over (partition by department order by salary desc "
+                        + "rows between unbounded preceding and current row) as runningTotal "
+                        + "where active = true order by dept asc, runningTotal asc")
+                .explain(sampleEmployees(), SqlLikeRunningTotalRow.class);
+
+        assertEquals("alias/computed", explain.get("projectionMode"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stageCounts = (Map<String, Object>) explain.get("stageRowCounts");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> whereStage = (Map<String, Object>) stageCounts.get("where");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> qualifyStage = (Map<String, Object>) stageCounts.get("qualify");
+        assertEquals(true, whereStage.get("applied"));
+        assertEquals(4, ((Number) whereStage.get("before")).intValue());
+        assertEquals(3, ((Number) whereStage.get("after")).intValue());
+        assertEquals(false, qualifyStage.get("applied"));
+    }
+
+    @Test
     public void lintControlsShouldBeUsableFromPublicApi() {
         PojoLensRuntime runtime = PojoLens.newRuntime();
         assertFalse(runtime.isLintMode());
@@ -770,6 +810,16 @@ public class PublicApiCoverageTest {
         public long runningRows;
 
         public WindowAggregateApiRow() {
+        }
+    }
+
+    public static class SqlLikeRunningTotalRow {
+        public String dept;
+        public String name;
+        public int salary;
+        public long runningTotal;
+
+        public SqlLikeRunningTotalRow() {
         }
     }
 

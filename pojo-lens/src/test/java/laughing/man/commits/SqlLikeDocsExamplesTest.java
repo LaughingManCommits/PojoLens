@@ -222,6 +222,70 @@ public class SqlLikeDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipeDenseRankPerGroupShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Engineering", 120000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Finance", 100000, now, true),
+                new Employee(5, "Erin", "Finance", 110000, now, true)
+        );
+
+        List<DepartmentDenseRank> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "dense_rank() over (partition by department order by salary desc) as dr "
+                        + "where active = true order by dept asc, dr asc, name asc")
+                .filter(source, DepartmentDenseRank.class);
+
+        assertEquals(5, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(1L, rows.get(0).dr);
+        assertEquals("Engineering", rows.get(1).dept);
+        assertEquals(2L, rows.get(1).dr);
+        assertEquals("Finance", rows.get(3).dept);
+        assertEquals("Erin", rows.get(3).name);
+        assertEquals(1L, rows.get(3).dr);
+    }
+
+    @Test
+    public void docsRecipeRunningTotalShouldWork() {
+        Date now = new Date();
+        List<Employee> source = Arrays.asList(
+                new Employee(1, "Alice", "Engineering", 120000, now, true),
+                new Employee(2, "Bob", "Engineering", 120000, now, true),
+                new Employee(3, "Cara", "Engineering", 130000, now, true),
+                new Employee(4, "Dan", "Finance", 100000, now, true),
+                new Employee(5, "Erin", "Finance", 110000, now, true)
+        );
+
+        List<DepartmentRunningTotal> rows = PojoLens
+                .parse("select department as dept, name, salary, "
+                        + "sum(salary) over (partition by department order by salary desc "
+                        + "rows between unbounded preceding and current row) as runningTotal "
+                        + "where active = true order by dept asc, runningTotal asc")
+                .filter(source, DepartmentRunningTotal.class);
+
+        assertEquals(5, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(130000L, rows.get(0).runningTotal);
+        assertEquals("Engineering", rows.get(1).dept);
+        assertEquals("Alice", rows.get(1).name);
+        assertEquals(250000L, rows.get(1).runningTotal);
+        assertEquals("Engineering", rows.get(2).dept);
+        assertEquals("Bob", rows.get(2).name);
+        assertEquals(370000L, rows.get(2).runningTotal);
+        assertEquals("Finance", rows.get(3).dept);
+        assertEquals("Erin", rows.get(3).name);
+        assertEquals(110000L, rows.get(3).runningTotal);
+        assertEquals("Finance", rows.get(4).dept);
+        assertEquals("Dan", rows.get(4).name);
+        assertEquals(210000L, rows.get(4).runningTotal);
+    }
+
+    @Test
     public void readmeSqlLikeParameterizedExampleShouldWork() {
         Date now = new Date();
         List<Employee> source = Arrays.asList(
@@ -642,6 +706,26 @@ public class SqlLikeDocsExamplesTest {
         public long rn;
 
         public DepartmentSalaryRank() {
+        }
+    }
+
+    public static class DepartmentDenseRank {
+        public String dept;
+        public String name;
+        public int salary;
+        public long dr;
+
+        public DepartmentDenseRank() {
+        }
+    }
+
+    public static class DepartmentRunningTotal {
+        public String dept;
+        public String name;
+        public int salary;
+        public long runningTotal;
+
+        public DepartmentRunningTotal() {
         }
     }
 }

@@ -32,11 +32,17 @@ public class SqlLikePipelineJmhBenchmark {
     private String explainQuery;
     private String booleanDepthQuery;
     private String havingComputedQuery;
+    private String baselineNonWindowQuery;
+    private String windowRankQuery;
+    private String windowRunningTotalQuery;
     private SqlLikeQuery parsedQuery;
     private SqlLikeQuery parsedHavingQuery;
     private SqlLikeQuery parsedExplainQuery;
     private SqlLikeQuery parsedBooleanDepthQuery;
     private SqlLikeQuery parsedHavingComputedQuery;
+    private SqlLikeQuery parsedBaselineNonWindowQuery;
+    private SqlLikeQuery parsedWindowRankQuery;
+    private SqlLikeQuery parsedWindowRunningTotalQuery;
 
     @Setup
     public void setup() {
@@ -66,11 +72,26 @@ public class SqlLikePipelineJmhBenchmark {
                 + "group by stringField "
                 + "having totalValue / total >= 200 and (total >= 5 or total = 3) "
                 + "order by totalValue desc limit 20";
+        baselineNonWindowQuery = "select stringField, integerField "
+                + "where integerField >= 100 "
+                + "order by integerField asc limit 200";
+        windowRankQuery = "select stringField, integerField, "
+                + "row_number() over (partition by stringField order by integerField asc) as rn "
+                + "where integerField >= 100 "
+                + "order by integerField asc limit 200";
+        windowRunningTotalQuery = "select stringField, integerField, "
+                + "sum(integerField) over (partition by stringField order by integerField asc "
+                + "rows between unbounded preceding and current row) as runningTotal "
+                + "where integerField >= 100 "
+                + "order by integerField asc limit 200";
         parsedQuery = PojoLens.parse(query);
         parsedHavingQuery = PojoLens.parse(havingQuery);
         parsedExplainQuery = PojoLens.parse(explainQuery);
         parsedBooleanDepthQuery = PojoLens.parse(booleanDepthQuery);
         parsedHavingComputedQuery = PojoLens.parse(havingComputedQuery);
+        parsedBaselineNonWindowQuery = PojoLens.parse(baselineNonWindowQuery);
+        parsedWindowRankQuery = PojoLens.parse(windowRankQuery);
+        parsedWindowRunningTotalQuery = PojoLens.parse(windowRunningTotalQuery);
     }
 
     @Benchmark
@@ -104,6 +125,21 @@ public class SqlLikePipelineJmhBenchmark {
     }
 
     @Benchmark
+    public List<BenchmarkFoo> parseAndFilterWindowBaseline() {
+        return parsedBaselineNonWindowQuery.filter(source, BenchmarkFoo.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkWindowRankRow> parseAndFilterWindowRank() {
+        return parsedWindowRankQuery.filter(source, BenchmarkWindowRankRow.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkWindowRunningTotalRow> parseAndFilterWindowRunningTotal() {
+        return parsedWindowRunningTotalQuery.filter(source, BenchmarkWindowRunningTotalRow.class);
+    }
+
+    @Benchmark
     public Map<String, Object> sqlLikeCacheSnapshotRead() {
         return PojoLens.getSqlLikeCacheSnapshot();
     }
@@ -124,5 +160,22 @@ public class SqlLikePipelineJmhBenchmark {
         public BenchmarkHavingRow() {
         }
     }
-}
 
+    public static class BenchmarkWindowRankRow {
+        String stringField;
+        int integerField;
+        long rn;
+
+        public BenchmarkWindowRankRow() {
+        }
+    }
+
+    public static class BenchmarkWindowRunningTotalRow {
+        String stringField;
+        int integerField;
+        long runningTotal;
+
+        public BenchmarkWindowRunningTotalRow() {
+        }
+    }
+}

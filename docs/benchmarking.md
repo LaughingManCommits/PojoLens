@@ -147,6 +147,34 @@ Interpretation:
 - For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
 - These gains come from avoiding full result list materialization when callers only need an initial window.
 
+## SQL-like Window Overhead
+
+Window queries are now benchmarked against an equivalent non-window SQL-like baseline to keep window-stage overhead visible.
+
+Dedicated suite:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
+```
+
+Benchmarks (`SqlLikePipelineJmhBenchmark`):
+- `parseAndFilterWindowBaseline`
+- `parseAndFilterWindowRank`
+- `parseAndFilterWindowRunningTotal`
+
+Representative `2026-03-23` forked results (`size=10000`):
+
+| Workload | ms/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `parseAndFilterWindowBaseline` | `0.688` | `744,068` |
+| `parseAndFilterWindowRank` | `2.659` | `4,397,898` |
+| `parseAndFilterWindowRunningTotal` | `2.601` | `4,594,581` |
+
+Interpretation:
+- Window stages add meaningful overhead versus non-window SQL-like filtering for this workload (`~3.8x` slower, `~5.9x` to `6.2x` more allocation).
+- Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
+- Keep this suite as a follow-up diagnostic until thresholds are formalized.
+
 ## Optional Index Hint Tradeoffs
 
 Optional fluent index hints are now benchmarked with a selective equality workload (`IndexHintJmhBenchmark`):

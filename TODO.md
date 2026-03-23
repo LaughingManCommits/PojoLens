@@ -68,15 +68,15 @@ Spike goal:
 - Ship window features with clear docs, examples, and compatibility tests.
 
 Spike steps:
-1. [ ] Add docs section with supported syntax and limitations.
-2. [ ] Add sample query recipes (`top N per group`, `dense rank`, `running total`).
-3. [ ] Add public API coverage tests for `PojoLens.parse(...).filter/explain`.
-4. [ ] Add at least one benchmark comparing windowed vs non-windowed query costs.
+1. [x] Add docs section with supported syntax and limitations.
+2. [x] Add sample query recipes (`top N per group`, `dense rank`, `running total`).
+3. [x] Add public API coverage tests for `PojoLens.parse(...).filter/explain`.
+4. [x] Add at least one benchmark comparing windowed vs non-windowed query costs.
 
 Acceptance criteria:
-- README/docs show practical examples for window + qualify usage.
-- Regression tests lock parser, execution, and explain behavior.
-- Benchmark notes document expected overhead and tradeoffs.
+- [x] README/docs show practical examples for window + qualify usage.
+- [x] Regression tests lock parser, execution, and explain behavior.
+- [x] Benchmark notes document expected overhead and tradeoffs.
 
 ### 5) Predefined Stats Views (Easy Usage)
 

@@ -111,6 +111,7 @@ List<Company> rows = PojoLens
 - Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
 - Time buckets (`day`, `week`, `month`, `quarter`, `year`)
 - SQL-like named parameters and typed bind-first execution
+- SQL-like window analytics (`ROW_NUMBER`, `RANK`, `DENSE_RANK`, running aggregates with `OVER(...)`) and `QUALIFY`
 - Chained SQL-like joins with typed join bindings
 - Computed field registry for derived expressions
 - Chart payload mapping (`BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`)
@@ -153,6 +154,7 @@ Preset intent:
 - SQL-like subqueries are currently limited to `WHERE <field> IN (select <oneField> ...)`.
 - Aggregate/grouped/joined subquery plans are not supported.
 - SQL-like aggregate `ORDER BY` must reference grouped fields or aggregate outputs.
+- SQL-like aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
 - Time bucket source fields must be `java.util.Date`.
 - Builders are mutable and not safe for concurrent mutation; use `copyOnBuild(true)` for reusable templates.
 

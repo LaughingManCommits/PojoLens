@@ -31,6 +31,12 @@
   - SQL-like binder/validation/join-canonicalization now compile aggregate windows to fluent `addWindow(...)` value-argument APIs.
   - SQL-like alias projection now applies typed value casting before aliased select field assignment to preserve numeric compatibility in projections.
   - docs/tests updated and `TODO.md` spike-3 checkboxes are marked complete.
+- SQL window analytics spike 4 (API/docs hardening) is now completed:
+  - docs now include aggregate-window syntax/limitations plus recipes for top-N per group, dense rank, and running total.
+  - public API/docs regression coverage now includes aggregate-window parse/filter/explain usage.
+  - benchmark coverage now includes windowed vs non-windowed SQL-like comparisons with notes in `docs/benchmarking.md`.
+  - `TODO.md` spike-4 checkboxes are now marked complete.
+  - focused regression rerun: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,PublicApiCoverageTest" test`.
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -101,9 +107,9 @@
 - Lint baseline refresh is completed:
   - ran lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
-  - post-refresh gate check passes with `new=0`, `fixed=0`.
+  - post-refresh gate check passes with `11896` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
-- Next roadmap target after aggregate-window completion is spike 4: API/docs hardening for window syntax and recipes.
+- Next roadmap target is spike 5: predefined stats views (easy usage presets).
 
 ## Next Validation
 
@@ -121,7 +127,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`11896` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 
