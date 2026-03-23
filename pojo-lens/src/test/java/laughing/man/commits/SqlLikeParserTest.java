@@ -96,6 +96,36 @@ public class SqlLikeParserTest {
     }
 
     @Test
+    public void shouldParseWindowSelectFieldWithPartitionAndOrder() {
+        QueryAst ast = SqlLikeParser.parse(
+                "select department, row_number() over (partition by department order by salary desc, id asc) as rn "
+                        + "where active = true");
+
+        assertNotNull(ast.select());
+        assertEquals(2, ast.select().fields().size());
+        SelectFieldAst window = ast.select().fields().get(1);
+        assertTrue(window.windowField());
+        assertEquals("ROW_NUMBER", window.windowFunction());
+        assertEquals(1, window.windowPartitionFields().size());
+        assertEquals("department", window.windowPartitionFields().get(0));
+        assertEquals(2, window.windowOrderFields().size());
+        assertEquals("salary", window.windowOrderFields().get(0).field());
+        assertEquals(Sort.DESC, window.windowOrderFields().get(0).sort());
+        assertEquals("id", window.windowOrderFields().get(1).field());
+        assertEquals(Sort.ASC, window.windowOrderFields().get(1).sort());
+    }
+
+    @Test
+    public void shouldRejectWindowSelectFieldWithoutAlias() {
+        try {
+            SqlLikeParser.parse("select row_number() over (order by salary desc) where salary > 0");
+            fail("Expected parse error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Window SELECT expressions require AS alias"));
+        }
+    }
+
+    @Test
     public void shouldParseEscapedSingleQuote() {
         QueryAst ast = SqlLikeParser.parse("where name = 'O''Reilly'");
         assertEquals(1, ast.filters().size());

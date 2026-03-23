@@ -100,10 +100,25 @@ public final class SqlLikeJoinResolution {
         ArrayList<SelectFieldAst> fields = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
             String resolvedField = field.field();
+            String resolvedWindowFunction = field.windowFunction();
+            List<String> resolvedWindowPartitions = field.windowPartitionFields();
+            List<OrderAst> resolvedWindowOrders = field.windowOrderFields();
             if (field.metricField() && !field.countAll()) {
                 resolvedField = plan.resolveOrSame(field.field(), "SELECT");
             } else if (field.timeBucketField()) {
                 resolvedField = plan.resolveOrSame(field.field(), "SELECT");
+            } else if (field.windowField()) {
+                ArrayList<String> partitions = new ArrayList<>(field.windowPartitionFields().size());
+                for (String partitionField : field.windowPartitionFields()) {
+                    partitions.add(plan.resolveOrSame(partitionField, "SELECT"));
+                }
+                ArrayList<OrderAst> orders = new ArrayList<>(field.windowOrderFields().size());
+                for (OrderAst order : field.windowOrderFields()) {
+                    orders.add(new OrderAst(plan.resolveOrSame(order.field(), "SELECT"), order.sort()));
+                }
+                resolvedWindowPartitions = List.copyOf(partitions);
+                resolvedWindowOrders = List.copyOf(orders);
+                resolvedField = windowExpression(resolvedWindowFunction, resolvedWindowPartitions, resolvedWindowOrders);
             } else if (field.computedField()) {
                 resolvedField = rewriteExpression(field.field(), plan, "SELECT");
             } else {
@@ -114,11 +129,41 @@ public final class SqlLikeJoinResolution {
                     field.alias(),
                     field.metric(),
                     field.countAll(),
-                    field.timeBucket(),
-                    field.computedField()
+                    field.timeBucketPreset(),
+                    field.computedField(),
+                    resolvedWindowFunction,
+                    resolvedWindowPartitions,
+                    resolvedWindowOrders
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());
+    }
+
+    private static String windowExpression(String function, List<String> partitionFields, List<OrderAst> orders) {
+        StringBuilder expression = new StringBuilder(function).append("() OVER (");
+        boolean wroteSegment = false;
+        if (!partitionFields.isEmpty()) {
+            expression.append("PARTITION BY ").append(String.join(", ", partitionFields));
+            wroteSegment = true;
+        }
+        if (!orders.isEmpty()) {
+            if (wroteSegment) {
+                expression.append(' ');
+            }
+            expression.append("ORDER BY ");
+            for (int i = 0; i < orders.size(); i++) {
+                if (i > 0) {
+                    expression.append(", ");
+                }
+                OrderAst order = orders.get(i);
+                expression.append(order.field());
+                if (order.sort() != null) {
+                    expression.append(' ').append(order.sort().name());
+                }
+            }
+        }
+        expression.append(')');
+        return expression.toString();
     }
 
     private static List<FilterAst> canonicalizeFilters(List<FilterAst> filters, Plan plan, String clauseName) {

@@ -15,6 +15,7 @@ import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionRun
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
+import laughing.man.commits.sqllike.internal.window.SqlLikeWindowSupport;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
@@ -38,8 +39,8 @@ final class SqlLikeExecutionFlowSupport {
         SelectAst select = context.select();
         if (select != null
                 && !select.wildcard()
-                && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
-            if (statsState != null && !select.hasComputedFields()) {
+                && (select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
+            if (statsState != null && !select.hasComputedFields() && !select.hasWindowFields()) {
                 return SqlLikeExecutionSupport.projectAliasedRows(
                         statsState.rows(),
                         statsState.schemaFields(),
@@ -47,7 +48,7 @@ final class SqlLikeExecutionFlowSupport {
                         select
                 );
             }
-            List<QueryRow> sourceRows = executeRawRows(run);
+            List<QueryRow> sourceRows = executeRawRows(run, select);
             return SqlLikeExecutionSupport.projectAliasedRows(sourceRows, projectionClass, select);
         }
         if (statsState != null) {
@@ -71,7 +72,7 @@ final class SqlLikeExecutionFlowSupport {
         SelectAst select = context.select();
         if (select != null
                 && !select.wildcard()
-                && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
+                && (select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
             return executeFilter(context, projectionClass).stream();
         }
         if (statsState != null) {
@@ -98,9 +99,9 @@ final class SqlLikeExecutionFlowSupport {
         FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
         SelectAst select = context.select();
         if (statsState != null) {
-            if (select != null && !select.wildcard() && select.hasComputedFields()) {
+            if (select != null && !select.wildcard() && (select.hasComputedFields() || select.hasWindowFields())) {
                 List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(
-                        executeRawRows(run),
+                        executeRawRows(run, select),
                         projectionClass,
                         select
                 );
@@ -118,10 +119,10 @@ final class SqlLikeExecutionFlowSupport {
             emitChartTelemetry(chartStarted, statsState.rows().size(), chart, telemetryListener, source);
             return chart;
         }
-        List<QueryRow> rows = executeRawRows(run);
+        List<QueryRow> rows = executeRawRows(run, select);
         if (select != null
                 && !select.wildcard()
-                && (select.hasComputedFields() || hasPlainFieldAliases(select))) {
+                && (select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
             List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(rows, projectionClass, select);
             long chartStarted = QueryTelemetrySupport.start(telemetryListener);
             ChartData chart = ChartMapper.toChartData(projectedRows, spec);
@@ -221,10 +222,11 @@ final class SqlLikeExecutionFlowSupport {
         return Collections.unmodifiableMap(stageCounts);
     }
 
-    private static List<QueryRow> executeRawRows(ExecutionRun run) {
+    private static List<QueryRow> executeRawRows(ExecutionRun run, SelectAst select) {
         FilterQueryBuilder working = run.builder();
         FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
-        if (statsState != null) {
+        boolean hasWindowFields = select != null && select.hasWindowFields();
+        if (statsState != null && !hasWindowFields) {
             return FastStatsQuerySupport.toQueryRows(statsState);
         }
         FilterCore core = new FilterCore(working);
@@ -300,15 +302,28 @@ final class SqlLikeExecutionFlowSupport {
             throw new IllegalStateException("HAVING requires grouped/aggregate query context");
         }
 
+        List<QueryRow> projectedRows = hasWindowFields
+                ? SqlLikeWindowSupport.applyWindowFunctions(whereRows, select)
+                : whereRows;
         long orderStarted = QueryTelemetrySupport.start(working.getTelemetryListener());
         Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
-        List<QueryRow> orderedRows = core.orderByFields(whereRows, run.sort(), plan, paginationWindow);
+        List<QueryRow> orderedRows;
+        if (hasWindowFields && !working.getOrderFields().isEmpty()) {
+            FilterQueryBuilder orderBuilder = working.snapshotForRows(projectedRows);
+            FilterCore orderCore = new FilterCore(orderBuilder);
+            FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
+            orderedRows = orderCore.orderByFields(projectedRows, run.sort(), orderPlan, paginationWindow);
+        } else if (hasWindowFields) {
+            orderedRows = projectedRows;
+        } else {
+            orderedRows = core.orderByFields(projectedRows, run.sort(), plan, paginationWindow);
+        }
         if (!working.getOrderFields().isEmpty()) {
             emitStage(
                     working,
                     QueryTelemetryStage.ORDER,
                     orderStarted,
-                    whereRows.size(),
+                    projectedRows.size(),
                     orderedRows.size(),
                     QueryTelemetrySupport.metadata("orderFieldCount", working.getOrderFields().size())
             );
@@ -318,6 +333,9 @@ final class SqlLikeExecutionFlowSupport {
                 working.getOffset(),
                 working.getLimit()
         );
+        if (hasWindowFields) {
+            return limitedRows;
+        }
         return core.filterDisplayFields(limitedRows, plan);
     }
 
@@ -332,7 +350,11 @@ final class SqlLikeExecutionFlowSupport {
             return false;
         }
         for (SelectFieldAst field : select.fields()) {
-            if (field.aliased() && !field.metricField() && !field.timeBucketField() && !field.computedField()) {
+            if (field.aliased()
+                    && !field.metricField()
+                    && !field.timeBucketField()
+                    && !field.computedField()
+                    && !field.windowField()) {
                 return true;
             }
         }

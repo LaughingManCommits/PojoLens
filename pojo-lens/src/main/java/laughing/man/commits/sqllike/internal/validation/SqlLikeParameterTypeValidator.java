@@ -81,6 +81,8 @@ final class SqlLikeParameterTypeValidator {
                 outputTypes.put(field.outputName(), metricOutputType(field.metric(), sourceFieldTypes.get(field.field())));
             } else if (field.timeBucketField()) {
                 outputTypes.put(field.outputName(), String.class);
+            } else if (field.windowField()) {
+                outputTypes.put(field.outputName(), Long.class);
             } else if (field.computedField()) {
                 outputTypes.put(field.outputName(), Double.class);
             } else {

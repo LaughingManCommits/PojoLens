@@ -9,6 +9,13 @@
 
 ## Current Focus
 
+- SQL window analytics spike 1 (Window Functions MVP) is now completed:
+  - parser/AST now supports `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`.
+  - window computation now executes after `WHERE` and before query-level `ORDER BY`/pagination/projection.
+  - query-level `ORDER BY` can reference window aliases for window-enabled query shapes.
+  - determinism guardrails were added:
+    missing window `ORDER BY` fails validation, and non-unique window sort ties are resolved with stable source-row order.
+  - docs + tests updated (`SqlLikeWindowFunctionTest`, parser/docs examples, `docs/sql-like.md`, `TODO.md` spike item checked).
 - Spike 1 (pagination) is completed:
   - `OFFSET` is implemented in fluent + SQL-like flows.
   - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
@@ -68,10 +75,13 @@
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
   - post-refresh gate check passes with `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
+- Next roadmap target after window MVP is spike 2: SQL-like `QUALIFY` clause support.
 
 ## Next Validation
 
 - After any code change: run focused tests, then `mvn -q test`.
+- Window-function focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

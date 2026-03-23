@@ -87,6 +87,8 @@ public final class TabularSchemaSupport {
                 formatHint = "time-bucket:" + field.timeBucketPreset().explainToken();
             } else if (field.metricField()) {
                 formatHint = "metric:" + field.metric().name();
+            } else if (field.windowField()) {
+                formatHint = "window:" + field.windowFunction();
             }
             columns.add(column(outputName,
                     projectionTypes.getOrDefault(outputName, defaultSqlLikeType(field, projectionTypes)),
@@ -106,6 +108,9 @@ public final class TabularSchemaSupport {
         }
         if (field.timeBucketField()) {
             return String.class;
+        }
+        if (field.windowField()) {
+            return Long.class;
         }
         if (!field.computedField()) {
             return projectionTypes.getOrDefault(field.field(), Object.class);

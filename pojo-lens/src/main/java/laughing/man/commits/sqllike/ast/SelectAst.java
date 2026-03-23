@@ -45,5 +45,14 @@ public final class SelectAst {
         }
         return false;
     }
+
+    public boolean hasWindowFields() {
+        for (SelectFieldAst field : fields) {
+            if (field.windowField()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 

@@ -145,7 +145,7 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static String projectionSourceField(SelectFieldAst field) {
-        if (field.metricField() || field.timeBucketField()) {
+        if (field.metricField() || field.timeBucketField() || field.windowField()) {
             return field.outputName();
         }
         return field.field();

@@ -102,7 +102,7 @@ public final class SqlLikeBinder {
                 }
             }
         } else if (select != null && !select.wildcard()) {
-            if (!select.hasComputedFields()) {
+            if (!select.hasComputedFields() && !select.hasWindowFields()) {
                 for (SelectFieldAst field : select.fields()) {
                     builder.addField(field.field());
                 }

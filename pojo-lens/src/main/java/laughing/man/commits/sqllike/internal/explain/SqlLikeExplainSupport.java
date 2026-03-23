@@ -89,7 +89,11 @@ public final class SqlLikeExplainSupport {
             return "direct";
         }
         for (SelectFieldAst field : select.fields()) {
-            if (field.aliased() || field.computedField() || field.metricField() || field.timeBucketField()) {
+            if (field.aliased()
+                    || field.computedField()
+                    || field.metricField()
+                    || field.timeBucketField()
+                    || field.windowField()) {
                 return "alias/computed";
             }
         }

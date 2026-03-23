@@ -110,6 +110,33 @@ public final class SqlLikeValidator {
                 requireKnownField(outputName, projectionFields, "SELECT/projection");
                 continue;
             }
+            if (field.windowField()) {
+                if (ast.hasAggregation() || !ast.groupByFields().isEmpty()) {
+                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                            "Window SELECT expressions are only supported for non-aggregate queries");
+                }
+                if (!field.aliased()) {
+                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                            "Window SELECT expressions require AS alias");
+                }
+                if (field.windowOrderFields().isEmpty()) {
+                    throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                            "Window SELECT expressions require OVER(... ORDER BY ...)");
+                }
+                for (String partitionField : field.windowPartitionFields()) {
+                    requireKnownField(partitionField, sourceFields, "SELECT");
+                }
+                for (OrderAst order : field.windowOrderFields()) {
+                    requireKnownField(order.field(), sourceFields, "SELECT");
+                }
+                String outputName = field.outputName();
+                if (!seenOutputNames.add(outputName)) {
+                    throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
+                            "Duplicate SELECT output name '" + outputName + "'");
+                }
+                requireKnownField(outputName, projectionFields, "SELECT/projection");
+                continue;
+            }
             if (!field.metricField()) {
                 requireKnownField(field.field(), sourceFields, "SELECT");
             }
@@ -243,7 +270,10 @@ public final class SqlLikeValidator {
                     "Subqueries must select exactly one explicit field");
         }
         SelectFieldAst selectedField = select.fields().get(0);
-        if (selectedField.metricField() || selectedField.timeBucketField() || selectedField.computedField()) {
+        if (selectedField.metricField()
+                || selectedField.timeBucketField()
+                || selectedField.computedField()
+                || selectedField.windowField()) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subqueries support only simple field SELECTs in v1");
         }
@@ -338,6 +368,10 @@ public final class SqlLikeValidator {
         }
 
         for (SelectFieldAst field : select.fields()) {
+            if (field.windowField()) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        "Window SELECT expressions are only supported for non-aggregate queries");
+            }
             if (field.computedField()) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_COMPUTED_SELECT,
                         "Computed SELECT expressions are only supported for non-aggregate queries");
@@ -376,7 +410,11 @@ public final class SqlLikeValidator {
         }
         LinkedHashMap<String, String> groupedAliases = new LinkedHashMap<>();
         for (SelectFieldAst field : select.fields()) {
-            if (field.metricField() || field.timeBucketField() || field.computedField() || !field.aliased()) {
+            if (field.metricField()
+                    || field.timeBucketField()
+                    || field.computedField()
+                    || field.windowField()
+                    || !field.aliased()) {
                 continue;
             }
             groupedAliases.put(field.outputName(), field.field());
@@ -443,7 +481,15 @@ public final class SqlLikeValidator {
 
     private static Set<String> resolveAllowedOrderFields(QueryAst ast, Set<String> sourceFields) {
         if (!ast.hasAggregation() && ast.groupByFields().isEmpty()) {
-            return sourceFields;
+            LinkedHashSet<String> allowed = new LinkedHashSet<>(sourceFields);
+            if (ast.select() != null) {
+                for (SelectFieldAst field : ast.select().fields()) {
+                    if (field.windowField()) {
+                        allowed.add(field.outputName());
+                    }
+                }
+            }
+            return allowed;
         }
         LinkedHashSet<String> allowed = new LinkedHashSet<>(ast.groupByFields());
         if (ast.select() != null) {

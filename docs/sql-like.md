@@ -6,6 +6,7 @@
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
 - `WHERE`
 - aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - `GROUP BY`
 - `HAVING` (`AND`/`OR` predicates)
 - time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
@@ -87,6 +88,8 @@ Sort limitation:
 - Subqueries do not support nested joins or aggregate/grouped subquery plans yet.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
+- Window functions currently support rank-style functions only and require `OVER(... ORDER BY ...)`.
+- Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
 - Time bucket input fields must be `java.util.Date` values.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
@@ -137,6 +140,21 @@ Keyset guidance:
 - include all sort fields in the cursor
 - include a deterministic tie-breaker field (for example `id`)
 - keep `ORDER BY` direction and comparison operators aligned with cursor direction
+
+### Recipe: Window Ranking (`ROW_NUMBER`)
+
+```java
+List<DepartmentSalaryRank> rows = PojoLens
+    .parse("select department as dept, name, salary, "
+        + "row_number() over (partition by department order by salary desc) as rn "
+        + "where active = true order by dept asc, rn asc")
+    .filter(source, DepartmentSalaryRank.class);
+```
+
+Window notes:
+- include `ORDER BY` inside every `OVER(...)` clause to keep ranking deterministic
+- non-unique window sort values are stabilized by original source row order
+- query-level `ORDER BY` can reference window aliases (for example `order by rn asc`)
 
 ### Recipe: First-Class Keyset Cursor API
 

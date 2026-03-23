@@ -43,7 +43,8 @@ public final class SqlLikeParser {
             "SELECT", "FROM", "WHERE", "ORDER", "BY", "LIMIT", "OFFSET", "ASC", "DESC",
             "AND", "OR", "TRUE", "FALSE", "NULL", "CONTAINS", "MATCHES", "IN", "AS",
             "GROUP", "HAVING", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
-            "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET"
+            "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET",
+            "OVER", "PARTITION"
     );
     private static final Map<String, Metric> METRIC_BY_KEYWORD = buildMetricKeywordMap();
 
@@ -318,12 +319,22 @@ public final class SqlLikeParser {
     }
 
     private SelectFieldAst parseSelectField() {
+        int startIndex = index;
         Token token = peek();
         String field;
         Metric metric = null;
         boolean countAll = false;
         TimeBucketPreset timeBucketPreset = null;
-        if (token.type == TokenType.KEYWORD && isMetricKeyword(token.text)) {
+        String windowFunction = null;
+        List<String> windowPartitionFields = List.of();
+        List<OrderAst> windowOrderFields = List.of();
+        ParsedWindowFunction parsedWindowFunction = tryParseWindowFunction();
+        if (parsedWindowFunction != null) {
+            field = buildExpressionText(startIndex, parsedWindowFunction.endIndex());
+            windowFunction = parsedWindowFunction.function();
+            windowPartitionFields = parsedWindowFunction.partitionFields();
+            windowOrderFields = parsedWindowFunction.orderByFields();
+        } else if (token.type == TokenType.KEYWORD && isMetricKeyword(token.text)) {
             metric = parseMetricKeyword(token);
             next();
             expect(TokenType.LEFT_PAREN, "Expected '(' after aggregate function");
@@ -382,13 +393,36 @@ public final class SqlLikeParser {
             } else if (parsed.computed) {
                 throw error("Computed SELECT expressions require AS alias", peek().position);
             }
-            return parseSelectFieldWithAlias(field, alias, null, false, null, parsed.computed);
+            return parseSelectFieldWithAlias(
+                    field,
+                    alias,
+                    null,
+                    false,
+                    null,
+                    parsed.computed,
+                    null,
+                    List.of(),
+                    List.of()
+            );
         }
         String alias = null;
         if (matchKeyword("AS")) {
             alias = expectIdentifier("Expected alias after AS");
         }
-        return parseSelectFieldWithAlias(field, alias, metric, countAll, timeBucketPreset, false);
+        if (windowFunction != null && alias == null) {
+            throw error("Window SELECT expressions require AS alias", peek().position);
+        }
+        return parseSelectFieldWithAlias(
+                field,
+                alias,
+                metric,
+                countAll,
+                timeBucketPreset,
+                false,
+                windowFunction,
+                windowPartitionFields,
+                windowOrderFields
+        );
     }
 
     private SelectFieldAst parseSelectFieldWithAlias(String field,
@@ -396,8 +430,85 @@ public final class SqlLikeParser {
                                                      Metric metric,
                                                      boolean countAll,
                                                      TimeBucketPreset timeBucketPreset,
-                                                     boolean computed) {
-        return new SelectFieldAst(field, alias, metric, countAll, timeBucketPreset, computed);
+                                                     boolean computed,
+                                                     String windowFunction,
+                                                     List<String> windowPartitionFields,
+                                                     List<OrderAst> windowOrderFields) {
+        return new SelectFieldAst(
+                field,
+                alias,
+                metric,
+                countAll,
+                timeBucketPreset,
+                computed,
+                windowFunction,
+                windowPartitionFields,
+                windowOrderFields
+        );
+    }
+
+    private ParsedWindowFunction tryParseWindowFunction() {
+        Token token = peek();
+        if (!isWindowFunctionName(token.text)) {
+            return null;
+        }
+        if (index + 1 >= tokens.size() || tokens.get(index + 1).type != TokenType.LEFT_PAREN) {
+            return null;
+        }
+        String function = token.text.toUpperCase(Locale.ROOT);
+        next();
+        expect(TokenType.LEFT_PAREN, "Expected '(' after window function");
+        expect(TokenType.RIGHT_PAREN, "Expected ')' after window function");
+        expectKeyword("OVER");
+        expect(TokenType.LEFT_PAREN, "Expected '(' after OVER");
+
+        List<String> partitionFields = List.of();
+        List<OrderAst> orderByFields = List.of();
+        if (matchKeyword("PARTITION")) {
+            expectKeyword("BY");
+            partitionFields = parseWindowPartitionBy();
+        }
+        if (matchKeyword("ORDER")) {
+            expectKeyword("BY");
+            orderByFields = parseWindowOrderBy();
+        }
+        expect(TokenType.RIGHT_PAREN, "Expected ')' after window definition");
+        return new ParsedWindowFunction(function, partitionFields, orderByFields, index);
+    }
+
+    private List<String> parseWindowPartitionBy() {
+        ArrayList<String> fields = new ArrayList<>();
+        fields.add(expectIdentifier("Expected field in PARTITION BY"));
+        while (match(TokenType.COMMA)) {
+            fields.add(expectIdentifier("Expected field in PARTITION BY"));
+        }
+        return List.copyOf(fields);
+    }
+
+    private List<OrderAst> parseWindowOrderBy() {
+        ArrayList<OrderAst> orders = new ArrayList<>();
+        orders.add(parseWindowOrderItem());
+        while (match(TokenType.COMMA)) {
+            orders.add(parseWindowOrderItem());
+        }
+        return List.copyOf(orders);
+    }
+
+    private OrderAst parseWindowOrderItem() {
+        String field = expectIdentifier("Expected field in window ORDER BY");
+        Sort sort = Sort.ASC;
+        if (matchKeyword("ASC")) {
+            sort = Sort.ASC;
+        } else if (matchKeyword("DESC")) {
+            sort = Sort.DESC;
+        }
+        return new OrderAst(field, sort);
+    }
+
+    private boolean isWindowFunctionName(String value) {
+        return "ROW_NUMBER".equalsIgnoreCase(value)
+                || "RANK".equalsIgnoreCase(value)
+                || "DENSE_RANK".equalsIgnoreCase(value);
     }
 
     private List<String> parseGroupBy() {
@@ -1055,6 +1166,12 @@ public final class SqlLikeParser {
             this.text = text;
             this.computed = computed;
         }
+    }
+
+    private record ParsedWindowFunction(String function,
+                                        List<String> partitionFields,
+                                        List<OrderAst> orderByFields,
+                                        int endIndex) {
     }
 
     private record PaginationClauseValue(Integer literal, String parameterName) {

@@ -11,15 +11,15 @@ Spike goal:
 - Add first-class window-function support with a minimal, stable MVP scope.
 
 Spike steps:
-1. [ ] Extend parser/AST for `... OVER (...)` with `PARTITION BY` and `ORDER BY`.
-2. [ ] Support initial functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`.
-3. [ ] Add execution stage to compute window values after `WHERE` and before final projection.
-4. [ ] Validate determinism rules when `ORDER BY` is missing or non-unique.
+1. [x] Extend parser/AST for `... OVER (...)` with `PARTITION BY` and `ORDER BY`.
+2. [x] Support initial functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`.
+3. [x] Add execution stage to compute window values after `WHERE` and before final projection.
+4. [x] Validate determinism rules when `ORDER BY` is missing or non-unique.
 
 Acceptance criteria:
-- SQL-like queries can compute rank-style window values per partition.
-- Window output can be projected and sorted like normal select fields.
-- Behavior is covered by parser + execution contract tests.
+- [x] SQL-like queries can compute rank-style window values per partition.
+- [x] Window output can be projected and sorted like normal select fields.
+- [x] Behavior is covered by parser + execution contract tests.
 
 ### 2) `QUALIFY` Clause
 
