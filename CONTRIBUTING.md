@@ -12,7 +12,7 @@ mvn -B -ntp test
 
 Tests are organized by intent, not just by API:
 
-- contract/surface guards: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCoverageTest`
+- contract/surface guards: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCacheCoverageTest`, `PublicApiSqlCoverageTest`, `PublicApiFluentCoverageTest`, `PublicApiEcosystemCoverageTest`
 - behavior/execution tests: fluent + SQL-like engine behavior, explain, parity, and runtime policy classes
 - docs recipe tests: examples that mirror README/docs snippets (`*DocsExamplesTest`)
 - utility-level tests: `util/*Test`, `filter/*Test`, and other focused units

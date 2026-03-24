@@ -12,6 +12,24 @@
 
 ## Latest Validation
 
+- `2026-03-24`: public API coverage split + lint baseline refresh validated:
+  - split monolithic `PublicApiCoverageTest` into focused suites:
+    `PublicApiCacheCoverageTest`, `PublicApiSqlCoverageTest`,
+    `PublicApiFluentCoverageTest`, `PublicApiEcosystemCoverageTest`.
+  - added shared coverage base + models:
+    `AbstractPublicApiCoverageTest`, `testutil/PublicApiModels`.
+  - removed legacy `PublicApiCoverageTest` and restored fluent streaming API coverage in fluent suite.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`
+  - expanded fixture regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline refresh:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `12023` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: expanded test-dedup pass validated:
   - added shared test-date helper `testutil/TestDateFixtures` with UTC overloads.
   - added shared chart fixture models/builders `testutil/ChartTestFixtures`.
@@ -237,6 +255,7 @@
   - introduced shared fixture layer for stats/docs/chart preset suites in `pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java`.
   - reduced duplicated date/sample-row and projection fixture classes across multiple tests.
   - expanded fixture layer with `TestDateFixtures`, `ChartTestFixtures`, and `TimeBucketTestFixtures` and migrated additional chart/time-bucket suites.
+  - split `PublicApiCoverageTest` into focused cache/sql/fluent/ecosystem suites with shared base/model fixtures, and removed legacy monolithic class.
   - added explicit test organization/fixture guidance to `CONTRIBUTING.md`.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).

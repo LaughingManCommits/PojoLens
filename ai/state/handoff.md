@@ -66,6 +66,21 @@
     `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCoverageTest" test`
     `mvn -q test`
     `scripts/check-doc-consistency.ps1`
+- Public API coverage suite split is now delivered:
+  - added shared base fixture `AbstractPublicApiCoverageTest` for SQL-like cache defaults.
+  - moved shared public API projection models to `testutil/PublicApiModels`.
+  - replaced monolithic `PublicApiCoverageTest` with focused suites:
+    `PublicApiCacheCoverageTest`, `PublicApiSqlCoverageTest`,
+    `PublicApiFluentCoverageTest`, `PublicApiEcosystemCoverageTest`.
+  - restored fluent streaming API public-surface assertion in fluent suite.
+  - removed legacy `PublicApiCoverageTest`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -146,25 +161,25 @@
 
 - After any code change: run focused tests, then `mvn -q test`.
 - Window-function focused suite:
-  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - `QUALIFY`/explain-focused suite (recommended during window-spike follow-up):
-  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - Fluent window/qualify parity suite:
-  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
 - Aggregate-window focused suite (recommended during follow-up):
-  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCoverageTest,StablePublicApiContractTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest,StablePublicApiContractTest" test`.
 - Stats-preset focused suite:
-  `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - Fixture-migration focused suite:
-  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCoverageTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - Expanded fixture-migration suite:
-  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCoverageTest" test`.
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`12090` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`12023` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 
