@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.PublicApiModels.StatsRow;

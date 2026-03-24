@@ -1,9 +1,5 @@
-package laughing.man.commits;
+package laughing.man.commits.chart;
 
-import laughing.man.commits.chart.ChartData;
-import laughing.man.commits.chart.ChartQueryPreset;
-import laughing.man.commits.chart.ChartQueryPresets;
-import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;

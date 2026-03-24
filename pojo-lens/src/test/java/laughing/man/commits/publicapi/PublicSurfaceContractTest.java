@@ -1,4 +1,4 @@
-package laughing.man.commits;
+package laughing.man.commits.publicapi;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.builder.QueryBuilder;

@@ -1,4 +1,4 @@
-package laughing.man.commits;
+package laughing.man.commits.chart;
 
 import java.util.Date;
 
@@ -116,4 +116,3 @@ final class ChartResultMapperFixtures {
         }
     }
 }
-

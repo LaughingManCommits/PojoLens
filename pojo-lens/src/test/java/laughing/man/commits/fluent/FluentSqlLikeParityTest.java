@@ -1,4 +1,4 @@
-package laughing.man.commits;
+package laughing.man.commits.fluent;
 
 import laughing.man.commits.testing.FluentSqlLikeParity;
 import org.junit.jupiter.api.Test;

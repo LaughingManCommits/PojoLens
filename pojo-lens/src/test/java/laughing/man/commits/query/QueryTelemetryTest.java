@@ -1,5 +1,7 @@
-package laughing.man.commits;
+package laughing.man.commits.query;
 
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;

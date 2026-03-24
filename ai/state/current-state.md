@@ -12,6 +12,29 @@
 
 ## Latest Validation
 
+- `2026-03-24`: test package re-organization (public/fluent/query/chart) + baseline refresh validated:
+  - moved root-package test suites into dedicated packages:
+    `laughing.man.commits.publicapi` (`AbstractPublicApiCoverageTest`,
+    `PublicApi*CoverageTest`, `PublicSurfaceContractTest`, `StablePublicApiContractTest`),
+    `laughing.man.commits.fluent` (`Aggregation*FluentTest`, `Fluent*Test`),
+    `laughing.man.commits.query` (`NestedPathQueryTest`, `QueryRegressionFixtureTest`,
+    `QueryTelemetryTest`),
+    and aligned root chart suites to `laughing.man.commits.chart`
+    (`ChartQueryPresetsTest`, `ChartResultMapper*`, `ChartResultMapperFixtures`).
+  - added package docs:
+    `chart/package-info.java`, `fluent/package-info.java`,
+    `publicapi/package-info.java`, `query/package-info.java`.
+  - updated moved tests with explicit root API imports (`PojoLens`,
+    runtime/core/sql entry points) required after subpackage migration.
+  - validations:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApi*Test,PublicSurfaceContractTest,StablePublicApiContractTest,Fluent*Test,Aggregation*Test,NestedPathQueryTest,Query*Test,Chart*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity unchanged: `11859` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: SQL-like test package migration + lint baseline refresh validated:
   - moved all `SqlLike*Test` suites from root test package `laughing.man.commits`
     into `laughing.man.commits.sqllike`.

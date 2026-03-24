@@ -9,6 +9,28 @@
 
 ## Current Focus
 
+- Public/fluent/query/chart test package migration is now delivered:
+  - moved root test suites into dedicated packages:
+    `laughing.man.commits.publicapi`, `laughing.man.commits.fluent`,
+    `laughing.man.commits.query`, and aligned root chart suites under
+    `laughing.man.commits.chart`.
+  - migrated public coverage/contract suites, fluent aggregation/window/chart suites,
+    query regression/telemetry/nested-path suites, and chart preset/mapper suites
+    (including moving `ChartResultMapperFixtures` with chart tests).
+  - added test package docs:
+    `pojo-lens/src/test/java/laughing/man/commits/publicapi/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/query/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/chart/package-info.java`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApi*Test,PublicSurfaceContractTest,StablePublicApiContractTest,Fluent*Test,Aggregation*Test,NestedPathQueryTest,Query*Test,Chart*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline/report parity remains `11859` (`new=0`, `fixed=0`).
 - SQL-like test package migration is now delivered:
   - moved all `SqlLike*Test` suites from `laughing.man.commits` into
     `laughing.man.commits.sqllike`.

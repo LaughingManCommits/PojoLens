@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.query;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;

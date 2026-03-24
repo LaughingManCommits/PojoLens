@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.fluent;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;

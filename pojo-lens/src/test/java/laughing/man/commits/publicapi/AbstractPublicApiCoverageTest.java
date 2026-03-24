@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLens;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 

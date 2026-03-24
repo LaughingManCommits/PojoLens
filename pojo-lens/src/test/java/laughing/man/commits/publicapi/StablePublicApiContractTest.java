@@ -1,5 +1,10 @@
-package laughing.man.commits;
+package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensRuntime;
+import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.enums.Clauses;

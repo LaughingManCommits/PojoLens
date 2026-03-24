@@ -1,12 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.chart;
 
-import laughing.man.commits.chart.ChartData;
-import laughing.man.commits.chart.ChartResultMapper;
-import laughing.man.commits.chart.ChartSpec;
-import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.chart.MultiSeriesPoint;
-import laughing.man.commits.chart.NullPointPolicy;
-import laughing.man.commits.chart.SeriesPoint;
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;

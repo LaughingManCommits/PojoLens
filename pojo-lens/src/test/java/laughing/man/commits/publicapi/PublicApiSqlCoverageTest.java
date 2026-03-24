@@ -1,5 +1,7 @@
-package laughing.man.commits;
+package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;

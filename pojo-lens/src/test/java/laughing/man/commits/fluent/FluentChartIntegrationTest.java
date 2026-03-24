@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.fluent;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.NullPointPolicy;
 import laughing.man.commits.chart.ChartSpec;
