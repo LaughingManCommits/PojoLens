@@ -1,5 +1,8 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
+import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
@@ -8,13 +11,6 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
-import laughing.man.commits.sqllike.JoinBindings;
-import laughing.man.commits.sqllike.SqlLikeLintCodes;
-import laughing.man.commits.sqllike.SqlLikeLintWarning;
-import laughing.man.commits.sqllike.SqlLikeCursor;
-import laughing.man.commits.sqllike.SqlLikeQuery;
-import laughing.man.commits.sqllike.SqlLikeTemplate;
-import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;

@@ -12,6 +12,22 @@
 
 ## Latest Validation
 
+- `2026-03-24`: SQL-like test package migration + lint baseline refresh validated:
+  - moved all `SqlLike*Test` suites from root test package `laughing.man.commits`
+    into `laughing.man.commits.sqllike`.
+  - updated SQL-like test package declarations/imports and added
+    `pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java`.
+  - kept `SqlLikeJoinTest` join fixture rows self-contained in that suite to avoid
+    cross-package access coupling with root-package fixture classes.
+  - validations:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLike*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11859` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: SQL-like docs test projection extraction validated:
   - moved local projection models from `SqlLikeDocsExamplesTest` into shared fixture helper
     `testutil/SqlLikeDocsProjections`

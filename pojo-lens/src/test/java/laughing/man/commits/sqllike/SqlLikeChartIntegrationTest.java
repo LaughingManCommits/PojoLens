@@ -1,11 +1,11 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chart.ChartDataset;
 import laughing.man.commits.enums.Metric;
-import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountAliasRow;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;

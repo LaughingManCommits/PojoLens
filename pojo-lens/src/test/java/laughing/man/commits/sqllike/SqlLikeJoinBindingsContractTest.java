@@ -1,9 +1,9 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
-import laughing.man.commits.sqllike.JoinBindings;
-import laughing.man.commits.sqllike.SqlLikeCursor;
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.parser.SqlLikeParseException;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;

@@ -224,4 +224,3 @@ final class PojoLensBehaviorFixtures {
         }
     }
 }
-

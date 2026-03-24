@@ -1,6 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
-import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.PojoLens;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,8 +1,7 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
-import laughing.man.commits.sqllike.SqlLikeLintCodes;
-import laughing.man.commits.sqllike.SqlLikeLintWarning;
-import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import org.junit.jupiter.api.Test;
 

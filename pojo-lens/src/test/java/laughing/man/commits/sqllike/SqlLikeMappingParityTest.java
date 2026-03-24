@@ -1,5 +1,8 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLens;
+import laughing.man.commits.builder.QueryRule;
+import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -7,8 +10,6 @@ import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.testing.FluentSqlLikeParity;
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentAgg;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;

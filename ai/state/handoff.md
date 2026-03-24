@@ -9,6 +9,22 @@
 
 ## Current Focus
 
+- SQL-like test package migration is now delivered:
+  - moved all `SqlLike*Test` suites from `laughing.man.commits` into
+    `laughing.man.commits.sqllike`.
+  - updated SQL-like test package declarations/imports and added
+    `pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java`.
+  - kept `SqlLikeJoinTest` join fixture classes local to that suite to avoid
+    cross-package access coupling with root-package fixture models.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLike*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline now matches report at `11859` entries (`new=0`, `fixed=0`).
 - SQL window analytics spike 1 (Window Functions MVP) is now completed:
   - parser/AST now supports `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`.
   - window computation now executes after `WHERE` and before query-level `ORDER BY`/pagination/projection.
@@ -265,7 +281,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`11839` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`11859` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 

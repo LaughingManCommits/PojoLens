@@ -1,5 +1,6 @@
-package laughing.man.commits;
+package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowEmployee;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
