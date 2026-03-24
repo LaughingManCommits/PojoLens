@@ -12,6 +12,14 @@
 
 ## Latest Validation
 
+- `2026-03-24`: test-structure cleanup pass validated:
+  - added shared test fixture helper `testutil/StatsExampleFixtures` for repeated stats/docs/chart test rows and UTC-date helper.
+  - migrated `StatsDocsExamplesTest`, `ChartQueryPresetsTest`, and `StatsViewPresetsTest` to shared fixtures, removing duplicate local fixture classes/builders.
+  - documented test-layer strategy and fixture-reuse guidance in `CONTRIBUTING.md`.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCoverageTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline refresh passed after stats-preset spike:
   - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
@@ -213,6 +221,10 @@
   - Added docs + practical recipes for grouped stats tables and leaderboard tables.
   - Added regression and public API coverage tests for preset correctness and stable output columns.
   - Updated TODO and marked spike-5 checklist complete.
+- Test structure hardening (incremental) started:
+  - introduced shared fixture layer for stats/docs/chart preset suites in `pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java`.
+  - reduced duplicated date/sample-row and projection fixture classes across multiple tests.
+  - added explicit test organization/fixture guidance to `CONTRIBUTING.md`.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
   - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
@@ -282,4 +294,5 @@
 
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Define/prioritize the next roadmap spike after spike-5 completion.
+- Continue incremental test deduplication for additional suites now that shared fixture patterns are in place.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

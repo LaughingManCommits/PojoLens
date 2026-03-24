@@ -8,15 +8,17 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentActiveBreakdownRow;
+import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.StatsExampleFixtures.PeriodHeadcountRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.StatsExampleFixtures.utcDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,43 +103,6 @@ public class ChartQueryPresetsTest {
             return;
         }
         throw new AssertionError("Expected IllegalArgumentException");
-    }
-
-    private static Date utcDate(int year, int month, int day) {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.MONTH, month);
-        calendar.set(Calendar.DAY_OF_MONTH, day);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTime();
-    }
-
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
-    public static class PeriodHeadcountRow {
-        public String period;
-        public long headcount;
-
-        public PeriodHeadcountRow() {
-        }
-    }
-
-    public static class DepartmentActiveBreakdownRow {
-        public boolean active;
-        public String department;
-        public long headcount;
-
-        public DepartmentActiveBreakdownRow() {
-        }
     }
 }
 

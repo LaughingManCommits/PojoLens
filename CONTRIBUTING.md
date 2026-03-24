@@ -8,6 +8,21 @@ Run from repository root:
 mvn -B -ntp test
 ```
 
+## Test Strategy
+
+Tests are organized by intent, not just by API:
+
+- contract/surface guards: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCoverageTest`
+- behavior/execution tests: fluent + SQL-like engine behavior, explain, parity, and runtime policy classes
+- docs recipe tests: examples that mirror README/docs snippets (`*DocsExamplesTest`)
+- utility-level tests: `util/*Test`, `filter/*Test`, and other focused units
+
+Fixture guidance:
+
+- prefer shared reusable fixtures under `pojo-lens/src/test/java/laughing/man/commits/testutil`
+- keep per-test custom fixtures only when they are truly scenario-specific
+- centralize repeated date/sample-row builders in fixture helpers instead of duplicating them in each test class
+
 ## Lint Gate
 
 Generate lint report:

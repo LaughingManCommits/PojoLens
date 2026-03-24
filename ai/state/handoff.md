@@ -47,6 +47,14 @@
     `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`
     `mvn -q test`
     `scripts/check-doc-consistency.ps1`
+- Test-structure cleanup pass is now delivered:
+  - added shared fixture helper `testutil/StatsExampleFixtures` for repeated stats/docs/chart preset test rows and UTC date generation.
+  - migrated `StatsDocsExamplesTest`, `ChartQueryPresetsTest`, and `StatsViewPresetsTest` to shared fixtures to reduce duplicate local fixture classes.
+  - added explicit test layering and fixture reuse strategy notes in `CONTRIBUTING.md`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -120,6 +128,7 @@
   - post-refresh gate check passes with `12090` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
 - Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
+- Incremental test deduplication can continue using `testutil/StatsExampleFixtures` as the shared-fixture baseline pattern.
 
 ## Next Validation
 
@@ -134,6 +143,8 @@
   `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCoverageTest,StablePublicApiContractTest" test`.
 - Stats-preset focused suite:
   `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`.
+- Fixture-migration focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
