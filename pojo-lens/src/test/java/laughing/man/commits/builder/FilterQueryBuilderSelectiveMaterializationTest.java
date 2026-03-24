@@ -2,20 +2,41 @@ package laughing.man.commits.builder;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.Foo;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.CollisionJoinProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.CompensationProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.ComputedCollisionProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.DepartmentCompensationProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.JoinCompensationChild;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.JoinCompensationParent;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.JoinComputedDetailProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.JoinComputedProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.JoinProjection;
+import laughing.man.commits.testutil.SelectiveMaterializationFixtures.MultiJoinProjection;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.fieldNames;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleChildren;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleCodes;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleCollisionChildren;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleCollisionParents;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleCompensation;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleComputedCollisionChildren;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleComputedCollisionParents;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleFoos;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleJoinCompensationChildren;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleJoinCompensationParents;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleLabels;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleMultiJoinParents;
+import static laughing.man.commits.testutil.SelectiveMaterializationFixtures.sampleParents;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -117,7 +138,8 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals(List.of("salary", "bonus", "department", "adjustedSalary", "totalComp"),
                 fieldNames(builder.getRows().get(0)));
 
-        List<DepartmentCompensationProjection> rows = builder.initFilter().filter(DepartmentCompensationProjection.class);
+        List<DepartmentCompensationProjection> rows = builder.initFilter()
+                .filter(DepartmentCompensationProjection.class);
         assertEquals(2, rows.size());
         Map<String, Double> totalsByDepartment = rows.stream()
                 .collect(java.util.stream.Collectors.toMap(row -> row.department, row -> row.totalCompSum));
@@ -139,7 +161,8 @@ class FilterQueryBuilderSelectiveMaterializationTest {
                 .addField("totalComp");
 
         assertEquals(List.of("id", "name", "salary"), fieldNames(builder.getRows().get(0)));
-        assertEquals(List.of("parentId", "bonus"), fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
+        assertEquals(List.of("parentId", "bonus"),
+                fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
 
         List<JoinComputedProjection> rows = builder.initFilter().join().filter(JoinComputedProjection.class);
         assertEquals(1, rows.size());
@@ -195,7 +218,8 @@ class FilterQueryBuilderSelectiveMaterializationTest {
                 .addField("child_bonus");
 
         assertEquals(List.of("id", "name", "salary", "bonus"), fieldNames(builder.getRows().get(0)));
-        assertEquals(List.of("parentId", "bonus", "tag"), fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
+        assertEquals(List.of("parentId", "bonus", "tag"),
+                fieldNames(builder.getJoinClassesForExecution().get(1).get(0)));
 
         List<ComputedCollisionProjection> rows = builder.initFilter().join().filter(ComputedCollisionProjection.class);
         assertEquals(1, rows.size());
@@ -260,294 +284,5 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertTrue(preparedTemplate.getRows().isEmpty());
         assertTrue(preparedTemplate.getGroupFields().isEmpty());
         assertEquals(Map.of(1, "stringField"), preparedExecution.getGroupFields());
-    }
-
-    private static List<Foo> sampleFoos() {
-        Date now = new Date();
-        return Arrays.asList(
-                new Foo("a", now, 2),
-                new Foo("a", now, 1),
-                new Foo("b", now, 3)
-        );
-    }
-
-    private static List<Parent> sampleParents() {
-        return List.of(new Parent(1, "p1"), new Parent(2, "p2"));
-    }
-
-    private static List<Child> sampleChildren() {
-        return List.of(new Child(1, "c1"));
-    }
-
-    private static List<CompensationRow> sampleCompensation() {
-        return List.of(
-                new CompensationRow("a", 100, 20, "fin", 1),
-                new CompensationRow("b", 120, 15, "eng", 2),
-                new CompensationRow("c", 90, 5, "eng", 3)
-        );
-    }
-
-    private static List<JoinCompensationParent> sampleJoinCompensationParents() {
-        return List.of(
-                new JoinCompensationParent(1, "a", 100, "fin"),
-                new JoinCompensationParent(2, "b", 120, "eng")
-        );
-    }
-
-    private static List<JoinCompensationChild> sampleJoinCompensationChildren() {
-        return List.of(
-                new JoinCompensationChild(1, 20, "legacy"),
-                new JoinCompensationChild(2, 15, "retained")
-        );
-    }
-
-    private static List<ComputedCollisionParent> sampleComputedCollisionParents() {
-        return List.of(
-                new ComputedCollisionParent(1, "a", 100),
-                new ComputedCollisionParent(2, "b", 150)
-        );
-    }
-
-    private static List<ComputedCollisionChild> sampleComputedCollisionChildren() {
-        return List.of(
-                new ComputedCollisionChild(1, 20, "first"),
-                new ComputedCollisionChild(2, 25, "second")
-        );
-    }
-
-    private static List<CollisionParent> sampleCollisionParents() {
-        return List.of(new CollisionParent(1, "parent-name", "parent-tag"));
-    }
-
-    private static List<CollisionChild> sampleCollisionChildren() {
-        return List.of(new CollisionChild(1, "child-name"));
-    }
-
-    private static List<MultiJoinParent> sampleMultiJoinParents() {
-        return List.of(new MultiJoinParent(1, "parent-name", "parent-tag", "emea"));
-    }
-
-    private static List<LabelChild> sampleLabels() {
-        return List.of(new LabelChild(1, "north"));
-    }
-
-    private static List<CodeChild> sampleCodes() {
-        return List.of(new CodeChild(1, "x1"));
-    }
-
-    private static List<String> fieldNames(QueryRow row) {
-        return row.getFields().stream()
-                .map(QueryField::getFieldName)
-                .toList();
-    }
-
-    static final class Parent {
-        int id;
-        String name;
-
-        Parent(int id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-
-    static final class Child {
-        int parentId;
-        String tag;
-
-        Child(int parentId, String tag) {
-            this.parentId = parentId;
-            this.tag = tag;
-        }
-    }
-
-    public static final class JoinProjection {
-        public String name;
-        public String tag;
-
-        JoinProjection() {
-        }
-    }
-
-    static final class CompensationRow {
-        String name;
-        int salary;
-        int bonus;
-        String department;
-        int level;
-
-        CompensationRow(String name, int salary, int bonus, String department, int level) {
-            this.name = name;
-            this.salary = salary;
-            this.bonus = bonus;
-            this.department = department;
-            this.level = level;
-        }
-    }
-
-    public static final class CompensationProjection {
-        public String name;
-        public double totalComp;
-
-        CompensationProjection() {
-        }
-    }
-
-    public static final class DepartmentCompensationProjection {
-        public String department;
-        public double totalCompSum;
-
-        DepartmentCompensationProjection() {
-        }
-    }
-
-    static final class JoinCompensationParent {
-        int id;
-        String name;
-        int salary;
-        String department;
-
-        JoinCompensationParent(int id, String name, int salary, String department) {
-            this.id = id;
-            this.name = name;
-            this.salary = salary;
-            this.department = department;
-        }
-    }
-
-    static final class JoinCompensationChild {
-        int parentId;
-        int bonus;
-        String tag;
-
-        JoinCompensationChild(int parentId, int bonus, String tag) {
-            this.parentId = parentId;
-            this.bonus = bonus;
-            this.tag = tag;
-        }
-    }
-
-    public static final class JoinComputedProjection {
-        public String name;
-        public double totalComp;
-
-        JoinComputedProjection() {
-        }
-    }
-
-    public static final class JoinComputedDetailProjection {
-        public String name;
-        public int bonus;
-        public String tag;
-        public double totalComp;
-
-        JoinComputedDetailProjection() {
-        }
-    }
-
-    static final class ComputedCollisionParent {
-        int id;
-        String name;
-        int salary;
-
-        ComputedCollisionParent(int id, String name, int salary) {
-            this.id = id;
-            this.name = name;
-            this.salary = salary;
-        }
-    }
-
-    static final class ComputedCollisionChild {
-        int parentId;
-        int bonus;
-        String tag;
-
-        ComputedCollisionChild(int parentId, int bonus, String tag) {
-            this.parentId = parentId;
-            this.bonus = bonus;
-            this.tag = tag;
-        }
-    }
-
-    public static final class ComputedCollisionProjection {
-        public String name;
-        public double bonus;
-        public int child_bonus;
-
-        ComputedCollisionProjection() {
-        }
-    }
-
-    static final class CollisionParent {
-        int id;
-        String name;
-        String tag;
-
-        CollisionParent(int id, String name, String tag) {
-            this.id = id;
-            this.name = name;
-            this.tag = tag;
-        }
-    }
-
-    static final class CollisionChild {
-        int parentId;
-        String name;
-
-        CollisionChild(int parentId, String name) {
-            this.parentId = parentId;
-            this.name = name;
-        }
-    }
-
-    public static final class CollisionJoinProjection {
-        public String tag;
-        public String child_name;
-
-        CollisionJoinProjection() {
-        }
-    }
-
-    static final class MultiJoinParent {
-        int id;
-        String name;
-        String tag;
-        String region;
-
-        MultiJoinParent(int id, String name, String tag, String region) {
-            this.id = id;
-            this.name = name;
-            this.tag = tag;
-            this.region = region;
-        }
-    }
-
-    static final class LabelChild {
-        int parentId;
-        String label;
-
-        LabelChild(int parentId, String label) {
-            this.parentId = parentId;
-            this.label = label;
-        }
-    }
-
-    static final class CodeChild {
-        int parentId;
-        String code;
-
-        CodeChild(int parentId, String code) {
-            this.parentId = parentId;
-            this.code = code;
-        }
-    }
-
-    public static final class MultiJoinProjection {
-        public String tag;
-        public String label;
-        public String code;
-
-        MultiJoinProjection() {
-        }
     }
 }

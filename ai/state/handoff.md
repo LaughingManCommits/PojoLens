@@ -141,6 +141,19 @@
     `mvn -B -ntp -Plint verify -DskipTests`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Selective-materialization test organization is now delivered:
+  - extracted local fixture scaffolding from
+    `builder/FilterQueryBuilderSelectiveMaterializationTest`
+    into shared `testutil/SelectiveMaterializationFixtures`
+    (sample builders, field-name helper, and source/projection test models).
+  - kept behavior assertions in place while reducing in-class data/model boilerplate.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=FilterQueryBuilderSelectiveMaterializationTest,FilterCoreTest,FastPojoFilterSupportTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -211,7 +224,7 @@
 - Lint baseline refresh is completed:
   - ran lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
-  - post-refresh gate check passes with `11810` report/baseline entries and `new=0`, `fixed=0`.
+  - post-refresh gate check passes with `11839` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
 - Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
 - Incremental test deduplication can continue using `testutil/StatsExampleFixtures` as the shared-fixture baseline pattern.
@@ -241,7 +254,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`11810` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`11839` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 
