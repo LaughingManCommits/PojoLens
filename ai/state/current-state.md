@@ -12,6 +12,11 @@
 
 ## Latest Validation
 
+- `2026-03-24`: lint baseline refresh passed after stats-preset spike:
+  - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
+  - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - gate check: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `12090` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: predefined stats views spike 5 (easy usage presets) passed:
   - added new preset API: `StatsViewPresets.summary(...)`, `StatsViewPresets.by(...)`, and `StatsViewPresets.topNBy(...)`.
   - added immutable table payload contract `StatsTable<T>` with `rows`, optional `totals`, and `schema`.
@@ -156,7 +161,7 @@
   - binary compatibility: `mvn -q "-Pbinary-compat" "-DskipTests" "-Dcompat.baseline.version=1.0.0" verify`
   - docs guardrail: `scripts/check-doc-consistency.ps1`
   - runtime jar scope assertion: `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` -> `0`
-- `2026-03-23`: lint baseline was intentionally refreshed after SQL window spike-4 closure (`scripts/checkstyle-baseline.txt`, `11896` entries) and currently reports `new=0`, `fixed=0`.
+- `2026-03-24`: lint baseline was refreshed after stats-preset spike closure (`scripts/checkstyle-baseline.txt`, `12090` entries) and currently reports `new=0`, `fixed=0`.
 
 ## Release Status
 
