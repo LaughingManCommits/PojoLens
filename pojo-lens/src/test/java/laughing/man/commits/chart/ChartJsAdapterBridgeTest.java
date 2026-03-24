@@ -2,6 +2,9 @@ package laughing.man.commits.chart;
 
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
+import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
@@ -212,27 +215,6 @@ public class ChartJsAdapterBridgeTest {
         return value.replace("\r\n", "\n").trim();
     }
 
-    public static class EmployeeEvent {
-        public String department;
-        public long salary;
-
-        public EmployeeEvent() {
-        }
-
-        public EmployeeEvent(String department, long salary) {
-            this.department = department;
-            this.salary = salary;
-        }
-    }
-
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
     public static class DepartmentPeriodPayroll {
         public String department;
         public String period;
@@ -245,15 +227,6 @@ public class ChartJsAdapterBridgeTest {
             this.department = department;
             this.period = period;
             this.payroll = payroll;
-        }
-    }
-
-    public static class PeriodSeriesPayrollRow {
-        public String period;
-        public String department;
-        public long totalPayroll;
-
-        public PeriodSeriesPayrollRow() {
         }
     }
 

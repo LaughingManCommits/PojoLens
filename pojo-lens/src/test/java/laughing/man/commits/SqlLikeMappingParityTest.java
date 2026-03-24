@@ -10,6 +10,7 @@ import laughing.man.commits.testing.FluentSqlLikeParity;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentAgg;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
@@ -331,15 +332,6 @@ public class SqlLikeMappingParityTest {
                         + ":" + row.runningCountAll
                         + ":" + Objects.toString(row.runningAvg, "null")
         );
-    }
-
-    public static class DepartmentAgg {
-        public String department;
-        public long employeeCount;
-        public long totalSalary;
-
-        public DepartmentAgg() {
-        }
     }
 }
 

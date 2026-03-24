@@ -47,6 +47,26 @@ public final class ChartTestFixtures {
         }
     }
 
+    public static class EmployeeEvent {
+        public String department;
+        public String period;
+        public long salary;
+
+        public EmployeeEvent() {
+        }
+
+        public EmployeeEvent(String department, long salary) {
+            this.department = department;
+            this.salary = salary;
+        }
+
+        public EmployeeEvent(String department, String period, long salary) {
+            this.department = department;
+            this.period = period;
+            this.salary = salary;
+        }
+    }
+
     public static class PeriodPayrollRow {
         public String period;
         public long payroll;
@@ -120,6 +140,15 @@ public final class ChartTestFixtures {
         public long payroll;
 
         public DepartmentPeriodPayrollRow() {
+        }
+    }
+
+    public static class PeriodSeriesPayrollRow {
+        public String period;
+        public String department;
+        public long totalPayroll;
+
+        public PeriodSeriesPayrollRow() {
         }
     }
 

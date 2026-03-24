@@ -12,6 +12,28 @@
 
 ## Latest Validation
 
+- `2026-03-24`: expanded fixture dedup pass + lint baseline refresh validated:
+  - added shared fixture models:
+    `testutil/SqlLikeProjectionFixtures` (`ComputedBoostProjection`, `ComputedScalarProjection`),
+    `ChartTestFixtures.EmployeeEvent`,
+    and `WindowTestFixtures.DepartmentAgg`.
+  - migrated duplicated nested fixture models out of tests:
+    `SqlLikeJoinTest` (`ParentBean`, `ChildBean` -> `PojoLensBehaviorFixtures`),
+    `ChartJsAdapterBridgeTest` + `ChartLibraryInteropTest` (`EmployeeEvent`),
+    `FluentWindowFunctionTest` + `SqlLikeMappingParityTest` (`DepartmentAgg`),
+    `SqlLikeQueryContractTest` + `SqlLikeValidationTest` (`ComputedProjection` variants),
+    and stats preset/docs tests to shared `ChartTestFixtures.DepartmentPayrollRow`.
+  - removed now-redundant `StatsExampleFixtures.DepartmentPayrollRow`.
+  - duplicate nested test fixture class-name scan now reports no duplicates.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=ChartQueryPresetsTest,FluentWindowFunctionTest,SqlLikeErrorCodesContractTest,SqlLikeJoinTest,SqlLikeMappingParityTest,SqlLikeQueryContractTest,SqlLikeValidationTest,StatsDocsExamplesTest,StatsViewPresetsTest,ChartJsAdapterBridgeTest,ChartLibraryInteropTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline refresh:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11841` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: common stats projection dedup + lint baseline refresh validated:
   - added shared projection fixture helper `testutil/CommonStatsProjections` with reusable:
     `DepartmentCount`, `DepartmentCountAlias`, and `DepartmentCountRow`.
@@ -288,6 +310,9 @@
   - split `PublicApiCoverageTest` into focused cache/sql/fluent/ecosystem suites with shared base/model fixtures, and removed legacy monolithic class.
   - added shared `WindowTestFixtures` and migrated window/parity suites (`FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeMappingParityTest`) off duplicated nested window models.
   - added shared `CommonStatsProjections` and migrated repeated stats projection rows across cache/sql-like/report/telemetry/bundle suites.
+  - added shared SQL-like projection fixtures (`SqlLikeProjectionFixtures`) and shared chart/window fixture rows (`EmployeeEvent`, `DepartmentAgg`) for additional cross-suite dedup.
+  - aligned stats preset/docs suites on `ChartTestFixtures.DepartmentPayrollRow` and removed duplicate `DepartmentPayrollRow` fixture definition.
+  - duplicate nested test fixture class-name scan now reports zero duplicates.
   - added explicit test organization/fixture guidance to `CONTRIBUTING.md`.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).

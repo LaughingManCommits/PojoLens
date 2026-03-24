@@ -4,6 +4,7 @@ import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedScalarProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -294,7 +295,7 @@ public class SqlLikeValidationTest {
         );
         try {
             PojoLens.parse("select missing + 1 as x where integerField >= 1")
-                    .filter(source, ComputedProjection.class);
+                    .filter(source, ComputedScalarProjection.class);
             fail("Expected expression identifier validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'missing'"));
@@ -378,13 +379,6 @@ public class SqlLikeValidationTest {
         long total;
 
         public GroupedAliasProjection() {
-        }
-    }
-
-    public static class ComputedProjection {
-        double x;
-
-        public ComputedProjection() {
         }
     }
 

@@ -5,7 +5,7 @@ import laughing.man.commits.stats.StatsTable;
 import laughing.man.commits.stats.StatsViewPreset;
 import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
-import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentTotalRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.SummaryRow;
 import org.junit.jupiter.api.Test;

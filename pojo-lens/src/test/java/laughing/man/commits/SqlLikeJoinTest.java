@@ -3,6 +3,8 @@ package laughing.man.commits;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.PojoLensBehaviorFixtures.ChildBean;
+import laughing.man.commits.PojoLensBehaviorFixtures.ParentBean;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
@@ -155,32 +157,6 @@ public class SqlLikeJoinTest {
 
     private static List<Integer> ids(List<ParentBean> rows) {
         return rows.stream().map(r -> r.id).collect(Collectors.toList());
-    }
-
-    public static class ParentBean {
-        int id;
-        String name;
-
-        public ParentBean() {
-        }
-
-        public ParentBean(int id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-
-    public static class ChildBean {
-        int parentId;
-        String tag;
-
-        public ChildBean() {
-        }
-
-        public ChildBean(int parentId, String tag) {
-            this.parentId = parentId;
-            this.tag = tag;
-        }
     }
 
     public static class ChildWithIdBean {

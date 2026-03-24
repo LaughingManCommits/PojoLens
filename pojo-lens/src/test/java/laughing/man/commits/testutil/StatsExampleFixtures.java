@@ -95,14 +95,6 @@ public final class StatsExampleFixtures {
         }
     }
 
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
     public static class PeriodHeadcountRow {
         public String period;
         public long headcount;

@@ -2,6 +2,10 @@ package laughing.man.commits.chart;
 
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
+import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
 import org.junit.jupiter.api.Test;
 import org.knowm.xchart.BitmapEncoder;
 import org.knowm.xchart.CategoryChart;
@@ -379,37 +383,6 @@ public class ChartLibraryInteropTest {
         return number < 10 ? "0" + number : String.valueOf(number);
     }
 
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
-    public static class EmployeeEvent {
-        public String department;
-        public String period;
-        public long salary;
-
-        public EmployeeEvent() {
-        }
-
-        public EmployeeEvent(String department, String period, long salary) {
-            this.department = department;
-            this.period = period;
-            this.salary = salary;
-        }
-    }
-
-    public static class DepartmentHeadcountRow {
-        public String department;
-        public long headcount;
-
-        public DepartmentHeadcountRow() {
-        }
-    }
-
     public static class MonthlyDepartmentPayrollRow {
         public String department;
         public String period;
@@ -422,15 +395,6 @@ public class ChartLibraryInteropTest {
             this.department = department;
             this.period = period;
             this.payroll = payroll;
-        }
-    }
-
-    public static class PeriodSeriesPayrollRow {
-        public String period;
-        public String department;
-        public long totalPayroll;
-
-        public PeriodSeriesPayrollRow() {
         }
     }
 

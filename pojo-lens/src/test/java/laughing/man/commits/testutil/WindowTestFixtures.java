@@ -28,6 +28,15 @@ public final class WindowTestFixtures {
         }
     }
 
+    public static class DepartmentAgg {
+        public String department;
+        public long employeeCount;
+        public long totalSalary;
+
+        public DepartmentAgg() {
+        }
+    }
+
     public static class WindowEmployee {
         public int id;
         public String name;

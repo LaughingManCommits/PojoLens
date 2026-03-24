@@ -107,6 +107,26 @@
     `mvn -B -ntp -Plint verify -DskipTests`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Expanded fixture dedup pass is now delivered:
+  - added shared test fixture helpers:
+    `testutil/SqlLikeProjectionFixtures` (`ComputedBoostProjection`, `ComputedScalarProjection`),
+    `ChartTestFixtures.EmployeeEvent`,
+    and `WindowTestFixtures.DepartmentAgg`.
+  - migrated remaining duplicate nested fixture models:
+    `SqlLikeJoinTest` (`ParentBean`, `ChildBean` -> `PojoLensBehaviorFixtures`),
+    `ChartJsAdapterBridgeTest` + `ChartLibraryInteropTest` (`EmployeeEvent`),
+    `FluentWindowFunctionTest` + `SqlLikeMappingParityTest` (`DepartmentAgg`),
+    `SqlLikeQueryContractTest` + `SqlLikeValidationTest` (computed projection fixtures),
+    plus stats preset/docs suites to shared `ChartTestFixtures.DepartmentPayrollRow`.
+  - removed duplicate `StatsExampleFixtures.DepartmentPayrollRow`.
+  - duplicate nested test fixture class-name scan now reports zero duplicates.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=ChartQueryPresetsTest,FluentWindowFunctionTest,SqlLikeErrorCodesContractTest,SqlLikeJoinTest,SqlLikeMappingParityTest,SqlLikeQueryContractTest,SqlLikeValidationTest,StatsDocsExamplesTest,StatsViewPresetsTest,ChartJsAdapterBridgeTest,ChartLibraryInteropTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -177,7 +197,7 @@
 - Lint baseline refresh is completed:
   - ran lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
-  - post-refresh gate check passes with `12090` report/baseline entries and `new=0`, `fixed=0`.
+  - post-refresh gate check passes with `11841` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
 - Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
 - Incremental test deduplication can continue using `testutil/StatsExampleFixtures` as the shared-fixture baseline pattern.
@@ -207,7 +227,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`11908` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`11841` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 

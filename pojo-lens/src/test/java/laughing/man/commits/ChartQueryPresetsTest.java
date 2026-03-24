@@ -8,8 +8,8 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentActiveBreakdownRow;
-import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.PeriodHeadcountRow;
 import org.junit.jupiter.api.Test;
 

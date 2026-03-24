@@ -5,6 +5,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentAgg;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
@@ -219,13 +220,5 @@ public class FluentWindowFunctionTest {
                         )
         );
         assertTrue(ex.getMessage().contains("requires numeric field"));
-    }
-
-    public static class DepartmentAgg {
-        public String department;
-        public long totalSalary;
-
-        public DepartmentAgg() {
-        }
     }
 }

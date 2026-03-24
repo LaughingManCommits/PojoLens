@@ -11,7 +11,7 @@ import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.stats.StatsTable;
 import laughing.man.commits.stats.StatsViewPreset;
 import laughing.man.commits.stats.StatsViewPresets;
-import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.EmployeeStatRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.HeadcountRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.TrendRow;

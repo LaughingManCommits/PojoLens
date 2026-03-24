@@ -7,6 +7,7 @@ import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountAlias;
+import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedBoostProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -177,9 +178,9 @@ public class SqlLikeQueryContractTest {
                 new TestBean("xyz", 5)
         );
 
-        List<ComputedProjection> results = PojoLens
+        List<ComputedBoostProjection> results = PojoLens
                 .parse("select name as name, value * 1.5 + 2 as boosted where value >= 2")
-                .filter(source, ComputedProjection.class);
+                .filter(source, ComputedBoostProjection.class);
 
         assertEquals(2, results.size());
         assertEquals("abc", results.get(0).name);
@@ -356,14 +357,6 @@ public class SqlLikeQueryContractTest {
 
         public DepartmentEmployee(String department) {
             this.department = department;
-        }
-    }
-
-    public static class ComputedProjection {
-        String name;
-        double boosted;
-
-        public ComputedProjection() {
         }
     }
 
