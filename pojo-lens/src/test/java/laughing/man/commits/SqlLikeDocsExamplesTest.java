@@ -19,6 +19,12 @@ import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.DepartmentDenseRank;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.DepartmentHeadcount;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.DepartmentHeadcountByAlias;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.DepartmentRunningTotal;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.DepartmentSalaryRank;
+import laughing.man.commits.testutil.SqlLikeDocsProjections.PeriodHeadcount;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -673,60 +679,6 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(true, whereStage.get("applied"));
         assertEquals(4, ((Number) whereStage.get("before")).intValue());
         assertEquals(3, ((Number) whereStage.get("after")).intValue());
-    }
-
-    public static class DepartmentHeadcount {
-        public String department;
-        public long headcount;
-
-        public DepartmentHeadcount() {
-        }
-    }
-
-    public static class DepartmentHeadcountByAlias {
-        public String dept;
-        public long headcount;
-
-        public DepartmentHeadcountByAlias() {
-        }
-    }
-
-    public static class PeriodHeadcount {
-        public String period;
-        public long headcount;
-
-        public PeriodHeadcount() {
-        }
-    }
-
-    public static class DepartmentSalaryRank {
-        public String dept;
-        public String name;
-        public int salary;
-        public long rn;
-
-        public DepartmentSalaryRank() {
-        }
-    }
-
-    public static class DepartmentDenseRank {
-        public String dept;
-        public String name;
-        public int salary;
-        public long dr;
-
-        public DepartmentDenseRank() {
-        }
-    }
-
-    public static class DepartmentRunningTotal {
-        public String dept;
-        public String name;
-        public int salary;
-        public long runningTotal;
-
-        public DepartmentRunningTotal() {
-        }
     }
 }
 

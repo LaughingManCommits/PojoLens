@@ -154,6 +154,17 @@
     `mvn -B -ntp -Plint verify -DskipTests`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- SQL-like docs projection extraction is now delivered:
+  - moved local projection models out of `SqlLikeDocsExamplesTest` into shared
+    `testutil/SqlLikeDocsProjections`.
+  - simplified `SqlLikeDocsExamplesTest` by removing nested projection class declarations
+    and reusing shared fixture types.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeWindowFunctionTest,SqlLikeErrorCodesContractTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.

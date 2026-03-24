@@ -12,6 +12,22 @@
 
 ## Latest Validation
 
+- `2026-03-24`: SQL-like docs test projection extraction validated:
+  - moved local projection models from `SqlLikeDocsExamplesTest` into shared fixture helper
+    `testutil/SqlLikeDocsProjections`
+    (`DepartmentHeadcount`, `DepartmentHeadcountByAlias`, `PeriodHeadcount`,
+    `DepartmentSalaryRank`, `DepartmentDenseRank`, `DepartmentRunningTotal`).
+  - simplified `SqlLikeDocsExamplesTest` to consume shared projection fixtures and removed
+    in-class nested projection declarations.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeWindowFunctionTest,SqlLikeErrorCodesContractTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline gate:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - current baseline/report parity unchanged: `11839` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: selective-materialization test organization + lint baseline refresh validated:
   - extracted `FilterQueryBuilderSelectiveMaterializationTest` local fixture scaffolding into
     shared helper `testutil/SelectiveMaterializationFixtures`
@@ -339,6 +355,7 @@
   - introduced shared fixture layer for stats/docs/chart preset suites in `pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java`.
   - reduced duplicated date/sample-row and projection fixture classes across multiple tests.
   - expanded fixture layer with `TestDateFixtures`, `ChartTestFixtures`, and `TimeBucketTestFixtures` and migrated additional chart/time-bucket suites.
+  - extracted SQL-like docs projection models into `testutil/SqlLikeDocsProjections`.
   - extracted selective-materialization test data/models into dedicated `testutil/SelectiveMaterializationFixtures` helper.
   - moved heavy chart interop synthetic data/model code out of chart tests and into shared `ChartTestFixtures` builders/rows.
   - split `PublicApiCoverageTest` into focused cache/sql/fluent/ecosystem suites with shared base/model fixtures, and removed legacy monolithic class.
