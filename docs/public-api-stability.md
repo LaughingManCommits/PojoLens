@@ -78,7 +78,7 @@ PojoLens now uses explicit API tiers so compatibility expectations are clear.
 The following remain public, but are treated as advanced in `1.x`:
 
 - Static cache-control APIs on `PojoLens`/`PojoLensCore`/`PojoLensSql`
-- `report`, `compareSnapshots`, and regression/testing helper APIs
+- `report`, stats/chart preset helpers, `compareSnapshots`, and regression/testing helper APIs
 - Metamodel generation helpers
 - Benchmark and threshold tooling
 

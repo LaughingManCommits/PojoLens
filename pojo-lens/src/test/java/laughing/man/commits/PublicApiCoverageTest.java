@@ -24,6 +24,9 @@ import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.stats.StatsTable;
+import laughing.man.commits.stats.StatsViewPreset;
+import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testing.FluentSqlLikeParity;
@@ -447,6 +450,16 @@ public class PublicApiCoverageTest {
         assertEquals(ChartType.BAR, preset.chartSpec().type());
         assertTrue(preset.source().contains("count(*) as total"));
         assertEquals(2, preset.rows(sampleEmployees()).size());
+    }
+
+    @Test
+    public void statsViewPresetsShouldBeUsableFromPublicApi() {
+        StatsViewPreset<StatsRow> preset = StatsViewPresets.by("department", StatsRow.class);
+        StatsTable<StatsRow> table = preset.table(sampleEmployees());
+
+        assertEquals(2, table.rows().size());
+        assertEquals(List.of("department", "total"), table.schema().names());
+        assertEquals(4L, ((Number) table.totals().get("total")).longValue());
     }
 
     @Test

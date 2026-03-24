@@ -98,3 +98,19 @@ ReportDefinition<DepartmentCount> report = preset.reportDefinition();
 TabularSchema schema = preset.schema();
 ```
 
+## Relation To StatsViewPreset
+
+`StatsViewPreset<T>` is the table-first preset API for common summary/grouped/leaderboard query shapes.
+
+It adds optional totals and schema metadata through `StatsTable<T>`:
+
+```java
+StatsTable<DepartmentCount> table = StatsViewPresets
+    .by("department", DepartmentCount.class)
+    .table(source);
+
+List<DepartmentCount> rows = table.rows();
+Map<String, Object> totals = table.totals();
+TabularSchema schema = table.schema();
+```
+

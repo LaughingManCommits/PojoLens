@@ -7,12 +7,14 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.stats.StatsTable;
+import laughing.man.commits.stats.StatsViewPreset;
+import laughing.man.commits.stats.StatsViewPresets;
 import org.junit.jupiter.api.Test;
 import laughing.man.commits.enums.Sort;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
@@ -77,22 +79,35 @@ public class StatsDocsExamplesTest {
     public void readmeTopNCategoriesByMetricExampleShouldWork() {
         List<EmployeeStatRow> employees = employeeRows();
 
-        List<DepartmentPayrollRow> grouped = PojoLens.newQueryBuilder(employees)
-                .addGroup("department")
-                .addMetric("salary", Metric.SUM, "payroll")
-                .initFilter()
-                .filter(DepartmentPayrollRow.class);
-
-        List<DepartmentPayrollRow> top2 = grouped.stream()
-                .sorted(Comparator.comparingLong((DepartmentPayrollRow r) -> r.payroll).reversed())
-                .limit(2)
-                .collect(Collectors.toList());
+        List<DepartmentPayrollRow> top2 = StatsViewPresets
+                .topNBy("department", Metric.SUM, "salary", "payroll", 2, DepartmentPayrollRow.class)
+                .rows(employees);
 
         assertEquals(2, top2.size());
         assertEquals("Engineering", top2.get(0).department);
         assertEquals(405000L, top2.get(0).payroll);
         assertEquals("Finance", top2.get(1).department);
         assertEquals(150000L, top2.get(1).payroll);
+    }
+
+    @Test
+    public void readmeGroupedStatsTablePresetExampleShouldWork() {
+        List<EmployeeStatRow> employees = employeeRows();
+        StatsViewPreset<DepartmentPayrollRow> preset = StatsViewPresets.by(
+                "department",
+                Metric.SUM,
+                "salary",
+                "payroll",
+                DepartmentPayrollRow.class
+        );
+
+        StatsTable<DepartmentPayrollRow> table = preset.table(employees);
+
+        assertEquals(List.of("department", "payroll"), table.schema().names());
+        assertEquals(3, table.rows().size());
+        assertEquals("Engineering", table.rows().get(0).department);
+        assertEquals(405000L, table.rows().get(0).payroll);
+        assertEquals(645000L, ((Number) table.totals().get("payroll")).longValue());
     }
 
     @Test

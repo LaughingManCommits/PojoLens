@@ -37,6 +37,16 @@
   - benchmark coverage now includes windowed vs non-windowed SQL-like comparisons with notes in `docs/benchmarking.md`.
   - `TODO.md` spike-4 checkboxes are now marked complete.
   - focused regression rerun: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,PublicApiCoverageTest" test`.
+- Predefined stats views spike 5 (easy usage presets) is now completed:
+  - added `StatsViewPresets` standard table view APIs: `summary()`, `by(field)`, `topNBy(field, metric, n)`.
+  - added `StatsViewPreset<T>` execution wrapper (list/map/join-bundle overloads) and `StatsTable<T>` payload (`rows`, optional `totals`, `schema`).
+  - preset execution now compiles to existing SQL-like query runtime (no separate execution engine).
+  - docs/examples added in `README.md`, `docs/stats-presets.md`, `docs/usecases.md`, and `docs/reports.md`.
+  - coverage added/updated: `StatsViewPresetsTest`, `StatsDocsExamplesTest`, `PublicApiCoverageTest`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -109,7 +119,7 @@
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
   - post-refresh gate check passes with `11896` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
-- Next roadmap target is spike 5: predefined stats views (easy usage presets).
+- Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
 
 ## Next Validation
 
@@ -122,6 +132,8 @@
   `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
 - Aggregate-window focused suite (recommended during follow-up):
   `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCoverageTest,StablePublicApiContractTest" test`.
+- Stats-preset focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

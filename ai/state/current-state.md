@@ -6,12 +6,23 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, and SQL window spikes 1-4 (`OVER`, `QUALIFY`, aggregate windows, API/docs hardening) completed.
+- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, SQL window spikes 1-4 (`OVER`, `QUALIFY`, aggregate windows, API/docs hardening), and predefined stats views spike 5 completed.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-24`: predefined stats views spike 5 (easy usage presets) passed:
+  - added new preset API: `StatsViewPresets.summary(...)`, `StatsViewPresets.by(...)`, and `StatsViewPresets.topNBy(...)`.
+  - added immutable table payload contract `StatsTable<T>` with `rows`, optional `totals`, and `schema`.
+  - added executable preset wrapper `StatsViewPreset<T>` with list/map/join-bundle overloads and `ReportDefinition` bridge.
+  - added docs + examples in `README.md`, `docs/stats-presets.md`, `docs/usecases.md`, and `docs/reports.md`.
+  - added regression/public-surface coverage:
+    `StatsViewPresetsTest`, `StatsDocsExamplesTest`, `PublicApiCoverageTest`.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-23`: SQL window spike 4 (API/docs hardening) passed:
   - docs/README now document aggregate-window syntax limits and practical recipes for top-N per group, dense rank, and running total usage.
   - SQL-like docs and public API examples now include aggregate-window parse/filter/explain coverage.
@@ -188,6 +199,15 @@
   - Added public API/docs regression coverage for aggregate-window parse/filter/explain paths.
   - Added benchmark comparisons for windowed vs non-windowed SQL-like queries and documented overhead notes.
   - Updated TODO and marked spike-4 items complete.
+- Predefined stats views spike 5 (easy usage presets) completed:
+  - Added table-first preset API `StatsViewPresets` with standard view shapes:
+    `summary()`, `by(field)`, and `topNBy(field, metric, n)`.
+  - Preset execution compiles to SQL-like query contracts (`SqlLikeQuery`) and reuses existing runtime execution (no separate engine).
+  - Added immutable table payload `StatsTable<T>` carrying `rows`, optional `totals`, and `schema` metadata.
+  - Added executable preset wrapper `StatsViewPreset<T>` with list/map/join-bindings/dataset-bundle overloads.
+  - Added docs + practical recipes for grouped stats tables and leaderboard tables.
+  - Added regression and public API coverage tests for preset correctness and stable output columns.
+  - Updated TODO and marked spike-5 checklist complete.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).
   - Added fluent runtime window and qualify stages with guardrails matching SQL-like semantics (non-aggregate-only + qualify-window reference validation).
@@ -256,5 +276,5 @@
 ## Next Actions
 
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
-- Continue TODO roadmap with spike 5 (predefined stats views / easy usage presets).
+- Define/prioritize the next roadmap spike after spike-5 completion.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

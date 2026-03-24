@@ -87,13 +87,13 @@ Spike goal:
 - Add predefined view presets that generate common stats tables with minimal configuration.
 
 Spike steps:
-1. [ ] Define preset API for standard views (for example: `summary()`, `by(field)`, `topNBy(field, metric, n)`).
-2. [ ] Implement preset compilation to fluent/SQL-like queries without introducing a separate execution engine.
-3. [ ] Add output model for table-friendly payloads (`rows`, optional totals, schema metadata).
-4. [ ] Add docs and examples for dashboard-style usage.
-5. [ ] Add regression tests for preset correctness and stable output columns.
+1. [x] Define preset API for standard views (for example: `summary()`, `by(field)`, `topNBy(field, metric, n)`).
+2. [x] Implement preset compilation to fluent/SQL-like queries without introducing a separate execution engine.
+3. [x] Add output model for table-friendly payloads (`rows`, optional totals, schema metadata).
+4. [x] Add docs and examples for dashboard-style usage.
+5. [x] Add regression tests for preset correctness and stable output columns.
 
 Acceptance criteria:
-- Developers can generate common stats tables in a few lines with predefined presets.
-- Preset output is deterministic and aligned with existing aggregate semantics.
-- Docs include at least one end-to-end example for a grouped stats table and leaderboard table.
+- [x] Developers can generate common stats tables in a few lines with predefined presets.
+- [x] Preset output is deterministic and aligned with existing aggregate semantics.
+- [x] Docs include at least one end-to-end example for a grouped stats table and leaderboard table.

@@ -15,6 +15,7 @@ Each section answers: when to use it, what to copy, and what outcome you get.
 | Time-based finance/product summaries   | Use Case 3 | `bucket(...) + group by + having` |
 | Multi-source views with joins          | Use Case 4 | `JoinBindings` / `DatasetBundle`  |
 | Chart payloads for frontend/reporting  | Use Case 5 | `.chart(...)` + `ChartData`       |
+| Dashboard-ready stats tables           | Use Case 5B | `StatsViewPresets` + `StatsTable` |
 | Safe refactors + regression protection | Use Case 6 | `QueryRegressionFixture`          |
 | Production slowdown triage             | Use Case 7 | `.explain(...)` + telemetry       |
 
@@ -230,6 +231,30 @@ payload.put("data", Map.of(
 Outcome:
 - One PojoLens query can feed multiple chart libraries cleanly.
 
+## Use Case 5B: Dashboard Stats Tables and Leaderboards
+
+Problem:
+- Teams need table payloads with rows, totals, and schema metadata without repeating aggregate query strings.
+
+Use grouped stats preset:
+
+```java
+StatsTable<DepartmentPayrollRow> table = StatsViewPresets
+    .by("department", Metric.SUM, "salary", "payroll", DepartmentPayrollRow.class)
+    .table(employees);
+```
+
+Use leaderboard preset:
+
+```java
+StatsTable<DepartmentPayrollRow> top3 = StatsViewPresets
+    .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
+    .table(employees);
+```
+
+Outcome:
+- Deterministic table rows, optional totals, and reusable schema metadata for dashboard rendering.
+
 ## Use Case 6: Refactor Without Behavior Drift
 
 Problem:
@@ -275,6 +300,7 @@ Outcome:
 ## Next Reads
 
 - [docs/charts.md](charts.md)
+- [docs/stats-presets.md](stats-presets.md)
 - [docs/sql-like.md](sql-like.md)
 - [docs/reports.md](reports.md)
 - [docs/time-buckets.md](time-buckets.md)

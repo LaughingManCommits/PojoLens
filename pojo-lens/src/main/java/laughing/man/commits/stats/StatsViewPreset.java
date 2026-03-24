@@ -1,0 +1,133 @@
+package laughing.man.commits.stats;
+
+import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.util.ReflectionUtil;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Immutable preset that couples a SQL-like stats query with optional totals.
+ */
+public final class StatsViewPreset<T> {
+
+    private final SqlLikeQuery query;
+    private final SqlLikeQuery totalsQuery;
+    private final Class<T> projectionClass;
+
+    StatsViewPreset(SqlLikeQuery query, SqlLikeQuery totalsQuery, Class<T> projectionClass) {
+        this.query = Objects.requireNonNull(query, "query must not be null");
+        this.totalsQuery = totalsQuery;
+        this.projectionClass = Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+    }
+
+    public String source() {
+        return query.source();
+    }
+
+    public SqlLikeQuery query() {
+        return query;
+    }
+
+    public boolean hasTotals() {
+        return totalsQuery != null;
+    }
+
+    public Class<T> projectionClass() {
+        return projectionClass;
+    }
+
+    public TabularSchema schema() {
+        return query.schema(projectionClass);
+    }
+
+    public ReportDefinition<T> reportDefinition() {
+        return ReportDefinition.sql(query, projectionClass);
+    }
+
+    public List<T> rows(List<?> sourceRows) {
+        return rows(sourceRows, Collections.emptyMap());
+    }
+
+    public List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return query.filter(sourceRows, joinSources, projectionClass);
+    }
+
+    public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return query.filter(sourceRows, joinBindings, projectionClass);
+    }
+
+    public List<T> rows(DatasetBundle datasetBundle) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return query.filter(datasetBundle, projectionClass);
+    }
+
+    public Map<String, Object> totals(List<?> sourceRows) {
+        return totals(sourceRows, Collections.emptyMap());
+    }
+
+    public Map<String, Object> totals(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        if (totalsQuery == null) {
+            return Collections.emptyMap();
+        }
+        List<T> totalRows = totalsQuery.filter(sourceRows, joinSources, projectionClass);
+        if (totalRows.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return projectionToMap(totalRows.get(0), totalsQuery.schema(projectionClass).names());
+    }
+
+    public Map<String, Object> totals(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return totals(sourceRows, joinBindings.asMap());
+    }
+
+    public Map<String, Object> totals(DatasetBundle datasetBundle) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return totals(datasetBundle.primaryRows(), datasetBundle.joinSources());
+    }
+
+    public StatsTable<T> table(List<?> sourceRows) {
+        return table(sourceRows, Collections.emptyMap());
+    }
+
+    public StatsTable<T> table(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return StatsTable.of(rows(sourceRows, joinSources), totals(sourceRows, joinSources), schema());
+    }
+
+    public StatsTable<T> table(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return table(sourceRows, joinBindings.asMap());
+    }
+
+    public StatsTable<T> table(DatasetBundle datasetBundle) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return table(datasetBundle.primaryRows(), datasetBundle.joinSources());
+    }
+
+    private static Map<String, Object> projectionToMap(Object row, List<String> columns) {
+        if (row == null || columns == null || columns.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LinkedHashMap<String, Object> values = new LinkedHashMap<>();
+        for (String column : columns) {
+            if (column == null || column.isBlank()) {
+                continue;
+            }
+            try {
+                values.put(column, ReflectionUtil.getFieldValue(row, column));
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to read totals field '" + column + "'", ex);
+            }
+        }
+        return Collections.unmodifiableMap(values);
+    }
+}

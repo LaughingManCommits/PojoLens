@@ -58,6 +58,7 @@ Runnable example project:
   - SQL-like strings for dynamic/user-authored queries
 - Keep query and chart mapping in one pipeline (`ChartData`).
 - Reuse query shapes with report definitions, presets, dataset bundles, and typed bindings.
+- Build common dashboard tables quickly with predefined stats view presets.
 
 ## Quick Start
 
@@ -92,6 +93,14 @@ ChartData chart = PojoLens
     .chart(source, DepartmentCount.class, ChartSpec.of(ChartType.BAR, "department", "total"));
 ```
 
+### Predefined stats table in one call
+
+```java
+StatsTable<DepartmentPayrollRow> table = StatsViewPresets
+    .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
+    .table(source);
+```
+
 ### SQL-like join with typed bindings
 
 ```java
@@ -115,6 +124,7 @@ List<Company> rows = PojoLens
 - Chained SQL-like joins with typed join bindings
 - Computed field registry for derived expressions
 - Chart payload mapping (`BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`)
+- Predefined stats view presets for summary/grouped/leaderboard tables
 - Query telemetry hooks and explain output
 - Snapshot comparison helpers and regression fixtures
 - Field metamodel generation for typed field constants
@@ -170,6 +180,7 @@ Preset intent:
 - Time buckets: [docs/time-buckets.md](docs/time-buckets.md)
 - Telemetry: [docs/telemetry.md](docs/telemetry.md)
 - Reports and presets: [docs/reports.md](docs/reports.md)
+- Stats view presets: [docs/stats-presets.md](docs/stats-presets.md)
 - Computed fields: [docs/computed-fields.md](docs/computed-fields.md)
 - Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
 - Snapshot comparison: [docs/snapshot-comparison.md](docs/snapshot-comparison.md)
