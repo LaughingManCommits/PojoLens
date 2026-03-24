@@ -19,7 +19,7 @@ Each section answers: when to use it, what to copy, and what outcome you get.
 | Safe refactors + regression protection | Use Case 6 | `QueryRegressionFixture`          |
 | Production slowdown triage             | Use Case 7 | `.explain(...)` + telemetry       |
 
-## Use Case 1: PeopleOps Search API
+## Use Case 1: People-Ops Search API
 
 Problem:
 - HR needs "active senior engineers ordered by salary" from in-memory rows.
