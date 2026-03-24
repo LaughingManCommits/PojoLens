@@ -81,6 +81,15 @@
     `mvn -B -ntp -Plint verify -DskipTests`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Window/parity fixture dedup pass is now delivered:
+  - added shared fixture helper `testutil/WindowTestFixtures` for repeated window test models and sample aggregate-window rows.
+  - migrated `FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, and `SqlLikeMappingParityTest` to shared fixtures and removed duplicated nested classes.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -174,6 +183,8 @@
   `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - Expanded fixture-migration suite:
   `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- Window-fixture migration suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
 - For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).

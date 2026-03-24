@@ -1,11 +1,16 @@
 package laughing.man.commits;
 
+import laughing.man.commits.testutil.WindowTestFixtures.WindowEmployee;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowRankProjection;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowRowNumberProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -186,16 +191,9 @@ public class SqlLikeWindowFunctionTest {
 
     @Test
     public void aggregateWindowsShouldComputeRunningMetricsWithExpectedTypesAndNullHandling() {
-        List<WindowMetricInput> source = Arrays.asList(
-                new WindowMetricInput("A", 1, 10),
-                new WindowMetricInput("A", 2, null),
-                new WindowMetricInput("A", 3, 5),
-                new WindowMetricInput("B", 1, 2),
-                new WindowMetricInput("B", 2, 3),
-                new WindowMetricInput("C", 1, null)
-        );
+        List<WindowMetricInput> source = sampleWindowMetricInputs();
 
-        List<WindowAggregateProjection> rows = PojoLens
+        List<WindowMetricProjection> rows = PojoLens
                 .parse("select department, seq, amount, "
                         + "sum(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningSum, "
@@ -210,7 +208,7 @@ public class SqlLikeWindowFunctionTest {
                         + "max(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningMax "
                         + "order by department asc, seq asc")
-                .filter(source, WindowAggregateProjection.class);
+                .filter(source, WindowMetricProjection.class);
 
         assertEquals(6, rows.size());
 
@@ -269,81 +267,10 @@ public class SqlLikeWindowFunctionTest {
                     .parse("select department, "
                             + "sum(amount) over (partition by department order by seq asc "
                             + "rows between 1 preceding and current row) as runningSum")
-                    .filter(source, WindowAggregateProjection.class);
+                    .filter(source, WindowMetricProjection.class);
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unsupported window frame expression"));
-        }
-    }
-
-    public static class WindowEmployee {
-        public int id;
-        public String name;
-        public String department;
-        public int salary;
-        public Date hireDate;
-        public boolean active;
-
-        public WindowEmployee() {
-        }
-
-        public WindowEmployee(int id, String name, String department, int salary, boolean active) {
-            this.id = id;
-            this.name = name;
-            this.department = department;
-            this.salary = salary;
-            this.active = active;
-            this.hireDate = new Date();
-        }
-    }
-
-    public static class WindowRowNumberProjection {
-        public String dept;
-        public String name;
-        public int salary;
-        public long rn;
-
-        public WindowRowNumberProjection() {
-        }
-    }
-
-    public static class WindowRankProjection {
-        public String name;
-        public int salary;
-        public long rk;
-        public long dr;
-
-        public WindowRankProjection() {
-        }
-    }
-
-    public static class WindowMetricInput {
-        public String department;
-        public int seq;
-        public Integer amount;
-
-        public WindowMetricInput() {
-        }
-
-        public WindowMetricInput(String department, int seq, Integer amount) {
-            this.department = department;
-            this.seq = seq;
-            this.amount = amount;
-        }
-    }
-
-    public static class WindowAggregateProjection {
-        public String department;
-        public int seq;
-        public Integer amount;
-        public Long runningSum;
-        public Long runningCount;
-        public Long runningCountAll;
-        public Double runningAvg;
-        public Integer runningMin;
-        public Integer runningMax;
-
-        public WindowAggregateProjection() {
         }
     }
 }

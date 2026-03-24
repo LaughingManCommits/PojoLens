@@ -10,6 +10,9 @@ import laughing.man.commits.testing.FluentSqlLikeParity;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -20,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 
 public class SqlLikeMappingParityTest {
 
@@ -263,16 +267,9 @@ public class SqlLikeMappingParityTest {
 
     @Test
     public void sqlLikeAggregateWindowsShouldMatchFluentPipeline() {
-        List<WindowMetricInput> source = Arrays.asList(
-                new WindowMetricInput("A", 1, 10),
-                new WindowMetricInput("A", 2, null),
-                new WindowMetricInput("A", 3, 5),
-                new WindowMetricInput("B", 1, 2),
-                new WindowMetricInput("B", 2, 3),
-                new WindowMetricInput("C", 1, null)
-        );
+        List<WindowMetricInput> source = sampleWindowMetricInputs();
 
-        List<WindowAggregateRow> fluent = PojoLens.newQueryBuilder(source)
+        List<WindowMetricProjection> fluent = PojoLens.newQueryBuilder(source)
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -308,9 +305,9 @@ public class SqlLikeMappingParityTest {
                 .addOrder("department", 1)
                 .addOrder("seq", 2)
                 .initFilter()
-                .filter(Sort.ASC, WindowAggregateRow.class);
+                .filter(Sort.ASC, WindowMetricProjection.class);
 
-        List<WindowAggregateRow> sqlLike = PojoLens
+        List<WindowMetricProjection> sqlLike = PojoLens
                 .parse("select department, seq, amount, "
                         + "sum(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningSum, "
@@ -321,7 +318,7 @@ public class SqlLikeMappingParityTest {
                         + "avg(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningAvg "
                         + "order by department asc, seq asc")
-                .filter(source, WindowAggregateRow.class);
+                .filter(source, WindowMetricProjection.class);
 
         FluentSqlLikeParity.assertOrderedEquals(
                 fluent,
@@ -342,44 +339,6 @@ public class SqlLikeMappingParityTest {
         public long totalSalary;
 
         public DepartmentAgg() {
-        }
-    }
-
-    public static class DepartmentRank {
-        public String department;
-        public String name;
-        public int salary;
-        public long rn;
-
-        public DepartmentRank() {
-        }
-    }
-
-    public static class WindowMetricInput {
-        public String department;
-        public int seq;
-        public Integer amount;
-
-        public WindowMetricInput() {
-        }
-
-        public WindowMetricInput(String department, int seq, Integer amount) {
-            this.department = department;
-            this.seq = seq;
-            this.amount = amount;
-        }
-    }
-
-    public static class WindowAggregateRow {
-        public String department;
-        public int seq;
-        public Integer amount;
-        public Long runningSum;
-        public Long runningCount;
-        public Long runningCountAll;
-        public Double runningAvg;
-
-        public WindowAggregateRow() {
         }
     }
 }

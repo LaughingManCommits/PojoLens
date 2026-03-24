@@ -5,15 +5,19 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class FluentWindowFunctionTest {
 
@@ -95,14 +99,7 @@ public class FluentWindowFunctionTest {
 
     @Test
     public void fluentAggregateWindowsShouldComputeRunningMetricsWithNullParity() {
-        List<WindowMetricProjection> rows = PojoLens.newQueryBuilder(List.of(
-                        new WindowMetricInput("A", 1, 10),
-                        new WindowMetricInput("A", 2, null),
-                        new WindowMetricInput("A", 3, 5),
-                        new WindowMetricInput("B", 1, 2),
-                        new WindowMetricInput("B", 2, 3),
-                        new WindowMetricInput("C", 1, null)
-                ))
+        List<WindowMetricProjection> rows = PojoLens.newQueryBuilder(sampleWindowMetricInputs())
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -224,51 +221,11 @@ public class FluentWindowFunctionTest {
         assertTrue(ex.getMessage().contains("requires numeric field"));
     }
 
-    public static class DepartmentRank {
-        public String department;
-        public String name;
-        public int salary;
-        public long rn;
-
-        public DepartmentRank() {
-        }
-    }
-
     public static class DepartmentAgg {
         public String department;
         public long totalSalary;
 
         public DepartmentAgg() {
-        }
-    }
-
-    public static class WindowMetricInput {
-        public String department;
-        public int seq;
-        public Integer amount;
-
-        public WindowMetricInput() {
-        }
-
-        public WindowMetricInput(String department, int seq, Integer amount) {
-            this.department = department;
-            this.seq = seq;
-            this.amount = amount;
-        }
-    }
-
-    public static class WindowMetricProjection {
-        public String department;
-        public int seq;
-        public Integer amount;
-        public Long runningSum;
-        public Long runningCount;
-        public Long runningCountAll;
-        public Double runningAvg;
-        public Integer runningMin;
-        public Integer runningMax;
-
-        public WindowMetricProjection() {
         }
     }
 }
