@@ -3,6 +3,7 @@ package laughing.man.commits.chart;
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPeriodPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
 import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
 import org.junit.jupiter.api.Test;
@@ -40,11 +41,11 @@ public class ChartJsAdapterBridgeTest {
 
     @Test
     public void chartJsBridgeShouldMatchGoldenPercentStackedPayload() throws Exception {
-        List<DepartmentPeriodPayroll> rows = Arrays.asList(
-                new DepartmentPeriodPayroll("Engineering", "2025-01", 300),
-                new DepartmentPeriodPayroll("Finance", "2025-01", 100),
-                new DepartmentPeriodPayroll("Engineering", "2025-02", 150),
-                new DepartmentPeriodPayroll("Finance", "2025-02", 150)
+        List<DepartmentPeriodPayrollRow> rows = Arrays.asList(
+                new DepartmentPeriodPayrollRow("Engineering", "2025-01", 300),
+                new DepartmentPeriodPayrollRow("Finance", "2025-01", 100),
+                new DepartmentPeriodPayrollRow("Engineering", "2025-02", 150),
+                new DepartmentPeriodPayrollRow("Finance", "2025-02", 150)
         );
 
         ChartData chartData = PojoLens
@@ -63,11 +64,11 @@ public class ChartJsAdapterBridgeTest {
 
     @Test
     public void chartJsBridgeShouldMatchGoldenMetadataPayload() throws Exception {
-        List<DepartmentPayrollSeriesRow> rows = new ArrayList<>();
-        rows.add(new DepartmentPayrollSeriesRow("2025-01", "Engineering", 200));
-        rows.add(new DepartmentPayrollSeriesRow("2025-01", "Finance", 120));
-        rows.add(new DepartmentPayrollSeriesRow("2025-02", "Engineering", 240));
-        rows.add(new DepartmentPayrollSeriesRow("2025-02", "Finance", 130));
+        List<DepartmentPeriodPayrollRow> rows = new ArrayList<>();
+        rows.add(new DepartmentPeriodPayrollRow("Engineering", "2025-01", 200));
+        rows.add(new DepartmentPeriodPayrollRow("Finance", "2025-01", 120));
+        rows.add(new DepartmentPeriodPayrollRow("Engineering", "2025-02", 240));
+        rows.add(new DepartmentPeriodPayrollRow("Finance", "2025-02", 130));
 
         ChartData chartData = PojoLens.toChartData(rows,
                 ChartSpec.of(ChartType.LINE, "period", "payroll", "department")
@@ -215,34 +216,5 @@ public class ChartJsAdapterBridgeTest {
         return value.replace("\r\n", "\n").trim();
     }
 
-    public static class DepartmentPeriodPayroll {
-        public String department;
-        public String period;
-        public long payroll;
-
-        public DepartmentPeriodPayroll() {
-        }
-
-        public DepartmentPeriodPayroll(String department, String period, long payroll) {
-            this.department = department;
-            this.period = period;
-            this.payroll = payroll;
-        }
-    }
-
-    public static class DepartmentPayrollSeriesRow {
-        public String period;
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollSeriesRow() {
-        }
-
-        public DepartmentPayrollSeriesRow(String period, String department, long payroll) {
-            this.period = period;
-            this.department = department;
-            this.payroll = payroll;
-        }
-    }
 }
 

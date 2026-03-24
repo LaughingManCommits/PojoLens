@@ -4,8 +4,10 @@ import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPeriodPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
 import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.ScatterSignalRow;
 import org.junit.jupiter.api.Test;
 import org.knowm.xchart.BitmapEncoder;
 import org.knowm.xchart.CategoryChart;
@@ -18,23 +20,25 @@ import org.knowm.xchart.XYSeries;
 import org.knowm.xchart.internal.chartpart.Chart;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+import static laughing.man.commits.testutil.ChartTestFixtures.interopEmployeeEvents;
+import static laughing.man.commits.testutil.ChartTestFixtures.interopMonthlyDepartmentPayroll;
+import static laughing.man.commits.testutil.ChartTestFixtures.interopMonthlyDepartmentPayrollWithGaps;
+import static laughing.man.commits.testutil.ChartTestFixtures.interopScatterSignals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ChartLibraryInteropTest {
 
     @Test
     public void xChartBarChartShouldRenderFromLargerFluentGroupedDataset() throws Exception {
-        List<EmployeeEvent> events = employeeEvents();
+        List<EmployeeEvent> events = interopEmployeeEvents();
         ChartData chartData = PojoLens.newQueryBuilder(events)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
@@ -66,7 +70,7 @@ public class ChartLibraryInteropTest {
 
     @Test
     public void xChartLineChartShouldRenderFromLargerSqlLikeMonthlyTrend() throws Exception {
-        List<MonthlyDepartmentPayrollRow> rows = monthlyDepartmentPayroll();
+        List<DepartmentPeriodPayrollRow> rows = interopMonthlyDepartmentPayroll();
         ChartData chartData = PojoLens
                 .parse("select period, department, sum(payroll) as totalPayroll group by period, department")
                 .chart(rows, PeriodSeriesPayrollRow.class,
@@ -99,7 +103,7 @@ public class ChartLibraryInteropTest {
 
     @Test
     public void xChartPieChartShouldRenderFromSqlLikeHeadcountAggregation() throws Exception {
-        List<EmployeeEvent> events = employeeEvents();
+        List<EmployeeEvent> events = interopEmployeeEvents();
         ChartData chartData = PojoLens
                 .parse("select department, count(*) as headcount group by department")
                 .chart(events, DepartmentHeadcountRow.class, ChartSpec.of(ChartType.PIE, "department", "headcount"));
@@ -126,7 +130,7 @@ public class ChartLibraryInteropTest {
 
     @Test
     public void xChartAreaChartShouldRenderStackedPercentPolicies() throws Exception {
-        List<MonthlyDepartmentPayrollRow> rows = monthlyDepartmentPayrollWithGaps();
+        List<DepartmentPeriodPayrollRow> rows = interopMonthlyDepartmentPayrollWithGaps();
         ChartData chartData = PojoLens
                 .parse("select period, department, sum(payroll) as totalPayroll group by period, department")
                 .chart(rows, PeriodSeriesPayrollRow.class,
@@ -162,7 +166,7 @@ public class ChartLibraryInteropTest {
 
     @Test
     public void xChartScatterChartShouldRenderLargerSignalDataset() throws Exception {
-        List<ScatterSignalRow> rows = scatterSignals();
+        List<ScatterSignalRow> rows = interopScatterSignals();
         ChartData chartData = PojoLens.toChartData(rows,
                 ChartSpec.of(ChartType.SCATTER, "x", "y", "series").withSortedLabels(true));
         assertChartShape(chartData, 240, 3);
@@ -298,119 +302,6 @@ public class ChartLibraryInteropTest {
             x.add(Double.parseDouble(labels.get(i)));
         }
         return x;
-    }
-
-    private static List<EmployeeEvent> employeeEvents() {
-        List<EmployeeEvent> events = new ArrayList<>();
-        String[] departments = new String[] {"Engineering", "Finance", "Operations"};
-        Random random = new Random(20260301L);
-        for (int month = 1; month <= 12; month++) {
-            for (String department : departments) {
-                int headcount = 6 + random.nextInt(8);
-                int base = baseSalaryForDepartment(department);
-                for (int i = 0; i < headcount; i++) {
-                    int salary = base + random.nextInt(60_000) + (month * 450);
-                    events.add(new EmployeeEvent(department, "2025-" + pad2(month), salary));
-                }
-            }
-        }
-        return events;
-    }
-
-    private static List<MonthlyDepartmentPayrollRow> monthlyDepartmentPayroll() {
-        List<MonthlyDepartmentPayrollRow> rows = new ArrayList<>();
-        String[] departments = new String[] {"Engineering", "Finance", "Operations"};
-        Random random = new Random(424242L);
-        for (int month = 1; month <= 12; month++) {
-            for (String department : departments) {
-                int seasonal = 7_500 * ((month % 6) + 1);
-                int payroll = basePayrollForDepartment(department) + seasonal + random.nextInt(85_000);
-                rows.add(new MonthlyDepartmentPayrollRow(department, "2025-" + pad2(month), payroll));
-            }
-        }
-        return rows;
-    }
-
-    private static List<MonthlyDepartmentPayrollRow> monthlyDepartmentPayrollWithGaps() {
-        List<MonthlyDepartmentPayrollRow> rows = monthlyDepartmentPayroll();
-        rows.removeIf(row -> "Operations".equals(row.department)
-                && Arrays.asList("2025-02", "2025-06", "2025-10").contains(row.period));
-        return rows;
-    }
-
-    private static List<ScatterSignalRow> scatterSignals() {
-        List<ScatterSignalRow> rows = new ArrayList<>();
-        Random random = new Random(99L);
-        String[] seriesNames = new String[] {"api", "db", "queue"};
-        for (int i = 1; i <= 240; i++) {
-            String series = seriesNames[i % 3];
-            int x = i;
-            double trend;
-            if ("api".equals(series)) {
-                trend = 18.0 + (x * 0.24);
-            } else if ("db".equals(series)) {
-                trend = 26.0 + (x * 0.21);
-            } else {
-                trend = 22.0 + (x * 0.23);
-            }
-            double noise = (random.nextDouble() - 0.5) * 4.0;
-            rows.add(new ScatterSignalRow(x, trend + noise, series));
-        }
-        return rows;
-    }
-
-    private static int baseSalaryForDepartment(String department) {
-        if ("Engineering".equals(department)) {
-            return 110_000;
-        }
-        if ("Finance".equals(department)) {
-            return 95_000;
-        }
-        return 88_000;
-    }
-
-    private static int basePayrollForDepartment(String department) {
-        if ("Engineering".equals(department)) {
-            return 220_000;
-        }
-        if ("Finance".equals(department)) {
-            return 180_000;
-        }
-        return 160_000;
-    }
-
-    private static String pad2(int number) {
-        return number < 10 ? "0" + number : String.valueOf(number);
-    }
-
-    public static class MonthlyDepartmentPayrollRow {
-        public String department;
-        public String period;
-        public long payroll;
-
-        public MonthlyDepartmentPayrollRow() {
-        }
-
-        public MonthlyDepartmentPayrollRow(String department, String period, long payroll) {
-            this.department = department;
-            this.period = period;
-            this.payroll = payroll;
-        }
-    }
-
-    public static class ScatterSignalRow {
-        public int x;
-        public double y;
-        public String series;
-
-        public ScatterSignalRow() {
-        }
-
-        public ScatterSignalRow(int x, double y, String series) {
-            this.x = x;
-            this.y = y;
-            this.series = series;
-        }
     }
 }
 

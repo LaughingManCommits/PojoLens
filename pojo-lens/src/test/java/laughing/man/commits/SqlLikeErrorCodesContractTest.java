@@ -1,4 +1,4 @@
-package laughing.man.commits;
+packayoge laughing.man.commits;
 
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeCursor;

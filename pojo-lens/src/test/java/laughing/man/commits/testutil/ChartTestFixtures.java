@@ -1,8 +1,10 @@
 package laughing.man.commits.testutil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Random;
 
 import static laughing.man.commits.testutil.TestDateFixtures.utcDate;
 
@@ -37,6 +39,89 @@ public final class ChartTestFixtures {
         rows.add(new SeriesMetricRow("Engineering", "2025-02", 150));
         rows.add(new SeriesMetricRow("Finance", "2025-02", 150));
         return rows;
+    }
+
+    public static List<EmployeeEvent> interopEmployeeEvents() {
+        List<EmployeeEvent> events = new ArrayList<>();
+        String[] departments = new String[] {"Engineering", "Finance", "Operations"};
+        Random random = new Random(20260301L);
+        for (int month = 1; month <= 12; month++) {
+            for (String department : departments) {
+                int headcount = 6 + random.nextInt(8);
+                int base = baseSalaryForDepartment(department);
+                for (int i = 0; i < headcount; i++) {
+                    int salary = base + random.nextInt(60_000) + (month * 450);
+                    events.add(new EmployeeEvent(department, "2025-" + pad2(month), salary));
+                }
+            }
+        }
+        return events;
+    }
+
+    public static List<DepartmentPeriodPayrollRow> interopMonthlyDepartmentPayroll() {
+        List<DepartmentPeriodPayrollRow> rows = new ArrayList<>();
+        String[] departments = new String[] {"Engineering", "Finance", "Operations"};
+        Random random = new Random(424242L);
+        for (int month = 1; month <= 12; month++) {
+            for (String department : departments) {
+                int seasonal = 7_500 * ((month % 6) + 1);
+                int payroll = basePayrollForDepartment(department) + seasonal + random.nextInt(85_000);
+                rows.add(new DepartmentPeriodPayrollRow(department, "2025-" + pad2(month), payroll));
+            }
+        }
+        return rows;
+    }
+
+    public static List<DepartmentPeriodPayrollRow> interopMonthlyDepartmentPayrollWithGaps() {
+        List<DepartmentPeriodPayrollRow> rows = interopMonthlyDepartmentPayroll();
+        rows.removeIf(row -> "Operations".equals(row.department)
+                && Arrays.asList("2025-02", "2025-06", "2025-10").contains(row.period));
+        return rows;
+    }
+
+    public static List<ScatterSignalRow> interopScatterSignals() {
+        List<ScatterSignalRow> rows = new ArrayList<>();
+        Random random = new Random(99L);
+        String[] seriesNames = new String[] {"api", "db", "queue"};
+        for (int i = 1; i <= 240; i++) {
+            String series = seriesNames[i % 3];
+            int x = i;
+            double trend;
+            if ("api".equals(series)) {
+                trend = 18.0 + (x * 0.24);
+            } else if ("db".equals(series)) {
+                trend = 26.0 + (x * 0.21);
+            } else {
+                trend = 22.0 + (x * 0.23);
+            }
+            double noise = (random.nextDouble() - 0.5) * 4.0;
+            rows.add(new ScatterSignalRow(x, trend + noise, series));
+        }
+        return rows;
+    }
+
+    private static int baseSalaryForDepartment(String department) {
+        if ("Engineering".equals(department)) {
+            return 110_000;
+        }
+        if ("Finance".equals(department)) {
+            return 95_000;
+        }
+        return 88_000;
+    }
+
+    private static int basePayrollForDepartment(String department) {
+        if ("Engineering".equals(department)) {
+            return 220_000;
+        }
+        if ("Finance".equals(department)) {
+            return 180_000;
+        }
+        return 160_000;
+    }
+
+    private static String pad2(int number) {
+        return number < 10 ? "0" + number : String.valueOf(number);
     }
 
     public static class DepartmentPayrollRow {
@@ -141,6 +226,12 @@ public final class ChartTestFixtures {
 
         public DepartmentPeriodPayrollRow() {
         }
+
+        public DepartmentPeriodPayrollRow(String department, String period, long payroll) {
+            this.department = department;
+            this.period = period;
+            this.payroll = payroll;
+        }
     }
 
     public static class PeriodSeriesPayrollRow {
@@ -162,6 +253,21 @@ public final class ChartTestFixtures {
         public ScatterPoint(int x, int y) {
             this.x = x;
             this.y = y;
+        }
+    }
+
+    public static class ScatterSignalRow {
+        public int x;
+        public double y;
+        public String series;
+
+        public ScatterSignalRow() {
+        }
+
+        public ScatterSignalRow(int x, double y, String series) {
+            this.x = x;
+            this.y = y;
+            this.series = series;
         }
     }
 }

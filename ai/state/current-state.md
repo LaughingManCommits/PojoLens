@@ -12,6 +12,23 @@
 
 ## Latest Validation
 
+- `2026-03-24`: chart test-organization extraction + lint baseline refresh validated:
+  - expanded shared chart fixtures in `testutil/ChartTestFixtures` with:
+    deterministic interop dataset builders (`interopEmployeeEvents`, `interopMonthlyDepartmentPayroll`,
+    `interopMonthlyDepartmentPayrollWithGaps`, `interopScatterSignals`),
+    plus reusable row models/constructors (`DepartmentPeriodPayrollRow`, `ScatterSignalRow`).
+  - simplified chart interop suites by removing inline synthetic data/model clutter:
+    `chart/ChartLibraryInteropTest` now consumes shared builders + models;
+    `chart/ChartJsAdapterBridgeTest` now reuses shared period-payroll row fixtures.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=ChartLibraryInteropTest,ChartJsAdapterBridgeTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,ChartQueryPresetsTest,StatsDocsExamplesTest,StatsViewPresetsTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline refresh:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11810` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: expanded fixture dedup pass + lint baseline refresh validated:
   - added shared fixture models:
     `testutil/SqlLikeProjectionFixtures` (`ComputedBoostProjection`, `ComputedScalarProjection`),
@@ -307,6 +324,7 @@
   - introduced shared fixture layer for stats/docs/chart preset suites in `pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java`.
   - reduced duplicated date/sample-row and projection fixture classes across multiple tests.
   - expanded fixture layer with `TestDateFixtures`, `ChartTestFixtures`, and `TimeBucketTestFixtures` and migrated additional chart/time-bucket suites.
+  - moved heavy chart interop synthetic data/model code out of chart tests and into shared `ChartTestFixtures` builders/rows.
   - split `PublicApiCoverageTest` into focused cache/sql/fluent/ecosystem suites with shared base/model fixtures, and removed legacy monolithic class.
   - added shared `WindowTestFixtures` and migrated window/parity suites (`FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeMappingParityTest`) off duplicated nested window models.
   - added shared `CommonStatsProjections` and migrated repeated stats projection rows across cache/sql-like/report/telemetry/bundle suites.
