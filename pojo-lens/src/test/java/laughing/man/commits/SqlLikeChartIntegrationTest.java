@@ -7,15 +7,22 @@ import laughing.man.commits.chart.ChartDataset;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountAliasRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPeriodPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentSalaryPoint;
+import laughing.man.commits.testutil.ChartTestFixtures.ScatterPoint;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.ChartTestFixtures.departmentMonthlySalaryPoints;
+import static laughing.man.commits.testutil.TestDateFixtures.utcDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SqlLikeChartIntegrationTest {
@@ -89,10 +96,7 @@ public class SqlLikeChartIntegrationTest {
 
     @Test
     public void sqlLikeMultiSeriesChartShouldMapBucketedAggregates() {
-        List<EmployeePoint> rows = new ArrayList<>();
-        rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 3), 100));
-        rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.FEBRUARY, 1), 150));
-        rows.add(new EmployeePoint("Finance", utcDate(2025, Calendar.FEBRUARY, 5), 300));
+        List<DepartmentSalaryPoint> rows = departmentMonthlySalaryPoints();
 
         ChartData chart = PojoLens
                 .parse("select department, bucket(hireDate,'month') as period, sum(salary) as payroll group by department, period")
@@ -153,77 +157,5 @@ public class SqlLikeChartIntegrationTest {
         return summary;
     }
 
-    private static Date utcDate(int year, int month, int day) {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.MONTH, month);
-        calendar.set(Calendar.DAY_OF_MONTH, day);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTime();
-    }
-
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
-    public static class DepartmentHeadcountRow {
-        public String department;
-        public long headcount;
-
-        public DepartmentHeadcountRow() {
-        }
-    }
-
-    public static class DepartmentHeadcountAliasRow {
-        public String dept;
-        public long total;
-
-        public DepartmentHeadcountAliasRow() {
-        }
-    }
-
-    public static class DepartmentPeriodPayrollRow {
-        public String department;
-        public String period;
-        public long payroll;
-
-        public DepartmentPeriodPayrollRow() {
-        }
-    }
-
-    public static class EmployeePoint {
-        public String department;
-        public Date hireDate;
-        public int salary;
-
-        public EmployeePoint() {
-        }
-
-        public EmployeePoint(String department, Date hireDate, int salary) {
-            this.department = department;
-            this.hireDate = hireDate;
-            this.salary = salary;
-        }
-    }
-
-    public static class ScatterPoint {
-        public int x;
-        public int y;
-
-        public ScatterPoint() {
-        }
-
-        public ScatterPoint(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
 }
 

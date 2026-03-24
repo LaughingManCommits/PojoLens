@@ -12,6 +12,18 @@
 
 ## Latest Validation
 
+- `2026-03-24`: expanded test-dedup pass validated:
+  - added shared test-date helper `testutil/TestDateFixtures` with UTC overloads.
+  - added shared chart fixture models/builders `testutil/ChartTestFixtures`.
+  - added shared time-bucket fixture models/builders `testutil/TimeBucketTestFixtures`.
+  - migrated additional suites to shared fixtures:
+    `FluentChartIntegrationTest`, `SqlLikeChartIntegrationTest`,
+    `TimeBucketAggregationTest`, `util/TimeBucketUtilTest`
+    (plus previously migrated stats/chart preset tests).
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCoverageTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: test-structure cleanup pass validated:
   - added shared test fixture helper `testutil/StatsExampleFixtures` for repeated stats/docs/chart test rows and UTC-date helper.
   - migrated `StatsDocsExamplesTest`, `ChartQueryPresetsTest`, and `StatsViewPresetsTest` to shared fixtures, removing duplicate local fixture classes/builders.
@@ -224,6 +236,7 @@
 - Test structure hardening (incremental) started:
   - introduced shared fixture layer for stats/docs/chart preset suites in `pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java`.
   - reduced duplicated date/sample-row and projection fixture classes across multiple tests.
+  - expanded fixture layer with `TestDateFixtures`, `ChartTestFixtures`, and `TimeBucketTestFixtures` and migrated additional chart/time-bucket suites.
   - added explicit test organization/fixture guidance to `CONTRIBUTING.md`.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).

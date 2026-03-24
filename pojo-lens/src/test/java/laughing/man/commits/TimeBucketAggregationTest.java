@@ -2,17 +2,21 @@ package laughing.man.commits;
 
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.EmployeePoint;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.NullableHireDatePoint;
 import laughing.man.commits.time.TimeBucketPreset;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.time.DayOfWeek;
-import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import static laughing.man.commits.testutil.TestDateFixtures.utcDate;
+import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -143,65 +147,5 @@ public class TimeBucketAggregationTest {
                 .collect(Collectors.toList());
     }
 
-    private static List<EmployeePoint> sampleRows() {
-        List<EmployeePoint> rows = new ArrayList<>();
-        rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 15, 10, 0), 100));
-        rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 20, 12, 0), 200));
-        rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.FEBRUARY, 1, 0, 0), 150));
-        rows.add(new EmployeePoint("Finance", utcDate(2025, Calendar.FEBRUARY, 5, 8, 30), 300));
-        return rows;
-    }
-
-    private static Date utcDate(int year, int month, int day, int hour, int minute) {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.MONTH, month);
-        calendar.set(Calendar.DAY_OF_MONTH, day);
-        calendar.set(Calendar.HOUR_OF_DAY, hour);
-        calendar.set(Calendar.MINUTE, minute);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTime();
-    }
-
-    public static class EmployeePoint {
-        public String department;
-        public Date hireDate;
-        public int salary;
-
-        public EmployeePoint() {
-        }
-
-        public EmployeePoint(String department, Date hireDate, int salary) {
-            this.department = department;
-            this.hireDate = hireDate;
-            this.salary = salary;
-        }
-    }
-
-    public static class DepartmentPeriodAgg {
-        public String department;
-        public String period;
-        public long total;
-        public long payroll;
-
-        public DepartmentPeriodAgg() {
-        }
-    }
-
-    public static class NullableHireDatePoint {
-        public String department;
-        public Date hireDate;
-        public int salary;
-
-        public NullableHireDatePoint() {
-        }
-
-        public NullableHireDatePoint(String department, Date hireDate, int salary) {
-            this.department = department;
-            this.hireDate = hireDate;
-            this.salary = salary;
-        }
-    }
 }
 

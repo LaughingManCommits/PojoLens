@@ -7,16 +7,18 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.PeriodPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.SalaryPoint;
+import laughing.man.commits.testutil.ChartTestFixtures.SeriesMetricRow;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.ChartTestFixtures.monthlySalaryPoints;
+import static laughing.man.commits.testutil.ChartTestFixtures.periodSeriesRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class FluentChartIntegrationTest {
@@ -42,10 +44,7 @@ public class FluentChartIntegrationTest {
 
     @Test
     public void fluentTimeBucketAliasShouldMapToChart() {
-        List<EmployeePoint> rows = new ArrayList<>();
-        rows.add(new EmployeePoint(utcDate(2025, Calendar.JANUARY, 3), 100));
-        rows.add(new EmployeePoint(utcDate(2025, Calendar.JANUARY, 20), 200));
-        rows.add(new EmployeePoint(utcDate(2025, Calendar.FEBRUARY, 1), 150));
+        List<SalaryPoint> rows = monthlySalaryPoints();
 
         ChartData chart = PojoLens.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
@@ -79,11 +78,7 @@ public class FluentChartIntegrationTest {
 
     @Test
     public void fluentMultiSeriesShouldSupportStackedPercentPolicies() {
-        List<SeriesMetricRow> rows = new ArrayList<>();
-        rows.add(new SeriesMetricRow("Engineering", "2025-01", 300));
-        rows.add(new SeriesMetricRow("Finance", "2025-01", 100));
-        rows.add(new SeriesMetricRow("Engineering", "2025-02", 150));
-        rows.add(new SeriesMetricRow("Finance", "2025-02", 150));
+        List<SeriesMetricRow> rows = periodSeriesRows();
 
         ChartData chart = PojoLens.newQueryBuilder(rows)
                 .initFilter()
@@ -98,62 +93,6 @@ public class FluentChartIntegrationTest {
         assertEquals(true, chart.isStacked());
         assertEquals(true, chart.isPercentStacked());
         assertEquals(NullPointPolicy.ZERO, chart.getNullPointPolicy());
-    }
-
-    public static class DepartmentPayrollRow {
-        public String department;
-        public long payroll;
-
-        public DepartmentPayrollRow() {
-        }
-    }
-
-    public static class PeriodPayrollRow {
-        public String period;
-        public long payroll;
-
-        public PeriodPayrollRow() {
-        }
-    }
-
-    public static class EmployeePoint {
-        public Date hireDate;
-        public int salary;
-
-        public EmployeePoint() {
-        }
-
-        public EmployeePoint(Date hireDate, int salary) {
-            this.hireDate = hireDate;
-            this.salary = salary;
-        }
-    }
-
-    public static class SeriesMetricRow {
-        public String department;
-        public String period;
-        public int payroll;
-
-        public SeriesMetricRow() {
-        }
-
-        public SeriesMetricRow(String department, String period, int payroll) {
-            this.department = department;
-            this.period = period;
-            this.payroll = payroll;
-        }
-    }
-
-    private static Date utcDate(int year, int month, int day) {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.MONTH, month);
-        calendar.set(Calendar.DAY_OF_MONTH, day);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTime();
     }
 }
 

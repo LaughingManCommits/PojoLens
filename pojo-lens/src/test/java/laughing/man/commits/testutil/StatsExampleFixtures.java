@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 
 /**
  * Shared fixture rows used by stats/chart preset and docs-example tests.
@@ -37,15 +36,7 @@ public final class StatsExampleFixtures {
     }
 
     public static Date utcDate(int year, int month, int day) {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.MONTH, month);
-        calendar.set(Calendar.DAY_OF_MONTH, day);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTime();
+        return TestDateFixtures.utcDate(year, month, day);
     }
 
     public static class EmployeeStatRow {
