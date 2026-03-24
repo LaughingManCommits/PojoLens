@@ -44,6 +44,7 @@ import laughing.man.commits.table.internal.TabularSchemaSupport;
 public class FilterQueryBuilder implements QueryBuilder {
 
     private static final Logger LOG = LoggerFactory.getLogger(FilterQueryBuilder.class);
+    private static final int DEFAULT_MAP_CAPACITY = 16;
 
     private final QuerySpec spec;
     private final FilterExecutionPlanCacheStore executionPlanCache;
@@ -1515,7 +1516,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (joinSourceBeans.isEmpty()) {
             return new HashMap<>();
         }
-        HashMap<Integer, List<?>> copy = new HashMap<>(Math.max(16, joinSourceBeans.size() * 2));
+        HashMap<Integer, List<?>> copy = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY, joinSourceBeans.size() * 2));
         for (Map.Entry<Integer, List<?>> entry : joinSourceBeans.entrySet()) {
             copy.put(entry.getKey(), copySourceBeans(entry.getValue()));
         }

@@ -26,6 +26,7 @@ import java.util.Objects;
 public final class SqlLikeCursor {
 
     private static final String TOKEN_VERSION = "v1";
+    private static final int CURSOR_ENTRY_PART_COUNT = 3;
 
     private final Map<String, Object> values;
 
@@ -100,8 +101,8 @@ public final class SqlLikeCursor {
                 throw cursor(SqlLikeErrorCodes.CURSOR_TOKEN_INVALID,
                         "Cursor token contains empty entry");
             }
-            String[] parts = segment.split(",", 3);
-            if (parts.length != 3) {
+            String[] parts = segment.split(",", CURSOR_ENTRY_PART_COUNT);
+            if (parts.length != CURSOR_ENTRY_PART_COUNT) {
                 throw cursor(SqlLikeErrorCodes.CURSOR_TOKEN_INVALID,
                         "Cursor token entry is malformed");
             }

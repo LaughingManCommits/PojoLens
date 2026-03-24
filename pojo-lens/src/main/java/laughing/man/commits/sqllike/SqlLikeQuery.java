@@ -1,18 +1,11 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.DatasetBundle;
-import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Sort;
-import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
-import laughing.man.commits.sqllike.ast.FilterAst;
-import laughing.man.commits.sqllike.ast.FilterBinaryAst;
-import laughing.man.commits.sqllike.ast.FilterExpressionAst;
-import laughing.man.commits.sqllike.ast.FilterPredicateAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
-import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
@@ -20,7 +13,6 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.explain.SqlLikeExplainSupport;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
-import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.table.TabularSchema;
@@ -30,7 +22,6 @@ import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionCon
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionShapeKey;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.PreparedExecution;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;

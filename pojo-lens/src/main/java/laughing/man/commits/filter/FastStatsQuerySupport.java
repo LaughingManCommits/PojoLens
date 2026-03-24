@@ -16,6 +16,8 @@ import java.util.List;
 
 public final class FastStatsQuerySupport {
 
+    private static final int INITIAL_GROUP_MAP_SIZE_CAP = 1024;
+
     private FastStatsQuerySupport() {
     }
 
@@ -159,7 +161,7 @@ public final class FastStatsQuerySupport {
             return aggregateSingleGroup(source, readPlan, groupColumns.get(0), metricPlans);
         }
         LinkedHashMap<QueryKey, GroupAccumulator> grouped =
-                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), 1024)));
+                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
         String[] keyParts = new String[columnCount];
         Object[] projectedValues = new Object[columnCount];
@@ -210,7 +212,7 @@ public final class FastStatsQuerySupport {
                                                             FilterExecutionPlan.GroupColumn groupColumn,
                                                             List<FilterExecutionPlan.MetricPlan> metricPlans) {
         LinkedHashMap<String, GroupAccumulator> grouped =
-                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), 1024)));
+                new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
 
         for (Object bean : source) {

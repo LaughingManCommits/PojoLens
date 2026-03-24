@@ -772,10 +772,12 @@ public final class ObjectUtil {
     }
 
     private static final class BoundedCache<K, V> {
+        private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+
         private final LinkedHashMap<K, V> delegate;
 
         private BoundedCache(int maxEntries) {
-            this.delegate = new LinkedHashMap<>(maxEntries, 0.75f, true) {
+            this.delegate = new LinkedHashMap<>(maxEntries, DEFAULT_LOAD_FACTOR, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
                     return size() > maxEntries;

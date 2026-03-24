@@ -3,7 +3,6 @@ package laughing.man.commits.chart;
 import laughing.man.commits.chart.validation.ChartValidation;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.CollectionUtil;
-import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
@@ -18,6 +17,8 @@ import java.util.Map;
  * Core chart mapping engine for converting result rows into {@link ChartData}.
  */
 public final class ChartMapper {
+
+    private static final double PERCENTAGE_SCALE = 100d;
 
     private ChartMapper() {
     }
@@ -267,7 +268,7 @@ public final class ChartMapper {
                 if (value == null) {
                     continue;
                 }
-                dataset.getValues().set(labelIndex, (value / total) * 100d);
+                dataset.getValues().set(labelIndex, (value / total) * PERCENTAGE_SCALE);
             }
         }
     }

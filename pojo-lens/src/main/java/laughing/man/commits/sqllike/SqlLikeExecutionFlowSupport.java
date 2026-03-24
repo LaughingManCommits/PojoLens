@@ -9,7 +9,6 @@ import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Separator;
-import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;

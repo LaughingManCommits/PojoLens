@@ -2,22 +2,25 @@ package laughing.man.commits.util;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StringUtilTest {
 
     @Test
-    void isNullOrBlank_shouldReturnTrueForNull() {
+    void isNullOrBlankReturnsTrueForNull() {
         assertTrue(StringUtil.isNullOrBlank(null));
     }
 
     @Test
-    void isNullOrBlank_shouldReturnTrueForEmptyString() {
+    void isNullOrBlankReturnsTrueForEmptyString() {
         assertTrue(StringUtil.isNullOrBlank(""));
     }
 
     @Test
-    void isNullOrBlank_shouldReturnTrueForBlankString() {
+    void isNullOrBlankReturnsTrueForBlankString() {
         assertTrue(StringUtil.isNullOrBlank("   "));
         assertTrue(StringUtil.isNullOrBlank("\t"));
         assertTrue(StringUtil.isNullOrBlank("\n"));
@@ -25,7 +28,7 @@ class StringUtilTest {
     }
 
     @Test
-    void isNullOrBlank_shouldReturnFalseForNonBlankString() {
+    void isNullOrBlankReturnsFalseForNonBlankString() {
         assertFalse(StringUtil.isNullOrBlank("a"));
         assertFalse(StringUtil.isNullOrBlank("hello"));
         assertFalse(StringUtil.isNullOrBlank(" text "));
@@ -33,29 +36,29 @@ class StringUtilTest {
     }
 
     @Test
-    void isNull_shouldReturnTrueForNull() {
+    void isNullReturnsTrueForNull() {
         assertTrue(StringUtil.isNull(null));
     }
 
     @Test
-    void isNull_shouldReturnTrueForEmptyString() {
+    void isNullReturnsTrueForEmptyString() {
         assertTrue(StringUtil.isNull(""));
     }
 
     @Test
-    void isNull_shouldReturnFalseForNonEmptyString() {
+    void isNullReturnsFalseForNonEmptyString() {
         assertFalse(StringUtil.isNull("a"));
         assertFalse(StringUtil.isNull("  "));
         assertFalse(StringUtil.isNull("hello"));
     }
 
     @Test
-    void parseBoolStrict_shouldReturnNullForNull() {
+    void parseBoolStrictReturnsNullForNull() {
         assertNull(StringUtil.parseBoolStrict(null));
     }
 
     @Test
-    void parseBoolStrict_shouldReturnTrueForTruthyValues() {
+    void parseBoolStrictReturnsTrueForTruthyValues() {
         assertEquals(Boolean.TRUE, StringUtil.parseBoolStrict("true"));
         assertEquals(Boolean.TRUE, StringUtil.parseBoolStrict("TRUE"));
         assertEquals(Boolean.TRUE, StringUtil.parseBoolStrict("1"));
@@ -66,7 +69,7 @@ class StringUtilTest {
     }
 
     @Test
-    void parseBoolStrict_shouldReturnFalseForFalsyValues() {
+    void parseBoolStrictReturnsFalseForFalsyValues() {
         assertEquals(Boolean.FALSE, StringUtil.parseBoolStrict("false"));
         assertEquals(Boolean.FALSE, StringUtil.parseBoolStrict("FALSE"));
         assertEquals(Boolean.FALSE, StringUtil.parseBoolStrict("0"));
@@ -77,14 +80,14 @@ class StringUtilTest {
     }
 
     @Test
-    void parseBoolStrict_shouldReturnNullForInvalidValues() {
+    void parseBoolStrictReturnsNullForInvalidValues() {
         assertNull(StringUtil.parseBoolStrict("maybe"));
         assertNull(StringUtil.parseBoolStrict("2"));
         assertNull(StringUtil.parseBoolStrict(""));
     }
 
     @Test
-    void isNumber_shouldReturnTrueForValidNumbers() {
+    void isNumberReturnsTrueForValidNumbers() {
         assertTrue(StringUtil.isNumber("123"));
         assertTrue(StringUtil.isNumber("123.45"));
         assertTrue(StringUtil.isNumber("-456"));
@@ -92,7 +95,7 @@ class StringUtilTest {
     }
 
     @Test
-    void isNumber_shouldReturnFalseForInvalidNumbers() {
+    void isNumberReturnsFalseForInvalidNumbers() {
         assertFalse(StringUtil.isNumber("abc"));
         assertFalse(StringUtil.isNumber("123abc"));
     }

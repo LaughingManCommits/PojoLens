@@ -31,6 +31,8 @@ public final class FilterExecutionPlanCacheKey {
     private final List<List<RuleShape>> anyOfGroups;
     private final List<List<RuleShape>> havingAllOfGroups;
     private final List<List<RuleShape>> havingAnyOfGroups;
+    private static final int NULL_STRING_WEIGHT = 4;
+
     private final int weight;
     private final int hashCode;
 
@@ -279,7 +281,7 @@ public final class FilterExecutionPlanCacheKey {
     private static int stringWeight(List<String> values) {
         int total = 0;
         for (String value : values) {
-            total += value == null ? 4 : value.length();
+            total += value == null ? NULL_STRING_WEIGHT : value.length();
         }
         return total;
     }
@@ -356,6 +358,6 @@ public final class FilterExecutionPlanCacheKey {
     }
 
     private static int length(String value) {
-        return value == null ? 4 : value.length();
+        return value == null ? NULL_STRING_WEIGHT : value.length();
     }
 }

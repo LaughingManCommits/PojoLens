@@ -170,16 +170,10 @@ class FilterImplFastPathTest {
     public static final class JoinOrderRow {
         public String name;
         public int salary;
-
-        public JoinOrderRow() {
-        }
     }
 
     public static final class JoinTagRow {
         public String name;
         public String tag;
-
-        public JoinTagRow() {
-        }
     }
 }

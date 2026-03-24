@@ -44,6 +44,31 @@ public final class ReflectionUtil {
             'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'
     };
 
+    private static final int DEFAULT_MAP_CAPACITY = 16;
+    private static final int DEFAULT_PATH_PARTS_CAPACITY = 4;
+
+    // UUID encoding layout constants
+    private static final int UUID_TOTAL_CHARS = 36;
+    private static final int UUID_SEG1_OFFSET = 0;
+    private static final int UUID_SEP1_INDEX = 8;
+    private static final int UUID_SEG2_OFFSET = 9;
+    private static final int UUID_SEP2_INDEX = 13;
+    private static final int UUID_SEG3_OFFSET = 14;
+    private static final int UUID_SEP3_INDEX = 18;
+    private static final int UUID_SEG4_OFFSET = 19;
+    private static final int UUID_SEP4_INDEX = 23;
+    private static final int UUID_SEG5_OFFSET = 24;
+    private static final int UUID_SEG1_WIDTH = 8;
+    private static final int UUID_SEG2_WIDTH = 4;
+    private static final int UUID_SEG3_WIDTH = 4;
+    private static final int UUID_SEG4_WIDTH = 4;
+    private static final int UUID_SEG5_WIDTH = 12;
+    private static final int UUID_MSB_SEG1_SHIFT = 32;
+    private static final int UUID_MSB_SEG2_SHIFT = 16;
+    private static final int UUID_LSB_SEG4_SHIFT = 48;
+    private static final int HEX_NIBBLE_MASK_SHIFT = 4;
+    private static final long HEX_NIBBLE_MASK = 0xFL;
+
     private ReflectionUtil() {
     }
 
@@ -239,20 +264,20 @@ public final class ReflectionUtil {
      */
     public static String newUUID() {
         UUID uuid = UUID.randomUUID();
-        char[] out = new char[36];
+        char[] out = new char[UUID_TOTAL_CHARS];
 
         long msb = uuid.getMostSignificantBits();
         long lsb = uuid.getLeastSignificantBits();
 
-        writeAlphaHex(out, 0, msb >>> 32, 8);
-        out[8] = '_';
-        writeAlphaHex(out, 9, msb >>> 16, 4);
-        out[13] = '_';
-        writeAlphaHex(out, 14, msb, 4);
-        out[18] = '_';
-        writeAlphaHex(out, 19, lsb >>> 48, 4);
-        out[23] = '_';
-        writeAlphaHex(out, 24, lsb, 12);
+        writeAlphaHex(out, UUID_SEG1_OFFSET, msb >>> UUID_MSB_SEG1_SHIFT, UUID_SEG1_WIDTH);
+        out[UUID_SEP1_INDEX] = '_';
+        writeAlphaHex(out, UUID_SEG2_OFFSET, msb >>> UUID_MSB_SEG2_SHIFT, UUID_SEG2_WIDTH);
+        out[UUID_SEP2_INDEX] = '_';
+        writeAlphaHex(out, UUID_SEG3_OFFSET, msb, UUID_SEG3_WIDTH);
+        out[UUID_SEP3_INDEX] = '_';
+        writeAlphaHex(out, UUID_SEG4_OFFSET, lsb >>> UUID_LSB_SEG4_SHIFT, UUID_SEG4_WIDTH);
+        out[UUID_SEP4_INDEX] = '_';
+        writeAlphaHex(out, UUID_SEG5_OFFSET, lsb, UUID_SEG5_WIDTH);
 
         return new String(out);
     }
@@ -402,7 +427,7 @@ public final class ReflectionUtil {
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
         List<Field> fields = getMutableFields(clazz);
-        Map<String, Field> byName = new HashMap<>(Math.max(16, fields.size() * 2));
+        Map<String, Field> byName = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
 
         for (int i = 0; i < fields.size(); i++) {
             Field field = fields.get(i);
@@ -449,7 +474,7 @@ public final class ReflectionUtil {
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
         ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
         collectFieldGraph(root, "", List.of(), new LinkedHashSet<>(), 0, flattenedFields);
-        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(16, flattenedFields.size() * 2));
+        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
         ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
         for (int i = 0; i < flattenedFields.size(); i++) {
             FlattenedFieldDescriptor field = flattenedFields.get(i);
@@ -820,8 +845,8 @@ public final class ReflectionUtil {
 
     private static void writeAlphaHex(char[] out, int offset, long value, int digits) {
         for (int i = digits - 1; i >= 0; i--) {
-            out[offset + i] = ALPHA_HEX[(int) (value & 0xF)];
-            value >>>= 4;
+            out[offset + i] = ALPHA_HEX[(int) (value & HEX_NIBBLE_MASK)];
+            value >>>= HEX_NIBBLE_MASK_SHIFT;
         }
     }
 
@@ -831,7 +856,7 @@ public final class ReflectionUtil {
             return List.of();
         }
 
-        ArrayList<String> parts = new ArrayList<>(4);
+        ArrayList<String> parts = new ArrayList<>(DEFAULT_PATH_PARTS_CAPACITY);
         int start = 0;
 
         for (int i = 0; i < length; i++) {
@@ -870,6 +895,8 @@ public final class ReflectionUtil {
     }
 
     private static final class ResolvedFieldPath {
+        private static final int INLINE_THREE_FIELD_PATH = 3;
+
         private final List<Field> fields;
         private final Field[] readFields;
         private final Class<?> leafType;
@@ -905,7 +932,7 @@ public final class ReflectionUtil {
                     Object nested = readFields[0].get(bean);
                     yield nested == null ? null : readFields[1].get(nested);
                 }
-                case 3 -> {
+                case INLINE_THREE_FIELD_PATH -> {
                     Object nested = readFields[0].get(bean);
                     if (nested == null) {
                         yield null;
@@ -968,7 +995,7 @@ public final class ReflectionUtil {
             this.flattenedFields = List.copyOf(flattenedFields);
             this.fieldPaths = new ResolvedFieldPath[flattenedFields.size()];
             ArrayList<String> orderedFieldNames = new ArrayList<>(flattenedFields.size());
-            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(16, flattenedFields.size() * 2));
+            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
             for (int i = 0; i < flattenedFields.size(); i++) {
                 FlattenedFieldDescriptor field = flattenedFields.get(i);
                 fieldPaths[i] = field.fieldPath();

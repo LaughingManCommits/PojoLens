@@ -11,6 +11,7 @@ import java.util.List;
 final class OrderEngine {
     private static final int TOP_K_MIN_INPUT_ROWS = 64;
     private static final int TOP_K_MAX_LIMIT = 512;
+    private static final int TOP_K_ROW_RATIO = 4;
 
     OrderEngine(FilterQueryBuilder builder) {
     }
@@ -52,7 +53,7 @@ final class OrderEngine {
         return limit > 0
                 && rowCount >= TOP_K_MIN_INPUT_ROWS
                 && limit <= TOP_K_MAX_LIMIT
-                && limit * 4 <= rowCount;
+                && limit * TOP_K_ROW_RATIO <= rowCount;
     }
 
     private List<QueryRow> topKOrderedRows(List<QueryRow> rows,

@@ -27,6 +27,11 @@ import java.util.Set;
 final class FastArrayQuerySupport {
     private static final int TOP_K_MIN_INPUT_ROWS = 64;
     private static final int TOP_K_MAX_LIMIT = 512;
+    private static final int DEFAULT_MAP_CAPACITY = 16;
+    private static final int DENSE_INDEX_INITIAL_CAPACITY = 16;
+    private static final int DENSE_INDEX_GROWTH_FACTOR = 4;
+    private static final long DENSE_INDEX_MAX_FACTOR = 4L;
+    private static final int TOP_K_ROW_RATIO = 4;
 
     private FastArrayQuerySupport() {
     }
@@ -251,7 +256,7 @@ final class FastArrayQuerySupport {
         schemaFields.addAll(parentReadPlan.fieldNames());
         schemaFields.addAll(childReadPlan.fieldNames());
 
-        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(16, schemaFields.size() * 2));
+        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
         for (int i = 0; i < schemaFields.size(); i++) {
             schemaIndexByName.put(schemaFields.get(i), i);
         }
@@ -280,7 +285,7 @@ final class FastArrayQuerySupport {
             );
         }
 
-        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(16, schemaFields.size() * 2));
+        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
         for (Map.Entry<String, Class<?>> entry : baseSchemaTypes.entrySet()) {
             schemaTypes.put(entry.getKey(), entry.getValue());
         }
@@ -407,7 +412,7 @@ final class FastArrayQuerySupport {
         int childJoinIndex = plan.childJoinIndex();
         int denseMaxLength = maxDenseIndexLength(children.size());
         boolean denseEligible = denseMaxLength > 0;
-        Object[] denseIndex = denseEligible ? new Object[Math.min(16, denseMaxLength)] : null;
+        Object[] denseIndex = denseEligible ? new Object[Math.min(DENSE_INDEX_INITIAL_CAPACITY, denseMaxLength)] : null;
         int maxDenseKey = -1;
         int childRowCount = 0;
         HashMap<Object, Object> hashIndex = null;
@@ -456,7 +461,7 @@ final class FastArrayQuerySupport {
         if (sourceSize <= 0) {
             return 0;
         }
-        long maxLength = (long) sourceSize * 4L;
+        long maxLength = (long) sourceSize * DENSE_INDEX_MAX_FACTOR;
         return maxLength > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxLength;
     }
 
@@ -546,7 +551,7 @@ final class FastArrayQuerySupport {
             return false;
         }
         int denseArrayLength = maxDenseKey + 1;
-        return denseArrayLength <= populatedKeys * 4;
+        return denseArrayLength <= populatedKeys * DENSE_INDEX_GROWTH_FACTOR;
     }
 
     private static Object[] materializeJoinedRow(Object[] parentValues,
@@ -715,7 +720,7 @@ final class FastArrayQuerySupport {
         return limit > 0
                 && rowCount >= TOP_K_MIN_INPUT_ROWS
                 && limit <= TOP_K_MAX_LIMIT
-                && limit * 4 <= rowCount;
+                && limit * TOP_K_ROW_RATIO <= rowCount;
     }
 
     private static List<Object[]> topKOrderedRows(List<Object[]> rows,

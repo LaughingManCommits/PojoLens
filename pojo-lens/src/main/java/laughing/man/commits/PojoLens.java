@@ -16,7 +16,7 @@ import laughing.man.commits.sqllike.SqlLikeTemplate;
 /**
  * Entry point for builder-based and SQL-like PojoLens APIs.
  */
-public class PojoLens {
+public final class PojoLens {
 
     private PojoLens() {
     }

@@ -6,7 +6,7 @@ import java.text.ParsePosition;
 /**
  * String helpers used by query parsing and comparison logic.
  */
-public class StringUtil {
+public final class StringUtil {
 
     public static Boolean parseBoolStrict(String string) {
         if (string == null) {

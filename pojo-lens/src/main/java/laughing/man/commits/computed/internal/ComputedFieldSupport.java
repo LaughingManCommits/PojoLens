@@ -20,6 +20,8 @@ import java.util.Set;
  */
 public final class ComputedFieldSupport {
 
+    private static final int DEFAULT_MAP_CAPACITY = 16;
+
     private ComputedFieldSupport() {
     }
 
@@ -137,8 +139,8 @@ public final class ComputedFieldSupport {
                                                                 List<ComputedFieldDefinition> definitions) {
         List<? extends QueryField> sourceFields = sampleRow == null ? null : sampleRow.getFields();
         int baseFieldCount = sourceFields == null ? 0 : sourceFields.size();
-        HashMap<String, ValueSource> availableValues = new HashMap<>(Math.max(16, baseFieldCount + definitions.size() * 2));
-        HashMap<String, Integer> outputIndexes = new HashMap<>(Math.max(16, baseFieldCount + definitions.size() * 2));
+        HashMap<String, ValueSource> availableValues = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,baseFieldCount + definitions.size() * 2));
+        HashMap<String, Integer> outputIndexes = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,baseFieldCount + definitions.size() * 2));
         CompiledComputedField[] compiledDefinitions = new CompiledComputedField[definitions.size()];
         int appendedFieldCount = 0;
 
@@ -311,7 +313,7 @@ public final class ComputedFieldSupport {
     private static List<QueryField> materializeFieldsLegacy(List<? extends QueryField> sourceFields,
                                                             CompiledComputedField[] definitions) {
         ArrayList<QueryField> fields = new ArrayList<>(sourceFields == null ? definitions.length : sourceFields.size() + definitions.length);
-        LinkedHashMap<String, Object> values = new LinkedHashMap<>(Math.max(16, fields.size() * 2));
+        LinkedHashMap<String, Object> values = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
         if (sourceFields != null) {
             for (QueryField field : sourceFields) {
                 fields.add(field);

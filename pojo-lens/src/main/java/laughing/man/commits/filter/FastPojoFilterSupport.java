@@ -1,7 +1,6 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Separator;
@@ -26,7 +25,7 @@ import java.util.Map;
  */
 final class FastPojoFilterSupport {
 
-    private FastPojoFilterSupport() {}
+    private FastPojoFilterSupport() { }
 
     /**
      * Returns true when the builder's shape is compatible with the fast POJO

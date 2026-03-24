@@ -16,6 +16,7 @@ public final class SqlExpressionEvaluator {
 
     private static final int TOKEN_CACHE_MAX_ENTRIES = 512;
     private static final int COMPILED_CACHE_MAX_ENTRIES = 512;
+    private static final double DIVISION_BY_ZERO_EPSILON = 1e-12;
     private static final Map<String, List<Token>> TOKEN_CACHE =
             Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
                 @Override
@@ -316,7 +317,7 @@ public final class SqlExpressionEvaluator {
             if (operator == '*') {
                 return leftValue * rightValue;
             }
-            if (Math.abs(rightValue) < 1e-12) {
+            if (Math.abs(rightValue) < DIVISION_BY_ZERO_EPSILON) {
                 throw new IllegalArgumentException("Division by zero in expression");
             }
             return leftValue / rightValue;
@@ -335,7 +336,7 @@ public final class SqlExpressionEvaluator {
             if (operator == '*') {
                 return leftValue * rightValue;
             }
-            if (Math.abs(rightValue) < 1e-12) {
+            if (Math.abs(rightValue) < DIVISION_BY_ZERO_EPSILON) {
                 throw new IllegalArgumentException("Division by zero in expression");
             }
             return leftValue / rightValue;

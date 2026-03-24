@@ -6,6 +6,7 @@ import java.util.List;
 final class QueryKey {
 
     private static final String[] EMPTY_VALUES = new String[0];
+    private static final int ESTIMATED_CHARS_PER_KEY = 8;
     private final String[] values;
     private int hashCode;
 
@@ -58,7 +59,7 @@ final class QueryKey {
         if (values.length == 0) {
             return "";
         }
-        StringBuilder sb = new StringBuilder(values.length * 8);
+        StringBuilder sb = new StringBuilder(values.length * ESTIMATED_CHARS_PER_KEY);
         for (String value : values) {
             sb.append(value).append(",");
         }

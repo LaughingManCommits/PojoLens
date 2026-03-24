@@ -20,6 +20,8 @@ import java.util.TreeSet;
 
 final class JoinEngine {
 
+    private static final int DEFAULT_MAP_CAPACITY = 16;
+
     private final FilterQueryBuilder builder;
 
     JoinEngine(FilterQueryBuilder builder) {
@@ -149,7 +151,7 @@ final class JoinEngine {
                                      List<? extends QueryField> childFields) {
         int parentSize = parentFields == null ? 0 : parentFields.size();
         int childSize = childFields == null ? 0 : childFields.size();
-        HashSet<String> usedNames = new HashSet<>(Math.max(16, parentSize + childSize));
+        HashSet<String> usedNames = new HashSet<>(Math.max(DEFAULT_MAP_CAPACITY, parentSize + childSize));
         MergeSlot[] childSlots = new MergeSlot[childSize];
         List<String> schema = new ArrayList<>(parentSize + childSize);
 

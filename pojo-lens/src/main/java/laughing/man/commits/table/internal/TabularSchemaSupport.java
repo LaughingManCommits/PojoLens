@@ -22,6 +22,8 @@ import java.util.Map;
  */
 public final class TabularSchemaSupport {
 
+    private static final int LABEL_BUILDER_EXTRA_CAPACITY = 8;
+
     private TabularSchemaSupport() {
     }
 
@@ -148,7 +150,7 @@ public final class TabularSchemaSupport {
 
     private static String labelFor(String name) {
         String normalized = name.replace('.', ' ').replace('_', ' ');
-        StringBuilder spaced = new StringBuilder(normalized.length() + 8);
+        StringBuilder spaced = new StringBuilder(normalized.length() + LABEL_BUILDER_EXTRA_CAPACITY);
         for (int i = 0; i < normalized.length(); i++) {
             char current = normalized.charAt(i);
             if (i > 0 && Character.isUpperCase(current) && Character.isLowerCase(normalized.charAt(i - 1))) {

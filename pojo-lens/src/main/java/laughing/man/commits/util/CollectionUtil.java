@@ -9,6 +9,9 @@ import java.util.Map;
  */
 public final class CollectionUtil {
 
+    private static final int DEFAULT_MAP_CAPACITY = 16;
+    private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+
     private CollectionUtil() {
     }
 
@@ -71,9 +74,9 @@ public final class CollectionUtil {
 
     public static int expectedMapCapacity(int sourceSize) {
         if (sourceSize <= 0) {
-            return 16;
+            return DEFAULT_MAP_CAPACITY;
         }
-        return (int) ((sourceSize / 0.75f) + 1.0f);
+        return (int) ((sourceSize / DEFAULT_LOAD_FACTOR) + 1.0f);
     }
 
     public static <K extends Comparable<? super K>, V> List<Map.Entry<K, V>> sortedEntriesByKey(Map<K, V> values) {

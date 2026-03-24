@@ -15,6 +15,8 @@ import static laughing.man.commits.EngineDefaults.EMPTY_GROUPING;
 
 final class GroupEngine {
 
+    private static final int INITIAL_GROUP_LIST_CAPACITY = 4;
+
     private final FilterQueryBuilder builder;
 
     GroupEngine(FilterQueryBuilder builder) {
@@ -44,7 +46,7 @@ final class GroupEngine {
                 lookupKey.refresh();
                 List<QueryRow> groupedRows = grouped.get(lookupKey);
                 if (groupedRows == null) {
-                    groupedRows = new ArrayList<>(4);
+                    groupedRows = new ArrayList<>(INITIAL_GROUP_LIST_CAPACITY);
                     grouped.put(new QueryKey(groupParts, columnCount), groupedRows);
                 }
 

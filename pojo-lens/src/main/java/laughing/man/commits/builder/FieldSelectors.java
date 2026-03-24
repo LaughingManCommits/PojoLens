@@ -6,6 +6,9 @@ import java.lang.reflect.Method;
 
 public final class FieldSelectors {
 
+    private static final int GET_PREFIX_LENGTH = 3;
+    private static final int IS_PREFIX_LENGTH = 2;
+
     private FieldSelectors() {
     }
 
@@ -15,11 +18,11 @@ public final class FieldSelectors {
             writeReplace.setAccessible(true);
             SerializedLambda lambda = (SerializedLambda) writeReplace.invoke(selector);
             String method = lambda.getImplMethodName();
-            if (method.startsWith("get") && method.length() > 3) {
-                return Introspector.decapitalize(method.substring(3));
+            if (method.startsWith("get") && method.length() > GET_PREFIX_LENGTH) {
+                return Introspector.decapitalize(method.substring(GET_PREFIX_LENGTH));
             }
-            if (method.startsWith("is") && method.length() > 2) {
-                return Introspector.decapitalize(method.substring(2));
+            if (method.startsWith("is") && method.length() > IS_PREFIX_LENGTH) {
+                return Introspector.decapitalize(method.substring(IS_PREFIX_LENGTH));
             }
             return method;
         } catch (Exception e) {
