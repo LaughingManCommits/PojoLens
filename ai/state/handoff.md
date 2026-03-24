@@ -90,6 +90,23 @@
     `scripts/check-doc-consistency.ps1`
     `mvn -B -ntp -Plint verify -DskipTests`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Common stats projection dedup pass is now delivered:
+  - added shared fixture helper `testutil/CommonStatsProjections` with reusable `DepartmentCount`, `DepartmentCountAlias`, and `DepartmentCountRow`.
+  - migrated repeated nested projection models from cache/sql-like/report/telemetry/bundle suites:
+    `CacheConcurrencyTest`, `CachePolicyConfigTest`,
+    `SqlLikeParametersContractTest`, `SqlLikeStrictParameterTypeModeTest`,
+    `SqlLikeTypedBindContractTest`, `SqlLikeQueryContractTest`,
+    `ExplainToolingTest`,
+    `ReportDefinitionTest`, `QueryRegressionFixtureTest`,
+    `QueryTelemetryTest`, `DatasetBundleExecutionContextTest`.
+  - updated fixture guidance in `CONTRIBUTING.md` to explicitly prefer shared projection POJO fixtures.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=CacheConcurrencyTest,CachePolicyConfigTest,SqlLikeParametersContractTest,SqlLikeStrictParameterTypeModeTest,SqlLikeTypedBindContractTest,ExplainToolingTest,QueryRegressionFixtureTest,QueryTelemetryTest,ReportDefinitionTest,DatasetBundleExecutionContextTest,FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - Fluent parity for window analytics is now implemented:
   - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
   - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
@@ -190,7 +207,7 @@
 - For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
 - For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
 - For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
-- Lint note: baseline currently matches lint report (`12023` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
+- Lint note: baseline currently matches lint report (`11908` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 

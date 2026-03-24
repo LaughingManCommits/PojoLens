@@ -2,6 +2,7 @@ package laughing.man.commits;
 
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -83,12 +84,5 @@ public class SqlLikeStrictParameterTypeModeTest {
         }
     }
 
-    public static class DepartmentCount {
-        public String department;
-        public long total;
-
-        public DepartmentCount() {
-        }
-    }
 }
 

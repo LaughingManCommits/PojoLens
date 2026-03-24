@@ -9,6 +9,7 @@ import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -150,7 +151,7 @@ public class ExplainToolingTest {
     public void sqlLikeExecutionExplainShouldIncludeStageCountsForAggregateQueries() {
         Map<String, Object> explain = PojoLens
                 .parse("select department, count(*) as total group by department having total >= 2 order by total desc limit 1")
-                .explain(sampleEmployees(), SqlLikeParametersContractTest.DepartmentCount.class);
+                .explain(sampleEmployees(), DepartmentCount.class);
 
         assertEquals("alias/computed", explain.get("projectionMode"));
         Map<String, Object> stageCounts = stageCounts(explain);

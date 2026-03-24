@@ -10,6 +10,7 @@ import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -122,12 +123,5 @@ public class DatasetBundleExecutionContextTest {
         }
     }
 
-    public static class DepartmentCountRow {
-        public String department;
-        public long total;
-
-        public DepartmentCountRow() {
-        }
-    }
 }
 

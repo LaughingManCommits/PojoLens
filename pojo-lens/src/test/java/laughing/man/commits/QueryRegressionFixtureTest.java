@@ -8,6 +8,7 @@ import laughing.man.commits.testing.QueryRegressionFixture;
 import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -98,13 +99,4 @@ public class QueryRegressionFixtureTest {
         assertThrows(IllegalStateException.class, fluentFixture::explain);
         assertThrows(IllegalStateException.class, fluentFixture::lintCodes);
     }
-
-    public static class DepartmentCountRow {
-        public String department;
-        public long total;
-
-        public DepartmentCountRow() {
-        }
-    }
 }
-

@@ -4,6 +4,8 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountAlias;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -155,20 +157,5 @@ public class CachePolicyConfigTest {
         PojoLens.resetStatsPlanCacheStats();
     }
 
-    public static class DepartmentCount {
-        public String department;
-        public long total;
-
-        public DepartmentCount() {
-        }
-    }
-
-    public static class DepartmentCountAlias {
-        public String dept;
-        public long total;
-
-        public DepartmentCountAlias() {
-        }
-    }
 }
 

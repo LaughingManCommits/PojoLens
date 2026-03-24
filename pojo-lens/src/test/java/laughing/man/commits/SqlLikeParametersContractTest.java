@@ -2,6 +2,7 @@ package laughing.man.commits;
 
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -145,14 +146,6 @@ public class SqlLikeParametersContractTest {
 
     private static List<String> names(List<Employee> rows) {
         return rows.stream().map(r -> r.name).collect(Collectors.toList());
-    }
-
-    public static class DepartmentCount {
-        public String department;
-        public long total;
-
-        public DepartmentCount() {
-        }
     }
 
     public static class NullableBean {

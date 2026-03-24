@@ -5,6 +5,8 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountAlias;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -354,22 +356,6 @@ public class SqlLikeQueryContractTest {
 
         public DepartmentEmployee(String department) {
             this.department = department;
-        }
-    }
-
-    public static class DepartmentCount {
-        String department;
-        long total;
-
-        public DepartmentCount() {
-        }
-    }
-
-    public static class DepartmentCountAlias {
-        String dept;
-        long total;
-
-        public DepartmentCountAlias() {
         }
     }
 

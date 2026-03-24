@@ -9,6 +9,7 @@ import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -154,12 +155,5 @@ public class SqlLikeTypedBindContractTest {
         return rows.stream().map(r -> r.id).collect(Collectors.toList());
     }
 
-    public static class DepartmentCount {
-        public String department;
-        public long total;
-
-        public DepartmentCount() {
-        }
-    }
 }
 

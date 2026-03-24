@@ -4,6 +4,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -189,14 +190,6 @@ public class CacheConcurrencyTest {
     @FunctionalInterface
     private interface Worker {
         void run(int threadIndex) throws Exception;
-    }
-
-    public static class DepartmentCount {
-        public String department;
-        public long total;
-
-        public DepartmentCount() {
-        }
     }
 
     public static class ActiveCount {

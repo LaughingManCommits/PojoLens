@@ -13,6 +13,7 @@ import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -145,14 +146,6 @@ public class ReportDefinitionTest {
 
         assertEquals(List.of("period", "total"), schema.names());
         assertTrue(schema.column("period").formatHint().contains("time-bucket:MONTH"));
-    }
-
-    public static class DepartmentCountRow {
-        public String department;
-        public long total;
-
-        public DepartmentCountRow() {
-        }
     }
 
     public static class PeriodCountRow {

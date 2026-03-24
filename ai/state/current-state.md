@@ -12,6 +12,25 @@
 
 ## Latest Validation
 
+- `2026-03-24`: common stats projection dedup + lint baseline refresh validated:
+  - added shared projection fixture helper `testutil/CommonStatsProjections` with reusable:
+    `DepartmentCount`, `DepartmentCountAlias`, and `DepartmentCountRow`.
+  - migrated repeated nested projection models in:
+    `CacheConcurrencyTest`, `CachePolicyConfigTest`,
+    `SqlLikeParametersContractTest`, `SqlLikeStrictParameterTypeModeTest`,
+    `SqlLikeTypedBindContractTest`, `SqlLikeQueryContractTest`,
+    `ExplainToolingTest`,
+    `ReportDefinitionTest`, `QueryRegressionFixtureTest`,
+    `QueryTelemetryTest`, and `DatasetBundleExecutionContextTest`.
+  - focused regression:
+    `mvn -q -pl pojo-lens -am "-Dtest=CacheConcurrencyTest,CachePolicyConfigTest,SqlLikeParametersContractTest,SqlLikeStrictParameterTypeModeTest,SqlLikeTypedBindContractTest,ExplainToolingTest,QueryRegressionFixtureTest,QueryTelemetryTest,ReportDefinitionTest,DatasetBundleExecutionContextTest,FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest" test`
+  - full regression: `mvn -q test`
+  - docs guardrail: `scripts/check-doc-consistency.ps1`
+  - lint profile + baseline refresh:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11908` entries, `new=0`, `fixed=0`.
 - `2026-03-24`: window/parity test fixture dedup pass validated:
   - added shared window fixture helper `testutil/WindowTestFixtures` for repeated window input/projection models and sample aggregate-window rows.
   - migrated `FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, and `SqlLikeMappingParityTest` to shared fixtures, removing duplicated nested model classes.
@@ -268,6 +287,7 @@
   - expanded fixture layer with `TestDateFixtures`, `ChartTestFixtures`, and `TimeBucketTestFixtures` and migrated additional chart/time-bucket suites.
   - split `PublicApiCoverageTest` into focused cache/sql/fluent/ecosystem suites with shared base/model fixtures, and removed legacy monolithic class.
   - added shared `WindowTestFixtures` and migrated window/parity suites (`FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, `SqlLikeMappingParityTest`) off duplicated nested window models.
+  - added shared `CommonStatsProjections` and migrated repeated stats projection rows across cache/sql-like/report/telemetry/bundle suites.
   - added explicit test organization/fixture guidance to `CONTRIBUTING.md`.
 - Fluent parity for window analytics delivered:
   - Added fluent API contracts for rank windows and qualify rules (`addWindow(...)`, `addQualify(...)`, qualify group helpers).

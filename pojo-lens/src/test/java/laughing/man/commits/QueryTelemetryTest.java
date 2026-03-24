@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -87,14 +88,6 @@ public class QueryTelemetryTest {
         assertEquals("sql-like", events.get(0).queryType());
         assertEquals("Cara", rows.get(0).name);
         assertEquals(130000, rows.get(0).pay);
-    }
-
-    public static class DepartmentCountRow {
-        public String department;
-        public long total;
-
-        public DepartmentCountRow() {
-        }
     }
 
     public static class SalaryAliasRow {

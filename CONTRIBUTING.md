@@ -22,6 +22,7 @@ Fixture guidance:
 - prefer shared reusable fixtures under `pojo-lens/src/test/java/laughing/man/commits/testutil`
 - keep per-test custom fixtures only when they are truly scenario-specific
 - centralize repeated date/sample-row builders in fixture helpers instead of duplicating them in each test class
+- centralize reused projection POJOs (for example, common stats/window rows) in shared fixture classes instead of redefining nested classes per test
 
 ## Lint Gate
 
