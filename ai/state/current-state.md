@@ -89,6 +89,44 @@
     spike 3 remains `Ready`.
   - docs/process validation:
     `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 3 (`Reusable Wrapper Consolidation`) completed:
+  - added `docs/reusable-wrappers.md` as the canonical wrapper capability matrix
+    and decision guide for `ReportDefinition`, `ChartQueryPreset`, and
+    `StatsViewPreset`.
+  - aligned wrapper positioning in `docs/reports.md`, `docs/charts.md`,
+    `docs/stats-presets.md`, and `docs/product-surface.md`.
+  - clarified wrapper roles in code-level Javadocs for
+    `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`,
+    including bridge semantics from specialized presets back to the general
+    report contract.
+  - roadmap state:
+    `WP3.1` `Done`,
+    `WP3.2` `Done`,
+    `WP3.3` `Done`,
+    `WP3.4` `Done`,
+    spike 3 `Done`,
+    spike 4 is now `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 4 (`Advanced Feature Containment`) completed:
+  - added `docs/advanced-features.md` as the grouped landing page for optional
+    runtime policy, diagnostics, testing, integration, and build-time tooling.
+  - split README messaging between core/workflow helper/runtime integration and
+    advanced/tooling surface so first-read adoption stays centered on querying.
+  - aligned `docs/public-api-stability.md` with the same core-vs-advanced
+    narrative and added explicit advanced-surface landing-page guidance.
+  - added explicit optional/advanced framing to deeper docs such as caching,
+    telemetry, regression fixtures, snapshot comparison, metamodel generation,
+    and benchmarking.
+  - roadmap state:
+    `WP4.1` `Done`,
+    `WP4.2` `Done`,
+    `WP4.3` `Done`,
+    `WP4.4` `Done`,
+    spike 4 `Done`,
+    spike 5 is now `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline reset completed:
   - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
@@ -435,16 +473,19 @@
 
 - Product surface realignment execution is active:
   - the project remains structurally coherent around one query engine; spike 1
-    (feature surface positioning) and spike 2 (entry-point realignment) are now complete.
-  - current roadmap focus is wrapper role separation
-    (`ReportDefinition` vs chart/table presets) followed by stronger containment of
-    advanced/tooling features in docs.
+    (feature surface positioning), spike 2 (entry-point realignment), and spike 3
+    (wrapper consolidation) are now complete, and spike 4 (advanced feature
+    containment) is now complete as well.
+  - current roadmap focus is docs/example navigation realignment based on the
+    positioning already captured for core, wrapper, entry-point, and advanced
+    surfaces.
   - `TODO.md` now reflects the remaining forward-looking realignment work with
     concrete work packages and priorities.
-  - `docs/product-surface.md` and `docs/entry-points.md` are the current source
-    artifacts for follow-on roadmap work.
-  - the next active work is spike 3 wrapper decision rules and capability
-    matrix/consolidation guidance.
+  - `docs/product-surface.md`, `docs/entry-points.md`, and
+    `docs/reusable-wrappers.md` are the current source artifacts for follow-on
+    roadmap work, alongside `docs/advanced-features.md`.
+  - the next active work is spike 5 docs/example navigation realignment and then
+    spike 6 consolidation/deprecation review.
 - SQL window analytics spike 1 (Window Functions MVP) completed:
   - Added SQL-like parser/AST support for rank window syntax:
     `ROW_NUMBER()/RANK()/DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)`.
@@ -565,8 +606,8 @@
 
 ## Next Actions
 
-- Start spike 3: define wrapper decision rules for `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`.
-- Use `docs/product-surface.md` and `docs/entry-points.md` as the source artifacts for spike 3.
-- Start spike 4 after wrapper decisions land: contain advanced/tooling features behind a clearer advanced narrative.
+- Start spike 5: reorganize README/use cases/docs navigation around the selected paths.
+- Use `docs/product-surface.md`, `docs/entry-points.md`, `docs/reusable-wrappers.md`, and `docs/advanced-features.md` as the source artifacts for spike 5.
+- Start spike 6 after spike 5 lands: review consolidation/deprecation candidates against the `1.x` stability policy.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

@@ -1,6 +1,7 @@
 # Benchmarking
 
 `PojoLens` benchmarking is primarily a regression-control tool, not a competitor-marketing exercise.
+It is advanced tooling, not part of the default adoption path.
 
 The benchmark contract for this project is:
 - publish explicit latency budgets for the hot paths we own

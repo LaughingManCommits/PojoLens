@@ -2,6 +2,10 @@
 
 `PojoLens` currently exposes two runtime caches:
 
+This is an advanced policy-tuning surface.
+Start with the default query path first, then come here when cache behavior
+needs to be tuned or isolated.
+
 - SQL-like parse cache
 - stats-plan cache
 

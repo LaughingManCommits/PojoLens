@@ -2,6 +2,10 @@
 
 `PojoLens` can emit low-overhead telemetry events for key query stages without introducing a logging dependency.
 
+Telemetry is an optional advanced diagnostics surface.
+Start with the core query guides first, then add telemetry when you need
+operational visibility.
+
 Supported stages:
 
 - `PARSE`

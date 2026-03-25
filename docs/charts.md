@@ -58,6 +58,11 @@ Interop policy:
 - `PojoLens` does not ship chart rendering.
 - integration with chart libraries is validated via tests/examples.
 
+Wrapper choice:
+- `ChartQueryPreset<T>` is the specialized chart-first reusable wrapper
+- `ReportDefinition<T>` is the general reusable wrapper when the same query may feed chart and non-chart consumers
+- wrapper selection guide: [docs/reusable-wrappers.md](reusable-wrappers.md)
+
 ## API Entry Points
 
 Recommended defaults:
@@ -78,6 +83,7 @@ Recommended defaults:
 - `TimeBucketPreset` for explicit timezone/week-start chart presets
 - `ChartQueryPresets.groupedBreakdown(...)`
 - `ChartQueryPreset.schema()`
+- `ChartQueryPreset.reportDefinition()`
 
 ## Examples
 

@@ -2,6 +2,9 @@
 
 `SnapshotComparison` compares two keyed in-memory snapshots and returns queryable delta rows plus summary counts.
 
+This is a follow-on analysis/testing feature rather than part of the default
+query onboarding path.
+
 Use it when you need:
 
 - added rows

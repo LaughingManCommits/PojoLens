@@ -17,8 +17,12 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Immutable reusable report definition for repeated row/chart execution over
- * different in-memory dataset snapshots.
+ * General reusable row-query contract for repeated execution over different
+ * in-memory dataset snapshots.
+ *
+ * <p>Specialized workflow helpers such as {@code ChartQueryPreset} and
+ * {@code StatsViewPreset} can bridge into this abstraction when a more general
+ * reusable contract is needed.
  *
  * @param <T> projection row type
  */

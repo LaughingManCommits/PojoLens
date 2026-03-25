@@ -14,7 +14,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Immutable preset that couples a SQL-like stats query with optional totals.
+ * Specialized table-first reusable wrapper built from a SQL-like stats query.
+ *
+ * <p>Use {@link ReportDefinition} when the reusable contract should be the row
+ * query itself instead of the table/totals workflow.
  */
 public final class StatsViewPreset<T> {
 
@@ -48,6 +51,11 @@ public final class StatsViewPreset<T> {
         return query.schema(projectionClass);
     }
 
+    /**
+     * Exports the reusable row query as the general report contract.
+     * Totals remain part of the stats-preset/table workflow and are not carried
+     * into the returned report definition.
+     */
     public ReportDefinition<T> reportDefinition() {
         return ReportDefinition.sql(query, projectionClass);
     }

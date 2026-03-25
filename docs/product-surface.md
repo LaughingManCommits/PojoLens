@@ -38,7 +38,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Compatibility facade | `Compatibility` | Migration-friendly facade over the same engine | `PojoLens` | `Stable` compatibility surface | `README.md`, `docs/modules.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
-| Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
+| Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reusable-wrappers.md`, `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
 | Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
 | Spring Boot support | `Integration` | Optional framework wiring for Boot applications | `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter` | Optional integration surface | `README.md`, `docs/modules.md` |
 | Query diagnostics and policy controls | `Tooling` | Operational visibility and tuning around the core engine | `explain`, telemetry hooks, lint mode, cache stats and controls | Mixed: `explain` is core-adjacent, policy controls are largely `Advanced` | `docs/sql-like.md`, `docs/telemetry.md`, `docs/caching.md` |
@@ -58,9 +58,11 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - `ReportDefinition` is the general reusable execution wrapper.
   `ChartQueryPreset` and `StatsViewPreset` are specialized convenience wrappers
   built for chart-first and table-first flows.
+  Their canonical decision rules live in `docs/reusable-wrappers.md`.
 - Telemetry, cache policy controls, lint mode, regression fixtures, metamodel
   generation, and benchmarking are useful public features, but they belong to
   advanced/tooling surface rather than the first-read product story.
+  Their grouped landing page lives in `docs/advanced-features.md`.
 
 ## Follow-On Work
 

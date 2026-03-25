@@ -12,7 +12,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Immutable preset that couples a SQL-like query with a default chart mapping.
+ * Specialized chart-first reusable wrapper built from a SQL-like preset query.
+ *
+ * <p>Use {@link ReportDefinition} when the same query should be carried as a
+ * more general reusable row/chart contract rather than a chart-first preset.
  */
 public final class ChartQueryPreset<T> {
 
@@ -46,6 +49,10 @@ public final class ChartQueryPreset<T> {
         return query.schema(projectionClass);
     }
 
+    /**
+     * Promotes this chart-first preset to the general reusable report contract
+     * while preserving the configured chart specification.
+     */
     public ReportDefinition<T> reportDefinition() {
         return ReportDefinition.sql(query, projectionClass, chartSpec);
     }

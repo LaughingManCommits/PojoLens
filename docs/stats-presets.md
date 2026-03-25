@@ -3,6 +3,11 @@
 `StatsViewPresets` provides predefined table-oriented query shapes for common dashboard/report workloads.
 
 Use it when you want reusable stats tables without hand-writing SQL-like strings for each endpoint.
+`StatsViewPreset<T>` is the specialized table-first reusable wrapper in PojoLens.
+If the reusable thing becomes a more general row query, bridge it to `ReportDefinition<T>`.
+
+Wrapper selection guide:
+- [docs/reusable-wrappers.md](reusable-wrappers.md)
 
 Main contracts:
 - `StatsViewPresets` factory methods (`summary`, `by`, `topNBy`)
@@ -42,6 +47,10 @@ Behavior:
 - `totals`: optional overall aggregate values (`payroll` in this example)
 - `schema`: deterministic ordered output columns for table rendering
 
+Preset helpers:
+- `preset.hasTotals()` tells you whether totals are part of the preset contract
+- `preset.reportDefinition()` exports the row query as the general reusable wrapper
+
 ## Leaderboard Table Example
 
 ```java
@@ -58,3 +67,20 @@ List<DepartmentPayrollRow> topRows = topTable.rows();
 ```
 
 This pattern is useful for "Top N categories by metric" endpoints with stable ordering and optional totals.
+
+## Relation To ReportDefinition
+
+If you later need to reuse the same row query outside the table-first flow, convert it:
+
+```java
+StatsViewPreset<DepartmentPayrollRow> preset = StatsViewPresets.by(
+    "department",
+    Metric.SUM,
+    "salary",
+    "payroll",
+    DepartmentPayrollRow.class);
+
+ReportDefinition<DepartmentPayrollRow> report = preset.reportDefinition();
+```
+
+`reportDefinition()` keeps the reusable row query, but totals remain on `StatsViewPreset<T>` and `StatsTable<T>`.

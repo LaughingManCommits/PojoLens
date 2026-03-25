@@ -2,6 +2,9 @@
 
 `PojoLens` already supports lambda selectors in many fluent APIs, but some flows still need string field names:
 
+This is optional authoring/build-time tooling.
+Use it when generated field constants are worth the extra build step.
+
 - chart specs
 - alias/result row projections
 - shared constants across modules

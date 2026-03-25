@@ -35,6 +35,10 @@ The tiers and families are related, but they are not the same thing:
 - the default first-read product story should still center on the core query
   engine even when other public surfaces are stable
 
+The non-default public surfaces are grouped in
+[advanced-features.md](advanced-features.md) so they stay discoverable without
+competing with the core onboarding path.
+
 ## Stable Surface (1.x)
 
 Stable surface is intentionally wider than the default onboarding story. Some
@@ -102,11 +106,15 @@ narrative for new users should start with the core query engine.
 
 The following remain public, but are treated as advanced in `1.x`:
 
-- Static cache-control APIs on `PojoLens`/`PojoLensCore`/`PojoLensSql`
-- Reusable workflow wrappers such as `report` and chart/stats preset helpers
+- runtime policy tuning and static cache-control APIs on
+  `PojoLens`/`PojoLensCore`/`PojoLensSql`
+- reusable workflow wrappers such as `report` and chart/stats preset helpers
 - `compareSnapshots` and regression/testing helper APIs
-- Metamodel generation helpers
-- Benchmark and threshold tooling
+- metamodel generation helpers
+- benchmark and threshold tooling
+
+See [advanced-features.md](advanced-features.md) for the grouped landing page
+used in the docs.
 
 ## Compatibility Policy
 

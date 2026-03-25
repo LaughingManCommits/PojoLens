@@ -2,6 +2,9 @@
 
 `PojoLens` regression fixtures provide a code-first way to lock query behavior against a named immutable dataset snapshot.
 
+This is advanced testing tooling, not a required adoption step for basic query
+usage.
+
 Core types:
 - `QuerySnapshotFixture`
 - `QueryRegressionFixture<T>`

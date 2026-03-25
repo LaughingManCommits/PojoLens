@@ -15,9 +15,9 @@ Status model:
 | --- | --- | --- | --- |
 | 1. Feature Surface Audit and Positioning | `P0` | `Done` | none |
 | 2. Entry Point Realignment | `P0` | `Done` | spike 1 complete |
-| 3. Reusable Wrapper Consolidation | `P0` | `Ready` | spike 1 complete |
-| 4. Advanced Feature Containment | `P1` | `Planned` | spikes 1-3 decisions |
-| 5. Docs and Example Navigation Realignment | `P1` | `Planned` | spikes 1-4 decisions |
+| 3. Reusable Wrapper Consolidation | `P0` | `Done` | spike 1 complete |
+| 4. Advanced Feature Containment | `P1` | `Done` | spikes 1-3 decisions |
+| 5. Docs and Example Navigation Realignment | `P1` | `Ready` | spikes 1-4 decisions |
 | 6. Consolidation and Deprecation Candidate Review | `P2` | `Blocked` | spikes 1-5 decisions |
 
 ### Feature Coherence Snapshot
@@ -113,7 +113,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Problem:
 - `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset` all package reusable query execution with slightly different defaults, which creates conceptual overlap.
@@ -137,10 +137,10 @@ Spike steps:
 4. Identify duplicate convenience that should be de-emphasized or scheduled for later deprecation.
 
 Work packages:
-- `WP3.1` `P0` `Ready`: produce a capability matrix for `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`.
-- `WP3.2` `P0` `Ready`: define the canonical decision rule for when to use each wrapper.
-- `WP3.3` `P1` `Planned`: standardize bridge methods and wording so wrapper relationships are obvious in code and docs.
-- `WP3.4` `P2` `Planned`: record overlap that is only documentation noise versus overlap that may justify later deprecation.
+- `WP3.1` `P0` `Done`: produce a capability matrix for `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`.
+- `WP3.2` `P0` `Done`: define the canonical decision rule for when to use each wrapper.
+- `WP3.3` `P1` `Done`: standardize bridge methods and wording so wrapper relationships are obvious in code and docs.
+- `WP3.4` `P2` `Done`: record overlap that is only documentation noise versus overlap that may justify later deprecation.
 
 Acceptance criteria:
 - The project has one documented decision rule for choosing between the three wrappers.
@@ -153,7 +153,7 @@ Priority:
 - `P1`
 
 Status:
-- `Planned`
+- `Done`
 
 Problem:
 - Caching, telemetry, regression fixtures, snapshot comparison, metamodel generation, and benchmark tooling are useful, but they currently increase the apparent product scope too early.
@@ -168,10 +168,10 @@ Spike steps:
 4. Add one advanced-features landing section or index for deeper discovery.
 
 Work packages:
-- `WP4.1` `P1` `Planned`: enumerate advanced/tooling features that should be removed from first-read product messaging.
-- `WP4.2` `P1` `Planned`: define a single advanced-features index or landing section.
-- `WP4.3` `P1` `Planned`: align `README.md` and `docs/public-api-stability.md` on core versus advanced terminology.
-- `WP4.4` `P2` `Planned`: review whether any advanced public APIs need explicit de-emphasis text in docs.
+- `WP4.1` `P1` `Done`: enumerate advanced/tooling features that should be removed from first-read product messaging.
+- `WP4.2` `P1` `Done`: define a single advanced-features index or landing section.
+- `WP4.3` `P1` `Done`: align `README.md` and `docs/public-api-stability.md` on core versus advanced terminology.
+- `WP4.4` `P2` `Done`: review whether any advanced public APIs need explicit de-emphasis text in docs.
 
 Acceptance criteria:
 - Quick-start reading stays focused on query, projection, chart, and table flows.
@@ -184,7 +184,7 @@ Priority:
 - `P1`
 
 Status:
-- `Planned`
+- `Ready`
 
 Problem:
 - The docs are individually solid, but navigation still reflects feature breadth more than product decision-making.
@@ -203,9 +203,9 @@ Spike steps:
 4. Re-run docs consistency and example-backed docs coverage after reorganization.
 
 Work packages:
-- `WP5.1` `P1` `Planned`: rewrite README top-level flow so it answers "what is PojoLens?" and "which entry path should I pick?" first.
-- `WP5.2` `P1` `Planned`: restructure `docs/usecases.md` into a decision-first selection guide.
-- `WP5.3` `P1` `Planned`: add a compact matrix for query style, wrapper choice, chart/table/report path, and runtime configuration.
+- `WP5.1` `P1` `Ready`: rewrite README top-level flow so it answers "what is PojoLens?" and "which entry path should I pick?" first.
+- `WP5.2` `P1` `Ready`: restructure `docs/usecases.md` into a decision-first selection guide.
+- `WP5.3` `P1` `Ready`: add a compact matrix for query style, wrapper choice, chart/table/report path, and runtime configuration.
 - `WP5.4` `P1` `Planned`: revalidate docs consistency after navigation changes land.
 
 Acceptance criteria:

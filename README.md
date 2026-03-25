@@ -60,6 +60,8 @@ Runnable example project:
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
   first-read adoption path.
+- Use [docs/advanced-features.md](docs/advanced-features.md) only after the
+  core query path is already in place.
 
 ## Product Shape
 
@@ -68,12 +70,16 @@ Runnable example project:
 - `Workflow helpers`:
   chart mapping, reusable report/preset wrappers, dataset composition, and
   schema metadata.
-- `Integration and tooling`:
-  runtime-scoped configuration, Spring Boot support, telemetry/cache policy,
-  regression helpers, metamodel generation, and benchmarks.
+- `Runtime integration`:
+  runtime-scoped configuration and optional Spring Boot wiring.
+- `Advanced and tooling`:
+  diagnostics, policy tuning, regression helpers, metamodel generation, and
+  benchmarks.
 
 Canonical surface classification:
 - [docs/product-surface.md](docs/product-surface.md)
+Advanced/optional follow-on guide:
+- [docs/advanced-features.md](docs/advanced-features.md)
 
 ## Quick Start
 
@@ -147,14 +153,20 @@ List<Company> rows = PojoLensSql
 - Reusable report, chart-preset, and stats-preset wrappers
 - Dataset-bundle execution reuse and tabular schema metadata
 
-### Integration and tooling
+### Runtime integration
 
 - Runtime-scoped presets and policy controls via `PojoLensRuntime`
+- Optional Spring Boot starter/autoconfigure modules
+
+### Advanced and tooling
+
 - Query telemetry hooks, lint mode, and cache tuning controls
 - Snapshot comparison helpers and regression fixtures
 - Field metamodel generation for typed field constants
-- Optional Spring Boot starter/autoconfigure modules
 - Benchmark/JMH tooling in a separate benchmark module
+
+These public follow-on features are collected in
+[docs/advanced-features.md](docs/advanced-features.md).
 
 ## API Entry Points
 
@@ -211,6 +223,8 @@ Preset intent:
 
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
 - Entry point guide: [docs/entry-points.md](docs/entry-points.md)
+- Reusable wrapper guide: [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
+- Advanced features guide: [docs/advanced-features.md](docs/advanced-features.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
 - Real-world scenarios: [docs/usecases.md](docs/usecases.md)

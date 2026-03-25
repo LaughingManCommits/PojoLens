@@ -21,13 +21,19 @@
   - roadmap is now execution-ready with explicit `Priority`/`Status` and concrete
     work packages (`WPx.y`).
   - current state:
-    spikes 1-2 `Done`, spike 3 `Ready`, spikes 4-5 `Planned`, spike 6 `Blocked`.
+    spikes 1-4 `Done`, spike 5 `Ready`, spike 6 `Blocked`.
   - delivered artifact:
     `docs/product-surface.md` now captures the canonical feature-family matrix
     and public-surface classification.
   - delivered artifact:
     `docs/entry-points.md` now captures the canonical entry-point selection guide
     and default guidance for new code.
+  - delivered artifact:
+    `docs/reusable-wrappers.md` now captures the canonical wrapper capability
+    matrix and decision rules.
+  - delivered artifact:
+    `docs/advanced-features.md` now captures the grouped landing page for
+    optional runtime integration, diagnostics, testing, and tooling surface.
   - completed work packages:
     `WP1.2` feature-family matrix,
     `WP1.3` feature classification,
@@ -35,12 +41,20 @@
     `WP2.1` fluent entry-point default,
     `WP2.2` SQL-like entry-point default,
     `WP2.3` runtime entry-point decision rule,
-    `WP2.4` example normalization.
+    `WP2.4` example normalization,
+    `WP3.1` wrapper capability matrix,
+    `WP3.2` wrapper decision rule,
+    `WP3.3` bridge wording alignment,
+    `WP3.4` overlap/disposition record,
+    `WP4.1` advanced/tooling inventory,
+    `WP4.2` advanced-features landing page,
+    `WP4.3` README/stability terminology alignment,
+    `WP4.4` explicit de-emphasis review.
   - next executable work:
-    spike 3 wrapper consolidation,
-    then spike 4 advanced feature containment.
-  - spikes 1 and 2 now form the finished positioning + entry-point baseline for
-    later roadmap work.
+    spike 5 docs/example navigation realignment,
+    then spike 6 consolidation/deprecation review.
+  - spikes 1-4 now form the finished positioning + entry-point + wrapper +
+    advanced-feature baseline for later roadmap work.
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`
