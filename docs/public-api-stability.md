@@ -14,7 +14,32 @@ PojoLens now uses explicit API tiers so compatibility expectations are clear.
   - No compatibility guarantee.
   - Includes any `*.internal.*` package.
 
+## Reading The Tiers
+
+Product-surface families are defined in [product-surface.md](product-surface.md):
+
+- core query engine
+- workflow helpers
+- integration
+- compatibility
+- tooling
+
+The tiers and families are related, but they are not the same thing:
+
+- `Stable` means compatibility-guaranteed for `1.x`.
+- `Advanced` means public but faster-evolving.
+- a surface can be `Compatibility` and still be `Stable`
+  (for example `PojoLens`)
+- a surface can be a `Workflow helper` and still be `Advanced`
+  (for example report/preset convenience wrappers)
+- the default first-read product story should still center on the core query
+  engine even when other public surfaces are stable
+
 ## Stable Surface (1.x)
+
+Stable surface is intentionally wider than the default onboarding story. Some
+compatibility or support contracts remain stable even though the preferred
+narrative for new users should start with the core query engine.
 
 ### Entry Points
 
@@ -78,7 +103,8 @@ PojoLens now uses explicit API tiers so compatibility expectations are clear.
 The following remain public, but are treated as advanced in `1.x`:
 
 - Static cache-control APIs on `PojoLens`/`PojoLensCore`/`PojoLensSql`
-- `report`, stats/chart preset helpers, `compareSnapshots`, and regression/testing helper APIs
+- Reusable workflow wrappers such as `report` and chart/stats preset helpers
+- `compareSnapshots` and regression/testing helper APIs
 - Metamodel generation helpers
 - Benchmark and threshold tooling
 

@@ -40,6 +40,37 @@
     `WP1.2` (feature-family matrix) and `WP1.3` (feature classification).
   - docs/process validation:
     `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: feature-family matrix and classification delivered:
+  - added canonical product-surface classification doc:
+    `docs/product-surface.md`.
+  - linked the new doc from `README.md` documentation map.
+  - completed roadmap work packages:
+    `WP1.2` feature-family matrix,
+    `WP1.3` feature classification.
+  - updated roadmap state:
+    spike 1 remains `In progress`,
+    `WP1.4` is now `Ready`,
+    spikes 2-3 remain `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 1 (`Feature Surface Audit and Positioning`) completed:
+  - aligned terminology in `README.md`, `docs/modules.md`, and
+    `docs/public-api-stability.md` to match the new
+    `docs/product-surface.md` classification.
+  - README now distinguishes:
+    core query engine,
+    workflow helpers,
+    and integration/tooling surface.
+  - modules doc now frames explicit entry points, `PojoLensRuntime`, and
+    workflow helpers as layered surfaces of the same runtime artifact.
+  - public API stability doc now explicitly separates product-surface families
+    from `Stable`/`Advanced`/`Internal` tier guarantees.
+  - roadmap state:
+    `WP1.4` `Done`,
+    spike 1 `Done`,
+    spikes 2-3 remain `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline reset completed:
   - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
@@ -392,6 +423,8 @@
     wrapper role separation (`ReportDefinition` vs chart/table presets),
     and stronger containment of advanced/tooling features in docs.
   - `TODO.md` has been cleaned of completed spikes and now reflects only forward-looking realignment work, with concrete work packages and priorities.
+  - `docs/product-surface.md` now serves as the canonical feature-family matrix/classification artifact for the follow-on spikes.
+  - spike 1 is complete; the next active work is entry-point guidance (spike 2) and wrapper decision rules (spike 3).
 - SQL window analytics spike 1 (Window Functions MVP) completed:
   - Added SQL-like parser/AST support for rank window syntax:
     `ROW_NUMBER()/RANK()/DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)`.
@@ -513,8 +546,8 @@
 ## Next Actions
 
 - Start spike 1 of the new roadmap: feature surface audit and positioning across README, modules, and stability docs.
-- Execute `WP1.2`: build the canonical feature-family matrix across public APIs and docs surfaces.
-- Execute `WP1.3`: classify all feature families into core/workflow helper/integration/tooling plus compatibility/advanced status.
-- Follow with spike 2 and spike 3 once the spike-1 classification artifact is written down.
+- Start spike 2: define explicit entry-point guidance for `PojoLens`, explicit entry points, and `PojoLensRuntime`.
+- Start spike 3: define wrapper decision rules for `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`.
+- Use `docs/product-surface.md` as the source artifact for both follow-on spikes.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

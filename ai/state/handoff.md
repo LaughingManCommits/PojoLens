@@ -22,10 +22,18 @@
     work packages (`WPx.y`).
   - current state:
     spike 1 `In progress`, spikes 2-3 `Ready`, spikes 4-5 `Planned`, spike 6 `Blocked`.
-  - next executable work packages:
+  - delivered artifact:
+    `docs/product-surface.md` now captures the canonical feature-family matrix
+    and public-surface classification.
+  - completed work packages:
     `WP1.2` feature-family matrix,
-    then `WP1.3` feature classification,
-    followed by spike 2 entry-point guidance and spike 3 wrapper consolidation.
+    `WP1.3` feature classification,
+    `WP1.4` terminology alignment.
+  - next executable work:
+    spike 2 entry-point guidance,
+    then spike 3 wrapper consolidation.
+  - spike 1 is now complete and should be treated as the finished positioning
+    baseline for later roadmap work.
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`

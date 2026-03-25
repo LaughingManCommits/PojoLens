@@ -56,9 +56,24 @@ Runnable example project:
 - Choose query style per use case:
   - fluent API for type-safe Java composition
   - SQL-like strings for dynamic/user-authored queries
-- Keep query and chart mapping in one pipeline (`ChartData`).
-- Reuse query shapes with report definitions, presets, dataset bundles, and typed bindings.
-- Build common dashboard tables quickly with predefined stats view presets.
+- Keep query definition and execution in one in-memory engine.
+- Add chart/table/report helpers only when the use case needs them.
+- Keep runtime wiring and tooling optional instead of making them part of the
+  first-read adoption path.
+
+## Product Shape
+
+- `Core query engine`:
+  fluent and SQL-like querying over existing Java objects.
+- `Workflow helpers`:
+  chart mapping, reusable report/preset wrappers, dataset composition, and
+  schema metadata.
+- `Integration and tooling`:
+  runtime-scoped configuration, Spring Boot support, telemetry/cache policy,
+  regression helpers, metamodel generation, and benchmarks.
+
+Canonical surface classification:
+- [docs/product-surface.md](docs/product-surface.md)
 
 ## Quick Start
 
@@ -113,6 +128,8 @@ List<Company> rows = PojoLens
 
 ## Capability Snapshot
 
+### Core query engine
+
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
 - First-class keyset/cursor pagination primitives with token support
 - Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
@@ -123,18 +140,29 @@ List<Company> rows = PojoLens
 - SQL-like window analytics (`ROW_NUMBER`, `RANK`, `DENSE_RANK`, running aggregates with `OVER(...)`) and `QUALIFY`
 - Chained SQL-like joins with typed join bindings
 - Computed field registry for derived expressions
+
+### Workflow helpers
+
 - Chart payload mapping (`BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`)
-- Predefined stats view presets for summary/grouped/leaderboard tables
-- Query telemetry hooks and explain output
+- Reusable report, chart-preset, and stats-preset wrappers
+- Dataset-bundle execution reuse and tabular schema metadata
+
+### Integration and tooling
+
+- Runtime-scoped presets and policy controls via `PojoLensRuntime`
+- Query telemetry hooks, lint mode, and cache tuning controls
 - Snapshot comparison helpers and regression fixtures
 - Field metamodel generation for typed field constants
+- Optional Spring Boot starter/autoconfigure modules
+- Benchmark/JMH tooling in a separate benchmark module
 
 ## API Entry Points
 
-- `PojoLens`: compatibility facade
-- `PojoLensCore`: fluent query entry point
-- `PojoLensSql`: SQL-like entry point
-- `PojoLensChart`: chart mapping entry point
+- `PojoLensCore`: core fluent query entry point
+- `PojoLensSql`: core SQL-like query entry point
+- `PojoLens`: compatibility facade over the core engine
+- `PojoLensRuntime`: runtime-scoped execution and configuration surface
+- `PojoLensChart`: workflow helper for chart mapping
 
 ## Public API Stability
 
@@ -142,6 +170,14 @@ PojoLens uses three API tiers:
 - `Stable`: compatibility-guaranteed for `1.x`
 - `Advanced`: public but faster-evolving (best-effort compatibility)
 - `Internal`: no compatibility guarantee (`*.internal.*`)
+
+These tiers are orthogonal to the product-surface families in
+[docs/product-surface.md](docs/product-surface.md):
+- core query engine
+- workflow helpers
+- integration
+- compatibility
+- tooling
 
 The explicit stable-surface contract and deprecation policy are documented in
 [docs/public-api-stability.md](docs/public-api-stability.md).
@@ -170,6 +206,7 @@ Preset intent:
 
 ## Documentation Map
 
+- Product surface map: [docs/product-surface.md](docs/product-surface.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
 - Real-world scenarios: [docs/usecases.md](docs/usecases.md)

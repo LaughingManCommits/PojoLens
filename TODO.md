@@ -13,9 +13,9 @@ Status model:
 
 | Spike | Priority | Status | Dependency |
 | --- | --- | --- | --- |
-| 1. Feature Surface Audit and Positioning | `P0` | `In progress` | none |
-| 2. Entry Point Realignment | `P0` | `Ready` | spike 1 classification output |
-| 3. Reusable Wrapper Consolidation | `P0` | `Ready` | spike 1 classification output |
+| 1. Feature Surface Audit and Positioning | `P0` | `Done` | none |
+| 2. Entry Point Realignment | `P0` | `Ready` | spike 1 complete |
+| 3. Reusable Wrapper Consolidation | `P0` | `Ready` | spike 1 complete |
 | 4. Advanced Feature Containment | `P1` | `Planned` | spikes 1-3 decisions |
 | 5. Docs and Example Navigation Realignment | `P1` | `Planned` | spikes 1-4 decisions |
 | 6. Consolidation and Deprecation Candidate Review | `P2` | `Blocked` | spikes 1-5 decisions |
@@ -44,7 +44,7 @@ Priority:
 - `P0`
 
 Status:
-- `In progress`
+- `Done`
 
 Problem:
 - The repository now exposes enough capabilities that the product story is broader than the core query engine, and new users can read it as multiple libraries bundled together.
@@ -61,9 +61,9 @@ Spike steps:
 
 Work packages:
 - `WP1.1` `P0` `Done`: capture the initial overlap map for entry points, reusable wrappers, config paths, and docs narrative.
-- `WP1.2` `P0` `Ready`: build a canonical feature-family matrix covering all public-facing capabilities and docs sections.
-- `WP1.3` `P0` `Ready`: classify each feature as `core`, `workflow helper`, `integration`, `tooling`, `compatibility`, or `advanced`.
-- `WP1.4` `P1` `Planned`: apply terminology alignment to README, modules, and stability docs after the matrix is agreed.
+- `WP1.2` `P0` `Done`: build a canonical feature-family matrix covering all public-facing capabilities and docs sections.
+- `WP1.3` `P0` `Done`: classify each feature as `core`, `workflow helper`, `integration`, `tooling`, `compatibility`, or `advanced`.
+- `WP1.4` `P1` `Done`: apply terminology alignment to README, modules, and stability docs after the matrix is agreed.
 
 Acceptance criteria:
 - PojoLens can be described in 2-3 sentences without listing unrelated helpers.

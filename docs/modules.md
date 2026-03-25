@@ -11,16 +11,24 @@ Standalone runnable examples live under `examples/` (for example,
 `examples/spring-boot-starter-basic`) and are intentionally not published as
 release artifacts.
 
+Canonical product-surface classification:
+- [product-surface.md](product-surface.md)
+
 Distribution decision:
 - Published to Central: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`
 - Not published: `pojo-lens-benchmarks`, `examples/*`
 
-Runtime boundaries remain explicitly separated by entry point:
+Public runtime surface is intentionally layered:
 
-- `PojoLensCore`: fluent query builder + filter execution + stats-plan cache controls
-- `PojoLensSql`: SQL-like parser + SQL-like cache controls
-- `PojoLensChart`: chart payload mapping helpers
-- `PojoLens`: compatibility facade that delegates to the three entry points above
+- `PojoLensCore`: core fluent query-engine entry point
+- `PojoLensSql`: core SQL-like query-engine entry point
+- `PojoLens`: compatibility facade over the same engine
+- `PojoLensRuntime`: scoped runtime/configuration surface over the same engine
+- `PojoLensChart`: chart-mapping workflow helper over query results
+
+Additional workflow helpers such as `ReportDefinition`, chart presets,
+stats presets, `DatasetBundle`, and schema metadata stay in the runtime artifact
+as convenience layers on top of the core engine; they are not separate modules.
 
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).
@@ -56,5 +64,7 @@ entry points incrementally:
 
 1. Replace `PojoLens.newQueryBuilder(...)` with `PojoLensCore.newQueryBuilder(...)`.
 2. Replace `PojoLens.parse(...)` with `PojoLensSql.parse(...)` in SQL-like paths.
-3. Replace `PojoLens.toChartData(...)` with `PojoLensChart.toChartData(...)` where desired.
+3. Use `PojoLensRuntime` when runtime-scoped policy/configuration is preferable
+   to static/global configuration.
+4. Replace `PojoLens.toChartData(...)` with `PojoLensChart.toChartData(...)` where desired.
 
