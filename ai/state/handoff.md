@@ -9,52 +9,29 @@
 
 ## Current Focus
 
-- Product-surface realignment backlog is now active:
-  - `TODO.md` was cleaned from completed roadmap history and replaced with a new
-    `Product Surface Realignment` roadmap.
-  - current overlap assessment:
-    one coherent query engine underneath,
-    but notable surface overlap across entry points,
-    reusable wrappers (`ReportDefinition`, `ChartQueryPreset`, `StatsViewPreset`),
-    config models (`PojoLens.*` vs `PojoLensRuntime`),
-    and docs/product narrative prominence.
-  - roadmap is now execution-ready with explicit `Priority`/`Status` and concrete
-    work packages (`WPx.y`).
-  - current state:
-    spikes 1-4 `Done`, spike 5 `Ready`, spike 6 `Blocked`.
-  - delivered artifact:
-    `docs/product-surface.md` now captures the canonical feature-family matrix
-    and public-surface classification.
-  - delivered artifact:
-    `docs/entry-points.md` now captures the canonical entry-point selection guide
-    and default guidance for new code.
-  - delivered artifact:
-    `docs/reusable-wrappers.md` now captures the canonical wrapper capability
-    matrix and decision rules.
-  - delivered artifact:
-    `docs/advanced-features.md` now captures the grouped landing page for
-    optional runtime integration, diagnostics, testing, and tooling surface.
-  - completed work packages:
-    `WP1.2` feature-family matrix,
-    `WP1.3` feature classification,
-    `WP1.4` terminology alignment,
-    `WP2.1` fluent entry-point default,
-    `WP2.2` SQL-like entry-point default,
-    `WP2.3` runtime entry-point decision rule,
-    `WP2.4` example normalization,
-    `WP3.1` wrapper capability matrix,
-    `WP3.2` wrapper decision rule,
-    `WP3.3` bridge wording alignment,
-    `WP3.4` overlap/disposition record,
-    `WP4.1` advanced/tooling inventory,
-    `WP4.2` advanced-features landing page,
-    `WP4.3` README/stability terminology alignment,
-    `WP4.4` explicit de-emphasis review.
-  - next executable work:
-    spike 5 docs/example navigation realignment,
-    then spike 6 consolidation/deprecation review.
-  - spikes 1-4 now form the finished positioning + entry-point + wrapper +
-    advanced-feature baseline for later roadmap work.
+- The only active roadmap is now `Pre-Adoption Simplification` in `TODO.md`.
+  - the completed `Product Surface Realignment` roadmap has been removed from
+    the active backlog.
+  - current roadmap state:
+    `WP7.1` `Ready`,
+    `WP7.2` `Ready`,
+    `WP7.3` `Planned`,
+    `WP7.4` `Planned`,
+    `WP7.5` `Planned`.
+  - current goal:
+    narrow the `PojoLens` facade, reduce overlap with explicit entry points, and
+    move cache/policy guidance toward `PojoLensRuntime` before wider adoption.
+  - current next executable work:
+    start `WP7.1` to classify all public `PojoLens` facade methods, then
+    `WP7.2` to decide the fate of `newQueryBuilder`, `parse`, `template`, and
+    `toChartData`.
+  - keep the existing surface-analysis docs as the baseline for simplification
+    decisions:
+    `docs/product-surface.md`,
+    `docs/entry-points.md`,
+    `docs/reusable-wrappers.md`,
+    `docs/advanced-features.md`,
+    `docs/consolidation-review.md`.
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`

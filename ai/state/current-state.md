@@ -6,11 +6,22 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now tracks a product-surface realignment roadmap focused on feature-family positioning, entry-point guidance, reusable-wrapper consolidation, advanced-feature containment, docs navigation, and safe deprecation review.
+- `TODO.md` now tracks only the active pre-adoption simplification roadmap (`WP7.1`-`WP7.5`) for facade narrowing and runtime-first cache-policy cleanup before wider adoption.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
+
+- `2026-03-25`: roadmap cleanup validated:
+  - removed the completed `Product Surface Realignment` roadmap from `TODO.md`
+    so the file now contains only the active
+    `Pre-Adoption Simplification` roadmap.
+  - kept the current forward-looking work centered on facade narrowing and
+    `PojoLensRuntime`-first cache-policy guidance.
+  - refreshed `ai/state/current-state.md` and `ai/state/handoff.md` so startup
+    context points at the active backlog instead of the retired roadmap.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 
 - `2026-03-25`: product-surface coherence review + TODO realignment validated:
   - current feature set is coherent at the engine level:
@@ -125,6 +136,41 @@
     `WP4.4` `Done`,
     spike 4 `Done`,
     spike 5 is now `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 5 (`Docs and Example Navigation Realignment`) completed:
+  - rewrote README navigation around explicit "start here" and "pick a path"
+    sections before the capability inventory.
+  - restructured `docs/usecases.md` into a decision-first path selection guide
+    with compact matrices for query style, wrapper choice, output contract, and
+    runtime model, followed by the scenario catalog.
+  - aligned `docs/modules.md` so it explicitly points users to the selection
+    guides instead of acting like the onboarding entry point.
+  - roadmap state:
+    `WP5.1` `Done`,
+    `WP5.2` `Done`,
+    `WP5.3` `Done`,
+    `WP5.4` `Done`,
+    spike 5 `Done`,
+    spike 6 remains `Blocked` pending consolidation review.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 6 (`Consolidation and Deprecation Candidate Review`) completed:
+  - added `docs/consolidation-review.md` as the disposition register for
+    overlapping surfaces after spikes 1-5 settled the preferred defaults.
+  - recorded the current keep/de-emphasize/candidate-later positions for
+    explicit entry points, the `PojoLens` compatibility facade, reusable
+    wrappers, and advanced/tooling surfaces.
+  - documented the only current later-stage deprecation candidate as the
+    advanced static/global cache-policy surface, with migration notes pointing
+    toward `PojoLensRuntime`.
+  - roadmap state:
+    `WP6.1` `Done`,
+    `WP6.2` `Done`,
+    `WP6.3` `Done`,
+    `WP6.4` `Done`,
+    spike 6 `Done`,
+    the product-surface realignment roadmap is now complete.
   - docs/process validation:
     `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline reset completed:
@@ -471,21 +517,26 @@
 
 ## Active Work
 
-- Product surface realignment execution is active:
-  - the project remains structurally coherent around one query engine; spike 1
-    (feature surface positioning), spike 2 (entry-point realignment), and spike 3
-    (wrapper consolidation) are now complete, and spike 4 (advanced feature
-    containment) is now complete as well.
-  - current roadmap focus is docs/example navigation realignment based on the
-    positioning already captured for core, wrapper, entry-point, and advanced
-    surfaces.
-  - `TODO.md` now reflects the remaining forward-looking realignment work with
-    concrete work packages and priorities.
-  - `docs/product-surface.md`, `docs/entry-points.md`, and
-    `docs/reusable-wrappers.md` are the current source artifacts for follow-on
-    roadmap work, alongside `docs/advanced-features.md`.
-  - the next active work is spike 5 docs/example navigation realignment and then
-    spike 6 consolidation/deprecation review.
+- `TODO.md` now contains one active roadmap only:
+  `Pre-Adoption Simplification`.
+  - the completed `Product Surface Realignment` roadmap is now retired from the
+    active backlog and retained only through the docs baseline it produced.
+  - the current executable backlog is:
+    `WP7.1` `Ready`,
+    `WP7.2` `Ready`,
+    `WP7.3` `Planned`,
+    `WP7.4` `Planned`,
+    `WP7.5` `Planned`.
+  - the active goal is to narrow the `PojoLens` facade, reduce overlap with the
+    explicit entry points, and move cache/policy guidance toward
+    `PojoLensRuntime` before wider adoption.
+  - the current source-of-truth docs for the already-finished surface analysis
+    remain:
+    `docs/product-surface.md`,
+    `docs/entry-points.md`,
+    `docs/reusable-wrappers.md`,
+    `docs/advanced-features.md`,
+    and `docs/consolidation-review.md`.
 - SQL window analytics spike 1 (Window Functions MVP) completed:
   - Added SQL-like parser/AST support for rank window syntax:
     `ROW_NUMBER()/RANK()/DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)`.
@@ -606,8 +657,10 @@
 
 ## Next Actions
 
-- Start spike 5: reorganize README/use cases/docs navigation around the selected paths.
-- Use `docs/product-surface.md`, `docs/entry-points.md`, `docs/reusable-wrappers.md`, and `docs/advanced-features.md` as the source artifacts for spike 5.
-- Start spike 6 after spike 5 lands: review consolidation/deprecation candidates against the `1.x` stability policy.
+- If pre-adoption breaking changes are still acceptable, start `WP7.1` / `WP7.2`
+  from `TODO.md` to decide the fate of facade query/chart entry methods before
+  wider adoption.
+- If that simplification path is chosen, follow with `WP7.3` to map static/global
+  cache-policy APIs onto a `PojoLensRuntime`-first replacement story.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

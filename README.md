@@ -63,6 +63,29 @@ Runnable example project:
 - Use [docs/advanced-features.md](docs/advanced-features.md) only after the
   core query path is already in place.
 
+## Start Here
+
+- Need to choose the default query/runtime entry path:
+  [docs/entry-points.md](docs/entry-points.md)
+- Need to choose between reusable report/chart/table wrappers:
+  [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
+- Need a scenario-driven selection guide:
+  [docs/usecases.md](docs/usecases.md)
+- Need optional runtime tuning, testing, or tooling:
+  [docs/advanced-features.md](docs/advanced-features.md)
+
+## Pick A Path
+
+| If you need... | Choose... | Read next |
+| --- | --- | --- |
+| Service-owned query logic in code | `PojoLensCore` | `docs/entry-points.md`, `docs/usecases.md` |
+| Config-driven or dynamic query strings | `PojoLensSql` | `docs/entry-points.md`, `docs/sql-like.md` |
+| Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime` | `docs/entry-points.md`, `docs/advanced-features.md` |
+| Rows already exist and only chart mapping remains | `PojoLensChart` | `docs/entry-points.md`, `docs/charts.md` |
+| A reusable business query contract | `ReportDefinition` | `docs/reusable-wrappers.md`, `docs/reports.md` |
+| A reusable chart-first preset | `ChartQueryPreset` | `docs/reusable-wrappers.md`, `docs/charts.md` |
+| A reusable table payload with totals/schema | `StatsViewPreset` / `StatsTable` | `docs/reusable-wrappers.md`, `docs/stats-presets.md` |
+
 ## Product Shape
 
 - `Core query engine`:
@@ -120,16 +143,6 @@ ChartData chart = PojoLensSql
 StatsTable<DepartmentPayrollRow> table = StatsViewPresets
     .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
     .table(source);
-```
-
-### SQL-like join with typed bindings
-
-```java
-JoinBindings joinBindings = JoinBindings.of("employees", employees);
-
-List<Company> rows = PojoLensSql
-    .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-    .filter(companies, joinBindings, Company.class);
 ```
 
 ## Capability Snapshot
@@ -221,29 +234,41 @@ Preset intent:
 
 ## Documentation Map
 
-- Product surface map: [docs/product-surface.md](docs/product-surface.md)
+### Start Here
+
+- Path selection guide: [docs/usecases.md](docs/usecases.md)
 - Entry point guide: [docs/entry-points.md](docs/entry-points.md)
 - Reusable wrapper guide: [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
 - Advanced features guide: [docs/advanced-features.md](docs/advanced-features.md)
+
+### Core Guides
+
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
-- Real-world scenarios: [docs/usecases.md](docs/usecases.md)
-- Benchmarking and guardrails: [docs/benchmarking.md](docs/benchmarking.md)
-- Module boundaries: [docs/modules.md](docs/modules.md)
-- Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
-- Cache behavior: [docs/caching.md](docs/caching.md)
-- Time buckets: [docs/time-buckets.md](docs/time-buckets.md)
-- Telemetry: [docs/telemetry.md](docs/telemetry.md)
 - Reports and presets: [docs/reports.md](docs/reports.md)
 - Stats view presets: [docs/stats-presets.md](docs/stats-presets.md)
+- Time buckets: [docs/time-buckets.md](docs/time-buckets.md)
 - Computed fields: [docs/computed-fields.md](docs/computed-fields.md)
+
+### Reference
+
+- Product surface map: [docs/product-surface.md](docs/product-surface.md)
+- Module boundaries: [docs/modules.md](docs/modules.md)
+- Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
+- Consolidation review: [docs/consolidation-review.md](docs/consolidation-review.md)
 - Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
-- Snapshot comparison: [docs/snapshot-comparison.md](docs/snapshot-comparison.md)
-- Regression fixtures: [docs/regression-fixtures.md](docs/regression-fixtures.md)
-- Field metamodel generation: [docs/metamodel.md](docs/metamodel.md)
 - Migration notes: [MIGRATION.md](MIGRATION.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Release workflow: [RELEASE.md](RELEASE.md)
+
+### Advanced Follow-On
+
+- Cache behavior: [docs/caching.md](docs/caching.md)
+- Telemetry: [docs/telemetry.md](docs/telemetry.md)
+- Regression fixtures: [docs/regression-fixtures.md](docs/regression-fixtures.md)
+- Snapshot comparison: [docs/snapshot-comparison.md](docs/snapshot-comparison.md)
+- Field metamodel generation: [docs/metamodel.md](docs/metamodel.md)
+- Benchmarking and guardrails: [docs/benchmarking.md](docs/benchmarking.md)
 
 ## Development
 

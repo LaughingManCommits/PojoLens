@@ -14,6 +14,15 @@ release artifacts.
 Canonical product-surface classification:
 - [product-surface.md](product-surface.md)
 
+Docs starting points:
+- choose a path first in [usecases.md](usecases.md)
+- choose explicit entry points in [entry-points.md](entry-points.md)
+- choose reusable wrappers in [reusable-wrappers.md](reusable-wrappers.md)
+- use [advanced-features.md](advanced-features.md) only for optional follow-on surface
+
+This page is primarily an artifact and packaging reference, not the main
+onboarding path.
+
 Distribution decision:
 - Published to Central: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`
 - Not published: `pojo-lens-benchmarks`, `examples/*`

@@ -115,6 +115,8 @@ The following remain public, but are treated as advanced in `1.x`:
 
 See [advanced-features.md](advanced-features.md) for the grouped landing page
 used in the docs.
+Current overlap dispositions live in
+[consolidation-review.md](consolidation-review.md).
 
 ## Compatibility Policy
 
