@@ -2,6 +2,10 @@
 
 For new code, prefer the explicit entry points over the compatibility facade.
 `PojoLens` remains available for migration-friendly call sites and for facade-only helpers that are not split into a narrower type yet.
+For the active pre-adoption simplification path, the target state is even
+stricter: `PojoLens` stays as a helper-only facade, while the pure overlap
+aliases `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
+`toChartData(...)` are scheduled for removal before wider adoption.
 
 ## Recommended Defaults
 
@@ -52,3 +56,12 @@ Some helpers intentionally remain on the facade because they span multiple produ
 - `PojoLens.bundle(...)`
 
 That is a surface-organization choice, not a separate execution engine.
+
+Under the pre-adoption simplification decision recorded in
+[consolidation-review.md](consolidation-review.md), the following methods are
+not part of that helper-only target state and should be migrated away from now:
+
+- `PojoLens.newQueryBuilder(...)` -> `PojoLensCore.newQueryBuilder(...)`
+- `PojoLens.parse(...)` -> `PojoLensSql.parse(...)`
+- `PojoLens.template(...)` -> `PojoLensSql.template(...)`
+- `PojoLens.toChartData(...)` -> `PojoLensChart.toChartData(...)`

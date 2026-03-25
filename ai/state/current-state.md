@@ -12,6 +12,39 @@
 
 ## Latest Validation
 
+- `2026-03-25`: `WP7.2` facade fate decision delivered:
+  - recorded the concrete pre-adoption facade decision in
+    `docs/consolidation-review.md`:
+    `PojoLens` should become a helper-only facade before wider adoption.
+  - decided that the pure overlap aliases
+    `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
+    `toChartData(...)` should be removed, not merely deprecated, in the
+    pre-adoption cleanup path.
+  - kept `newRuntime(...)`, cursor helpers, `bundle(...)`,
+    `compareSnapshots(...)`, and `report(...)` on the facade.
+  - added migration wording to `MIGRATION.md` and aligned
+    `docs/entry-points.md` to the helper-only target state.
+  - updated `TODO.md`:
+    `WP7.2` `Done`,
+    `WP7.3` now `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: `WP7.1` facade-method audit delivered:
+  - added a method-level `PojoLens` facade audit to
+    `docs/consolidation-review.md` for the no-users-yet simplification path.
+  - classified the pure query/chart entry aliases
+    (`newQueryBuilder`, `parse`, `template`, `toChartData`) as explicit-entry
+    deprecation targets.
+  - classified `newRuntime`, cursor helpers, `bundle`, `compareSnapshots`, and
+    `report` as keep-on-facade helper surface.
+  - classified the `PojoLens` SQL-like and stats-plan cache delegates as
+    remove-before-wider-adoption candidates, with `PojoLensRuntime` as the
+    preferred policy direction and `PojoLensSql` / `PojoLensCore` as only
+    fallback global owners if static policy remains public.
+  - updated `TODO.md` to mark `WP7.1` `Done`; `WP7.2` is now the next ready
+    work package.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-25`: roadmap cleanup validated:
   - removed the completed `Product Surface Realignment` roadmap from `TODO.md`
     so the file now contains only the active
@@ -522,14 +555,17 @@
   - the completed `Product Surface Realignment` roadmap is now retired from the
     active backlog and retained only through the docs baseline it produced.
   - the current executable backlog is:
-    `WP7.1` `Ready`,
-    `WP7.2` `Ready`,
-    `WP7.3` `Planned`,
+    `WP7.1` `Done`,
+    `WP7.2` `Done`,
+    `WP7.3` `Ready`,
     `WP7.4` `Planned`,
     `WP7.5` `Planned`.
   - the active goal is to narrow the `PojoLens` facade, reduce overlap with the
     explicit entry points, and move cache/policy guidance toward
     `PojoLensRuntime` before wider adoption.
+  - `docs/consolidation-review.md` now contains the full `PojoLens` method
+    audit plus the concrete helper-only facade decision for the four pure
+    overlap entry aliases.
   - the current source-of-truth docs for the already-finished surface analysis
     remain:
     `docs/product-surface.md`,
@@ -657,10 +693,8 @@
 
 ## Next Actions
 
-- If pre-adoption breaking changes are still acceptable, start `WP7.1` / `WP7.2`
-  from `TODO.md` to decide the fate of facade query/chart entry methods before
-  wider adoption.
-- If that simplification path is chosen, follow with `WP7.3` to map static/global
-  cache-policy APIs onto a `PojoLensRuntime`-first replacement story.
+- `WP7.2` is now complete; start `WP7.3` to map static/global cache-policy APIs
+  onto a `PojoLensRuntime`-first replacement story and decide which global
+  owners, if any, remain after facade cleanup.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.

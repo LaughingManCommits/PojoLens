@@ -9,6 +9,28 @@ Published coordinates now use GitHub namespace style:
 
 Update your dependency declarations accordingly.
 
+## Pre-Adoption Facade Simplification
+
+If you are using unpublished or pre-adoption builds, treat the explicit entry
+points below as the supported path now.
+
+Planned helper-only facade state:
+- keep on `PojoLens`:
+  `newRuntime(...)`, keyset cursor helpers, `bundle(...)`,
+  `compareSnapshots(...)`, and `report(...)`
+- remove from `PojoLens` before wider adoption:
+  `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
+  `toChartData(...)`
+
+Replacement map:
+- `PojoLens.newQueryBuilder(rows)` ->
+  `PojoLensCore.newQueryBuilder(rows)`
+- `PojoLens.parse(queryText)` -> `PojoLensSql.parse(queryText)`
+- `PojoLens.template(queryText, params...)` ->
+  `PojoLensSql.template(queryText, params...)`
+- `PojoLens.toChartData(rows, spec)` ->
+  `PojoLensChart.toChartData(rows, spec)`
+
 ## Typed Selector API
 
 You can replace string field names with method references for compile-time safety.

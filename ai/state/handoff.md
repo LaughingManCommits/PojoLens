@@ -13,18 +13,29 @@
   - the completed `Product Surface Realignment` roadmap has been removed from
     the active backlog.
   - current roadmap state:
-    `WP7.1` `Ready`,
-    `WP7.2` `Ready`,
-    `WP7.3` `Planned`,
+    `WP7.1` `Done`,
+    `WP7.2` `Done`,
+    `WP7.3` `Ready`,
     `WP7.4` `Planned`,
     `WP7.5` `Planned`.
   - current goal:
     narrow the `PojoLens` facade, reduce overlap with explicit entry points, and
     move cache/policy guidance toward `PojoLensRuntime` before wider adoption.
   - current next executable work:
-    start `WP7.1` to classify all public `PojoLens` facade methods, then
-    `WP7.2` to decide the fate of `newQueryBuilder`, `parse`, `template`, and
-    `toChartData`.
+    start `WP7.3` to map static/global cache-policy APIs to a
+    `PojoLensRuntime`-first replacement story.
+  - `WP7.1` output:
+    `docs/consolidation-review.md` now contains the full method-level
+    `PojoLens` facade audit with keep-helper, deprecate, and
+    remove-before-wider-adoption classifications.
+  - `WP7.2` output:
+    `docs/consolidation-review.md` now records the concrete helper-only facade
+    decision:
+    remove `newQueryBuilder`, `parse`, `template`, and `toChartData` before
+    wider adoption, while keeping runtime/cursor/bundle/report/snapshot helpers
+    on `PojoLens`.
+    `MIGRATION.md` and `docs/entry-points.md` now carry the corresponding
+    migration wording.
   - keep the existing surface-analysis docs as the baseline for simplification
     decisions:
     `docs/product-surface.md`,

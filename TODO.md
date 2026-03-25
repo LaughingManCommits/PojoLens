@@ -29,9 +29,9 @@ Before implementation starts, confirm one product decision:
 
 | Work Package | Priority | Status | Dependency |
 | --- | --- | --- | --- |
-| `WP7.1` Facade Method Audit | `P0` | `Ready` | decision gate |
-| `WP7.2` Facade Fate Decision | `P0` | `Ready` | `WP7.1` findings |
-| `WP7.3` Runtime-First Cache Policy Audit | `P0` | `Planned` | decision gate |
+| `WP7.1` Facade Method Audit | `P0` | `Done` | decision gate |
+| `WP7.2` Facade Fate Decision | `P0` | `Done` | `WP7.1` findings |
+| `WP7.3` Runtime-First Cache Policy Audit | `P0` | `Ready` | decision gate |
 | `WP7.4` Simplification Implementation | `P0` | `Planned` | `WP7.2` and `WP7.3` decisions |
 | `WP7.5` Docs, Examples, and Tests Refresh | `P1` | `Planned` | `WP7.4` |
 
@@ -43,7 +43,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - audit every public `PojoLens` facade method and classify it as:
@@ -60,13 +60,17 @@ Acceptance criteria:
 - overlap with `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, and
   `PojoLensRuntime` is explicitly documented
 
+Result:
+- delivered in `docs/consolidation-review.md` under
+  `Pre-Adoption Facade Audit`
+
 ### `WP7.2` Facade Fate Decision
 
 Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - make the concrete keep/deprecate/remove decision for facade query and chart
@@ -82,6 +86,14 @@ Deliverables:
 Acceptance criteria:
 - new users see one clear query-entry story
 - the facade no longer competes with the explicit entry points in onboarding
+
+Result:
+- decision recorded in `docs/consolidation-review.md`:
+  `PojoLens` becomes a helper-only facade in the pre-adoption path and
+  `newQueryBuilder`, `parse`, `template`, and `toChartData` are slated for
+  removal before wider adoption
+- migration wording recorded in `MIGRATION.md`
+- entry-point guidance updated in `docs/entry-points.md`
 
 ### `WP7.3` Runtime-First Cache Policy Audit
 
