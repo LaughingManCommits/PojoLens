@@ -9,6 +9,23 @@
 
 ## Current Focus
 
+- Product-surface realignment backlog is now active:
+  - `TODO.md` was cleaned from completed roadmap history and replaced with a new
+    `Product Surface Realignment` roadmap.
+  - current overlap assessment:
+    one coherent query engine underneath,
+    but notable surface overlap across entry points,
+    reusable wrappers (`ReportDefinition`, `ChartQueryPreset`, `StatsViewPreset`),
+    config models (`PojoLens.*` vs `PojoLensRuntime`),
+    and docs/product narrative prominence.
+  - roadmap is now execution-ready with explicit `Priority`/`Status` and concrete
+    work packages (`WPx.y`).
+  - current state:
+    spike 1 `In progress`, spikes 2-3 `Ready`, spikes 4-5 `Planned`, spike 6 `Blocked`.
+  - next executable work packages:
+    `WP1.2` feature-family matrix,
+    then `WP1.3` feature classification,
+    followed by spike 2 entry-point guidance and spike 3 wrapper consolidation.
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`

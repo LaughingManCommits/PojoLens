@@ -6,12 +6,40 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now has pagination, streaming, optional index, stable API, binary compatibility, artifact/module-boundary, SQL window spikes 1-4 (`OVER`, `QUALIFY`, aggregate windows, API/docs hardening), and predefined stats views spike 5 completed.
+- `TODO.md` now tracks a product-surface realignment roadmap focused on feature-family positioning, entry-point guidance, reusable-wrapper consolidation, advanced-feature containment, docs navigation, and safe deprecation review.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-25`: product-surface coherence review + TODO realignment validated:
+  - current feature set is coherent at the engine level:
+    one in-memory query runtime with fluent + SQL-like entry styles and shared execution underneath.
+  - main overlap zones identified:
+    entry points (`PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, `PojoLensRuntime`),
+    reusable wrappers (`ReportDefinition`, `ChartQueryPreset`, `StatsViewPreset`),
+    config paths (static/global `PojoLens.*` vs instance-scoped `PojoLensRuntime`),
+    and docs/product narrative breadth.
+  - rewrote `TODO.md` from completed roadmap history into a new
+    `Product Surface Realignment` roadmap with six concrete spikes:
+    feature-surface audit, entry-point realignment, wrapper consolidation,
+    advanced-feature containment, docs/example navigation realignment,
+    and consolidation/deprecation candidate review.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: realignment roadmap was made execution-ready:
+  - expanded `TODO.md` with an execution board, explicit status model,
+    per-spike `Priority`/`Status`, and concrete work packages (`WPx.y`) with
+    `P0`/`P1`/`P2` priority and `Done`/`In progress`/`Ready`/`Planned`/`Blocked` status.
+  - current execution state:
+    spike 1 `In progress`,
+    spikes 2-3 `Ready`,
+    spikes 4-5 `Planned`,
+    spike 6 `Blocked`.
+  - next executable work packages:
+    `WP1.2` (feature-family matrix) and `WP1.3` (feature classification).
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline reset completed:
   - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
@@ -356,6 +384,14 @@
 
 ## Active Work
 
+- Product surface realignment planning started:
+  - the project remains structurally coherent around one query engine, but public surface overlap now needs explicit positioning rather than more feature expansion.
+  - current roadmap focus is:
+    feature-family audit,
+    entry-point guidance,
+    wrapper role separation (`ReportDefinition` vs chart/table presets),
+    and stronger containment of advanced/tooling features in docs.
+  - `TODO.md` has been cleaned of completed spikes and now reflects only forward-looking realignment work, with concrete work packages and priorities.
 - SQL window analytics spike 1 (Window Functions MVP) completed:
   - Added SQL-like parser/AST support for rank window syntax:
     `ROW_NUMBER()/RANK()/DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)`.
@@ -476,7 +512,9 @@
 
 ## Next Actions
 
+- Start spike 1 of the new roadmap: feature surface audit and positioning across README, modules, and stability docs.
+- Execute `WP1.2`: build the canonical feature-family matrix across public APIs and docs surfaces.
+- Execute `WP1.3`: classify all feature families into core/workflow helper/integration/tooling plus compatibility/advanced status.
+- Follow with spike 2 and spike 3 once the spike-1 classification artifact is written down.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
-- Define/prioritize the next roadmap spike after spike-5 completion.
-- Continue incremental test deduplication for additional suites now that shared fixture patterns are in place.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.
