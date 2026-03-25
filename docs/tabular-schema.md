@@ -22,7 +22,7 @@ Entry points:
 Fluent example:
 
 ```java
-TabularSchema schema = PojoLens.newQueryBuilder(source)
+TabularSchema schema = PojoLensCore.newQueryBuilder(source)
     .addGroup("department")
     .addCount("total")
     .schema(DepartmentCount.class);
@@ -31,7 +31,7 @@ TabularSchema schema = PojoLens.newQueryBuilder(source)
 SQL-like example:
 
 ```java
-TabularSchema schema = PojoLens
+TabularSchema schema = PojoLensSql
     .parse("select department, count(*) as total group by department")
     .schema(DepartmentCount.class);
 ```
@@ -40,7 +40,7 @@ Report example:
 
 ```java
 ReportDefinition<DepartmentCount> report = PojoLens.report(
-    PojoLens.parse("select department, count(*) as total group by department"),
+    PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
 TabularSchema schema = report.schema();

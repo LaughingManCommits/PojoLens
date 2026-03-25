@@ -80,7 +80,7 @@ Canonical surface classification:
 ### Fluent query
 
 ```java
-List<Employee> rows = PojoLens.newQueryBuilder(source)
+List<Employee> rows = PojoLensCore.newQueryBuilder(source)
     .addRule("department", "Engineering", Clauses.EQUAL)
     .addOrder("salary", 1)
     .limit(10)
@@ -91,10 +91,10 @@ List<Employee> rows = PojoLens.newQueryBuilder(source)
 ### SQL-like query
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("select name, salary "
-            + "where department = :dept and salary >= :minSalary "
-            + "order by salary desc limit 10")
+        + "where department = :dept and salary >= :minSalary "
+        + "order by salary desc limit 10")
     .params(Map.of("dept", "Engineering", "minSalary", 120000))
     .filter(source, Employee.class);
 ```
@@ -102,9 +102,9 @@ List<Employee> rows = PojoLens
 ### Chart payload in one call
 
 ```java
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select department, count(*) as total "
-            + "group by department order by total desc")
+        + "group by department order by total desc")
     .chart(source, DepartmentCount.class, ChartSpec.of(ChartType.BAR, "department", "total"));
 ```
 
@@ -121,7 +121,7 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ```java
 JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
     .filter(companies, joinBindings, Company.class);
 ```
@@ -158,11 +158,14 @@ List<Company> rows = PojoLens
 
 ## API Entry Points
 
-- `PojoLensCore`: core fluent query entry point
-- `PojoLensSql`: core SQL-like query entry point
-- `PojoLens`: compatibility facade over the core engine
-- `PojoLensRuntime`: runtime-scoped execution and configuration surface
-- `PojoLensChart`: workflow helper for chart mapping
+- `PojoLensCore`: default for new service-owned fluent queries
+- `PojoLensSql`: default for new SQL-like and template-driven queries
+- `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
+- `PojoLensChart`: chart-only helper when rows already exist
+- `PojoLens`: compatibility facade and helper namespace for migration-friendly call sites
+
+Recommended defaults for new code are documented in
+[docs/entry-points.md](docs/entry-points.md).
 
 ## Public API Stability
 
@@ -207,6 +210,7 @@ Preset intent:
 ## Documentation Map
 
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
+- Entry point guide: [docs/entry-points.md](docs/entry-points.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
 - Real-world scenarios: [docs/usecases.md](docs/usecases.md)

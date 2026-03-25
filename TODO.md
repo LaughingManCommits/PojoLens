@@ -14,7 +14,7 @@ Status model:
 | Spike | Priority | Status | Dependency |
 | --- | --- | --- | --- |
 | 1. Feature Surface Audit and Positioning | `P0` | `Done` | none |
-| 2. Entry Point Realignment | `P0` | `Ready` | spike 1 complete |
+| 2. Entry Point Realignment | `P0` | `Done` | spike 1 complete |
 | 3. Reusable Wrapper Consolidation | `P0` | `Ready` | spike 1 complete |
 | 4. Advanced Feature Containment | `P1` | `Planned` | spikes 1-3 decisions |
 | 5. Docs and Example Navigation Realignment | `P1` | `Planned` | spikes 1-4 decisions |
@@ -76,7 +76,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Problem:
 - The project exposes multiple top-level entry points that start similar flows, but the preferred use of each one is not strict enough.
@@ -96,10 +96,10 @@ Spike steps:
 4. Mark compatibility-oriented or advanced entry paths clearly in documentation.
 
 Work packages:
-- `WP2.1` `P0` `Ready`: define the recommended default entry point for service-owned fluent queries.
-- `WP2.2` `P0` `Ready`: define the recommended default entry point for dynamic/config-driven SQL-like queries.
-- `WP2.3` `P0` `Ready`: define when `PojoLensRuntime` is the preferred model over static/global configuration.
-- `WP2.4` `P1` `Planned`: normalize examples so they consistently use the chosen default path per scenario.
+- `WP2.1` `P0` `Done`: define the recommended default entry point for service-owned fluent queries.
+- `WP2.2` `P0` `Done`: define the recommended default entry point for dynamic/config-driven SQL-like queries.
+- `WP2.3` `P0` `Done`: define when `PojoLensRuntime` is the preferred model over static/global configuration.
+- `WP2.4` `P1` `Done`: normalize examples so they consistently use the chosen default path per scenario.
 
 Acceptance criteria:
 - There is one recommended path for service-owned fluent queries.

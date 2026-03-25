@@ -2,13 +2,14 @@
 
 If you are new to PojoLens, start here.  
 Each section answers: when to use it, what to copy, and what outcome you get.
+For the canonical entry-point defaults, also see [docs/entry-points.md](entry-points.md).
 
 ## Choose Fast
 
 | If you need...                         | Go to      | Main API                          |
 |----------------------------------------|------------|-----------------------------------|
-| A service-owned search endpoint        | Use Case 1 | `PojoLens.newQueryBuilder(...)`   |
-| Config-driven dynamic queries          | Use Case 2 | `PojoLens.parse(...).params(SqlParams)` |
+| A service-owned search endpoint        | Use Case 1 | `PojoLensCore.newQueryBuilder(...)` |
+| Config-driven dynamic queries          | Use Case 2 | `PojoLensSql.parse(...).params(SqlParams)` |
 | Deterministic API pagination           | Use Case 2B | `LIMIT/OFFSET` + `keysetAfter(...)` |
 | Large data, first-page consumers       | Use Case 2C | `.stream(...)` / `.iterator(...)` |
 | Repeated hot equality filters          | Use Case 2D | `.addIndex(...)` + normal rules |
@@ -27,7 +28,7 @@ Problem:
 Use:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLens.newQueryBuilder(employees)
+List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
     .addRule("active", true, Clauses.EQUAL)
     .addRule("department", "Engineering", Clauses.EQUAL)
     .addRule("level", 5, Clauses.BIGGER_EQUAL)
@@ -48,7 +49,7 @@ Problem:
 Use:
 
 ```java
-List<EmployeeCompRow> rows = PojoLens
+List<EmployeeCompRow> rows = PojoLensSql
     .parse("select name, department, salary "
         + "where department = :dept and salary >= :minSalary "
         + "order by salary desc limit 50")
@@ -70,7 +71,7 @@ Problem:
 Use offset for shallow pages:
 
 ```java
-List<EmployeeFeedRow> rows = PojoLens
+List<EmployeeFeedRow> rows = PojoLensSql
     .parse("where active = true order by salary desc, id desc limit 20 offset 40")
     .filter(employees, EmployeeFeedRow.class);
 ```
@@ -83,7 +84,7 @@ SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
     .put("id", 1)
     .build();
 
-List<EmployeeFeedRow> rows = PojoLens
+List<EmployeeFeedRow> rows = PojoLensSql
     .parse("where active = true order by salary desc, id desc limit 20")
     .keysetAfter(cursor)
     .filter(employees, EmployeeFeedRow.class);
@@ -100,7 +101,7 @@ Problem:
 Use:
 
 ```java
-List<EmployeeCompRow> firstPage = PojoLens
+List<EmployeeCompRow> firstPage = PojoLensSql
     .parse("select name, department, salary where salary >= 100000")
     .stream(employees, EmployeeCompRow.class)
     .limit(50)
@@ -118,7 +119,7 @@ Problem:
 Use:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLens.newQueryBuilder(employees)
+List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
     .addIndex("department")
     .addIndex("active")
     .addRule("department", "Engineering", Clauses.EQUAL)
@@ -138,7 +139,7 @@ Problem:
 Use:
 
 ```java
-List<MonthlyPayroll> rows = PojoLens
+List<MonthlyPayroll> rows = PojoLensSql
     .parse("select bucket(hireDate,'month','Europe/Amsterdam') as period, "
         + "sum(salary) as payroll "
         + "group by period having payroll > 250000 order by period asc")
@@ -160,7 +161,7 @@ DatasetBundle bundle = PojoLens.bundle(
     companies,
     JoinBindings.of("employees", employees));
 
-List<CompanyHiringRow> rows = PojoLens
+List<CompanyHiringRow> rows = PojoLensSql
     .parse("select companyName, title, salary "
         + "from companies left join employees on id = companyId "
         + "where active = true order by salary desc")
@@ -179,7 +180,7 @@ Problem:
 ### Step 1: Produce ChartData once
 
 ```java
-ChartData chartData = PojoLens
+ChartData chartData = PojoLensSql
     .parse("select department, count(*) as headcount group by department order by headcount desc")
     .chart(employees, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 ```
@@ -282,7 +283,7 @@ Problem:
 Use:
 
 ```java
-Map<String, Object> explain = PojoLens
+Map<String, Object> explain = PojoLensSql
     .parse("where active = true order by salary desc limit 10")
     .explain(employees, Employee.class);
 ```
@@ -292,13 +293,17 @@ Outcome:
 
 ## Good Defaults
 
-- Use fluent API for service-owned queries.
-- Use SQL-like for config/admin-driven queries.
+- Use `PojoLensCore` for service-owned fluent queries.
+- Use `PojoLensSql` for config/admin-driven query strings and templates.
+- Use `PojoLens.newRuntime(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
+- Use `PojoLensChart` when rows already exist and only chart mapping remains.
+- Use `PojoLens` mainly for compatibility helpers such as runtime creation, keyset cursor helpers, `report(...)`, and `bundle(...)`.
 - Use `DatasetBundle` for repeated multi-source execution.
 - Use `ChartData` as the boundary model between query and rendering.
 
 ## Next Reads
 
+- [docs/entry-points.md](entry-points.md)
 - [docs/charts.md](charts.md)
 - [docs/stats-presets.md](stats-presets.md)
 - [docs/sql-like.md](sql-like.md)

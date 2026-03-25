@@ -40,7 +40,7 @@ runtime.setTelemetryListener(null); // disables telemetry callbacks
 Attach a listener directly to a fluent builder:
 
 ```java
-List<DepartmentCount> rows = PojoLens.newQueryBuilder(snapshot)
+List<DepartmentCount> rows = PojoLensCore.newQueryBuilder(snapshot)
     .telemetry(listener)
     .addRule("active", true, Clauses.EQUAL)
     .addGroup("department")
@@ -54,7 +54,7 @@ List<DepartmentCount> rows = PojoLens.newQueryBuilder(snapshot)
 Attach a listener directly to a SQL-like query when you want bind/execution telemetry:
 
 ```java
-SqlLikeQuery query = PojoLens
+SqlLikeQuery query = PojoLensSql
     .parse("where salary >= 100000 order by salary desc")
     .telemetry(listener);
 

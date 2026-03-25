@@ -10,7 +10,7 @@ Use `TimeBucketPreset` when you need explicit calendar semantics:
 ## Fluent
 
 ```java
-List<WeeklyHeadcount> rows = PojoLens.newQueryBuilder(source)
+List<WeeklyHeadcount> rows = PojoLensCore.newQueryBuilder(source)
     .addTimeBucket(
         "hireDate",
         TimeBucketPreset.week()
@@ -30,7 +30,7 @@ Supported forms:
 - `bucket(dateField, 'week', 'Europe/Amsterdam', 'sunday') as period`
 
 ```java
-List<WeeklyHeadcount> rows = PojoLens
+List<WeeklyHeadcount> rows = PojoLensSql
     .parse("select bucket(hireDate,'week','Europe/Amsterdam','sunday') as period, count(*) as headcount group by period")
     .filter(source, WeeklyHeadcount.class);
 ```

@@ -60,7 +60,12 @@ Interop policy:
 
 ## API Entry Points
 
-- `PojoLens.toChartData(List<T>, ChartSpec)`
+Recommended defaults:
+- start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
+- start from `PojoLensSql.parse(...)` for SQL-like chart flows
+- use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
+
+- `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
@@ -79,7 +84,7 @@ Interop policy:
 Fluent chart:
 
 ```java
-ChartData chart = PojoLens.newQueryBuilder(employees)
+ChartData chart = PojoLensCore.newQueryBuilder(employees)
     .addGroup("department")
     .addMetric("salary", Metric.SUM, "payroll")
     .addOrder("payroll")
@@ -90,7 +95,7 @@ ChartData chart = PojoLens.newQueryBuilder(employees)
 SQL-like chart:
 
 ```java
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select department, count(*) as headcount group by department order by headcount desc")
     .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 ```
@@ -112,7 +117,7 @@ DatasetBundle bundle = PojoLens.bundle(
     companies,
     JoinBindings.of("employees", employees));
 
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select title, count(*) as total from companies left join employees on id = companyId group by title")
     .chart(bundle, CompanyTitleTotal.class, ChartSpec.of(ChartType.BAR, "title", "total"));
 ```

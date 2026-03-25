@@ -14,7 +14,7 @@ Use it when the same report/query shape is executed across:
 
 ```java
 ReportDefinition<DepartmentCount> report = PojoLens.report(
-    PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+    PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
     DepartmentCount.class,
     ChartSpec.of(ChartType.BAR, "department", "total"));
 
@@ -65,7 +65,7 @@ ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
     .build();
 
 ReportDefinition<DepartmentAdjustedPayroll> report = PojoLens.report(
-    PojoLens.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
+    PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
         .computedFields(registry),
     DepartmentAdjustedPayroll.class);
 ```
@@ -80,7 +80,7 @@ You can attach one later:
 
 ```java
 ReportDefinition<DepartmentCount> rowsOnly = PojoLens.report(
-    PojoLens.parse("select department, count(*) as total group by department"),
+    PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
 ReportDefinition<DepartmentCount> chartReady = rowsOnly.withChartSpec(

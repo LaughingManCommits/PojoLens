@@ -71,6 +71,24 @@
     spikes 2-3 remain `Ready`.
   - docs/process validation:
     `scripts/check-doc-consistency.ps1`
+- `2026-03-25`: spike 2 (`Entry Point Realignment`) completed:
+  - added `docs/entry-points.md` as the canonical entry-point selection guide for
+    `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and the
+    `PojoLens` compatibility facade.
+  - normalized README and user-facing docs/examples onto explicit entry points for
+    new code, including `docs/usecases.md`, `docs/charts.md`, `docs/sql-like.md`,
+    and related reference docs.
+  - clarified `PojoLensRuntime` as the instance-scoped policy model and left
+    `PojoLens` positioned as the compatibility/helper facade.
+  - roadmap state:
+    `WP2.1` `Done`,
+    `WP2.2` `Done`,
+    `WP2.3` `Done`,
+    `WP2.4` `Done`,
+    spike 2 `Done`,
+    spike 3 remains `Ready`.
+  - docs/process validation:
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-24`: lint baseline reset completed:
   - lint profile: `mvn -B -ntp -Plint verify -DskipTests`
   - baseline refresh: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
@@ -415,16 +433,18 @@
 
 ## Active Work
 
-- Product surface realignment planning started:
-  - the project remains structurally coherent around one query engine, but public surface overlap now needs explicit positioning rather than more feature expansion.
-  - current roadmap focus is:
-    feature-family audit,
-    entry-point guidance,
-    wrapper role separation (`ReportDefinition` vs chart/table presets),
-    and stronger containment of advanced/tooling features in docs.
-  - `TODO.md` has been cleaned of completed spikes and now reflects only forward-looking realignment work, with concrete work packages and priorities.
-  - `docs/product-surface.md` now serves as the canonical feature-family matrix/classification artifact for the follow-on spikes.
-  - spike 1 is complete; the next active work is entry-point guidance (spike 2) and wrapper decision rules (spike 3).
+- Product surface realignment execution is active:
+  - the project remains structurally coherent around one query engine; spike 1
+    (feature surface positioning) and spike 2 (entry-point realignment) are now complete.
+  - current roadmap focus is wrapper role separation
+    (`ReportDefinition` vs chart/table presets) followed by stronger containment of
+    advanced/tooling features in docs.
+  - `TODO.md` now reflects the remaining forward-looking realignment work with
+    concrete work packages and priorities.
+  - `docs/product-surface.md` and `docs/entry-points.md` are the current source
+    artifacts for follow-on roadmap work.
+  - the next active work is spike 3 wrapper decision rules and capability
+    matrix/consolidation guidance.
 - SQL window analytics spike 1 (Window Functions MVP) completed:
   - Added SQL-like parser/AST support for rank window syntax:
     `ROW_NUMBER()/RANK()/DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)`.
@@ -545,9 +565,8 @@
 
 ## Next Actions
 
-- Start spike 1 of the new roadmap: feature surface audit and positioning across README, modules, and stability docs.
-- Start spike 2: define explicit entry-point guidance for `PojoLens`, explicit entry points, and `PojoLensRuntime`.
 - Start spike 3: define wrapper decision rules for `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset`.
-- Use `docs/product-surface.md` as the source artifact for both follow-on spikes.
+- Use `docs/product-surface.md` and `docs/entry-points.md` as the source artifacts for spike 3.
+- Start spike 4 after wrapper decisions land: contain advanced/tooling features behind a clearer advanced narrative.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.
