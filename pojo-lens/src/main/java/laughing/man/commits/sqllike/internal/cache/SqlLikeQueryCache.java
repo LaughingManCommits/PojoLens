@@ -2,6 +2,8 @@ package laughing.man.commits.sqllike.internal.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import laughing.man.commits.filter.FilterExecutionPlanCache;
+import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
@@ -24,6 +26,7 @@ public final class SqlLikeQueryCache {
     private final Object mutationLock = new Object();
     private final AtomicLong bypassMisses = new AtomicLong();
 
+    private volatile FilterExecutionPlanCacheStore executionPlanCache = FilterExecutionPlanCache.defaultStore();
     private volatile boolean enabled = true;
     private volatile boolean statsEnabled = true;
     private volatile int maxEntries = DEFAULT_MAX_ENTRIES;
@@ -31,15 +34,22 @@ public final class SqlLikeQueryCache {
     private volatile long expireAfterWriteMillis = DEFAULT_EXPIRE_AFTER_WRITE_MILLIS;
     private volatile Cache<String, SqlLikeQuery> cache = newCache();
 
+    public SqlLikeQueryCache() {
+    }
+
+    public SqlLikeQueryCache(FilterExecutionPlanCacheStore executionPlanCache) {
+        setExecutionPlanCacheStore(executionPlanCache);
+    }
+
     public SqlLikeQuery parse(String source) {
         String normalized = normalize(source);
         if (!enabled) {
             if (statsEnabled) {
                 bypassMisses.incrementAndGet();
             }
-            return SqlLikeQuery.of(normalized);
+            return newQuery(normalized);
         }
-        return cache.get(normalized, SqlLikeQuery::of);
+        return cache.get(normalized, this::newQuery);
     }
 
     public void setEnabled(boolean enabled) {
@@ -96,6 +106,17 @@ public final class SqlLikeQueryCache {
 
     public boolean isStatsEnabled() {
         return statsEnabled;
+    }
+
+    public void setExecutionPlanCacheStore(FilterExecutionPlanCacheStore executionPlanCache) {
+        if (executionPlanCache == null) {
+            throw new IllegalArgumentException("executionPlanCache must not be null");
+        }
+        synchronized (mutationLock) {
+            this.executionPlanCache = executionPlanCache;
+            cache.invalidateAll();
+            cache.cleanUp();
+        }
     }
 
     public void clear() {
@@ -173,6 +194,10 @@ public final class SqlLikeQueryCache {
         }
 
         return builder.build();
+    }
+
+    private SqlLikeQuery newQuery(String normalized) {
+        return SqlLikeQuery.of(normalized).executionPlanCache(executionPlanCache);
     }
 
     private void rebuildCache() {

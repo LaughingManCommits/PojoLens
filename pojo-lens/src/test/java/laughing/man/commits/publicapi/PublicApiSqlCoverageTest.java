@@ -1,5 +1,7 @@
 package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
@@ -58,7 +60,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void sqlLikeTemplateFactoryAndSqlParamsShouldBeUsableFromPublicApi() {
-        SqlLikeTemplate template = PojoLens.template(
+        SqlLikeTemplate template = PojoLensSql.template(
                 "where department = :dept and active = :active",
                 "dept",
                 "active"
@@ -83,7 +85,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         SqlLikeQuery strictQuery = runtime.parse("where salary >= :minSalary");
         assertTrue(strictQuery.isStrictParameterTypesEnabled());
         assertFalse(strictQuery.strictParameterTypes(false).isStrictParameterTypesEnabled());
-        assertTrue(PojoLens.parse("where salary >= :minSalary").strictParameterTypes().isStrictParameterTypesEnabled());
+        assertTrue(PojoLensSql.parse("where salary >= :minSalary").strictParameterTypes().isStrictParameterTypesEnabled());
     }
 
     @Test
@@ -97,8 +99,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
         assertEquals(cursor, decoded);
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit 20")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
                 .keysetAfter(decoded)
                 .filter(sampleEmployees(), Employee.class);
 
@@ -108,15 +109,13 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void streamingControlsShouldBeUsableFromPublicApi() {
-        List<String> sqlNames = PojoLens
-                .parse("where active = true limit 2")
+        List<String> sqlNames = PojoLensSql.parse("where active = true limit 2")
                 .stream(sampleEmployees(), Employee.class)
                 .map(row -> row.name)
                 .toList();
         assertEquals(List.of("Alice", "Bob"), sqlNames);
 
-        List<String> sqlBoundNames = PojoLens
-                .parse("where active = true limit 2")
+        List<String> sqlBoundNames = PojoLensSql.parse("where active = true limit 2")
                 .bindTyped(sampleEmployees(), Employee.class)
                 .stream()
                 .map(row -> row.name)
@@ -130,8 +129,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
                 + "sum(salary) over (partition by department order by salary desc "
                 + "rows between unbounded preceding and current row) as runningTotal "
                 + "where active = true order by dept asc, runningTotal asc";
-        List<SqlLikeRunningTotalRow> rows = PojoLens
-                .parse(query)
+        List<SqlLikeRunningTotalRow> rows = PojoLensSql.parse(query)
                 .filter(sampleEmployees(), SqlLikeRunningTotalRow.class);
 
         assertEquals(3, rows.size());
@@ -145,8 +143,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals("Bob", rows.get(2).name);
         assertEquals(90000L, rows.get(2).runningTotal);
 
-        Map<String, Object> explain = PojoLens
-                .parse(query)
+        Map<String, Object> explain = PojoLensSql.parse(query)
                 .explain(sampleEmployees(), SqlLikeRunningTotalRow.class);
 
         assertEquals("alias/computed", explain.get("projectionMode"));
@@ -173,6 +170,10 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         SqlLikeQuery lintQuery = runtime.parse("select * from companies limit 1");
         assertTrue(lintQuery.isLintModeEnabled());
         assertEquals(1, lintQuery.suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD).lintWarnings().size());
-        assertFalse(PojoLens.parse("select * from companies limit 1").lintMode(false).isLintModeEnabled());
+        assertFalse(PojoLensSql.parse("select * from companies limit 1").lintMode(false).isLintModeEnabled());
     }
 }
+
+
+
+

@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowEmployee;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
@@ -29,8 +31,7 @@ public class SqlLikeWindowFunctionTest {
                 new WindowEmployee(5, "Erin", "Finance", 100000, true)
         );
 
-        List<WindowRowNumberProjection> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<WindowRowNumberProjection> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true order by dept asc, rn asc")
                 .filter(source, WindowRowNumberProjection.class);
@@ -57,8 +58,7 @@ public class SqlLikeWindowFunctionTest {
                 new WindowEmployee(4, "Dan", "Finance", 110000, true)
         );
 
-        List<WindowRankProjection> rows = PojoLens
-                .parse("select name, salary, "
+        List<WindowRankProjection> rows = PojoLensSql.parse("select name, salary, "
                         + "rank() over (order by salary desc) as rk, "
                         + "dense_rank() over (order by salary desc) as dr "
                         + "where active = true order by rk asc, name asc")
@@ -89,8 +89,7 @@ public class SqlLikeWindowFunctionTest {
                 new WindowEmployee(5, "Hank", "HR", 90000, true)
         );
 
-        List<WindowRowNumberProjection> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<WindowRowNumberProjection> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true order by rn asc, name asc limit 3")
                 .filter(source, WindowRowNumberProjection.class);
@@ -112,8 +111,7 @@ public class SqlLikeWindowFunctionTest {
         );
 
         try {
-            PojoLens
-                    .parse("select name, row_number() over (partition by department) as rn where active = true")
+            PojoLensSql.parse("select name, row_number() over (partition by department) as rn where active = true")
                     .filter(source, WindowRowNumberProjection.class);
             fail("Expected validation error");
         } catch (IllegalArgumentException ex) {
@@ -131,8 +129,7 @@ public class SqlLikeWindowFunctionTest {
                 new WindowEmployee(5, "Erin", "Finance", 100000, true)
         );
 
-        List<WindowRowNumberProjection> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<WindowRowNumberProjection> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true qualify rn <= 1 order by dept asc")
                 .filter(source, WindowRowNumberProjection.class);
@@ -156,8 +153,7 @@ public class SqlLikeWindowFunctionTest {
                 new WindowEmployee(5, "Erin", "Finance", 100000, true)
         );
 
-        List<WindowRowNumberProjection> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<WindowRowNumberProjection> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true "
                         + "qualify row_number() over (partition by department order by salary desc) <= 1 "
@@ -179,8 +175,7 @@ public class SqlLikeWindowFunctionTest {
         );
 
         try {
-            PojoLens
-                    .parse("select department as dept, name, salary, "
+            PojoLensSql.parse("select department as dept, name, salary, "
                             + "row_number() over (partition by department order by salary desc) as rn "
                             + "where active = true qualify missingRank <= 1")
                     .filter(source, WindowRowNumberProjection.class);
@@ -194,8 +189,7 @@ public class SqlLikeWindowFunctionTest {
     public void aggregateWindowsShouldComputeRunningMetricsWithExpectedTypesAndNullHandling() {
         List<WindowMetricInput> source = sampleWindowMetricInputs();
 
-        List<WindowMetricProjection> rows = PojoLens
-                .parse("select department, seq, amount, "
+        List<WindowMetricProjection> rows = PojoLensSql.parse("select department, seq, amount, "
                         + "sum(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningSum, "
                         + "count(amount) over (partition by department order by seq asc "
@@ -264,8 +258,7 @@ public class SqlLikeWindowFunctionTest {
         );
 
         try {
-            PojoLens
-                    .parse("select department, "
+            PojoLensSql.parse("select department, "
                             + "sum(amount) over (partition by department order by seq asc "
                             + "rows between 1 preceding and current row) as runningSum")
                     .filter(source, WindowMetricProjection.class);
@@ -275,3 +268,7 @@ public class SqlLikeWindowFunctionTest {
         }
     }
 }
+
+
+
+

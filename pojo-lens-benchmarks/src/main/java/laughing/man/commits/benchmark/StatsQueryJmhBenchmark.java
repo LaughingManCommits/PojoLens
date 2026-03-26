@@ -1,6 +1,7 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -44,9 +45,11 @@ public class StatsQueryJmhBenchmark {
     private QueryBuilder fluentGroupedExplainBuilder;
     private SqlLikeQuery parsedGroupedSql;
     private SqlLikeQuery parsedBucketSql;
+    private PojoLensRuntime runtime;
 
     @Setup
     public void setup() {
+        runtime = PojoLens.newRuntime();
         source = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             String value = "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 101L, i, 12);
@@ -61,43 +64,43 @@ public class StatsQueryJmhBenchmark {
         groupedChartSpec = ChartSpec.of(ChartType.BAR, "stringField", "totalValue");
         bucketChartSpec = ChartSpec.of(ChartType.LINE, "period", "totalValue");
 
-        PojoLens.setStatsPlanCacheEnabled(true);
-        PojoLens.setStatsPlanCacheStatsEnabled(true);
-        PojoLens.setStatsPlanCacheMaxEntries(1024);
-        PojoLens.setStatsPlanCacheMaxWeight(0L);
-        PojoLens.setStatsPlanCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearStatsPlanCache();
-        PojoLens.resetStatsPlanCacheStats();
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
+        runtime.statsPlanCache().setEnabled(true);
+        runtime.statsPlanCache().setStatsEnabled(true);
+        runtime.statsPlanCache().setMaxEntries(1024);
+        runtime.statsPlanCache().setMaxWeight(0L);
+        runtime.statsPlanCache().setExpireAfterWriteMillis(0L);
+        runtime.statsPlanCache().clear();
+        runtime.statsPlanCache().resetStats();
+        runtime.sqlLikeCache().setEnabled(true);
+        runtime.sqlLikeCache().setStatsEnabled(true);
+        runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
 
-        fluentGroupedFilter = PojoLens.newQueryBuilder(source)
+        fluentGroupedFilter = runtime.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentTimeBucketFilter = PojoLens.newQueryBuilder(source)
+        fluentTimeBucketFilter = runtime.newQueryBuilder(source)
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentGroupedToChartFilter = PojoLens.newQueryBuilder(source)
+        fluentGroupedToChartFilter = runtime.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentTimeBucketToChartFilter = PojoLens.newQueryBuilder(source)
+        fluentTimeBucketToChartFilter = runtime.newQueryBuilder(source)
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentGroupedExplainBuilder = PojoLens.newQueryBuilder(source)
+        fluentGroupedExplainBuilder = runtime.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue");
-        parsedGroupedSql = PojoLens.parse(groupedSql);
-        parsedBucketSql = PojoLens.parse(bucketSql);
+        parsedGroupedSql = runtime.parse(groupedSql);
+        parsedBucketSql = runtime.parse(bucketSql);
     }
 
     @Benchmark
@@ -168,4 +171,5 @@ public class StatsQueryJmhBenchmark {
         }
     }
 }
+
 

@@ -1,5 +1,8 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -44,12 +47,12 @@ public class StreamingExecutionJmhBenchmark {
             int integerField = BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 1212L, i, 1000);
             source.add(new BenchmarkFoo(value, date, integerField));
         }
-        fluentFilter = PojoLens.newQueryBuilder(source)
+        fluentFilter = PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", 100, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
                 .addField("integerField")
                 .initFilter();
-        sqlLikeFilterQuery = PojoLens.parse(
+        sqlLikeFilterQuery = PojoLensSql.parse(
                 "select stringField, integerField "
                         + "where integerField >= 100"
         );
@@ -116,3 +119,4 @@ public class StreamingExecutionJmhBenchmark {
         }
     }
 }
+

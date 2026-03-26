@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -17,8 +19,7 @@ public class SqlLikeLintModeTest {
 
     @Test
     public void lintWarningsShouldBeDeterministicAndNonBlocking() {
-        SqlLikeQuery query = PojoLens
-                .parse("select * from companies where name = 'Acme' limit 1");
+        SqlLikeQuery query = PojoLensSql.parse("select * from companies where name = 'Acme' limit 1");
 
         List<SqlLikeLintWarning> warnings = query.lintWarnings();
         assertEquals(3, warnings.size());
@@ -33,8 +34,7 @@ public class SqlLikeLintModeTest {
 
     @Test
     public void lintWarningsShouldSupportSuppressionByCode() {
-        SqlLikeQuery query = PojoLens
-                .parse("select * from companies where name = 'Acme' limit 1")
+        SqlLikeQuery query = PojoLensSql.parse("select * from companies where name = 'Acme' limit 1")
                 .suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD, SqlLikeLintCodes.INLINE_STRING_LITERAL);
 
         List<SqlLikeLintWarning> warnings = query.lintWarnings();
@@ -44,8 +44,7 @@ public class SqlLikeLintModeTest {
 
     @Test
     public void explainShouldIncludeLintWarningsOnlyWhenLintModeEnabled() {
-        SqlLikeQuery query = PojoLens
-                .parse("select * from companies where name = 'Acme' limit 1");
+        SqlLikeQuery query = PojoLensSql.parse("select * from companies where name = 'Acme' limit 1");
 
         assertFalse(query.isLintModeEnabled());
         assertFalse(query.explain().containsKey("lintWarnings"));
@@ -81,8 +80,7 @@ public class SqlLikeLintModeTest {
 
     @Test
     public void lintWarningsShouldDetectParameterizedPaginationWithoutOrderBy() {
-        SqlLikeQuery query = PojoLens
-                .parse("select * from companies limit :limit");
+        SqlLikeQuery query = PojoLensSql.parse("select * from companies limit :limit");
 
         List<SqlLikeLintWarning> warnings = query.lintWarnings();
         assertEquals(2, warnings.size());
@@ -90,4 +88,8 @@ public class SqlLikeLintModeTest {
         assertEquals(SqlLikeLintCodes.LIMIT_WITHOUT_ORDER, warnings.get(1).code());
     }
 }
+
+
+
+
 

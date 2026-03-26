@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.domain.Foo;
@@ -28,7 +30,7 @@ public class SqlLikeValidationTest {
                 new Foo("abc", new Date(), 1)
         );
         try {
-            PojoLens.parse("where missingField = 'abc'").filter(source, Foo.class);
+            PojoLensSql.parse("where missingField = 'abc'").filter(source, Foo.class);
             fail("Expected unknown field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'missingField'"));
@@ -42,7 +44,7 @@ public class SqlLikeValidationTest {
                 new Foo("abc", new Date(), 1)
         );
         try {
-            PojoLens.parse("where integeField >= 1").filter(source, Foo.class);
+            PojoLensSql.parse("where integeField >= 1").filter(source, Foo.class);
             fail("Expected unknown field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'integeField'"));
@@ -58,7 +60,7 @@ public class SqlLikeValidationTest {
                 new SuggestionBean("open", "alpha", "ok")
         );
         try {
-            PojoLens.parse("where stte = 'open'").filter(source, SuggestionBean.class);
+            PojoLensSql.parse("where stte = 'open'").filter(source, SuggestionBean.class);
             fail("Expected unknown field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'stte'"));
@@ -73,7 +75,7 @@ public class SqlLikeValidationTest {
                 new Foo("abc", new Date(), 1)
         );
         try {
-            PojoLens.parse("where qzxv = 1").filter(source, Foo.class);
+            PojoLensSql.parse("where qzxv = 1").filter(source, Foo.class);
             fail("Expected unknown field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'qzxv'"));
@@ -89,7 +91,7 @@ public class SqlLikeValidationTest {
                 new SecureBean("Bob", "token-b")
         );
         try {
-            PojoLens.parse("where internalToken = 'token-a'").filter(source, SecureBean.class);
+            PojoLensSql.parse("where internalToken = 'token-a'").filter(source, SecureBean.class);
             fail("Expected excluded field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'internalToken'"));
@@ -100,7 +102,7 @@ public class SqlLikeValidationTest {
     public void parserShouldRejectTooLongQuery() {
         String longLiteral = "x".repeat(4500);
         try {
-            PojoLens.parse("where stringField = '" + longLiteral + "'");
+            PojoLensSql.parse("where stringField = '" + longLiteral + "'");
             fail("Expected query length validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Query exceeds maximum length"));
@@ -114,7 +116,7 @@ public class SqlLikeValidationTest {
             sb.append(" and integerField = 1");
         }
         try {
-            PojoLens.parse(sb.toString());
+            PojoLensSql.parse(sb.toString());
             fail("Expected WHERE predicate limit error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Too many WHERE predicates"));
@@ -128,7 +130,7 @@ public class SqlLikeValidationTest {
             sb.append(" or total = 1");
         }
         try {
-            PojoLens.parse(sb.toString());
+            PojoLensSql.parse(sb.toString());
             fail("Expected HAVING predicate limit error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Too many HAVING predicates"));
@@ -142,7 +144,7 @@ public class SqlLikeValidationTest {
             sb.append(", stringField");
         }
         try {
-            PojoLens.parse(sb.toString());
+            PojoLensSql.parse(sb.toString());
             fail("Expected ORDER BY field limit error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Too many ORDER BY fields"));
@@ -153,7 +155,7 @@ public class SqlLikeValidationTest {
     public void aggregationSelectFieldMustBeInGroupByWhenNotAggregated() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department, name, count(*) as total group by department")
+            PojoLensSql.parse("select department, name, count(*) as total group by department")
                     .filter(employees, Employee.class);
             fail("Expected GROUP BY validation error");
         } catch (IllegalArgumentException ex) {
@@ -165,7 +167,7 @@ public class SqlLikeValidationTest {
     public void groupByWithoutAggregateShouldBeRejected() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department group by department")
+            PojoLensSql.parse("select department group by department")
                     .filter(employees, Employee.class);
             fail("Expected GROUP BY aggregate requirement error");
         } catch (IllegalArgumentException ex) {
@@ -177,7 +179,7 @@ public class SqlLikeValidationTest {
     public void aggregatedOrderByMustReferenceGroupOrMetricOutput() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department, count(*) as total group by department order by salary desc")
+            PojoLensSql.parse("select department, count(*) as total group by department order by salary desc")
                     .filter(employees, AggregationProjection.class);
             fail("Expected ORDER BY validation error");
         } catch (IllegalArgumentException ex) {
@@ -189,8 +191,7 @@ public class SqlLikeValidationTest {
     @Test
     public void aliasingGroupedNonAggregatedFieldShouldBeAllowed() {
         List<Employee> employees = sampleEmployees();
-        List<GroupedAliasProjection> rows = PojoLens
-                .parse("select department as dept, count(*) as total group by dept having dept = 'Engineering'")
+        List<GroupedAliasProjection> rows = PojoLensSql.parse("select department as dept, count(*) as total group by dept having dept = 'Engineering'")
                 .filter(employees, GroupedAliasProjection.class);
 
         assertEquals(1, rows.size());
@@ -202,7 +203,7 @@ public class SqlLikeValidationTest {
     public void bucketFunctionShouldRequireDateField() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select bucket(name,'month') as period, count(*) as total group by period")
+            PojoLensSql.parse("select bucket(name,'month') as period, count(*) as total group by period")
                     .filter(employees, AggregationProjection.class);
             fail("Expected bucket date-field validation error");
         } catch (IllegalArgumentException ex) {
@@ -214,7 +215,7 @@ public class SqlLikeValidationTest {
     public void havingShouldRequireGroupedOrAggregatedContext() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department having department = 'Engineering'")
+            PojoLensSql.parse("select department having department = 'Engineering'")
                     .filter(employees, Employee.class);
             fail("Expected HAVING context validation error");
         } catch (IllegalArgumentException ex) {
@@ -226,7 +227,7 @@ public class SqlLikeValidationTest {
     public void unknownHavingReferenceShouldBeRejected() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department, count(*) as total group by department having missingField > 1")
+            PojoLensSql.parse("select department, count(*) as total group by department having missingField > 1")
                     .filter(employees, AggregationProjection.class);
             fail("Expected unknown HAVING reference error");
         } catch (IllegalArgumentException ex) {
@@ -238,7 +239,7 @@ public class SqlLikeValidationTest {
     public void nonGroupedNonAggregatedHavingFieldShouldBeRejected() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department, count(*) as total group by department having salary > 100000")
+            PojoLensSql.parse("select department, count(*) as total group by department having salary > 100000")
                     .filter(employees, AggregationProjection.class);
             fail("Expected invalid HAVING reference error");
         } catch (IllegalArgumentException ex) {
@@ -250,7 +251,7 @@ public class SqlLikeValidationTest {
     public void ambiguousHavingReferenceShouldBeRejected() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select sum(salary) as department group by department having department > 10")
+            PojoLensSql.parse("select sum(salary) as department group by department having department > 10")
                     .filter(employees, AggregationProjection.class);
             fail("Expected ambiguous HAVING reference error");
         } catch (IllegalArgumentException ex) {
@@ -261,15 +262,14 @@ public class SqlLikeValidationTest {
     @Test
     public void havingShouldAllowAggregateExpressionReference() {
         List<Employee> employees = sampleEmployees();
-        PojoLens.parse("select department, count(*) as total group by department having count(*) >= 1")
+        PojoLensSql.parse("select department, count(*) as total group by department having count(*) >= 1")
                 .filter(employees, AggregationProjection.class);
     }
 
     @Test
     public void havingShouldAllowUnselectedAggregateExpression() {
         List<Employee> employees = sampleEmployees();
-        List<AggregationProjection> rows = PojoLens
-                .parse("select department, count(*) as total group by department having sum(salary) > 100000")
+        List<AggregationProjection> rows = PojoLensSql.parse("select department, count(*) as total group by department having sum(salary) > 100000")
                 .filter(employees, AggregationProjection.class);
         assertEquals(1, rows.size());
         assertEquals("Engineering", rows.get(0).department);
@@ -279,8 +279,7 @@ public class SqlLikeValidationTest {
     @Test
     public void aggregatedOrderByShouldAllowUnselectedAggregateExpression() {
         List<Employee> employees = sampleEmployees();
-        List<GroupedAliasProjection> rows = PojoLens
-                .parse("select department as dept, count(*) as total group by dept order by sum(salary) desc")
+        List<GroupedAliasProjection> rows = PojoLensSql.parse("select department as dept, count(*) as total group by dept order by sum(salary) desc")
                 .filter(employees, GroupedAliasProjection.class);
 
         assertEquals(2, rows.size());
@@ -295,7 +294,7 @@ public class SqlLikeValidationTest {
                 new Foo("abc", new Date(), 1)
         );
         try {
-            PojoLens.parse("select missing + 1 as x where integerField >= 1")
+            PojoLensSql.parse("select missing + 1 as x where integerField >= 1")
                     .filter(source, ComputedScalarProjection.class);
             fail("Expected expression identifier validation error");
         } catch (IllegalArgumentException ex) {
@@ -308,7 +307,7 @@ public class SqlLikeValidationTest {
     public void computedSelectExpressionShouldRejectAggregateQueryContext() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select sum(salary) as total, total / 2 as halfTotal group by department")
+            PojoLensSql.parse("select sum(salary) as total, total / 2 as halfTotal group by department")
                     .filter(employees, AggregationProjection.class);
             fail("Expected computed aggregate select validation error");
         } catch (IllegalArgumentException ex) {
@@ -320,7 +319,7 @@ public class SqlLikeValidationTest {
     public void subqueryShouldRejectAggregateSelects() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("where department in (select count(*) as total where active = true)")
+            PojoLensSql.parse("where department in (select count(*) as total where active = true)")
                     .filter(employees, Employee.class);
             fail("Expected subquery validation error");
         } catch (IllegalArgumentException ex) {
@@ -332,7 +331,7 @@ public class SqlLikeValidationTest {
     public void subqueryShouldBeRejectedInHaving() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLens.parse("select department, count(*) as total group by department "
+            PojoLensSql.parse("select department, count(*) as total group by department "
                             + "having department in (select department where active = true)")
                     .filter(employees, AggregationProjection.class);
             fail("Expected HAVING subquery validation error");
@@ -345,7 +344,7 @@ public class SqlLikeValidationTest {
     public void namedSubquerySourceShouldRequireJoinSourceBinding() {
         List<Company> companies = sampleCompanies();
         try {
-            PojoLens.parse("where id in (select companyId from employees where title = 'Engineer')")
+            PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                     .filter(companies, Map.of(), Company.class);
             fail("Expected missing subquery source binding error");
         } catch (IllegalArgumentException ex) {
@@ -398,4 +397,8 @@ public class SqlLikeValidationTest {
         }
     }
 }
+
+
+
+
 

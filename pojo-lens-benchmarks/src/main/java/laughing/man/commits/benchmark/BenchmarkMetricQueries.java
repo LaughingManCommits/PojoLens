@@ -1,5 +1,8 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 
@@ -18,7 +21,7 @@ public final class BenchmarkMetricQueries {
     public static List<BenchmarkMetricRow> fluentByChartTypeAndMinSize(List<BenchmarkMetricRow> rows,
                                                                         String chartType,
                                                                         int minSize) {
-        List<BenchmarkMetricRow> filtered = PojoLens.newQueryBuilder(rows)
+        List<BenchmarkMetricRow> filtered = PojoLensCore.newQueryBuilder(rows)
                 .addRule("chartType", chartType, Clauses.EQUAL)
                 .addRule("size", minSize, Clauses.BIGGER_EQUAL)
                 .initFilter()
@@ -31,11 +34,11 @@ public final class BenchmarkMetricQueries {
                                                                          String chartType,
                                                                          int minSize) {
         String query = "where chartType = '" + chartType + "' and size >= " + minSize + " order by score asc";
-        return PojoLens.parse(query).filter(rows, BenchmarkMetricRow.class);
+        return PojoLensSql.parse(query).filter(rows, BenchmarkMetricRow.class);
     }
 
     public static List<BenchmarkMetricRow> fluentFailures(List<BenchmarkMetricRow> rows, int limit) {
-        List<BenchmarkMetricRow> filtered = PojoLens.newQueryBuilder(rows)
+        List<BenchmarkMetricRow> filtered = PojoLensCore.newQueryBuilder(rows)
                 .addRule("status", "FAIL", Clauses.EQUAL)
                 .limit(limit)
                 .initFilter()
@@ -46,7 +49,7 @@ public final class BenchmarkMetricQueries {
 
     public static List<BenchmarkMetricRow> sqlLikeFailures(List<BenchmarkMetricRow> rows, int limit) {
         String query = "where status = 'FAIL' order by delta desc limit " + limit;
-        return PojoLens.parse(query).filter(rows, BenchmarkMetricRow.class);
+        return PojoLensSql.parse(query).filter(rows, BenchmarkMetricRow.class);
     }
 
     public static List<BenchmarkMetricRow> fluentMappingStage(List<BenchmarkMetricRow> rows) {
@@ -60,7 +63,7 @@ public final class BenchmarkMetricQueries {
     public static List<BenchmarkMetricRow> fluentByFamilyAndStage(List<BenchmarkMetricRow> rows,
                                                                   String family,
                                                                   String metricStage) {
-        return PojoLens.newQueryBuilder(rows)
+        return PojoLensCore.newQueryBuilder(rows)
                 .addRule("family", family, Clauses.EQUAL)
                 .addRule("metricStage", metricStage, Clauses.EQUAL)
                 .initFilter()
@@ -70,7 +73,7 @@ public final class BenchmarkMetricQueries {
     public static List<BenchmarkMetricRow> sqlLikeByFamilyAndStage(List<BenchmarkMetricRow> rows,
                                                                    String family,
                                                                    String metricStage) {
-        return PojoLens.parse("where family = '" + family + "' and metricStage = '" + metricStage + "'")
+        return PojoLensSql.parse("where family = '" + family + "' and metricStage = '" + metricStage + "'")
                 .filter(rows, BenchmarkMetricRow.class);
     }
 
@@ -82,4 +85,5 @@ public final class BenchmarkMetricQueries {
         return keys;
     }
 }
+
 

@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -18,8 +20,7 @@ public class SqlLikePaginationParameterSupportTest {
 
     @Test
     public void shouldApplyLimitAndOffsetFromNamedParameters() {
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc limit :limit offset :offset")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                 .params(Map.of("limit", 2, "offset", 1))
                 .filter(samplePageSource(), Employee.class);
 
@@ -30,8 +31,7 @@ public class SqlLikePaginationParameterSupportTest {
 
     @Test
     public void shouldApplyLimitAndOffsetFromTypedSqlParams() {
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc limit :limit offset :offset")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                 .params(SqlParams.builder()
                         .put("limit", 2L)
                         .put("offset", 1)
@@ -46,7 +46,7 @@ public class SqlLikePaginationParameterSupportTest {
     @Test
     public void paramsShouldRequirePaginationParameters() {
         try {
-            PojoLens.parse("where active = true order by salary desc limit :limit offset :offset")
+            PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                     .params(Map.of("limit", 2));
             fail("Expected missing pagination parameter failure");
         } catch (IllegalArgumentException ex) {
@@ -58,7 +58,7 @@ public class SqlLikePaginationParameterSupportTest {
     @Test
     public void executionShouldRejectUnresolvedPaginationParameters() {
         try {
-            PojoLens.parse("where active = true order by salary desc limit :limit")
+            PojoLensSql.parse("where active = true order by salary desc limit :limit")
                     .filter(samplePageSource(), Employee.class);
             fail("Expected unresolved pagination parameter failure");
         } catch (IllegalArgumentException ex) {
@@ -70,7 +70,7 @@ public class SqlLikePaginationParameterSupportTest {
     @Test
     public void paramsShouldRejectInvalidPaginationParameterTypeAndRange() {
         try {
-            PojoLens.parse("where active = true order by salary desc limit :limit offset :offset")
+            PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                     .params(Map.of("limit", "two", "offset", 1));
             fail("Expected invalid LIMIT parameter type");
         } catch (IllegalArgumentException ex) {
@@ -79,7 +79,7 @@ public class SqlLikePaginationParameterSupportTest {
         }
 
         try {
-            PojoLens.parse("where active = true order by salary desc limit :limit offset :offset")
+            PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                     .params(Map.of("limit", 2, "offset", 1.5));
             fail("Expected invalid OFFSET integer check failure");
         } catch (IllegalArgumentException ex) {
@@ -88,7 +88,7 @@ public class SqlLikePaginationParameterSupportTest {
         }
 
         try {
-            PojoLens.parse("where active = true order by salary desc limit :limit offset :offset")
+            PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                     .params(Map.of("limit", 2, "offset", -1));
             fail("Expected invalid OFFSET range failure");
         } catch (IllegalArgumentException ex) {
@@ -107,3 +107,7 @@ public class SqlLikePaginationParameterSupportTest {
         );
     }
 }
+
+
+
+

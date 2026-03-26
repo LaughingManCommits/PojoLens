@@ -1,5 +1,7 @@
 package laughing.man.commits.fluent;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Clauses;
@@ -25,7 +27,7 @@ public class FluentWindowFunctionTest {
 
     @Test
     public void fluentWindowQualifyShouldReturnTopPerDepartment() {
-        List<DepartmentRank> rows = PojoLens.newQueryBuilder(sampleEmployees())
+        List<DepartmentRank> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .addWindow(
                         "rn",
@@ -52,7 +54,7 @@ public class FluentWindowFunctionTest {
     public void fluentQualifyShouldRejectUnknownReference() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> PojoLens.newQueryBuilder(sampleEmployees())
+                () -> PojoLensCore.newQueryBuilder(sampleEmployees())
                         .addRule("active", true, Clauses.EQUAL)
                         .addWindow(
                                 "rn",
@@ -71,7 +73,7 @@ public class FluentWindowFunctionTest {
     public void fluentQualifyWithoutWindowShouldFail() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> PojoLens.newQueryBuilder(sampleEmployees())
+                () -> PojoLensCore.newQueryBuilder(sampleEmployees())
                         .addRule("active", true, Clauses.EQUAL)
                         .addQualify("rn", 1, Clauses.SMALLER_EQUAL)
                         .initFilter()
@@ -84,7 +86,7 @@ public class FluentWindowFunctionTest {
     public void fluentWindowShouldRejectAggregateShape() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> PojoLens.newQueryBuilder(sampleEmployees())
+                () -> PojoLensCore.newQueryBuilder(sampleEmployees())
                         .addGroup("department")
                         .addMetric("salary", Metric.SUM, "totalSalary")
                         .addWindow(
@@ -101,7 +103,7 @@ public class FluentWindowFunctionTest {
 
     @Test
     public void fluentAggregateWindowsShouldComputeRunningMetricsWithNullParity() {
-        List<WindowMetricProjection> rows = PojoLens.newQueryBuilder(sampleWindowMetricInputs())
+        List<WindowMetricProjection> rows = PojoLensCore.newQueryBuilder(sampleWindowMetricInputs())
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -210,7 +212,7 @@ public class FluentWindowFunctionTest {
     public void fluentAggregateWindowShouldRejectNonNumericValueField() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> PojoLens.newQueryBuilder(List.of(new WindowMetricInput("A", 1, 10)))
+                () -> PojoLensCore.newQueryBuilder(List.of(new WindowMetricInput("A", 1, 10)))
                         .addWindow(
                                 "invalid",
                                 WindowFunction.SUM,
@@ -223,3 +225,4 @@ public class FluentWindowFunctionTest {
         assertTrue(ex.getMessage().contains("requires numeric field"));
     }
 }
+

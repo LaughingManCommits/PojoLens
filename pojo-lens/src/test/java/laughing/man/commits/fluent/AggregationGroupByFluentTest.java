@@ -1,5 +1,7 @@
 package laughing.man.commits.fluent;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
@@ -20,7 +22,7 @@ public class AggregationGroupByFluentTest {
     public void groupedMetricsShouldWorkForSingleGroupKey() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentStats> stats = PojoLens.newQueryBuilder(employees)
+        List<DepartmentStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addOrder("department", 1)
                 .addCount("employeeCount")
@@ -41,7 +43,7 @@ public class AggregationGroupByFluentTest {
     public void groupedMetricsShouldComputeAllAggregatesInOneProjection() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAllStats> stats = PojoLens.newQueryBuilder(employees)
+        List<DepartmentAllStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addOrder("department", 1)
                 .addCount("employeeCount")
@@ -72,7 +74,7 @@ public class AggregationGroupByFluentTest {
     public void groupedMetricsShouldWorkForMultipleGroupKeys() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentActiveStats> stats = PojoLens.newQueryBuilder(employees)
+        List<DepartmentActiveStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department", 1)
                 .addGroup("active", 2)
                 .addOrder("department", 1)
@@ -94,7 +96,7 @@ public class AggregationGroupByFluentTest {
         rows.add(new NullableSalaryRecord(null, null));
         rows.add(new NullableSalaryRecord("HR", null));
 
-        List<NullableDepartmentStats> stats = PojoLens.newQueryBuilder(rows)
+        List<NullableDepartmentStats> stats = PojoLensCore.newQueryBuilder(rows)
                 .addGroup("department")
                 .addCount("rowCount")
                 .addMetric("salary", Metric.AVG, "avgSalary")
@@ -115,7 +117,7 @@ public class AggregationGroupByFluentTest {
     public void noGroupMetricsShouldRemainGlobalRollup() {
         List<Employee> employees = sampleEmployees();
 
-        List<GlobalRollupStats> stats = PojoLens.newQueryBuilder(employees)
+        List<GlobalRollupStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.MAX, "maxSalary")
                 .initFilter()
@@ -130,7 +132,7 @@ public class AggregationGroupByFluentTest {
     public void groupedMetricsShouldSupportHavingOrderAndLimit() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentStats> stats = PojoLens.newQueryBuilder(employees)
+        List<DepartmentStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addHaving("employeeCount", 2, Clauses.BIGGER_EQUAL)
@@ -148,7 +150,7 @@ public class AggregationGroupByFluentTest {
     public void globalRollupShouldSupportHavingOnAggregateAlias() {
         List<Employee> employees = sampleEmployees();
 
-        List<GlobalRollupStats> stats = PojoLens.newQueryBuilder(employees)
+        List<GlobalRollupStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addCount("employeeCount")
                 .addHaving("employeeCount", 3, Clauses.BIGGER_EQUAL)
                 .initFilter()
@@ -162,7 +164,7 @@ public class AggregationGroupByFluentTest {
     public void groupedMetricsShouldOrderByMetricAliasWithoutHaving() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentStats> stats = PojoLens.newQueryBuilder(employees)
+        List<DepartmentStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
@@ -259,4 +261,7 @@ public class AggregationGroupByFluentTest {
         }
     }
 }
+
+
+
 

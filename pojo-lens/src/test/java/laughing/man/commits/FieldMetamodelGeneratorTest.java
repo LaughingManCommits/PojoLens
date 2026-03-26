@@ -66,7 +66,7 @@ public class FieldMetamodelGeneratorTest {
             List<String> allFields = (List<String>) fieldsClass.getField("ALL").get(null);
             assertEquals(Arrays.asList("active", "department", "payroll"), allFields);
 
-            List<DepartmentPayrollRow> filtered = PojoLens.newQueryBuilder(sampleRows())
+            List<DepartmentPayrollRow> filtered = PojoLensCore.newQueryBuilder(sampleRows())
                     .addRule(activeField, true, Clauses.EQUAL)
                     .addOrder(payrollField, 1)
                     .initFilter()
@@ -76,7 +76,7 @@ public class FieldMetamodelGeneratorTest {
             assertEquals("Engineering", filtered.get(0).department);
             assertEquals(250000d, filtered.get(0).payroll, 0.0001d);
 
-            ChartData chart = PojoLens.toChartData(filtered, ChartSpec.of(ChartType.BAR, departmentField, payrollField));
+            ChartData chart = PojoLensChart.toChartData(filtered, ChartSpec.of(ChartType.BAR, departmentField, payrollField));
             assertEquals(Arrays.asList("Engineering", "Finance"), chart.getLabels());
             assertEquals(1, chart.getDatasets().size());
             assertEquals(250000d, chart.getDatasets().get(0).getValues().get(0), 0.0001d);

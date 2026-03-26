@@ -1,6 +1,7 @@
 package laughing.man.commits.testing;
 
-import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -125,7 +126,7 @@ public final class FluentSqlLikeParity {
         Objects.requireNonNull(snapshot, "snapshot must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
         Objects.requireNonNull(fluentConfigurer, "fluentConfigurer must not be null");
-        QueryBuilder builder = PojoLens.newQueryBuilder(snapshot.primaryRows());
+        QueryBuilder builder = PojoLensCore.newQueryBuilder(snapshot.primaryRows());
         fluentConfigurer.accept(builder, snapshot);
         if (sort == null) {
             return builder.initFilter().filter(projectionClass);

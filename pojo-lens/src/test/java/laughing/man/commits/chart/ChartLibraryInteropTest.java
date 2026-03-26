@@ -1,5 +1,9 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.PojoLensChart;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;
@@ -39,7 +43,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartBarChartShouldRenderFromLargerFluentGroupedDataset() throws Exception {
         List<EmployeeEvent> events = interopEmployeeEvents();
-        ChartData chartData = PojoLens.newQueryBuilder(events)
+        ChartData chartData = PojoLensCore.newQueryBuilder(events)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()
@@ -71,8 +75,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartLineChartShouldRenderFromLargerSqlLikeMonthlyTrend() throws Exception {
         List<DepartmentPeriodPayrollRow> rows = interopMonthlyDepartmentPayroll();
-        ChartData chartData = PojoLens
-                .parse("select period, department, sum(payroll) as totalPayroll group by period, department")
+        ChartData chartData = PojoLensSql.parse("select period, department, sum(payroll) as totalPayroll group by period, department")
                 .chart(rows, PeriodSeriesPayrollRow.class,
                         ChartSpec.of(ChartType.LINE, "period", "totalPayroll", "department").withSortedLabels(true));
         assertChartShape(chartData, 12, 3);
@@ -104,8 +107,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartPieChartShouldRenderFromSqlLikeHeadcountAggregation() throws Exception {
         List<EmployeeEvent> events = interopEmployeeEvents();
-        ChartData chartData = PojoLens
-                .parse("select department, count(*) as headcount group by department")
+        ChartData chartData = PojoLensSql.parse("select department, count(*) as headcount group by department")
                 .chart(events, DepartmentHeadcountRow.class, ChartSpec.of(ChartType.PIE, "department", "headcount"));
         assertChartShape(chartData, 3, 1);
         assertAllValuesPositive(chartData);
@@ -131,8 +133,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartAreaChartShouldRenderStackedPercentPolicies() throws Exception {
         List<DepartmentPeriodPayrollRow> rows = interopMonthlyDepartmentPayrollWithGaps();
-        ChartData chartData = PojoLens
-                .parse("select period, department, sum(payroll) as totalPayroll group by period, department")
+        ChartData chartData = PojoLensSql.parse("select period, department, sum(payroll) as totalPayroll group by period, department")
                 .chart(rows, PeriodSeriesPayrollRow.class,
                         ChartSpec.of(ChartType.AREA, "period", "totalPayroll", "department")
                                 .withSortedLabels(true)
@@ -167,7 +168,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartScatterChartShouldRenderLargerSignalDataset() throws Exception {
         List<ScatterSignalRow> rows = interopScatterSignals();
-        ChartData chartData = PojoLens.toChartData(rows,
+        ChartData chartData = PojoLensChart.toChartData(rows,
                 ChartSpec.of(ChartType.SCATTER, "x", "y", "series").withSortedLabels(true));
         assertChartShape(chartData, 240, 3);
         assertAllValuesPositive(chartData);
@@ -304,4 +305,8 @@ public class ChartLibraryInteropTest {
         return x;
     }
 }
+
+
+
+
 

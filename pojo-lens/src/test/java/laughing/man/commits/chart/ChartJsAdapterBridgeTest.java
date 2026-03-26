@@ -1,5 +1,9 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.PojoLensChart;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
@@ -28,7 +32,7 @@ public class ChartJsAdapterBridgeTest {
                 new EmployeeEvent("HR", 80)
         );
 
-        ChartData chartData = PojoLens.newQueryBuilder(events)
+        ChartData chartData = PojoLensCore.newQueryBuilder(events)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()
@@ -48,8 +52,7 @@ public class ChartJsAdapterBridgeTest {
                 new DepartmentPeriodPayrollRow("Finance", "2025-02", 150)
         );
 
-        ChartData chartData = PojoLens
-                .parse("select period, department, sum(payroll) as totalPayroll group by period, department")
+        ChartData chartData = PojoLensSql.parse("select period, department, sum(payroll) as totalPayroll group by period, department")
                 .chart(rows, PeriodSeriesPayrollRow.class,
                         ChartSpec.of(ChartType.AREA, "period", "totalPayroll", "department")
                                 .withSortedLabels(true)
@@ -70,7 +73,7 @@ public class ChartJsAdapterBridgeTest {
         rows.add(new DepartmentPeriodPayrollRow("Engineering", "2025-02", 240));
         rows.add(new DepartmentPeriodPayrollRow("Finance", "2025-02", 130));
 
-        ChartData chartData = PojoLens.toChartData(rows,
+        ChartData chartData = PojoLensChart.toChartData(rows,
                 ChartSpec.of(ChartType.LINE, "period", "payroll", "department")
                         .withDatasetColorHint("Engineering", "#4caf50")
                         .withDatasetStackGroupId("Engineering", "dept")
@@ -217,4 +220,8 @@ public class ChartJsAdapterBridgeTest {
     }
 
 }
+
+
+
+
 

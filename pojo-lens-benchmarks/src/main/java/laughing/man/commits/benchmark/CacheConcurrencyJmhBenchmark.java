@@ -1,6 +1,7 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Metric;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -31,9 +32,11 @@ public class CacheConcurrencyJmhBenchmark {
     };
 
     private List<BenchmarkFoo> source;
+    private PojoLensRuntime runtime;
 
     @Setup
     public void setup() {
+        runtime = PojoLens.newRuntime();
         source = new ArrayList<>(20_000);
         for (int i = 0; i < 20_000; i++) {
             String value = "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 701L, i, 8);
@@ -42,26 +45,26 @@ public class CacheConcurrencyJmhBenchmark {
             source.add(new BenchmarkFoo(value, date, integerField));
         }
 
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheMaxEntries(2048);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.clearSqlLikeCache();
-        PojoLens.resetSqlLikeCacheStats();
+        runtime.sqlLikeCache().setEnabled(true);
+        runtime.sqlLikeCache().setMaxEntries(2048);
+        runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
+        runtime.sqlLikeCache().setStatsEnabled(true);
+        runtime.sqlLikeCache().clear();
+        runtime.sqlLikeCache().resetStats();
 
-        PojoLens.setStatsPlanCacheEnabled(true);
-        PojoLens.setStatsPlanCacheMaxEntries(2048);
-        PojoLens.setStatsPlanCacheExpireAfterWriteMillis(0L);
-        PojoLens.setStatsPlanCacheStatsEnabled(true);
-        PojoLens.clearStatsPlanCache();
-        PojoLens.resetStatsPlanCacheStats();
+        runtime.statsPlanCache().setEnabled(true);
+        runtime.statsPlanCache().setMaxEntries(2048);
+        runtime.statsPlanCache().setExpireAfterWriteMillis(0L);
+        runtime.statsPlanCache().setStatsEnabled(true);
+        runtime.statsPlanCache().clear();
+        runtime.statsPlanCache().resetStats();
     }
 
     @Benchmark
     @Threads(8)
     public Object sqlLikeParseHotSetConcurrent() {
         int index = ThreadLocalRandom.current().nextInt(SQL_HOT_SET.length);
-        return PojoLens.parse(SQL_HOT_SET[index]);
+        return runtime.parse(SQL_HOT_SET[index]);
     }
 
     @Benchmark
@@ -69,20 +72,20 @@ public class CacheConcurrencyJmhBenchmark {
     public List<GroupedStatsRow> statsPlanBuildHotSetConcurrent() {
         int mode = ThreadLocalRandom.current().nextInt(3);
         if (mode == 0) {
-            return PojoLens.newQueryBuilder(source)
+            return runtime.newQueryBuilder(source)
                     .addGroup("stringField")
                     .addCount("total")
                     .initFilter()
                     .filter(GroupedStatsRow.class);
         }
         if (mode == 1) {
-            return PojoLens.newQueryBuilder(source)
+            return runtime.newQueryBuilder(source)
                     .addGroup("stringField")
                     .addMetric("integerField", Metric.SUM, "sumValue")
                     .initFilter()
                     .filter(GroupedStatsRow.class);
         }
-        return PojoLens.newQueryBuilder(source)
+        return runtime.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addMetric("integerField", Metric.MAX, "sumValue")
                 .initFilter()
@@ -98,4 +101,5 @@ public class CacheConcurrencyJmhBenchmark {
         }
     }
 }
+
 

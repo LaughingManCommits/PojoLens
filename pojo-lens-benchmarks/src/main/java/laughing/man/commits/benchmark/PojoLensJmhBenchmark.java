@@ -1,5 +1,7 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -39,7 +41,7 @@ public class PojoLensJmhBenchmark {
             source.add(new BenchmarkFoo(value, new Date(BenchmarkProfiles.BASE_EPOCH_MILLIS + i), integerField));
         }
         matchValue = "v25";
-        pojoLensFilterPlan = PojoLens.newQueryBuilder(source)
+        pojoLensFilterPlan = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", matchValue, Clauses.EQUAL, Separator.OR)
                 .addDistinct("stringField", 1)
                 .addOrder("integerField", 1)
@@ -70,4 +72,5 @@ public class PojoLensJmhBenchmark {
         return out;
     }
 }
+
 

@@ -1,5 +1,7 @@
 package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.builder.QueryWindowOrder;
@@ -36,13 +38,13 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void optionalIndexControlsShouldBeUsableFromPublicApi() {
-        List<Employee> baseline = PojoLens.newQueryBuilder(sampleEmployees())
+        List<Employee> baseline = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("department", "Engineering", Clauses.EQUAL)
                 .addRule("active", true, Clauses.EQUAL)
                 .initFilter()
                 .filter(Employee.class);
 
-        List<Employee> indexed = PojoLens.newQueryBuilder(sampleEmployees())
+        List<Employee> indexed = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addIndex("department")
                 .addIndex("active")
                 .addRule("department", "Engineering", Clauses.EQUAL)
@@ -56,14 +58,14 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
         assertEquals(
                 List.of("department", "active"),
-                PojoLens.newQueryBuilder(sampleEmployees())
+                PojoLensCore.newQueryBuilder(sampleEmployees())
                         .addIndex("department")
                         .addIndex("active")
                         .explain()
                         .get("indexes")
         );
 
-        Object typedIndexes = PojoLens.newQueryBuilder(Arrays.asList(
+        Object typedIndexes = PojoLensCore.newQueryBuilder(Arrays.asList(
                         new Foo("a", new Date(), 1),
                         new Foo("b", new Date(), 2)))
                 .addIndex(Foo::getStringField)
@@ -74,7 +76,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void fluentWindowAndQualifyControlsShouldBeUsableFromPublicApi() {
-        List<WindowRankRow> rows = PojoLens.newQueryBuilder(sampleEmployees())
+        List<WindowRankRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .addWindow(
                         "rn",
@@ -101,7 +103,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new WindowAggregateInput("B", 1, 3)
         );
 
-        List<WindowAggregateApiRow> rows = PojoLens.newQueryBuilder(source)
+        List<WindowAggregateApiRow> rows = PojoLensCore.newQueryBuilder(source)
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -134,7 +136,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void fluentStreamingControlsShouldBeUsableFromPublicApi() {
-        List<String> fluentNames = PojoLens.newQueryBuilder(sampleEmployees())
+        List<String> fluentNames = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .limit(2)
                 .initFilter()
@@ -153,26 +155,26 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
 
         try {
-            PojoLens.newQueryBuilder(source).limit(-1);
+            PojoLensCore.newQueryBuilder(source).limit(-1);
             fail("Expected IllegalArgumentException for negative limit");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("maxRows must be >= 0"));
         }
 
         try {
-            PojoLens.newQueryBuilder(source).offset(-1);
+            PojoLensCore.newQueryBuilder(source).offset(-1);
             fail("Expected IllegalArgumentException for negative offset");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("rowOffset must be >= 0"));
         }
 
-        List<Foo> empty = PojoLens.newQueryBuilder(source)
+        List<Foo> empty = PojoLensCore.newQueryBuilder(source)
                 .limit(0)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(0, empty.size());
 
-        List<Foo> offsetRows = PojoLens.newQueryBuilder(source)
+        List<Foo> offsetRows = PojoLensCore.newQueryBuilder(source)
                 .offset(1)
                 .initFilter()
                 .filter(Foo.class);
@@ -187,7 +189,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new Foo("b", new Date(), 2)
         );
 
-        QueryBuilder isolated = PojoLens.newQueryBuilder(source)
+        QueryBuilder isolated = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(true);
         Filter isolatedFilter = isolated.initFilter();
@@ -199,7 +201,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals(1, isolatedRowsAgain.size());
         assertEquals("a", isolatedRowsAgain.get(0).getStringField());
 
-        QueryBuilder shared = PojoLens.newQueryBuilder(source)
+        QueryBuilder shared = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(false);
         Filter sharedFilter = shared.initFilter();
@@ -218,7 +220,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new Foo("b", now, 30)
         );
 
-        List<Foo> distinctRows = PojoLens.newQueryBuilder(source)
+        List<Foo> distinctRows = PojoLensCore.newQueryBuilder(source)
                 .addDistinct(Foo::getStringField)
                 .addRule(Foo::getDateField, now, Clauses.EQUAL, Separator.AND, PojoLens.SDF)
                 .initFilter()
@@ -231,7 +233,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new DepartmentMetricInput("sales", 30)
         );
 
-        List<DepartmentMetricResult> grouped = PojoLens.newQueryBuilder(metrics)
+        List<DepartmentMetricResult> grouped = PojoLensCore.newQueryBuilder(metrics)
                 .addGroup(DepartmentMetricInput::getDepartment)
                 .addMetric(DepartmentMetricInput::getAmount, Metric.SUM, "totalAmount")
                 .addHaving(DepartmentMetricResult::getTotalAmount, 120, Clauses.BIGGER_EQUAL, Separator.AND, null)
@@ -246,7 +248,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
         List<JoinChild> children = Collections.singletonList(new JoinChild(1, "c1"));
 
-        List<JoinProjection> joined = PojoLens.newQueryBuilder(parents)
+        List<JoinProjection> joined = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans(JoinParent::getId, children, JoinChild::getParentId, Join.LEFT_JOIN)
                 .initFilter()
                 .join()
@@ -255,3 +257,4 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals("c1", joined.get(0).tag);
     }
 }
+

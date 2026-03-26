@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -24,8 +26,7 @@ public class SqlLikeParametersContractTest {
         List<Employee> source = sampleEmployees();
         String sql = "where department = :dept and salary >= :minSalary and active = :active order by salary desc";
 
-        List<Employee> parameterized = PojoLens
-                .parse(sql)
+        List<Employee> parameterized = PojoLensSql.parse(sql)
                 .params(Map.of(
                         "dept", "Engineering",
                         "minSalary", 120000,
@@ -33,8 +34,7 @@ public class SqlLikeParametersContractTest {
                 ))
                 .filter(source, Employee.class);
 
-        List<Employee> literal = PojoLens
-                .parse("where department = 'Engineering' and salary >= 120000 and active = true order by salary desc")
+        List<Employee> literal = PojoLensSql.parse("where department = 'Engineering' and salary >= 120000 and active = true order by salary desc")
                 .filter(source, Employee.class);
 
         assertEquals(names(literal), names(parameterized));
@@ -44,8 +44,7 @@ public class SqlLikeParametersContractTest {
     public void parameterizedHavingShouldExecuteWithBoundValues() {
         List<Employee> source = sampleEmployees();
 
-        List<DepartmentCount> rows = PojoLens
-                .parse("select department, count(*) as total group by department having total >= :minCount order by total desc")
+        List<DepartmentCount> rows = PojoLensSql.parse("select department, count(*) as total group by department having total >= :minCount order by total desc")
                 .params(Map.of("minCount", 2))
                 .filter(source, DepartmentCount.class);
 
@@ -58,8 +57,7 @@ public class SqlLikeParametersContractTest {
     public void parameterizedWhereShouldSupportSqlParamsBuilder() {
         List<Employee> source = sampleEmployees();
 
-        List<Employee> rows = PojoLens
-                .parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
+        List<Employee> rows = PojoLensSql.parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
                 .params(SqlParams.builder()
                         .put("dept", "Engineering")
                         .put("minSalary", 120000)
@@ -75,8 +73,7 @@ public class SqlLikeParametersContractTest {
         List<Employee> source = sampleEmployees();
         Date hiredAt = source.get(0).hireDate;
 
-        List<Employee> dateRows = PojoLens
-                .parse("where hireDate = :hiredAt")
+        List<Employee> dateRows = PojoLensSql.parse("where hireDate = :hiredAt")
                 .params(Map.of("hiredAt", hiredAt))
                 .filter(source, Employee.class);
         assertEquals(source.size(), dateRows.size());
@@ -87,8 +84,7 @@ public class SqlLikeParametersContractTest {
         );
         Map<String, Object> nullParams = new HashMap<>();
         nullParams.put("tag", null);
-        List<NullableBean> nullMatch = PojoLens
-                .parse("where tag = :tag")
+        List<NullableBean> nullMatch = PojoLensSql.parse("where tag = :tag")
                 .params(nullParams)
                 .filter(nullableRows, NullableBean.class);
         assertEquals(1, nullMatch.size());
@@ -98,7 +94,7 @@ public class SqlLikeParametersContractTest {
     @Test
     public void missingParameterShouldFailDeterministically() {
         try {
-            PojoLens.parse("where salary >= :min and department = :dept")
+            PojoLensSql.parse("where salary >= :min and department = :dept")
                     .params(Map.of("min", 100000));
             fail("Expected missing parameter failure");
         } catch (IllegalArgumentException ex) {
@@ -110,7 +106,7 @@ public class SqlLikeParametersContractTest {
     @Test
     public void unknownParameterShouldFailDeterministically() {
         try {
-            PojoLens.parse("where salary >= :min")
+            PojoLensSql.parse("where salary >= :min")
                     .params(Map.of("min", 100000, "extra", 1));
             fail("Expected unknown parameter failure");
         } catch (IllegalArgumentException ex) {
@@ -122,7 +118,7 @@ public class SqlLikeParametersContractTest {
     @Test
     public void sqlParamsBuilderShouldReuseMapValidationForUnknownParameters() {
         try {
-            PojoLens.parse("where salary >= :min")
+            PojoLensSql.parse("where salary >= :min")
                     .params(SqlParams.builder()
                             .put("min", 100000)
                             .put("extra", 1)
@@ -137,7 +133,7 @@ public class SqlLikeParametersContractTest {
     @Test
     public void executingWithUnresolvedParametersShouldFail() {
         try {
-            PojoLens.parse("where salary >= :min").filter(sampleEmployees(), Employee.class);
+            PojoLensSql.parse("where salary >= :min").filter(sampleEmployees(), Employee.class);
             fail("Expected unresolved parameter failure");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("unresolved SQL-like parameter"));
@@ -161,4 +157,8 @@ public class SqlLikeParametersContractTest {
         }
     }
 }
+
+
+
+
 

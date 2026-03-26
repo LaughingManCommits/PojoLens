@@ -25,21 +25,21 @@ public class PojoLensJoinBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildBean(99, "c99")
         );
 
-        List<PojoLensBehaviorFixtures.ParentBean> inner = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ParentBean> inner = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.INNER_JOIN)
                 .initFilter()
                 .join()
                 .filter(PojoLensBehaviorFixtures.ParentBean.class);
         assertEquals(1, inner.size());
 
-        List<PojoLensBehaviorFixtures.ParentBean> left = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ParentBean> left = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter()
                 .join()
                 .filter(PojoLensBehaviorFixtures.ParentBean.class);
         assertEquals(1, left.size());
 
-        List<PojoLensBehaviorFixtures.ChildBean> right = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ChildBean> right = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.RIGHT_JOIN)
                 .initFilter()
                 .join()
@@ -61,14 +61,14 @@ public class PojoLensJoinBehaviorTest {
         List<PojoLensBehaviorFixtures.ChildBean> children = Collections.singletonList(
                 new PojoLensBehaviorFixtures.ChildBean(1, "c1")
         );
-        List<PojoLensBehaviorFixtures.ParentBean> inner = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ParentBean> inner = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.INNER_JOIN)
                 .initFilter()
                 .join()
                 .filter(PojoLensBehaviorFixtures.ParentBean.class);
         assertEquals(1, inner.size());
 
-        List<PojoLensBehaviorFixtures.ParentBean> left = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ParentBean> left = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter()
                 .join()
@@ -85,7 +85,7 @@ public class PojoLensJoinBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildCollisionBean(1, "child-name")
         );
 
-        List<PojoLensBehaviorFixtures.JoinedCollisionProjection> rows = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.JoinedCollisionProjection> rows = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter()
                 .join()
@@ -105,7 +105,7 @@ public class PojoLensJoinBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildCollisionBean(1, "child-name")
         );
 
-        List<PojoLensBehaviorFixtures.JoinedCollisionProjectionWithSuffix> rows = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.JoinedCollisionProjectionWithSuffix> rows = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter()
                 .join()
@@ -128,7 +128,7 @@ public class PojoLensJoinBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildCollisionBean(1, "child-name")
         );
 
-        List<PojoLensBehaviorFixtures.JoinedCollisionProjectionWithDeepSuffix> rows = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.JoinedCollisionProjectionWithDeepSuffix> rows = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter()
                 .join()
@@ -151,7 +151,7 @@ public class PojoLensJoinBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildCollisionBean(2, "child-name-2")
         );
 
-        List<PojoLensBehaviorFixtures.RightJoinCollisionProjection> rows = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.RightJoinCollisionProjection> rows = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.RIGHT_JOIN)
                 .initFilter()
                 .join()

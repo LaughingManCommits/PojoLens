@@ -26,7 +26,7 @@ public class TimeBucketAggregationTest {
     public void fluentTimeBucketShouldGroupByMonthWithRegularGroupFields() {
         List<EmployeePoint> rows = sampleRows();
 
-        List<DepartmentPeriodAgg> result = PojoLens.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> result = PojoLensCore.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                 .addCount("total")
@@ -48,7 +48,7 @@ public class TimeBucketAggregationTest {
         TimeZone original = TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"));
-            List<DepartmentPeriodAgg> honolulu = PojoLens.newQueryBuilder(rows)
+            List<DepartmentPeriodAgg> honolulu = PojoLensCore.newQueryBuilder(rows)
                     .addGroup("department")
                     .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                     .addCount("total")
@@ -56,7 +56,7 @@ public class TimeBucketAggregationTest {
                     .filter(DepartmentPeriodAgg.class);
 
             TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"));
-            List<DepartmentPeriodAgg> berlin = PojoLens.newQueryBuilder(rows)
+            List<DepartmentPeriodAgg> berlin = PojoLensCore.newQueryBuilder(rows)
                     .addGroup("department")
                     .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                     .addCount("total")
@@ -73,8 +73,7 @@ public class TimeBucketAggregationTest {
     public void sqlLikeBucketFunctionShouldMatchFluentOutput() {
         List<EmployeePoint> rows = sampleRows();
 
-        List<DepartmentPeriodAgg> sqlLike = PojoLens
-                .parse("select department, bucket(hireDate,'month') as period, count(*) as total, sum(salary) as payroll "
+        List<DepartmentPeriodAgg> sqlLike = PojoLensSql.parse("select department, bucket(hireDate,'month') as period, count(*) as total, sum(salary) as payroll "
                         + "group by department, period")
                 .filter(rows, DepartmentPeriodAgg.class);
 
@@ -92,15 +91,14 @@ public class TimeBucketAggregationTest {
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 31, 23, 30), 100));
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.FEBRUARY, 1, 0, 30), 200));
 
-        List<DepartmentPeriodAgg> fluent = PojoLens.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> fluent = PojoLensCore.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucketPreset.month().withZone("Europe/Amsterdam"), "period")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentPeriodAgg.class);
 
-        List<DepartmentPeriodAgg> sqlLike = PojoLens
-                .parse("select department, bucket(hireDate,'month','Europe/Amsterdam') as period, count(*) as total "
+        List<DepartmentPeriodAgg> sqlLike = PojoLensSql.parse("select department, bucket(hireDate,'month','Europe/Amsterdam') as period, count(*) as total "
                         + "group by department, period")
                 .filter(rows, DepartmentPeriodAgg.class);
 
@@ -114,13 +112,13 @@ public class TimeBucketAggregationTest {
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 5, 10, 0), 100));
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 6, 10, 0), 200));
 
-        List<DepartmentPeriodAgg> mondayStart = PojoLens.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> mondayStart = PojoLensCore.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.WEEK, "period")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentPeriodAgg.class);
 
-        List<DepartmentPeriodAgg> sundayStart = PojoLens.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> sundayStart = PojoLensCore.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucketPreset.week().withWeekStart(DayOfWeek.SUNDAY), "period")
                 .addCount("total")
                 .initFilter()
@@ -136,7 +134,7 @@ public class TimeBucketAggregationTest {
                 new NullableHireDatePoint("Engineering", null, 100)
         );
 
-        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(rows)
+        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
     }
 
@@ -148,4 +146,5 @@ public class TimeBucketAggregationTest {
     }
 
 }
+
 

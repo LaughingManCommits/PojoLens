@@ -18,7 +18,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void fluentStreamShouldSupportLazySimpleFilterWithOffsetAndLimit() {
-        QueryBuilder builder = PojoLens.newQueryBuilder(sampleEmployees())
+        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .offset(1)
                 .limit(2);
@@ -33,7 +33,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void fluentIteratorShouldExposeRows() {
-        QueryBuilder builder = PojoLens.newQueryBuilder(sampleEmployees())
+        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .limit(1);
 
@@ -45,8 +45,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void sqlLikeStreamShouldExposeRows() {
-        List<String> names = PojoLens
-                .parse("where active = true limit 2")
+        List<String> names = PojoLensSql.parse("where active = true limit 2")
                 .stream(sampleEmployees(), Employee.class)
                 .map(row -> row.name)
                 .toList();
@@ -56,7 +55,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void sqlLikeBoundStreamShouldExposeRows() {
-        SqlLikeQuery query = PojoLens.parse("where active = true limit 2");
+        SqlLikeQuery query = PojoLensSql.parse("where active = true limit 2");
         List<String> names = query.bindTyped(sampleEmployees(), Employee.class)
                 .stream()
                 .map(row -> row.name)
@@ -67,8 +66,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void sqlLikeStreamShouldFallbackForOrderedQueries() {
-        List<String> names = PojoLens
-                .parse("where active = true order by salary desc limit 2")
+        List<String> names = PojoLensSql.parse("where active = true order by salary desc limit 2")
                 .stream(sampleEmployees(), Employee.class)
                 .map(row -> row.name)
                 .toList();
@@ -76,4 +74,5 @@ public class StreamingExecutionOutputTest {
         assertEquals(List.of("Cara", "Alice"), names);
     }
 }
+
 

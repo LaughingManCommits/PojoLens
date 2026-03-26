@@ -30,7 +30,7 @@ public class ReportDefinitionTest {
     @Test
     public void sqlLikeReportDefinitionShouldBeReusableAcrossSnapshots() {
         ReportDefinition<DepartmentCountRow> report = PojoLens.report(
-                PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+                PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 DepartmentCountRow.class,
                 ChartSpec.of(ChartType.BAR, "department", "total")
         );
@@ -80,7 +80,7 @@ public class ReportDefinitionTest {
     @Test
     public void reportDefinitionWithoutChartSpecShouldRejectChartExecution() {
         ReportDefinition<Employee> report = PojoLens.report(
-                PojoLens.parse("where active = true order by salary desc"),
+                PojoLensSql.parse("where active = true order by salary desc"),
                 Employee.class
         );
 
@@ -97,7 +97,7 @@ public class ReportDefinitionTest {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
         ReportDefinition<Company> report = PojoLens.report(
-                PojoLens.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
+                PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
                 Company.class
         );
 
@@ -124,7 +124,7 @@ public class ReportDefinitionTest {
     @Test
     public void reportDefinitionShouldExposeOrderedSchemaMetadata() {
         ReportDefinition<DepartmentCountRow> report = PojoLens.report(
-                PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+                PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 DepartmentCountRow.class
         );
 

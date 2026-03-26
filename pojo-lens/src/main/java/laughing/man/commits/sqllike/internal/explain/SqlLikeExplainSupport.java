@@ -1,6 +1,5 @@
 package laughing.man.commits.sqllike.internal.explain;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
@@ -12,7 +11,9 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
+import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
+import laughing.man.commits.sqllike.internal.cache.DefaultSqlLikeQueryCacheSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.StringUtil;
@@ -65,8 +66,8 @@ public final class SqlLikeExplainSupport {
         if (lintMode) {
             explain.put("lintWarnings", SqlLikeLintSupport.warningEntries(lintWarnings));
         }
-        explain.put("sqlLikeCache", PojoLens.getSqlLikeCacheSnapshot());
-        explain.put("statsPlanCache", PojoLens.getStatsPlanCacheSnapshot());
+        explain.put("sqlLikeCache", DefaultSqlLikeQueryCacheSupport.snapshot());
+        explain.put("statsPlanCache", FilterExecutionPlanCache.snapshot());
         explain.put("stageRowCounts", stageRowCounts);
         return Collections.unmodifiableMap(explain);
     }

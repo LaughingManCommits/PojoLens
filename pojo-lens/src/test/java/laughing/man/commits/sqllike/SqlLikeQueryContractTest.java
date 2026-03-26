@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -27,23 +29,23 @@ public class SqlLikeQueryContractTest {
 
     @Test
     public void parseShouldNormalizeSource() {
-        SqlLikeQuery query = PojoLens.parse("  where stringField = 'abc'  ");
+        SqlLikeQuery query = PojoLensSql.parse("  where stringField = 'abc'  ");
         assertEquals("where stringField = 'abc'", query.source());
     }
 
     @Test
     public void parseShouldRejectNull() {
-        assertThrows(IllegalArgumentException.class, () -> PojoLens.parse(null));
+        assertThrows(IllegalArgumentException.class, () -> PojoLensSql.parse(null));
     }
 
     @Test
     public void parseShouldRejectBlank() {
-        assertThrows(IllegalArgumentException.class, () -> PojoLens.parse("   "));
+        assertThrows(IllegalArgumentException.class, () -> PojoLensSql.parse("   "));
     }
 
     @Test
     public void bindTypedShouldReturnExecutableBoundQuery() {
-        Object bound = PojoLens.parse("where name = 'abc'")
+        Object bound = PojoLensSql.parse("where name = 'abc'")
                 .bindTyped(Collections.emptyList(), TestBean.class);
         assertNotNull(bound);
     }
@@ -54,7 +56,7 @@ public class SqlLikeQueryContractTest {
                 new TestBean("abc", 1),
                 new TestBean("xyz", 2)
         );
-        List<TestBean> results = PojoLens.parse("where name = 'abc'").filter(source, TestBean.class);
+        List<TestBean> results = PojoLensSql.parse("where name = 'abc'").filter(source, TestBean.class);
         assertEquals(1, results.size());
         assertEquals("abc", results.get(0).name);
     }
@@ -70,8 +72,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        List<DepartmentCount> results = PojoLens
-                .parse("select department, count(*) as total group by department having total >= 2 order by total asc limit 1")
+        List<DepartmentCount> results = PojoLensSql.parse("select department, count(*) as total group by department having total >= 2 order by total asc limit 1")
                 .filter(source, DepartmentCount.class);
 
         assertEquals(1, results.size());
@@ -87,8 +88,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("Finance")
         );
 
-        List<DepartmentCount> results = PojoLens
-                .parse("select department, count(*) as total group by department having count(*) >= 2 order by total desc")
+        List<DepartmentCount> results = PojoLensSql.parse("select department, count(*) as total group by department having count(*) >= 2 order by total desc")
                 .filter(source, DepartmentCount.class);
 
         assertEquals(1, results.size());
@@ -107,8 +107,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        List<DepartmentCount> results = PojoLens
-                .parse("select department, count(*) as total group by department having total >= 3 or total = 1 order by total desc")
+        List<DepartmentCount> results = PojoLensSql.parse("select department, count(*) as total group by department having total >= 3 or total = 1 order by total desc")
                 .filter(source, DepartmentCount.class);
 
         assertEquals(2, results.size());
@@ -124,8 +123,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("Finance")
         );
 
-        ChartData chart = PojoLens
-                .parse("select department, count(*) as total group by department order by total desc")
+        ChartData chart = PojoLensSql.parse("select department, count(*) as total group by department order by total desc")
                 .chart(source, DepartmentCount.class, ChartSpec.of(ChartType.BAR, "department", "total"));
 
         assertEquals(2, chart.getLabels().size());
@@ -141,8 +139,7 @@ public class SqlLikeQueryContractTest {
                 new TestBean("xyz", 2)
         );
 
-        List<TestBean> results = PojoLens
-                .parse("where (name = 'abc' or name = 'xyz') and value >= 10")
+        List<TestBean> results = PojoLensSql.parse("where (name = 'abc' or name = 'xyz') and value >= 10")
                 .filter(source, TestBean.class);
 
         assertEquals(2, results.size());
@@ -161,8 +158,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        List<DepartmentCount> results = PojoLens
-                .parse("select department, count(*) as total group by department "
+        List<DepartmentCount> results = PojoLensSql.parse("select department, count(*) as total group by department "
                         + "having total >= 3 or (total = 2 and department = 'Finance') order by total desc")
                 .filter(source, DepartmentCount.class);
 
@@ -178,8 +174,7 @@ public class SqlLikeQueryContractTest {
                 new TestBean("xyz", 5)
         );
 
-        List<ComputedBoostProjection> results = PojoLens
-                .parse("select name as name, value * 1.5 + 2 as boosted where value >= 2")
+        List<ComputedBoostProjection> results = PojoLensSql.parse("select name as name, value * 1.5 + 2 as boosted where value >= 2")
                 .filter(source, ComputedBoostProjection.class);
 
         assertEquals(2, results.size());
@@ -199,8 +194,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployeeWithSalary("Finance", 95_000)
         );
 
-        List<DepartmentAvgProjection> results = PojoLens
-                .parse("select department, sum(salary) as total, count(*) as people "
+        List<DepartmentAvgProjection> results = PojoLensSql.parse("select department, sum(salary) as total, count(*) as people "
                         + "group by department having total / people >= 100000")
                 .filter(source, DepartmentAvgProjection.class);
 
@@ -225,8 +219,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployeeWithActive("HR", false)
         );
 
-        List<DepartmentEmployeeWithActive> results = PojoLens
-                .parse("where department in (select department where active = true)")
+        List<DepartmentEmployeeWithActive> results = PojoLensSql.parse("where department in (select department where active = true)")
                 .filter(activeSource, DepartmentEmployeeWithActive.class);
 
         assertEquals(2, results.size());
@@ -238,8 +231,7 @@ public class SqlLikeQueryContractTest {
     public void whereInSubqueryShouldSupportNamedJoinSourceFiltering() {
         List<Company> companies = sampleCompanies();
 
-        List<Company> results = PojoLens
-                .parse("where id in (select companyId from employees where title = 'Engineer')")
+        List<Company> results = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                 .filter(companies, Map.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals(1, results.size());
@@ -260,7 +252,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        SqlLikeQuery query = PojoLens.parse(
+        SqlLikeQuery query = PojoLensSql.parse(
                 "select department, count(*) as total group by department order by department asc");
 
         List<DepartmentCount> first = query.filter(firstRows, DepartmentCount.class);
@@ -289,7 +281,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        SqlLikeQuery query = PojoLens.parse(
+        SqlLikeQuery query = PojoLensSql.parse(
                 "select department, count(*) as total group by department");
 
         List<DepartmentCount> first = query.filter(firstRows, DepartmentCount.class);
@@ -318,7 +310,7 @@ public class SqlLikeQueryContractTest {
                 new DepartmentEmployee("HR")
         );
 
-        SqlLikeQuery query = PojoLens.parse(
+        SqlLikeQuery query = PojoLensSql.parse(
                 "select department as dept, count(*) as total group by department");
 
         List<DepartmentCountAlias> first = query.filter(firstRows, DepartmentCountAlias.class);
@@ -395,4 +387,8 @@ public class SqlLikeQueryContractTest {
         }
     }
 }
+
+
+
+
 

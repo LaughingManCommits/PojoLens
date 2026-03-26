@@ -26,8 +26,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        List<AdjustedSalaryRow> rows = PojoLens
-                .parse("select name, adjustedSalary where adjustedSalary >= :min order by adjustedSalary desc")
+        List<AdjustedSalaryRow> rows = PojoLensSql.parse("select name, adjustedSalary where adjustedSalary >= :min order by adjustedSalary desc")
                 .computedFields(registry)
                 .strictParameterTypes()
                 .params(Map.of("min", 120000.0))
@@ -44,7 +43,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        List<DepartmentAdjustedPayrollRow> rows = PojoLens.newQueryBuilder(sampleEmployees())
+        List<DepartmentAdjustedPayrollRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addRule("adjustedSalary", 120000.0, Clauses.BIGGER_EQUAL)
                 .addGroup("department")
@@ -89,7 +88,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(List.of())
+        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(List.of())
                 .computedFields(registry)
                 .addMetric("adjustedSalary", Metric.SUM, "totalAdjustedPayroll"));
     }
@@ -100,8 +99,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
         ReportDefinition<DepartmentAdjustedPayrollRow> report = PojoLens.report(
-                PojoLens
-                        .parse("select department, sum(adjustedSalary) as totalAdjustedPayroll "
+                PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll "
                                 + "group by department order by totalAdjustedPayroll desc")
                         .computedFields(registry),
                 DepartmentAdjustedPayrollRow.class,
@@ -124,7 +122,7 @@ public class ComputedFieldRegistryTest {
                 .add("roundedAdjustedSalary", "ROUND(adjustedSalary)", Integer.class)
                 .build();
 
-        List<RoundedAdjustedSalaryRow> rows = PojoLens.newQueryBuilder(sampleEmployees())
+        List<RoundedAdjustedSalaryRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addField("name")
                 .addField("roundedAdjustedSalary")
@@ -172,4 +170,5 @@ public class ComputedFieldRegistryTest {
         }
     }
 }
+
 

@@ -1,5 +1,8 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -86,32 +89,32 @@ public class ChartVisualizationJmhBenchmark {
         areaSql = "select period, series, sum(amount) as total group by period, series";
         scatterSql = "select xValue, yValue, series";
 
-        barFilter = PojoLens.newQueryBuilder(source)
+        barFilter = PojoLensCore.newQueryBuilder(source)
                 .addGroup("department")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        lineFilter = PojoLens.newQueryBuilder(source)
+        lineFilter = PojoLensCore.newQueryBuilder(source)
                 .addGroup("period")
                 .addGroup("series")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        pieFilter = PojoLens.newQueryBuilder(source)
+        pieFilter = PojoLensCore.newQueryBuilder(source)
                 .addGroup("department")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        areaFilter = PojoLens.newQueryBuilder(source)
+        areaFilter = PojoLensCore.newQueryBuilder(source)
                 .addGroup("period")
                 .addGroup("series")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        scatterFilter = PojoLens.newQueryBuilder(source)
+        scatterFilter = PojoLensCore.newQueryBuilder(source)
                 .initFilter();
 
-        parsedBarSql = PojoLens.parse(barSql);
-        parsedLineSql = PojoLens.parse(lineSql);
-        parsedPieSql = PojoLens.parse(pieSql);
-        parsedAreaSql = PojoLens.parse(areaSql);
-        parsedScatterSql = PojoLens.parse(scatterSql);
+        parsedBarSql = PojoLensSql.parse(barSql);
+        parsedLineSql = PojoLensSql.parse(lineSql);
+        parsedPieSql = PojoLensSql.parse(pieSql);
+        parsedAreaSql = PojoLensSql.parse(areaSql);
+        parsedScatterSql = PojoLensSql.parse(scatterSql);
 
         barData = barFilter.chart(CategoryTotalRow.class, barSpec);
         lineData = lineFilter.chart(PeriodSeriesTotalRow.class, lineSpec);
@@ -279,4 +282,5 @@ public class ChartVisualizationJmhBenchmark {
         }
     }
 }
+
 

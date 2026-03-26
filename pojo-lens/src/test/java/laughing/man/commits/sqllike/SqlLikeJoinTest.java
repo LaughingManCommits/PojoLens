@@ -1,5 +1,8 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -42,7 +45,7 @@ public class SqlLikeJoinTest {
                 new ChildBean(1, "c1")
         );
 
-        List<ParentBean> fluent = PojoLens.newQueryBuilder(parents)
+        List<ParentBean> fluent = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .addRule("tag", null, Clauses.EQUAL, Separator.AND)
                 .initFilter()
@@ -51,8 +54,7 @@ public class SqlLikeJoinTest {
 
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("children", children);
-        List<ParentBean> sqlLike = PojoLens
-                .parse("select * from parents left join children on id = parentId where tag = null")
+        List<ParentBean> sqlLike = PojoLensSql.parse("select * from parents left join children on id = parentId where tag = null")
                 .filter(parents, joinSources, ParentBean.class);
 
         assertEquals(ids(fluent), ids(sqlLike));
@@ -65,7 +67,7 @@ public class SqlLikeJoinTest {
                 new ParentBean(2, "p2")
         );
         try {
-            PojoLens.parse("select * from parents left join children on id = parentId")
+            PojoLensSql.parse("select * from parents left join children on id = parentId")
                     .filter(parents, ParentBean.class);
             fail("Expected missing join binding failure");
         } catch (IllegalArgumentException ex) {
@@ -92,8 +94,7 @@ public class SqlLikeJoinTest {
         joinSources.put("children", children);
         joinSources.put("toys", toys);
 
-        List<ParentBean> rows = PojoLens
-                .parse("select * from parents "
+        List<ParentBean> rows = PojoLensSql.parse("select * from parents "
                         + "left join children on parents.id = children.parentId "
                         + "left join toys on children.id = toys.childId "
                         + "where label = 'truck'")
@@ -108,7 +109,7 @@ public class SqlLikeJoinTest {
                 new ParentBean(1, "p1"),
                 new ParentBean(2, "p2")
         );
-        SqlLikeQuery query = PojoLens.parse("select * from parents left join children on id = parentId where tag = 'match'");
+        SqlLikeQuery query = PojoLensSql.parse("select * from parents left join children on id = parentId where tag = 'match'");
 
         List<ParentBean> first = query.filter(
                 parents,
@@ -143,7 +144,7 @@ public class SqlLikeJoinTest {
         joinSources.put("toys", toys);
 
         try {
-            PojoLens.parse("select * from parents "
+            PojoLensSql.parse("select * from parents "
                             + "left join toys on children.id = toys.childId "
                             + "left join children on parents.id = children.parentId")
                     .filter(parents, joinSources, ParentBean.class);
@@ -211,4 +212,8 @@ public class SqlLikeJoinTest {
         }
     }
 }
+
+
+
+
 

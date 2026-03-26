@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -28,8 +30,7 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindShouldApplyOrderByAscWithoutExplicitSort() {
         List<Employee> source = sampleEmployees();
 
-        List<Employee> rows = PojoLens
-                .parse("where salary >= 90000 order by salary asc")
+        List<Employee> rows = PojoLensSql.parse("where salary >= 90000 order by salary asc")
                 .bindTyped(source, Employee.class)
                 .filter();
 
@@ -40,8 +41,7 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindShouldApplyOrderByDescWithoutExplicitSort() {
         List<Employee> source = sampleEmployees();
 
-        List<Employee> rows = PojoLens
-                .parse("where salary >= 90000 order by salary desc")
+        List<Employee> rows = PojoLensSql.parse("where salary >= 90000 order by salary desc")
                 .bindTyped(source, Employee.class)
                 .filter();
 
@@ -52,8 +52,7 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindWithoutOrderByShouldRetainCurrentUnsortedBehavior() {
         List<Employee> source = sampleEmployees();
 
-        List<Employee> rows = PojoLens
-                .parse("where salary >= 100000")
+        List<Employee> rows = PojoLensSql.parse("where salary >= 100000")
                 .bindTyped(source, Employee.class)
                 .filter();
 
@@ -64,8 +63,7 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindShouldCaptureProjectionTypeAtBindTime() {
         List<Employee> source = sampleEmployees();
 
-        List<EmployeeSummary> rows = PojoLens
-                .parse("select name as employeeName, salary as annualSalary where salary >= 120000 order by salary desc")
+        List<EmployeeSummary> rows = PojoLensSql.parse("select name as employeeName, salary as annualSalary where salary >= 120000 order by salary desc")
                 .bindTyped(source, EmployeeSummary.class)
                 .filter();
 
@@ -83,8 +81,7 @@ public class SqlLikeTypedBindContractTest {
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", employees);
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .bindTyped(companies, Company.class, joinSources)
                 .filter();
 
@@ -95,8 +92,7 @@ public class SqlLikeTypedBindContractTest {
     @Test
     public void typedBindShouldMatchDirectFilterExecution() {
         List<Employee> source = sampleEmployees();
-        SqlLikeQuery query = PojoLens
-                .parse("select name as employeeName, salary as annualSalary where salary >= 90000 order by salary desc");
+        SqlLikeQuery query = PojoLensSql.parse("select name as employeeName, salary as annualSalary where salary >= 90000 order by salary desc");
 
         List<EmployeeSummary> direct = query.filter(source, EmployeeSummary.class);
         List<EmployeeSummary> typed = query.bindTyped(source, EmployeeSummary.class).filter();
@@ -111,8 +107,7 @@ public class SqlLikeTypedBindContractTest {
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", employees);
 
-        SqlLikeBoundQuery<Company> bound = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        SqlLikeBoundQuery<Company> bound = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .bindTyped(companies, Company.class, joinSources);
 
         List<Company> first = bound.filter();
@@ -124,8 +119,7 @@ public class SqlLikeTypedBindContractTest {
     @Test
     public void typedBindShouldRemainReusableAcrossRepeatedStatsCharts() {
         List<Employee> source = sampleEmployees();
-        SqlLikeBoundQuery<DepartmentCount> bound = PojoLens
-                .parse("select department, count(*) as total group by department")
+        SqlLikeBoundQuery<DepartmentCount> bound = PojoLensSql.parse("select department, count(*) as total group by department")
                 .bindTyped(source, DepartmentCount.class);
         ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "total");
 
@@ -155,4 +149,8 @@ public class SqlLikeTypedBindContractTest {
     }
 
 }
+
+
+
+
 

@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.binding;
 
-import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryBuilder;
@@ -8,6 +9,8 @@ import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.filter.FilterExecutionPlanCache;
+import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -66,9 +69,18 @@ public final class SqlLikeBinder {
                                     Map<String, List<?>> joinSources,
                                     Class<?> sourceClass,
                                     ComputedFieldRegistry computedFieldRegistry) {
+        return bind(ast, pojos, joinSources, sourceClass, computedFieldRegistry, FilterExecutionPlanCache.defaultStore());
+    }
+
+    public static QueryBuilder bind(QueryAst ast,
+                                    List<?> pojos,
+                                    Map<String, List<?>> joinSources,
+                                    Class<?> sourceClass,
+                                    ComputedFieldRegistry computedFieldRegistry,
+                                    FilterExecutionPlanCacheStore executionPlanCache) {
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
-        QueryBuilder builder = PojoLens.newQueryBuilder(pojos).computedFields(computedFieldRegistry);
+        QueryBuilder builder = PojoLensCore.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
 
         SelectAst select = normalizedAst.select();
         boolean groupedAggregation = normalizedAst.hasAggregation() || !normalizedAst.groupByFields().isEmpty();

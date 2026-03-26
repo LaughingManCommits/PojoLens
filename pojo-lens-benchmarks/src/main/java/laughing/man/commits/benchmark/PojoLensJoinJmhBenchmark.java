@@ -1,5 +1,7 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
@@ -59,17 +61,17 @@ public class PojoLensJoinJmhBenchmark {
                 .add("totalComp", "salary + bonus", Double.class)
                 .build();
         minimumTotalComp = 140_000d;
-        joinLeftFilter = PojoLens.newQueryBuilder(parents)
+        joinLeftFilter = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .initFilter();
-        computedJoinFilter = PojoLens.newQueryBuilder(computedParents)
+        computedJoinFilter = PojoLensCore.newQueryBuilder(computedParents)
                 .computedFields(computedFieldRegistry)
                 .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
                 .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("name")
                 .addField("totalComp")
                 .initFilter();
-        computedJoinOrderedFilter = PojoLens.newQueryBuilder(computedParents)
+        computedJoinOrderedFilter = PojoLensCore.newQueryBuilder(computedParents)
                 .computedFields(computedFieldRegistry)
                 .addJoinBeans("id", computedChildren, "parentId", Join.LEFT_JOIN)
                 .addRule("totalComp", minimumTotalComp, Clauses.BIGGER_EQUAL, Separator.AND)
@@ -224,4 +226,5 @@ public class PojoLensJoinJmhBenchmark {
         }
     }
 }
+
 

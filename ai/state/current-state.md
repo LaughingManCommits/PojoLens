@@ -6,12 +6,31 @@
 - Runtime consumer coordinates remain `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - Central release profiles now exist for deployable modules `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter`.
 - CI workflows present: `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
-- `TODO.md` now tracks only the active pre-adoption simplification roadmap (`WP7.1`-`WP7.5`) for facade narrowing and runtime-first cache-policy cleanup before wider adoption.
+- `TODO.md` now tracks the pre-adoption simplification roadmap (`WP7.1`-`WP7.5`), and all current work packages are now complete.
 - `2026-03-21` artifact-scope split is complete: runtime jar excludes benchmark/JMH classes and benchmark tooling is isolated in `pojo-lens-benchmarks`.
 - `2026-03-22` source layout split is complete: runtime code/tests/resources now live under `pojo-lens/src/...` and benchmark code/tests/resources now live under `pojo-lens-benchmarks/src/...` (no shared top-level `src` compile path).
 
 ## Latest Validation
 
+- `2026-03-25`: `WP7.3`-`WP7.5` delivered and validated:
+  - removed the duplicate `PojoLens` query/chart facade entry methods and the
+    public static/global cache-policy methods on `PojoLens`, `PojoLensSql`, and
+    `PojoLensCore`.
+  - kept direct static entry points on internal default singleton caches while
+    making `PojoLensRuntime` the only public cache-tuning surface.
+  - wired `PojoLensRuntime.parse(...)` and SQL-like aggregate execution onto the
+    runtime-owned stats-plan cache so runtime-scoped policy now applies
+    consistently across fluent and SQL-like paths.
+  - updated runtime/cache/public-api tests, benchmark module call sites, and
+    migration/docs pages (`MIGRATION.md`, `docs/caching.md`, `docs/sql-like.md`)
+    to the helper-only facade and runtime-first cache model.
+  - roadmap state:
+    `WP7.1`-`WP7.5` `Done`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens-benchmarks -am test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-25`: `WP7.2` facade fate decision delivered:
   - recorded the concrete pre-adoption facade decision in
     `docs/consolidation-review.md`:

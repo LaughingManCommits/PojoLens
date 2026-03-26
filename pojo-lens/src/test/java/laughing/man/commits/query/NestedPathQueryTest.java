@@ -1,5 +1,8 @@
 package laughing.man.commits.query;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.enums.Clauses;
@@ -18,7 +21,7 @@ public class NestedPathQueryTest {
 
     @Test
     public void fluentFilterShouldSupportNestedDottedPathsAndRoundTripToPojo() {
-        List<Person> rows = PojoLens.newQueryBuilder(samplePeople())
+        List<Person> rows = PojoLensCore.newQueryBuilder(samplePeople())
                 .addRule("address.country", "NL", Clauses.EQUAL)
                 .addRule("address.city", "Amsterdam", Clauses.EQUAL)
                 .addOrder("address.zipCode", 1)
@@ -36,8 +39,7 @@ public class NestedPathQueryTest {
 
     @Test
     public void sqlLikeShouldProjectAndGroupUsingNestedDottedPaths() {
-        List<PersonCityRow> projected = PojoLens
-                .parse("select name, address.city as city where address.country = 'NL' order by address.zipCode asc")
+        List<PersonCityRow> projected = PojoLensSql.parse("select name, address.city as city where address.country = 'NL' order by address.zipCode asc")
                 .filter(samplePeople(), PersonCityRow.class);
 
         assertEquals(3, projected.size());
@@ -46,8 +48,7 @@ public class NestedPathQueryTest {
         assertEquals("Daan", projected.get(2).name);
         assertEquals("Rotterdam", projected.get(2).city);
 
-        List<CountryCountRow> grouped = PojoLens
-                .parse("select address.country as country, count(*) as total "
+        List<CountryCountRow> grouped = PojoLensSql.parse("select address.country as country, count(*) as total "
                         + "where address.country != null group by address.country order by address.country asc")
                 .filter(samplePeople(), CountryCountRow.class);
 
@@ -61,7 +62,7 @@ public class NestedPathQueryTest {
     @Test
     public void sqlLikeShouldRejectExcludedNestedPaths() {
         try {
-            PojoLens.parse("where address.secretCode = 's1'").filter(samplePeople(), Person.class);
+            PojoLensSql.parse("where address.secretCode = 's1'").filter(samplePeople(), Person.class);
             fail("Expected excluded nested field validation error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unknown field 'address.secretCode'"));
@@ -125,4 +126,8 @@ public class NestedPathQueryTest {
         }
     }
 }
+
+
+
+
 

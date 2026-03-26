@@ -25,7 +25,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new Foo("b", now, 3)
         );
 
-        QueryBuilder template = PojoLens.newQueryBuilder(source)
+        QueryBuilder template = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(true);
 
@@ -46,7 +46,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new Foo("b", now, 1)
         );
 
-        QueryBuilder template = PojoLens.newQueryBuilder(source)
+        QueryBuilder template = PojoLensCore.newQueryBuilder(source)
                 .addGroup("stringField", 1)
                 .copyOnBuild(true);
 
@@ -68,7 +68,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildBean(1, "c1")
         );
 
-        QueryBuilder template = PojoLens.newQueryBuilder(parents)
+        QueryBuilder template = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .copyOnBuild(true);
 

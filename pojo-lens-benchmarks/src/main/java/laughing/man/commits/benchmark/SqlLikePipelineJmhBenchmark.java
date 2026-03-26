@@ -1,6 +1,7 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLens;
+import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -43,9 +44,11 @@ public class SqlLikePipelineJmhBenchmark {
     private SqlLikeQuery parsedBaselineNonWindowQuery;
     private SqlLikeQuery parsedWindowRankQuery;
     private SqlLikeQuery parsedWindowRunningTotalQuery;
+    private PojoLensRuntime runtime;
 
     @Setup
     public void setup() {
+        runtime = PojoLens.newRuntime();
         source = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             String value = "s" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED, i, 100);
@@ -84,14 +87,14 @@ public class SqlLikePipelineJmhBenchmark {
                 + "rows between unbounded preceding and current row) as runningTotal "
                 + "where integerField >= 100 "
                 + "order by integerField asc limit 200";
-        parsedQuery = PojoLens.parse(query);
-        parsedHavingQuery = PojoLens.parse(havingQuery);
-        parsedExplainQuery = PojoLens.parse(explainQuery);
-        parsedBooleanDepthQuery = PojoLens.parse(booleanDepthQuery);
-        parsedHavingComputedQuery = PojoLens.parse(havingComputedQuery);
-        parsedBaselineNonWindowQuery = PojoLens.parse(baselineNonWindowQuery);
-        parsedWindowRankQuery = PojoLens.parse(windowRankQuery);
-        parsedWindowRunningTotalQuery = PojoLens.parse(windowRunningTotalQuery);
+        parsedQuery = runtime.parse(query);
+        parsedHavingQuery = runtime.parse(havingQuery);
+        parsedExplainQuery = runtime.parse(explainQuery);
+        parsedBooleanDepthQuery = runtime.parse(booleanDepthQuery);
+        parsedHavingComputedQuery = runtime.parse(havingComputedQuery);
+        parsedBaselineNonWindowQuery = runtime.parse(baselineNonWindowQuery);
+        parsedWindowRankQuery = runtime.parse(windowRankQuery);
+        parsedWindowRunningTotalQuery = runtime.parse(windowRunningTotalQuery);
     }
 
     @Benchmark
@@ -141,7 +144,7 @@ public class SqlLikePipelineJmhBenchmark {
 
     @Benchmark
     public Map<String, Object> sqlLikeCacheSnapshotRead() {
-        return PojoLens.getSqlLikeCacheSnapshot();
+        return runtime.sqlLikeCache().snapshot();
     }
 
     public static class BenchmarkGroupRow {
@@ -179,3 +182,4 @@ public class SqlLikePipelineJmhBenchmark {
         }
     }
 }
+

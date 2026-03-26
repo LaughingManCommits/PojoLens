@@ -1,5 +1,8 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -31,15 +34,14 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeGroupedMetricChartShouldMatchFluentChart() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData fluent = PojoLens.newQueryBuilder(employees)
+        ChartData fluent = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()
                 .chart(DepartmentPayrollRow.class,
                         ChartSpec.of(ChartType.BAR, "department", "payroll").withSortedLabels(true));
 
-        ChartData sqlLike = PojoLens
-                .parse("select department, sum(salary) as payroll group by department")
+        ChartData sqlLike = PojoLensSql.parse("select department, sum(salary) as payroll group by department")
                 .chart(employees, DepartmentPayrollRow.class,
                         ChartSpec.of(ChartType.BAR, "department", "payroll").withSortedLabels(true));
 
@@ -52,8 +54,7 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeChartShouldSupportAliasedAggregateOutputs() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData chart = PojoLens
-                .parse("select department, count(*) as headcount group by department order by headcount desc")
+        ChartData chart = PojoLensSql.parse("select department, count(*) as headcount group by department order by headcount desc")
                 .chart(employees, DepartmentHeadcountRow.class,
                         ChartSpec.of(ChartType.BAR, "department", "headcount"));
 
@@ -68,8 +69,7 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeChartShouldSupportAliasedGroupOutputs() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData chart = PojoLens
-                .parse("select department as dept, count(*) as total group by department")
+        ChartData chart = PojoLensSql.parse("select department as dept, count(*) as total group by department")
                 .chart(employees, DepartmentHeadcountAliasRow.class,
                         ChartSpec.of(ChartType.BAR, "dept", "total").withSortedLabels(true));
 
@@ -83,8 +83,7 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeChartShouldSupportAliasedGroupOutputsWithOrderBy() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData chart = PojoLens
-                .parse("select department as dept, count(*) as total group by department order by total desc")
+        ChartData chart = PojoLensSql.parse("select department as dept, count(*) as total group by department order by total desc")
                 .chart(employees, DepartmentHeadcountAliasRow.class,
                         ChartSpec.of(ChartType.BAR, "dept", "total"));
 
@@ -98,8 +97,7 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeMultiSeriesChartShouldMapBucketedAggregates() {
         List<DepartmentSalaryPoint> rows = departmentMonthlySalaryPoints();
 
-        ChartData chart = PojoLens
-                .parse("select department, bucket(hireDate,'month') as period, sum(salary) as payroll group by department, period")
+        ChartData chart = PojoLensSql.parse("select department, bucket(hireDate,'month') as period, sum(salary) as payroll group by department, period")
                 .chart(rows, DepartmentPeriodPayrollRow.class,
                         ChartSpec.of(ChartType.LINE, "period", "payroll", "department").withSortedLabels(true));
 
@@ -118,8 +116,7 @@ public class SqlLikeChartIntegrationTest {
         rows.add(new ScatterPoint(1, 10));
         rows.add(new ScatterPoint(2, 25));
 
-        ChartData chart = PojoLens
-                .parse("select x, y")
+        ChartData chart = PojoLensSql.parse("select x, y")
                 .chart(rows, ScatterPoint.class, ChartSpec.of(ChartType.SCATTER, "x", "y"));
 
         assertEquals(ChartType.SCATTER, chart.getType());
@@ -138,7 +135,7 @@ public class SqlLikeChartIntegrationTest {
         );
         ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "payroll").withSortedLabels(true);
 
-        SqlLikeQuery query = PojoLens.parse("select department, sum(salary) as payroll group by department");
+        SqlLikeQuery query = PojoLensSql.parse("select department, sum(salary) as payroll group by department");
 
         ChartData first = query.chart(firstRows, DepartmentPayrollRow.class, spec);
         ChartData second = query.chart(secondRows, DepartmentPayrollRow.class, spec);
@@ -158,4 +155,8 @@ public class SqlLikeChartIntegrationTest {
     }
 
 }
+
+
+
+
 

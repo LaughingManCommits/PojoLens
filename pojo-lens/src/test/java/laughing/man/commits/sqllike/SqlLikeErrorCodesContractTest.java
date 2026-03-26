@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.parser.SqlLikeParseException;
@@ -19,7 +21,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void parseErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("where name =");
+            PojoLensSql.parse("where name =");
             fail("Expected parse error");
         } catch (SqlLikeParseException ex) {
             assertEquals(SqlLikeErrorCodes.PARSE_SYNTAX, ex.code());
@@ -31,7 +33,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void validationErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("where missingField = 'abc'")
+            PojoLensSql.parse("where missingField = 'abc'")
                     .filter(sampleEmployees(), Employee.class);
             fail("Expected validation error");
         } catch (IllegalArgumentException ex) {
@@ -44,7 +46,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void parameterErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("where salary >= :min and department = :dept")
+            PojoLensSql.parse("where salary >= :min and department = :dept")
                     .params(Map.of("min", 100000));
             fail("Expected parameter error");
         } catch (IllegalArgumentException ex) {
@@ -57,7 +59,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void bindErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("where salary >= 1 order by salary asc, name desc").sort();
+            PojoLensSql.parse("where salary >= 1 order by salary asc, name desc").sort();
             fail("Expected bind error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.BIND_MIXED_ORDER_DIRECTIONS));
@@ -83,7 +85,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void runtimeErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("select name as employeeName where active = true")
+            PojoLensSql.parse("select name as employeeName where active = true")
                     .filter(sampleEmployees(), BrokenProjection.class);
             fail("Expected runtime projection error");
         } catch (IllegalStateException ex) {
@@ -96,7 +98,7 @@ public class SqlLikeErrorCodesContractTest {
     @Test
     public void cursorErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
-            PojoLens.parse("where active = true limit 10")
+            PojoLensSql.parse("where active = true limit 10")
                     .keysetAfter(SqlLikeCursor.builder().put("salary", 120000).build());
             fail("Expected cursor error");
         } catch (IllegalArgumentException ex) {
@@ -114,3 +116,4 @@ public class SqlLikeErrorCodesContractTest {
         }
     }
 }
+

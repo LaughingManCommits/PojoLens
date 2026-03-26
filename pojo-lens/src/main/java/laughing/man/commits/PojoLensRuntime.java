@@ -41,6 +41,7 @@ public final class PojoLensRuntime {
         if (statsPlanCache == null) {
             throw new IllegalArgumentException("statsPlanCache must not be null");
         }
+        sqlLikeCache.setExecutionPlanCacheStore(statsPlanCache);
         this.sqlLikeCache = sqlLikeCache;
         this.statsPlanCache = statsPlanCache;
     }

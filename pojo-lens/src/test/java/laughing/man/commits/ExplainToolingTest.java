@@ -26,7 +26,7 @@ public class ExplainToolingTest {
     @Test
     public void fluentExplainShouldIncludePipelineAndCacheMetadata() {
         List<Employee> employees = sampleEmployees();
-        QueryBuilder builder = PojoLens.newQueryBuilder(employees)
+        QueryBuilder builder = PojoLensCore.newQueryBuilder(employees)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
@@ -51,9 +51,8 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExplainShouldIncludeClauseSummaryAndCacheMetadata() {
-        PojoLens.parse("where active = true");
-        Map<String, Object> explain = PojoLens
-                .parse("select department, count(*) as total, bucket(hireDate,'month') as period "
+        PojoLensSql.parse("where active = true");
+        Map<String, Object> explain = PojoLensSql.parse("select department, count(*) as total, bucket(hireDate,'month') as period "
                         + "where active = true and department = :dept "
                         + "group by department, period having total >= :minTotal order by total desc limit 3 offset 2")
                 .explain();
@@ -83,8 +82,7 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExplainShouldIncludeBoundParameterMetadata() {
-        Map<String, Object> explain = PojoLens
-                .parse("where department = :dept and salary >= :minSalary")
+        Map<String, Object> explain = PojoLensSql.parse("where department = :dept and salary >= :minSalary")
                 .params(Map.of("dept", "Engineering", "minSalary", 100000))
                 .explain();
 
@@ -99,15 +97,13 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExplainShouldReportJoinBindingStatus() {
-        Map<String, Object> explain = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        Map<String, Object> explain = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .explain();
 
         Map<String, String> bindings = joinSourceBindings(explain);
         assertEquals("unbound", bindings.get("employees"));
 
-        Map<String, Object> executedExplain = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        Map<String, Object> executedExplain = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .explain(sampleCompanies(), Map.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals("bound", joinSourceBindings(executedExplain).get("employees"));
@@ -115,8 +111,7 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExplainShouldReportAllJoinBindingsForMultiJoinQueries() {
-        Map<String, Object> explain = PojoLens
-                .parse("select * from companies "
+        Map<String, Object> explain = PojoLensSql.parse("select * from companies "
                         + "left join employees on companies.id = employees.companyId "
                         + "left join badges on employees.id = badges.employeeId")
                 .explain();
@@ -128,8 +123,7 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExecutionExplainShouldIncludeStageCountsForNonAggregateQueries() {
-        Map<String, Object> explain = PojoLens
-                .parse("where active = true order by salary desc limit 1 offset 1")
+        Map<String, Object> explain = PojoLensSql.parse("where active = true order by salary desc limit 1 offset 1")
                 .explain(sampleEmployees(), Employee.class);
 
         assertEquals("direct", explain.get("projectionMode"));
@@ -149,8 +143,7 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExecutionExplainShouldIncludeStageCountsForAggregateQueries() {
-        Map<String, Object> explain = PojoLens
-                .parse("select department, count(*) as total group by department having total >= 2 order by total desc limit 1")
+        Map<String, Object> explain = PojoLensSql.parse("select department, count(*) as total group by department having total >= 2 order by total desc limit 1")
                 .explain(sampleEmployees(), DepartmentCount.class);
 
         assertEquals("alias/computed", explain.get("projectionMode"));
@@ -164,8 +157,7 @@ public class ExplainToolingTest {
 
     @Test
     public void sqlLikeExecutionExplainShouldIncludeQualifyStageCounts() {
-        Map<String, Object> explain = PojoLens
-                .parse("select department as dept, name, salary, "
+        Map<String, Object> explain = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true qualify rn <= 1 order by dept asc")
                 .explain(sampleEmployees(), RankedEmployee.class);
@@ -185,12 +177,11 @@ public class ExplainToolingTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        Map<String, Object> sqlExplain = PojoLens
-                .parse("select name, adjustedSalary where adjustedSalary >= 120000")
+        Map<String, Object> sqlExplain = PojoLensSql.parse("select name, adjustedSalary where adjustedSalary >= 120000")
                 .computedFields(registry)
                 .explain();
 
-        Map<String, Object> fluentExplain = PojoLens.newQueryBuilder(sampleEmployees())
+        Map<String, Object> fluentExplain = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addRule("adjustedSalary", 120000.0, Clauses.BIGGER_EQUAL)
                 .addField("name")
@@ -203,11 +194,10 @@ public class ExplainToolingTest {
 
     @Test
     public void explainShouldSurfaceExplicitTimeBucketCalendarPreset() {
-        Map<String, Object> sqlExplain = PojoLens
-                .parse("select bucket(hireDate,'week','Europe/Amsterdam','sunday') as period, count(*) as total group by period")
+        Map<String, Object> sqlExplain = PojoLensSql.parse("select bucket(hireDate,'week','Europe/Amsterdam','sunday') as period, count(*) as total group by period")
                 .explain();
 
-        Map<String, Object> fluentExplain = PojoLens.newQueryBuilder(sampleEmployees())
+        Map<String, Object> fluentExplain = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addTimeBucket("hireDate", TimeBucketPreset.week().withZone("Europe/Amsterdam").withWeekStart("sunday"), "period")
                 .addCount("total")
                 .explain();
@@ -258,4 +248,5 @@ public class ExplainToolingTest {
         }
     }
 }
+
 

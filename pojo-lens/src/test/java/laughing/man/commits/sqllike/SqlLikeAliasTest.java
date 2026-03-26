@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.domain.Foo;
 import org.junit.jupiter.api.Test;
@@ -22,8 +24,7 @@ public class SqlLikeAliasTest {
                 new Foo("xyz", new Date(), 9)
         );
 
-        List<FooAliasProjection> rows = PojoLens
-                .parse("select stringField as label, integerField as amount where stringField = 'abc' order by integerField asc")
+        List<FooAliasProjection> rows = PojoLensSql.parse("select stringField as label, integerField as amount where stringField = 'abc' order by integerField asc")
                 .filter(source, FooAliasProjection.class);
 
         assertEquals(2, rows.size());
@@ -40,7 +41,7 @@ public class SqlLikeAliasTest {
         );
 
         try {
-            PojoLens.parse("select stringField as value, integerField as value where integerField >= 1")
+            PojoLensSql.parse("select stringField as value, integerField as value where integerField >= 1")
                     .filter(source, DuplicateAliasProjection.class);
             fail("Expected duplicate alias failure");
         } catch (IllegalArgumentException ex) {
@@ -55,7 +56,7 @@ public class SqlLikeAliasTest {
         );
 
         try {
-            PojoLens.parse("select stringField as integerField, integerField where integerField >= 1")
+            PojoLensSql.parse("select stringField as integerField, integerField where integerField >= 1")
                     .filter(source, Foo.class);
             fail("Expected output collision failure");
         } catch (IllegalArgumentException ex) {
@@ -78,4 +79,8 @@ public class SqlLikeAliasTest {
         }
     }
 }
+
+
+
+
 

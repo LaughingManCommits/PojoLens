@@ -1,5 +1,8 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
@@ -49,7 +52,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(3, "Cara", "Engineering", 130000, now, true)
         );
 
-        List<Employee> results = PojoLens.newQueryBuilder(source)
+        List<Employee> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("department", "Engineering", Clauses.EQUAL)
                 .addOrder("salary", 1)
                 .limit(10)
@@ -71,8 +74,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("select name, salary where department = 'Engineering' and active = true order by salary desc limit 10")
+        List<Employee> rows = PojoLensSql.parse("select name, salary where department = 'Engineering' and active = true order by salary desc limit 10")
                 .filter(source, Employee.class);
 
         assertEquals(2, rows.size());
@@ -92,8 +94,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, true)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc limit 2 offset 1")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc limit 2 offset 1")
                 .filter(source, Employee.class);
 
         assertEquals(2, rows.size());
@@ -111,8 +112,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, true)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc limit :limit offset :offset")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc limit :limit offset :offset")
                 .params(Map.of("limit", 2, "offset", 1))
                 .filter(source, Employee.class);
 
@@ -131,8 +131,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, true)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
+        List<Employee> rows = PojoLensSql.parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
                         + "order by salary desc, id desc limit 20")
                 .params(Map.of("lastSalary", 120000, "lastId", 1))
                 .filter(source, Employee.class);
@@ -157,8 +156,7 @@ public class SqlLikeDocsExamplesTest {
                 .put("id", 1)
                 .build();
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit 20")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
                 .keysetAfter(cursor)
                 .filter(source, Employee.class);
 
@@ -182,8 +180,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 110000, now, true)
         );
 
-        List<DepartmentSalaryRank> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<DepartmentSalaryRank> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true order by dept asc, rn asc")
                 .filter(source, DepartmentSalaryRank.class);
@@ -210,8 +207,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 110000, now, true)
         );
 
-        List<DepartmentSalaryRank> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<DepartmentSalaryRank> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true qualify rn <= 1 order by dept asc")
                 .filter(source, DepartmentSalaryRank.class);
@@ -234,8 +230,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 110000, now, true)
         );
 
-        List<DepartmentDenseRank> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<DepartmentDenseRank> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "dense_rank() over (partition by department order by salary desc) as dr "
                         + "where active = true order by dept asc, dr asc, name asc")
                 .filter(source, DepartmentDenseRank.class);
@@ -262,8 +257,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 110000, now, true)
         );
 
-        List<DepartmentRunningTotal> rows = PojoLens
-                .parse("select department as dept, name, salary, "
+        List<DepartmentRunningTotal> rows = PojoLensSql.parse("select department as dept, name, salary, "
                         + "sum(salary) over (partition by department order by salary desc "
                         + "rows between unbounded preceding and current row) as runningTotal "
                         + "where active = true order by dept asc, runningTotal asc")
@@ -297,8 +291,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
+        List<Employee> rows = PojoLensSql.parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
                 .params(Map.of("dept", "Engineering", "minSalary", 120000, "active", true))
                 .filter(source, Employee.class);
 
@@ -317,8 +310,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        List<Employee> rows = PojoLens
-                .parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
+        List<Employee> rows = PojoLensSql.parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
                 .params(SqlParams.builder()
                         .put("dept", "Engineering")
                         .put("minSalary", 120000)
@@ -333,8 +325,7 @@ public class SqlLikeDocsExamplesTest {
 
     @Test
     public void docsRecipeLintModeShouldWork() {
-        SqlLikeQuery query = PojoLens
-                .parse("select * from companies where title = 'Engineer' limit 5")
+        SqlLikeQuery query = PojoLensSql.parse("select * from companies where title = 'Engineer' limit 5")
                 .lintMode();
 
         List<SqlLikeLintWarning> warnings = query.lintWarnings();
@@ -346,8 +337,7 @@ public class SqlLikeDocsExamplesTest {
         List<Map<String, Object>> explainWarnings = (List<Map<String, Object>>) explain.get("lintWarnings");
         assertEquals(3, explainWarnings.size());
 
-        SqlLikeQuery suppressed = PojoLens
-                .parse("select * from companies limit 5")
+        SqlLikeQuery suppressed = PojoLensSql.parse("select * from companies limit 5")
                 .lintMode()
                 .suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD);
         assertEquals(1, suppressed.lintWarnings().size());
@@ -381,15 +371,13 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Support", 70000, now, false)
         );
 
-        List<Employee> selfSourceRows = PojoLens
-                .parse("where department in (select department where active = true)")
+        List<Employee> selfSourceRows = PojoLensSql.parse("where department in (select department where active = true)")
                 .filter(source, Employee.class);
         assertEquals(Arrays.asList("Alice", "Cara"),
                 selfSourceRows.stream().map(r -> r.name).collect(Collectors.toList()));
 
         List<Company> companies = sampleCompanies();
-        List<Company> namedSourceRows = PojoLens
-                .parse("where id in (select companyId from employees where title = 'Engineer')")
+        List<Company> namedSourceRows = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                 .filter(companies, Map.of("employees", sampleCompanyEmployees()), Company.class);
         assertEquals(1, namedSourceRows.size());
         assertEquals("Acme", namedSourceRows.get(0).name);
@@ -405,7 +393,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        SqlLikeTemplate template = PojoLens.template(
+        SqlLikeTemplate template = PojoLensSql.template(
                 "where department = :dept and salary >= :minSalary and active = :active order by salary desc",
                 "dept",
                 "minSalary",
@@ -436,7 +424,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(3, "Cara", "Engineering", 130000, now, true)
         );
 
-        SqlLikeQuery query = PojoLens.parse("where salary >= 90000 order by salary asc");
+        SqlLikeQuery query = PojoLensSql.parse("where salary >= 90000 order by salary asc");
 
         List<Employee> rows = query.bindTyped(source, Employee.class).filter();
 
@@ -457,7 +445,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(3, "Cara", "Engineering", 130000, now, true)
         );
 
-        SqlLikeQuery query = PojoLens.parse("where salary >= :minSalary order by salary asc")
+        SqlLikeQuery query = PojoLensSql.parse("where salary >= :minSalary order by salary asc")
                 .params(Map.of("minSalary", 90000));
 
         List<Employee> rows = query.bindTyped(source, Employee.class).filter();
@@ -478,8 +466,7 @@ public class SqlLikeDocsExamplesTest {
         );
 
         List<String> names;
-        try (Stream<Employee> rows = PojoLens
-                .parse("where active = true limit 2")
+        try (Stream<Employee> rows = PojoLensSql.parse("where active = true limit 2")
                 .stream(source, Employee.class)) {
             names = rows.map(r -> r.name).toList();
         }
@@ -496,8 +483,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(3, "Cara", "Engineering", 130000, now, true)
         );
 
-        List<EmployeeSummary> rows = PojoLens
-                .parse("select name as employeeName, salary as annualSalary where salary >= 100000 order by salary asc")
+        List<EmployeeSummary> rows = PojoLensSql.parse("select name as employeeName, salary as annualSalary where salary >= 100000 order by salary asc")
                 .filter(source, EmployeeSummary.class);
 
         assertEquals(2, rows.size());
@@ -515,8 +501,7 @@ public class SqlLikeDocsExamplesTest {
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", employees);
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(companies, joinSources, Company.class);
 
         assertEquals(1, rows.size());
@@ -530,8 +515,7 @@ public class SqlLikeDocsExamplesTest {
         List<CompanyEmployee> employees = sampleCompanyEmployees();
         JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(companies, joinBindings, Company.class);
 
         assertEquals(1, rows.size());
@@ -547,8 +531,7 @@ public class SqlLikeDocsExamplesTest {
                 .add("employees", employees)
                 .build();
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(companies, joinBindings, Company.class);
 
         assertEquals(1, rows.size());
@@ -566,8 +549,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 95000, now, true)
         );
 
-        List<DepartmentHeadcount> rows = PojoLens
-                .parse("select department, count(*) as headcount group by department having headcount >= 2 order by headcount desc")
+        List<DepartmentHeadcount> rows = PojoLensSql.parse("select department, count(*) as headcount group by department having headcount >= 2 order by headcount desc")
                 .filter(source, DepartmentHeadcount.class);
 
         assertEquals(2, rows.size());
@@ -588,8 +570,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 95000, now, true)
         );
 
-        List<DepartmentHeadcountByAlias> rows = PojoLens
-                .parse("select department as dept, count(*) as headcount "
+        List<DepartmentHeadcountByAlias> rows = PojoLensSql.parse("select department as dept, count(*) as headcount "
                         + "group by dept having dept = 'Engineering' "
                         + "order by sum(salary) desc")
                 .filter(source, DepartmentHeadcountByAlias.class);
@@ -639,8 +620,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(5, "Erin", "Finance", 95000, now, true)
         );
 
-        ChartData chart = PojoLens
-                .parse("select department, count(*) as headcount group by department order by headcount desc")
+        ChartData chart = PojoLensSql.parse("select department, count(*) as headcount group by department order by headcount desc")
                 .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 
         assertEquals(2, chart.getLabels().size());
@@ -661,8 +641,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        Map<String, Object> explain = PojoLens
-                .parse("where active = true order by salary desc limit 2")
+        Map<String, Object> explain = PojoLensSql.parse("where active = true order by salary desc limit 2")
                 .explain(source, Employee.class);
 
         assertEquals("where active = true order by salary desc limit 2", explain.get("normalizedQuery"));
@@ -677,4 +656,8 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(3, ((Number) whereStage.get("after")).intValue());
     }
 }
+
+
+
+
 

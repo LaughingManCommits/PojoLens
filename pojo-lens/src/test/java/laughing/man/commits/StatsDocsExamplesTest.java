@@ -32,8 +32,7 @@ public class StatsDocsExamplesTest {
     public void readmeHeadcountByDepartmentExampleShouldWork() {
         List<EmployeeStatRow> employees = employeeRows();
 
-        List<HeadcountRow> rows = PojoLens
-                .parse("select department, count(*) as headcount group by department")
+        List<HeadcountRow> rows = PojoLensSql.parse("select department, count(*) as headcount group by department")
                 .filter(employees, HeadcountRow.class);
 
         List<String> normalized = rows.stream()
@@ -48,8 +47,7 @@ public class StatsDocsExamplesTest {
     public void readmeSalaryTrendByMonthExampleShouldWork() {
         List<EmployeeStatRow> employees = employeeRows();
 
-        List<TrendRow> rows = PojoLens
-                .parse("select bucket(hireDate,'month') as period, sum(salary) as payroll group by period")
+        List<TrendRow> rows = PojoLensSql.parse("select bucket(hireDate,'month') as period, sum(salary) as payroll group by period")
                 .filter(employees, TrendRow.class);
 
         List<String> normalized = rows.stream()
@@ -64,7 +62,7 @@ public class StatsDocsExamplesTest {
     public void readmeActiveUsersByWeekExampleShouldWork() {
         List<UserActivity> activity = userActivityRows();
 
-        List<WeeklyActiveRow> rows = PojoLens.newQueryBuilder(activity)
+        List<WeeklyActiveRow> rows = PojoLensCore.newQueryBuilder(activity)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addTimeBucket("eventDate", TimeBucket.WEEK, "week")
                 .addCount("activeUsers")
@@ -118,7 +116,7 @@ public class StatsDocsExamplesTest {
     public void readmeFluentChartExampleShouldWork() {
         List<EmployeeStatRow> employees = employeeRows();
 
-        ChartData chart = PojoLens.newQueryBuilder(employees)
+        ChartData chart = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .addOrder("payroll")
@@ -132,4 +130,5 @@ public class StatsDocsExamplesTest {
         assertEquals(405000d, chart.getDatasets().get(0).getValues().get(0), 0.0001d);
     }
 }
+
 

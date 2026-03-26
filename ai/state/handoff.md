@@ -9,40 +9,21 @@
 
 ## Current Focus
 
-- The only active roadmap is now `Pre-Adoption Simplification` in `TODO.md`.
-  - the completed `Product Surface Realignment` roadmap has been removed from
-    the active backlog.
-  - current roadmap state:
-    `WP7.1` `Done`,
-    `WP7.2` `Done`,
-    `WP7.3` `Ready`,
-    `WP7.4` `Planned`,
-    `WP7.5` `Planned`.
-  - current goal:
-    narrow the `PojoLens` facade, reduce overlap with explicit entry points, and
-    move cache/policy guidance toward `PojoLensRuntime` before wider adoption.
-  - current next executable work:
-    start `WP7.3` to map static/global cache-policy APIs to a
-    `PojoLensRuntime`-first replacement story.
-  - `WP7.1` output:
-    `docs/consolidation-review.md` now contains the full method-level
-    `PojoLens` facade audit with keep-helper, deprecate, and
-    remove-before-wider-adoption classifications.
-  - `WP7.2` output:
-    `docs/consolidation-review.md` now records the concrete helper-only facade
-    decision:
-    remove `newQueryBuilder`, `parse`, `template`, and `toChartData` before
-    wider adoption, while keeping runtime/cursor/bundle/report/snapshot helpers
-    on `PojoLens`.
-    `MIGRATION.md` and `docs/entry-points.md` now carry the corresponding
-    migration wording.
-  - keep the existing surface-analysis docs as the baseline for simplification
-    decisions:
-    `docs/product-surface.md`,
-    `docs/entry-points.md`,
-    `docs/reusable-wrappers.md`,
-    `docs/advanced-features.md`,
-    `docs/consolidation-review.md`.
+- The `Pre-Adoption Simplification` roadmap in `TODO.md` is complete:
+  `WP7.1`-`WP7.5` are all `Done`.
+  - `PojoLens` is now a helper-only facade:
+    query/chart entry aliases were removed; runtime/cursor/bundle/report/snapshot
+    helpers remain.
+  - public static/global cache-policy methods were removed from `PojoLens`,
+    `PojoLensSql`, and `PojoLensCore`.
+  - `PojoLensRuntime` is now the only public cache-tuning surface, and
+    `runtime.parse(...)` shares the runtime-owned stats-plan cache with
+    `runtime.newQueryBuilder(...)`.
+  - docs/tests/benchmarks were aligned and validations passed:
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+  - next work is optional, not queued in the roadmap:
+    release prep, release-note cleanup, or any further surface tightening review.
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`

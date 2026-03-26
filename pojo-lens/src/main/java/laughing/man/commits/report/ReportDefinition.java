@@ -1,7 +1,8 @@
 package laughing.man.commits.report;
 
-import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensCore;
+
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartResultMapper;

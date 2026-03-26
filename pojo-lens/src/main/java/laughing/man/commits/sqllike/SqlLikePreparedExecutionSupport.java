@@ -7,6 +7,7 @@ import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
+import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -41,6 +42,7 @@ final class SqlLikePreparedExecutionSupport {
                                                  QueryAst ast,
                                                  boolean strictParameterTypes,
                                                  ComputedFieldRegistry computedFieldRegistry,
+                                                 FilterExecutionPlanCacheStore executionPlanCache,
                                                  QueryTelemetryListener telemetryListener,
                                                  ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions,
                                                  List<?> pojos,
@@ -57,6 +59,7 @@ final class SqlLikePreparedExecutionSupport {
                     ast,
                     strictParameterTypes,
                     computedFieldRegistry,
+                    executionPlanCache,
                     sourceClass,
                     projectionClass,
                     pojos,
@@ -70,6 +73,7 @@ final class SqlLikePreparedExecutionSupport {
                             ast,
                             strictParameterTypes,
                             computedFieldRegistry,
+                            executionPlanCache,
                             sourceClass,
                             projectionClass,
                             pojos,
@@ -97,6 +101,7 @@ final class SqlLikePreparedExecutionSupport {
     private static <T> PreparedExecution buildPreparedExecution(QueryAst ast,
                                                                 boolean strictParameterTypes,
                                                                 ComputedFieldRegistry computedFieldRegistry,
+                                                                FilterExecutionPlanCacheStore executionPlanCache,
                                                                 Class<?> sourceClass,
                                                                 Class<T> projectionClass,
                                                                 List<?> pojos,
@@ -114,7 +119,8 @@ final class SqlLikePreparedExecutionSupport {
                 pojos,
                 joinSources,
                 sourceClass,
-                computedFieldRegistry
+                computedFieldRegistry,
+                executionPlanCache
         );
         FilterExecutionPlanCacheKey rawExecutionPlanCacheKey =
                 shouldCacheRawExecutionPlan(normalizedAst, boundBuilder)

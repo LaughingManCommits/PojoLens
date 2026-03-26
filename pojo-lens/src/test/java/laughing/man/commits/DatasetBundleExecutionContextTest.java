@@ -33,12 +33,11 @@ public class DatasetBundleExecutionContextTest {
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
 
-        SqlLikeQuery joinQuery = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'");
+        SqlLikeQuery joinQuery = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'");
         List<Company> rows = joinQuery.filter(bundle, Company.class);
         List<Company> typedRows = joinQuery.bindTyped(bundle, Company.class).filter();
 
-        SqlLikeQuery groupedQuery = PojoLens.parse(
+        SqlLikeQuery groupedQuery = PojoLensSql.parse(
                 "select name, count(*) as total "
                         + "from companies left join employees on id = companyId "
                         + "group by name order by name asc"
@@ -65,7 +64,7 @@ public class DatasetBundleExecutionContextTest {
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
         ReportDefinition<Company> report = PojoLens.report(
-                PojoLens.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
+                PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
                 Company.class
         );
 
@@ -94,8 +93,7 @@ public class DatasetBundleExecutionContextTest {
         companies.clear();
         employees.clear();
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(bundle, Company.class);
 
         assertEquals(1, rows.size());
@@ -107,7 +105,7 @@ public class DatasetBundleExecutionContextTest {
         DatasetBundle bundle = PojoLens.bundle(sampleCompanies());
 
         try {
-            PojoLens.parse("where id in (select companyId from employees where title = 'Engineer')")
+            PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                     .filter(bundle, Company.class);
             fail("Expected missing subquery source binding error");
         } catch (IllegalArgumentException ex) {
@@ -124,4 +122,5 @@ public class DatasetBundleExecutionContextTest {
     }
 
 }
+
 

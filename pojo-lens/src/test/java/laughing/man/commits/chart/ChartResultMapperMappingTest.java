@@ -1,5 +1,7 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.PojoLensChart;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
@@ -306,7 +308,7 @@ public class ChartResultMapperMappingTest {
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Engineering", "2025-01", 2, 300));
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Finance", "2025-02", 1, 150));
 
-        ChartData data = PojoLens.toChartData(rows, ChartSpec.of(ChartType.BAR, "department", "payroll"));
+        ChartData data = PojoLensChart.toChartData(rows, ChartSpec.of(ChartType.BAR, "department", "payroll"));
         assertEquals(2, data.getLabels().size());
         assertEquals(1, data.getDatasets().size());
     }
@@ -380,4 +382,7 @@ public class ChartResultMapperMappingTest {
         return row;
     }
 }
+
+
+
 

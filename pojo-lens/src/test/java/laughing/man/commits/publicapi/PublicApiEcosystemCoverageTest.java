@@ -1,5 +1,8 @@
 package laughing.man.commits.publicapi;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
@@ -62,7 +65,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 snapshot,
                 StatsRow.class,
                 builder -> builder.addGroup("department").addCount("total"),
-                PojoLens.parse("select department, count(*) as total group by department"),
+                PojoLensSql.parse("select department, count(*) as total group by department"),
                 row -> row.department + ":" + row.total
         );
     }
@@ -98,7 +101,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     @Test
     public void reportDefinitionsShouldBeUsableFromPublicApi() {
         ReportDefinition<StatsRow> sqlReport = PojoLens.report(
-                PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+                PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 StatsRow.class
         );
         assertEquals(2, sqlReport.rows(sampleEmployees()).size());
@@ -118,8 +121,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(bundle, Company.class);
 
         assertEquals(1, rows.size());
@@ -137,7 +139,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertFalse(events.isEmpty());
 
         events.clear();
-        PojoLens.newQueryBuilder(sampleEmployees())
+        PojoLensCore.newQueryBuilder(sampleEmployees())
                 .telemetry(events::add)
                 .addRule("active", true, Clauses.EQUAL)
                 .initFilter()
@@ -151,8 +153,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        List<ComputedSalaryRow> rows = PojoLens
-                .parse("select name, adjustedSalary where adjustedSalary >= 120000 order by adjustedSalary desc")
+        List<ComputedSalaryRow> rows = PojoLensSql.parse("select name, adjustedSalary where adjustedSalary >= 120000 order by adjustedSalary desc")
                 .computedFields(registry)
                 .filter(sampleEmployees(), ComputedSalaryRow.class);
 
@@ -180,7 +181,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .withWeekStart("sunday");
 
         assertEquals("WEEK", preset.bucket().name());
-        assertTrue(PojoLens.newQueryBuilder(sampleEmployees())
+        assertTrue(PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addTimeBucket("hireDate", preset, "period")
                 .addCount("total")
                 .explain()
@@ -191,17 +192,16 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
     @Test
     public void tabularSchemaMetadataShouldBeUsableFromPublicApi() {
-        TabularSchema fluentSchema = PojoLens.newQueryBuilder(sampleEmployees())
+        TabularSchema fluentSchema = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addGroup("department")
                 .addCount("total")
                 .schema(StatsRow.class);
 
-        TabularSchema sqlSchema = PojoLens
-                .parse("select department, count(*) as total group by department")
+        TabularSchema sqlSchema = PojoLensSql.parse("select department, count(*) as total group by department")
                 .schema(StatsRow.class);
 
         ReportDefinition<StatsRow> report = PojoLens.report(
-                PojoLens.parse("select department, count(*) as total group by department"),
+                PojoLensSql.parse("select department, count(*) as total group by department"),
                 StatsRow.class
         );
 
@@ -217,7 +217,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
         QueryRegressionFixture<StatsRow> fixture = QueryRegressionFixture.sql(
                 snapshot,
-                PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+                PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 StatsRow.class
         );
 
@@ -228,3 +228,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                         "Finance:1");
     }
 }
+
+
+
+

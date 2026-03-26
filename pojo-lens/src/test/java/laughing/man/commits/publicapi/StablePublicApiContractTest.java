@@ -1,10 +1,12 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.PojoLensChart;
+
+import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
-import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.enums.Clauses;
@@ -35,18 +37,17 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
-        requirePublicStaticMethod(PojoLens.class, "newQueryBuilder", List.class);
-        requirePublicStaticMethod(PojoLens.class, "parse", String.class);
-        requirePublicStaticMethod(PojoLens.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLens.class, "newRuntime");
         requirePublicStaticMethod(PojoLens.class, "newRuntime", PojoLensRuntimePreset.class);
         requirePublicStaticMethod(PojoLens.class, "newKeysetCursorBuilder");
         requirePublicStaticMethod(PojoLens.class, "parseKeysetCursor", String.class);
-        requirePublicStaticMethod(PojoLens.class, "toChartData", List.class, ChartSpec.class);
 
         requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
+        requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
+        requirePublicMethod(PojoLensRuntime.class, "sqlLikeCache");
+        requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
     }
 
     @Test
@@ -110,7 +111,7 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableFluentAndSqlLikeFlowsShouldExecute() {
-        List<Employee> fluentRows = PojoLens.newQueryBuilder(sampleEmployees())
+        List<Employee> fluentRows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .addOrder("salary")
                 .limit(2)
@@ -120,10 +121,17 @@ public class StablePublicApiContractTest {
         assertEquals(List.of("Cara", "Alice"), fluentRows.stream().map(row -> row.name).toList());
 
         List<Employee> sqlRows = PojoLens
+                .newRuntime()
                 .parse("where active = true order by salary desc limit 2")
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), sqlRows.stream().map(row -> row.name).toList());
+
+        List<Employee> directSqlRows = PojoLensSql
+                .parse("where active = true order by salary desc limit 2")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), directSqlRows.stream().map(row -> row.name).toList());
     }
 
     @Test

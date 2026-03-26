@@ -1,11 +1,10 @@
 package laughing.man.commits;
 
-import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,42 +22,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CacheConcurrencyTest {
 
+    private PojoLensRuntime runtime;
+
     @BeforeEach
     public void setUp() {
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.setSqlLikeCacheMaxEntries(64);
-        PojoLens.setSqlLikeCacheMaxWeight(0L);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearSqlLikeCache();
-        PojoLens.resetSqlLikeCacheStats();
+        runtime = PojoLens.newRuntime();
 
-        PojoLens.setStatsPlanCacheEnabled(true);
-        PojoLens.setStatsPlanCacheStatsEnabled(true);
-        PojoLens.setStatsPlanCacheMaxEntries(16);
-        PojoLens.setStatsPlanCacheMaxWeight(0L);
-        PojoLens.setStatsPlanCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearStatsPlanCache();
-        PojoLens.resetStatsPlanCacheStats();
-    }
+        runtime.sqlLikeCache().setEnabled(true);
+        runtime.sqlLikeCache().setStatsEnabled(true);
+        runtime.sqlLikeCache().setMaxEntries(64);
+        runtime.sqlLikeCache().setMaxWeight(0L);
+        runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
+        runtime.sqlLikeCache().clear();
+        runtime.sqlLikeCache().resetStats();
 
-    @AfterEach
-    public void tearDown() {
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.setSqlLikeCacheMaxEntries(256);
-        PojoLens.setSqlLikeCacheMaxWeight(0L);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearSqlLikeCache();
-        PojoLens.resetSqlLikeCacheStats();
-
-        PojoLens.setStatsPlanCacheEnabled(true);
-        PojoLens.setStatsPlanCacheStatsEnabled(true);
-        PojoLens.setStatsPlanCacheMaxEntries(512);
-        PojoLens.setStatsPlanCacheMaxWeight(0L);
-        PojoLens.setStatsPlanCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearStatsPlanCache();
-        PojoLens.resetStatsPlanCacheStats();
+        runtime.statsPlanCache().setEnabled(true);
+        runtime.statsPlanCache().setStatsEnabled(true);
+        runtime.statsPlanCache().setMaxEntries(16);
+        runtime.statsPlanCache().setMaxWeight(0L);
+        runtime.statsPlanCache().setExpireAfterWriteMillis(0L);
+        runtime.statsPlanCache().clear();
+        runtime.statsPlanCache().resetStats();
     }
 
     @Test
@@ -76,25 +60,25 @@ public class CacheConcurrencyTest {
 
         runConcurrently(threads, 20, threadIndex -> {
             for (int i = 0; i < perThreadOps; i++) {
-                PojoLens.parse(queries[(i + threadIndex) % queries.length]);
+                runtime.parse(queries[(i + threadIndex) % queries.length]);
             }
         });
 
-        long hits = PojoLens.getSqlLikeCacheHits();
-        long misses = PojoLens.getSqlLikeCacheMisses();
+        long hits = runtime.sqlLikeCache().getHits();
+        long misses = runtime.sqlLikeCache().getMisses();
         assertEquals(totalOps, hits + misses);
-        assertTrue(PojoLens.getSqlLikeCacheSize() <= PojoLens.getSqlLikeCacheMaxEntries());
+        assertTrue(runtime.sqlLikeCache().getSize() <= runtime.sqlLikeCache().getMaxEntries());
 
-        Map<String, Object> snapshot = PojoLens.getSqlLikeCacheSnapshot();
+        Map<String, Object> snapshot = runtime.sqlLikeCache().snapshot();
         assertEquals(hits, ((Number) snapshot.get("hits")).longValue());
         assertEquals(misses, ((Number) snapshot.get("misses")).longValue());
-        assertEquals(PojoLens.getSqlLikeCacheEvictions(), ((Number) snapshot.get("evictions")).longValue());
+        assertEquals(runtime.sqlLikeCache().getEvictions(), ((Number) snapshot.get("evictions")).longValue());
     }
 
     @Test
     public void statsPlanCacheShouldRemainCoherentUnderConcurrentPlans() throws Exception {
         List<Employee> employees = sampleEmployees();
-        PojoLens.setStatsPlanCacheMaxEntries(1);
+        runtime.statsPlanCache().setMaxEntries(1);
 
         int threads = 8;
         int perThreadOps = 120;
@@ -102,19 +86,19 @@ public class CacheConcurrencyTest {
             int mode = threadIndex % 3;
             for (int i = 0; i < perThreadOps; i++) {
                 if (mode == 0) {
-                    PojoLens.newQueryBuilder(employees)
+                    runtime.newQueryBuilder(employees)
                             .addGroup("department")
                             .addCount("total")
                             .initFilter()
                             .filter(DepartmentCount.class);
                 } else if (mode == 1) {
-                    PojoLens.newQueryBuilder(employees)
+                    runtime.newQueryBuilder(employees)
                             .addGroup("active")
                             .addCount("total")
                             .initFilter()
                             .filter(ActiveCount.class);
                 } else {
-                    PojoLens.newQueryBuilder(employees)
+                    runtime.newQueryBuilder(employees)
                             .addGroup("department")
                             .addMetric("salary", Metric.SUM, "totalSalary")
                             .initFilter()
@@ -123,37 +107,37 @@ public class CacheConcurrencyTest {
             }
         });
 
-        assertTrue(PojoLens.getStatsPlanCacheMisses() > 0L);
-        assertTrue(PojoLens.getStatsPlanCacheHits() > 0L);
-        assertTrue(PojoLens.getStatsPlanCacheEvictions() > 0L);
-        assertTrue(PojoLens.getStatsPlanCacheSize() <= PojoLens.getStatsPlanCacheMaxEntries());
+        assertTrue(runtime.statsPlanCache().misses() > 0L);
+        assertTrue(runtime.statsPlanCache().hits() > 0L);
+        assertTrue(runtime.statsPlanCache().evictions() > 0L);
+        assertTrue(runtime.statsPlanCache().size() <= runtime.statsPlanCache().maxEntries());
 
-        Map<String, Object> snapshot = PojoLens.getStatsPlanCacheSnapshot();
-        assertEquals(PojoLens.getStatsPlanCacheHits(), ((Number) snapshot.get("hits")).longValue());
-        assertEquals(PojoLens.getStatsPlanCacheMisses(), ((Number) snapshot.get("misses")).longValue());
-        assertEquals(PojoLens.getStatsPlanCacheEvictions(), ((Number) snapshot.get("evictions")).longValue());
+        Map<String, Object> snapshot = runtime.statsPlanCache().snapshot();
+        assertEquals(runtime.statsPlanCache().hits(), ((Number) snapshot.get("hits")).longValue());
+        assertEquals(runtime.statsPlanCache().misses(), ((Number) snapshot.get("misses")).longValue());
+        assertEquals(runtime.statsPlanCache().evictions(), ((Number) snapshot.get("evictions")).longValue());
     }
 
     @Test
     public void statsPlanCacheShouldHitForEquivalentRuleShapesAcrossBuilders() {
         List<Employee> employees = sampleEmployees();
 
-        PojoLens.newQueryBuilder(employees)
+        runtime.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentCount.class);
 
-        PojoLens.newQueryBuilder(employees)
+        runtime.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentCount.class);
 
-        assertEquals(1L, PojoLens.getStatsPlanCacheMisses());
-        assertEquals(1L, PojoLens.getStatsPlanCacheHits());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(1L, runtime.statsPlanCache().hits());
     }
 
     private static void runConcurrently(int threads,
@@ -208,4 +192,3 @@ public class CacheConcurrencyTest {
         }
     }
 }
-

@@ -1,5 +1,7 @@
 package laughing.man.commits.query;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -26,7 +28,7 @@ public class QueryRegressionFixtureTest {
 
         QueryRegressionFixture<Employee> activeEmployees = QueryRegressionFixture.sql(
                 employees,
-                PojoLens.parse("where active = true order by salary desc limit 2"),
+                PojoLensSql.parse("where active = true order by salary desc limit 2"),
                 Employee.class
         );
 
@@ -44,7 +46,7 @@ public class QueryRegressionFixtureTest {
 
         QueryRegressionFixture<Company> lintFixture = QueryRegressionFixture.sql(
                 QuerySnapshotFixture.of("companies-lint", sampleCompanies()),
-                PojoLens.parse("select * from companies limit 1").lintMode(),
+                PojoLensSql.parse("select * from companies limit 1").lintMode(),
                 Company.class
         );
 
@@ -60,7 +62,7 @@ public class QueryRegressionFixtureTest {
         QueryRegressionFixture<DepartmentCountRow> reportFixture = QueryRegressionFixture.report(
                 employees,
                 PojoLens.report(
-                        PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+                        PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                         DepartmentCountRow.class
                 )
         );
@@ -84,7 +86,7 @@ public class QueryRegressionFixtureTest {
                         .addRule("active", true, Clauses.EQUAL, Separator.AND)
                         .addOrder("salary", 1)
                         .limit(2),
-                PojoLens.parse("where active = true order by salary desc limit 2"),
+                PojoLensSql.parse("where active = true order by salary desc limit 2"),
                 row -> row.name + ":" + row.salary
         );
     }
@@ -101,3 +103,4 @@ public class QueryRegressionFixtureTest {
         assertThrows(IllegalStateException.class, fluentFixture::lintCodes);
     }
 }
+

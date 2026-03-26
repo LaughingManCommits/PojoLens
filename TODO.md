@@ -31,9 +31,9 @@ Before implementation starts, confirm one product decision:
 | --- | --- | --- | --- |
 | `WP7.1` Facade Method Audit | `P0` | `Done` | decision gate |
 | `WP7.2` Facade Fate Decision | `P0` | `Done` | `WP7.1` findings |
-| `WP7.3` Runtime-First Cache Policy Audit | `P0` | `Ready` | decision gate |
-| `WP7.4` Simplification Implementation | `P0` | `Planned` | `WP7.2` and `WP7.3` decisions |
-| `WP7.5` Docs, Examples, and Tests Refresh | `P1` | `Planned` | `WP7.4` |
+| `WP7.3` Runtime-First Cache Policy Audit | `P0` | `Done` | decision gate |
+| `WP7.4` Simplification Implementation | `P0` | `Done` | `WP7.2` and `WP7.3` decisions |
+| `WP7.5` Docs, Examples, and Tests Refresh | `P1` | `Done` | `WP7.4` |
 
 ## Work Packages
 
@@ -101,7 +101,7 @@ Priority:
 - `P0`
 
 Status:
-- `Planned`
+- `Done`
 
 Goal:
 - audit static and global cache-policy APIs on `PojoLens`, `PojoLensCore`, and
@@ -118,13 +118,20 @@ Acceptance criteria:
 - each global policy API either has a replacement path or an explicit
   justification for staying
 
+Result:
+- decision recorded in `docs/consolidation-review.md`:
+  no public global cache-policy owner should remain after pre-adoption cleanup;
+  the only public tuning surface should be `PojoLensRuntime`
+- runtime-first replacement map recorded in `docs/caching.md`
+- migration wording recorded in `MIGRATION.md`
+
 ### `WP7.4` Simplification Implementation
 
 Priority:
 - `P0`
 
 Status:
-- `Planned`
+- `Done`
 
 Goal:
 - implement the chosen facade and cache-policy simplification path
@@ -138,13 +145,26 @@ Acceptance criteria:
 - overlapping facade and global-policy paths are materially reduced
 - the implementation matches the documented keep/deprecate/remove decisions
 
+Result:
+- removed `PojoLens` facade query/chart entry methods and facade cache delegates
+- removed public static/global cache policy methods from `PojoLensSql` and
+  `PojoLensCore`
+- kept explicit static entry points working on internal default singleton caches
+- wired `PojoLensRuntime.parse(...)` and `runtime.newQueryBuilder(...)` onto the
+  runtime-owned cache objects
+- updated benchmark/runtime/cache/public-api tests to the new surface
+- validations passed:
+  `mvn -q -pl pojo-lens -am test-compile`
+  `mvn -q -pl pojo-lens-benchmarks -am test`
+  `mvn -q test`
+
 ### `WP7.5` Docs, Examples, and Tests Refresh
 
 Priority:
 - `P1`
 
 Status:
-- `Planned`
+- `Done`
 
 Goal:
 - make the smaller public surface internally consistent across docs, examples,
@@ -159,3 +179,9 @@ Acceptance criteria:
 - docs, examples, and tests all reflect the simplified public surface
 - reusable wrappers remain positioned as intentional specialized abstractions,
   not simplification targets
+
+Result:
+- refreshed `MIGRATION.md`, `docs/caching.md`, and `docs/sql-like.md` to match
+  the helper-only facade and runtime-only public cache tuning model
+- updated public API, runtime cache, SQL-like cache, and benchmark parity tests
+  to the explicit entry-point/runtime-first surface

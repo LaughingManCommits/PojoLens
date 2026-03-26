@@ -1,5 +1,7 @@
 package laughing.man.commits.benchmark;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -43,7 +45,7 @@ public class IndexHintJmhBenchmark {
 
     @Benchmark
     public long fluentFilterScan() {
-        return checksum(PojoLens.newQueryBuilder(source)
+        return checksum(PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", targetKey, Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 0, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
@@ -54,7 +56,7 @@ public class IndexHintJmhBenchmark {
 
     @Benchmark
     public long fluentFilterIndexed() {
-        return checksum(PojoLens.newQueryBuilder(source)
+        return checksum(PojoLensCore.newQueryBuilder(source)
                 .addIndex("stringField")
                 .addRule("stringField", targetKey, Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 0, Clauses.BIGGER_EQUAL, Separator.AND)
@@ -75,3 +77,4 @@ public class IndexHintJmhBenchmark {
         return checksum;
     }
 }
+

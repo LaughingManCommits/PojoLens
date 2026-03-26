@@ -24,7 +24,7 @@ public class PojoLensRuleBehaviorTest {
 
     @Test
     public void emptyListShouldReturnEmptyResults() throws Exception {
-        List<Foo> results = PojoLens.newQueryBuilder(Collections.<Foo>emptyList())
+        List<Foo> results = PojoLensCore.newQueryBuilder(Collections.<Foo>emptyList())
                 .initFilter()
                 .filter(Foo.class);
         assertTrue(results.isEmpty());
@@ -37,7 +37,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("b", new Date(), 2)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("doesNotExist", "x", Clauses.EQUAL, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
@@ -52,7 +52,7 @@ public class PojoLensRuleBehaviorTest {
                 new PojoLensBehaviorFixtures.BoolBean("off", false)
         );
 
-        List<PojoLensBehaviorFixtures.BoolBean> results = PojoLens.newQueryBuilder(source)
+        List<PojoLensBehaviorFixtures.BoolBean> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("active", false, Clauses.EQUAL, Separator.OR)
                 .initFilter()
                 .filter(PojoLensBehaviorFixtures.BoolBean.class);
@@ -70,7 +70,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 1)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "x", Clauses.EQUAL)
                 .addRule("integerField", 1, Clauses.EQUAL)
                 .initFilter()
@@ -89,7 +89,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("a", new Date(), 3)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule(Foo::getStringField, "a", Clauses.EQUAL)
                 .addOrder(Foo::getIntegerField, 1)
                 .addDistinct(Foo::getStringField, 1)
@@ -110,7 +110,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 20)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .allOf(
                         of(Foo::getStringField, "x", Clauses.EQUAL),
                         of(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
@@ -134,7 +134,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 2)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .allOf()
                 .anyOf()
                 .initFilter()
@@ -150,7 +150,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 2)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "y", Clauses.EQUAL, Separator.AND)
                 .allOf(of(Foo::getStringField, "x", Clauses.EQUAL))
                 .initFilter()
@@ -168,7 +168,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("null", new Date(), 3)
         );
 
-        List<Foo> equalNullResults = PojoLens.newQueryBuilder(source)
+        List<Foo> equalNullResults = PojoLensCore.newQueryBuilder(source)
                 .allOf(of(Foo::getStringField, null, Clauses.EQUAL))
                 .initFilter()
                 .filter(Foo.class);
@@ -176,7 +176,7 @@ public class PojoLensRuleBehaviorTest {
         assertEquals(1, equalNullResults.size());
         assertNull(equalNullResults.get(0).getStringField());
 
-        List<Foo> notEqualNullResults = PojoLens.newQueryBuilder(source)
+        List<Foo> notEqualNullResults = PojoLensCore.newQueryBuilder(source)
                 .allOf(of(Foo::getStringField, null, Clauses.NOT_EQUAL))
                 .initFilter()
                 .filter(Foo.class);
@@ -197,7 +197,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("x", new Date(), 9)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .allOf(
                         of(Foo::getStringField, "x", Clauses.EQUAL),
                         of(Foo::getIntegerField, 1, Clauses.EQUAL)
@@ -220,7 +220,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("z", new Date(), 3)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .anyOf(of(Foo::getStringField, "x", Clauses.EQUAL))
                 .anyOf(of(Foo::getIntegerField, 3, Clauses.EQUAL))
                 .initFilter()
@@ -237,7 +237,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 20)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .allOf(
                         of(Foo::getStringField, "x", Clauses.EQUAL),
                         of("integerField", 20, Clauses.EQUAL)
@@ -264,19 +264,19 @@ public class PojoLensRuleBehaviorTest {
     public void clausesOperatorsShouldHandleNonNumericOperators() throws Exception {
         List<Foo> source = PojoLensBehaviorFixtures.numericClauseSource();
 
-        List<Foo> notEqualResults = PojoLens.newQueryBuilder(source)
+        List<Foo> notEqualResults = PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", 20, Clauses.NOT_EQUAL, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(2, notEqualResults.size());
 
-        List<Foo> containsResults = PojoLens.newQueryBuilder(source)
+        List<Foo> containsResults = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "bc", Clauses.CONTAINS, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(2, containsResults.size());
 
-        List<Foo> matchesResults = PojoLens.newQueryBuilder(source)
+        List<Foo> matchesResults = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "^[0-9]+$", Clauses.MATCHES, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
@@ -295,7 +295,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("y", new Date(), 1)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "x", Clauses.EQUAL, separator)
                 .addRule("integerField", 1, Clauses.EQUAL, separator)
                 .initFilter()
@@ -319,7 +319,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("pm", onePm, 2)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("dateField", oneAm, Clauses.BIGGER, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
@@ -336,7 +336,7 @@ public class PojoLensRuleBehaviorTest {
                 new Foo("x123y", new Date(), 3)
         );
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "^[0-9]+$", Clauses.MATCHES, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);
@@ -356,7 +356,7 @@ public class PojoLensRuleBehaviorTest {
         String[] arrayValues = new String[]{"a", "x"};
         List<String> listValues = Arrays.asList("b", "y");
 
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", arrayValues, Clauses.EQUAL, Separator.OR)
                 .addRule("stringField", listValues, Clauses.EQUAL, Separator.OR)
                 .initFilter()
@@ -375,7 +375,7 @@ public class PojoLensRuleBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildBean(1, "c1")
         );
 
-        List<PojoLensBehaviorFixtures.ParentBean> results = PojoLens.newQueryBuilder(parents)
+        List<PojoLensBehaviorFixtures.ParentBean> results = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .allOf(of("tag", null, Clauses.EQUAL))
                 .initFilter()

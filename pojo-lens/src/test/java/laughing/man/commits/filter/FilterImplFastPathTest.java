@@ -1,5 +1,7 @@
 package laughing.man.commits.filter;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
@@ -20,7 +22,7 @@ class FilterImplFastPathTest {
 
     @Test
     void selectiveComputedSingleJoinShouldActivateFastArrayState() throws Exception {
-        Filter filter = PojoLens.newQueryBuilder(List.of(
+        Filter filter = PojoLensCore.newQueryBuilder(List.of(
                 new Parent(1, "a", 100),
                 new Parent(2, "b", 120)
         ))
@@ -56,7 +58,7 @@ class FilterImplFastPathTest {
                 .add("totalComp", "salary + bonus", Double.class)
                 .build();
 
-        Filter filter = PojoLens.newQueryBuilder(parents)
+        Filter filter = PojoLensCore.newQueryBuilder(parents)
                 .computedFields(registry)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .addRule("totalComp", 93_000.0, Clauses.BIGGER_EQUAL, Separator.AND)
@@ -80,7 +82,7 @@ class FilterImplFastPathTest {
             children.add(new Child(i, 0));
         }
 
-        Filter filter = PojoLens.newQueryBuilder(parents)
+        Filter filter = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .addOrder("salary", 1)
                 .limit(20)
@@ -116,7 +118,7 @@ class FilterImplFastPathTest {
                 new ChildWithTag(1, 7, "b")
         );
 
-        Filter filter = PojoLens.newQueryBuilder(parents)
+        Filter filter = PojoLensCore.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .addField("name")
                 .addField("tag")

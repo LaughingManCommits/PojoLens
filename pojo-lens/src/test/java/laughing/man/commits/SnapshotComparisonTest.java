@@ -50,13 +50,12 @@ public class SnapshotComparisonTest {
         SnapshotComparison<Employee, Integer> comparison = PojoLens.compareSnapshots(currentEmployees(), previousEmployees())
                 .byKey(employee -> employee.id);
 
-        List<ChangeProjection> changedRows = PojoLens
-                .parse("select keyText, changedFieldCount, changedFieldSummary "
+        List<ChangeProjection> changedRows = PojoLensSql.parse("select keyText, changedFieldCount, changedFieldSummary "
                         + "where changeType = 'CHANGED' order by keyText asc")
                 .filter(comparison.rows(), ChangeProjection.class);
 
         ReportDefinition<ChangeCountRow> report = PojoLens.report(
-                PojoLens.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
+                PojoLensSql.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
                 ChangeCountRow.class,
                 ChartSpec.of(ChartType.BAR, "changeType", "total")
         );
@@ -160,4 +159,5 @@ public class SnapshotComparisonTest {
         }
     }
 }
+
 

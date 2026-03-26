@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
@@ -19,8 +21,7 @@ public class SqlLikeStrictParameterTypeModeTest {
 
     @Test
     public void defaultModeShouldRemainBackwardCompatibleForLateTypeMismatch() {
-        List<Employee> rows = PojoLens
-                .parse("where salary >= :minSalary")
+        List<Employee> rows = PojoLensSql.parse("where salary >= :minSalary")
                 .params(Map.of("minSalary", "not-a-number"))
                 .filter(sampleEmployees(), Employee.class);
 
@@ -30,7 +31,7 @@ public class SqlLikeStrictParameterTypeModeTest {
     @Test
     public void strictQueryModeShouldRejectWhereParameterTypeMismatchEarly() {
         try {
-            PojoLens.parse("where salary >= :minSalary")
+            PojoLensSql.parse("where salary >= :minSalary")
                     .strictParameterTypes()
                     .params(Map.of("minSalary", "not-a-number"))
                     .filter(sampleEmployees(), Employee.class);
@@ -62,7 +63,7 @@ public class SqlLikeStrictParameterTypeModeTest {
 
     @Test
     public void strictModeShouldAllowCompatibleNumericParameterTypes() {
-        List<Employee> rows = PojoLens.parse("where salary >= :minSalary order by salary desc")
+        List<Employee> rows = PojoLensSql.parse("where salary >= :minSalary order by salary desc")
                 .strictParameterTypes()
                 .params(Map.of("minSalary", 110000L))
                 .filter(sampleEmployees(), Employee.class);
@@ -74,7 +75,7 @@ public class SqlLikeStrictParameterTypeModeTest {
     @Test
     public void strictModeShouldRejectHavingParameterTypeMismatchEarly() {
         try {
-            PojoLens.parse("select department, count(*) as total group by department having total >= :minCount")
+            PojoLensSql.parse("select department, count(*) as total group by department having total >= :minCount")
                     .strictParameterTypes()
                     .params(Map.of("minCount", "2"))
                     .filter(sampleEmployees(), DepartmentCount.class);
@@ -87,4 +88,8 @@ public class SqlLikeStrictParameterTypeModeTest {
     }
 
 }
+
+
+
+
 

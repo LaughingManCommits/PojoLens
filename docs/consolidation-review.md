@@ -31,7 +31,7 @@ Any future consolidation must respect:
 | --- | --- | --- | --- | --- |
 | `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, `PojoLensRuntime` | stable core/integration | `keep` | same | These are now the documented defaults for new code. |
 | `PojoLens` facade query/chart entry methods | stable compatibility | `de-emphasize` | `PojoLensCore`, `PojoLensSql`, `PojoLensChart` | Keep for migration and mixed-style call sites; do not deprecate in `1.x`. |
-| Static/global cache-control APIs on `PojoLens` / `PojoLensCore` / `PojoLensSql` | advanced | `candidate for deprecation later` | `PojoLensRuntime` instance-scoped policy | Only future deprecation-worthy overlap found so far; not ready for action until runtime-scoped migration guidance is sufficient for common global-policy use cases. |
+| Static/global cache-control APIs on `PojoLens` / `PojoLensCore` / `PojoLensSql` | advanced | `candidate for deprecation later` | `PojoLensRuntime` instance-scoped policy | Published `1.x` call remains conservative here, but the pre-adoption audit below now tightens this to a runtime-first removal path before wider adoption. |
 | `ReportDefinition<T>` | advanced workflow helper | `keep` | same | General reusable query contract; remains the top wrapper in the abstraction ladder. |
 | `ChartQueryPreset<T>` | advanced workflow helper | `keep` + `de-emphasize as specialized` | `ReportDefinition<T>` when reuse becomes broader than chart-first flows | Still earns its place through preset factories and built-in chart spec. |
 | `StatsViewPreset<T>` / `StatsTable<T>` | advanced workflow helper | `keep` + `de-emphasize as specialized` | `ReportDefinition<T>` for general row reuse; keep stats preset when totals/table payload matter | Still earns its place through totals and table payload semantics. |
@@ -133,6 +133,63 @@ Implementation note for `WP7.4`:
 - finally re-run public-surface and binary-compat guardrails with the explicit
   understanding that this is a pre-adoption cleanup, not a published-API
   regression
+
+## Pre-Adoption Cache Policy Audit
+
+This is the concrete `WP7.3` decision, assuming the same no-users-yet
+pre-adoption conditions as `WP7.2`.
+
+Current repo signal:
+- the runtime cache objects already expose the full policy and observability
+  surface needed for tuning, clearing, and introspection
+- user-facing docs already prefer `PojoLens.newRuntime(...)` when cache policy
+  must vary by environment, tenant, or request scope
+- current uses of the global cache APIs are concentrated in repo-local docs,
+  tests, and explain plumbing rather than in an established external user base
+
+Decision:
+- no public global cache-policy owner needs to remain after pre-adoption cleanup
+- remove the `PojoLens` facade cache delegates
+- remove the underlying public static/global cache-control methods from
+  `PojoLensSql`
+- remove the underlying public static/global cache-control methods from
+  `PojoLensCore`
+- keep the process-default singleton caches internally so direct
+  `PojoLensSql.parse(...)` and `PojoLensCore.newQueryBuilder(...)` flows still
+  work with documented defaults
+- make `PojoLensRuntime` the only public cache-policy tuning surface
+
+Replacement map:
+
+| Current global API owner | Current surface | Runtime-first replacement | Decision |
+| --- | --- | --- | --- |
+| `PojoLens` | SQL-like cache delegates (`set/is/get/clear/reset/snapshot`) | `runtime.sqlLikeCache().*` | `remove before wider adoption` |
+| `PojoLens` | stats-plan cache delegates (`set/is/get/clear/reset/snapshot`) | `runtime.statsPlanCache().*` | `remove before wider adoption` |
+| `PojoLensSql` | SQL-like cache controls and snapshot methods | `runtime.sqlLikeCache().setEnabled/isEnabled/setStatsEnabled/isStatsEnabled/setMaxEntries/getMaxEntries/setMaxWeight/getMaxWeight/setExpireAfterWriteMillis/getExpireAfterWriteMillis/clear/resetStats/getHits/getMisses/getSize/getEvictions/snapshot` | `remove before wider adoption` |
+| `PojoLensCore` | stats-plan cache controls and snapshot methods | `runtime.statsPlanCache().setEnabled/isEnabled/setStatsEnabled/isStatsEnabled/setMaxEntries/maxEntries/setMaxWeight/maxWeight/setExpireAfterWriteMillis/expireAfterWriteMillis/clear/resetStats/hits/misses/size/evictions/snapshot` | `remove before wider adoption` |
+
+Why removal is reasonable:
+- the runtime-owned cache objects are already the more complete and more
+  coherent policy model
+- keeping public global mutators on `PojoLensSql` and `PojoLensCore` would
+  preserve a second configuration story after the facade cleanup
+- default singleton caches can remain an internal implementation detail for the
+  explicit static entry points without remaining a public tuning surface
+
+Implementation note for `WP7.4`:
+- migrate docs/tests from global cache APIs to `PojoLensRuntime`
+- keep explain payload cache snapshots, but source them from internal default
+  cache plumbing instead of public facade methods
+- if process-wide tuning becomes important later, add one dedicated bootstrap
+  config mechanism instead of restoring a wide set of static mutators
+
+Release-note wording:
+- Cache policy tuning is now runtime-scoped.
+- Public static/global cache policy methods were removed from `PojoLens`,
+  `PojoLensSql`, and `PojoLensCore`.
+- Use `PojoLens.newRuntime(...)` and the returned
+  `runtime.sqlLikeCache()` / `runtime.statsPlanCache()` handles for cache
+  tuning, clearing, statistics, and snapshots.
 
 ## Published `1.x` No-Removal Call
 

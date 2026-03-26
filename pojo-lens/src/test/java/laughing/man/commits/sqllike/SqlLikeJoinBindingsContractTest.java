@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -29,10 +31,10 @@ public class SqlLikeJoinBindingsContractTest {
 
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", employees);
-        List<Company> mapRows = PojoLens.parse(sql).filter(companies, joinSources, Company.class);
+        List<Company> mapRows = PojoLensSql.parse(sql).filter(companies, joinSources, Company.class);
 
         JoinBindings joinBindings = JoinBindings.of("employees", employees);
-        List<Company> typedRows = PojoLens.parse(sql).filter(companies, joinBindings, Company.class);
+        List<Company> typedRows = PojoLensSql.parse(sql).filter(companies, joinBindings, Company.class);
 
         assertEquals(ids(mapRows), ids(typedRows));
     }
@@ -42,8 +44,7 @@ public class SqlLikeJoinBindingsContractTest {
         List<Company> companies = sampleCompanies();
         JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
 
-        List<Company> rows = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .bindTyped(companies, Company.class, joinBindings)
                 .filter();
 
@@ -56,8 +57,7 @@ public class SqlLikeJoinBindingsContractTest {
         List<Company> companies = sampleCompanies();
         JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
 
-        ChartData chart = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        ChartData chart = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .chart(companies, joinBindings, Company.class, ChartSpec.of(ChartType.BAR, "id", "id"));
 
         assertEquals(1, chart.getLabels().size());
@@ -90,7 +90,7 @@ public class SqlLikeJoinBindingsContractTest {
     public void missingJoinBindingShouldFailWithTypedBindings() {
         List<Company> companies = sampleCompanies();
         try {
-            PojoLens.parse("select * from companies left join employees on id = companyId")
+            PojoLensSql.parse("select * from companies left join employees on id = companyId")
                     .filter(companies, JoinBindings.empty(), Company.class);
             fail("Expected missing join binding failure");
         } catch (IllegalArgumentException ex) {
@@ -102,4 +102,8 @@ public class SqlLikeJoinBindingsContractTest {
         return rows.stream().map(r -> r.id).collect(Collectors.toList());
     }
 }
+
+
+
+
 

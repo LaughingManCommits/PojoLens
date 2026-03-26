@@ -46,7 +46,7 @@ public class OperatorInvariantPropertyTest {
     }
 
     private static List<Foo> filter(List<Foo> source, Clauses clause, int compareValue) throws Exception {
-        return PojoLens.newQueryBuilder(source)
+        return PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", compareValue, clause, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);

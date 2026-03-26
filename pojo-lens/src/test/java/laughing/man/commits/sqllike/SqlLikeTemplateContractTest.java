@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -18,7 +20,7 @@ public class SqlLikeTemplateContractTest {
 
     @Test
     public void templateShouldSupportRepeatedExecutionWithDeterministicSchemaValidation() {
-        SqlLikeTemplate template = PojoLens.template(
+        SqlLikeTemplate template = PojoLensSql.template(
                 "where department = :dept and salary >= :minSalary and active = :active order by salary desc",
                 "dept",
                 "minSalary",
@@ -43,7 +45,7 @@ public class SqlLikeTemplateContractTest {
 
     @Test
     public void templateShouldFailForMissingSchemaParameters() {
-        SqlLikeTemplate template = PojoLens.template(
+        SqlLikeTemplate template = PojoLensSql.template(
                 "where department = :dept and salary >= :minSalary",
                 "dept",
                 "minSalary"
@@ -59,7 +61,7 @@ public class SqlLikeTemplateContractTest {
 
     @Test
     public void templateShouldFailForUnknownSchemaParameters() {
-        SqlLikeTemplate template = PojoLens.template(
+        SqlLikeTemplate template = PojoLensSql.template(
                 "where department = :dept and salary >= :minSalary",
                 "dept",
                 "minSalary"
@@ -76,7 +78,7 @@ public class SqlLikeTemplateContractTest {
     @Test
     public void templateCreationShouldFailWhenSchemaDoesNotMatchQueryParameters() {
         try {
-            PojoLens.template("where department = :dept and salary >= :minSalary", "dept");
+            PojoLensSql.template("where department = :dept and salary >= :minSalary", "dept");
             fail("Expected template schema mismatch failure");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Template schema missing SQL-like parameter(s)"));
@@ -84,7 +86,7 @@ public class SqlLikeTemplateContractTest {
         }
 
         try {
-            PojoLens.template("where salary >= :minSalary", "minSalary", "dept");
+            PojoLensSql.template("where salary >= :minSalary", "minSalary", "dept");
             fail("Expected template schema mismatch failure");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Template schema declares unknown SQL-like parameter(s)"));
@@ -92,7 +94,7 @@ public class SqlLikeTemplateContractTest {
         }
 
         try {
-            PojoLens.template("where salary >= :minSalary", "minSalary", "minSalary");
+            PojoLensSql.template("where salary >= :minSalary", "minSalary", "minSalary");
             fail("Expected duplicate schema entry failure");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Duplicate SQL-like template parameter schema entry"));
@@ -120,4 +122,7 @@ public class SqlLikeTemplateContractTest {
         return rows.stream().map(r -> r.name).collect(Collectors.toList());
     }
 }
+
+
+
 

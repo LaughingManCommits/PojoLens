@@ -1,5 +1,8 @@
 package laughing.man.commits.query;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
@@ -50,7 +53,7 @@ public class QueryTelemetryTest {
     public void fluentChartExecutionShouldEmitTelemetryStages() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
 
-        ChartData chart = PojoLens.newQueryBuilder(sampleEmployees())
+        ChartData chart = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .telemetry(events::add)
                 .addRule("active", true, Clauses.EQUAL)
                 .addGroup("department")
@@ -75,8 +78,7 @@ public class QueryTelemetryTest {
     @Test
     public void aliasedSqlLikeExecutionShouldEmitBindFilterAndOrderTelemetry() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
-        SqlLikeQuery query = PojoLens
-                .parse("select name, salary as pay where active = true order by salary desc")
+        SqlLikeQuery query = PojoLensSql.parse("select name, salary as pay where active = true order by salary desc")
                 .telemetry(events::add);
 
         List<SalaryAliasRow> rows = query.filter(sampleEmployees(), SalaryAliasRow.class);
@@ -100,4 +102,8 @@ public class QueryTelemetryTest {
         }
     }
 }
+
+
+
+
 

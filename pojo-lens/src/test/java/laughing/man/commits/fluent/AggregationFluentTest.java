@@ -1,5 +1,7 @@
 package laughing.man.commits.fluent;
 
+import laughing.man.commits.PojoLensCore;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -21,7 +23,7 @@ public class AggregationFluentTest {
     public void fluentMetricsShouldComputeCorrectGlobalValues() {
         List<Employee> employees = sampleEmployees();
 
-        List<EmployeeStats> stats = PojoLens.newQueryBuilder(employees)
+        List<EmployeeStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
@@ -44,7 +46,7 @@ public class AggregationFluentTest {
     public void metricAliasShouldProjectIntoDtoFields() {
         List<Employee> employees = sampleEmployees();
 
-        List<AliasStats> stats = PojoLens.newQueryBuilder(employees)
+        List<AliasStats> stats = PojoLensCore.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addCount("engineerCount")
                 .addMetric("salary", Metric.SUM, "engineeringPayroll")
@@ -61,7 +63,7 @@ public class AggregationFluentTest {
         List<Employee> employees = sampleEmployees();
 
         try {
-            PojoLens.newQueryBuilder(employees)
+            PojoLensCore.newQueryBuilder(employees)
                     .addMetric("department", Metric.SUM, "departmentSum");
             fail("Expected IllegalArgumentException for non-numeric metric field");
         } catch (IllegalArgumentException ex) {
@@ -69,7 +71,7 @@ public class AggregationFluentTest {
         }
 
         try {
-            PojoLens.newQueryBuilder(employees)
+            PojoLensCore.newQueryBuilder(employees)
                     .addMetric("missingSalary", Metric.MAX, "maxSalary");
             fail("Expected IllegalArgumentException for unknown metric field");
         } catch (IllegalArgumentException ex) {
@@ -83,7 +85,7 @@ public class AggregationFluentTest {
                 new NullableSalaryEmployee("Engineering", null)
         );
 
-        assertDoesNotThrow(() -> PojoLens.newQueryBuilder(employees)
+        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(employees)
                 .addMetric("salary", Metric.SUM, "totalSalary"));
     }
 
@@ -119,4 +121,7 @@ public class AggregationFluentTest {
         }
     }
 }
+
+
+
 

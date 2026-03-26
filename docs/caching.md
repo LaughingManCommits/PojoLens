@@ -1,6 +1,6 @@
 # Caching Policies
 
-`PojoLens` currently exposes two runtime caches:
+PojoLens currently has two internal caches behind its direct query paths:
 
 This is an advanced policy-tuning surface.
 Start with the default query path first, then come here when cache behavior
@@ -9,8 +9,15 @@ needs to be tuned or isolated.
 - SQL-like parse cache
 - stats-plan cache
 
-Both caches use Caffeine-backed internals and are configurable through `PojoLens`.
-For DI or multi-tenant isolation, both caches can also be scoped per `PojoLensRuntime`.
+Both caches use Caffeine-backed internals.
+For public policy tuning, prefer `PojoLensRuntime`; that is the intended
+long-term configuration surface.
+
+Current pre-adoption direction:
+- keep direct query entry points on their default singleton caches
+- move public tuning, clearing, and observability onto `PojoLensRuntime`
+- remove the public static/global cache APIs on `PojoLens`, `PojoLensCore`,
+  and `PojoLensSql`
 
 ## Defaults
 
@@ -30,55 +37,48 @@ For DI or multi-tenant isolation, both caches can also be scoped per `PojoLensRu
 `maxWeight=0` means size-based eviction by entry count (`maxEntries`).  
 Set `maxWeight > 0` to switch to weighted eviction.
 
-## Public Policy APIs
+## Runtime-First Policy APIs
 
-SQL-like cache:
+Preferred public tuning surface:
 
-- `setSqlLikeCacheEnabled(boolean)`
-- `isSqlLikeCacheEnabled()`
-- `setSqlLikeCacheStatsEnabled(boolean)`
-- `isSqlLikeCacheStatsEnabled()`
-- `setSqlLikeCacheMaxEntries(int)`
-- `getSqlLikeCacheMaxEntries()`
-- `setSqlLikeCacheMaxWeight(long)`
-- `getSqlLikeCacheMaxWeight()`
-- `setSqlLikeCacheExpireAfterWriteMillis(long)`
-- `getSqlLikeCacheExpireAfterWriteMillis()`
-- `clearSqlLikeCache()`
-- `resetSqlLikeCacheStats()`
-- `getSqlLikeCacheHits()`
-- `getSqlLikeCacheMisses()`
-- `getSqlLikeCacheSize()`
-- `getSqlLikeCacheEvictions()`
-- `getSqlLikeCacheSnapshot()`
+- `runtime.sqlLikeCache()`
+- `runtime.statsPlanCache()`
 
-stats-plan cache:
+Both returned cache objects expose the full policy and observability model:
 
-- `setStatsPlanCacheEnabled(boolean)`
-- `isStatsPlanCacheEnabled()`
-- `setStatsPlanCacheStatsEnabled(boolean)`
-- `isStatsPlanCacheStatsEnabled()`
-- `setStatsPlanCacheMaxEntries(int)`
-- `getStatsPlanCacheMaxEntries()`
-- `setStatsPlanCacheMaxWeight(long)`
-- `getStatsPlanCacheMaxWeight()`
-- `setStatsPlanCacheExpireAfterWriteMillis(long)`
-- `getStatsPlanCacheExpireAfterWriteMillis()`
-- `clearStatsPlanCache()`
-- `resetStatsPlanCacheStats()`
-- `getStatsPlanCacheHits()`
-- `getStatsPlanCacheMisses()`
-- `getStatsPlanCacheSize()`
-- `getStatsPlanCacheEvictions()`
-- `getStatsPlanCacheSnapshot()`
+- enable/disable
+- stats enable/disable
+- max entries
+- max weight
+- expire-after-write
+- clear/reset stats
+- hits/misses/size/evictions
+- structured snapshot
 
-Observability note:
-- `get*Snapshot()` returns a structured map useful for dashboards/logging.
-- `get*Hits/Misses/Size/Evictions` are direct counters/gauges when you want individual metrics.
+Example:
+
+```java
+PojoLensRuntime runtime = PojoLens.newRuntime();
+runtime.sqlLikeCache().setMaxEntries(1024);
+runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
+```
+
+## Removed Static APIs
+
+The pre-adoption simplification removed the public static/global cache policy
+methods from:
+
+- `PojoLens`
+- `PojoLensSql`
+- `PojoLensCore`
+
+Use `PojoLens.newRuntime()` and the returned cache handles instead.
 
 ## Instance-Scoped Runtime (DI / Multi-Tenant)
 
-Static `PojoLens.*` cache APIs operate on the process-default singleton caches.
+Runtime-scoped cache handles are the preferred public model.
+Direct non-runtime entry points still use process-default singleton caches, but
+those caches no longer have a public tuning API.
 
 For isolated cache policy per tenant/request scope, use `PojoLens.newRuntime()`:
 
@@ -94,8 +94,15 @@ List<Employee> rows = runtime.newQueryBuilder(source)
     .filter(Employee.class);
 ```
 
-Use static policies when one global cache policy is sufficient.
-Use runtime-scoped policies when separate cache isolation is required.
+Use runtime-scoped policies whenever cache behavior should be explicit in app
+code.
+
+## Replacement Map
+
+When moving off the removed static/global cache APIs:
+
+- old SQL-like cache controls and snapshots -> `runtime.sqlLikeCache().*`
+- old stats-plan cache controls and snapshots -> `runtime.statsPlanCache().*`
 
 ## Tradeoffs
 

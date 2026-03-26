@@ -26,7 +26,7 @@ public class RealWorldDomainScenariosTest {
     public void fluentFilterShouldReturnActiveEngineeringEmployeesOrderedBySalary() throws Exception {
         List<Employee> employees = sampleEmployees();
 
-        List<Employee> results = PojoLens.newQueryBuilder(employees)
+        List<Employee> results = PojoLensCore.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addOrder("salary", 1)
@@ -42,15 +42,14 @@ public class RealWorldDomainScenariosTest {
     public void sqlLikeShouldMatchFluentForDepartmentAndSalaryFilter() throws Exception {
         List<Employee> employees = sampleEmployees();
 
-        List<Employee> fluent = PojoLens.newQueryBuilder(employees)
+        List<Employee> fluent = PojoLensCore.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addRule("salary", 120000, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("salary", 1)
                 .initFilter()
                 .filter(Sort.ASC, Employee.class);
 
-        List<Employee> sqlLike = PojoLens
-                .parse("select name, salary where department = 'Engineering' and salary >= 120000 order by salary asc")
+        List<Employee> sqlLike = PojoLensSql.parse("select name, salary where department = 'Engineering' and salary >= 120000 order by salary asc")
                 .filter(employees, Employee.class);
 
         assertEquals(fluent.size(), sqlLike.size());
@@ -62,8 +61,7 @@ public class RealWorldDomainScenariosTest {
     public void aliasProjectionShouldMapToBusinessDtoFields() {
         List<Employee> employees = sampleEmployees();
 
-        List<EmployeeSummary> summaries = PojoLens
-                .parse("select name as employeeName, salary as annualSalary where active = true order by salary asc")
+        List<EmployeeSummary> summaries = PojoLensSql.parse("select name as employeeName, salary as annualSalary where active = true order by salary asc")
                 .filter(employees, EmployeeSummary.class);
 
         assertEquals(3, summaries.size());
@@ -81,8 +79,7 @@ public class RealWorldDomainScenariosTest {
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", companyEmployees);
 
-        List<Company> filtered = PojoLens
-                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+        List<Company> filtered = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
                 .filter(companies, joinSources, Company.class);
 
         assertEquals(1, filtered.size());
@@ -93,7 +90,7 @@ public class RealWorldDomainScenariosTest {
     public void bindFirstExecuteLaterShouldWorkForRealWorldDataset() {
         List<Employee> employees = sampleEmployees();
 
-        SqlLikeQuery query = PojoLens.parse("where salary >= 100000 order by salary asc");
+        SqlLikeQuery query = PojoLensSql.parse("where salary >= 100000 order by salary asc");
         List<Employee> rows = query.bindTyped(employees, Employee.class).filter();
 
         assertEquals(3, rows.size());
@@ -102,4 +99,5 @@ public class RealWorldDomainScenariosTest {
         assertEquals(130000, rows.get(2).salary);
     }
 }
+
 

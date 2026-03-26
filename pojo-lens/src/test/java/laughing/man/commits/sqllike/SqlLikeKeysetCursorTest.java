@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -24,8 +26,7 @@ public class SqlLikeKeysetCursorTest {
                 .put("id", 1)
                 .build();
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit 20")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
                 .keysetAfter(cursor)
                 .filter(sampleCursorSource(), Employee.class);
 
@@ -39,8 +40,7 @@ public class SqlLikeKeysetCursorTest {
                 .put("id", 1)
                 .build();
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit 20")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
                 .keysetBefore(cursor)
                 .filter(sampleCursorSource(), Employee.class);
 
@@ -69,8 +69,7 @@ public class SqlLikeKeysetCursorTest {
                 .build()
                 .toToken();
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit :limit")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit :limit")
                 .keysetAfter(PojoLens.parseKeysetCursor(token))
                 .params(java.util.Map.of("limit", 20))
                 .filter(sampleCursorSource(), Employee.class);
@@ -81,7 +80,7 @@ public class SqlLikeKeysetCursorTest {
     @Test
     public void keysetAfterShouldRejectQueryWithoutOrderBy() {
         try {
-            PojoLens.parse("where active = true limit 20")
+            PojoLensSql.parse("where active = true limit 20")
                     .keysetAfter(SqlLikeCursor.builder().put("salary", 120000).build());
             fail("Expected ORDER BY validation failure");
         } catch (IllegalArgumentException ex) {
@@ -92,7 +91,7 @@ public class SqlLikeKeysetCursorTest {
     @Test
     public void keysetAfterShouldRejectMissingCursorField() {
         try {
-            PojoLens.parse("where active = true order by salary desc, id desc limit 20")
+            PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
                     .keysetAfter(SqlLikeCursor.builder().put("salary", 120000).build());
             fail("Expected cursor field mismatch");
         } catch (IllegalArgumentException ex) {
@@ -109,8 +108,7 @@ public class SqlLikeKeysetCursorTest {
                 .put("id", 2500)
                 .build();
 
-        List<Employee> rows = PojoLens
-                .parse("where active = true order by salary desc, id desc limit 25")
+        List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 25")
                 .keysetAfter(cursor)
                 .filter(source, Employee.class);
 
@@ -147,3 +145,7 @@ public class SqlLikeKeysetCursorTest {
         return rows;
     }
 }
+
+
+
+

@@ -1,5 +1,8 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryWindowOrder;
@@ -38,7 +41,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "abc", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 1, Clauses.BIGGER, Separator.AND)
                 .addOrder("integerField", 1)
@@ -46,8 +49,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Sort.DESC, Foo.class);
 
-        List<Foo> sqlLike = PojoLens
-                .parse("select * from rows where stringField = 'abc' and integerField > 1 "
+        List<Foo> sqlLike = PojoLensSql.parse("select * from rows where stringField = 'abc' and integerField > 1 "
                         + "order by integerField desc limit 2")
                 .filter(source, Foo.class);
 
@@ -64,7 +66,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
                 .addRule("stringField", "abc", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 1, Clauses.BIGGER, Separator.AND)
                 .addOrder("integerField", 1)
@@ -73,8 +75,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Sort.DESC, Foo.class);
 
-        List<Foo> sqlLike = PojoLens
-                .parse("select * from rows where stringField = 'abc' and integerField > 1 "
+        List<Foo> sqlLike = PojoLensSql.parse("select * from rows where stringField = 'abc' and integerField > 1 "
                         + "order by integerField desc limit 1 offset 1")
                 .filter(source, Foo.class);
 
@@ -91,14 +92,13 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", 1, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
                 .initFilter()
                 .filter(Foo.class);
 
-        List<Foo> sqlLike = PojoLens
-                .parse("select stringField where integerField >= 1")
+        List<Foo> sqlLike = PojoLensSql.parse("select stringField where integerField >= 1")
                 .filter(source, Foo.class);
 
         FluentSqlLikeParity.assertOrderedEquals(fluent, sqlLike, Foo::getStringField);
@@ -113,7 +113,7 @@ public class SqlLikeMappingParityTest {
         );
 
         try {
-            PojoLens.parse("where integerField >= 1 order by stringField asc, integerField desc")
+            PojoLensSql.parse("where integerField >= 1 order by stringField asc, integerField desc")
                     .filter(source, Foo.class);
             fail("Expected mixed ORDER BY directions to fail");
         } catch (IllegalArgumentException ex) {
@@ -125,15 +125,14 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeGroupedAggregationShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLens.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
                 .initFilter()
                 .filter(DepartmentAgg.class);
 
-        List<DepartmentAgg> sqlLike = PojoLens
-                .parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
+        List<DepartmentAgg> sqlLike = PojoLensSql.parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
                         + "group by department")
                 .filter(employees, DepartmentAgg.class);
 
@@ -145,7 +144,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeGroupedOrderByMetricAliasShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLens.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
@@ -154,8 +153,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Sort.DESC, DepartmentAgg.class);
 
-        List<DepartmentAgg> sqlLike = PojoLens
-                .parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
+        List<DepartmentAgg> sqlLike = PojoLensSql.parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
                         + "group by department order by totalSalary desc limit 1")
                 .filter(employees, DepartmentAgg.class);
 
@@ -170,7 +168,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeHavingAggregateExpressionShouldMatchFluentAliasBasedHaving() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLens.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "hiddenTotalSalary")
@@ -178,8 +176,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(DepartmentAgg.class);
 
-        List<DepartmentAgg> sqlLike = PojoLens
-                .parse("select department, count(*) as employeeCount group by department having sum(salary) > 100000")
+        List<DepartmentAgg> sqlLike = PojoLensSql.parse("select department, count(*) as employeeCount group by department having sum(salary) > 100000")
                 .filter(employees, DepartmentAgg.class);
 
         FluentSqlLikeParity.assertUnorderedEquals(fluent, sqlLike,
@@ -198,7 +195,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
                 .allOf(
                         QueryRule.of("stringField", "abc", Clauses.EQUAL),
                         QueryRule.of("integerField", 5, Clauses.BIGGER_EQUAL)
@@ -210,8 +207,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Foo.class);
 
-        List<Foo> sqlLike = PojoLens
-                .parse("where (stringField = 'abc' or stringField = 'xyz') and integerField >= 5")
+        List<Foo> sqlLike = PojoLensSql.parse("where (stringField = 'abc' or stringField = 'xyz') and integerField >= 5")
                 .filter(source, Foo.class);
 
         FluentSqlLikeParity.assertOrderedEquals(fluent, sqlLike,
@@ -226,13 +222,12 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 7)
         );
 
-        List<Foo> fluent = PojoLens.newQueryBuilder(source)
+        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", 4, Clauses.BIGGER_EQUAL, Separator.AND)
                 .initFilter()
                 .filter(Foo.class);
 
-        List<Foo> sqlLike = PojoLens
-                .parse("where integerField - 1 >= 3")
+        List<Foo> sqlLike = PojoLensSql.parse("where integerField - 1 >= 3")
                 .filter(source, Foo.class);
 
         FluentSqlLikeParity.assertOrderedEquals(fluent, sqlLike,
@@ -243,7 +238,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeWindowQualifyShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentRank> fluent = PojoLens.newQueryBuilder(employees)
+        List<DepartmentRank> fluent = PojoLensCore.newQueryBuilder(employees)
                 .addRule("active", true, Clauses.EQUAL)
                 .addWindow(
                         "rn",
@@ -257,8 +252,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Sort.ASC, DepartmentRank.class);
 
-        List<DepartmentRank> sqlLike = PojoLens
-                .parse("select department, name, salary, "
+        List<DepartmentRank> sqlLike = PojoLensSql.parse("select department, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
                         + "where active = true qualify rn <= 1 order by department asc, rn asc")
                 .filter(employees, DepartmentRank.class);
@@ -271,7 +265,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeAggregateWindowsShouldMatchFluentPipeline() {
         List<WindowMetricInput> source = sampleWindowMetricInputs();
 
-        List<WindowMetricProjection> fluent = PojoLens.newQueryBuilder(source)
+        List<WindowMetricProjection> fluent = PojoLensCore.newQueryBuilder(source)
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -309,8 +303,7 @@ public class SqlLikeMappingParityTest {
                 .initFilter()
                 .filter(Sort.ASC, WindowMetricProjection.class);
 
-        List<WindowMetricProjection> sqlLike = PojoLens
-                .parse("select department, seq, amount, "
+        List<WindowMetricProjection> sqlLike = PojoLensSql.parse("select department, seq, amount, "
                         + "sum(amount) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningSum, "
                         + "count(amount) over (partition by department order by seq asc "
@@ -335,4 +328,8 @@ public class SqlLikeMappingParityTest {
         );
     }
 }
+
+
+
+
 

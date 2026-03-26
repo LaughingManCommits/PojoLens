@@ -157,7 +157,7 @@ final class PojoLensBehaviorFixtures {
                                           Clauses clause,
                                           int compareValue,
                                           int expectedInteger) throws Exception {
-        List<Foo> results = PojoLens.newQueryBuilder(source)
+        List<Foo> results = PojoLensCore.newQueryBuilder(source)
                 .addRule("integerField", compareValue, clause, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);

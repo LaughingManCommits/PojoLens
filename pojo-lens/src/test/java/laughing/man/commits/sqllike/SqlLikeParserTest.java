@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike;
 
+import laughing.man.commits.PojoLensSql;
+
 import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -230,7 +232,7 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectMissingValue() {
         try {
-            PojoLens.parse("where name =");
+            PojoLensSql.parse("where name =");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Expected value in WHERE clause"));
@@ -244,7 +246,7 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectUnterminatedString() {
         try {
-            PojoLens.parse("where name = 'abc");
+            PojoLensSql.parse("where name = 'abc");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unterminated string literal"));
@@ -423,7 +425,7 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectNonIntegerLimit() {
         try {
-            PojoLens.parse("where name = 'a' limit 1.5");
+            PojoLensSql.parse("where name = 'a' limit 1.5");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("LIMIT must be an integer"));
@@ -434,14 +436,14 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectInvalidOffset() {
         try {
-            PojoLens.parse("where active = true offset 1.5");
+            PojoLensSql.parse("where active = true offset 1.5");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("OFFSET must be an integer"));
         }
 
         try {
-            PojoLens.parse("where active = true offset -1");
+            PojoLensSql.parse("where active = true offset -1");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("OFFSET"));
@@ -451,7 +453,7 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectBlankParameterNameToken() {
         try {
-            PojoLens.parse("where salary >= :");
+            PojoLensSql.parse("where salary >= :");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Expected parameter name after ':'"));
@@ -461,7 +463,7 @@ public class SqlLikeParserTest {
     @Test
     public void shouldRejectInWithoutSelectSubquery() {
         try {
-            PojoLens.parse("where department in ('Engineering')");
+            PojoLensSql.parse("where department in ('Engineering')");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("IN currently requires a subquery starting with SELECT"));
@@ -472,7 +474,7 @@ public class SqlLikeParserTest {
     public void shouldReportLineAndColumnForMultilineErrors() {
         String query = "select stringField\nwhere name =\norder by integerField";
         try {
-            PojoLens.parse(query);
+            PojoLensSql.parse(query);
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Expected value in WHERE clause"));
@@ -546,3 +548,4 @@ public class SqlLikeParserTest {
         }
     }
 }
+

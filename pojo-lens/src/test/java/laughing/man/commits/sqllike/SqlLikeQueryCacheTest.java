@@ -1,7 +1,7 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLens;
-import org.junit.jupiter.api.AfterEach;
+import laughing.man.commits.PojoLensRuntime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,76 +14,67 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SqlLikeQueryCacheTest {
 
+    private PojoLensRuntime runtime;
+
     @BeforeEach
     public void setUp() {
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.setSqlLikeCacheMaxEntries(256);
-        PojoLens.setSqlLikeCacheMaxWeight(0L);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearSqlLikeCache();
-        PojoLens.resetSqlLikeCacheStats();
-    }
-
-    @AfterEach
-    public void tearDown() {
-        PojoLens.setSqlLikeCacheEnabled(true);
-        PojoLens.setSqlLikeCacheStatsEnabled(true);
-        PojoLens.setSqlLikeCacheMaxEntries(256);
-        PojoLens.setSqlLikeCacheMaxWeight(0L);
-        PojoLens.setSqlLikeCacheExpireAfterWriteMillis(0L);
-        PojoLens.clearSqlLikeCache();
-        PojoLens.resetSqlLikeCacheStats();
+        runtime = PojoLens.newRuntime();
+        runtime.sqlLikeCache().setEnabled(true);
+        runtime.sqlLikeCache().setStatsEnabled(true);
+        runtime.sqlLikeCache().setMaxEntries(256);
+        runtime.sqlLikeCache().setMaxWeight(0L);
+        runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
+        runtime.sqlLikeCache().clear();
+        runtime.sqlLikeCache().resetStats();
     }
 
     @Test
     public void parseShouldHitCacheForRepeatedNormalizedQuery() {
-        SqlLikeQuery first = PojoLens.parse(" where stringField = 'abc' ");
-        SqlLikeQuery second = PojoLens.parse("where stringField = 'abc'");
+        SqlLikeQuery first = runtime.parse(" where stringField = 'abc' ");
+        SqlLikeQuery second = runtime.parse("where stringField = 'abc'");
 
         assertSame(first, second);
-        assertEquals(1L, PojoLens.getSqlLikeCacheHits());
-        assertEquals(1L, PojoLens.getSqlLikeCacheMisses());
-        assertEquals(1, PojoLens.getSqlLikeCacheSize());
+        assertEquals(1L, runtime.sqlLikeCache().getHits());
+        assertEquals(1L, runtime.sqlLikeCache().getMisses());
+        assertEquals(1, runtime.sqlLikeCache().getSize());
     }
 
     @Test
     public void parseShouldBypassCacheWhenDisabled() {
-        PojoLens.setSqlLikeCacheEnabled(false);
+        runtime.sqlLikeCache().setEnabled(false);
 
-        SqlLikeQuery first = PojoLens.parse("where stringField = 'abc'");
-        SqlLikeQuery second = PojoLens.parse("where stringField = 'abc'");
+        SqlLikeQuery first = runtime.parse("where stringField = 'abc'");
+        SqlLikeQuery second = runtime.parse("where stringField = 'abc'");
 
         assertNotSame(first, second);
-        assertEquals(0L, PojoLens.getSqlLikeCacheHits());
-        assertEquals(2L, PojoLens.getSqlLikeCacheMisses());
-        assertEquals(0, PojoLens.getSqlLikeCacheSize());
+        assertEquals(0L, runtime.sqlLikeCache().getHits());
+        assertEquals(2L, runtime.sqlLikeCache().getMisses());
+        assertEquals(0, runtime.sqlLikeCache().getSize());
     }
 
     @Test
     public void cacheShouldEvictWhenMaxEntriesExceeded() {
-        PojoLens.setSqlLikeCacheMaxEntries(1);
+        runtime.sqlLikeCache().setMaxEntries(1);
 
-        PojoLens.parse("where stringField = 'a'");
-        PojoLens.parse("where stringField = 'b'");
-        PojoLens.parse("where stringField = 'a'");
+        runtime.parse("where stringField = 'a'");
+        runtime.parse("where stringField = 'b'");
+        runtime.parse("where stringField = 'a'");
 
-        assertEquals(3L, PojoLens.getSqlLikeCacheHits() + PojoLens.getSqlLikeCacheMisses());
-        assertTrue(PojoLens.getSqlLikeCacheSize() <= PojoLens.getSqlLikeCacheMaxEntries());
+        assertEquals(3L, runtime.sqlLikeCache().getHits() + runtime.sqlLikeCache().getMisses());
+        assertTrue(runtime.sqlLikeCache().getSize() <= runtime.sqlLikeCache().getMaxEntries());
     }
 
     @Test
     public void cacheSnapshotShouldExposeCountersAndLimits() {
-        PojoLens.parse("where stringField = 'a'");
-        PojoLens.parse("where stringField = 'a'");
+        runtime.parse("where stringField = 'a'");
+        runtime.parse("where stringField = 'a'");
 
-        Map<String, Object> snapshot = PojoLens.getSqlLikeCacheSnapshot();
+        Map<String, Object> snapshot = runtime.sqlLikeCache().snapshot();
         assertEquals(Boolean.TRUE, snapshot.get("enabled"));
-        assertEquals(PojoLens.getSqlLikeCacheMaxEntries(), ((Number) snapshot.get("maxEntries")).intValue());
-        assertEquals(PojoLens.getSqlLikeCacheSize(), ((Number) snapshot.get("size")).intValue());
-        assertEquals(PojoLens.getSqlLikeCacheHits(), ((Number) snapshot.get("hits")).longValue());
-        assertEquals(PojoLens.getSqlLikeCacheMisses(), ((Number) snapshot.get("misses")).longValue());
-        assertEquals(PojoLens.getSqlLikeCacheEvictions(), ((Number) snapshot.get("evictions")).longValue());
+        assertEquals(runtime.sqlLikeCache().getMaxEntries(), ((Number) snapshot.get("maxEntries")).intValue());
+        assertEquals(runtime.sqlLikeCache().getSize(), ((Number) snapshot.get("size")).intValue());
+        assertEquals(runtime.sqlLikeCache().getHits(), ((Number) snapshot.get("hits")).longValue());
+        assertEquals(runtime.sqlLikeCache().getMisses(), ((Number) snapshot.get("misses")).longValue());
+        assertEquals(runtime.sqlLikeCache().getEvictions(), ((Number) snapshot.get("evictions")).longValue());
     }
 }
-
