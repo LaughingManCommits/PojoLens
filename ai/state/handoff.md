@@ -24,6 +24,59 @@
     `scripts/check-doc-consistency.ps1`
   - next work is optional, not queued in the roadmap:
     release prep, release-note cleanup, or any further surface tightening review.
+- Spring Boot starter basic example now demonstrates preset-heavy workflows:
+  - added mode-discovery endpoint:
+    `GET /api/employees/dashboard-options`.
+  - dashboard endpoint now accepts mode switches:
+    `GET /api/employees/dashboard?statsMode=...&chartMode=...`.
+  - stats modes cover both direct SQL-like and `StatsViewPresets` paths:
+    `DIRECT_SQL`,
+    `PRESET_BY_PAYROLL`,
+    `PRESET_TOP3_PAYROLL`,
+    `PRESET_SUMMARY_HEADCOUNT`.
+  - chart modes cover direct chart mapping plus `ChartQueryPresets` flows:
+    `DIRECT_SQL`,
+    `PRESET_QUERY`,
+    `PRESET_REPORT` (via `preset.reportDefinition().chart(...)`).
+  - frontend dashboard now includes mode selectors and dynamic stats table
+    rendering (columns/totals/source SQL) driven by selected mode.
+  - validations passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
+    `scripts/check-doc-consistency.ps1`
+- Java Playwright E2E coverage now exists for the example app:
+  - test class:
+    `examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java`.
+  - coverage includes:
+    runtime/employees/departments/top-paid/dashboard-options/dashboard mode matrix
+    endpoints, `POST /api/employees`, and dashboard UI mode/table/form flows.
+  - implementation is Java-based Playwright (`com.microsoft.playwright:playwright`),
+    not Node Playwright.
+  - run command:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`.
+  - validation passed with the command above.
+- Java Playwright coverage has been expanded to all example FE flows:
+  - current suite count: `6` passing tests.
+  - includes full UI `statsMode x chartMode` matrix apply checks, runtime badge
+    rendering checks, valid add-employee UI submit path checks, and invalid
+    add-employee UI error feedback checks.
+  - matrix assertions now wait for dashboard refresh responses to avoid
+    async update races.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`.
+- Spring Boot starter basic example app now includes an interactive frontend:
+  - added static dashboard page at `examples/spring-boot-starter-basic/src/main/resources/static/index.html`
+    using Bootstrap + Chart.js.
+  - controller now supports mutable in-memory employee flows with:
+    `GET /api/employees`,
+    `POST /api/employees`,
+    `GET /api/employees/departments`,
+    `GET /api/employees/dashboard`,
+    plus existing `top-paid`/`runtime`.
+  - dashboard chart payloads are generated via PojoLens chart mapping and
+    returned in Chart.js-ready payload shape for direct frontend consumption.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
 - Lint baseline reset is now completed:
   - validations passed:
     `mvn -B -ntp -Plint verify -DskipTests`

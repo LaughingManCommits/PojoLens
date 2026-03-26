@@ -101,6 +101,7 @@ Runnable example project:
 
 Canonical surface classification:
 - [docs/product-surface.md](docs/product-surface.md)
+
 Advanced/optional follow-on guide:
 - [docs/advanced-features.md](docs/advanced-features.md)
 

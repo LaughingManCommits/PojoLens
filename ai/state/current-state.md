@@ -12,6 +12,66 @@
 
 ## Latest Validation
 
+- `2026-03-26`: Java Playwright suite expanded to all frontend feature flows:
+  - `DashboardPlaywrightE2eTest` now runs `6` passing tests covering:
+    API surfaces, full dashboard mode matrix, runtime badges, top-paid form,
+    add-employee UI submit path, and invalid add-employee error feedback path.
+  - mode-matrix UI test now waits for dashboard refresh responses to avoid
+    async race failures.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- `2026-03-26`: Java Playwright coverage was added for the starter example app:
+  - added Java/JUnit Playwright E2E suite
+    `DashboardPlaywrightE2eTest` in
+    `examples/spring-boot-starter-basic/src/test/java/...`.
+  - suite now exercises all example-app feature surfaces:
+    runtime endpoint, employees/departments endpoints, top-paid endpoint,
+    dashboard options endpoint, dashboard mode matrix
+    (`statsMode` x `chartMode`), employee creation endpoint, and key dashboard
+    UI flows (mode switching, stats rendering, top-paid form, add-form presence).
+  - switched the example test setup to Java-based Playwright only
+    (removed Node Playwright harness in favor of Maven/JUnit execution).
+  - updated example module build config with test dependencies
+    (`spring-boot-starter-test`, `playwright`, `jackson-databind`)
+    and Surefire `3.5.4`.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- `2026-03-26`: starter example preset-first dashboard upgrade completed:
+  - expanded `examples/spring-boot-starter-basic` API surface to demonstrate
+    more PojoLens features in one flow:
+    - `GET /api/employees/dashboard-options` for supported mode discovery.
+    - `GET /api/employees/dashboard?statsMode=...&chartMode=...` for mode-based
+      switching between direct SQL-like and preset flows.
+    - retained existing mutable employee and top-paid/runtime endpoints.
+  - `statsMode` now supports direct SQL-like plus `StatsViewPresets` variants:
+    `PRESET_BY_PAYROLL`,
+    `PRESET_TOP3_PAYROLL`,
+    `PRESET_SUMMARY_HEADCOUNT`.
+  - `chartMode` now supports direct SQL-like chart mapping and
+    `ChartQueryPresets` execution via both preset chart and promoted
+    report-definition chart paths:
+    `DIRECT_SQL`,
+    `PRESET_QUERY`,
+    `PRESET_REPORT`.
+  - dashboard frontend (`/`) now includes explicit mode selectors and renders
+    dynamic stats columns/totals/source SQL text from the selected mode.
+  - validations passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-26`: Spring Boot starter basic example dashboard upgrade completed:
+  - added a static frontend at `/` using Bootstrap + Chart.js for interactive
+    employee management and chart rendering.
+  - expanded `EmployeeQueryController` with mutable in-memory employee APIs:
+    `GET /api/employees`,
+    `POST /api/employees`,
+    `GET /api/employees/departments`,
+    `GET /api/employees/dashboard`,
+    while keeping `top-paid` and `runtime` endpoints.
+  - dashboard chart payloads are now produced from PojoLens chart mapping and
+    serialized in a Chart.js-ready shape.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
 - `2026-03-26`: lint baseline refresh rerun completed:
   - lint profile:
     `mvn -B -ntp -Plint verify -DskipTests`
