@@ -9,19 +9,515 @@
 
 ## Current Focus
 
-- No open backlog items.
-- Primary pending operational task is Maven Central release completion.
-- Release pipeline and docs are in place; remaining issue is signer-key discovery/propagation on Central keyservers.
+- Starter example add-employee salary validation bug is fixed:
+  - root cause was browser constraint validation, not backend validation:
+    the salary input used `min="1"` plus `step="1000"`, which only allows
+    `1`, `1001`, `2001`, ...
+    and wrongly rejected values like `10000`.
+  - the salary input now uses `step="1"` so any positive integer salary works.
+  - the Playwright happy-path add-employee test now uses the real submit button
+    instead of a synthetic submit event, so browser validation regressions are
+    covered.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- Starter example frontend layout has been reorganized into clearer workflow
+  zones:
+  - `Configure` groups selector controls, selector help, and overview cards.
+  - `Review` groups both charts with the focused stats table in one insight
+    section.
+  - `Work With Data` groups the employee list, direct top-paid query, and
+    add-employee flow.
+  - frontend now computes overview cards for active stats view, active chart
+    type, employee count, department count, total payroll, and average salary.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- Starter example dashboard controls are now user-facing instead of
+  implementation-centric:
+  - dashboard selectors are now `statsView` and `chartType`, not
+    `statsMode/chartMode`.
+  - `statsView` drives the stats-table focus across:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    and `TEAM_SUMMARY`.
+  - `chartType` drives presentation across:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    and `AREA`,
+    while still reusing PojoLens preset/report definitions underneath.
+  - immutable `ChartSpec.withType(...)` was added so chart presets/reports can
+    switch chart presentation without rewriting the query shape.
+  - `DashboardPlaywrightE2eTest` now validates the full
+    `statsView x chartType` matrix, asserts the rendered Chart.js config type,
+    and checks `AREA` selections keep `fill=true`.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
+- Example frontend/runtime-asset hardening is now implemented:
+  - reproduced the user-visible chart failure in-browser and confirmed the root
+    cause was the new built-in Chart.js dataset payload serializing nullable
+    optional fields (notably `yAxisID`), which broke Chart.js with
+    `TypeError: Cannot read properties of undefined (reading 'axis')`.
+  - fixed the library adapter by making `ChartJsDataset` omit null fields at
+    JSON serialization time; added serialization coverage in
+    `ChartJsAdapterBridgeTest`.
+  - hardened the example frontend so it no longer depends on runtime CDNs for
+    core assets:
+    Bootstrap and Chart.js now load from local `/webjars/...` resources.
+  - added a visible `#clientErrorPanel` in the example page and wired uncaught
+    frontend/render errors into it so Playwright can assert actual FE health.
+  - `DashboardPlaywrightE2eTest` now checks both:
+    the client-error panel stays empty and chart instances are created.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=ChartJsAdapterBridgeTest,ReportDefinitionTest,ChartQueryPresetsTest,StatsViewPresetsTest" test`
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
+- The `Pre-Adoption Simplification` roadmap in `TODO.md` is complete:
+  `WP7.1`-`WP7.5` are all `Done`.
+  - `PojoLens` is now a helper-only facade:
+    query/chart entry aliases were removed; runtime/cursor/bundle/report/snapshot
+    helpers remain.
+  - public static/global cache-policy methods were removed from `PojoLens`,
+    `PojoLensSql`, and `PojoLensCore`.
+  - `PojoLensRuntime` is now the only public cache-tuning surface, and
+    `runtime.parse(...)` shares the runtime-owned stats-plan cache with
+    `runtime.newQueryBuilder(...)`.
+  - docs/tests/benchmarks were aligned and validations passed:
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+  - next work is optional, not queued in the roadmap:
+    release prep, release-note cleanup, or any further surface tightening review.
+- Library-level dashboard simplification follow-up is now implemented:
+  - built-in Chart.js interop is public in `pojo-lens`:
+    `ChartJsAdapter`, `ChartJsPayload`, `ChartJsData`, `ChartJsDataset`.
+  - higher-level table/dashboard helpers now exist:
+    `StatsTablePayload`,
+    `StatsTable.rowsAsMaps()/payload()`,
+    `StatsViewPreset.tablePayload(...)`,
+    and `TabularRows`.
+  - common preset factories now have projection-free `QueryRow` overloads:
+    `StatsViewPresets.summary/by/topNBy(...)` and
+    `ChartQueryPresets.categoryTotals/categoryCounts/timeSeriesTotals/timeSeriesCounts/groupedBreakdown(...)`.
+  - chart/report wrappers now expose frontend-ready output:
+    `ChartQueryPreset.chartJs(...)`,
+    `ReportDefinition.chartJs(...)`,
+    plus immutable chart-spec customization via
+    `mapChartSpec(...)`.
+  - `QueryRow` support was fixed in SQL-like validation/materialization so
+    grouped fast-stats execution works with the new projection-free helpers.
+  - focused validations passed:
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,ChartQueryPresetsTest,ChartJsAdapterBridgeTest,ReportDefinitionTest" test`
+    `scripts/check-doc-consistency.ps1`
+  - full repository regression also now passes after those changes:
+    `mvn -q test`
+- Spring Boot starter basic example now demonstrates preset-heavy workflows:
+  - added selector-discovery endpoint:
+    `GET /api/employees/dashboard-options`.
+  - dashboard endpoint now accepts user-facing selectors:
+    `GET /api/employees/dashboard?statsView=...&chartType=...`.
+  - stats views now cover:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    `TEAM_SUMMARY`.
+  - chart types now cover:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    `AREA`.
+  - frontend dashboard now includes stats-view and chart-type selectors plus
+    dynamic stats table rendering (columns/totals/source text) driven by the
+    selected view.
+  - validations passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
+    `scripts/check-doc-consistency.ps1`
+- Spring Boot starter basic example has now been refactored into a cleaner
+  reference implementation:
+  - split backend responsibilities into:
+    `EmployeeQueryController`,
+    `EmployeeDashboardService`,
+    `EmployeeStore`,
+    and `EmployeeExampleTypes`.
+  - moved frontend behavior/styles out of inline HTML into:
+    `examples/spring-boot-starter-basic/src/main/resources/static/app.js`
+    and
+    `examples/spring-boot-starter-basic/src/main/resources/static/app.css`.
+  - example now uses the new library helpers directly instead of an
+    example-local chart adapter:
+    preset/report chart flows call `chartJs(...)`,
+    stats preset flows call `tablePayload(...)`,
+    and selector labels/help now point readers at the new simplified APIs.
+  - `dashboard-options` now returns default selector values plus selector metadata
+    (`label`, `summary`, `docPath`), and the UI renders those details so users
+    can see which PojoLens doc to read next for each view/type.
+  - README and code comments now point readers to:
+    `/docs/entry-points.md`,
+    `/docs/stats-presets.md`,
+    `/docs/charts.md`,
+    and `/docs/reports.md`.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
+- Java Playwright E2E coverage now exists for the example app:
+  - test class:
+    `examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java`.
+  - coverage includes:
+    runtime/employees/departments/top-paid/dashboard-options/dashboard selector
+    matrix endpoints, `POST /api/employees`, and dashboard UI view/type/table/form flows.
+  - implementation is Java-based Playwright (`com.microsoft.playwright:playwright`),
+    not Node Playwright.
+  - run command:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`.
+  - validation passed with the command above.
+- Java Playwright coverage has been expanded to all example FE flows:
+  - current suite count: `6` passing tests.
+  - includes full UI `statsView x chartType` matrix apply checks, runtime badge
+    rendering checks, valid add-employee UI submit path checks, and invalid
+    add-employee UI error feedback checks.
+  - matrix assertions now wait for dashboard refresh responses to avoid
+    async update races.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`.
+- Spring Boot starter basic example app now includes an interactive frontend:
+  - added static dashboard page at `examples/spring-boot-starter-basic/src/main/resources/static/index.html`
+    using Bootstrap + Chart.js.
+  - controller now supports mutable in-memory employee flows with:
+    `GET /api/employees`,
+    `POST /api/employees`,
+    `GET /api/employees/departments`,
+    `GET /api/employees/dashboard`,
+    plus existing `top-paid`/`runtime`.
+  - dashboard chart payloads are generated via PojoLens chart mapping and
+    returned in Chart.js-ready payload shape for direct frontend consumption.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
+- Lint baseline reset is now completed:
+  - validations passed:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline/report parity now matches at `11858` entries (`new=0`, `fixed=0`).
+- Lint baseline refresh rerun is now completed:
+  - validations passed:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline/report parity now matches at `11861` entries (`new=0`, `fixed=0`).
+- Public/fluent/query/chart test package migration is now delivered:
+  - moved root test suites into dedicated packages:
+    `laughing.man.commits.publicapi`, `laughing.man.commits.fluent`,
+    `laughing.man.commits.query`, and aligned root chart suites under
+    `laughing.man.commits.chart`.
+  - migrated public coverage/contract suites, fluent aggregation/window/chart suites,
+    query regression/telemetry/nested-path suites, and chart preset/mapper suites
+    (including moving `ChartResultMapperFixtures` with chart tests).
+  - added test package docs:
+    `pojo-lens/src/test/java/laughing/man/commits/publicapi/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/query/package-info.java`,
+    `pojo-lens/src/test/java/laughing/man/commits/chart/package-info.java`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApi*Test,PublicSurfaceContractTest,StablePublicApiContractTest,Fluent*Test,Aggregation*Test,NestedPathQueryTest,Query*Test,Chart*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline/report parity remains `11859` (`new=0`, `fixed=0`).
+- SQL-like test package migration is now delivered:
+  - moved all `SqlLike*Test` suites from `laughing.man.commits` into
+    `laughing.man.commits.sqllike`.
+  - updated SQL-like test package declarations/imports and added
+    `pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java`.
+  - kept `SqlLikeJoinTest` join fixture classes local to that suite to avoid
+    cross-package access coupling with root-package fixture models.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am test-compile`
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLike*Test" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline now matches report at `11859` entries (`new=0`, `fixed=0`).
+- SQL window analytics spike 1 (Window Functions MVP) is now completed:
+  - parser/AST now supports `ROW_NUMBER()`, `RANK()`, and `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`.
+  - window computation now executes after `WHERE` and before query-level `ORDER BY`/pagination/projection.
+  - query-level `ORDER BY` can reference window aliases for window-enabled query shapes.
+  - determinism guardrails were added:
+    missing window `ORDER BY` fails validation, and non-unique window sort ties are resolved with stable source-row order.
+  - docs + tests updated (`SqlLikeWindowFunctionTest`, parser/docs examples, `docs/sql-like.md`, `TODO.md` spike item checked).
+- SQL window analytics spike 2 (`QUALIFY`) is now completed:
+  - parser/AST now supports `QUALIFY` predicates and enforces clause order around window execution.
+  - validator now restricts `QUALIFY` to non-aggregate query shapes with at least one window select output and rejects unknown/subquery references.
+  - `QUALIFY` supports window aliases and direct matching window expressions.
+  - execution now applies `QUALIFY` after window computation and before query-level `ORDER BY`/pagination.
+  - explain now includes `qualifyRuleCount` and `stageRowCounts.qualify`.
+  - docs + tests updated (`SqlLikeWindowFunctionTest`, `SqlLikeParserTest`, `ExplainToolingTest`, `SqlLikeDocsExamplesTest`, `docs/sql-like.md`, `TODO.md` spike item checked).
+- SQL window analytics spike 3 (aggregate windows) is now completed:
+  - parser/AST now supports `SUM/AVG/MIN/MAX/COUNT(...) OVER (...)` including aggregate-window argument metadata (`COUNT(*)` vs value field).
+  - parser guardrails now enforce aggregate frame syntax:
+    `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`; unsupported frame expressions fail fast.
+  - fluent runtime now computes running aggregate windows (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) with null/type behavior aligned to existing aggregate semantics.
+  - SQL-like binder/validation/join-canonicalization now compile aggregate windows to fluent `addWindow(...)` value-argument APIs.
+  - SQL-like alias projection now applies typed value casting before aliased select field assignment to preserve numeric compatibility in projections.
+  - docs/tests updated and `TODO.md` spike-3 checkboxes are marked complete.
+- SQL window analytics spike 4 (API/docs hardening) is now completed:
+  - docs now include aggregate-window syntax/limitations plus recipes for top-N per group, dense rank, and running total.
+  - public API/docs regression coverage now includes aggregate-window parse/filter/explain usage.
+  - benchmark coverage now includes windowed vs non-windowed SQL-like comparisons with notes in `docs/benchmarking.md`.
+  - `TODO.md` spike-4 checkboxes are now marked complete.
+  - focused regression rerun: `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,PublicApiCoverageTest" test`.
+- Predefined stats views spike 5 (easy usage presets) is now completed:
+  - added `StatsViewPresets` standard table view APIs: `summary()`, `by(field)`, `topNBy(field, metric, n)`.
+  - added `StatsViewPreset<T>` execution wrapper (list/map/join-bundle overloads) and `StatsTable<T>` payload (`rows`, optional `totals`, `schema`).
+  - preset execution now compiles to existing SQL-like query runtime (no separate execution engine).
+  - docs/examples added in `README.md`, `docs/stats-presets.md`, `docs/usecases.md`, and `docs/reports.md`.
+  - coverage added/updated: `StatsViewPresetsTest`, `StatsDocsExamplesTest`, `PublicApiCoverageTest`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+- Test-structure cleanup pass is now delivered:
+  - added shared fixture helper `testutil/StatsExampleFixtures` for repeated stats/docs/chart preset test rows and UTC date generation.
+  - migrated `StatsDocsExamplesTest`, `ChartQueryPresetsTest`, and `StatsViewPresetsTest` to shared fixtures to reduce duplicate local fixture classes.
+  - added explicit test layering and fixture reuse strategy notes in `CONTRIBUTING.md`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+- Expanded test-structure dedup pass is now delivered:
+  - added `testutil/TestDateFixtures` for shared UTC date construction.
+  - added `testutil/ChartTestFixtures` for shared chart projection rows/sample builders.
+  - added `testutil/TimeBucketTestFixtures` for shared time-bucket rows/sample builders.
+  - migrated more suites to shared fixtures:
+    `FluentChartIntegrationTest`, `SqlLikeChartIntegrationTest`,
+    `TimeBucketAggregationTest`, `util/TimeBucketUtilTest`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+- Public API coverage suite split is now delivered:
+  - added shared base fixture `AbstractPublicApiCoverageTest` for SQL-like cache defaults.
+  - moved shared public API projection models to `testutil/PublicApiModels`.
+  - replaced monolithic `PublicApiCoverageTest` with focused suites:
+    `PublicApiCacheCoverageTest`, `PublicApiSqlCoverageTest`,
+    `PublicApiFluentCoverageTest`, `PublicApiEcosystemCoverageTest`.
+  - restored fluent streaming API public-surface assertion in fluent suite.
+  - removed legacy `PublicApiCoverageTest`.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Window/parity fixture dedup pass is now delivered:
+  - added shared fixture helper `testutil/WindowTestFixtures` for repeated window test models and sample aggregate-window rows.
+  - migrated `FluentWindowFunctionTest`, `SqlLikeWindowFunctionTest`, and `SqlLikeMappingParityTest` to shared fixtures and removed duplicated nested classes.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Common stats projection dedup pass is now delivered:
+  - added shared fixture helper `testutil/CommonStatsProjections` with reusable `DepartmentCount`, `DepartmentCountAlias`, and `DepartmentCountRow`.
+  - migrated repeated nested projection models from cache/sql-like/report/telemetry/bundle suites:
+    `CacheConcurrencyTest`, `CachePolicyConfigTest`,
+    `SqlLikeParametersContractTest`, `SqlLikeStrictParameterTypeModeTest`,
+    `SqlLikeTypedBindContractTest`, `SqlLikeQueryContractTest`,
+    `ExplainToolingTest`,
+    `ReportDefinitionTest`, `QueryRegressionFixtureTest`,
+    `QueryTelemetryTest`, `DatasetBundleExecutionContextTest`.
+  - updated fixture guidance in `CONTRIBUTING.md` to explicitly prefer shared projection POJO fixtures.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=CacheConcurrencyTest,CachePolicyConfigTest,SqlLikeParametersContractTest,SqlLikeStrictParameterTypeModeTest,SqlLikeTypedBindContractTest,ExplainToolingTest,QueryRegressionFixtureTest,QueryTelemetryTest,ReportDefinitionTest,DatasetBundleExecutionContextTest,FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Expanded fixture dedup pass is now delivered:
+  - added shared test fixture helpers:
+    `testutil/SqlLikeProjectionFixtures` (`ComputedBoostProjection`, `ComputedScalarProjection`),
+    `ChartTestFixtures.EmployeeEvent`,
+    and `WindowTestFixtures.DepartmentAgg`.
+  - migrated remaining duplicate nested fixture models:
+    `SqlLikeJoinTest` (`ParentBean`, `ChildBean` -> `PojoLensBehaviorFixtures`),
+    `ChartJsAdapterBridgeTest` + `ChartLibraryInteropTest` (`EmployeeEvent`),
+    `FluentWindowFunctionTest` + `SqlLikeMappingParityTest` (`DepartmentAgg`),
+    `SqlLikeQueryContractTest` + `SqlLikeValidationTest` (computed projection fixtures),
+    plus stats preset/docs suites to shared `ChartTestFixtures.DepartmentPayrollRow`.
+  - removed duplicate `StatsExampleFixtures.DepartmentPayrollRow`.
+  - duplicate nested test fixture class-name scan now reports zero duplicates.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=ChartQueryPresetsTest,FluentWindowFunctionTest,SqlLikeErrorCodesContractTest,SqlLikeJoinTest,SqlLikeMappingParityTest,SqlLikeQueryContractTest,SqlLikeValidationTest,StatsDocsExamplesTest,StatsViewPresetsTest,ChartJsAdapterBridgeTest,ChartLibraryInteropTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Chart test-organization extraction is now delivered:
+  - expanded `testutil/ChartTestFixtures` with reusable interop dataset builders and row models:
+    `interopEmployeeEvents`, `interopMonthlyDepartmentPayroll`,
+    `interopMonthlyDepartmentPayrollWithGaps`, `interopScatterSignals`,
+    and shared `DepartmentPeriodPayrollRow` / `ScatterSignalRow` constructors.
+  - simplified `chart/ChartLibraryInteropTest` by removing inline synthetic data/model generation and consuming shared fixtures.
+  - simplified `chart/ChartJsAdapterBridgeTest` by reusing shared `DepartmentPeriodPayrollRow` fixtures for percent-stacked and metadata payload tests.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=ChartLibraryInteropTest,ChartJsAdapterBridgeTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,ChartQueryPresetsTest,StatsDocsExamplesTest,StatsViewPresetsTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Selective-materialization test organization is now delivered:
+  - extracted local fixture scaffolding from
+    `builder/FilterQueryBuilderSelectiveMaterializationTest`
+    into shared `testutil/SelectiveMaterializationFixtures`
+    (sample builders, field-name helper, and source/projection test models).
+  - kept behavior assertions in place while reducing in-class data/model boilerplate.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=FilterQueryBuilderSelectiveMaterializationTest,FilterCoreTest,FastPojoFilterSupportTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- SQL-like docs projection extraction is now delivered:
+  - moved local projection models out of `SqlLikeDocsExamplesTest` into shared
+    `testutil/SqlLikeDocsProjections`.
+  - simplified `SqlLikeDocsExamplesTest` by removing nested projection class declarations
+    and reusing shared fixture types.
+  - validations passed:
+    `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeDocsExamplesTest,SqlLikeWindowFunctionTest,SqlLikeErrorCodesContractTest" test`
+    `mvn -q test`
+    `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+- Fluent parity for window analytics is now implemented:
+  - `QueryBuilder` now exposes rank-window API (`addWindow(alias, function, partitionFields, orderFields)`) and fluent `QUALIFY` APIs (`addQualify(...)`, `addQualifyAllOf(...)`, `addQualifyAnyOf(...)`).
+  - fluent execution now applies window stage then qualify stage in non-aggregate flows, matching SQL-like behavior.
+  - fluent guardrails now reject aggregate window shapes and invalid qualify references.
+  - fast execution paths now opt out when fluent windows/qualify are configured.
+  - parity/contract coverage added (`FluentWindowFunctionTest`, `SqlLikeMappingParityTest`, `PublicApiCoverageTest`, `StablePublicApiContractTest` updates).
+- SQL-like now compiles window/qualify through fluent runtime path:
+  - `SqlLikeBinder` now translates SQL window definitions into fluent `addWindow(...)` entries.
+  - `SqlLikeBinder` now translates `QUALIFY` predicates/boolean expressions into fluent qualify rules/groups (`addQualify(...)`, `addQualifyAllOf(...)`).
+  - SQL-like raw-row execution now delegates to fluent filter execution (`FilterImpl`) instead of a separate SQL-like window/qualify branch.
+  - SQL-like explain stage-row-count path now also applies qualify/window through fluent execution (staged fluent builder), so stage counts no longer rely on SQL-like-specific window/qualify runtime helpers.
+  - `ReflectionUtil.toClassList(QueryRow.class, ...)` now returns row passthrough to support internal fluent raw-row delegation.
+  - removed dead SQL-like helper classes `SqlLikeWindowSupport` and `SqlLikeQualifySupport`.
+- Spike 1 (pagination) is completed:
+  - `OFFSET` is implemented in fluent + SQL-like flows.
+  - SQL-like named parameters are supported for `LIMIT/OFFSET` with integer/non-negative validation.
+  - first-class SQL-like keyset cursor primitives are implemented (`SqlLikeCursor`, `keysetAfter`, `keysetBefore`) with token encode/decode support.
+  - keyset cursor contract docs now include field matching rules and non-null value requirements.
+  - large/tie-heavy keyset behavior is validated in dedicated tests.
+- Spike 2 (streaming execution output) is completed:
+  - fluent `Filter` now exposes `iterator(...)` and `stream(...)`.
+  - SQL-like query/bind flows now expose `stream/iterator`.
+  - simple query shapes stream lazily without full result materialization.
+  - complex query shapes intentionally fall back to list-backed streams for deterministic behavior.
+  - benchmark notes were added via `StreamingExecutionJmhBenchmark` and `docs/benchmarking.md`.
+- Spike 3 (optional in-memory indexes) is completed:
+  - fluent index API added: `QueryBuilder.addIndex(String)` and typed selector overload.
+  - indexed candidate narrowing implemented for compatible simple POJO equality filters.
+  - safe fallback to scan preserved for inapplicable shapes/fields.
+  - benchmark parity and behavior tests added.
+  - benchmark notes recorded for warm/cold tradeoffs.
+- Stable API surface spike 4 baseline is now implemented:
+  - `docs/public-api-stability.md` defines stable/advanced/internal tiers for `1.x`.
+  - `README.md` and `docs/modules.md` link and summarize the stability contract.
+  - `StablePublicApiContractTest` enforces stable entry-point availability and baseline fluent/SQL-like/runtime behavior.
+  - `TODO.md` marks stable-API hardening item complete.
+- Binary compatibility spike 5 baseline is now implemented:
+  - `pom.xml` includes `binary-compat` profile with `japicmp` fail-on binary/source incompatible changes, activated by `compat.baseline.version`.
+  - `.github/workflows/ci.yml` now has a `binary-compat` job that resolves latest `v*` tag baseline, installs baseline artifact from detached worktree, and runs compatibility verify.
+  - `CONTRIBUTING.md` includes local binary-compat run instructions.
+  - `TODO.md` marks binary-compat hardening item complete.
+- Artifact/module boundary spike 6 is now implemented:
+  - root `pom.xml` is now parent build `pojo-lens-parent` with `pojo-lens` + `pojo-lens-benchmarks` modules.
+  - runtime module (`pojo-lens`) now owns runtime source/tests/resources under `pojo-lens/src/...` (module-local source layout).
+  - benchmark module (`pojo-lens-benchmarks`) now owns benchmark source/tests/resources under `pojo-lens-benchmarks/src/...`, plus benchmark/JMH runner shading.
+  - runtime jar scope is clean (`jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` returns empty).
+  - CI now has `runtime-artifact-scope` job that fails if benchmark classes leak into runtime jar.
+  - `TODO.md` artifact-slimming item is marked complete.
+- Spring Boot support baseline is now implemented:
+  - added modules `pojo-lens-spring-boot-autoconfigure` and `pojo-lens-spring-boot-starter`.
+  - root parent imports Spring Boot BOM version `4.0.4`.
+  - autoconfigure module now provides `PojoLensRuntime` bean wiring via `pojo-lens.*` properties (`preset`, strict/lint flags, cache overrides).
+  - optional micrometer bridge auto-registers a `QueryTelemetryListener` when `MeterRegistry` is present and `pojo-lens.telemetry.micrometer.enabled=true` (default).
+  - starter module now exposes a single Boot dependency entry-point for PojoLens and includes `micrometer-core` for stable Boot 4 auto-config introspection.
+  - standalone runnable starter demo app now exists at `examples/spring-boot-starter-basic` with `/api/employees/top-paid` and `/api/employees/runtime` endpoints.
+  - starter module now has an integration smoke test (`PojoLensStarterSmokeIntegrationTest`) that boots a web context and exercises a real endpoint using injected `PojoLensRuntime`.
+  - release distribution decision is now to publish three Central artifacts: `pojo-lens`, `pojo-lens-spring-boot-autoconfigure`, and `pojo-lens-spring-boot-starter` (benchmarks/examples remain non-published).
+  - behavior is covered by `PojoLensSpringBootAutoConfigurationTest` (defaults, overrides, backoff, micrometer toggle).
+- SQL-like maintainability refactor slice 1 is implemented:
+  - extracted prepared-execution internals (`prepareExecution`, shape key cache modeling, prepared execution/run context plumbing) from `SqlLikeQuery` into new package-private helper `SqlLikePreparedExecutionSupport`.
+  - `SqlLikeQuery` is now smaller (`1002` lines, down from `1254`) with unchanged public API surface.
+  - validated with focused SQL-like suites + full `mvn -q test` + docs consistency.
+- SQL-like maintainability refactor slices 2/3 are now implemented:
+  - extracted execution-flow internals from `SqlLikeQuery` into new package-private helper `SqlLikeExecutionFlowSupport` (`executeFilter`, `executeStream`, `executeChart`, raw-row pipeline, stage-row-count explain path, telemetry stage emitters).
+  - extracted parser tokenization internals from `SqlLikeParser` into new package-private helper `SqlLikeTokenizationSupport` (tokenizer, token/position model).
+  - class size reductions now at: `SqlLikeQuery` `1254 -> 748`, `SqlLikeParser` `1292 -> 1070`.
+  - validated with focused SQL-like suites, full `mvn -q test`, and docs consistency.
+- Lint baseline refresh is completed:
+  - ran lint profile: `mvn -B -ntp -Plint verify -DskipTests`
+  - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - post-refresh gate check passes with `11839` report/baseline entries and `new=0`, `fixed=0`.
+- Maven Central release completion remains pending operational work.
+- With full regression now green on `2026-03-26`, the next practical step is
+  release retry / release verification rather than more implementation work.
+- Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
+- Incremental test deduplication can continue using `testutil/StatsExampleFixtures` as the shared-fixture baseline pattern.
+- Continue migrating remaining duplicated nested projection/date helpers onto shared `testutil/*Fixtures` patterns.
 
 ## Next Validation
 
 - After any code change: run focused tests, then `mvn -q test`.
+- Window-function focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- `QUALIFY`/explain-focused suite (recommended during window-spike follow-up):
+  `mvn -q -pl pojo-lens -am "-Dtest=SqlLikeWindowFunctionTest,SqlLikeParserTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- Fluent window/qualify parity suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,ExplainToolingTest,SqlLikeDocsExamplesTest,SqlLikeErrorCodesContractTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest,StablePublicApiContractTest,PublicSurfaceContractTest" test`.
+- Aggregate-window focused suite (recommended during follow-up):
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeParserTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest,StablePublicApiContractTest" test`.
+- Stats-preset focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,StatsDocsExamplesTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- Fixture-migration focused suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- Expanded fixture-migration suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=StatsDocsExamplesTest,ChartQueryPresetsTest,StatsViewPresetsTest,FluentChartIntegrationTest,SqlLikeChartIntegrationTest,TimeBucketAggregationTest,TimeBucketUtilTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
+- Window-fixture migration suite:
+  `mvn -q -pl pojo-lens -am "-Dtest=FluentWindowFunctionTest,SqlLikeWindowFunctionTest,SqlLikeMappingParityTest,PublicApiCacheCoverageTest,PublicApiSqlCoverageTest,PublicApiFluentCoverageTest,PublicApiEcosystemCoverageTest" test`.
 - For docs/process edits: run `scripts/check-doc-consistency.ps1`.
-- For release-path changes: run `mvn -B -ntp -Prelease-central -DskipTests package`.
+- For release-path changes: run `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`.
+- For packaging-boundary edits: verify runtime jar no longer ships benchmark classes (for example, `jar tf target/pojo-lens-1.0.0.jar | Select-String 'laughing/man/commits/benchmark/'` should be empty).
+- For stable API contract edits: include `StablePublicApiContractTest` in focused suites.
+- For binary-compat edits: validate against a baseline tag with `mvn -q -Pbinary-compat -DskipTests -Dcompat.baseline.version=<X.Y.Z> verify`.
+- Lint note: baseline currently matches lint report (`11858` entries, `new=0`, `fixed=0`); refresh intentionally when repo-wide checkstyle set changes.
 
 ## Release Retry Checklist
 
 - Confirm GitHub secrets exist: `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
 - Ensure release tag matches `pom.xml` version (`vX.Y.Z` vs `project.version`).
+- Release workflow now resolves root version and publishes module set `pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter` via reactor `deploy` with `-Prelease-central`.
 - Trigger `.github/workflows/release.yml` via tag push or `workflow_dispatch`.
 - If signature lookup still fails, wait and retry after keyserver propagation.
+
+## Index Benchmark Notes
+
+- Warm run command:
+  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json`
+- Cold run command:
+  `java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json`
+- Current conclusion:
+  index hints improved warmed latency for this selective equality workload, but increased allocation and can regress cold one-shot runs.

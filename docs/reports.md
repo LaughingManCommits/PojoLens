@@ -3,18 +3,24 @@
 `ReportDefinition<T>` captures a reusable query + projection contract for repeated execution against different in-memory dataset snapshots.
 
 It also exposes deterministic table metadata through `schema()`.
+It is the general reusable wrapper in PojoLens.
+`ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and table-first wrappers that can bridge back to it.
+
+Wrapper selection guide:
+- [docs/reusable-wrappers.md](reusable-wrappers.md)
 
 Use it when the same report/query shape is executed across:
 
 - multiple requests
 - scheduled jobs over refreshed snapshots
 - endpoints that need both rows and chart payloads
+- flows that may start simple now but later need more than one consumer
 
 ## SQL-like Report Definition
 
 ```java
 ReportDefinition<DepartmentCount> report = PojoLens.report(
-    PojoLens.parse("select department, count(*) as total group by department order by department asc"),
+    PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
     DepartmentCount.class,
     ChartSpec.of(ChartType.BAR, "department", "total"));
 
@@ -65,7 +71,7 @@ ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
     .build();
 
 ReportDefinition<DepartmentAdjustedPayroll> report = PojoLens.report(
-    PojoLens.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
+    PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
         .computedFields(registry),
     DepartmentAdjustedPayroll.class);
 ```
@@ -80,7 +86,7 @@ You can attach one later:
 
 ```java
 ReportDefinition<DepartmentCount> rowsOnly = PojoLens.report(
-    PojoLens.parse("select department, count(*) as total group by department"),
+    PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
 ReportDefinition<DepartmentCount> chartReady = rowsOnly.withChartSpec(
@@ -90,11 +96,37 @@ ReportDefinition<DepartmentCount> chartReady = rowsOnly.withChartSpec(
 ## Relation To ChartQueryPreset
 
 `ChartQueryPreset<T>` remains the lightweight preset API for chart-first SQL-like flows.
+Choose it when the preset factory already matches the chart workflow you want.
 
 If you want the more general report abstraction, convert it:
 
 ```java
 ReportDefinition<DepartmentCount> report = preset.reportDefinition();
 TabularSchema schema = preset.schema();
+```
+
+## Relation To StatsViewPreset
+
+`StatsViewPreset<T>` is the table-first preset API for common summary/grouped/leaderboard query shapes.
+Choose it when totals and `StatsTable<T>` are part of the contract.
+
+It adds optional totals and schema metadata through `StatsTable<T>`:
+
+```java
+StatsTable<DepartmentCount> table = StatsViewPresets
+    .by("department", DepartmentCount.class)
+    .table(source);
+
+List<DepartmentCount> rows = table.rows();
+Map<String, Object> totals = table.totals();
+TabularSchema schema = table.schema();
+```
+
+Converting a stats preset to `ReportDefinition<T>` keeps the row query, but not the totals payload:
+
+```java
+ReportDefinition<DepartmentCount> report = StatsViewPresets
+    .by("department", DepartmentCount.class)
+    .reportDefinition();
 ```
 

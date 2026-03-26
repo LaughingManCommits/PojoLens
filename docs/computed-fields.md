@@ -47,7 +47,7 @@ The same registry also works with:
 Attach the registry to the builder before using computed-field names:
 
 ```java
-List<DepartmentAdjustedPayroll> rows = PojoLens.newQueryBuilder(source)
+List<DepartmentAdjustedPayroll> rows = PojoLensCore.newQueryBuilder(source)
     .computedFields(registry)
     .addGroup("department")
     .addMetric("adjustedSalary", Metric.SUM, "totalAdjustedPayroll")

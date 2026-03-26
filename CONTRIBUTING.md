@@ -8,6 +8,22 @@ Run from repository root:
 mvn -B -ntp test
 ```
 
+## Test Strategy
+
+Tests are organized by intent, not just by API:
+
+- contract/surface guards: `StablePublicApiContractTest`, `PublicSurfaceContractTest`, `PublicApiCacheCoverageTest`, `PublicApiSqlCoverageTest`, `PublicApiFluentCoverageTest`, `PublicApiEcosystemCoverageTest`
+- behavior/execution tests: fluent + SQL-like engine behavior, explain, parity, and runtime policy classes
+- docs recipe tests: examples that mirror README/docs snippets (`*DocsExamplesTest`)
+- utility-level tests: `util/*Test`, `filter/*Test`, and other focused units
+
+Fixture guidance:
+
+- prefer shared reusable fixtures under `pojo-lens/src/test/java/laughing/man/commits/testutil`
+- keep per-test custom fixtures only when they are truly scenario-specific
+- centralize repeated date/sample-row builders in fixture helpers instead of duplicating them in each test class
+- centralize reused projection POJOs (for example, common stats/window rows) in shared fixture classes instead of redefining nested classes per test
+
 ## Lint Gate
 
 Generate lint report:
@@ -34,6 +50,19 @@ SpotBugs report (non-blocking rollout stage):
 
 ```bash
 mvn -B -ntp -Pstatic-analysis verify -DskipTests
+```
+
+## Binary Compatibility Gate
+
+Run `japicmp` against the latest release tag baseline:
+
+```bash
+BASELINE_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+BASELINE_DIR="../pojolens-baseline"
+git worktree add --detach "$BASELINE_DIR" "$BASELINE_TAG"
+(cd "$BASELINE_DIR" && mvn -B -ntp -DskipTests install)
+git worktree remove "$BASELINE_DIR" --force
+mvn -B -ntp -Pbinary-compat -DskipTests -Dcompat.baseline.version="${BASELINE_TAG#v}" verify
 ```
 
 ## Benchmark Guardrails
@@ -109,5 +138,5 @@ Helper script to export GPG files and a GitHub secrets template:
 The release workflow runs tests and publishes with:
 
 ```bash
-mvn -B -ntp -Prelease-central -DskipTests deploy
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
 ```

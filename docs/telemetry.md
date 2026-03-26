@@ -2,6 +2,10 @@
 
 `PojoLens` can emit low-overhead telemetry events for key query stages without introducing a logging dependency.
 
+Telemetry is an optional advanced diagnostics surface.
+Start with the core query guides first, then add telemetry when you need
+operational visibility.
+
 Supported stages:
 
 - `PARSE`
@@ -28,12 +32,19 @@ List<DepartmentCount> rows = runtime
 
 Runtime-level hooks are the cleanest way to capture SQL-like `PARSE` events because parsing happens before a `SqlLikeQuery` instance is returned.
 
+You can inspect or clear the current runtime listener:
+
+```java
+QueryTelemetryListener current = runtime.getTelemetryListener();
+runtime.setTelemetryListener(null); // disables telemetry callbacks
+```
+
 ## Fluent Hook
 
 Attach a listener directly to a fluent builder:
 
 ```java
-List<DepartmentCount> rows = PojoLens.newQueryBuilder(snapshot)
+List<DepartmentCount> rows = PojoLensCore.newQueryBuilder(snapshot)
     .telemetry(listener)
     .addRule("active", true, Clauses.EQUAL)
     .addGroup("department")
@@ -47,7 +58,7 @@ List<DepartmentCount> rows = PojoLens.newQueryBuilder(snapshot)
 Attach a listener directly to a SQL-like query when you want bind/execution telemetry:
 
 ```java
-SqlLikeQuery query = PojoLens
+SqlLikeQuery query = PojoLensSql
     .parse("where salary >= 100000 order by salary desc")
     .telemetry(listener);
 

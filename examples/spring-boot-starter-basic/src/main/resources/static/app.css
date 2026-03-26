@@ -1,0 +1,178 @@
+:root {
+    --dash-bg: linear-gradient(135deg, #e6f2ff 0%, #fff7e8 55%, #f1ffe8 100%);
+    --dash-card: rgba(255, 255, 255, 0.9);
+    --dash-border: rgba(12, 53, 106, 0.12);
+    --dash-ink: #0c356a;
+    --dash-shadow: 0 10px 28px rgba(27, 61, 120, 0.08);
+    --dash-muted: #526070;
+}
+
+body {
+    font-family: "Aptos", "Trebuchet MS", "Segoe UI", sans-serif;
+    background: var(--dash-bg);
+    color: #1f2d3d;
+    min-height: 100vh;
+}
+
+.dash-title {
+    color: var(--dash-ink);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.hero-shell,
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.hero-copy {
+    color: var(--dash-muted);
+    font-size: 1rem;
+    max-width: 52rem;
+}
+
+.section-label {
+    color: var(--dash-ink);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.glass-card {
+    background: var(--dash-card);
+    border: 1px solid var(--dash-border);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--dash-shadow);
+}
+
+.overview-grid {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.overview-card,
+.repo-link-grid .doc-card,
+.mode-help {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(12, 53, 106, 0.1);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.overview-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 9rem;
+}
+
+.overview-label,
+.doc-label {
+    color: var(--dash-ink);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.overview-value {
+    color: #173b63;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.overview-caption,
+.mode-help .mode-summary {
+    color: var(--dash-muted);
+    font-size: 0.92rem;
+}
+
+.metric-pill {
+    border-radius: 999px;
+    font-size: 0.86rem;
+    padding: 0.35rem 0.8rem;
+}
+
+.chart-wrap {
+    height: 320px;
+}
+
+.chart-wrap-compact {
+    height: 280px;
+}
+
+.stack-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+.doc-card {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.mode-help {
+    min-height: 9.5rem;
+}
+
+.mode-help .mode-label {
+    color: var(--dash-ink);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.mode-help .mode-doc {
+    font-size: 0.82rem;
+}
+
+.source-chip,
+.doc-card code,
+#clientErrorText {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.source-chip {
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.table-empty {
+    color: #6c757d;
+    font-style: italic;
+}
+
+#clientErrorText {
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 1199.98px) {
+    .overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 991.98px) {
+    .chart-wrap,
+    .chart-wrap-compact {
+        height: 300px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-copy {
+        max-width: none;
+    }
+}

@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PojoLens Starter Dashboard</title>
+    <link href="/webjars/bootstrap/5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/app.css" rel="stylesheet">
+</head>
+<body>
+<main class="container py-4 py-lg-5">
+    <section class="hero-shell mb-4">
+        <div>
+            <div class="section-label mb-2">Starter Example</div>
+            <h1 class="dash-title mb-2">PojoLens Starter Dashboard</h1>
+            <p class="hero-copy mb-0">Start by picking a stats focus and chart type. The example keeps the data source and PojoLens preset/report flow constant so the page stays easy to reason about.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+            <span id="strictFlag" class="metric-pill badge text-bg-secondary">strict: -</span>
+            <span id="lintFlag" class="metric-pill badge text-bg-secondary">lint: -</span>
+            <span id="cacheFlag" class="metric-pill badge text-bg-secondary">cache: -</span>
+        </div>
+    </section>
+
+    <section id="feedback" class="mb-3" aria-live="polite"></section>
+    <section id="clientErrorPanel"
+             class="alert alert-danger mb-3 d-none"
+             data-has-error="false"
+             aria-live="assertive">
+        <div class="fw-semibold mb-1">Frontend Error</div>
+        <pre id="clientErrorText" class="mb-0"></pre>
+    </section>
+
+    <section class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="card glass-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <div>
+                            <div class="section-label mb-2">Configure</div>
+                            <h2 class="h4 mb-1">Dashboard Workspace</h2>
+                            <p class="text-body-secondary mb-0">Choose how to look at the same employee dataset before reviewing the charts and focused stats table.</p>
+                        </div>
+                        <span class="badge text-bg-light border">/api/employees/dashboard-options</span>
+                    </div>
+                    <form id="dashboardForm" class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label" for="statsView">Stats View</label>
+                            <select class="form-select" id="statsView" required></select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" for="chartType">Chart Type</label>
+                            <select class="form-select" id="chartType" required></select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" type="submit">Apply</button>
+                        </div>
+                    </form>
+                    <div class="row g-3 mt-1">
+                        <div class="col-lg-6">
+                            <div id="statsViewHelp" class="mode-help"></div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div id="chartTypeHelp" class="mode-help"></div>
+                        </div>
+                    </div>
+
+                    <div class="overview-grid mt-4">
+                        <article class="overview-card">
+                            <div class="overview-label">Active Stats View</div>
+                            <div id="overviewStatsView" class="overview-value">-</div>
+                            <div class="overview-caption">Current focus of the stats table.</div>
+                        </article>
+                        <article class="overview-card">
+                            <div class="overview-label">Active Chart Type</div>
+                            <div id="overviewChartType" class="overview-value">-</div>
+                            <div class="overview-caption">Presentation shared by both charts.</div>
+                        </article>
+                        <article class="overview-card">
+                            <div class="overview-label">Employees</div>
+                            <div id="overviewEmployees" class="overview-value">-</div>
+                            <div class="overview-caption">Rows currently loaded into the example store.</div>
+                        </article>
+                        <article class="overview-card">
+                            <div class="overview-label">Departments</div>
+                            <div id="overviewDepartments" class="overview-value">-</div>
+                            <div class="overview-caption">Unique departments across the current data.</div>
+                        </article>
+                        <article class="overview-card">
+                            <div class="overview-label">Total Payroll</div>
+                            <div id="overviewPayroll" class="overview-value">-</div>
+                            <div class="overview-caption">Aggregate salary across all employees.</div>
+                        </article>
+                        <article class="overview-card">
+                            <div class="overview-label">Average Salary</div>
+                            <div id="overviewAverageSalary" class="overview-value">-</div>
+                            <div class="overview-caption">Quick health check for the demo dataset.</div>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card glass-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <div>
+                            <div class="section-label mb-2">Read Next</div>
+                            <h2 class="h4 mb-1">Repo Guideposts</h2>
+                            <p class="text-body-secondary mb-0">The example comments and UI point back to these docs so readers can move from the dashboard to the core API surface.</p>
+                        </div>
+                        <span class="badge text-bg-light border">example guide + core docs</span>
+                    </div>
+                    <div class="row g-3 repo-link-grid">
+                        <div class="col-sm-6 col-xl-12">
+                            <div class="doc-card h-100">
+                                <div class="doc-label">Entry Points</div>
+                                <code>/docs/entry-points.md</code>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-12">
+                            <div class="doc-card h-100">
+                                <div class="doc-label">Stats Presets</div>
+                                <code>/docs/stats-presets.md</code>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-12">
+                            <div class="doc-card h-100">
+                                <div class="doc-label">Chart Presets</div>
+                                <code>/docs/charts.md</code>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-12">
+                            <div class="doc-card h-100">
+                                <div class="doc-label">Report Definitions</div>
+                                <code>/docs/reports.md</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <div class="section-heading mb-3">
+            <div>
+                <div class="section-label mb-2">Review</div>
+                <h2 class="h4 mb-1">Insight Board</h2>
+                <p class="text-body-secondary mb-0">The charts and the focused stats table move together based on the selected view and chart type.</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-xl-7">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card glass-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                                    <div>
+                                        <h3 class="h5 mb-1">Payroll Chart</h3>
+                                        <p class="text-body-secondary mb-0">Payroll totals generated from a chart preset and rendered with the selected chart type.</p>
+                                    </div>
+                                    <span class="badge text-bg-light border">ChartQueryPreset.chartJs(...)</span>
+                                </div>
+                                <div class="chart-wrap">
+                                    <canvas id="payrollChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card glass-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                                    <div>
+                                        <h3 class="h5 mb-1">Headcount Chart</h3>
+                                        <p class="text-body-secondary mb-0">Headcount totals produced through a report definition but displayed with the same chart type.</p>
+                                    </div>
+                                    <span class="badge text-bg-light border">reportDefinition().chartJs(...)</span>
+                                </div>
+                                <div class="chart-wrap chart-wrap-compact">
+                                    <canvas id="headcountChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-5">
+                <div class="card glass-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
+                            <div>
+                                <h3 id="statsDisplayTitle" class="h5 mb-1">Focused Stats Table</h3>
+                                <p class="text-body-secondary mb-0">The selected stats view changes what this table is about without changing the underlying demo dataset.</p>
+                            </div>
+                            <span id="statsTitle" class="badge text-bg-light border"></span>
+                        </div>
+                        <div class="source-chip alert alert-light border py-2 mb-3" id="statsSource"></div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead id="statsTableHead"></thead>
+                                <tbody id="statsTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3">
+                            <h4 class="h6 text-body-secondary mb-2">Totals</h4>
+                            <div id="statsTotals"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-heading mb-3">
+            <div>
+                <div class="section-label mb-2">Work With Data</div>
+                <h2 class="h4 mb-1">Explore and Maintain the Employee List</h2>
+                <p class="text-body-secondary mb-0">Review the current dataset, run the direct SQL-like top-paid query, and add new employees into the in-memory store.</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-xl-8">
+                <div class="card glass-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                            <div>
+                                <h3 class="h5 mb-1">Employees</h3>
+                                <p class="text-body-secondary mb-0">This table reflects the live contents of the example store after every dashboard refresh or add-employee action.</p>
+                            </div>
+                            <span class="badge text-bg-light border">GET /api/employees</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th class="text-end">Salary</th>
+                                </tr>
+                                </thead>
+                                <tbody id="employeeTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4">
+                <div class="stack-panel">
+                    <div class="card glass-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                                <div>
+                                    <h3 class="h5 mb-1">Top Paid Query</h3>
+                                    <p class="text-body-secondary mb-0">Direct SQL-like query executed through the injected runtime for a targeted ranking view.</p>
+                                </div>
+                                <span class="badge text-bg-light border">GET /api/employees/top-paid</span>
+                            </div>
+                            <form id="topPaidForm" class="row g-2 align-items-end mb-3">
+                                <div class="col-12">
+                                    <label class="form-label" for="topPaidDepartment">Department</label>
+                                    <select class="form-select" id="topPaidDepartment" required></select>
+                                </div>
+                                <div class="col-sm-7">
+                                    <label class="form-label" for="topPaidMinSalary">Min Salary</label>
+                                    <input class="form-control" id="topPaidMinSalary" type="number" min="0" step="1000" value="100000" required>
+                                </div>
+                                <div class="col-sm-5">
+                                    <label class="form-label" for="topPaidLimit">Limit</label>
+                                    <input class="form-control" id="topPaidLimit" type="number" min="1" max="25" value="3" required>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-outline-primary w-100" type="submit">Run Query</button>
+                                </div>
+                            </form>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Name</th>
+                                        <th>Department</th>
+                                        <th class="text-end">Salary</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="topPaidTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card glass-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                                <div>
+                                    <h3 class="h5 mb-1">Add Employee</h3>
+                                    <p class="text-body-secondary mb-0">Push a new record into the in-memory store, then let the dashboard recompute charts and tables from the updated list.</p>
+                                </div>
+                                <span class="badge text-bg-light border">POST /api/employees</span>
+                            </div>
+                            <form id="addEmployeeForm" class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label" for="employeeName">Name</label>
+                                    <input class="form-control" id="employeeName" name="name" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="employeeDepartment">Department</label>
+                                    <input class="form-control" id="employeeDepartment" name="department" list="departmentOptions" required>
+                                    <datalist id="departmentOptions"></datalist>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="employeeSalary">Salary</label>
+                                    <input class="form-control" id="employeeSalary" name="salary" type="number" min="1" step="1" required>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary w-100" type="submit">Add Employee</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="/webjars/chart.js/4.4.3/dist/chart.umd.js"></script>
+<script src="/app.js" defer></script>
+</body>
+</html>

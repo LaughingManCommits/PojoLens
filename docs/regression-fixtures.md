@@ -2,6 +2,9 @@
 
 `PojoLens` regression fixtures provide a code-first way to lock query behavior against a named immutable dataset snapshot.
 
+This is advanced testing tooling, not a required adoption step for basic query
+usage.
+
 Core types:
 - `QuerySnapshotFixture`
 - `QueryRegressionFixture<T>`
@@ -35,7 +38,7 @@ QuerySnapshotFixture snapshot = QuerySnapshotFixture.of(
 ```java
 QueryRegressionFixture<Employee> fixture = QueryRegressionFixture.sql(
     snapshot,
-    PojoLens.parse("where active = true order by salary desc limit 2"),
+    PojoLensSql.parse("where active = true order by salary desc limit 2"),
     Employee.class);
 
 fixture
@@ -52,7 +55,7 @@ fixture
 QueryRegressionFixture<DepartmentCount> fixture = QueryRegressionFixture.report(
     snapshot,
     PojoLens.report(
-        PojoLens.parse("select department, count(*) as total group by department"),
+        PojoLensSql.parse("select department, count(*) as total group by department"),
         DepartmentCount.class));
 
 fixture.assertUnorderedRows(row -> row.department + ":" + row.total,
@@ -67,7 +70,7 @@ FluentSqlLikeParity.assertUnorderedEquals(
     snapshot,
     DepartmentCount.class,
     builder -> builder.addGroup("department").addCount("total"),
-    PojoLens.parse("select department, count(*) as total group by department"),
+    PojoLensSql.parse("select department, count(*) as total group by department"),
     row -> row.department + ":" + row.total);
 ```
 

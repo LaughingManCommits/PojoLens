@@ -18,6 +18,7 @@ Chart models:
 - `ChartDataset`
 - `ChartQueryPreset`
 - `ChartQueryPresets`
+- `ChartJsAdapter`
 
 `ChartSpec` contract:
 - required: `type`, `xField`, `yField`
@@ -58,9 +59,20 @@ Interop policy:
 - `PojoLens` does not ship chart rendering.
 - integration with chart libraries is validated via tests/examples.
 
+Wrapper choice:
+- `ChartQueryPreset<T>` is the specialized chart-first reusable wrapper
+- `ReportDefinition<T>` is the general reusable wrapper when the same query may feed chart and non-chart consumers
+- wrapper selection guide: [docs/reusable-wrappers.md](reusable-wrappers.md)
+
 ## API Entry Points
 
-- `PojoLens.toChartData(List<T>, ChartSpec)`
+Recommended defaults:
+- start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
+- start from `PojoLensSql.parse(...)` for SQL-like chart flows
+- use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
+
+- `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `ChartJsAdapter.toPayload(ChartData)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
@@ -73,13 +85,18 @@ Interop policy:
 - `TimeBucketPreset` for explicit timezone/week-start chart presets
 - `ChartQueryPresets.groupedBreakdown(...)`
 - `ChartQueryPreset.schema()`
+- `ChartQueryPreset.mapChartSpec(...)`
+- `ChartQueryPreset.chartJs(...)`
+- `ChartQueryPreset.reportDefinition()`
+- `ReportDefinition.mapChartSpec(...)`
+- `ReportDefinition.chartJs(...)`
 
 ## Examples
 
 Fluent chart:
 
 ```java
-ChartData chart = PojoLens.newQueryBuilder(employees)
+ChartData chart = PojoLensCore.newQueryBuilder(employees)
     .addGroup("department")
     .addMetric("salary", Metric.SUM, "payroll")
     .addOrder("payroll")
@@ -90,7 +107,7 @@ ChartData chart = PojoLens.newQueryBuilder(employees)
 SQL-like chart:
 
 ```java
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select department, count(*) as headcount group by department order by headcount desc")
     .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 ```
@@ -105,6 +122,25 @@ List<DepartmentHeadcount> rows = preset.rows(source);
 ChartData chart = preset.chart(source);
 ```
 
+Projection-free preset with built-in Chart.js payload:
+
+```java
+ChartJsPayload payload = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .chartJs(source);
+```
+
+Preset with a customized title/axis contract:
+
+```java
+ChartJsPayload payload = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .mapChartSpec(spec -> spec
+        .withTitle("Payroll by Department")
+        .withAxisLabels("Department", "Payroll"))
+    .chartJs(source);
+```
+
 Bundle-driven chart:
 
 ```java
@@ -112,7 +148,7 @@ DatasetBundle bundle = PojoLens.bundle(
     companies,
     JoinBindings.of("employees", employees));
 
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select title, count(*) as total from companies left join employees on id = companyId group by title")
     .chart(bundle, CompanyTitleTotal.class, ChartSpec.of(ChartType.BAR, "title", "total"));
 ```

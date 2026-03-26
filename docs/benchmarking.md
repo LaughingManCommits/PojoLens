@@ -1,6 +1,7 @@
 # Benchmarking
 
 `PojoLens` benchmarking is primarily a regression-control tool, not a competitor-marketing exercise.
+It is advanced tooling, not part of the default adoption path.
 
 The benchmark contract for this project is:
 - publish explicit latency budgets for the hot paths we own
@@ -75,7 +76,7 @@ The budget files are the source of truth:
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
 
-**Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLens.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
+**Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLensSql.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
 
 Representative core budgets from `benchmarks/thresholds.json`:
 
@@ -116,6 +117,95 @@ Why the baseline is narrow:
 - chart payload mapping is partly renderer-contract work, not just query execution
 
 This keeps the comparison honest instead of forcing fake apples-to-apples claims.
+
+## Streaming Short-Circuit Tradeoffs
+
+Streaming has two different behaviors depending on consumer usage:
+- full-drain consumers still process all matching rows
+- short-circuit consumers (`limit(n)`, first-page extraction, early break) can avoid materializing tail rows
+
+Dedicated benchmark suite:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
+```
+
+Benchmark shape (`StreamingExecutionJmhBenchmark`):
+- Query matches most rows (`where integerField >= 100`) over `size=10000`.
+- List path computes first-page checksum after calling `filter(...)`, so full result materialization still occurs.
+- Stream path computes the same checksum from `stream(...).limit(50)`, so iteration stops early.
+
+Representative `2026-03-21` results (`size=10000`, forked warmed run):
+
+| Workload | us/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `fluentFilterListMaterialized` | `493.186` | `1,118,258.562` |
+| `fluentFilterStreamLazy` | `6.267` | `18,608.032` |
+| `sqlLikeFilterListMaterialized` | `644.118` | `1,594,643.260` |
+| `sqlLikeFilterStreamLazy` | `6.776` | `22,392.035` |
+
+Interpretation:
+- For first-page style consumers, streaming cuts allocation by roughly `60x` (fluent) to `71x` (SQL-like) and reduces latency by roughly `79x` to `95x` in this workload.
+- These gains come from avoiding full result list materialization when callers only need an initial window.
+
+## SQL-like Window Overhead
+
+Window queries are now benchmarked against an equivalent non-window SQL-like baseline to keep window-stage overhead visible.
+
+Dedicated suite:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
+```
+
+Benchmarks (`SqlLikePipelineJmhBenchmark`):
+- `parseAndFilterWindowBaseline`
+- `parseAndFilterWindowRank`
+- `parseAndFilterWindowRunningTotal`
+
+Representative `2026-03-23` forked results (`size=10000`):
+
+| Workload | ms/op | B/op (`gc.alloc.rate.norm`) |
+|---|---:|---:|
+| `parseAndFilterWindowBaseline` | `0.688` | `744,068` |
+| `parseAndFilterWindowRank` | `2.659` | `4,397,898` |
+| `parseAndFilterWindowRunningTotal` | `2.601` | `4,594,581` |
+
+Interpretation:
+- Window stages add meaningful overhead versus non-window SQL-like filtering for this workload (`~3.8x` slower, `~5.9x` to `6.2x` more allocation).
+- Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
+- Keep this suite as a follow-up diagnostic until thresholds are formalized.
+
+## Optional Index Hint Tradeoffs
+
+Optional fluent index hints are now benchmarked with a selective equality workload (`IndexHintJmhBenchmark`):
+- query shape: `stringField = :exactKey and integerField >= 0`
+- baseline: normal scan path
+- indexed: `.addIndex("stringField")`
+
+Warm (repeated) run command:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
+```
+
+Cold run command:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
+```
+
+Representative `2026-03-21` results (`size=10000`):
+
+| Scenario | Scan us/op | Indexed us/op | Scan B/op | Indexed B/op |
+|---|---:|---:|---:|---:|
+| Warm (`-wi 1 -i 3`) | `842.561` | `205.164` | `254,012.391` | `1,428,193.059` |
+| Cold (`-wi 0 -i 1`) | `115,657.800` | `123,970.100` | `6,578,744.000` | `7,768,168.000` |
+
+Interpretation:
+- Warm repeated workloads see a strong latency win (`~4.1x` faster in this run) from candidate narrowing.
+- Allocation cost is higher (`~5.6x` in the warm run) because index construction/allocation overhead is paid in this prototype path.
+- Cold one-shot runs can regress (here, indexed was slower and allocated more), so index hints should be used for repeated hot snapshots rather than one-off scans.
 
 ## Hotspot Microbenchmarks
 
@@ -220,4 +310,3 @@ The Streams baseline suite is intentionally reproducible but not currently a mer
 - Do not use fluent-vs-SQL-like performance ratios as a merge gate; SQL-like intentionally pays query-translation cost that fluent does not.
 - Do not compare `PojoLens` to databases or unrelated libraries as if the workloads were equivalent.
 - When a comparison needs caveats, write the caveats next to the number.
-

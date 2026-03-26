@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          POM_VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          POM_VERSION="$(mvn -q -DforceStdout -f pom.xml help:evaluate -Dexpression=project.version)"
           echo "Tag version: ${TAG_VERSION}"
           echo "POM version: ${POM_VERSION}"
           if [ "${TAG_VERSION}" != "${POM_VERSION}" ]; then
@@ -55,4 +55,4 @@ jobs:
         run: mvn -B -ntp test
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -Prelease-central -DskipTests deploy
+        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy

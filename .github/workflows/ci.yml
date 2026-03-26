@@ -33,6 +33,77 @@ jobs:
       - name: Run tests
         run: mvn -B -ntp test
 
+  runtime-artifact-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build runtime jar
+        run: mvn -B -ntp -pl pojo-lens -am -DskipTests package
+      - name: Assert runtime jar excludes benchmark classes
+        shell: bash
+        run: |
+          RUNTIME_JAR="$(find target -maxdepth 1 -type f -name 'pojo-lens-*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-benchmarks.jar' | head -n 1)"
+          if [ -z "$RUNTIME_JAR" ]; then
+            echo "Runtime jar not found under target/"
+            exit 1
+          fi
+          if jar tf "$RUNTIME_JAR" | grep -q 'laughing/man/commits/benchmark/'; then
+            echo "Runtime jar contains benchmark classes: $RUNTIME_JAR"
+            exit 1
+          fi
+          echo "Runtime jar scope check passed: $RUNTIME_JAR"
+
+  binary-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Resolve baseline release tag
+        id: baseline
+        shell: bash
+        run: |
+          TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+          if [ -z "$TAG" ]; then
+            echo "No release tag matching v* found for binary compatibility baseline."
+            exit 1
+          fi
+          echo "baseline_tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "baseline_version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Build and install baseline artifact
+        shell: bash
+        run: |
+          BASELINE_TAG="${{ steps.baseline.outputs.baseline_tag }}"
+          BASELINE_DIR="$RUNNER_TEMP/pojolens-baseline"
+          rm -rf "$BASELINE_DIR"
+          git worktree add --detach "$BASELINE_DIR" "$BASELINE_TAG"
+          trap 'git worktree remove "$BASELINE_DIR" --force || true' EXIT
+          pushd "$BASELINE_DIR"
+          mvn -B -ntp -DskipTests install
+          popd
+      - name: Run binary compatibility check
+        run: mvn -B -ntp -Pbinary-compat -DskipTests -Dcompat.baseline.version=${{ steps.baseline.outputs.baseline_version }} verify
+      - name: Publish compatibility summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Binary Compatibility" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Baseline tag: \`${{ steps.baseline.outputs.baseline_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Baseline version: \`${{ steps.baseline.outputs.baseline_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+
   lint-java:
     runs-on: ubuntu-latest
     steps:

@@ -2,6 +2,9 @@
 
 `PojoLens` already supports lambda selectors in many fluent APIs, but some flows still need string field names:
 
+This is optional authoring/build-time tooling.
+Use it when generated field constants are worth the extra build step.
+
 - chart specs
 - alias/result row projections
 - shared constants across modules
@@ -78,7 +81,7 @@ Field names are sorted alphabetically so generated output is deterministic in te
 ## Fluent Builder Usage
 
 ```java
-List<Employee> rows = PojoLens.newQueryBuilder(source)
+List<Employee> rows = PojoLensCore.newQueryBuilder(source)
     .addRule(EmployeeFields.DEPARTMENT, "Engineering", Clauses.EQUAL)
     .addOrder(EmployeeFields.SALARY, 1)
     .limit(10)
@@ -94,7 +97,7 @@ ChartSpec spec = ChartSpec.of(
     DepartmentPayrollFields.DEPARTMENT,
     DepartmentPayrollFields.PAYROLL);
 
-ChartData chart = PojoLens.toChartData(rows, spec);
+ChartData chart = PojoLensChart.toChartData(rows, spec);
 ```
 
 ## Build Integration

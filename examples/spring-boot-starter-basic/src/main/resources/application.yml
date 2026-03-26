@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: pojo-lens-spring-boot-starter-basic
+
+pojo-lens:
+  preset: DEV
+  strict-parameter-types: true
+  lint-mode: true
+  telemetry:
+    micrometer:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

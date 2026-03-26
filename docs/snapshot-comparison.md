@@ -2,6 +2,9 @@
 
 `SnapshotComparison` compares two keyed in-memory snapshots and returns queryable delta rows plus summary counts.
 
+This is a follow-on analysis/testing feature rather than part of the default
+query onboarding path.
+
 Use it when you need:
 
 - added rows
@@ -47,7 +50,7 @@ Each `SnapshotDeltaRow<T, K>` includes:
 ## Querying Deltas
 
 ```java
-List<ChangeProjection> rows = PojoLens
+List<ChangeProjection> rows = PojoLensSql
     .parse("select keyText, changedFieldCount, changedFieldSummary "
             + "where changeType = 'CHANGED' order by keyText asc")
     .filter(comparison.rows(), ChangeProjection.class);
@@ -59,7 +62,7 @@ Delta rows are just another in-memory dataset, so they can be used directly in r
 
 ```java
 ReportDefinition<ChangeCountRow> report = PojoLens.report(
-    PojoLens.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
+    PojoLensSql.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
     ChangeCountRow.class,
     ChartSpec.of(ChartType.BAR, "changeType", "total"));
 

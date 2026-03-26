@@ -9,6 +9,61 @@ Published coordinates now use GitHub namespace style:
 
 Update your dependency declarations accordingly.
 
+## Pre-Adoption Facade Simplification
+
+If you are using unpublished or pre-adoption builds, treat the explicit entry
+points below as the supported path now.
+
+Current helper-only facade state:
+- keep on `PojoLens`:
+  `newRuntime(...)`, keyset cursor helpers, `bundle(...)`,
+  `compareSnapshots(...)`, and `report(...)`
+- removed from `PojoLens` in the pre-adoption simplification:
+  `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
+  `toChartData(...)`
+
+Replacement map:
+- `PojoLens.newQueryBuilder(rows)` ->
+  `PojoLensCore.newQueryBuilder(rows)`
+- `PojoLens.parse(queryText)` -> `PojoLensSql.parse(queryText)`
+- `PojoLens.template(queryText, params...)` ->
+  `PojoLensSql.template(queryText, params...)`
+- `PojoLens.toChartData(rows, spec)` ->
+  `PojoLensChart.toChartData(rows, spec)`
+
+## Runtime-First Cache Policy
+
+If you were tuning caches through `PojoLens`, `PojoLensCore`, or
+`PojoLensSql`, move that code onto a `PojoLensRuntime`.
+
+Before:
+
+```java
+PojoLens.setSqlLikeCacheMaxEntries(1024);
+PojoLens.setStatsPlanCacheExpireAfterWriteMillis(30_000L);
+```
+
+After:
+
+```java
+PojoLensRuntime runtime = PojoLens.newRuntime();
+runtime.sqlLikeCache().setMaxEntries(1024);
+runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
+```
+
+Replacement direction:
+- SQL-like cache controls and snapshots ->
+  `runtime.sqlLikeCache().*`
+- stats-plan cache controls and snapshots ->
+  `runtime.statsPlanCache().*`
+
+Pre-adoption target state:
+- remove public static/global cache policy methods from `PojoLens`
+- remove public static/global cache policy methods from `PojoLensSql`
+- remove public static/global cache policy methods from `PojoLensCore`
+- keep the default singleton caches as internal implementation details for the
+  direct non-runtime entry points
+
 ## Typed Selector API
 
 You can replace string field names with method references for compile-time safety.
@@ -16,7 +71,7 @@ You can replace string field names with method references for compile-time safet
 Before:
 
 ```java
-PojoLens.newQueryBuilder(rows)
+PojoLensCore.newQueryBuilder(rows)
     .addRule("stringField", "abc", Clauses.EQUAL)
     .addOrder("integerField", 1)
     .addField("stringField")
@@ -27,7 +82,7 @@ PojoLens.newQueryBuilder(rows)
 After:
 
 ```java
-PojoLens.newQueryBuilder(rows)
+PojoLensCore.newQueryBuilder(rows)
     .addRule(Foo::getStringField, "abc", Clauses.EQUAL)
     .addOrder(Foo::getIntegerField)
     .addField(Foo::getStringField)
@@ -63,8 +118,9 @@ runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setMaxEntries(2048);
 ```
 
-`PojoLens.*` static cache APIs still work and remain backward compatible.
-They control the default singleton caches.
+The static/global cache-policy APIs were removed in the same pre-adoption
+simplification. Direct non-runtime entry points still use internal default
+singleton caches, but public tuning now lives on `PojoLensRuntime`.
 
 ## Logging Facade Migration
 
@@ -79,7 +135,7 @@ For clearer semantics on complex boolean logic, prefer grouped rules:
 ```java
 import static laughing.man.commits.builder.QueryRule.of;
 
-PojoLens.newQueryBuilder(rows)
+PojoLensCore.newQueryBuilder(rows)
     .allOf(
         of(Foo::getStringField, "abc", Clauses.EQUAL),
         of(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
@@ -111,7 +167,7 @@ You can safely reuse a configured template builder across threads by enabling
 copy-on-build snapshots:
 
 ```java
-QueryBuilder template = PojoLens.newQueryBuilder(rows)
+QueryBuilder template = PojoLensCore.newQueryBuilder(rows)
     .addRule(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
     .copyOnBuild(true);
 
@@ -125,7 +181,7 @@ You can now choose either style for supported v1 operations (`SELECT`, `WHERE`, 
 Fluent:
 
 ```java
-List<Foo> rows = PojoLens.newQueryBuilder(source)
+List<Foo> rows = PojoLensCore.newQueryBuilder(source)
     .addRule("stringField", "abc", Clauses.EQUAL)
     .addOrder("integerField", 1)
     .limit(2)
@@ -136,7 +192,7 @@ List<Foo> rows = PojoLens.newQueryBuilder(source)
 SQL-like:
 
 ```java
-List<Foo> rows = PojoLens
+List<Foo> rows = PojoLensSql
     .parse("select stringField, integerField where stringField = 'abc' order by integerField desc limit 2")
     .filter(source, Foo.class);
 ```
@@ -179,7 +235,7 @@ SQL-like queries now support named parameters so you can avoid string concatenat
 Example:
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("where department = :dept and salary >= :minSalary and active = :active")
     .params(Map.of("dept", "Engineering", "minSalary", 120000, "active", true))
     .filter(source, Employee.class);
@@ -238,7 +294,7 @@ Validation expectations:
 This section defines the chart-data contract.
 
 Policy:
-- `PojoLens` will map query rows to chart payloads.
+- `PojoLensChart` will map query rows to chart payloads.
 - `PojoLens` will not implement native image/chart rendering.
 - external chart libraries are allowed in tests/examples only (test scope dependencies).
 
@@ -268,7 +324,7 @@ Validation expectations:
 - stacked modes require multi-series and currently support `BAR`/`AREA` only.
 
 API entry points:
-- `PojoLens.toChartData(List<T>, ChartSpec)`
+- `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`

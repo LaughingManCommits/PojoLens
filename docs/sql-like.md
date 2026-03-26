@@ -6,11 +6,15 @@
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
 - `WHERE`
 - aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
+- aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
 - `GROUP BY`
 - `HAVING` (`AND`/`OR` predicates)
+- `QUALIFY` (`AND`/`OR` predicates against window outputs)
 - time bucket function: `bucket(dateField, 'day|week|month|quarter|year'[, 'Zone/Id'[, 'monday|...']]) as alias`
 - `ORDER BY`
 - `LIMIT`
+- `OFFSET`
 
 Current non-goals:
 - full SQL-engine subqueries
@@ -25,7 +29,7 @@ Supported operators in `WHERE`:
 `HAVING` is defined for grouped/aggregated SQL-like queries and is evaluated after aggregation.
 
 Clause order:
-- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT`
+- `SELECT ... FROM/implicit source ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT ... OFFSET`
 
 Allowed references in `HAVING`:
 - aggregate expressions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
@@ -46,9 +50,51 @@ Validation errors for invalid `HAVING`:
 - `Unknown HAVING reference '<name>'`
 - `Invalid HAVING reference '<name>': expected grouped field or aggregate output`
 
+## QUALIFY v1 Contract
+
+`QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
+
+Clause order:
+- `SELECT ... FROM/implicit source ... WHERE ... QUALIFY ... ORDER BY ... LIMIT ... OFFSET`
+
+Allowed references in `QUALIFY`:
+- window aliases defined in `SELECT`
+- direct rank-window expressions that match a selected window expression
+
+Disallowed references in `QUALIFY`:
+- non-window source fields
+- unknown names
+- subqueries
+- grouped/aggregate query shapes
+
+Validation errors for invalid `QUALIFY`:
+- `QUALIFY requires at least one window SELECT output`
+- `QUALIFY is only supported for non-aggregate SQL-like queries`
+- `Unknown field '<name>' in QUALIFY clause`
+
+## Window Functions v1 Contract
+
+Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
+
+Rank windows:
+- `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`
+- require `OVER(... ORDER BY ...)`
+
+Aggregate windows:
+- `COUNT(field)`, `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+- `SUM/AVG/MIN/MAX` require numeric value fields
+- currently support one frame mode only:
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+
+Unsupported window frame expressions fail fast with actionable parser errors.
+
 ## Execution Model
 
-`PojoLens.parse(...)` produces a SQL-like query contract that:
+For new SQL-like code, use `PojoLensSql.parse(...)` and `PojoLensSql.template(...)`.
+The duplicate `PojoLens.parse(...)` facade was removed in the pre-adoption
+simplification.
+
+`PojoLensSql.parse(...)` produces a SQL-like query contract that:
 - parses and validates query text
 - binds into the fluent pipeline
 - executes against in-memory rows
@@ -67,6 +113,7 @@ Strict validation rules:
 - select output names must be unique (including alias collisions)
 - join source binding is required for SQL-like joins
 - HAVING references must resolve to grouped fields or aggregate outputs
+- QUALIFY references must resolve to selected window outputs
 - named parameters must be fully bound before execution
 - strict parameter typing can be enabled per query or runtime when early type mismatch failures are preferred
 
@@ -86,6 +133,10 @@ Sort limitation:
 - Subqueries do not support nested joins or aggregate/grouped subquery plans yet.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
+- Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
+- Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
+- `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
 - Time bucket input fields must be `java.util.Date` values.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
@@ -97,16 +148,124 @@ All recipes below are executable and covered by docs tests (`SqlLikeDocsExamples
 ### Recipe: Parameterized Filters
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
     .params(Map.of("dept", "Engineering", "minSalary", 120000, "active", true))
     .filter(source, Employee.class);
 ```
 
+### Recipe: Offset Pagination
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where active = true order by salary desc limit 20 offset 40")
+    .filter(source, Employee.class);
+```
+
+Use `ORDER BY` with `LIMIT/OFFSET` for deterministic page windows.
+
+### Recipe: Parameterized Offset Pagination
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where active = true order by salary desc limit :limit offset :offset")
+    .params(Map.of("limit", 20, "offset", 40))
+    .filter(source, Employee.class);
+```
+
+### Recipe: Keyset/Cursor Pagination Pattern
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where active = true and ((salary < :lastSalary) or (salary = :lastSalary and id < :lastId)) "
+        + "order by salary desc, id desc limit 20")
+    .params(Map.of("lastSalary", 120000, "lastId", 1))
+    .filter(source, Employee.class);
+```
+
+Keyset guidance:
+- include all sort fields in the cursor
+- include a deterministic tie-breaker field (for example `id`)
+- keep `ORDER BY` direction and comparison operators aligned with cursor direction
+
+### Recipe: Window Ranking (`ROW_NUMBER`)
+
+```java
+List<DepartmentSalaryRank> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "row_number() over (partition by department order by salary desc) as rn "
+        + "where active = true order by dept asc, rn asc")
+    .filter(source, DepartmentSalaryRank.class);
+```
+
+Window notes:
+- include `ORDER BY` inside every `OVER(...)` clause to keep ranking deterministic
+- non-unique window sort values are stabilized by original source row order
+- query-level `ORDER BY` can reference window aliases (for example `order by rn asc`)
+
+### Recipe: Dense Rank Per Group (`DENSE_RANK`)
+
+```java
+List<DepartmentDenseRank> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "dense_rank() over (partition by department order by salary desc) as dr "
+        + "where active = true order by dept asc, dr asc, name asc")
+    .filter(source, DepartmentDenseRank.class);
+```
+
+### Recipe: Top N Per Group with `QUALIFY`
+
+```java
+List<DepartmentSalaryRank> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "row_number() over (partition by department order by salary desc) as rn "
+        + "where active = true qualify rn <= 1 order by dept asc")
+    .filter(source, DepartmentSalaryRank.class);
+```
+
+### Recipe: Running Total (`SUM(...) OVER (...)`)
+
+```java
+List<DepartmentRunningTotal> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "sum(salary) over (partition by department order by salary desc "
+        + "rows between unbounded preceding and current row) as runningTotal "
+        + "where active = true order by dept asc, runningTotal asc")
+    .filter(source, DepartmentRunningTotal.class);
+```
+
+### Recipe: First-Class Keyset Cursor API
+
+```java
+SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+    .put("salary", 120000)
+    .put("id", 1)
+    .build();
+
+List<Employee> rows = PojoLensSql
+    .parse("where active = true order by salary desc, id desc limit 20")
+    .keysetAfter(cursor)
+    .filter(source, Employee.class);
+```
+
+Tokenized cursor flow:
+
+```java
+String token = cursor.toToken();
+SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+```
+
+Cursor contract:
+- cursor field names must match query `ORDER BY` fields exactly
+- cursor values must be non-null
+- `keysetAfter(...)` resolves the "next page" window
+- `keysetBefore(...)` resolves the "previous page" window
+- token format is opaque Base64URL (`v1`) and preserves common scalar value types
+
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("where department = :dept and salary >= :minSalary and active = :active order by salary desc")
     .params(SqlParams.builder()
         .put("dept", "Engineering")
@@ -121,7 +280,7 @@ List<Employee> rows = PojoLens
 Per query:
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("where salary >= :minSalary and active = :active order by salary desc")
     .strictParameterTypes()
     .params(Map.of("minSalary", 120000, "active", true))
@@ -140,12 +299,27 @@ List<Employee> rows = runtime
     .filter(source, Employee.class);
 ```
 
+### Recipe: Streaming Execution Output
+
+```java
+try (Stream<Employee> rows = PojoLensSql
+        .parse("where active = true limit 200")
+        .stream(source, Employee.class)) {
+    List<String> names = rows.map(r -> r.name).toList();
+}
+```
+
+Streaming notes:
+- simple non-joined/non-aggregate SQL-like queries can stream rows lazily
+- complex query shapes (join/group/having/qualify/ordered windows) fall back to list-backed streams
+- `bindTyped(...).stream()` is available for bind-first SQL-like flows
+
 ### Recipe: Lint Mode
 
 Per query:
 
 ```java
-SqlLikeQuery query = PojoLens
+SqlLikeQuery query = PojoLensSql
     .parse("select * from companies where title = 'Engineer' limit 5")
     .lintMode();
 
@@ -156,7 +330,7 @@ Map<String, Object> explain = query.explain();
 Suppress a known warning code when the pattern is intentional:
 
 ```java
-SqlLikeQuery query = PojoLens
+SqlLikeQuery query = PojoLensSql
     .parse("select * from companies limit 5")
     .lintMode()
     .suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD);
@@ -195,12 +369,33 @@ runtime.setLintMode(true);
 runtime.setStrictParameterTypes(true);
 ```
 
+### Recipe: Runtime API Introspection and Preset Re-Application
+
+If you need to inspect or re-apply runtime configuration programmatically:
+
+```java
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+
+boolean strict = runtime.isStrictParameterTypes();
+boolean lint = runtime.isLintMode();
+QueryTelemetryListener listener = runtime.getTelemetryListener();
+ComputedFieldRegistry registry = runtime.getComputedFieldRegistry();
+
+runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets caches/stats
+```
+
+Equivalent preset creation through the facade is also available:
+
+```java
+PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+```
+
 ### Recipe: WHERE IN Subquery
 
 Self-source subquery:
 
 ```java
-List<Employee> rows = PojoLens
+List<Employee> rows = PojoLensSql
     .parse("where department in (select department where active = true)")
     .filter(source, Employee.class);
 ```
@@ -208,7 +403,7 @@ List<Employee> rows = PojoLens
 Named source subquery using runtime join-source bindings:
 
 ```java
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("where id in (select companyId from employees where title = 'Engineer')")
     .filter(companies, Map.of("employees", employees), Company.class);
 ```
@@ -223,7 +418,7 @@ Current subquery scope:
 ### Recipe: Query Template with Parameter Schema
 
 ```java
-SqlLikeTemplate template = PojoLens.template(
+SqlLikeTemplate template = PojoLensSql.template(
     "where department = :dept and salary >= :minSalary and active = :active order by salary desc",
     "dept", "minSalary", "active");
 
@@ -243,7 +438,7 @@ List<Employee> financeRows = template
 ### Recipe: Alias Projections
 
 ```java
-List<EmployeeSummary> rows = PojoLens
+List<EmployeeSummary> rows = PojoLensSql
     .parse("select name as employeeName, salary as annualSalary where salary >= 100000 order by salary asc")
     .filter(source, EmployeeSummary.class);
 ```
@@ -255,7 +450,7 @@ ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
     .add("adjustedSalary", "salary * 1.1", Double.class)
     .build();
 
-List<AdjustedSalaryRow> rows = PojoLens
+List<AdjustedSalaryRow> rows = PojoLensSql
     .parse("select name, adjustedSalary where adjustedSalary >= 120000 order by adjustedSalary desc")
     .computedFields(registry)
     .filter(source, AdjustedSalaryRow.class);
@@ -264,7 +459,7 @@ List<AdjustedSalaryRow> rows = PojoLens
 ### Recipe: Typed Bind-First Execution
 
 ```java
-SqlLikeQuery query = PojoLens.parse("where salary >= :minSalary order by salary asc")
+SqlLikeQuery query = PojoLensSql.parse("where salary >= :minSalary order by salary asc")
     .params(Map.of("minSalary", 90000));
 
 List<Employee> rows = query
@@ -277,13 +472,13 @@ List<Employee> rows = query
 Use `FluentSqlLikeParity` in migration tests when you want to compare a fluent query and its SQL-like equivalent with either exact-order or order-agnostic assertions.
 
 ```java
-List<DepartmentHeadcount> fluentRows = PojoLens.newQueryBuilder(source)
+List<DepartmentHeadcount> fluentRows = PojoLensCore.newQueryBuilder(source)
     .addGroup("department")
     .addCount("headcount")
     .initFilter()
     .filter(DepartmentHeadcount.class);
 
-List<DepartmentHeadcount> sqlLikeRows = PojoLens
+List<DepartmentHeadcount> sqlLikeRows = PojoLensSql
     .parse("select department, count(*) as headcount group by department")
     .filter(source, DepartmentHeadcount.class);
 
@@ -302,7 +497,7 @@ FluentSqlLikeParity.assertUnorderedEquals(
     snapshot,
     DepartmentHeadcount.class,
     builder -> builder.addGroup("department").addCount("headcount"),
-    PojoLens.parse("select department, count(*) as headcount group by department"),
+    PojoLensSql.parse("select department, count(*) as headcount group by department"),
     row -> row.department + ":" + row.headcount);
 ```
 
@@ -314,7 +509,7 @@ Runtime map bindings:
 Map<String, List<?>> joinSources = new HashMap<>();
 joinSources.put("employees", employees);
 
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
     .filter(companies, joinSources, Company.class);
 ```
@@ -326,7 +521,7 @@ Map<String, List<?>> joinSources = new HashMap<>();
 joinSources.put("employees", employees);
 joinSources.put("badges", badges);
 
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("select * from companies "
             + "left join employees on companies.id = employees.companyId "
             + "left join badges on employees.id = badges.employeeId "
@@ -346,7 +541,7 @@ JoinBindings joinBindings = JoinBindings.builder()
     .add("employees", employees)
     .build();
 
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
     .filter(companies, joinBindings, Company.class);
 ```
@@ -358,7 +553,7 @@ DatasetBundle bundle = PojoLens.bundle(
     companies,
     JoinBindings.of("employees", employees));
 
-List<Company> rows = PojoLens
+List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
     .filter(bundle, Company.class);
 ```
@@ -366,7 +561,7 @@ List<Company> rows = PojoLens
 ### Recipe: HAVING Queries
 
 ```java
-List<DepartmentHeadcount> rows = PojoLens
+List<DepartmentHeadcount> rows = PojoLensSql
     .parse("select department, count(*) as headcount group by department having headcount >= 2 order by headcount desc")
     .filter(source, DepartmentHeadcount.class);
 ```
@@ -374,7 +569,7 @@ List<DepartmentHeadcount> rows = PojoLens
 Grouped aliases and aggregate-expression ordering are also supported:
 
 ```java
-List<DepartmentHeadcountByAlias> rows = PojoLens
+List<DepartmentHeadcountByAlias> rows = PojoLensSql
     .parse("select department as dept, count(*) as headcount "
             + "group by dept having dept = 'Engineering' "
             + "order by sum(salary) desc")
@@ -384,7 +579,7 @@ List<DepartmentHeadcountByAlias> rows = PojoLens
 ### Recipe: Chart Payload Mapping
 
 ```java
-ChartData chart = PojoLens
+ChartData chart = PojoLensSql
     .parse("select department, count(*) as headcount group by department order by headcount desc")
     .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 ```
@@ -392,7 +587,7 @@ ChartData chart = PojoLens
 ### Recipe: Explicit Calendar Time Bucket
 
 ```java
-List<WeeklyPayroll> rows = PojoLens
+List<WeeklyPayroll> rows = PojoLensSql
     .parse("select bucket(hireDate,'week','Europe/Amsterdam','sunday') as period, sum(salary) as payroll group by period")
     .filter(source, WeeklyPayroll.class);
 ```
@@ -400,7 +595,7 @@ List<WeeklyPayroll> rows = PojoLens
 ### Recipe: Execution Explain with Stage Row Counts
 
 ```java
-Map<String, Object> explain = PojoLens
+Map<String, Object> explain = PojoLensSql
     .parse("where active = true order by salary desc limit 2")
     .explain(source, Employee.class);
 
@@ -414,6 +609,7 @@ Map<String, Object> explain = PojoLens
 // where={applied=true, before=4, after=3}
 // group={applied=false, before=3, after=3}
 // having={applied=false, before=3, after=3}
+// qualify={applied=false, before=3, after=3}
 // order={applied=true, before=3, after=3}
 // limit={applied=true, before=3, after=2}
 ```
@@ -423,7 +619,7 @@ For parameterized queries, `parameterSnapshot` reports parameter names with reda
 Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWarnings`. Current warning codes:
 
 - `EQ-SQL-LINT-001`: broad `select *`
-- `EQ-SQL-LINT-002`: `limit` without `order by`
+- `EQ-SQL-LINT-002`: `limit`/`offset` without `order by`
 - `EQ-SQL-LINT-003`: inline string literal filter values; prefer named parameters
 
 ### Anti-Patterns
@@ -433,6 +629,7 @@ Avoid these patterns when writing SQL-like integrations:
 - bind-first SQL-like calls that repeat sort and projection class; use `bindTyped(...)`
 - ad-hoc join maps for long-lived code paths; prefer `JoinBindings`
 - rebuilding the same multi-source snapshot repeatedly; prefer `DatasetBundle`
+- deep `offset` pagination on high-cardinality feeds when cursor semantics are available
 
 ## SQL-like Error Reference
 
@@ -445,7 +642,7 @@ Parse errors include deterministic location text:
 
 | Code | Meaning | Typical fix |
 | --- | --- | --- |
-| `EQ-SQL-API-001` | Query input was `null`. | Pass a non-null SQL-like string to `PojoLens.parse(...)`. |
+| `EQ-SQL-API-001` | Query input was `null`. | Pass a non-null SQL-like string to `PojoLensSql.parse(...)`. |
 | `EQ-SQL-API-002` | Query input was blank after trimming. | Pass non-empty SQL-like text. |
 | `EQ-SQL-PAR-001` | General SQL-like parse/syntax failure. | Fix the clause/token called out by line, column, and snippet. |
 | `EQ-SQL-PAR-002` | Query length exceeded the parser limit. | Shorten the query or split logic across reusable templates. |
@@ -466,7 +663,11 @@ Parse errors include deterministic location text:
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
 | `EQ-SQL-PRM-003` | Query execution started with unresolved parameters. | Call `params(...)` before `filter()`, `bindTyped()`, or `chart()`. |
 | `EQ-SQL-PRM-004` | Parameter name was blank/invalid. | Use non-blank parameter names in maps and `SqlParams`. |
-| `EQ-SQL-PRM-005` | Strict parameter typing rejected a mismatched value. | Pass a value compatible with the referenced field type or disable strict mode. |
+| `EQ-SQL-PRM-005` | A bound parameter type/value is invalid for its usage. | For filters/HAVING, pass a value compatible with the referenced field type (or disable strict mode). For pagination params, pass non-negative integer values. |
+| `EQ-SQL-CUR-001` | Keyset cursor paging was requested without `ORDER BY`. | Add deterministic `ORDER BY` fields before applying keyset cursor paging. |
+| `EQ-SQL-CUR-002` | Cursor fields do not match `ORDER BY` fields. | Provide cursor values for every `ORDER BY` field using matching names. |
+| `EQ-SQL-CUR-003` | Cursor token is invalid/malformed. | Use tokens generated by `SqlLikeCursor.toToken()` and pass them unchanged. |
+| `EQ-SQL-CUR-004` | Cursor value is invalid for keyset paging. | Use non-null cursor values and supported tokenizable scalar types. |
 | `EQ-SQL-BIND-001` | `ORDER BY` directions are mixed. | Use all `ASC` or all `DESC`. |
 | `EQ-SQL-BIND-002` | Boolean expression exploded during normalization. | Simplify nested `AND`/`OR` logic. |
 | `EQ-SQL-JOIN-001` | Duplicate typed JOIN binding name. | Register each JOIN source once. |
@@ -480,7 +681,7 @@ Meaning:
 - SQL-like query text was `null`.
 
 Fix:
-- Pass a non-null string to `PojoLens.parse(...)` or related template helpers.
+- Pass a non-null string to `PojoLensSql.parse(...)` or `PojoLensSql.template(...)`.
 
 ### Error Code EQ-SQL-API-002
 
@@ -629,10 +830,45 @@ Fix:
 ### Error Code EQ-SQL-PRM-005
 
 Meaning:
-- Strict parameter typing detected that a bound parameter type does not match the referenced field/output type.
+- A bound parameter value is invalid for its usage:
+- strict parameter typing detected a mismatch with a referenced field/output type, or
+- pagination parameter values for `LIMIT`/`OFFSET` were not non-negative integers.
 
 Fix:
 - Pass a value compatible with the referenced field type, or leave strict parameter typing disabled if coercion-on-compare is acceptable.
+- For `LIMIT`/`OFFSET` parameters, pass non-negative integer values (for example `20`, `0`, `100L`).
+
+### Error Code EQ-SQL-CUR-001
+
+Meaning:
+- A keyset cursor method was called on a query without `ORDER BY`.
+
+Fix:
+- Add deterministic `ORDER BY` fields and then call `keysetAfter(...)` or `keysetBefore(...)`.
+
+### Error Code EQ-SQL-CUR-002
+
+Meaning:
+- Cursor values do not match the query `ORDER BY` fields.
+
+Fix:
+- Provide one non-null cursor value for each ordered field, using the same field names.
+
+### Error Code EQ-SQL-CUR-003
+
+Meaning:
+- Cursor token decoding failed due to invalid format/version/value encoding.
+
+Fix:
+- Use tokens produced by `SqlLikeCursor.toToken()` and keep them unmodified in transport/storage.
+
+### Error Code EQ-SQL-CUR-004
+
+Meaning:
+- Cursor values were empty, null, or unsupported for tokenization.
+
+Fix:
+- Build cursors with non-null values and supported scalar types (for example `String`, `Boolean`, numeric types, `Date`).
 
 ### Error Code EQ-SQL-BIND-001
 
