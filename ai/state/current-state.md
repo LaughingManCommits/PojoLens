@@ -12,6 +12,36 @@
 
 ## Latest Validation
 
+- `2026-03-26`: example frontend hardening completed after reproducing a real browser chart failure:
+  - root cause:
+    the new built-in `ChartJsPayload` dataset shape serialized nullable fields
+    such as `yAxisID`, and Chart.js treated `null` as an explicit invalid scale
+    selection (`TypeError: Cannot read properties of undefined (reading 'axis')`).
+  - fix:
+    `ChartJsDataset` now omits null optional fields during JSON serialization,
+    and `ChartJsAdapterBridgeTest` now includes a serialization contract check.
+  - example frontend hardening:
+    the example now serves Bootstrap + Chart.js from local `/webjars/...`
+    resources instead of runtime CDNs,
+    exposes a visible `#clientErrorPanel`,
+    and routes uncaught frontend/chart render failures into that panel.
+  - Playwright hardening:
+    `DashboardPlaywrightE2eTest` now asserts that the client-error panel stays
+    empty and that chart instances are actually created, not just that canvases
+    exist.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=ChartJsAdapterBridgeTest,ReportDefinitionTest,ChartQueryPresetsTest,StatsViewPresetsTest" test`
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
+- `2026-03-26`: full repository regression passed after the dashboard-simplification pass:
+  - command:
+    `mvn -q test`
+  - current validation baseline now includes:
+    focused `pojo-lens` API tests,
+    docs consistency,
+    starter/example validation,
+    and full multi-module regression.
 - `2026-03-26`: dashboard-simplification pass completed across library + example:
   - added built-in Chart.js interop types under `pojo-lens`:
     `ChartJsAdapter`, `ChartJsPayload`, `ChartJsData`, `ChartJsDataset`.

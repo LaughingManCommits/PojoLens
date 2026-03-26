@@ -1,5 +1,7 @@
 package laughing.man.commits.chart;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import laughing.man.commits.PojoLensChart;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.chartjs.ChartJsAdapter;
@@ -20,6 +22,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public class ChartJsAdapterBridgeTest {
 
@@ -134,6 +137,29 @@ public class ChartJsAdapterBridgeTest {
         assertEquals("Payroll by Department", titleText(payload));
         assertEquals("Department", axisTitle(payload, "x"));
         assertEquals("Payroll", axisTitle(payload, "y"));
+    }
+
+    @Test
+    public void chartJsDatasetSerializationShouldOmitNullOptionalFields() throws Exception {
+        List<EmployeeEvent> events = Arrays.asList(
+                new EmployeeEvent("Engineering", 100),
+                new EmployeeEvent("Finance", 90)
+        );
+
+        ChartJsPayload payload = ChartQueryPresets
+                .categoryTotals("department", Metric.SUM, "salary", "payroll")
+                .chartJs(events);
+
+        JsonNode dataset = new ObjectMapper()
+                .readTree(new ObjectMapper().writeValueAsBytes(payload))
+                .get("data")
+                .get("datasets")
+                .get(0);
+
+        assertFalse(dataset.has("stack"));
+        assertFalse(dataset.has("yAxisID"));
+        assertFalse(dataset.has("fill"));
+        assertFalse(dataset.has("tension"));
     }
 
     @SuppressWarnings("unchecked")

@@ -9,6 +9,26 @@
 
 ## Current Focus
 
+- Example frontend/runtime-asset hardening is now implemented:
+  - reproduced the user-visible chart failure in-browser and confirmed the root
+    cause was the new built-in Chart.js dataset payload serializing nullable
+    optional fields (notably `yAxisID`), which broke Chart.js with
+    `TypeError: Cannot read properties of undefined (reading 'axis')`.
+  - fixed the library adapter by making `ChartJsDataset` omit null fields at
+    JSON serialization time; added serialization coverage in
+    `ChartJsAdapterBridgeTest`.
+  - hardened the example frontend so it no longer depends on runtime CDNs for
+    core assets:
+    Bootstrap and Chart.js now load from local `/webjars/...` resources.
+  - added a visible `#clientErrorPanel` in the example page and wired uncaught
+    frontend/render errors into it so Playwright can assert actual FE health.
+  - `DashboardPlaywrightE2eTest` now checks both:
+    the client-error panel stays empty and chart instances are created.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=ChartJsAdapterBridgeTest,ReportDefinitionTest,ChartQueryPresetsTest,StatsViewPresetsTest" test`
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
 - The `Pre-Adoption Simplification` roadmap in `TODO.md` is complete:
   `WP7.1`-`WP7.5` are all `Done`.
   - `PojoLens` is now a helper-only facade:
@@ -45,6 +65,8 @@
   - focused validations passed:
     `mvn -B -ntp -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,ChartQueryPresetsTest,ChartJsAdapterBridgeTest,ReportDefinitionTest" test`
     `scripts/check-doc-consistency.ps1`
+  - full repository regression also now passes after those changes:
+    `mvn -q test`
 - Spring Boot starter basic example now demonstrates preset-heavy workflows:
   - added mode-discovery endpoint:
     `GET /api/employees/dashboard-options`.
@@ -403,6 +425,8 @@
   - refreshed baseline: `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
   - post-refresh gate check passes with `11839` report/baseline entries and `new=0`, `fixed=0`.
 - Maven Central release completion remains pending operational work.
+- With full regression now green on `2026-03-26`, the next practical step is
+  release retry / release verification rather than more implementation work.
 - Next roadmap item should be selected after spike-5 completion (release retry remains operationally pending).
 - Incremental test deduplication can continue using `testutil/StatsExampleFixtures` as the shared-fixture baseline pattern.
 - Continue migrating remaining duplicated nested projection/date helpers onto shared `testutil/*Fixtures` patterns.

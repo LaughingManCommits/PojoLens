@@ -7,7 +7,7 @@
 }
 
 body {
-    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
     background: var(--dash-bg);
     color: #1f2d3d;
     min-height: 100vh;
@@ -90,6 +90,13 @@ body {
 .table-empty {
     color: #6c757d;
     font-style: italic;
+}
+
+#clientErrorText {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 @media (max-width: 991.98px) {

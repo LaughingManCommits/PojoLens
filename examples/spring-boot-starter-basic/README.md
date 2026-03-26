@@ -69,6 +69,8 @@ curl "http://localhost:8080/api/employees/runtime"
 - `ChartQueryPresets` provide chart-first reusable query shapes and can now emit `ChartJsPayload` directly.
 - `preset.reportDefinition().chartJs(...)` shows how to bridge a chart preset into the general report wrapper without custom mapping code.
 - The frontend consumes Chart.js-ready payloads produced from PojoLens chart models.
+- The example serves Bootstrap and Chart.js from local app dependencies (`/webjars/...`) instead of runtime CDNs, so the dashboard stays self-contained.
+- The page surfaces frontend/runtime render errors in a visible error panel, and the Playwright suite asserts that the panel stays empty during happy-path flows.
 
 ## Why The New API Surface Matters
 

@@ -172,6 +172,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#statsMode")).isVisible();
         assertThat(page.locator("#chartMode")).isVisible();
         assertThat(page.locator("#employeeTable tr").first()).isVisible();
+        assertNoClientErrors();
+        assertChartsRendered();
 
         page.selectOption("#statsMode", "PRESET_SUMMARY_HEADCOUNT");
         page.selectOption("#chartMode", "PRESET_REPORT");
@@ -183,6 +185,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#chartModeHelp")).containsText("/docs/reports.md");
         assertThat(page.locator("#payrollChart")).isVisible();
         assertThat(page.locator("#headcountChart")).isVisible();
+        assertNoClientErrors();
+        assertChartsRendered();
 
         page.selectOption("#statsMode", "DIRECT_SQL");
         page.selectOption("#chartMode", "DIRECT_SQL");
@@ -195,6 +199,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#chartModeHelp")).containsText("/docs/charts.md");
         assertThat(page.locator("#payrollChart")).isVisible();
         assertThat(page.locator("#headcountChart")).isVisible();
+        assertNoClientErrors();
+        assertChartsRendered();
 
         page.selectOption("#topPaidDepartment", "Engineering");
         page.fill("#topPaidMinSalary", "0");
@@ -267,6 +273,8 @@ class DashboardPlaywrightE2eTest {
                 assertTrue(page.locator("#statsTableHead th").count() > 0);
                 assertThat(page.locator("#payrollChart")).isVisible();
                 assertThat(page.locator("#headcountChart")).isVisible();
+                assertNoClientErrors();
+                assertChartsRendered();
             }
         }
     }
@@ -291,6 +299,7 @@ class DashboardPlaywrightE2eTest {
         );
         assertEquals(400, createResponse.status());
         assertThat(page.locator("#feedback")).containsText("Add employee failed");
+        assertNoClientErrors();
         assertTrue(!waitForEmployeeByApi(badName, 2_000));
     }
 
@@ -332,6 +341,18 @@ class DashboardPlaywrightE2eTest {
             }
         }
         return false;
+    }
+
+    private void assertNoClientErrors() {
+        assertEquals(
+                "false",
+                page.locator("#clientErrorPanel").getAttribute("data-has-error"),
+                page.locator("#clientErrorText").textContent()
+        );
+    }
+
+    private void assertChartsRendered() {
+        assertTrue((Boolean) page.evaluate("() => !!window.charts.payroll && !!window.charts.headcount"));
     }
 
     private String baseUrl() {

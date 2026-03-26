@@ -20,6 +20,46 @@ const endpoints = {
     topPaid: "/api/employees/top-paid"
 };
 
+function clientErrorPanel() {
+    return document.getElementById("clientErrorPanel");
+}
+
+function clientErrorText() {
+    return document.getElementById("clientErrorText");
+}
+
+function clearClientError() {
+    const panel = clientErrorPanel();
+    panel.dataset.hasError = "false";
+    panel.classList.add("d-none");
+    clientErrorText().textContent = "";
+}
+
+function formatClientError(error) {
+    if (error instanceof Error) {
+        return `${error.name}: ${error.message}`;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    try {
+        return JSON.stringify(error);
+    } catch (jsonError) {
+        return `${error}`;
+    }
+}
+
+function reportClientError(stage, error) {
+    const panel = clientErrorPanel();
+    const text = clientErrorText();
+    const message = `[${stage}] ${formatClientError(error)}`;
+    const existing = text.textContent.trim();
+    text.textContent = existing ? `${existing}\n${message}` : message;
+    panel.dataset.hasError = "true";
+    panel.classList.remove("d-none");
+    return message;
+}
+
 function money(value) {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -90,11 +130,16 @@ function emptyRow(columnCount, label) {
 }
 
 function renderChart(key, canvasId, payload) {
-    const context = document.getElementById(canvasId).getContext("2d");
-    if (charts[key]) {
-        charts[key].destroy();
+    try {
+        const context = document.getElementById(canvasId).getContext("2d");
+        if (charts[key]) {
+            charts[key].destroy();
+        }
+        charts[key] = new Chart(context, payload);
+    } catch (error) {
+        reportClientError(`renderChart:${key}`, error);
+        throw error;
     }
-    charts[key] = new Chart(context, payload);
 }
 
 function renderEmployees(rows) {
@@ -231,6 +276,7 @@ async function refreshDepartments() {
 }
 
 async function refreshDashboard(selectedModes) {
+    clearClientError();
     const statsMode = selectedModes?.statsMode || document.getElementById("statsMode").value;
     const chartMode = selectedModes?.chartMode || document.getElementById("chartMode").value;
     const query = new URLSearchParams({statsMode: statsMode, chartMode: chartMode});
@@ -300,8 +346,17 @@ document.getElementById("topPaidForm").addEventListener("submit", async (event) 
     }
 });
 
+window.addEventListener("error", (event) => {
+    reportClientError("window.error", event.error || event.message || "Unknown window error");
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+    reportClientError("window.unhandledrejection", event.reason || "Unhandled promise rejection");
+});
+
 async function boot() {
     try {
+        clearClientError();
         const options = await fetchJson(endpoints.dashboardOptions);
         renderModeOptions(options, options.defaultStatsMode, options.defaultChartMode);
         await refreshDepartments();
