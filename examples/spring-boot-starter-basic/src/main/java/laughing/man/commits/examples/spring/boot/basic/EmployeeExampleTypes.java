@@ -1,5 +1,6 @@
 package laughing.man.commits.examples.spring.boot.basic;
 
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chartjs.ChartJsPayload;
 
 import java.util.Arrays;
@@ -7,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Example-only API payloads, reusable mode metadata, and projection rows.
+ * Example-only API payloads, reusable selector metadata, and projection rows.
  *
  * Read next:
  * - /docs/stats-presets.md
@@ -68,7 +69,7 @@ public final class EmployeeExampleTypes {
                               boolean statsPlanCacheEnabled) {
     }
 
-    public record StatsPayload(String mode,
+    public record StatsPayload(String view,
                                String title,
                                List<String> columns,
                                List<Map<String, Object>> rows,
@@ -82,12 +83,12 @@ public final class EmployeeExampleTypes {
                                   String docPath) {
     }
 
-    public record DashboardOptions(List<String> statsModes,
-                                   List<String> chartModes,
-                                   List<DashboardOption> statsModeDetails,
-                                   List<DashboardOption> chartModeDetails,
-                                   String defaultStatsMode,
-                                   String defaultChartMode) {
+    public record DashboardOptions(List<String> statsViews,
+                                   List<String> chartTypes,
+                                   List<DashboardOption> statsViewDetails,
+                                   List<DashboardOption> chartTypeDetails,
+                                   String defaultStatsView,
+                                   String defaultChartType) {
     }
 
     public record DashboardPayload(List<EmployeeView> employees,
@@ -96,37 +97,37 @@ public final class EmployeeExampleTypes {
                                    ChartJsPayload headcountChart,
                                    RuntimeInfo runtime,
                                    DashboardOptions options,
-                                   String selectedStatsMode,
-                                   String selectedChartMode) {
+                                   String selectedStatsView,
+                                   String selectedChartType) {
     }
 
-    public enum StatsMode {
-        DIRECT_SQL(
-                "Direct runtime.parse(...)",
-                "Build grouped stats from an ad hoc SQL-like query executed by the injected runtime.",
+    public enum StatsView {
+        DEPARTMENT_PAYROLL(
+                "Payroll by Department",
+                "Focus the table on department payroll totals with an overall payroll summary.",
+                "/docs/stats-presets.md"
+        ),
+        DEPARTMENT_HEADCOUNT(
+                "Headcount by Department",
+                "Focus the table on department employee counts with an overall headcount summary.",
+                "/docs/stats-presets.md"
+        ),
+        TOP_3_PAYROLL_DEPARTMENTS(
+                "Top 3 Payroll Departments",
+                "Turn the table into a compact leaderboard of the highest-payroll departments.",
+                "/docs/stats-presets.md"
+        ),
+        TEAM_SUMMARY(
+                "Team Summary",
+                "Show a compact one-row summary with headcount, payroll, and average salary.",
                 "/docs/sql-like.md"
-        ),
-        PRESET_BY_PAYROLL(
-                "StatsViewPresets.by(...)",
-                "Reuse a grouped payroll table preset and render its schema and totals generically.",
-                "/docs/stats-presets.md"
-        ),
-        PRESET_TOP3_PAYROLL(
-                "StatsViewPresets.topNBy(...)",
-                "Use a reusable top-N leaderboard preset to keep the query shape explicit and repeatable.",
-                "/docs/stats-presets.md"
-        ),
-        PRESET_SUMMARY_HEADCOUNT(
-                "StatsViewPresets.summary(...)",
-                "Use a single-row summary preset to demonstrate totals-first dashboard output.",
-                "/docs/stats-presets.md"
         );
 
         private final String label;
         private final String summary;
         private final String docPath;
 
-        StatsMode(String label, String summary, String docPath) {
+        StatsView(String label, String summary, String docPath) {
             this.label = label;
             this.summary = summary;
             this.docPath = docPath;
@@ -136,8 +137,8 @@ public final class EmployeeExampleTypes {
             return new DashboardOption(name(), label, summary, docPath);
         }
 
-        public static StatsMode defaultMode() {
-            return PRESET_BY_PAYROLL;
+        public static StatsView defaultView() {
+            return DEPARTMENT_PAYROLL;
         }
 
         public static List<String> names() {
@@ -148,44 +149,59 @@ public final class EmployeeExampleTypes {
 
         public static List<DashboardOption> details() {
             return Arrays.stream(values())
-                    .map(StatsMode::option)
+                    .map(StatsView::option)
                     .toList();
         }
     }
 
-    public enum ChartMode {
-        DIRECT_SQL(
-                "runtime.parse(...) + ChartJsAdapter",
-                "Execute an ad hoc SQL-like query and convert the PojoLens chart contract to a Chart.js payload.",
+    public enum ChartTypeOption {
+        BAR(
+                ChartType.BAR,
+                "Bar Chart",
+                "Compare departments side by side with a standard bar view.",
                 "/docs/charts.md"
         ),
-        PRESET_QUERY(
-                "ChartQueryPreset.chartJs(...)",
-                "Keep chart-first reusable presets as the primary API and emit a frontend-ready Chart.js payload.",
+        PIE(
+                ChartType.PIE,
+                "Pie Chart",
+                "Show how much each department contributes to the whole.",
                 "/docs/charts.md"
         ),
-        PRESET_REPORT(
-                "preset.reportDefinition().chartJs(...)",
-                "Bridge a chart preset into the more general reusable report abstraction and keep the Chart.js payload.",
-                "/docs/reports.md"
+        LINE(
+                ChartType.LINE,
+                "Line Chart",
+                "Render the same department totals with a connected line view.",
+                "/docs/charts.md"
+        ),
+        AREA(
+                ChartType.AREA,
+                "Area Chart",
+                "Use a filled line/area presentation for the same department totals.",
+                "/docs/charts.md"
         );
 
+        private final ChartType chartType;
         private final String label;
         private final String summary;
         private final String docPath;
 
-        ChartMode(String label, String summary, String docPath) {
+        ChartTypeOption(ChartType chartType, String label, String summary, String docPath) {
+            this.chartType = chartType;
             this.label = label;
             this.summary = summary;
             this.docPath = docPath;
+        }
+
+        public ChartType chartType() {
+            return chartType;
         }
 
         public DashboardOption option() {
             return new DashboardOption(name(), label, summary, docPath);
         }
 
-        public static ChartMode defaultMode() {
-            return PRESET_QUERY;
+        public static ChartTypeOption defaultType() {
+            return BAR;
         }
 
         public static List<String> names() {
@@ -196,7 +212,7 @@ public final class EmployeeExampleTypes {
 
         public static List<DashboardOption> details() {
             return Arrays.stream(values())
-                    .map(ChartMode::option)
+                    .map(ChartTypeOption::option)
                     .toList();
         }
     }

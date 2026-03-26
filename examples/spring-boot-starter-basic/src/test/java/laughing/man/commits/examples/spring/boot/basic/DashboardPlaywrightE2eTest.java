@@ -108,32 +108,35 @@ class DashboardPlaywrightE2eTest {
 
     @Test
     @Order(2)
-    void dashboardApiSupportsAllConfiguredModes() throws Exception {
+    void dashboardApiSupportsAllConfiguredViewsAndChartTypes() throws Exception {
         JsonNode options = getJson("/api/employees/dashboard-options");
-        JsonNode statsModes = options.get("statsModes");
-        JsonNode chartModes = options.get("chartModes");
-        assertEquals(4, statsModes.size());
-        assertEquals(3, chartModes.size());
-        assertEquals("PRESET_BY_PAYROLL", options.get("defaultStatsMode").asText());
-        assertEquals("PRESET_QUERY", options.get("defaultChartMode").asText());
-        assertEquals(4, options.get("statsModeDetails").size());
-        assertEquals(3, options.get("chartModeDetails").size());
+        JsonNode statsViews = options.get("statsViews");
+        JsonNode chartTypes = options.get("chartTypes");
+        assertEquals(4, statsViews.size());
+        assertEquals(4, chartTypes.size());
+        assertEquals("DEPARTMENT_PAYROLL", options.get("defaultStatsView").asText());
+        assertEquals("BAR", options.get("defaultChartType").asText());
+        assertEquals(4, options.get("statsViewDetails").size());
+        assertEquals(4, options.get("chartTypeDetails").size());
 
-        for (JsonNode statsMode : statsModes) {
-            for (JsonNode chartMode : chartModes) {
-                String statsValue = statsMode.asText();
-                String chartValue = chartMode.asText();
+        for (JsonNode statsView : statsViews) {
+            for (JsonNode chartType : chartTypes) {
+                String statsValue = statsView.asText();
+                String chartValue = chartType.asText();
                 JsonNode payload = getJson(
-                        "/api/employees/dashboard?statsMode=" + statsValue + "&chartMode=" + chartValue
+                        "/api/employees/dashboard?statsView=" + statsValue + "&chartType=" + chartValue
                 );
-                assertEquals(statsValue, payload.get("selectedStatsMode").asText());
-                assertEquals(chartValue, payload.get("selectedChartMode").asText());
+                assertEquals(statsValue, payload.get("selectedStatsView").asText());
+                assertEquals(chartValue, payload.get("selectedChartType").asText());
                 assertTrue(payload.get("employees").isArray());
                 assertTrue(payload.get("stats").get("columns").isArray());
                 assertTrue(payload.get("stats").get("rows").isArray());
                 assertTrue(payload.get("stats").get("source").asText().length() > 0);
+                assertEquals(statsValue, payload.get("stats").get("view").asText());
                 assertTrue(payload.get("payrollChart").get("data").get("labels").size() > 0);
                 assertTrue(payload.get("headcountChart").get("data").get("labels").size() > 0);
+                assertEquals(expectedChartJsType(chartValue), payload.get("payrollChart").get("type").asText());
+                assertEquals(expectedChartJsType(chartValue), payload.get("headcountChart").get("type").asText());
             }
         }
     }
@@ -165,42 +168,46 @@ class DashboardPlaywrightE2eTest {
 
     @Test
     @Order(4)
-    void uiSupportsModeSwitchingTopPaidAndAddEmployeeFlow() {
+    void uiSupportsStatsFocusChartTypesTopPaidAndAddEmployeeFlow() {
         page.navigate(baseUrl() + "/");
 
         assertThat(page.locator("h1")).containsText("PojoLens Starter Dashboard");
-        assertThat(page.locator("#statsMode")).isVisible();
-        assertThat(page.locator("#chartMode")).isVisible();
+        assertThat(page.locator("#statsView")).isVisible();
+        assertThat(page.locator("#chartType")).isVisible();
         assertThat(page.locator("#employeeTable tr").first()).isVisible();
         assertNoClientErrors();
-        assertChartsRendered();
+        assertChartsRendered("bar");
 
-        page.selectOption("#statsMode", "PRESET_SUMMARY_HEADCOUNT");
-        page.selectOption("#chartMode", "PRESET_REPORT");
-        page.click("#presetForm button[type='submit']");
+        page.selectOption("#statsView", "TEAM_SUMMARY");
+        page.selectOption("#chartType", "PIE");
+        page.click("#dashboardForm button[type='submit']");
 
-        assertThat(page.locator("#statsTitle")).hasText("PRESET_SUMMARY_HEADCOUNT");
-        assertThat(page.locator("#statsSource")).containsText("Stats preset: summary");
-        assertThat(page.locator("#statsModeHelp")).containsText("/docs/stats-presets.md");
-        assertThat(page.locator("#chartModeHelp")).containsText("/docs/reports.md");
-        assertThat(page.locator("#payrollChart")).isVisible();
-        assertThat(page.locator("#headcountChart")).isVisible();
-        assertNoClientErrors();
-        assertChartsRendered();
-
-        page.selectOption("#statsMode", "DIRECT_SQL");
-        page.selectOption("#chartMode", "DIRECT_SQL");
-        page.click("#presetForm button[type='submit']");
-        assertThat(page.locator("#statsTitle")).hasText("DIRECT_SQL");
-        assertThat(page.locator("#statsSource")).containsText("Direct SQL-like grouped stats");
-        assertThat(page.locator("#statsTableHead")).containsText("department");
+        assertThat(page.locator("#statsTitle")).hasText("TEAM_SUMMARY");
+        assertThat(page.locator("#statsSource")).containsText("Team Summary");
+        assertThat(page.locator("#statsTableHead")).containsText("headcount");
         assertThat(page.locator("#statsTableHead")).containsText("payroll");
-        assertThat(page.locator("#statsModeHelp")).containsText("/docs/sql-like.md");
-        assertThat(page.locator("#chartModeHelp")).containsText("/docs/charts.md");
+        assertThat(page.locator("#statsTableHead")).containsText("averageSalary");
+        assertThat(page.locator("#statsViewHelp")).containsText("/docs/sql-like.md");
+        assertThat(page.locator("#chartTypeHelp")).containsText("/docs/charts.md");
         assertThat(page.locator("#payrollChart")).isVisible();
         assertThat(page.locator("#headcountChart")).isVisible();
         assertNoClientErrors();
-        assertChartsRendered();
+        assertChartsRendered("pie");
+
+        page.selectOption("#statsView", "DEPARTMENT_HEADCOUNT");
+        page.selectOption("#chartType", "AREA");
+        page.click("#dashboardForm button[type='submit']");
+        assertThat(page.locator("#statsTitle")).hasText("DEPARTMENT_HEADCOUNT");
+        assertThat(page.locator("#statsSource")).containsText("Headcount by Department");
+        assertThat(page.locator("#statsTableHead")).containsText("department");
+        assertThat(page.locator("#statsTableHead")).containsText("headcount");
+        assertThat(page.locator("#statsViewHelp")).containsText("/docs/stats-presets.md");
+        assertThat(page.locator("#chartTypeHelp")).containsText("/docs/charts.md");
+        assertThat(page.locator("#payrollChart")).isVisible();
+        assertThat(page.locator("#headcountChart")).isVisible();
+        assertNoClientErrors();
+        assertChartsRendered("line");
+        assertAreaChartsRendered();
 
         page.selectOption("#topPaidDepartment", "Engineering");
         page.fill("#topPaidMinSalary", "0");
@@ -241,40 +248,44 @@ class DashboardPlaywrightE2eTest {
 
     @Test
     @Order(5)
-    void uiCanApplyAllModeCombinations() {
+    void uiCanApplyAllStatsViewsAndChartTypes() {
         page.navigate(baseUrl() + "/");
 
-        String[] statsModes = {
-                "DIRECT_SQL",
-                "PRESET_BY_PAYROLL",
-                "PRESET_TOP3_PAYROLL",
-                "PRESET_SUMMARY_HEADCOUNT"
+        String[] statsViews = {
+                "DEPARTMENT_PAYROLL",
+                "DEPARTMENT_HEADCOUNT",
+                "TOP_3_PAYROLL_DEPARTMENTS",
+                "TEAM_SUMMARY"
         };
-        String[] chartModes = {
-                "DIRECT_SQL",
-                "PRESET_QUERY",
-                "PRESET_REPORT"
+        String[] chartTypes = {
+                "BAR",
+                "PIE",
+                "LINE",
+                "AREA"
         };
 
-        for (String statsMode : statsModes) {
-            for (String chartMode : chartModes) {
-                page.selectOption("#statsMode", statsMode);
-                page.selectOption("#chartMode", chartMode);
-                assertEquals(statsMode, page.inputValue("#statsMode"));
-                assertEquals(chartMode, page.inputValue("#chartMode"));
+        for (String statsView : statsViews) {
+            for (String chartType : chartTypes) {
+                page.selectOption("#statsView", statsView);
+                page.selectOption("#chartType", chartType);
+                assertEquals(statsView, page.inputValue("#statsView"));
+                assertEquals(chartType, page.inputValue("#chartType"));
                 Response refreshResponse = page.waitForResponse(
                         response -> response.url().contains("/api/employees/dashboard?")
                                 && "GET".equalsIgnoreCase(response.request().method()),
-                        () -> page.click("#presetForm button[type='submit']")
+                        () -> page.click("#dashboardForm button[type='submit']")
                 );
                 assertEquals(200, refreshResponse.status());
 
-                assertThat(page.locator("#statsTitle")).hasText(statsMode);
+                assertThat(page.locator("#statsTitle")).hasText(statsView);
                 assertTrue(page.locator("#statsTableHead th").count() > 0);
                 assertThat(page.locator("#payrollChart")).isVisible();
                 assertThat(page.locator("#headcountChart")).isVisible();
                 assertNoClientErrors();
-                assertChartsRendered();
+                assertChartsRendered(expectedChartJsType(chartType));
+                if ("AREA".equals(chartType)) {
+                    assertAreaChartsRendered();
+                }
             }
         }
     }
@@ -351,8 +362,34 @@ class DashboardPlaywrightE2eTest {
         );
     }
 
-    private void assertChartsRendered() {
+    private void assertChartsRendered(String expectedType) {
         assertTrue((Boolean) page.evaluate("() => !!window.charts.payroll && !!window.charts.headcount"));
+        assertEquals(
+                expectedType,
+                page.evaluate("() => window.charts.payroll.config.type").toString()
+        );
+        assertEquals(
+                expectedType,
+                page.evaluate("() => window.charts.headcount.config.type").toString()
+        );
+    }
+
+    private void assertAreaChartsRendered() {
+        assertEquals(
+                "true",
+                page.evaluate("() => String(window.charts.payroll.data.datasets[0].fill)").toString()
+        );
+        assertEquals(
+                "true",
+                page.evaluate("() => String(window.charts.headcount.data.datasets[0].fill)").toString()
+        );
+    }
+
+    private String expectedChartJsType(String chartType) {
+        if ("AREA".equals(chartType) || "LINE".equals(chartType)) {
+            return "line";
+        }
+        return chartType.toLowerCase();
     }
 
     private String baseUrl() {

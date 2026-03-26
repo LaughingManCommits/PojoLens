@@ -9,8 +9,8 @@
  */
 const charts = window.charts = {payroll: null, headcount: null};
 const state = {
-    statsOptions: {},
-    chartOptions: {}
+    statsViews: {},
+    chartTypes: {}
 };
 const endpoints = {
     dashboard: "/api/employees/dashboard",
@@ -66,6 +66,10 @@ function money(value) {
         currency: "USD",
         maximumFractionDigits: 0
     }).format(value);
+}
+
+function count(value) {
+    return Number(value || 0).toLocaleString("en-US");
 }
 
 function pretty(value) {
@@ -175,14 +179,18 @@ function renderTopPaid(rows) {
 }
 
 function renderStats(stats) {
-    document.getElementById("statsTitle").textContent = stats.mode;
-    document.getElementById("statsSource").textContent = `${stats.title}\n${stats.source}`;
+    const statsDisplayTitle = document.getElementById("statsDisplayTitle");
+    if (statsDisplayTitle) {
+        statsDisplayTitle.textContent = stats.title;
+    }
+    document.getElementById("statsTitle").textContent = stats.view;
+    document.getElementById("statsSource").textContent = `View: ${stats.title}\nSource: ${stats.source}`;
 
     const head = document.getElementById("statsTableHead");
     const body = document.getElementById("statsTableBody");
     head.innerHTML = `<tr>${stats.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
     if (!stats.rows.length) {
-        body.innerHTML = emptyRow(Math.max(stats.columns.length, 1), "No rows returned for this stats mode.");
+        body.innerHTML = emptyRow(Math.max(stats.columns.length, 1), "No rows returned for this stats view.");
     } else {
         body.innerHTML = stats.rows.map((row) => `
             <tr>${stats.columns.map((column) => `<td>${escapeHtml(pretty(row[column]))}</td>`).join("")}</tr>
@@ -192,12 +200,29 @@ function renderStats(stats) {
     const totals = document.getElementById("statsTotals");
     const entries = Object.entries(stats.totals || {});
     if (entries.length === 0) {
-        totals.innerHTML = '<span class="text-body-secondary">No totals for this mode.</span>';
+        totals.innerHTML = '<span class="text-body-secondary">No totals for this view.</span>';
         return;
     }
     totals.innerHTML = entries.map(([key, value]) => `
         <span class="badge text-bg-light border me-2 mb-2">${escapeHtml(key)}: ${escapeHtml(pretty(value))}</span>
     `).join("");
+}
+
+function renderOverview(employees, selectedStatsView, selectedChartType) {
+    const departmentCount = new Set(employees.map((employee) => employee.department)).size;
+    const payroll = employees.reduce((total, employee) => total + Number(employee.salary || 0), 0);
+    const averageSalary = employees.length === 0 ? 0 : payroll / employees.length;
+    const statsOption = state.statsViews[selectedStatsView];
+    const chartOption = state.chartTypes[selectedChartType];
+
+    document.getElementById("overviewStatsView").textContent =
+        statsOption ? statsOption.label : selectedStatsView;
+    document.getElementById("overviewChartType").textContent =
+        chartOption ? chartOption.label : selectedChartType;
+    document.getElementById("overviewEmployees").textContent = count(employees.length);
+    document.getElementById("overviewDepartments").textContent = count(departmentCount);
+    document.getElementById("overviewPayroll").textContent = money(payroll);
+    document.getElementById("overviewAverageSalary").textContent = money(averageSalary);
 }
 
 function renderRuntime(runtime) {
@@ -228,7 +253,7 @@ function renderSelect(selectId, values, selectedValue) {
     }
 }
 
-function renderModeHelp(containerId, option) {
+function renderOptionHelp(containerId, option) {
     const container = document.getElementById(containerId);
     if (!option) {
         container.innerHTML = "";
@@ -244,13 +269,13 @@ function renderModeHelp(containerId, option) {
     `;
 }
 
-function renderModeOptions(options, selectedStatsMode, selectedChartMode) {
-    state.statsOptions = indexOptions(options.statsModeDetails);
-    state.chartOptions = indexOptions(options.chartModeDetails);
-    renderSelect("statsMode", options.statsModes || [], selectedStatsMode);
-    renderSelect("chartMode", options.chartModes || [], selectedChartMode);
-    renderModeHelp("statsModeHelp", state.statsOptions[document.getElementById("statsMode").value]);
-    renderModeHelp("chartModeHelp", state.chartOptions[document.getElementById("chartMode").value]);
+function renderDashboardOptions(options, selectedStatsView, selectedChartType) {
+    state.statsViews = indexOptions(options.statsViewDetails);
+    state.chartTypes = indexOptions(options.chartTypeDetails);
+    renderSelect("statsView", options.statsViews || [], selectedStatsView);
+    renderSelect("chartType", options.chartTypes || [], selectedChartType);
+    renderOptionHelp("statsViewHelp", state.statsViews[document.getElementById("statsView").value]);
+    renderOptionHelp("chartTypeHelp", state.chartTypes[document.getElementById("chartType").value]);
 }
 
 function renderDepartmentOptions(departments) {
@@ -275,16 +300,17 @@ async function refreshDepartments() {
     renderDepartmentOptions(await fetchJson(endpoints.departments));
 }
 
-async function refreshDashboard(selectedModes) {
+async function refreshDashboard(selectedOptions) {
     clearClientError();
-    const statsMode = selectedModes?.statsMode || document.getElementById("statsMode").value;
-    const chartMode = selectedModes?.chartMode || document.getElementById("chartMode").value;
-    const query = new URLSearchParams({statsMode: statsMode, chartMode: chartMode});
+    const statsView = selectedOptions?.statsView || document.getElementById("statsView").value;
+    const chartType = selectedOptions?.chartType || document.getElementById("chartType").value;
+    const query = new URLSearchParams({statsView: statsView, chartType: chartType});
     const dashboard = await fetchJson(`${endpoints.dashboard}?${query.toString()}`);
     renderEmployees(dashboard.employees);
-    renderStats(dashboard.stats);
     renderRuntime(dashboard.runtime);
-    renderModeOptions(dashboard.options, dashboard.selectedStatsMode, dashboard.selectedChartMode);
+    renderDashboardOptions(dashboard.options, dashboard.selectedStatsView, dashboard.selectedChartType);
+    renderOverview(dashboard.employees, dashboard.selectedStatsView, dashboard.selectedChartType);
+    renderStats(dashboard.stats);
     renderChart("payroll", "payrollChart", dashboard.payrollChart);
     renderChart("headcount", "headcountChart", dashboard.headcountChart);
 }
@@ -298,20 +324,20 @@ async function refreshTopPaid() {
     renderTopPaid(await fetchJson(`${endpoints.topPaid}?${query.toString()}`));
 }
 
-document.getElementById("statsMode").addEventListener("change", () => {
-    renderModeHelp("statsModeHelp", state.statsOptions[document.getElementById("statsMode").value]);
+document.getElementById("statsView").addEventListener("change", () => {
+    renderOptionHelp("statsViewHelp", state.statsViews[document.getElementById("statsView").value]);
 });
 
-document.getElementById("chartMode").addEventListener("change", () => {
-    renderModeHelp("chartModeHelp", state.chartOptions[document.getElementById("chartMode").value]);
+document.getElementById("chartType").addEventListener("change", () => {
+    renderOptionHelp("chartTypeHelp", state.chartTypes[document.getElementById("chartType").value]);
 });
 
-document.getElementById("presetForm").addEventListener("submit", async (event) => {
+document.getElementById("dashboardForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
         await refreshDashboard();
     } catch (error) {
-        showFeedback(`Preset refresh failed: ${error.message}`, true);
+        showFeedback(`Dashboard refresh failed: ${error.message}`, true);
     }
 });
 
@@ -358,11 +384,11 @@ async function boot() {
     try {
         clearClientError();
         const options = await fetchJson(endpoints.dashboardOptions);
-        renderModeOptions(options, options.defaultStatsMode, options.defaultChartMode);
+        renderDashboardOptions(options, options.defaultStatsView, options.defaultChartType);
         await refreshDepartments();
         await refreshDashboard({
-            statsMode: options.defaultStatsMode,
-            chartMode: options.defaultChartMode
+            statsView: options.defaultStatsView,
+            chartType: options.defaultChartType
         });
         await refreshTopPaid();
     } catch (error) {

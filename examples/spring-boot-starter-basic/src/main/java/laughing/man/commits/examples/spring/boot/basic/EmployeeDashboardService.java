@@ -1,24 +1,20 @@
 package laughing.man.commits.examples.spring.boot.basic;
 
 import laughing.man.commits.PojoLensRuntime;
-import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
-import laughing.man.commits.chart.ChartSpec;
-import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.chartjs.ChartJsAdapter;
 import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
-import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.ChartMode;
+import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.ChartTypeOption;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.CreateEmployeeRequest;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.DashboardOptions;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.DashboardPayload;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.Employee;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.EmployeeView;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.RuntimeInfo;
-import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.StatsMode;
 import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.StatsPayload;
+import laughing.man.commits.examples.spring.boot.basic.EmployeeExampleTypes.StatsView;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.stats.StatsTablePayload;
 import laughing.man.commits.stats.StatsViewPreset;
@@ -28,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -47,49 +44,35 @@ class EmployeeDashboardService {
     private static final String TOP_PAID_QUERY = "select id, name, department, salary "
             + "where department = :department and salary >= :minSalary "
             + "order by salary desc limit :limit";
-    private static final String DIRECT_STATS_QUERY = "select department, count(*) as headcount, sum(salary) as payroll, "
-            + "avg(salary) as averageSalary group by department order by payroll desc";
-    private static final String DIRECT_STATS_TOTALS_QUERY = "select count(*) as headcount, sum(salary) as payroll, "
+    private static final String TEAM_SUMMARY_QUERY = "select count(*) as headcount, sum(salary) as payroll, "
             + "avg(salary) as averageSalary";
-    private static final String DIRECT_PAYROLL_CHART_QUERY = "select department, sum(salary) as value "
-            + "group by department order by value desc";
-    private static final String DIRECT_HEADCOUNT_CHART_QUERY = "select department, count(*) as value "
-            + "group by department order by value desc";
-    private static final ChartSpec PAYROLL_CHART_SPEC = ChartSpec.of(ChartType.BAR, "department", "value")
-            .withTitle("Payroll by Department")
-            .withAxisLabels("Department", "Payroll");
-    private static final ChartSpec HEADCOUNT_CHART_SPEC = ChartSpec.of(ChartType.PIE, "department", "value")
-            .withTitle("Headcount by Department");
 
     private final EmployeeStore employeeStore;
     private final PojoLensRuntime pojoLensRuntime;
 
-    // The example now keeps the common dashboard flows in projection-free presets.
-    // Readers can start with QueryRow-backed presets and add typed projections only when needed.
-    private final StatsViewPreset<QueryRow> payrollStatsPreset;
+    private final StatsViewPreset<QueryRow> departmentPayrollStatsPreset;
+    private final StatsViewPreset<QueryRow> departmentHeadcountStatsPreset;
     private final StatsViewPreset<QueryRow> top3PayrollStatsPreset;
-    private final StatsViewPreset<QueryRow> summaryHeadcountPreset;
     private final ChartQueryPreset<QueryRow> payrollChartPreset;
-    private final ChartQueryPreset<QueryRow> headcountChartPreset;
-    private final ReportDefinition<QueryRow> payrollChartReport;
     private final ReportDefinition<QueryRow> headcountChartReport;
 
     EmployeeDashboardService(EmployeeStore employeeStore, PojoLensRuntime pojoLensRuntime) {
         this.employeeStore = employeeStore;
         this.pojoLensRuntime = pojoLensRuntime;
-        payrollStatsPreset = StatsViewPresets.by("department", Metric.SUM, "salary", "total");
-        top3PayrollStatsPreset = StatsViewPresets.topNBy("department", Metric.SUM, "salary", "total", 3);
-        summaryHeadcountPreset = StatsViewPresets.summary(Metric.COUNT, null, "total");
+        departmentPayrollStatsPreset = StatsViewPresets.by("department", Metric.SUM, "salary", "payroll");
+        departmentHeadcountStatsPreset = StatsViewPresets.by("department", Metric.COUNT, null, "headcount");
+        top3PayrollStatsPreset = StatsViewPresets.topNBy("department", Metric.SUM, "salary", "payroll", 3);
         payrollChartPreset = ChartQueryPresets
-                .categoryTotals("department", Metric.SUM, "salary", "value", ChartType.BAR)
+                .categoryTotals("department", Metric.SUM, "salary", "value")
                 .mapChartSpec(spec -> spec
                         .withTitle("Payroll by Department")
                         .withAxisLabels("Department", "Payroll"));
-        headcountChartPreset = ChartQueryPresets
-                .categoryTotals("department", Metric.COUNT, null, "value", ChartType.PIE)
-                .mapChartSpec(spec -> spec.withTitle("Headcount by Department"));
-        payrollChartReport = payrollChartPreset.reportDefinition();
-        headcountChartReport = headcountChartPreset.reportDefinition();
+        headcountChartReport = ChartQueryPresets
+                .categoryCounts("department", "value")
+                .mapChartSpec(spec -> spec
+                        .withTitle("Headcount by Department")
+                        .withAxisLabels("Department", "Headcount"))
+                .reportDefinition();
     }
 
     List<EmployeeView> employees() {
@@ -109,29 +92,29 @@ class EmployeeDashboardService {
 
     DashboardOptions dashboardOptions() {
         return new DashboardOptions(
-                StatsMode.names(),
-                ChartMode.names(),
-                StatsMode.details(),
-                ChartMode.details(),
-                StatsMode.defaultMode().name(),
-                ChartMode.defaultMode().name()
+                StatsView.names(),
+                ChartTypeOption.names(),
+                StatsView.details(),
+                ChartTypeOption.details(),
+                StatsView.defaultView().name(),
+                ChartTypeOption.defaultType().name()
         );
     }
 
-    DashboardPayload dashboard(String statsModeValue, String chartModeValue) {
+    DashboardPayload dashboard(String statsViewValue, String chartTypeValue) {
         List<Employee> employees = employeeStore.snapshot();
-        StatsMode statsMode = parseStatsMode(statsModeValue);
-        ChartMode chartMode = parseChartMode(chartModeValue);
-        DashboardCharts charts = buildCharts(employees, chartMode);
+        StatsView statsView = parseStatsView(statsViewValue);
+        ChartTypeOption chartType = parseChartType(chartTypeValue);
+        DashboardCharts charts = buildCharts(employees, chartType);
         return new DashboardPayload(
                 employeeViews(employees),
-                buildStatsPayload(employees, statsMode),
+                buildStatsPayload(employees, statsView),
                 charts.payrollChart(),
                 charts.headcountChart(),
                 runtime(),
                 dashboardOptions(),
-                statsMode.name(),
-                chartMode.name()
+                statsView.name(),
+                chartType.name()
         );
     }
 
@@ -156,80 +139,60 @@ class EmployeeDashboardService {
         );
     }
 
-    private StatsPayload buildStatsPayload(List<Employee> employees, StatsMode mode) {
-        return switch (mode) {
-            case DIRECT_SQL -> directSqlStats(employees);
-            case PRESET_BY_PAYROLL -> presetStats(
-                    payrollStatsPreset,
+    private StatsPayload buildStatsPayload(List<Employee> employees, StatsView view) {
+        return switch (view) {
+            case DEPARTMENT_PAYROLL -> presetStats(
+                    departmentPayrollStatsPreset,
                     employees,
-                    mode,
-                    "Stats preset: by(department, sum(salary))"
+                    view,
+                    "Payroll by Department"
             );
-            case PRESET_TOP3_PAYROLL -> presetStats(
+            case DEPARTMENT_HEADCOUNT -> presetStats(
+                    departmentHeadcountStatsPreset,
+                    employees,
+                    view,
+                    "Headcount by Department"
+            );
+            case TOP_3_PAYROLL_DEPARTMENTS -> presetStats(
                     top3PayrollStatsPreset,
                     employees,
-                    mode,
-                    "Stats preset: topNBy(department, sum(salary), 3)"
+                    view,
+                    "Top 3 Payroll Departments"
             );
-            case PRESET_SUMMARY_HEADCOUNT -> presetStats(
-                    summaryHeadcountPreset,
-                    employees,
-                    mode,
-                    "Stats preset: summary(count(*))"
-            );
+            case TEAM_SUMMARY -> teamSummaryStats(employees, view);
         };
     }
 
-    private StatsPayload directSqlStats(List<Employee> employees) {
-        var rowQuery = pojoLensRuntime.parse(DIRECT_STATS_QUERY);
-        var totalsQuery = pojoLensRuntime.parse(DIRECT_STATS_TOTALS_QUERY);
-        List<QueryRow> rows = rowQuery.filter(employees, QueryRow.class);
+    private StatsPayload teamSummaryStats(List<Employee> employees, StatsView view) {
+        var query = pojoLensRuntime.parse(TEAM_SUMMARY_QUERY);
+        List<QueryRow> rows = query.filter(employees, QueryRow.class);
         return new StatsPayload(
-                StatsMode.DIRECT_SQL.name(),
-                "Direct SQL-like grouped stats",
-                rowQuery.schema(QueryRow.class).names(),
-                TabularRows.toMaps(rows, rowQuery.schema(QueryRow.class)),
-                TabularRows.firstRowAsMap(
-                        totalsQuery.filter(employees, QueryRow.class),
-                        totalsQuery.schema(QueryRow.class)
-                ),
-                DIRECT_STATS_QUERY
+                view.name(),
+                "Team Summary",
+                query.schema(QueryRow.class).names(),
+                TabularRows.toMaps(rows, query.schema(QueryRow.class)),
+                Collections.emptyMap(),
+                TEAM_SUMMARY_QUERY
         );
     }
 
     private StatsPayload presetStats(StatsViewPreset<QueryRow> preset,
                                      List<Employee> employees,
-                                     StatsMode mode,
+                                     StatsView view,
                                      String title) {
         StatsTablePayload payload = preset.tablePayload(employees);
-        return new StatsPayload(mode.name(), title, payload.columns(), payload.rows(), payload.totals(), preset.source());
+        return new StatsPayload(view.name(), title, payload.columns(), payload.rows(), payload.totals(), preset.source());
     }
 
-    private DashboardCharts buildCharts(List<Employee> employees, ChartMode mode) {
-        return switch (mode) {
-            case DIRECT_SQL -> new DashboardCharts(
-                    chartJsPayload(
-                            pojoLensRuntime.parse(DIRECT_PAYROLL_CHART_QUERY)
-                                    .chart(employees, QueryRow.class, PAYROLL_CHART_SPEC)
-                    ),
-                    chartJsPayload(
-                            pojoLensRuntime.parse(DIRECT_HEADCOUNT_CHART_QUERY)
-                                    .chart(employees, QueryRow.class, HEADCOUNT_CHART_SPEC)
-                    )
-            );
-            case PRESET_QUERY -> new DashboardCharts(
-                    payrollChartPreset.chartJs(employees),
-                    headcountChartPreset.chartJs(employees)
-            );
-            case PRESET_REPORT -> new DashboardCharts(
-                    payrollChartReport.chartJs(employees),
-                    headcountChartReport.chartJs(employees)
-            );
-        };
-    }
-
-    private ChartJsPayload chartJsPayload(ChartData chartData) {
-        return ChartJsAdapter.toPayload(chartData);
+    private DashboardCharts buildCharts(List<Employee> employees, ChartTypeOption chartType) {
+        return new DashboardCharts(
+                payrollChartPreset
+                        .mapChartSpec(spec -> spec.withType(chartType.chartType()))
+                        .chartJs(employees),
+                headcountChartReport
+                        .mapChartSpec(spec -> spec.withType(chartType.chartType()))
+                        .chartJs(employees)
+        );
     }
 
     private List<EmployeeView> employeeViews(List<Employee> employees) {
@@ -239,19 +202,19 @@ class EmployeeDashboardService {
                 .toList();
     }
 
-    private StatsMode parseStatsMode(String value) {
+    private StatsView parseStatsView(String value) {
         try {
-            return StatsMode.valueOf(requiredText(value, "statsMode"));
+            return StatsView.valueOf(requiredText(value, "statsView"));
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown statsMode: " + value);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown statsView: " + value);
         }
     }
 
-    private ChartMode parseChartMode(String value) {
+    private ChartTypeOption parseChartType(String value) {
         try {
-            return ChartMode.valueOf(requiredText(value, "chartMode"));
+            return ChartTypeOption.valueOf(requiredText(value, "chartType"));
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown chartMode: " + value);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown chartType: " + value);
         }
     }
 

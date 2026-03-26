@@ -34,10 +34,10 @@ Open the dashboard UI:
 start http://localhost:8080/
 ```
 
-Preset-aware dashboard payload (switch stats/chart modes):
+Dashboard payload with user-facing stats focus and chart type selectors:
 
 ```bash
-curl "http://localhost:8080/api/employees/dashboard?statsMode=PRESET_TOP3_PAYROLL&chartMode=PRESET_REPORT"
+curl "http://localhost:8080/api/employees/dashboard?statsView=TOP_3_PAYROLL_DEPARTMENTS&chartType=PIE"
 ```
 
 Top paid employees in a department:
@@ -65,10 +65,13 @@ curl "http://localhost:8080/api/employees/runtime"
 - `PojoLensRuntime` is injected by Spring Boot auto-configuration from the starter.
 - Runtime behavior is controlled with `pojo-lens.*` properties.
 - Direct SQL-like endpoints and reusable preset-backed endpoints can coexist in one service.
+- The primary dashboard controls are user-facing: stats focus and chart type, not internal implementation modes.
 - `StatsViewPresets` provide table-first reusable query shapes with `schema()` and `totals()`.
 - `ChartQueryPresets` provide chart-first reusable query shapes and can now emit `ChartJsPayload` directly.
 - `preset.reportDefinition().chartJs(...)` shows how to bridge a chart preset into the general report wrapper without custom mapping code.
 - The frontend consumes Chart.js-ready payloads produced from PojoLens chart models.
+- The selected chart type (`BAR`, `PIE`, `LINE`, `AREA`) is applied to the same PojoLens chart definitions so readers can see how presentation changes without rewriting backend queries.
+- The selected stats view changes the table focus between department payroll, department headcount, top payroll departments, and a compact team summary.
 - The example serves Bootstrap and Chart.js from local app dependencies (`/webjars/...`) instead of runtime CDNs, so the dashboard stays self-contained.
 - The page surfaces frontend/runtime render errors in a visible error panel, and the Playwright suite asserts that the panel stays empty during happy-path flows.
 

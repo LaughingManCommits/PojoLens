@@ -12,6 +12,43 @@
 
 ## Latest Validation
 
+- `2026-03-26`: starter example frontend layout was reorganized around the real
+  dashboard workflow:
+  - top section now groups configuration controls, selector help, repo doc
+    guideposts, and a compact overview strip.
+  - analytical outputs now live in a single `Insight Board` section with the
+    payroll chart, headcount chart, and focused stats table grouped together.
+  - operational flows now live in a single `Work With Data` section with the
+    employee list, direct top-paid query, and add-employee form.
+  - frontend now computes and renders overview cards for active stats view,
+    active chart type, employee count, department count, total payroll, and
+    average salary.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- `2026-03-26`: starter example dashboard controls were refocused onto
+  user-facing selectors instead of backend implementation modes:
+  - replaced internal `statsMode/chartMode` dashboard selectors with
+    `statsView/chartType`.
+  - `statsView` now drives the table focus across:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    and `TEAM_SUMMARY`.
+  - `chartType` now drives presentation across:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    and `AREA`,
+    while reusing the same PojoLens preset/report definitions underneath.
+  - added immutable `ChartSpec.withType(...)` so chart presets/reports can
+    switch presentation without rewriting the underlying query contract.
+  - `DashboardPlaywrightE2eTest` now asserts the full
+    `statsView x chartType` matrix, verifies actual Chart.js config type changes,
+    and checks `AREA` charts keep dataset `fill=true`.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-26`: example frontend hardening completed after reproducing a real browser chart failure:
   - root cause:
     the new built-in `ChartJsPayload` dataset shape serialized nullable fields
@@ -73,10 +110,10 @@
     `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
 - `2026-03-26`: Java Playwright suite expanded to all frontend feature flows:
   - `DashboardPlaywrightE2eTest` now runs `6` passing tests covering:
-    API surfaces, full dashboard mode matrix, runtime badges, top-paid form,
+    API surfaces, full dashboard selector matrix, runtime badges, top-paid form,
     add-employee UI submit path, and invalid add-employee error feedback path.
-  - mode-matrix UI test now waits for dashboard refresh responses to avoid
-    async race failures.
+  - selector-matrix UI test now waits for dashboard refresh responses to avoid
+    async race failures and now verifies actual rendered Chart.js types.
   - validation passed:
     `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
 - `2026-03-26`: Java Playwright coverage was added for the starter example app:
@@ -85,9 +122,10 @@
     `examples/spring-boot-starter-basic/src/test/java/...`.
   - suite now exercises all example-app feature surfaces:
     runtime endpoint, employees/departments endpoints, top-paid endpoint,
-    dashboard options endpoint, dashboard mode matrix
-    (`statsMode` x `chartMode`), employee creation endpoint, and key dashboard
-    UI flows (mode switching, stats rendering, top-paid form, add-form presence).
+    dashboard options endpoint, dashboard selector matrix
+    (`statsView` x `chartType`), employee creation endpoint, and key dashboard
+    UI flows (stats-view switching, chart-type switching, stats rendering,
+    top-paid form, add-form presence).
   - switched the example test setup to Java-based Playwright only
     (removed Node Playwright harness in favor of Maven/JUnit execution).
   - updated example module build config with test dependencies
@@ -98,22 +136,24 @@
 - `2026-03-26`: starter example preset-first dashboard upgrade completed:
   - expanded `examples/spring-boot-starter-basic` API surface to demonstrate
     more PojoLens features in one flow:
-    - `GET /api/employees/dashboard-options` for supported mode discovery.
-    - `GET /api/employees/dashboard?statsMode=...&chartMode=...` for mode-based
-      switching between direct SQL-like and preset flows.
+    - `GET /api/employees/dashboard-options` for supported selector discovery.
+    - `GET /api/employees/dashboard?statsView=...&chartType=...` for switching
+      stats table focus and chart presentation while keeping PojoLens presets
+      and report helpers underneath.
     - retained existing mutable employee and top-paid/runtime endpoints.
-  - `statsMode` now supports direct SQL-like plus `StatsViewPresets` variants:
-    `PRESET_BY_PAYROLL`,
-    `PRESET_TOP3_PAYROLL`,
-    `PRESET_SUMMARY_HEADCOUNT`.
-  - `chartMode` now supports direct SQL-like chart mapping and
-    `ChartQueryPresets` execution via both preset chart and promoted
-    report-definition chart paths:
-    `DIRECT_SQL`,
-    `PRESET_QUERY`,
-    `PRESET_REPORT`.
-  - dashboard frontend (`/`) now includes explicit mode selectors and renders
-    dynamic stats columns/totals/source SQL text from the selected mode.
+  - `statsView` now supports:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    and `TEAM_SUMMARY`.
+  - `chartType` now supports:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    and `AREA`.
+  - dashboard frontend (`/`) now includes explicit stats-view and chart-type
+    selectors and renders dynamic stats columns/totals/source text from the
+    selected view.
   - validations passed:
     `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
     `scripts/check-doc-consistency.ps1`

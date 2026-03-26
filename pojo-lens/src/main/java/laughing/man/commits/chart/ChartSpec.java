@@ -128,6 +128,26 @@ public final class ChartSpec {
                 FieldSelectors.resolve(seriesField));
     }
 
+    public ChartSpec withType(ChartType value) {
+        return new ChartSpec(
+                value,
+                xField,
+                yField,
+                seriesField,
+                title,
+                xLabel,
+                yLabel,
+                dateFormat,
+                sortLabels,
+                stacked,
+                percentStacked,
+                nullPointPolicy,
+                colorHintByDataset,
+                stackGroupIdByDataset,
+                axisIdByDataset
+        );
+    }
+
     public ChartSpec withTitle(String value) {
         return copyWith(value, xLabel, yLabel, dateFormat, sortLabels, stacked, percentStacked, nullPointPolicy,
                 colorHintByDataset, stackGroupIdByDataset, axisIdByDataset);

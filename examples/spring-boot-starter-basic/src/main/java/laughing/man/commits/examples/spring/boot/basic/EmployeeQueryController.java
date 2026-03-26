@@ -55,11 +55,11 @@ public class EmployeeQueryController {
     }
 
     @GetMapping("/dashboard")
-    public DashboardPayload dashboard(@RequestParam(name = "statsMode", defaultValue = "PRESET_BY_PAYROLL")
-                                      String statsMode,
-                                      @RequestParam(name = "chartMode", defaultValue = "PRESET_QUERY")
-                                      String chartMode) {
-        return dashboardService.dashboard(statsMode, chartMode);
+    public DashboardPayload dashboard(@RequestParam(name = "statsView", defaultValue = "DEPARTMENT_PAYROLL")
+                                      String statsView,
+                                      @RequestParam(name = "chartType", defaultValue = "BAR")
+                                      String chartType) {
+        return dashboardService.dashboard(statsView, chartType);
     }
 
     @GetMapping("/top-paid")

@@ -9,6 +9,41 @@
 
 ## Current Focus
 
+- Starter example frontend layout has been reorganized into clearer workflow
+  zones:
+  - `Configure` groups selector controls, selector help, and overview cards.
+  - `Review` groups both charts with the focused stats table in one insight
+    section.
+  - `Work With Data` groups the employee list, direct top-paid query, and
+    add-employee flow.
+  - frontend now computes overview cards for active stats view, active chart
+    type, employee count, department count, total payroll, and average salary.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+- Starter example dashboard controls are now user-facing instead of
+  implementation-centric:
+  - dashboard selectors are now `statsView` and `chartType`, not
+    `statsMode/chartMode`.
+  - `statsView` drives the stats-table focus across:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    and `TEAM_SUMMARY`.
+  - `chartType` drives presentation across:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    and `AREA`,
+    while still reusing PojoLens preset/report definitions underneath.
+  - immutable `ChartSpec.withType(...)` was added so chart presets/reports can
+    switch chart presentation without rewriting the query shape.
+  - `DashboardPlaywrightE2eTest` now validates the full
+    `statsView x chartType` matrix, asserts the rendered Chart.js config type,
+    and checks `AREA` selections keep `fill=true`.
+  - validations passed:
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
 - Example frontend/runtime-asset hardening is now implemented:
   - reproduced the user-visible chart failure in-browser and confirmed the root
     cause was the new built-in Chart.js dataset payload serializing nullable
@@ -68,21 +103,23 @@
   - full repository regression also now passes after those changes:
     `mvn -q test`
 - Spring Boot starter basic example now demonstrates preset-heavy workflows:
-  - added mode-discovery endpoint:
+  - added selector-discovery endpoint:
     `GET /api/employees/dashboard-options`.
-  - dashboard endpoint now accepts mode switches:
-    `GET /api/employees/dashboard?statsMode=...&chartMode=...`.
-  - stats modes cover both direct SQL-like and `StatsViewPresets` paths:
-    `DIRECT_SQL`,
-    `PRESET_BY_PAYROLL`,
-    `PRESET_TOP3_PAYROLL`,
-    `PRESET_SUMMARY_HEADCOUNT`.
-  - chart modes cover direct chart mapping plus `ChartQueryPresets` flows:
-    `DIRECT_SQL`,
-    `PRESET_QUERY`,
-    `PRESET_REPORT` (via `preset.reportDefinition().chartJs(...)`).
-  - frontend dashboard now includes mode selectors and dynamic stats table
-    rendering (columns/totals/source SQL) driven by selected mode.
+  - dashboard endpoint now accepts user-facing selectors:
+    `GET /api/employees/dashboard?statsView=...&chartType=...`.
+  - stats views now cover:
+    `DEPARTMENT_PAYROLL`,
+    `DEPARTMENT_HEADCOUNT`,
+    `TOP_3_PAYROLL_DEPARTMENTS`,
+    `TEAM_SUMMARY`.
+  - chart types now cover:
+    `BAR`,
+    `PIE`,
+    `LINE`,
+    `AREA`.
+  - frontend dashboard now includes stats-view and chart-type selectors plus
+    dynamic stats table rendering (columns/totals/source text) driven by the
+    selected view.
   - validations passed:
     `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
     `scripts/check-doc-consistency.ps1`
@@ -99,12 +136,12 @@
     `examples/spring-boot-starter-basic/src/main/resources/static/app.css`.
   - example now uses the new library helpers directly instead of an
     example-local chart adapter:
-    preset/report chart modes call `chartJs(...)`,
-    stats preset modes call `tablePayload(...)`,
-    and chart mode labels/help now point readers at the new simplified APIs.
-  - `dashboard-options` now returns default mode values plus mode metadata
+    preset/report chart flows call `chartJs(...)`,
+    stats preset flows call `tablePayload(...)`,
+    and selector labels/help now point readers at the new simplified APIs.
+  - `dashboard-options` now returns default selector values plus selector metadata
     (`label`, `summary`, `docPath`), and the UI renders those details so users
-    can see which PojoLens doc to read next for each mode.
+    can see which PojoLens doc to read next for each view/type.
   - README and code comments now point readers to:
     `/docs/entry-points.md`,
     `/docs/stats-presets.md`,
@@ -117,8 +154,8 @@
   - test class:
     `examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java`.
   - coverage includes:
-    runtime/employees/departments/top-paid/dashboard-options/dashboard mode matrix
-    endpoints, `POST /api/employees`, and dashboard UI mode/table/form flows.
+    runtime/employees/departments/top-paid/dashboard-options/dashboard selector
+    matrix endpoints, `POST /api/employees`, and dashboard UI view/type/table/form flows.
   - implementation is Java-based Playwright (`com.microsoft.playwright:playwright`),
     not Node Playwright.
   - run command:
@@ -126,7 +163,7 @@
   - validation passed with the command above.
 - Java Playwright coverage has been expanded to all example FE flows:
   - current suite count: `6` passing tests.
-  - includes full UI `statsMode x chartMode` matrix apply checks, runtime badge
+  - includes full UI `statsView x chartType` matrix apply checks, runtime badge
     rendering checks, valid add-employee UI submit path checks, and invalid
     add-employee UI error feedback checks.
   - matrix assertions now wait for dashboard refresh responses to avoid
