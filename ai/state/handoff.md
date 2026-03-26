@@ -30,6 +30,12 @@
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
     `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
   - lint baseline/report parity now matches at `11858` entries (`new=0`, `fixed=0`).
+- Lint baseline refresh rerun is now completed:
+  - validations passed:
+    `mvn -B -ntp -Plint verify -DskipTests`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - lint baseline/report parity now matches at `11861` entries (`new=0`, `fixed=0`).
 - Public/fluent/query/chart test package migration is now delivered:
   - moved root test suites into dedicated packages:
     `laughing.man.commits.publicapi`, `laughing.man.commits.fluent`,

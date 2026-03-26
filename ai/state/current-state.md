@@ -12,6 +12,14 @@
 
 ## Latest Validation
 
+- `2026-03-26`: lint baseline refresh rerun completed:
+  - lint profile:
+    `mvn -B -ntp -Plint verify -DskipTests`
+  - baseline refresh:
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline`
+  - gate check:
+    `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
+  - current baseline/report parity: `11861` entries, `new=0`, `fixed=0`.
 - `2026-03-25`: `WP7.3`-`WP7.5` delivered and validated:
   - removed the duplicate `PojoLens` query/chart facade entry methods and the
     public static/global cache-policy methods on `PojoLens`, `PojoLensSql`, and
@@ -573,15 +581,13 @@
   `Pre-Adoption Simplification`.
   - the completed `Product Surface Realignment` roadmap is now retired from the
     active backlog and retained only through the docs baseline it produced.
-  - the current executable backlog is:
-    `WP7.1` `Done`,
-    `WP7.2` `Done`,
-    `WP7.3` `Ready`,
-    `WP7.4` `Planned`,
-    `WP7.5` `Planned`.
-  - the active goal is to narrow the `PojoLens` facade, reduce overlap with the
-    explicit entry points, and move cache/policy guidance toward
-    `PojoLensRuntime` before wider adoption.
+  - roadmap execution is complete:
+    `WP7.1`-`WP7.5` are all `Done`.
+  - the facade/cache simplification goal is delivered:
+    `PojoLens` is helper-only and `PojoLensRuntime` is the only public
+    cache-policy tuning surface.
+  - next work is optional and not currently queued in `TODO.md`
+    (release retry, release-note cleanup, or further tightening review).
   - `docs/consolidation-review.md` now contains the full `PojoLens` method
     audit plus the concrete helper-only facade decision for the four pure
     overlap entry aliases.
@@ -712,8 +718,7 @@
 
 ## Next Actions
 
-- `WP7.2` is now complete; start `WP7.3` to map static/global cache-policy APIs
-  onto a `PojoLensRuntime`-first replacement story and decide which global
-  owners, if any, remain after facade cleanup.
+- Pre-adoption simplification roadmap is complete; no queued engineering work
+  remains in `TODO.md`.
 - Retry release workflow for `v1.0.0` (or manual dispatch) and confirm Central publish status for runtime + Boot starter artifacts.
 - Keep lint baseline stable by reducing inherited violations incrementally and refreshing baseline only when intentional.
