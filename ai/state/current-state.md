@@ -12,6 +12,24 @@
 
 ## Latest Validation
 
+- `2026-03-26`: Spring Boot starter basic example structure/readability pass completed:
+  - split the former all-in-one example controller into focused example files:
+    `EmployeeQueryController` (HTTP),
+    `EmployeeDashboardService` (PojoLens runtime + presets),
+    `EmployeeStore` (in-memory data),
+    `EmployeeExampleTypes` (example payload/projection types),
+    and `ChartJsPayloadMapper` (Chart.js adapter).
+  - moved the frontend out of inline HTML into `static/app.js` and `static/app.css`
+    so the example reads as a maintainable reference implementation.
+  - dashboard options payload now exposes default modes plus mode metadata
+    (`label`, `summary`, `docPath`), and the UI now shows repo doc pointers for
+    `entry-points`, stats presets, charts, and reports.
+  - added code comments and README guidance that point readers to the relevant
+    repo docs when exploring the example.
+  - expanded Java Playwright assertions to cover the new mode-help/doc-path UI.
+  - validations passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
 - `2026-03-26`: Java Playwright suite expanded to all frontend feature flows:
   - `DashboardPlaywrightE2eTest` now runs `6` passing tests covering:
     API surfaces, full dashboard mode matrix, runtime badges, top-paid form,
@@ -648,6 +666,9 @@
     cache-policy tuning surface.
   - next work is optional and not currently queued in `TODO.md`
     (release retry, release-note cleanup, or further tightening review).
+  - the Spring Boot starter basic example is now structured as a reference-style
+    example rather than a single-file demo, with repo doc pointers embedded in
+    both backend/frontend code and the example README.
   - `docs/consolidation-review.md` now contains the full `PojoLens` method
     audit plus the concrete helper-only facade decision for the four pure
     overlap entry aliases.

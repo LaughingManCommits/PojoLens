@@ -43,6 +43,29 @@
   - validations passed:
     `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -DskipTests package`
     `scripts/check-doc-consistency.ps1`
+- Spring Boot starter basic example has now been refactored into a cleaner
+  reference implementation:
+  - split backend responsibilities into:
+    `EmployeeQueryController`,
+    `EmployeeDashboardService`,
+    `EmployeeStore`,
+    `EmployeeExampleTypes`,
+    and `ChartJsPayloadMapper`.
+  - moved frontend behavior/styles out of inline HTML into:
+    `examples/spring-boot-starter-basic/src/main/resources/static/app.js`
+    and
+    `examples/spring-boot-starter-basic/src/main/resources/static/app.css`.
+  - `dashboard-options` now returns default mode values plus mode metadata
+    (`label`, `summary`, `docPath`), and the UI renders those details so users
+    can see which PojoLens doc to read next for each mode.
+  - README and code comments now point readers to:
+    `/docs/entry-points.md`,
+    `/docs/stats-presets.md`,
+    `/docs/charts.md`,
+    and `/docs/reports.md`.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `scripts/check-doc-consistency.ps1`
 - Java Playwright E2E coverage now exists for the example app:
   - test class:
     `examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java`.

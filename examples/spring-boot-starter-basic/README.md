@@ -2,6 +2,21 @@
 
 This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring Boot app and use the auto-configured `PojoLensRuntime`.
 
+The example is intentionally split so each file demonstrates one concern:
+- `EmployeeQueryController` stays as the HTTP adapter.
+- `EmployeeDashboardService` owns the PojoLens runtime, reusable stats presets, reusable chart presets, and the report-definition bridge.
+- `EmployeeStore` keeps the demo self-contained with an in-memory dataset.
+- `static/app.js` and `static/app.css` keep the frontend readable instead of hiding the behavior inside `index.html`.
+
+## Read Next In This Repo
+
+The code comments point back to these docs:
+- `/docs/entry-points.md`
+- `/docs/stats-presets.md`
+- `/docs/charts.md`
+- `/docs/reports.md`
+- `examples/spring-boot-starter-basic/README.md`
+
 ## Run
 
 From repository root:
@@ -11,7 +26,7 @@ mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests
 mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml spring-boot:run
 ```
 
-## Try it
+## Try It
 
 Open the dashboard UI:
 
@@ -39,7 +54,23 @@ curl -X POST "http://localhost:8080/api/employees" ^
   -d "{\"name\":\"Sam\",\"department\":\"Engineering\",\"salary\":132000}"
 ```
 
-## Playwright E2E tests (Java)
+Inspect runtime starter settings:
+
+```bash
+curl "http://localhost:8080/api/employees/runtime"
+```
+
+## What This Demonstrates
+
+- `PojoLensRuntime` is injected by Spring Boot auto-configuration from the starter.
+- Runtime behavior is controlled with `pojo-lens.*` properties.
+- Direct SQL-like endpoints and reusable preset-backed endpoints can coexist in one service.
+- `StatsViewPresets` provide table-first reusable query shapes with `schema()` and `totals()`.
+- `ChartQueryPresets` provide chart-first reusable query shapes.
+- `preset.reportDefinition().chart(...)` shows how to bridge a chart preset into the general report wrapper.
+- The frontend consumes Chart.js-ready payloads produced from PojoLens chart models.
+
+## Playwright E2E Tests (Java)
 
 From repository root:
 
@@ -49,20 +80,5 @@ mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywr
 
 Notes:
 - Tests are Java/JUnit based (`com.microsoft.playwright:playwright`) under `src/test/java`.
-- The suite starts the app with `@SpringBootTest(webEnvironment=RANDOM_PORT)` and drives UI/API against that test server.
+- The suite starts the app with `@SpringBootTest(webEnvironment = RANDOM_PORT)` and drives both UI and API coverage against that server.
 - On first run Playwright downloads browser binaries automatically.
-
-Inspect runtime starter settings:
-
-```bash
-curl "http://localhost:8080/api/employees/runtime"
-```
-
-## What this demonstrates
-
-- `PojoLensRuntime` is provided by Boot auto-configuration from the starter.
-- Runtime behavior is controlled with `pojo-lens.*` properties (`preset`, strict/lint modes, telemetry).
-- SQL-like queries are executed directly against in-memory POJO lists with typed projection.
-- The dashboard can switch between direct SQL-like mode and reusable preset modes:
-  `StatsViewPresets` and `ChartQueryPresets` (including report-definition chart execution).
-- A Bootstrap + Chart.js frontend (`/`) consumes chart-ready payloads from PojoLens-backed API endpoints.

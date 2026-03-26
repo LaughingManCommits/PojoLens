@@ -1,0 +1,99 @@
+:root {
+    --dash-bg: linear-gradient(135deg, #e6f2ff 0%, #fff7e8 55%, #f1ffe8 100%);
+    --dash-card: rgba(255, 255, 255, 0.88);
+    --dash-border: rgba(12, 53, 106, 0.12);
+    --dash-ink: #0c356a;
+    --dash-shadow: 0 10px 28px rgba(27, 61, 120, 0.08);
+}
+
+body {
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    background: var(--dash-bg);
+    color: #1f2d3d;
+    min-height: 100vh;
+}
+
+.dash-title {
+    color: var(--dash-ink);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.glass-card {
+    background: var(--dash-card);
+    border: 1px solid var(--dash-border);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--dash-shadow);
+}
+
+.chart-wrap {
+    height: 340px;
+}
+
+.metric-pill {
+    border-radius: 999px;
+    font-size: 0.86rem;
+    padding: 0.35rem 0.8rem;
+}
+
+.source-chip,
+.doc-card code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.source-chip {
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.repo-link-grid .doc-card,
+.mode-help {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(12, 53, 106, 0.1);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.doc-card {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.doc-label {
+    color: var(--dash-ink);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+}
+
+.mode-help {
+    min-height: 9.5rem;
+}
+
+.mode-help .mode-label {
+    color: var(--dash-ink);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.mode-help .mode-summary {
+    color: #526070;
+    font-size: 0.92rem;
+}
+
+.mode-help .mode-doc {
+    font-size: 0.82rem;
+}
+
+.table-empty {
+    color: #6c757d;
+    font-style: italic;
+}
+
+@media (max-width: 991.98px) {
+    .chart-wrap {
+        height: 300px;
+    }
+}

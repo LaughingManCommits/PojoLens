@@ -114,6 +114,10 @@ class DashboardPlaywrightE2eTest {
         JsonNode chartModes = options.get("chartModes");
         assertEquals(4, statsModes.size());
         assertEquals(3, chartModes.size());
+        assertEquals("PRESET_BY_PAYROLL", options.get("defaultStatsMode").asText());
+        assertEquals("PRESET_QUERY", options.get("defaultChartMode").asText());
+        assertEquals(4, options.get("statsModeDetails").size());
+        assertEquals(3, options.get("chartModeDetails").size());
 
         for (JsonNode statsMode : statsModes) {
             for (JsonNode chartMode : chartModes) {
@@ -175,6 +179,8 @@ class DashboardPlaywrightE2eTest {
 
         assertThat(page.locator("#statsTitle")).hasText("PRESET_SUMMARY_HEADCOUNT");
         assertThat(page.locator("#statsSource")).containsText("Stats preset: summary");
+        assertThat(page.locator("#statsModeHelp")).containsText("/docs/stats-presets.md");
+        assertThat(page.locator("#chartModeHelp")).containsText("/docs/reports.md");
 
         page.selectOption("#statsMode", "DIRECT_SQL");
         page.selectOption("#chartMode", "DIRECT_SQL");
@@ -183,6 +189,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#statsSource")).containsText("Direct SQL-like grouped stats");
         assertThat(page.locator("#statsTableHead")).containsText("department");
         assertThat(page.locator("#statsTableHead")).containsText("payroll");
+        assertThat(page.locator("#statsModeHelp")).containsText("/docs/sql-like.md");
+        assertThat(page.locator("#chartModeHelp")).containsText("/docs/charts.md");
 
         page.selectOption("#topPaidDepartment", "Engineering");
         page.fill("#topPaidMinSalary", "0");

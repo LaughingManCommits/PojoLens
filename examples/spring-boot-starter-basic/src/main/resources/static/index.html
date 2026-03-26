@@ -8,51 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --dash-bg: linear-gradient(135deg, #e6f2ff 0%, #fff7e8 55%, #f1ffe8 100%);
-            --dash-card: rgba(255, 255, 255, 0.88);
-            --dash-border: rgba(12, 53, 106, 0.12);
-            --dash-ink: #0c356a;
-        }
-
-        body {
-            font-family: "Space Grotesk", "Segoe UI", sans-serif;
-            background: var(--dash-bg);
-            color: #1f2d3d;
-            min-height: 100vh;
-        }
-
-        .dash-title {
-            color: var(--dash-ink);
-            font-weight: 700;
-            letter-spacing: 0.02em;
-        }
-
-        .glass-card {
-            background: var(--dash-card);
-            border: 1px solid var(--dash-border);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 10px 28px rgba(27, 61, 120, 0.08);
-        }
-
-        .chart-wrap {
-            height: 340px;
-        }
-
-        .metric-pill {
-            border-radius: 999px;
-            font-size: 0.86rem;
-            padding: 0.35rem 0.8rem;
-        }
-
-        .source-chip {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 0.75rem;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-    </style>
+    <link href="/app.css" rel="stylesheet">
 </head>
 <body>
 <main class="container py-4 py-lg-5">
@@ -61,18 +17,62 @@
             <h1 class="dash-title mb-1">PojoLens Starter Dashboard</h1>
             <p class="text-body-secondary mb-0">Try direct SQL-like queries and reusable PojoLens presets side-by-side.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
             <span id="strictFlag" class="metric-pill badge text-bg-secondary">strict: -</span>
             <span id="lintFlag" class="metric-pill badge text-bg-secondary">lint: -</span>
             <span id="cacheFlag" class="metric-pill badge text-bg-secondary">cache: -</span>
         </div>
     </section>
 
-    <section id="feedback" class="mb-3"></section>
+    <section id="feedback" class="mb-3" aria-live="polite"></section>
 
     <section class="card glass-card mb-4">
         <div class="card-body">
-            <h2 class="h5 mb-3">Preset Controls</h2>
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                <div>
+                    <h2 class="h5 mb-1">Read Next In This Repo</h2>
+                    <p class="text-body-secondary mb-0">The example comments point back to these docs so readers can move from the demo to the core API surface.</p>
+                </div>
+                <span class="badge text-bg-light border">example guide + core docs</span>
+            </div>
+            <div class="row g-3 repo-link-grid">
+                <div class="col-md-6 col-xl-3">
+                    <div class="doc-card h-100">
+                        <div class="doc-label">Entry Points</div>
+                        <code>/docs/entry-points.md</code>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="doc-card h-100">
+                        <div class="doc-label">Stats Presets</div>
+                        <code>/docs/stats-presets.md</code>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="doc-card h-100">
+                        <div class="doc-label">Chart Presets</div>
+                        <code>/docs/charts.md</code>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="doc-card h-100">
+                        <div class="doc-label">Report Definitions</div>
+                        <code>/docs/reports.md</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card glass-card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                <div>
+                    <h2 class="h5 mb-1">Preset Controls</h2>
+                    <p class="text-body-secondary mb-0">Switch between direct runtime queries, table presets, chart presets, and the report-definition bridge.</p>
+                </div>
+                <span class="badge text-bg-light border">/api/employees/dashboard-options</span>
+            </div>
             <form id="presetForm" class="row g-3 align-items-end">
                 <div class="col-md-5">
                     <label class="form-label" for="statsMode">Stats Mode</label>
@@ -86,6 +86,14 @@
                     <button class="btn btn-primary w-100" type="submit">Apply</button>
                 </div>
             </form>
+            <div class="row g-3 mt-1">
+                <div class="col-lg-6">
+                    <div id="statsModeHelp" class="mode-help"></div>
+                </div>
+                <div class="col-lg-6">
+                    <div id="chartModeHelp" class="mode-help"></div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -93,7 +101,10 @@
         <div class="col-lg-5">
             <div class="card glass-card h-100">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Add Employee</h2>
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <h2 class="h5 mb-0">Add Employee</h2>
+                        <span class="badge text-bg-light border">POST /api/employees</span>
+                    </div>
                     <form id="addEmployeeForm" class="row g-3">
                         <div class="col-12">
                             <label class="form-label" for="employeeName">Name</label>
@@ -118,9 +129,12 @@
         <div class="col-lg-7">
             <div class="card glass-card h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h2 class="h5 mb-0">Top Paid Query</h2>
-                        <span class="badge text-bg-light border">/api/employees/top-paid</span>
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <div>
+                            <h2 class="h5 mb-1">Top Paid Query</h2>
+                            <p class="text-body-secondary mb-0">Direct SQL-like query executed through the injected runtime.</p>
+                        </div>
+                        <span class="badge text-bg-light border">GET /api/employees/top-paid</span>
                     </div>
                     <form id="topPaidForm" class="row g-2 align-items-end mb-3">
                         <div class="col-md-5">
@@ -161,7 +175,13 @@
         <div class="col-lg-7">
             <div class="card glass-card">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Payroll by Department</h2>
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <div>
+                            <h2 class="h5 mb-1">Payroll by Department</h2>
+                            <p class="text-body-secondary mb-0">Chart.js renders a payload produced from PojoLens chart rows and presets.</p>
+                        </div>
+                        <span class="badge text-bg-light border">Chart.js-ready payload</span>
+                    </div>
                     <div class="chart-wrap">
                         <canvas id="payrollChart"></canvas>
                     </div>
@@ -171,7 +191,13 @@
         <div class="col-lg-5">
             <div class="card glass-card">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Headcount Mix</h2>
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                        <div>
+                            <h2 class="h5 mb-1">Headcount Mix</h2>
+                            <p class="text-body-secondary mb-0">Use the same chart surface with direct rows, a chart preset, or a report definition.</p>
+                        </div>
+                        <span class="badge text-bg-light border">/docs/charts.md</span>
+                    </div>
                     <div class="chart-wrap">
                         <canvas id="headcountChart"></canvas>
                     </div>
@@ -204,8 +230,11 @@
         <div class="col-lg-5">
             <div class="card glass-card h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h2 class="h5 mb-0">Stats Result</h2>
+                    <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
+                        <div>
+                            <h2 class="h5 mb-1">Stats Result</h2>
+                            <p class="text-body-secondary mb-0">The schema and totals below come directly from the selected stats mode.</p>
+                        </div>
                         <span id="statsTitle" class="badge text-bg-light border"></span>
                     </div>
                     <div class="source-chip alert alert-light border py-2 mb-3" id="statsSource"></div>
@@ -226,215 +255,6 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script>
-    const charts = {payroll: null, headcount: null};
-
-    function money(value) {
-        return new Intl.NumberFormat("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0})
-            .format(value);
-    }
-
-    function pretty(value) {
-        if (typeof value === "number") {
-            if (Math.abs(value) >= 1000) {
-                return money(value);
-            }
-            return value.toLocaleString();
-        }
-        return `${value}`;
-    }
-
-    function showFeedback(message, isError) {
-        const container = document.getElementById("feedback");
-        const cls = isError ? "alert-danger" : "alert-success";
-        container.innerHTML = `<div class="alert ${cls} py-2 mb-0">${message}</div>`;
-        window.setTimeout(() => {
-            container.innerHTML = "";
-        }, 3000);
-    }
-
-    async function fetchJson(url, options) {
-        const opts = options || {};
-        const headers = Object.assign({"Content-Type": "application/json"}, opts.headers || {});
-        const response = await fetch(url, Object.assign({}, opts, {headers}));
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || `HTTP ${response.status}`);
-        }
-        if (response.status === 204) {
-            return null;
-        }
-        return response.json();
-    }
-
-    function renderChart(key, canvasId, payload) {
-        const context = document.getElementById(canvasId).getContext("2d");
-        if (charts[key]) {
-            charts[key].destroy();
-        }
-        charts[key] = new Chart(context, payload);
-    }
-
-    function renderEmployees(rows) {
-        const table = document.getElementById("employeeTable");
-        table.innerHTML = rows.map((employee) => `
-            <tr>
-                <td>${employee.id}</td>
-                <td>${employee.name}</td>
-                <td>${employee.department}</td>
-                <td class="text-end">${money(employee.salary)}</td>
-            </tr>
-        `).join("");
-    }
-
-    function renderTopPaid(rows) {
-        const table = document.getElementById("topPaidTable");
-        table.innerHTML = rows.map((employee, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${employee.name}</td>
-                <td>${employee.department}</td>
-                <td class="text-end">${money(employee.salary)}</td>
-            </tr>
-        `).join("");
-    }
-
-    function renderStats(stats) {
-        document.getElementById("statsTitle").textContent = stats.mode;
-        document.getElementById("statsSource").textContent = stats.title + "\n" + stats.source;
-
-        const head = document.getElementById("statsTableHead");
-        const body = document.getElementById("statsTableBody");
-        head.innerHTML = `<tr>${stats.columns.map((column) => `<th>${column}</th>`).join("")}</tr>`;
-        body.innerHTML = stats.rows.map((row) => `
-            <tr>${stats.columns.map((column) => `<td>${pretty(row[column])}</td>`).join("")}</tr>
-        `).join("");
-
-        const totals = document.getElementById("statsTotals");
-        const entries = Object.entries(stats.totals || {});
-        if (entries.length === 0) {
-            totals.innerHTML = '<span class="text-body-secondary">No totals for this mode.</span>';
-            return;
-        }
-        totals.innerHTML = entries.map(([key, value]) => `
-            <span class="badge text-bg-light border me-2 mb-2">${key}: ${pretty(value)}</span>
-        `).join("");
-    }
-
-    function renderRuntime(runtime) {
-        document.getElementById("strictFlag").textContent = `strict: ${runtime.strictParameterTypes}`;
-        document.getElementById("lintFlag").textContent = `lint: ${runtime.lintMode}`;
-        document.getElementById("cacheFlag").textContent =
-            `cache: sql=${runtime.sqlLikeCacheEnabled}, stats=${runtime.statsPlanCacheEnabled}`;
-    }
-
-    function renderModeOptions(options, selectedStatsMode, selectedChartMode) {
-        const statsModeSelect = document.getElementById("statsMode");
-        const chartModeSelect = document.getElementById("chartMode");
-        statsModeSelect.innerHTML = options.statsModes
-            .map((mode) => `<option value="${mode}">${mode}</option>`)
-            .join("");
-        chartModeSelect.innerHTML = options.chartModes
-            .map((mode) => `<option value="${mode}">${mode}</option>`)
-            .join("");
-        statsModeSelect.value = selectedStatsMode;
-        chartModeSelect.value = selectedChartMode;
-    }
-
-    async function refreshDepartments() {
-        const departments = await fetchJson("/api/employees/departments");
-        const topPaidDepartment = document.getElementById("topPaidDepartment");
-        const options = departments.map((department) => `<option value="${department}">${department}</option>`).join("");
-        topPaidDepartment.innerHTML = options;
-        if (!topPaidDepartment.value && departments.length > 0) {
-            topPaidDepartment.value = departments[0];
-        }
-        const datalist = document.getElementById("departmentOptions");
-        datalist.innerHTML = options;
-    }
-
-    async function refreshDashboard() {
-        const statsMode = document.getElementById("statsMode").value;
-        const chartMode = document.getElementById("chartMode").value;
-        const query = new URLSearchParams({
-            statsMode: statsMode,
-            chartMode: chartMode
-        });
-        const dashboard = await fetchJson(`/api/employees/dashboard?${query.toString()}`);
-        renderEmployees(dashboard.employees);
-        renderStats(dashboard.stats);
-        renderRuntime(dashboard.runtime);
-        renderModeOptions(dashboard.options, dashboard.selectedStatsMode, dashboard.selectedChartMode);
-        renderChart("payroll", "payrollChart", dashboard.payrollChart);
-        renderChart("headcount", "headcountChart", dashboard.headcountChart);
-    }
-
-    async function refreshTopPaid() {
-        const department = document.getElementById("topPaidDepartment").value;
-        const minSalary = document.getElementById("topPaidMinSalary").value;
-        const limit = document.getElementById("topPaidLimit").value;
-        const query = new URLSearchParams({
-            department: department,
-            minSalary: minSalary,
-            limit: limit
-        });
-        const rows = await fetchJson(`/api/employees/top-paid?${query.toString()}`);
-        renderTopPaid(rows);
-    }
-
-    document.getElementById("presetForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        try {
-            await refreshDashboard();
-        } catch (error) {
-            showFeedback(`Preset refresh failed: ${error.message}`, true);
-        }
-    });
-
-    document.getElementById("addEmployeeForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const payload = {
-            name: document.getElementById("employeeName").value,
-            department: document.getElementById("employeeDepartment").value,
-            salary: Number(document.getElementById("employeeSalary").value)
-        };
-        try {
-            await fetchJson("/api/employees", {
-                method: "POST",
-                body: JSON.stringify(payload)
-            });
-            event.target.reset();
-            await refreshDepartments();
-            await refreshDashboard();
-            await refreshTopPaid();
-            showFeedback("Employee added.", false);
-        } catch (error) {
-            showFeedback(`Add employee failed: ${error.message}`, true);
-        }
-    });
-
-    document.getElementById("topPaidForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        try {
-            await refreshTopPaid();
-        } catch (error) {
-            showFeedback(`Top-paid query failed: ${error.message}`, true);
-        }
-    });
-
-    async function boot() {
-        try {
-            const options = await fetchJson("/api/employees/dashboard-options");
-            renderModeOptions(options, "PRESET_BY_PAYROLL", "PRESET_QUERY");
-            await refreshDepartments();
-            await refreshDashboard();
-            await refreshTopPaid();
-        } catch (error) {
-            showFeedback(`Dashboard bootstrap failed: ${error.message}`, true);
-        }
-    }
-
-    boot();
-</script>
+<script src="/app.js" defer></script>
 </body>
 </html>
