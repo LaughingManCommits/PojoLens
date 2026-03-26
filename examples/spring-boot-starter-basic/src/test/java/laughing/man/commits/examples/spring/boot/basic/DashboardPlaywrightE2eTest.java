@@ -223,15 +223,12 @@ class DashboardPlaywrightE2eTest {
         String uniqueName = "UI-E2E-" + System.currentTimeMillis();
         page.fill("#employeeName", uniqueName);
         page.fill("#employeeDepartment", "Engineering");
-        page.fill("#employeeSalary", "270000");
+        page.fill("#employeeSalary", "280000");
 
         Response createResponse = page.waitForResponse(
                 response -> response.url().endsWith("/api/employees")
                         && "POST".equalsIgnoreCase(response.request().method()),
-                () -> page.evalOnSelector(
-                        "#addEmployeeForm",
-                        "form => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))"
-                )
+                () -> page.click("#addEmployeeForm button[type='submit']")
         );
         assertEquals(201, createResponse.status());
         assertTrue(waitForEmployeeByApi(uniqueName, 10_000));

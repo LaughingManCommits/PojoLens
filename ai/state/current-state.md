@@ -12,6 +12,20 @@
 
 ## Latest Validation
 
+- `2026-03-26`: fixed a real browser-side add-employee salary validation bug in
+  the starter example:
+  - root cause:
+    the salary input used `min="1"` with `step="1000"`, which made the browser
+    accept only values like `1`, `1001`, `2001`, ...
+    so round values like `10000` were incorrectly rejected.
+  - fix:
+    changed the add-employee salary input to `step="1"` so any positive integer
+    salary is accepted.
+  - Playwright coverage was tightened so the happy-path add-employee flow now
+    submits through the real browser submit button instead of bypassing HTML
+    validation with a synthetic form event.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
 - `2026-03-26`: starter example frontend layout was reorganized around the real
   dashboard workflow:
   - top section now groups configuration controls, selector help, repo doc

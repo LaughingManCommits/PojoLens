@@ -9,6 +9,17 @@
 
 ## Current Focus
 
+- Starter example add-employee salary validation bug is fixed:
+  - root cause was browser constraint validation, not backend validation:
+    the salary input used `min="1"` plus `step="1000"`, which only allows
+    `1`, `1001`, `2001`, ...
+    and wrongly rejected values like `10000`.
+  - the salary input now uses `step="1"` so any positive integer salary works.
+  - the Playwright happy-path add-employee test now uses the real submit button
+    instead of a synthetic submit event, so browser validation regressions are
+    covered.
+  - validation passed:
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
 - Starter example frontend layout has been reorganized into clearer workflow
   zones:
   - `Configure` groups selector controls, selector help, and overview cards.
