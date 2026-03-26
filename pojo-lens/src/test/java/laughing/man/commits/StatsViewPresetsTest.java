@@ -2,6 +2,7 @@ package laughing.man.commits;
 
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.stats.StatsTable;
+import laughing.man.commits.stats.StatsTablePayload;
 import laughing.man.commits.stats.StatsViewPreset;
 import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -68,6 +69,20 @@ public class StatsViewPresetsTest {
         assertEquals(360000L, table.rows().get(0).payroll);
         assertEquals(List.of("department", "payroll"), table.schema().names());
         assertEquals(450000L, ((Number) table.totals().get("payroll")).longValue());
+    }
+
+    @Test
+    public void projectionFreePresetShouldExposeDashboardFriendlyPayload() {
+        StatsTablePayload payload = StatsViewPresets
+                .by("department", Metric.SUM, "salary", "payroll")
+                .tablePayload(sampleEmployees());
+
+        assertEquals(List.of("department", "payroll"), payload.columns());
+        assertEquals(2, payload.rows().size());
+        assertEquals("Engineering", payload.rows().get(0).get("department"));
+        assertEquals(360000L, ((Number) payload.rows().get(0).get("payroll")).longValue());
+        assertEquals(450000L, ((Number) payload.totals().get("payroll")).longValue());
+        assertTrue(payload.hasTotals());
     }
 
     @Test

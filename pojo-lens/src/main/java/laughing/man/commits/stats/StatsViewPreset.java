@@ -5,10 +5,9 @@ import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.table.TabularSchema;
-import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.table.TabularRows;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,7 +89,7 @@ public final class StatsViewPreset<T> {
         if (totalRows.isEmpty()) {
             return Collections.emptyMap();
         }
-        return projectionToMap(totalRows.get(0), totalsQuery.schema(projectionClass).names());
+        return TabularRows.firstRowAsMap(totalRows, totalsQuery.schema(projectionClass));
     }
 
     public Map<String, Object> totals(List<?> sourceRows, JoinBindings joinBindings) {
@@ -121,21 +120,19 @@ public final class StatsViewPreset<T> {
         return table(datasetBundle.primaryRows(), datasetBundle.joinSources());
     }
 
-    private static Map<String, Object> projectionToMap(Object row, List<String> columns) {
-        if (row == null || columns == null || columns.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        LinkedHashMap<String, Object> values = new LinkedHashMap<>();
-        for (String column : columns) {
-            if (column == null || column.isBlank()) {
-                continue;
-            }
-            try {
-                values.put(column, ReflectionUtil.getFieldValue(row, column));
-            } catch (Exception ex) {
-                throw new IllegalStateException("Failed to read totals field '" + column + "'", ex);
-            }
-        }
-        return Collections.unmodifiableMap(values);
+    public StatsTablePayload tablePayload(List<?> sourceRows) {
+        return table(sourceRows).payload();
+    }
+
+    public StatsTablePayload tablePayload(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return table(sourceRows, joinSources).payload();
+    }
+
+    public StatsTablePayload tablePayload(List<?> sourceRows, JoinBindings joinBindings) {
+        return table(sourceRows, joinBindings).payload();
+    }
+
+    public StatsTablePayload tablePayload(DatasetBundle datasetBundle) {
+        return table(datasetBundle).payload();
     }
 }

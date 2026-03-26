@@ -5,6 +5,7 @@ import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.report.ReportDefinition;
@@ -110,15 +111,23 @@ public class ReportDefinitionTest {
     @Test
     public void chartQueryPresetShouldExposeReportDefinitionBridge() {
         ChartQueryPreset<DepartmentCountRow> preset = ChartQueryPresets
-                .categoryCounts("department", "total", DepartmentCountRow.class);
+                .categoryCounts("department", "total", DepartmentCountRow.class)
+                .mapChartSpec(spec -> spec.withTitle("Headcount by Department"));
 
-        ReportDefinition<DepartmentCountRow> report = preset.reportDefinition();
+        ReportDefinition<DepartmentCountRow> report = preset.reportDefinition()
+                .mapChartSpec(spec -> spec.withAxisLabels("Department", "Headcount"));
         List<DepartmentCountRow> rows = report.rows(sampleEmployees());
         ChartData chart = report.chart(sampleEmployees());
+        ChartJsPayload payload = report.chartJs(sampleEmployees());
 
         assertEquals(2, rows.size());
         assertEquals(ChartType.BAR, report.chartSpec().type());
         assertEquals(2, chart.getLabels().size());
+        assertEquals("Headcount by Department", chart.getTitle());
+        assertEquals("Department", chart.getXLabel());
+        assertEquals("Headcount", chart.getYLabel());
+        assertEquals("bar", payload.type());
+        assertEquals(List.of("Engineering", "Finance"), payload.data().labels());
     }
 
     @Test

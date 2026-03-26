@@ -18,6 +18,7 @@ Chart models:
 - `ChartDataset`
 - `ChartQueryPreset`
 - `ChartQueryPresets`
+- `ChartJsAdapter`
 
 `ChartSpec` contract:
 - required: `type`, `xField`, `yField`
@@ -71,6 +72,7 @@ Recommended defaults:
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
 
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `ChartJsAdapter.toPayload(ChartData)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
@@ -83,7 +85,11 @@ Recommended defaults:
 - `TimeBucketPreset` for explicit timezone/week-start chart presets
 - `ChartQueryPresets.groupedBreakdown(...)`
 - `ChartQueryPreset.schema()`
+- `ChartQueryPreset.mapChartSpec(...)`
+- `ChartQueryPreset.chartJs(...)`
 - `ChartQueryPreset.reportDefinition()`
+- `ReportDefinition.mapChartSpec(...)`
+- `ReportDefinition.chartJs(...)`
 
 ## Examples
 
@@ -114,6 +120,25 @@ ChartQueryPreset<DepartmentHeadcount> preset = ChartQueryPresets
 
 List<DepartmentHeadcount> rows = preset.rows(source);
 ChartData chart = preset.chart(source);
+```
+
+Projection-free preset with built-in Chart.js payload:
+
+```java
+ChartJsPayload payload = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .chartJs(source);
+```
+
+Preset with a customized title/axis contract:
+
+```java
+ChartJsPayload payload = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .mapChartSpec(spec -> spec
+        .withTitle("Payroll by Department")
+        .withAxisLabels("Department", "Payroll"))
+    .chartJs(source);
 ```
 
 Bundle-driven chart:

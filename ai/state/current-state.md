@@ -12,24 +12,35 @@
 
 ## Latest Validation
 
-- `2026-03-26`: Spring Boot starter basic example structure/readability pass completed:
-  - split the former all-in-one example controller into focused example files:
-    `EmployeeQueryController` (HTTP),
-    `EmployeeDashboardService` (PojoLens runtime + presets),
-    `EmployeeStore` (in-memory data),
-    `EmployeeExampleTypes` (example payload/projection types),
-    and `ChartJsPayloadMapper` (Chart.js adapter).
-  - moved the frontend out of inline HTML into `static/app.js` and `static/app.css`
-    so the example reads as a maintainable reference implementation.
-  - dashboard options payload now exposes default modes plus mode metadata
-    (`label`, `summary`, `docPath`), and the UI now shows repo doc pointers for
-    `entry-points`, stats presets, charts, and reports.
-  - added code comments and README guidance that point readers to the relevant
-    repo docs when exploring the example.
-  - expanded Java Playwright assertions to cover the new mode-help/doc-path UI.
+- `2026-03-26`: dashboard-simplification pass completed across library + example:
+  - added built-in Chart.js interop types under `pojo-lens`:
+    `ChartJsAdapter`, `ChartJsPayload`, `ChartJsData`, `ChartJsDataset`.
+  - added higher-level table/dashboard helpers:
+    `StatsTablePayload`,
+    `StatsTable.rowsAsMaps()/payload()`,
+    `StatsViewPreset.tablePayload(...)`,
+    and `TabularRows`.
+  - added projection-free preset overloads returning `QueryRow` for the common
+    stats/chart preset shapes in `StatsViewPresets` and `ChartQueryPresets`.
+  - added frontend-ready helpers:
+    `ChartQueryPreset.chartJs(...)`,
+    `ReportDefinition.chartJs(...)`,
+    and immutable chart-spec customization via
+    `ChartQueryPreset.mapChartSpec(...)` /
+    `ReportDefinition.mapChartSpec(...)`.
+  - fixed `QueryRow` support in validator/materialization paths so grouped fast
+    stats can flow through the new projection-free preset APIs.
+  - simplified `examples/spring-boot-starter-basic` to consume the new library
+    APIs directly:
+    removed the example-local `ChartJsPayloadMapper`,
+    switched preset/report chart flows to `chartJs(...)`,
+    switched preset table flows to `tablePayload(...)`,
+    and updated UI mode help/README wording to point at those APIs.
   - validations passed:
-    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,ChartQueryPresetsTest,ChartJsAdapterBridgeTest,ReportDefinitionTest" test`
     `scripts/check-doc-consistency.ps1`
+    `mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests`
+    `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`
 - `2026-03-26`: Java Playwright suite expanded to all frontend feature flows:
   - `DashboardPlaywrightE2eTest` now runs `6` passing tests covering:
     API surfaces, full dashboard mode matrix, runtime badges, top-paid form,
@@ -669,6 +680,11 @@
   - the Spring Boot starter basic example is now structured as a reference-style
     example rather than a single-file demo, with repo doc pointers embedded in
     both backend/frontend code and the example README.
+  - the library now has first-class dashboard simplifiers for common frontend
+    flows:
+    built-in Chart.js payload mapping,
+    projection-free stats/chart presets,
+    and table/chart payload helpers that reduce example-level adapter code.
   - `docs/consolidation-review.md` now contains the full `PojoLens` method
     audit plus the concrete helper-only facade decision for the four pure
     overlap entry aliases.

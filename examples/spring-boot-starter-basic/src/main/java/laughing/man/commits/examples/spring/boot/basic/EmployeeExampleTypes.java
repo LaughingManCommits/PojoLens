@@ -1,5 +1,7 @@
 package laughing.man.commits.examples.spring.boot.basic;
 
+import laughing.man.commits.chartjs.ChartJsPayload;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -55,48 +57,6 @@ public final class EmployeeExampleTypes {
         }
     }
 
-    public static final class DepartmentStatsView {
-        public String department;
-        public long headcount;
-        public double payroll;
-        public double averageSalary;
-
-        public DepartmentStatsView() {
-        }
-    }
-
-    public static final class DepartmentMetricRow {
-        public String department;
-        public double total;
-
-        public DepartmentMetricRow() {
-        }
-    }
-
-    public static final class SummaryMetricRow {
-        public double total;
-
-        public SummaryMetricRow() {
-        }
-    }
-
-    public static final class DepartmentValueRow {
-        public String department;
-        public double value;
-
-        public DepartmentValueRow() {
-        }
-    }
-
-    public static final class DirectStatsTotals {
-        public long headcount;
-        public double payroll;
-        public double averageSalary;
-
-        public DirectStatsTotals() {
-        }
-    }
-
     public record CreateEmployeeRequest(String name,
                                         String department,
                                         Integer salary) {
@@ -132,8 +92,8 @@ public final class EmployeeExampleTypes {
 
     public record DashboardPayload(List<EmployeeView> employees,
                                    StatsPayload stats,
-                                   Map<String, Object> payrollChart,
-                                   Map<String, Object> headcountChart,
+                                   ChartJsPayload payrollChart,
+                                   ChartJsPayload headcountChart,
                                    RuntimeInfo runtime,
                                    DashboardOptions options,
                                    String selectedStatsMode,
@@ -195,18 +155,18 @@ public final class EmployeeExampleTypes {
 
     public enum ChartMode {
         DIRECT_SQL(
-                "runtime.parse(...) + PojoLensChart",
-                "Execute an ad hoc SQL-like query and map the resulting rows directly with PojoLensChart.",
+                "runtime.parse(...) + ChartJsAdapter",
+                "Execute an ad hoc SQL-like query and convert the PojoLens chart contract to a Chart.js payload.",
                 "/docs/charts.md"
         ),
         PRESET_QUERY(
-                "ChartQueryPreset.chart(...)",
-                "Keep chart-first reusable presets as the primary API and execute them against fresh snapshots.",
+                "ChartQueryPreset.chartJs(...)",
+                "Keep chart-first reusable presets as the primary API and emit a frontend-ready Chart.js payload.",
                 "/docs/charts.md"
         ),
         PRESET_REPORT(
-                "preset.reportDefinition().chart(...)",
-                "Bridge a chart preset into the more general reusable report abstraction.",
+                "preset.reportDefinition().chartJs(...)",
+                "Bridge a chart preset into the more general reusable report abstraction and keep the Chart.js payload.",
                 "/docs/reports.md"
         );
 

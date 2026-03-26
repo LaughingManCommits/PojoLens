@@ -1,5 +1,6 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -25,6 +26,13 @@ public final class ChartQueryPresets {
         return categoryTotals(categoryField, metric, metricField, valueAlias, ChartType.BAR, projectionClass);
     }
 
+    public static ChartQueryPreset<QueryRow> categoryTotals(String categoryField,
+                                                            Metric metric,
+                                                            String metricField,
+                                                            String valueAlias) {
+        return categoryTotals(categoryField, metric, metricField, valueAlias, ChartType.BAR, QueryRow.class);
+    }
+
     public static <T> ChartQueryPreset<T> categoryTotals(String categoryField,
                                                          Metric metric,
                                                          String metricField,
@@ -43,10 +51,23 @@ public final class ChartQueryPresets {
         return new ChartQueryPreset<>(SqlLikeQuery.of(sql), requireProjectionClass(projectionClass), chartSpec);
     }
 
+    public static ChartQueryPreset<QueryRow> categoryTotals(String categoryField,
+                                                            Metric metric,
+                                                            String metricField,
+                                                            String valueAlias,
+                                                            ChartType chartType) {
+        return categoryTotals(categoryField, metric, metricField, valueAlias, chartType, QueryRow.class);
+    }
+
     public static <T> ChartQueryPreset<T> categoryCounts(String categoryField,
                                                          String valueAlias,
                                                          Class<T> projectionClass) {
         return categoryTotals(categoryField, Metric.COUNT, null, valueAlias, ChartType.BAR, projectionClass);
+    }
+
+    public static ChartQueryPreset<QueryRow> categoryCounts(String categoryField,
+                                                            String valueAlias) {
+        return categoryTotals(categoryField, Metric.COUNT, null, valueAlias, ChartType.BAR, QueryRow.class);
     }
 
     public static <T> ChartQueryPreset<T> timeSeriesTotals(String dateField,
@@ -57,6 +78,15 @@ public final class ChartQueryPresets {
                                                            String valueAlias,
                                                            Class<T> projectionClass) {
         return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), metric, metricField, periodAlias, valueAlias, ChartType.LINE, projectionClass);
+    }
+
+    public static ChartQueryPreset<QueryRow> timeSeriesTotals(String dateField,
+                                                              TimeBucket bucket,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String periodAlias,
+                                                              String valueAlias) {
+        return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), metric, metricField, periodAlias, valueAlias, ChartType.LINE, QueryRow.class);
     }
 
     public static <T> ChartQueryPreset<T> timeSeriesTotals(String dateField,
@@ -70,6 +100,16 @@ public final class ChartQueryPresets {
         return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), metric, metricField, periodAlias, valueAlias, chartType, projectionClass);
     }
 
+    public static ChartQueryPreset<QueryRow> timeSeriesTotals(String dateField,
+                                                              TimeBucket bucket,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String periodAlias,
+                                                              String valueAlias,
+                                                              ChartType chartType) {
+        return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), metric, metricField, periodAlias, valueAlias, chartType, QueryRow.class);
+    }
+
     public static <T> ChartQueryPreset<T> timeSeriesTotals(String dateField,
                                                            TimeBucketPreset preset,
                                                            Metric metric,
@@ -78,6 +118,15 @@ public final class ChartQueryPresets {
                                                            String valueAlias,
                                                            Class<T> projectionClass) {
         return timeSeriesTotals(dateField, preset, metric, metricField, periodAlias, valueAlias, ChartType.LINE, projectionClass);
+    }
+
+    public static ChartQueryPreset<QueryRow> timeSeriesTotals(String dateField,
+                                                              TimeBucketPreset preset,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String periodAlias,
+                                                              String valueAlias) {
+        return timeSeriesTotals(dateField, preset, metric, metricField, periodAlias, valueAlias, ChartType.LINE, QueryRow.class);
     }
 
     public static <T> ChartQueryPreset<T> timeSeriesTotals(String dateField,
@@ -104,12 +153,29 @@ public final class ChartQueryPresets {
         return new ChartQueryPreset<>(SqlLikeQuery.of(sql), requireProjectionClass(projectionClass), chartSpec);
     }
 
+    public static ChartQueryPreset<QueryRow> timeSeriesTotals(String dateField,
+                                                              TimeBucketPreset preset,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String periodAlias,
+                                                              String valueAlias,
+                                                              ChartType chartType) {
+        return timeSeriesTotals(dateField, preset, metric, metricField, periodAlias, valueAlias, chartType, QueryRow.class);
+    }
+
     public static <T> ChartQueryPreset<T> timeSeriesCounts(String dateField,
                                                            TimeBucket bucket,
                                                            String periodAlias,
                                                            String valueAlias,
                                                            Class<T> projectionClass) {
         return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), Metric.COUNT, null, periodAlias, valueAlias, ChartType.LINE, projectionClass);
+    }
+
+    public static ChartQueryPreset<QueryRow> timeSeriesCounts(String dateField,
+                                                              TimeBucket bucket,
+                                                              String periodAlias,
+                                                              String valueAlias) {
+        return timeSeriesTotals(dateField, TimeBucketPreset.of(bucket), Metric.COUNT, null, periodAlias, valueAlias, ChartType.LINE, QueryRow.class);
     }
 
     public static <T> ChartQueryPreset<T> timeSeriesCounts(String dateField,
@@ -120,6 +186,13 @@ public final class ChartQueryPresets {
         return timeSeriesTotals(dateField, preset, Metric.COUNT, null, periodAlias, valueAlias, ChartType.LINE, projectionClass);
     }
 
+    public static ChartQueryPreset<QueryRow> timeSeriesCounts(String dateField,
+                                                              TimeBucketPreset preset,
+                                                              String periodAlias,
+                                                              String valueAlias) {
+        return timeSeriesTotals(dateField, preset, Metric.COUNT, null, periodAlias, valueAlias, ChartType.LINE, QueryRow.class);
+    }
+
     public static <T> ChartQueryPreset<T> groupedBreakdown(String categoryField,
                                                            String seriesField,
                                                            Metric metric,
@@ -127,6 +200,14 @@ public final class ChartQueryPresets {
                                                            String valueAlias,
                                                            Class<T> projectionClass) {
         return groupedBreakdown(categoryField, seriesField, metric, metricField, valueAlias, ChartType.BAR, projectionClass);
+    }
+
+    public static ChartQueryPreset<QueryRow> groupedBreakdown(String categoryField,
+                                                              String seriesField,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String valueAlias) {
+        return groupedBreakdown(categoryField, seriesField, metric, metricField, valueAlias, ChartType.BAR, QueryRow.class);
     }
 
     public static <T> ChartQueryPreset<T> groupedBreakdown(String categoryField,
@@ -149,6 +230,15 @@ public final class ChartQueryPresets {
         ChartSpec chartSpec = ChartSpec.of(requireChartType(chartType), normalizedCategoryField, normalizedValueAlias, normalizedSeriesField)
                 .withSortedLabels(true);
         return new ChartQueryPreset<>(SqlLikeQuery.of(sql), requireProjectionClass(projectionClass), chartSpec);
+    }
+
+    public static ChartQueryPreset<QueryRow> groupedBreakdown(String categoryField,
+                                                              String seriesField,
+                                                              Metric metric,
+                                                              String metricField,
+                                                              String valueAlias,
+                                                              ChartType chartType) {
+        return groupedBreakdown(categoryField, seriesField, metric, metricField, valueAlias, chartType, QueryRow.class);
     }
 
     private static String requireName(String value, String label) {

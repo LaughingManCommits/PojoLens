@@ -66,9 +66,29 @@ curl "http://localhost:8080/api/employees/runtime"
 - Runtime behavior is controlled with `pojo-lens.*` properties.
 - Direct SQL-like endpoints and reusable preset-backed endpoints can coexist in one service.
 - `StatsViewPresets` provide table-first reusable query shapes with `schema()` and `totals()`.
-- `ChartQueryPresets` provide chart-first reusable query shapes.
-- `preset.reportDefinition().chart(...)` shows how to bridge a chart preset into the general report wrapper.
+- `ChartQueryPresets` provide chart-first reusable query shapes and can now emit `ChartJsPayload` directly.
+- `preset.reportDefinition().chartJs(...)` shows how to bridge a chart preset into the general report wrapper without custom mapping code.
 - The frontend consumes Chart.js-ready payloads produced from PojoLens chart models.
+
+## Why The New API Surface Matters
+
+Adding a new chart can now be this small:
+
+```java
+ChartJsPayload payrollChart = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .chartJs(employees);
+```
+
+And a new dashboard table can be this small:
+
+```java
+StatsTablePayload payrollTable = StatsViewPresets
+    .by("department", Metric.SUM, "salary", "payroll")
+    .tablePayload(employees);
+```
+
+The example app uses those projection-free shortcuts where they keep the code easier to read.
 
 ## Playwright E2E Tests (Java)
 

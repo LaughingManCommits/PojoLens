@@ -1,4 +1,4 @@
-package laughing.man.commits.examples.spring.boot.basic;
+package laughing.man.commits.chartjs;
 
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartDataset;
@@ -8,71 +8,60 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * Keeps the frontend renderer thin by translating PojoLens chart models into Chart.js payloads.
- *
- * Read next:
- * - /docs/charts.md
+ * Adapter that turns PojoLens {@link ChartData} into a Chart.js-ready payload.
  */
-final class ChartJsPayloadMapper {
+public final class ChartJsAdapter {
 
     private static final String[] PALETTE = {
             "#0d6efd", "#198754", "#fd7e14", "#dc3545",
             "#6610f2", "#20c997", "#ffc107", "#6f42c1"
     };
 
-    private ChartJsPayloadMapper() {
+    private ChartJsAdapter() {
     }
 
-    static Map<String, Object> toPayload(ChartData chartData) {
-        List<Map<String, Object>> datasets = new ArrayList<>();
+    public static ChartJsPayload toPayload(ChartData chartData) {
+        Objects.requireNonNull(chartData, "chartData must not be null");
         List<String> datasetColors = palette(chartData.getDatasets().size());
+        List<ChartJsDataset> datasets = new ArrayList<>(chartData.getDatasets().size());
         for (int index = 0; index < chartData.getDatasets().size(); index++) {
             datasets.add(datasetPayload(chartData, chartData.getDatasets().get(index), datasetColors.get(index)));
         }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("type", toChartJsType(chartData.getType()));
-        payload.put("data", Map.of(
-                "labels", chartData.getLabels(),
-                "datasets", datasets
-        ));
-        payload.put("options", chartOptions(chartData));
-        return payload;
+        return new ChartJsPayload(
+                toChartJsType(chartData.getType()),
+                new ChartJsData(List.copyOf(chartData.getLabels()), List.copyOf(datasets)),
+                chartOptions(chartData)
+        );
     }
 
-    private static Map<String, Object> datasetPayload(ChartData chartData, ChartDataset dataset, String defaultColor) {
-        Map<String, Object> mapped = new LinkedHashMap<>();
-        mapped.put("label", dataset.getLabel());
-        mapped.put("data", dataset.getValues());
+    private static ChartJsDataset datasetPayload(ChartData chartData, ChartDataset dataset, String defaultColor) {
         String color = dataset.getColorHint() != null ? dataset.getColorHint() : defaultColor;
-        if (chartData.getType() == ChartType.PIE) {
-            mapped.put("backgroundColor", palette(chartData.getLabels().size()));
-        } else {
-            mapped.put("backgroundColor", color);
-            mapped.put("borderColor", color);
-        }
-        if (chartData.getType() == ChartType.AREA) {
-            mapped.put("fill", true);
-            mapped.put("tension", 0.25);
-        }
-        if (chartData.getType() == ChartType.LINE) {
-            mapped.put("tension", 0.25);
-        }
-        if (dataset.getStackGroupId() != null) {
-            mapped.put("stack", dataset.getStackGroupId());
-        }
-        if (dataset.getAxisId() != null) {
-            mapped.put("yAxisID", dataset.getAxisId());
-        }
-        return mapped;
+        Object background = chartData.getType() == ChartType.PIE
+                ? palette(chartData.getLabels().size())
+                : color;
+        String borderColor = chartData.getType() == ChartType.PIE ? null : color;
+        Boolean fill = chartData.getType() == ChartType.AREA ? Boolean.TRUE : null;
+        Double tension = chartData.getType() == ChartType.AREA || chartData.getType() == ChartType.LINE ? 0.25d : null;
+        return new ChartJsDataset(
+                dataset.getLabel(),
+                List.copyOf(dataset.getValues()),
+                background,
+                borderColor,
+                dataset.getStackGroupId(),
+                dataset.getAxisId(),
+                fill,
+                tension
+        );
     }
 
     private static String toChartJsType(ChartType type) {
         if (type == ChartType.AREA) {
             return "line";
         }
-        return type.name().toLowerCase();
+        return type == null ? "bar" : type.name().toLowerCase();
     }
 
     private static Map<String, Object> chartOptions(ChartData chartData) {
@@ -85,13 +74,24 @@ final class ChartJsPayloadMapper {
         options.put("responsive", true);
         options.put("maintainAspectRatio", false);
         options.put("plugins", plugins);
+        options.put("pojoLens", pojoLensMeta(chartData));
         if (chartData.getType() != ChartType.PIE) {
             options.put("scales", Map.of(
                     "x", axisOptions(chartData.isStacked(), chartData.getXLabel()),
-                    "y", numericAxisOptions(chartData.isStacked(), chartData.getYLabel())
+                    "y", numericAxisOptions(chartData)
             ));
         }
         return options;
+    }
+
+    private static Map<String, Object> pojoLensMeta(ChartData chartData) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("stacked", chartData.isStacked());
+        meta.put("percentStacked", chartData.isPercentStacked());
+        meta.put("nullPointPolicy", chartData.getNullPointPolicy() == null ? null : chartData.getNullPointPolicy().name());
+        meta.put("xLabel", chartData.getXLabel());
+        meta.put("yLabel", chartData.getYLabel());
+        return meta;
     }
 
     private static Map<String, Object> axisOptions(boolean stacked, String label) {
@@ -103,9 +103,12 @@ final class ChartJsPayloadMapper {
         return options;
     }
 
-    private static Map<String, Object> numericAxisOptions(boolean stacked, String label) {
-        Map<String, Object> options = axisOptions(stacked, label);
+    private static Map<String, Object> numericAxisOptions(ChartData chartData) {
+        Map<String, Object> options = axisOptions(chartData.isStacked(), chartData.getYLabel());
         options.put("beginAtZero", true);
+        if (chartData.isPercentStacked()) {
+            options.put("max", 100);
+        }
         return options;
     }
 

@@ -1,5 +1,6 @@
 package laughing.man.commits.stats;
 
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.util.StringUtil;
@@ -21,14 +22,27 @@ public final class StatsViewPresets {
         return summary(Metric.COUNT, null, DEFAULT_VALUE_ALIAS, projectionClass);
     }
 
+    public static StatsViewPreset<QueryRow> summary() {
+        return summary(Metric.COUNT, null, DEFAULT_VALUE_ALIAS, QueryRow.class);
+    }
+
     public static <T> StatsViewPreset<T> summary(String valueAlias, Class<T> projectionClass) {
         return summary(Metric.COUNT, null, valueAlias, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> summary(String valueAlias) {
+        return summary(Metric.COUNT, null, valueAlias, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> summary(Metric metric,
                                                  String metricField,
                                                  Class<T> projectionClass) {
         return summary(metric, metricField, DEFAULT_VALUE_ALIAS, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> summary(Metric metric,
+                                                    String metricField) {
+        return summary(metric, metricField, DEFAULT_VALUE_ALIAS, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> summary(Metric metric,
@@ -41,8 +55,18 @@ public final class StatsViewPresets {
         return new StatsViewPreset<>(SqlLikeQuery.of(sql), null, requireProjectionClass(projectionClass));
     }
 
+    public static StatsViewPreset<QueryRow> summary(Metric metric,
+                                                    String metricField,
+                                                    String valueAlias) {
+        return summary(metric, metricField, valueAlias, QueryRow.class);
+    }
+
     public static <T> StatsViewPreset<T> by(String groupField, Class<T> projectionClass) {
         return by(groupField, Metric.COUNT, null, DEFAULT_VALUE_ALIAS, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> by(String groupField) {
+        return by(groupField, Metric.COUNT, null, DEFAULT_VALUE_ALIAS, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> by(String groupField,
@@ -51,11 +75,22 @@ public final class StatsViewPresets {
         return by(groupField, Metric.COUNT, null, valueAlias, projectionClass);
     }
 
+    public static StatsViewPreset<QueryRow> by(String groupField,
+                                               String valueAlias) {
+        return by(groupField, Metric.COUNT, null, valueAlias, QueryRow.class);
+    }
+
     public static <T> StatsViewPreset<T> by(String groupField,
                                             Metric metric,
                                             String metricField,
                                             Class<T> projectionClass) {
         return by(groupField, metric, metricField, DEFAULT_VALUE_ALIAS, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> by(String groupField,
+                                               Metric metric,
+                                               String metricField) {
+        return by(groupField, metric, metricField, DEFAULT_VALUE_ALIAS, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> by(String groupField,
@@ -78,11 +113,24 @@ public final class StatsViewPresets {
         );
     }
 
+    public static StatsViewPreset<QueryRow> by(String groupField,
+                                               Metric metric,
+                                               String metricField,
+                                               String valueAlias) {
+        return by(groupField, metric, metricField, valueAlias, QueryRow.class);
+    }
+
     public static <T> StatsViewPreset<T> topNBy(String groupField,
                                                 Metric metric,
                                                 int n,
                                                 Class<T> projectionClass) {
         return topNBy(groupField, metric, null, DEFAULT_VALUE_ALIAS, n, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> topNBy(String groupField,
+                                                   Metric metric,
+                                                   int n) {
+        return topNBy(groupField, metric, null, DEFAULT_VALUE_ALIAS, n, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> topNBy(String groupField,
@@ -91,6 +139,13 @@ public final class StatsViewPresets {
                                                 int n,
                                                 Class<T> projectionClass) {
         return topNBy(groupField, metric, metricField, DEFAULT_VALUE_ALIAS, n, projectionClass);
+    }
+
+    public static StatsViewPreset<QueryRow> topNBy(String groupField,
+                                                   Metric metric,
+                                                   String metricField,
+                                                   int n) {
+        return topNBy(groupField, metric, metricField, DEFAULT_VALUE_ALIAS, n, QueryRow.class);
     }
 
     public static <T> StatsViewPreset<T> topNBy(String groupField,
@@ -114,6 +169,14 @@ public final class StatsViewPresets {
                 SqlLikeQuery.of(totalsSql),
                 requireProjectionClass(projectionClass)
         );
+    }
+
+    public static StatsViewPreset<QueryRow> topNBy(String groupField,
+                                                   Metric metric,
+                                                   String metricField,
+                                                   String valueAlias,
+                                                   int n) {
+        return topNBy(groupField, metric, metricField, valueAlias, n, QueryRow.class);
     }
 
     private static int requirePositiveTopN(int value) {

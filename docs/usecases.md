@@ -244,33 +244,25 @@ for (ChartDataset dataset : chartData.getDatasets()) {
 ### Option B: Chart.js (frontend apps)
 
 ```java
-List<Map<String, Object>> datasets = new ArrayList<>();
-for (ChartDataset ds : chartData.getDatasets()) {
-    Map<String, Object> mapped = new LinkedHashMap<>();
-    mapped.put("label", ds.getLabel());
-    mapped.put("data", ds.getValues());
-    if (ds.getColorHint() != null) {
-        mapped.put("backgroundColor", ds.getColorHint());
-    }
-    if (ds.getStackGroupId() != null) {
-        mapped.put("stack", ds.getStackGroupId());
-    }
-    if (ds.getAxisId() != null) {
-        mapped.put("yAxisID", ds.getAxisId());
-    }
-    datasets.add(mapped);
-}
-
-Map<String, Object> payload = new LinkedHashMap<>();
-payload.put("type", "bar");
-payload.put("data", Map.of(
-    "labels", chartData.getLabels(),
-    "datasets", datasets
-));
+ChartJsPayload payload = ChartJsAdapter.toPayload(chartData);
 ```
 
 Outcome:
 - One PojoLens query can feed multiple chart libraries cleanly.
+
+Five-line chart addition with preset + Chart.js adapter:
+
+```java
+ChartJsPayload payload = ChartQueryPresets
+    .categoryTotals("department", Metric.SUM, "salary", "payroll")
+    .chartJs(employees);
+```
+
+Without PojoLens, the same endpoint usually means:
+- manual grouping/aggregation
+- manual sorting
+- manual row-to-chart mapping
+- manual Chart.js payload assembly
 
 ### Scenario 5B: Dashboard Stats Tables and Leaderboards
 
@@ -280,17 +272,17 @@ Problem:
 Use grouped stats preset:
 
 ```java
-StatsTable<DepartmentPayrollRow> table = StatsViewPresets
-    .by("department", Metric.SUM, "salary", "payroll", DepartmentPayrollRow.class)
-    .table(employees);
+StatsTablePayload table = StatsViewPresets
+    .by("department", Metric.SUM, "salary", "payroll")
+    .tablePayload(employees);
 ```
 
 Use leaderboard preset:
 
 ```java
-StatsTable<DepartmentPayrollRow> top3 = StatsViewPresets
-    .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
-    .table(employees);
+StatsTablePayload top3 = StatsViewPresets
+    .topNBy("department", Metric.SUM, "salary", "payroll", 3)
+    .tablePayload(employees);
 ```
 
 Outcome:

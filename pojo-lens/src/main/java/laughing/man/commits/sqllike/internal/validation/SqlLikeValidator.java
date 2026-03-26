@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -58,8 +59,9 @@ public final class SqlLikeValidator {
                 : ComputedFieldSupport.augmentFieldTypes(joinPlan.mergedFieldTypes(), computedFieldRegistry);
         Set<String> queryableSourceFields = new LinkedHashSet<>(queryableFieldTypes.keySet());
         Set<String> projectionFields = collectFields(projectionClass);
+        boolean dynamicProjection = QueryRow.class.isAssignableFrom(projectionClass);
         validateAggregationSemantics(normalizedAst, queryableSourceFields, queryableFieldTypes);
-        validateSelect(normalizedAst, queryableSourceFields, queryableFieldTypes, projectionFields);
+        validateSelect(normalizedAst, queryableSourceFields, queryableFieldTypes, projectionFields, dynamicProjection);
         validateFilters(normalizedAst.filters(), queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
         validateHaving(normalizedAst, queryableSourceFields, sourceClass, joinSources, computedFieldRegistry);
         validateQualify(normalizedAst, queryableSourceFields);
@@ -87,7 +89,8 @@ public final class SqlLikeValidator {
     private static void validateSelect(QueryAst ast,
                                        Set<String> sourceFields,
                                        Map<String, Class<?>> sourceFieldTypes,
-                                       Set<String> projectionFields) {
+                                       Set<String> projectionFields,
+                                       boolean dynamicProjection) {
         SelectAst select = ast.select();
         if (select == null || select.wildcard()) {
             return;
@@ -109,7 +112,7 @@ public final class SqlLikeValidator {
                     throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
                             "Duplicate SELECT output name '" + outputName + "'");
                 }
-                requireKnownField(outputName, projectionFields, "SELECT/projection");
+                requireProjectionField(outputName, projectionFields, dynamicProjection);
                 continue;
             }
             if (field.windowField()) {
@@ -156,7 +159,7 @@ public final class SqlLikeValidator {
                     throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
                             "Duplicate SELECT output name '" + outputName + "'");
                 }
-                requireKnownField(outputName, projectionFields, "SELECT/projection");
+                requireProjectionField(outputName, projectionFields, dynamicProjection);
                 continue;
             }
             if (!field.metricField()) {
@@ -174,8 +177,17 @@ public final class SqlLikeValidator {
                 throw validation(SqlLikeErrorCodes.VALIDATION_DUPLICATE_SELECT_OUTPUT,
                         "Duplicate SELECT output name '" + outputName + "'");
             }
-            requireKnownField(outputName, projectionFields, "SELECT/projection");
+            requireProjectionField(outputName, projectionFields, dynamicProjection);
         }
+    }
+
+    private static void requireProjectionField(String outputName,
+                                               Set<String> projectionFields,
+                                               boolean dynamicProjection) {
+        if (dynamicProjection) {
+            return;
+        }
+        requireKnownField(outputName, projectionFields, "SELECT/projection");
     }
 
     private static void validateFilters(List<FilterAst> filters,

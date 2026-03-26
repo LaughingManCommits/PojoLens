@@ -125,6 +125,9 @@ public final class ReflectionUtil {
         if (row == null) {
             return null;
         }
+        if (QueryRow.class.isAssignableFrom(cls) && cls.isInstance(row)) {
+            return cls.cast(row);
+        }
         try {
             ProjectionWritePlan plan = projectionWritePlan(cls, List.of(row));
             T object = instantiateNoArg(cls);
@@ -172,6 +175,19 @@ public final class ReflectionUtil {
                                           int[] sourceIndexes) {
         if (rows == null || rows.isEmpty()) {
             return new ArrayList<>(0);
+        }
+        if (QueryRow.class.isAssignableFrom(cls)) {
+            List<T> queryRows = new ArrayList<>(rows.size());
+            for (Object[] row : rows) {
+                RawQueryRow queryRow = new RawQueryRow(
+                        row != null ? row : new Object[0],
+                        sourceFieldSchema != null ? sourceFieldSchema : List.of()
+                );
+                if (cls.isInstance(queryRow)) {
+                    queryRows.add(cls.cast(queryRow));
+                }
+            }
+            return queryRows;
         }
 
         List<T> result = new ArrayList<>(rows.size());

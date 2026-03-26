@@ -7,6 +7,8 @@ import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.chartjs.ChartJsAdapter;
+import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 /**
  * General reusable row-query contract for repeated execution over different
@@ -127,6 +130,14 @@ public final class ReportDefinition<T> {
         );
     }
 
+    public ReportDefinition<T> mapChartSpec(UnaryOperator<ChartSpec> updater) {
+        Objects.requireNonNull(updater, "updater must not be null");
+        return withChartSpec(Objects.requireNonNull(
+                updater.apply(requireChartSpec()),
+                "updated chartSpec must not be null"
+        ));
+    }
+
     public ReportDefinition<T> withSchema(TabularSchema value) {
         return new ReportDefinition<>(
                 source,
@@ -174,6 +185,22 @@ public final class ReportDefinition<T> {
     public ChartData chart(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
         return chart(datasetBundle.primaryRows(), datasetBundle.joinSources());
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows) {
+        return ChartJsAdapter.toPayload(chart(sourceRows));
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return ChartJsAdapter.toPayload(chart(sourceRows, joinSources));
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows, JoinBindings joinBindings) {
+        return ChartJsAdapter.toPayload(chart(sourceRows, joinBindings));
+    }
+
+    public ChartJsPayload chartJs(DatasetBundle datasetBundle) {
+        return ChartJsAdapter.toPayload(chart(datasetBundle));
     }
 
     private ChartSpec requireChartSpec() {

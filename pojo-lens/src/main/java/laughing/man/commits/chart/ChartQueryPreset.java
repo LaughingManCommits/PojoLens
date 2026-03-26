@@ -1,6 +1,8 @@
 package laughing.man.commits.chart;
 
 import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.chartjs.ChartJsAdapter;
+import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.report.ReportDefinition;
@@ -10,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * Specialized chart-first reusable wrapper built from a SQL-like preset query.
@@ -43,6 +46,22 @@ public final class ChartQueryPreset<T> {
 
     public ChartSpec chartSpec() {
         return chartSpec;
+    }
+
+    public ChartQueryPreset<T> withChartSpec(ChartSpec spec) {
+        return new ChartQueryPreset<>(
+                query,
+                projectionClass,
+                Objects.requireNonNull(spec, "chartSpec must not be null")
+        );
+    }
+
+    public ChartQueryPreset<T> mapChartSpec(UnaryOperator<ChartSpec> updater) {
+        Objects.requireNonNull(updater, "updater must not be null");
+        return withChartSpec(Objects.requireNonNull(
+                updater.apply(chartSpec),
+                "updated chartSpec must not be null"
+        ));
     }
 
     public TabularSchema schema() {
@@ -91,6 +110,22 @@ public final class ChartQueryPreset<T> {
     public ChartData chart(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
         return query.chart(datasetBundle, projectionClass, chartSpec);
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows) {
+        return ChartJsAdapter.toPayload(chart(sourceRows));
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows, Map<String, List<?>> joinSources) {
+        return ChartJsAdapter.toPayload(chart(sourceRows, joinSources));
+    }
+
+    public ChartJsPayload chartJs(List<?> sourceRows, JoinBindings joinBindings) {
+        return ChartJsAdapter.toPayload(chart(sourceRows, joinBindings));
+    }
+
+    public ChartJsPayload chartJs(DatasetBundle datasetBundle) {
+        return ChartJsAdapter.toPayload(chart(datasetBundle));
     }
 }
 

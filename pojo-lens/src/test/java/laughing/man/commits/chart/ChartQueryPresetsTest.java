@@ -1,5 +1,7 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.chartjs.ChartJsPayload;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -99,6 +101,20 @@ public class ChartQueryPresetsTest {
             return;
         }
         throw new AssertionError("Expected IllegalArgumentException");
+    }
+
+    @Test
+    public void projectionFreePresetShouldExposeChartJsShortcut() {
+        ChartQueryPreset<QueryRow> preset = ChartQueryPresets
+                .categoryTotals("department", Metric.SUM, "salary", "payroll");
+
+        List<QueryRow> rows = preset.rows(sampleEmployees());
+        ChartJsPayload payload = preset.chartJs(sampleEmployees());
+
+        assertEquals(List.of("department", "payroll"), preset.schema().names());
+        assertEquals(2, rows.size());
+        assertEquals("bar", payload.type());
+        assertEquals(List.of("Engineering", "Finance"), payload.data().labels());
     }
 }
 

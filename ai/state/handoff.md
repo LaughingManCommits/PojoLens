@@ -24,6 +24,27 @@
     `scripts/check-doc-consistency.ps1`
   - next work is optional, not queued in the roadmap:
     release prep, release-note cleanup, or any further surface tightening review.
+- Library-level dashboard simplification follow-up is now implemented:
+  - built-in Chart.js interop is public in `pojo-lens`:
+    `ChartJsAdapter`, `ChartJsPayload`, `ChartJsData`, `ChartJsDataset`.
+  - higher-level table/dashboard helpers now exist:
+    `StatsTablePayload`,
+    `StatsTable.rowsAsMaps()/payload()`,
+    `StatsViewPreset.tablePayload(...)`,
+    and `TabularRows`.
+  - common preset factories now have projection-free `QueryRow` overloads:
+    `StatsViewPresets.summary/by/topNBy(...)` and
+    `ChartQueryPresets.categoryTotals/categoryCounts/timeSeriesTotals/timeSeriesCounts/groupedBreakdown(...)`.
+  - chart/report wrappers now expose frontend-ready output:
+    `ChartQueryPreset.chartJs(...)`,
+    `ReportDefinition.chartJs(...)`,
+    plus immutable chart-spec customization via
+    `mapChartSpec(...)`.
+  - `QueryRow` support was fixed in SQL-like validation/materialization so
+    grouped fast-stats execution works with the new projection-free helpers.
+  - focused validations passed:
+    `mvn -B -ntp -pl pojo-lens -am "-Dtest=StatsViewPresetsTest,ChartQueryPresetsTest,ChartJsAdapterBridgeTest,ReportDefinitionTest" test`
+    `scripts/check-doc-consistency.ps1`
 - Spring Boot starter basic example now demonstrates preset-heavy workflows:
   - added mode-discovery endpoint:
     `GET /api/employees/dashboard-options`.
@@ -37,7 +58,7 @@
   - chart modes cover direct chart mapping plus `ChartQueryPresets` flows:
     `DIRECT_SQL`,
     `PRESET_QUERY`,
-    `PRESET_REPORT` (via `preset.reportDefinition().chart(...)`).
+    `PRESET_REPORT` (via `preset.reportDefinition().chartJs(...)`).
   - frontend dashboard now includes mode selectors and dynamic stats table
     rendering (columns/totals/source SQL) driven by selected mode.
   - validations passed:
@@ -49,12 +70,16 @@
     `EmployeeQueryController`,
     `EmployeeDashboardService`,
     `EmployeeStore`,
-    `EmployeeExampleTypes`,
-    and `ChartJsPayloadMapper`.
+    and `EmployeeExampleTypes`.
   - moved frontend behavior/styles out of inline HTML into:
     `examples/spring-boot-starter-basic/src/main/resources/static/app.js`
     and
     `examples/spring-boot-starter-basic/src/main/resources/static/app.css`.
+  - example now uses the new library helpers directly instead of an
+    example-local chart adapter:
+    preset/report chart modes call `chartJs(...)`,
+    stats preset modes call `tablePayload(...)`,
+    and chart mode labels/help now point readers at the new simplified APIs.
   - `dashboard-options` now returns default mode values plus mode metadata
     (`label`, `summary`, `docPath`), and the UI renders those details so users
     can see which PojoLens doc to read next for each mode.

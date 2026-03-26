@@ -13,6 +13,7 @@ Main contracts:
 - `StatsViewPresets` factory methods (`summary`, `by`, `topNBy`)
 - `StatsViewPreset<T>` executable preset
 - `StatsTable<T>` output payload (`rows`, optional `totals`, `schema`)
+- `StatsTablePayload` dashboard-friendly payload (`schema`, `rows`, `totals`)
 
 ## API Shapes
 
@@ -50,6 +51,8 @@ Behavior:
 Preset helpers:
 - `preset.hasTotals()` tells you whether totals are part of the preset contract
 - `preset.reportDefinition()` exports the row query as the general reusable wrapper
+- `table.rowsAsMaps()` exposes JSON-friendly row maps using the table schema
+- `table.payload()` / `preset.tablePayload(...)` returns a dashboard-friendly payload
 
 ## Leaderboard Table Example
 
@@ -67,6 +70,22 @@ List<DepartmentPayrollRow> topRows = topTable.rows();
 ```
 
 This pattern is useful for "Top N categories by metric" endpoints with stable ordering and optional totals.
+
+## Projection-Free Dashboard Payload
+
+If you want a dashboard/table response quickly and do not need a dedicated row type yet:
+
+```java
+StatsTablePayload payload = StatsViewPresets
+    .by("department", Metric.SUM, "salary", "payroll")
+    .tablePayload(employees);
+```
+
+The returned payload keeps:
+- `schema()` for labels/types/format hints
+- `columns()` for quick table rendering
+- `rows()` as ordered `Map<String, Object>` entries
+- `totals()` for summary badges/cards
 
 ## Relation To ReportDefinition
 

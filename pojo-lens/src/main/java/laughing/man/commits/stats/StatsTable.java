@@ -1,6 +1,7 @@
 package laughing.man.commits.stats;
 
 import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.table.TabularRows;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,5 +47,13 @@ public final class StatsTable<T> {
 
     public TabularSchema schema() {
         return schema;
+    }
+
+    public List<Map<String, Object>> rowsAsMaps() {
+        return TabularRows.toMaps(rows, schema);
+    }
+
+    public StatsTablePayload payload() {
+        return StatsTablePayload.of(schema, rowsAsMaps(), totals);
     }
 }

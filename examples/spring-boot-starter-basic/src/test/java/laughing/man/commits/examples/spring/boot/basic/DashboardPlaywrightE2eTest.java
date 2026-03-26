@@ -181,6 +181,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#statsSource")).containsText("Stats preset: summary");
         assertThat(page.locator("#statsModeHelp")).containsText("/docs/stats-presets.md");
         assertThat(page.locator("#chartModeHelp")).containsText("/docs/reports.md");
+        assertThat(page.locator("#payrollChart")).isVisible();
+        assertThat(page.locator("#headcountChart")).isVisible();
 
         page.selectOption("#statsMode", "DIRECT_SQL");
         page.selectOption("#chartMode", "DIRECT_SQL");
@@ -191,6 +193,8 @@ class DashboardPlaywrightE2eTest {
         assertThat(page.locator("#statsTableHead")).containsText("payroll");
         assertThat(page.locator("#statsModeHelp")).containsText("/docs/sql-like.md");
         assertThat(page.locator("#chartModeHelp")).containsText("/docs/charts.md");
+        assertThat(page.locator("#payrollChart")).isVisible();
+        assertThat(page.locator("#headcountChart")).isVisible();
 
         page.selectOption("#topPaidDepartment", "Engineering");
         page.fill("#topPaidMinSalary", "0");
@@ -261,11 +265,8 @@ class DashboardPlaywrightE2eTest {
 
                 assertThat(page.locator("#statsTitle")).hasText(statsMode);
                 assertTrue(page.locator("#statsTableHead th").count() > 0);
-                assertTrue((Boolean) page.evaluate(
-                        "() => !!charts.payroll && !!charts.headcount "
-                                + "&& charts.payroll.data.labels.length > 0 "
-                                + "&& charts.headcount.data.labels.length > 0"
-                ));
+                assertThat(page.locator("#payrollChart")).isVisible();
+                assertThat(page.locator("#headcountChart")).isVisible();
             }
         }
     }
