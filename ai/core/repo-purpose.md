@@ -4,7 +4,7 @@
 - Runtime consumer artifact remains `io.github.laughingmancommits:pojo-lens:1.0.0` (`jar`).
 - Optional Spring Boot integration is provided via modules/artifacts `io.github.laughingmancommits:pojo-lens-spring-boot-autoconfigure:1.0.0` and `io.github.laughingmancommits:pojo-lens-spring-boot-starter:1.0.0`.
 - Benchmark/JMH tooling is isolated in module/artifact `io.github.laughingmancommits:pojo-lens-benchmarks:1.0.0` (module-local tooling; deploy skipped).
-- The library provides in-memory querying over POJOs through two public entry styles: fluent builders (`PojoLens.newQueryBuilder(...)` / `PojoLensCore`) and SQL-like queries (`PojoLens.parse(...)` / `PojoLensSql`).
+- The library provides in-memory querying over POJOs through explicit fluent and SQL-like entry points (`PojoLensCore` and `PojoLensSql`), plus a helper-only `PojoLens` facade and scoped `PojoLensRuntime`.
 - Core behavior includes filtering, ordering, grouping, HAVING, metrics, time buckets, joins, typed projection, and explain or schema support.
 - Adjacent library features include chart payload mapping, chart or query presets, reusable reports, dataset bundles, snapshot comparison, telemetry hooks, tabular schema metadata, field metamodel generation, regression fixtures, and benchmark tooling.
 - The repository does not own a web service, CLI application, deployment manifests, or database pushdown integration.

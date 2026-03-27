@@ -39,7 +39,7 @@
 
 ## Notes
 
-- `TODO.md` remains the backlog file; the current roadmap is complete, so new work is either operational or newly selected.
+- `TODO.md` remains the backlog file and now carries the active `Entropy Reduction` roadmap.
 - `MAINTENANCE.md` applies only to `/ai` cleanup passes.
 - `scripts/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
 - `ai/state/recent-validations.md` is the compact warm ledger for exact recent validation commands and results.

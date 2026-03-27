@@ -4,12 +4,13 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; it currently only records that there is no active engineering roadmap.
+3. Check `TODO.md`; the active roadmap is `Entropy Reduction` (`WP8.1`-`WP8.6`).
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
 ## Focus
 
+- `Entropy Reduction` is the active engineering roadmap; `WP8.1` public-surface and entropy audit is the next executable package.
 - Release retry or release verification is the main pending repo task.
 - Starter example and dashboard simplification work are complete and validated.
 - Keep hot memory small; use `ai/state/recent-validations.md` and cold files for detail.
@@ -18,6 +19,7 @@
 
 - `PojoLens` is helper-only; `PojoLensRuntime` owns public cache tuning.
 - User-facing docs now match the helper-only `PojoLens` facade and runtime-only public cache-tuning model.
+- The active backlog is the `Entropy Reduction` roadmap in `TODO.md`.
 - Runtime code lives in `pojo-lens/src/...`; benchmark code lives in `pojo-lens-benchmarks/src/...`.
 - The starter example at `examples/spring-boot-starter-basic` is the current reference app and has Java Playwright E2E coverage.
 - Recent exact validations live in `ai/state/recent-validations.md`.
