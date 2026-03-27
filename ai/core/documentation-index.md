@@ -17,6 +17,7 @@
 - `docs/metamodel.md`
 - `docs/modules.md`
 - `docs/entropy-audit.md`
+- `docs/entropy-internalization-decision.md`
 - `docs/product-surface.md`
 - `docs/public-api-stability.md`
 - `docs/regression-fixtures.md`
@@ -42,6 +43,7 @@
 
 - `TODO.md` remains the backlog file and now carries the active `Entropy Reduction` roadmap.
 - `docs/entropy-audit.md` is the `WP8.1` baseline for public-surface counts, duplicate concept families, and internalization candidates.
+- `docs/entropy-internalization-decision.md` is the `WP8.2` release-scoped decision record for what can narrow in `1.x` versus what waits for `2.x`.
 - `MAINTENANCE.md` applies only to `/ai` cleanup passes.
 - `scripts/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
 - `ai/state/recent-validations.md` is the compact warm ledger for exact recent validation commands and results.

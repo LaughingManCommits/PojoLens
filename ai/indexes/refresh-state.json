@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-27T19:19:08.689830+01:00",
+  "generatedAt": "2026-03-27T20:12:42.704826+01:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "55bd10810b07ffed0b9b9c507ae7a19326f47d59a9467bed8149a9aa6bb8b492",
+      "inputHash": "85d150b981603f6ed38b6cbbb851878a2eb5b48f41db3967e0dbb7e7de366740",
       "pathHashes": {
         "AGENTS.md": "d01e9ffd396dcc1580070a50ab52a6d8984e9c7345560e0e13834a8af017cc9f",
         "ai/AGENTS.md": "feef666660b4f132ac4a9acbb7115cf9b562732aaef9fbacf5771d10e3545d05",
@@ -12,7 +12,7 @@
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
         "ai/core/discovery-notes.md": "79ddb31d2125e93ebb263f7122f5d667d400acc650d8cfa2d882a7682c8b6286",
-        "ai/core/documentation-index.md": "5f8dda1949612b4938bb679a1d65d783597f6d742b4ad4b6cd493765267e243f",
+        "ai/core/documentation-index.md": "af6de2f7b5b424f2ba03013b8d82b5ee467ce5ae56bc21064ac34bd0b8f3d224",
         "ai/core/module-index.md": "9413db185667fff2b10fea28e565f0f57365665842e6359b21416d745bcfbb4d",
         "ai/core/readme-alignment.md": "6cb465fcc4449a6067e38b72b20edcf2f05556e4b0b433ef061657542e1f5f89",
         "ai/core/repo-purpose.md": "459e688d31a1a3dea1cf196c0365e94e5fa5d09a2b2ab5d3ab365166ec238a3f",
@@ -21,8 +21,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "344a34072cfaf89c9c12a0294c5e3fa2733898095b67d4a1cc94706c3fc47515",
-        "ai/state/handoff.md": "41c6ea08486d30081060bce44bc6c2005c68c065a49c0f7c48a3528b6e052cb4",
+        "ai/state/current-state.md": "2bbdba2ccc62d9276644863bf128ae84fe5e0ad53be84adad73f403a63c9dce6",
+        "ai/state/handoff.md": "2931a042fa1dec3eb3a39dc85fb81c49d49bb01ff0aa0b76c2f1277dea4a2c58",
         "ai/state/recent-validations.md": "5ec5f8d18b508dcb558aadd84b240c8cc8ca01d37a05b6b147e78cb8dba1ad6e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
@@ -31,7 +31,8 @@
         "docs/charts.md": "a273aab0746f503db12b0bdb05b317efc27b1e4d7199d4bb7ee5bab813794d15",
         "docs/computed-fields.md": "414c396626b305806fd2f2ac068907ebbb126720a7da2eacfec7ea033bd5c496",
         "docs/consolidation-review.md": "6e14d1f897fdaf32cbc746f93887749fd4d25373b542b0f97d4884f23e5e82af",
-        "docs/entropy-audit.md": "a06bfd01496dd5b2633b98c512d74964ca38a696e5f085cb5a7b848fc91dae2d",
+        "docs/entropy-audit.md": "7fbac8c430ba8d6903d7bacaea00cb14f637ae5ac58bea932fdc599081ea6cf7",
+        "docs/entropy-internalization-decision.md": "b6ae684143d3c6b1030136d5b659e46dfadecb257540f51cc3bd214163cc01c4",
         "docs/entry-points.md": "bd18455322232ac3fdc7dea2bf739b0d41c71c9580548e9d0b7d2d02aca3f9eb",
         "docs/metamodel.md": "9e0cebaeda3878198e57a9401343a95cb1f05c17125e796b5fba6f30a8095142",
         "docs/modules.md": "b56e7c98f106e1103977c261822ea5ec16da40f98e4e584b05ca95745dc1d9b3",
@@ -52,12 +53,12 @@
         "README.md": "5f58871b692058d4c9ba3fddedc0b3ba14cdedabf8f1cc3dc5b161e3be6e9d81",
         "RELEASE.md": "d539290f0f08401bf3ce12d4c6fd89a62da14aca71f59e558b84198f8e98538f",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "42434c5fe30e9576fcc4e0ab61790edf854001df5019eb9cc737e8a1aad6ad6f"
+        "TODO.md": "07a96c6a650fc8d1a69e356ccc9860799edec7572c9000b5a60e206d3e8a5719"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "9518506abfa0e2e62c798dbba0a82f6c4ca522bdd2d706553dea6101f926dbfe",
+      "inputHash": "ca23894de6e1e67a8e978e9a252f4d251c385cc001271c607e5243531999a81f",
       "pathHashes": {
         ".github/workflows/ci.yml": "3ce945881e198c027ce37cc24bcfca42578f36d2c2094aa48f4a01d077fd63ad",
         ".github/workflows/release.yml": "29d5241aae0cb37d2614384cebfbc43d8da9d67248147997c24dc2d9c3962377",
@@ -67,7 +68,7 @@
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
         "ai/core/discovery-notes.md": "79ddb31d2125e93ebb263f7122f5d667d400acc650d8cfa2d882a7682c8b6286",
-        "ai/core/documentation-index.md": "5f8dda1949612b4938bb679a1d65d783597f6d742b4ad4b6cd493765267e243f",
+        "ai/core/documentation-index.md": "af6de2f7b5b424f2ba03013b8d82b5ee467ce5ae56bc21064ac34bd0b8f3d224",
         "ai/core/module-index.md": "9413db185667fff2b10fea28e565f0f57365665842e6359b21416d745bcfbb4d",
         "ai/core/readme-alignment.md": "6cb465fcc4449a6067e38b72b20edcf2f05556e4b0b433ef061657542e1f5f89",
         "ai/core/repo-purpose.md": "459e688d31a1a3dea1cf196c0365e94e5fa5d09a2b2ab5d3ab365166ec238a3f",
@@ -76,8 +77,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "344a34072cfaf89c9c12a0294c5e3fa2733898095b67d4a1cc94706c3fc47515",
-        "ai/state/handoff.md": "41c6ea08486d30081060bce44bc6c2005c68c065a49c0f7c48a3528b6e052cb4",
+        "ai/state/current-state.md": "2bbdba2ccc62d9276644863bf128ae84fe5e0ad53be84adad73f403a63c9dce6",
+        "ai/state/handoff.md": "2931a042fa1dec3eb3a39dc85fb81c49d49bb01ff0aa0b76c2f1277dea4a2c58",
         "ai/state/recent-validations.md": "5ec5f8d18b508dcb558aadd84b240c8cc8ca01d37a05b6b147e78cb8dba1ad6e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
@@ -86,7 +87,8 @@
         "docs/charts.md": "a273aab0746f503db12b0bdb05b317efc27b1e4d7199d4bb7ee5bab813794d15",
         "docs/computed-fields.md": "414c396626b305806fd2f2ac068907ebbb126720a7da2eacfec7ea033bd5c496",
         "docs/consolidation-review.md": "6e14d1f897fdaf32cbc746f93887749fd4d25373b542b0f97d4884f23e5e82af",
-        "docs/entropy-audit.md": "a06bfd01496dd5b2633b98c512d74964ca38a696e5f085cb5a7b848fc91dae2d",
+        "docs/entropy-audit.md": "7fbac8c430ba8d6903d7bacaea00cb14f637ae5ac58bea932fdc599081ea6cf7",
+        "docs/entropy-internalization-decision.md": "b6ae684143d3c6b1030136d5b659e46dfadecb257540f51cc3bd214163cc01c4",
         "docs/entry-points.md": "bd18455322232ac3fdc7dea2bf739b0d41c71c9580548e9d0b7d2d02aca3f9eb",
         "docs/metamodel.md": "9e0cebaeda3878198e57a9401343a95cb1f05c17125e796b5fba6f30a8095142",
         "docs/modules.md": "b56e7c98f106e1103977c261822ea5ec16da40f98e4e584b05ca95745dc1d9b3",
@@ -393,7 +395,7 @@
         "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "42434c5fe30e9576fcc4e0ab61790edf854001df5019eb9cc737e8a1aad6ad6f"
+        "TODO.md": "07a96c6a650fc8d1a69e356ccc9860799edec7572c9000b5a60e206d3e8a5719"
       }
     },
     "symbols": {

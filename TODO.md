@@ -17,10 +17,10 @@ Prefer deletions and internalization over reshuffling.
 
 ## Decision Gate
 
-Before implementation starts, confirm two product decisions:
-- whether stable-surface removals must wait for `2.x`
-- whether advanced/helper surfaces may be narrowed in `1.x` when migration is
-  explicit and validations remain green
+Resolved for this roadmap:
+- stable-surface removals wait for `2.x`
+- advanced/helper implementation leaks may be narrowed in `1.x` when the
+  stable compatibility gate is unaffected and migration notes are explicit
 
 ## Status Model
 
@@ -35,7 +35,7 @@ Before implementation starts, confirm two product decisions:
 | Work Package                                  | Priority | Status    | Dependency                    |
 |-----------------------------------------------|----------|-----------|-------------------------------|
 | `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Done`    | decision gate                 |
-| `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Ready`   | `WP8.1` findings              |
+| `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Ready`   | `WP8.1` findings              |
 | `WP8.4` Execution Path Unification Audit      | `P1`     | `Planned` | `WP8.1` findings              |
 | `WP8.5` Entropy Reduction Implementation      | `P0`     | `Planned` | `WP8.2`, `WP8.3`, `WP8.4`     |
@@ -82,7 +82,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - decide which public implementation or intermediate types should stop being
@@ -100,6 +100,15 @@ Acceptance criteria:
 - no public implementation class remains public without explicit justification
 - the intended public package boundary is materially narrower than today
 - compatibility implications are documented before implementation work starts
+
+Result:
+- delivered in `docs/entropy-internalization-decision.md`
+- approved `1.x` internalization for builder/filter internals, execution-plan
+  types, SQL-like parser/AST helpers, chart mapping helpers, intermediate row
+  models, and support/util packages
+- kept `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`, and
+  `SqlLikeErrorCodes` public in `1.x`, with package cleanup deferred unless it
+  also removes code
 
 ### `WP8.3` Wrapper and Binding Simplification
 

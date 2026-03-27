@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T19:19:08.689830+01:00",
+  "generatedAt": "2026-03-27T20:12:42.704826+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -60,8 +60,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 48,
-      "byteCount": 1357,
+      "lineCount": 50,
+      "byteCount": 1551,
       "coldSearchEligible": true
     },
     {
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 43,
-      "byteCount": 2584,
+      "lineCount": 44,
+      "byteCount": 2946,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 46,
-      "byteCount": 2656,
+      "lineCount": 48,
+      "byteCount": 3072,
       "coldSearchEligible": true
     },
     {
@@ -232,7 +232,16 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 212,
-      "byteCount": 12477,
+      "byteCount": 29745,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/entropy-internalization-decision.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 80,
+      "byteCount": 7315,
       "coldSearchEligible": true
     },
     {
@@ -411,8 +420,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 205,
-      "byteCount": 6785,
+      "lineCount": 214,
+      "byteCount": 7190,
       "coldSearchEligible": true
     }
   ]

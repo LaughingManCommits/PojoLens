@@ -4,13 +4,13 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; `WP8.1` is done and `WP8.2` / `WP8.3` are ready in the `Entropy Reduction` roadmap.
+3. Check `TODO.md`; `WP8.1` and `WP8.2` are done and `WP8.3` is ready in the `Entropy Reduction` roadmap.
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
 ## Focus
 
-- `Entropy Reduction` is the active engineering roadmap; `WP8.2` public leak/internalization decisions and `WP8.3` wrapper/binding simplification are now the next executable packages.
+- `Entropy Reduction` is the active engineering roadmap; `WP8.3` wrapper/binding simplification is the next executable package and `WP8.4` remains the later execution-path audit.
 - Release retry or release verification is the main pending repo task.
 - Starter example and dashboard simplification work are complete and validated.
 - Keep hot memory small; use `ai/state/recent-validations.md` and cold files for detail.
@@ -21,6 +21,7 @@
 - User-facing docs now match the helper-only `PojoLens` facade and runtime-only public cache-tuning model.
 - The active backlog is the `Entropy Reduction` roadmap in `TODO.md`.
 - `WP8.1` baseline is recorded in `docs/entropy-audit.md`: `122` public top-level types across `36` packages, including `52` clear internalization candidates.
+- `WP8.2` decisions are recorded in `docs/entropy-internalization-decision.md`: `1.x` may internalize builder/filter internals, execution-plan types, SQL-like parser/AST helpers, chart mapping helpers, row models, and support/util packages; `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`, and `SqlLikeErrorCodes` stay public in `1.x`.
 - Runtime code lives in `pojo-lens/src/...`; benchmark code lives in `pojo-lens-benchmarks/src/...`.
 - The starter example at `examples/spring-boot-starter-basic` is the current reference app and has Java Playwright E2E coverage.
 - Recent exact validations live in `ai/state/recent-validations.md`.
@@ -41,6 +42,7 @@
 - repo structure: `ai/core/module-index.md`, `ai/core/architecture-map.md`
 - docs and process: `ai/core/documentation-index.md`, `ai/core/runbook.md`
 - public-surface baseline: `docs/entropy-audit.md`
+- internalization decision record: `docs/entropy-internalization-decision.md`
 - recent validation details: `ai/state/recent-validations.md`
 - archive history summary: `ai/log/archive/*-summary.md`
 - benchmarks only when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`
