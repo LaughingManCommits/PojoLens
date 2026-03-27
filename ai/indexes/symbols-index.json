@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
   "groups": [
     {
       "component": "facades",
@@ -7,27 +7,32 @@
         {
           "name": "PojoLens",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/PojoLens.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java"
         },
         {
           "name": "PojoLensCore",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/PojoLensCore.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java"
         },
         {
           "name": "PojoLensSql",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/PojoLensSql.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java"
         },
         {
           "name": "PojoLensChart",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/PojoLensChart.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensChart.java"
         },
         {
           "name": "PojoLensRuntime",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntime.java"
+        },
+        {
+          "name": "PojoLensRuntimePreset",
+          "kind": "enum",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntimePreset.java"
         }
       ]
     },
@@ -35,29 +40,34 @@
       "component": "fluent-engine",
       "symbols": [
         {
+          "name": "QueryBuilder",
+          "kind": "interface",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/builder/QueryBuilder.java"
+        },
+        {
           "name": "FilterQueryBuilder",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java"
         },
         {
           "name": "FilterImpl",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/filter/FilterImpl.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java"
         },
         {
           "name": "FastArrayQuerySupport",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java"
         },
         {
           "name": "FastStatsQuerySupport",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java"
         },
         {
           "name": "JoinEngine",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/filter/JoinEngine.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/filter/JoinEngine.java"
         }
       ]
     },
@@ -67,62 +77,182 @@
         {
           "name": "SqlLikeQuery",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java"
+        },
+        {
+          "name": "SqlLikeTemplate",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeTemplate.java"
+        },
+        {
+          "name": "SqlLikeBoundQuery",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeBoundQuery.java"
+        },
+        {
+          "name": "SqlLikeCursor",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeCursor.java"
         },
         {
           "name": "SqlLikeParser",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
         },
         {
           "name": "SqlLikeValidator",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
+        },
+        {
+          "name": "SqlLikeBinder",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinder.java"
         },
         {
           "name": "SqlExpressionEvaluator",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java"
-        },
-        {
-          "name": "SqlLikeExecutionSupport",
-          "kind": "class",
-          "path": "src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java"
         }
       ]
     },
     {
-      "component": "feature-layers",
+      "component": "chart-and-stats",
       "symbols": [
         {
           "name": "ChartMapper",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/chart/ChartMapper.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java"
         },
         {
-          "name": "ChartResultMapper",
+          "name": "ChartQueryPreset",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/chart/ChartResultMapper.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/chart/ChartQueryPreset.java"
+        },
+        {
+          "name": "ChartQueryPresets",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/chart/ChartQueryPresets.java"
+        },
+        {
+          "name": "ChartJsAdapter",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java"
+        },
+        {
+          "name": "ChartJsPayload",
+          "kind": "record",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsPayload.java"
+        },
+        {
+          "name": "StatsViewPresets",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPresets.java"
+        },
+        {
+          "name": "StatsViewPreset",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPreset.java"
+        },
+        {
+          "name": "StatsTable",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsTable.java"
+        },
+        {
+          "name": "StatsTablePayload",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsTablePayload.java"
+        },
+        {
+          "name": "TabularRows",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/table/TabularRows.java"
+        }
+      ]
+    },
+    {
+      "component": "ecosystem",
+      "symbols": [
+        {
+          "name": "DatasetBundle",
+          "kind": "class",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/DatasetBundle.java"
         },
         {
           "name": "ReportDefinition",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java"
         },
         {
           "name": "SnapshotComparison",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java"
         },
         {
           "name": "QueryRegressionFixture",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java"
         },
         {
           "name": "FieldMetamodelGenerator",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java"
+        },
+        {
+          "name": "QueryTelemetryListener",
+          "kind": "interface",
+          "path": "pojo-lens/src/main/java/laughing/man/commits/telemetry/QueryTelemetryListener.java"
+        }
+      ]
+    },
+    {
+      "component": "spring-boot",
+      "symbols": [
+        {
+          "name": "PojoLensProperties",
+          "kind": "class",
+          "path": "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensProperties.java"
+        },
+        {
+          "name": "MicrometerQueryTelemetryListener",
+          "kind": "class",
+          "path": "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/MicrometerQueryTelemetryListener.java"
+        },
+        {
+          "name": "PojoLensSpringBootAutoConfiguration",
+          "kind": "class",
+          "path": "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfiguration.java"
+        },
+        {
+          "name": "PojoLensSpringBootStarterMarker",
+          "kind": "class",
+          "path": "pojo-lens-spring-boot-starter/src/main/java/laughing/man/commits/spring/boot/starter/PojoLensSpringBootStarterMarker.java"
+        }
+      ]
+    },
+    {
+      "component": "examples",
+      "symbols": [
+        {
+          "name": "BasicExampleApplication",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java"
+        },
+        {
+          "name": "EmployeeDashboardService",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java"
+        },
+        {
+          "name": "EmployeeQueryController",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeQueryController.java"
+        },
+        {
+          "name": "EmployeeStore",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeStore.java"
         }
       ]
     },
@@ -132,17 +262,17 @@
         {
           "name": "JmhRunner",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/benchmark/JmhRunner.java"
+          "path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/JmhRunner.java"
         },
         {
           "name": "BenchmarkThresholdChecker",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java"
+          "path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java"
         },
         {
           "name": "BenchmarkMetricsPlotGenerator",
           "kind": "class",
-          "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGenerator.java"
+          "path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGenerator.java"
         }
       ]
     }

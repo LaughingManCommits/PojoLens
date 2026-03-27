@@ -7,6 +7,10 @@
 - lint: `mvn -B -ntp -Plint verify -DskipTests`
 - lint baseline gate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
 - static analysis: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+- ai memory refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1`
+- ai memory freshness: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -Check`
+- ai memory compaction: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -CompactLog`
+- ai memory cold search: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\query-ai-memory.ps1 -Query "<text>"`
 
 ## Benchmark Flow
 
@@ -19,8 +23,9 @@
 
 1. Ensure required GitHub secrets are set:
    `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
-2. Ensure PGP public key is available on supported keyservers.
+2. Ensure the PGP public key is available on supported keyservers.
 3. Trigger `.github/workflows/release.yml` by:
    - pushing tag `vX.Y.Z` (must match `pom.xml` version), or
    - manual `workflow_dispatch`.
-4. Workflow runs tests then `mvn -B -ntp -Prelease-central -DskipTests deploy`.
+4. Workflow runs tests then:
+   `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy`.

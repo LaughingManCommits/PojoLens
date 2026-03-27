@@ -16,7 +16,9 @@ Hot context:
 Cold context:
 - `ai/core/*`
 - `ai/indexes/*`
+- `ai/state/recent-validations.md`
 - `ai/log/events.jsonl`
+- `ai/log/archive/*.jsonl`
 - `ai/state/benchmark-state.md`
 
 Session rules:
@@ -27,8 +29,10 @@ Session rules:
 Memory rules:
 - follow `/ai/AGENTS.md` when updating memory
 - code, tests, and build config override `/ai` if facts conflict
+- `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/refresh-ai-memory.ps1` after structural or documentation changes
 
 End of session:
 - update `ai/state/current-state.md`
 - update `ai/state/handoff.md`
 - append significant discoveries to `ai/log/events.jsonl` if useful
+- compact older log history with `scripts/refresh-ai-memory.ps1 -CompactLog` when the active log grows noisy

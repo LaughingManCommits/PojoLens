@@ -1,205 +1,401 @@
 {
-  "generatedAt": "2026-03-20T18:31:04.0519769+01:00",
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
-      "relevance": "high"
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 38,
+      "byteCount": 1287,
+      "coldSearchEligible": true
     },
     {
       "path": "ai/AGENTS.md",
       "category": "ai-memory-guide",
       "relevance": "high",
-      "loadTier": "cold"
+      "loadTier": "cold",
+      "lineCount": 126,
+      "byteCount": 2683,
+      "coldSearchEligible": true
     },
     {
       "path": "ai/core/agent-invariants.md",
       "category": "ai-hot-context",
       "relevance": "high",
-      "loadTier": "hot"
+      "loadTier": "hot",
+      "lineCount": 6,
+      "byteCount": 638,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/architecture-map.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 23,
+      "byteCount": 1270,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/benchmark-context.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 26,
+      "byteCount": 992,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/discovery-notes.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 9,
+      "byteCount": 854,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/documentation-index.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 46,
+      "byteCount": 1225,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/module-index.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 17,
+      "byteCount": 1214,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/readme-alignment.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 17,
+      "byteCount": 868,
+      "coldSearchEligible": true
     },
     {
       "path": "ai/core/repo-purpose.md",
       "category": "ai-hot-context",
       "relevance": "high",
-      "loadTier": "hot"
+      "loadTier": "hot",
+      "lineCount": 11,
+      "byteCount": 1501,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/runbook.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 31,
+      "byteCount": 1785,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/system-boundaries.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 26,
+      "byteCount": 992,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/core/test-strategy.md",
+      "category": "ai-core",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 26,
+      "byteCount": 969,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/state/benchmark-state.md",
+      "category": "ai-benchmark-state",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 31,
+      "byteCount": 1209,
+      "coldSearchEligible": true
     },
     {
       "path": "ai/state/current-state.md",
       "category": "ai-hot-context",
       "relevance": "high",
-      "loadTier": "hot"
+      "loadTier": "hot",
+      "lineCount": 70,
+      "byteCount": 3282,
+      "coldSearchEligible": true
     },
     {
       "path": "ai/state/handoff.md",
       "category": "ai-hot-context",
       "relevance": "high",
-      "loadTier": "hot"
+      "loadTier": "hot",
+      "lineCount": 66,
+      "byteCount": 3003,
+      "coldSearchEligible": true
     },
     {
-      "path": "ai/state/benchmark-state.md",
-      "category": "ai-cold-state",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/architecture-map.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/benchmark-context.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/discovery-notes.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/documentation-index.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/module-index.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/readme-alignment.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/runbook.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/system-boundaries.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "ai/core/test-strategy.md",
-      "category": "ai-cold-core",
-      "relevance": "medium",
-      "loadTier": "cold"
-    },
-    {
-      "path": "README.md",
-      "category": "readme",
-      "relevance": "high"
-    },
-    {
-      "path": "docs/usecases.md",
-      "category": "product-doc",
-      "relevance": "high"
+      "path": "ai/state/recent-validations.md",
+      "category": "ai-validation-history",
+      "relevance": "high",
+      "loadTier": "warm",
+      "lineCount": 8,
+      "byteCount": 940,
+      "coldSearchEligible": true
     },
     {
       "path": "CONTRIBUTING.md",
-      "category": "contributing",
-      "relevance": "high"
+      "category": "process-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 173,
+      "byteCount": 5817,
+      "coldSearchEligible": true
     },
     {
-      "path": "MIGRATION.md",
-      "category": "migration",
-      "relevance": "medium"
-    },
-    {
-      "path": "RELEASE.md",
-      "category": "release",
-      "relevance": "high"
-    },
-    {
-      "path": "TODO.md",
-      "category": "todo",
-      "relevance": "high"
-    },
-    {
-      "path": "MAINTENANCE.md",
-      "category": "memory-maintenance",
-      "relevance": "medium"
-    },
-    {
-      "path": "LICENSE.md",
-      "category": "license",
-      "relevance": "low"
-    },
-    {
-      "path": "docs/sql-like.md",
+      "path": "docs/advanced-features.md",
       "category": "product-doc",
-      "relevance": "high"
-    },
-    {
-      "path": "docs/charts.md",
-      "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 68,
+      "byteCount": 2086,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/benchmarking.md",
       "category": "product-doc",
-      "relevance": "high"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 312,
+      "byteCount": 17696,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/caching.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 128,
+      "byteCount": 3585,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/charts.md",
+      "category": "product-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 207,
+      "byteCount": 6278,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/computed-fields.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 95,
+      "byteCount": 2651,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/consolidation-review.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 200,
+      "byteCount": 13295,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/entry-points.md",
+      "category": "product-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 67,
+      "byteCount": 3873,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/metamodel.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 114,
+      "byteCount": 2958,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/modules.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 79,
+      "byteCount": 3041,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/product-surface.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 74,
+      "byteCount": 5506,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/public-api-stability.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 145,
+      "byteCount": 4741,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/regression-fixtures.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 81,
+      "byteCount": 2171,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/reports.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 132,
+      "byteCount": 4323,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/reusable-wrappers.md",
+      "category": "product-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 53,
+      "byteCount": 3719,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/snapshot-comparison.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 109,
+      "byteCount": 2760,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/sql-like.md",
+      "category": "product-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 920,
+      "byteCount": 32097,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/stats-presets.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 105,
+      "byteCount": 3511,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/tabular-schema.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 52,
+      "byteCount": 1109,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/telemetry.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 97,
+      "byteCount": 2429,
+      "coldSearchEligible": true
     },
     {
       "path": "docs/time-buckets.md",
       "category": "product-doc",
-      "relevance": "medium"
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 65,
+      "byteCount": 1749,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/usecases.md",
+      "category": "product-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 347,
+      "byteCount": 11416,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "category": "memory-maintenance",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 132,
+      "byteCount": 3543,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "MIGRATION.md",
+      "category": "process-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 353,
+      "byteCount": 11111,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "README.md",
+      "category": "readme",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 282,
+      "byteCount": 10252,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "RELEASE.md",
+      "category": "release-doc",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 106,
+      "byteCount": 3635,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "TODO.md",
+      "category": "planning",
+      "relevance": "high",
+      "loadTier": null,
+      "lineCount": 187,
+      "byteCount": 5956,
+      "coldSearchEligible": true
     }
   ]
 }

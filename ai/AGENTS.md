@@ -9,14 +9,17 @@ This file defines how the memory system is organized and maintained.
 
 # Memory Layout
 
-core/    → durable repository truths  
-state/   → current work snapshot  
-indexes/ → derived navigation data  
-log/     → append-only discovery history
+core/ -> durable markdown truths
+state/ -> current markdown snapshot
+indexes/ -> derived JSON navigation data
+indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
+state/recent-validations.md -> warm validation ledger
+log/events.jsonl -> recent discovery history
+log/archive/*.jsonl -> archived discovery history
 
 Conceptually:
 
-log → state → core → regenerated indexes
+log -> state -> core -> regenerated indexes
 
 ---
 
@@ -33,7 +36,7 @@ Rules:
 
 - keep hot context small
 - store only startup-critical information
-- move durable knowledge into `core/`
+- move durable knowledge into `core`
 
 ---
 
@@ -50,11 +53,14 @@ Examples:
 - ai/core/readme-alignment.md
 - ai/core/benchmark-context.md
 - ai/core/discovery-notes.md
+- ai/state/recent-validations.md
 - ai/state/benchmark-state.md
 - ai/indexes/*
 - ai/log/events.jsonl
+- ai/log/archive/*.jsonl
 
 Do not auto-load cold files.
+Do not treat generated JSON indexes or the optional SQLite database as source of truth.
 
 ---
 
@@ -80,7 +86,8 @@ When durable repository facts change:
 2. regenerate affected indexes
 3. refresh `ai/state/current-state.md`
 4. refresh `ai/state/handoff.md`
-5. log a significant event if useful
+5. regenerate derived memory artifacts with `scripts/refresh-ai-memory.ps1`
+6. log a significant event if useful
 
 ---
 
@@ -92,6 +99,8 @@ log/
 - significant events only
 - merge repeated discoveries
 - summarize old exploration
+- keep `events.jsonl` as the small recent window
+- move older significant events into `log/archive/*.jsonl`
 
 state/
 - active work only
@@ -105,6 +114,9 @@ core/
 indexes/
 - derived data
 - regenerate instead of editing
+- `scripts/refresh-ai-memory.ps1` rebuilds `ai/indexes/*.json`
+- optional SQLite cold search under `ai/indexes/cold-memory.db` is derived only
+- `scripts/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
 
 ---
 

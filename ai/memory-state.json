@@ -1,6 +1,76 @@
 {
-  "schema_version": 2,
-  "last_full_scan_commit": "a20a5b79bca62a187fb8afe854e73270e9aaf392",
-  "index_build_time": "2026-03-20T18:31:04.0519769+01:00",
-  "confidence": "high"
+  "schemaVersion": 4,
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
+  "git": {
+    "headCommit": "f1010d6fe53c932b1d61b20a991902eb99344dc1",
+    "branch": "main",
+    "dirty": true
+  },
+  "inputsHash": "10e4a804b03d429ee6d02ddb4603c42b7f1de0f6fe928069472f21e503c7dde0",
+  "hotContext": {
+    "files": [
+      {
+        "path": "ai/core/agent-invariants.md",
+        "lines": 6,
+        "bytes": 638
+      },
+      {
+        "path": "ai/core/repo-purpose.md",
+        "lines": 11,
+        "bytes": 1501
+      },
+      {
+        "path": "ai/state/current-state.md",
+        "lines": 70,
+        "bytes": 3282
+      },
+      {
+        "path": "ai/state/handoff.md",
+        "lines": 66,
+        "bytes": 3003
+      }
+    ],
+    "totalLines": 153,
+    "totalBytes": 8424,
+    "maxLines": 240,
+    "maxBytes": 24576,
+    "withinBudget": true
+  },
+  "eventLog": {
+    "activeLog": {
+      "path": "ai/log/events.jsonl",
+      "entries": 12,
+      "bytes": 6498
+    },
+    "archiveFiles": [
+      {
+        "path": "ai/log/archive/2026-03.jsonl",
+        "entries": 72,
+        "bytes": 29339
+      }
+    ],
+    "retention": 12,
+    "totalEntries": 84
+  },
+  "derivedArtifacts": {
+    "jsonIndexes": [
+      "ai/indexes/files-index.json",
+      "ai/indexes/docs-index.json",
+      "ai/indexes/symbols-index.json",
+      "ai/indexes/test-index.json",
+      "ai/indexes/config-index.json"
+    ],
+    "sqlite": {
+      "status": "built",
+      "path": "ai/indexes/cold-memory.db",
+      "ftsEnabled": true,
+      "documents": 46,
+      "sections": 441
+    }
+  },
+  "freshness": {
+    "status": "fresh",
+    "reasons": [],
+    "missingPaths": []
+  }
 }

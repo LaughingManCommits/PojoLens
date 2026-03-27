@@ -1,31 +1,51 @@
 {
-  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
-    "artifactId": "pojo-lens",
+    "artifactId": "pojo-lens-parent",
     "version": "1.0.0",
-    "packaging": "jar",
+    "packaging": "pom",
     "javaRelease": 17,
-    "profiles": [
-      "benchmark",
-      "benchmark-runner",
-      "lint",
-      "static-analysis",
-      "release-central"
+    "springBootVersion": "4.0.4",
+    "modules": [
+      {
+        "path": "pojo-lens/pom.xml",
+        "artifactId": "pojo-lens",
+        "packaging": "jar",
+        "role": "runtime",
+        "published": true
+      },
+      {
+        "path": "pojo-lens-spring-boot-autoconfigure/pom.xml",
+        "artifactId": "pojo-lens-spring-boot-autoconfigure",
+        "packaging": "jar",
+        "role": "spring-boot-autoconfigure",
+        "published": true
+      },
+      {
+        "path": "pojo-lens-spring-boot-starter/pom.xml",
+        "artifactId": "pojo-lens-spring-boot-starter",
+        "packaging": "jar",
+        "role": "spring-boot-starter",
+        "published": true
+      },
+      {
+        "path": "pojo-lens-benchmarks/pom.xml",
+        "artifactId": "pojo-lens-benchmarks",
+        "packaging": "jar",
+        "role": "benchmark-tooling",
+        "published": false
+      },
+      {
+        "path": "examples/spring-boot-starter-basic/pom.xml",
+        "artifactId": "pojo-lens-spring-boot-starter-basic-example",
+        "packaging": "jar",
+        "role": "starter-example",
+        "published": false
+      }
     ],
-    "runtimeDependencies": [
-      "org.slf4j:slf4j-api",
-      "com.github.ben-manes.caffeine:caffeine"
-    ],
-    "optionalDependencies": [
-      "org.knowm.xchart:xchart",
-      "org.openjdk.jmh:jmh-core"
-    ],
-    "testDependencies": [
-      "org.slf4j:slf4j-simple",
-      "org.junit.jupiter:junit-jupiter"
-    ]
+    "profiles": []
   },
   "ci": {
     "workflows": [
@@ -34,6 +54,8 @@
         "jobs": [
           "lint-workflows",
           "test",
+          "runtime-artifact-scope",
+          "binary-compat",
           "lint-java",
           "static-analysis",
           "doc-consistency",
@@ -55,32 +77,59 @@
         "triggerTags": [
           "v*"
         ],
-        "manualDispatch": true
+        "manualDispatch": true,
+        "releaseModules": [
+          "pojo-lens",
+          "pojo-lens-spring-boot-autoconfigure",
+          "pojo-lens-spring-boot-starter"
+        ]
       }
     ]
   },
   "aiMemory": {
+    "sourceOfTruth": [
+      "ai/core/*.md",
+      "ai/state/*.md",
+      "ai/log/events.jsonl",
+      "ai/log/archive/*.jsonl"
+    ],
     "hotContext": [
       "ai/core/agent-invariants.md",
       "ai/core/repo-purpose.md",
       "ai/state/current-state.md",
       "ai/state/handoff.md"
     ],
-    "coldContext": [
-      "ai/core/*",
-      "ai/indexes/*",
-      "ai/log/events.jsonl",
-      "ai/state/benchmark-state.md"
+    "warmContext": [
+      "ai/state/recent-validations.md"
     ],
-    "memoryStatePath": "ai/memory-state.json"
-  },
-  "planning": {
-    "primaryBacklog": "TODO.md"
+    "generatedIndexes": [
+      "ai/indexes/files-index.json",
+      "ai/indexes/docs-index.json",
+      "ai/indexes/symbols-index.json",
+      "ai/indexes/test-index.json",
+      "ai/indexes/config-index.json"
+    ],
+    "optionalColdSearchDb": "ai/indexes/cold-memory.db",
+    "refreshCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1",
+    "checkCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check",
+    "compactCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog",
+    "searchCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query <text>",
+    "eventRetention": {
+      "activeLog": "ai/log/events.jsonl",
+      "archivePattern": "ai/log/archive/*.jsonl",
+      "recentEntries": 12
+    }
   },
   "validationScripts": [
     "scripts/check-doc-consistency.ps1",
     "scripts/check-doc-consistency.py",
-    "scripts/check-lint-baseline.ps1"
+    "scripts/check-lint-baseline.ps1",
+    "scripts/refresh-ai-memory.ps1",
+    "scripts/refresh-ai-memory.py"
+  ],
+  "memoryScripts": [
+    "scripts/query-ai-memory.ps1",
+    "scripts/query-ai-memory.py"
   ],
   "releaseScripts": [
     "scripts/export-release-secrets.ps1"
@@ -92,6 +141,9 @@
     "scripts/benchmark-suite-chart.args",
     "scripts/benchmark-suite-hotspots.args",
     "scripts/benchmark-suite-baseline.args",
-    "scripts/benchmark-suite-cache.args"
+    "scripts/benchmark-suite-cache.args",
+    "scripts/benchmark-suite-indexes.args",
+    "scripts/benchmark-suite-streaming.args",
+    "scripts/benchmark-suite-window.args"
   ]
 }

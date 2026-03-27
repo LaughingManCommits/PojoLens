@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-03-20T18:31:04.0519769+01:00",
-  "notes": "High-signal repository roots and anchor files for cold-context lookup. Generated outputs under target/ are excluded from source-of-truth memory.",
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
+  "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
-    "mainJavaFiles": 141,
-    "testJavaFiles": 73,
-    "testClasses": 69,
-    "markdownDocs": 37,
+    "modules": 5,
+    "mainJavaFiles": 174,
+    "testJavaFiles": 104,
+    "markdownDocs": 44,
     "aiCoreFiles": 11,
     "aiIndexFiles": 5
   },
@@ -31,6 +31,10 @@
       "kind": "ai-log"
     },
     {
+      "path": "ai/log/archive",
+      "kind": "ai-log-archive"
+    },
+    {
       "path": "benchmarks",
       "kind": "benchmark-config"
     },
@@ -43,22 +47,104 @@
       "kind": "repo-scripts"
     },
     {
-      "path": "src/main/java/laughing/man/commits",
-      "kind": "source-root"
+      "path": "pojo-lens/src/main/java/laughing/man/commits",
+      "kind": "runtime-source-root"
     },
     {
-      "path": "src/test/java/laughing/man/commits",
-      "kind": "test-root"
+      "path": "pojo-lens/src/test/java/laughing/man/commits",
+      "kind": "runtime-test-root"
     },
     {
-      "path": "src/test/resources/fixtures",
-      "kind": "test-fixtures"
+      "path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark",
+      "kind": "benchmark-source-root"
+    },
+    {
+      "path": "examples/spring-boot-starter-basic",
+      "kind": "example"
+    }
+  ],
+  "moduleRoots": [
+    {
+      "path": "pojo-lens",
+      "kind": "runtime-module",
+      "role": "runtime",
+      "published": true,
+      "sourceRoot": "pojo-lens/src/main/java",
+      "testRoot": "pojo-lens/src/test/java",
+      "resourceRoot": null,
+      "mainJavaFiles": 141,
+      "testJavaFiles": 94,
+      "resourceFiles": 0
+    },
+    {
+      "path": "pojo-lens-spring-boot-autoconfigure",
+      "kind": "boot-autoconfigure-module",
+      "role": "spring-boot-autoconfigure",
+      "published": true,
+      "sourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/java",
+      "testRoot": "pojo-lens-spring-boot-autoconfigure/src/test/java",
+      "resourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/resources",
+      "mainJavaFiles": 3,
+      "testJavaFiles": 1,
+      "resourceFiles": 1
+    },
+    {
+      "path": "pojo-lens-spring-boot-starter",
+      "kind": "boot-starter-module",
+      "role": "spring-boot-starter",
+      "published": true,
+      "sourceRoot": "pojo-lens-spring-boot-starter/src/main/java",
+      "testRoot": "pojo-lens-spring-boot-starter/src/test/java",
+      "resourceRoot": null,
+      "mainJavaFiles": 1,
+      "testJavaFiles": 1,
+      "resourceFiles": 0
+    },
+    {
+      "path": "pojo-lens-benchmarks",
+      "kind": "benchmark-module",
+      "role": "benchmark-tooling",
+      "published": false,
+      "sourceRoot": "pojo-lens-benchmarks/src/main/java",
+      "testRoot": "pojo-lens-benchmarks/src/test/java",
+      "resourceRoot": null,
+      "mainJavaFiles": 24,
+      "testJavaFiles": 7,
+      "resourceFiles": 0
+    },
+    {
+      "path": "examples/spring-boot-starter-basic",
+      "kind": "example-module",
+      "role": "starter-example",
+      "published": false,
+      "sourceRoot": "examples/spring-boot-starter-basic/src/main/java",
+      "testRoot": "examples/spring-boot-starter-basic/src/test/java",
+      "resourceRoot": "examples/spring-boot-starter-basic/src/main/resources",
+      "mainJavaFiles": 5,
+      "testJavaFiles": 1,
+      "resourceFiles": 4
     }
   ],
   "importantFiles": [
     {
       "path": "pom.xml",
       "kind": "build"
+    },
+    {
+      "path": "pojo-lens/pom.xml",
+      "kind": "module-build"
+    },
+    {
+      "path": "pojo-lens-spring-boot-autoconfigure/pom.xml",
+      "kind": "module-build"
+    },
+    {
+      "path": "pojo-lens-spring-boot-starter/pom.xml",
+      "kind": "module-build"
+    },
+    {
+      "path": "pojo-lens-benchmarks/pom.xml",
+      "kind": "module-build"
     },
     {
       "path": ".github/workflows/ci.yml",
@@ -73,15 +159,7 @@
       "kind": "product-doc"
     },
     {
-      "path": "docs/usecases.md",
-      "kind": "product-doc"
-    },
-    {
       "path": "CONTRIBUTING.md",
-      "kind": "process-doc"
-    },
-    {
-      "path": "MIGRATION.md",
       "kind": "process-doc"
     },
     {
@@ -97,6 +175,18 @@
       "kind": "memory-maintenance"
     },
     {
+      "path": "ai/state/recent-validations.md",
+      "kind": "ai-warm-state"
+    },
+    {
+      "path": "scripts/refresh-ai-memory.py",
+      "kind": "memory-script"
+    },
+    {
+      "path": "scripts/query-ai-memory.py",
+      "kind": "memory-script"
+    },
+    {
       "path": "scripts/check-doc-consistency.ps1",
       "kind": "validation-script"
     },
@@ -105,140 +195,56 @@
       "kind": "validation-script"
     },
     {
-      "path": "scripts/export-release-secrets.ps1",
-      "kind": "release-script"
-    },
-    {
-      "path": "scripts/benchmark-suite-main.args",
-      "kind": "benchmark-suite"
-    },
-    {
-      "path": "scripts/benchmark-suite-chart.args",
-      "kind": "benchmark-suite"
-    },
-    {
-      "path": "scripts/benchmark-suite-hotspots.args",
-      "kind": "benchmark-suite"
-    },
-    {
-      "path": "scripts/benchmark-suite-baseline.args",
-      "kind": "benchmark-suite"
-    },
-    {
-      "path": "scripts/benchmark-suite-cache.args",
-      "kind": "benchmark-suite"
-    },
-    {
-      "path": "benchmarks/thresholds.json",
-      "kind": "benchmark-thresholds"
-    },
-    {
-      "path": "benchmarks/chart-thresholds.json",
-      "kind": "benchmark-thresholds"
-    },
-    {
-      "path": "docs/benchmarking.md",
-      "kind": "benchmark-doc"
-    },
-    {
-      "path": "src/main/java/laughing/man/commits/PojoLens.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java",
       "kind": "public-entry"
     },
     {
-      "path": "src/main/java/laughing/man/commits/PojoLensCore.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java",
       "kind": "public-entry"
     },
     {
-      "path": "src/main/java/laughing/man/commits/PojoLensSql.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",
       "kind": "public-entry"
     },
     {
-      "path": "src/main/java/laughing/man/commits/PojoLensRuntime.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntime.java",
       "kind": "public-entry"
     },
     {
-      "path": "src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
       "kind": "engine"
     },
     {
-      "path": "src/main/java/laughing/man/commits/filter/FilterImpl.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java",
       "kind": "engine"
     },
     {
-      "path": "src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
       "kind": "engine"
     },
     {
-      "path": "src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
       "kind": "engine"
     },
     {
-      "path": "src/main/java/laughing/man/commits/filter/JoinEngine.java",
-      "kind": "engine"
-    },
-    {
-      "path": "src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
-      "kind": "engine"
-    },
-    {
-      "path": "src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
-      "kind": "engine"
-    },
-    {
-      "path": "src/main/java/laughing/man/commits/chart/ChartMapper.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/chart/ChartQueryPreset.java",
       "kind": "feature"
     },
     {
-      "path": "src/main/java/laughing/man/commits/report/ReportDefinition.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPresets.java",
       "kind": "feature"
     },
     {
-      "path": "src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java",
       "kind": "feature"
     },
     {
-      "path": "src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
+      "path": "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java",
       "kind": "feature"
     },
     {
-      "path": "src/main/java/laughing/man/commits/benchmark/JmhRunner.java",
-      "kind": "benchmark"
-    },
-    {
-      "path": "src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java",
-      "kind": "benchmark"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/PublicApiCoverageTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
-      "kind": "test-anchor"
-    },
-    {
-      "path": "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
-      "kind": "test-anchor"
+      "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java",
+      "kind": "example"
     }
   ]
 }

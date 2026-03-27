@@ -1,80 +1,183 @@
 {
-  "generatedAt": "2026-03-20T17:23:53.5556535+01:00",
+  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
   "testRoots": [
-    "src/test/java/laughing/man/commits",
-    "src/test/resources/fixtures"
+    "pojo-lens/src/test/java",
+    "pojo-lens/src/test/resources/fixtures",
+    "pojo-lens-benchmarks/src/test/java",
+    "pojo-lens-benchmarks/src/test/resources/fixtures",
+    "pojo-lens-spring-boot-autoconfigure/src/test/java",
+    "pojo-lens-spring-boot-starter/src/test/java",
+    "examples/spring-boot-starter-basic/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 73,
-    "testClasses": 69
+    "testJavaFiles": 104,
+    "testClasses": 104
   },
-  "latestKnownFullRun": {
-    "command": "mvn -q test",
-    "date": "2026-03-20",
-    "status": "passed",
-    "testsRun": 488,
-    "note": "Passed after release-flow and documentation updates."
-  },
+  "modules": [
+    {
+      "path": "pojo-lens",
+      "testJavaFiles": 94
+    },
+    {
+      "path": "pojo-lens-spring-boot-autoconfigure",
+      "testJavaFiles": 1
+    },
+    {
+      "path": "pojo-lens-spring-boot-starter",
+      "testJavaFiles": 1
+    },
+    {
+      "path": "pojo-lens-benchmarks",
+      "testJavaFiles": 7
+    },
+    {
+      "path": "examples/spring-boot-starter-basic",
+      "testJavaFiles": 1
+    }
+  ],
   "suites": [
     {
-      "category": "public-surface",
+      "category": "benchmark-tooling",
       "files": [
-        "src/test/java/laughing/man/commits/PublicSurfaceContractTest.java",
-        "src/test/java/laughing/man/commits/PublicApiCoverageTest.java"
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricLoaderTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricQueriesParityTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGeneratorTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/IndexHintJmhBenchmarkParityTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/StreamsBenchmarkParityTest.java"
+      ]
+    },
+    {
+      "category": "charts-stats-reports",
+      "files": [
+        "pojo-lens/src/test/java/laughing/man/commits/ReportDefinitionTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/StatsViewPresetsTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartJsAdapterBridgeTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartQueryPresetsTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperMappingTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperValidationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentChartIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/query/QueryRegressionFixtureTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/ChartTestFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/CommonStatsProjections.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java"
       ]
     },
     {
       "category": "docs-examples",
       "files": [
-        "src/test/java/laughing/man/commits/SqlLikeDocsExamplesTest.java",
-        "src/test/java/laughing/man/commits/StatsDocsExamplesTest.java"
+        "pojo-lens/src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeDocsExamplesTest.java"
       ]
     },
     {
-      "category": "sql-like",
+      "category": "fluent-and-query-engine",
       "files": [
-        "src/test/java/laughing/man/commits/SqlLikeParserTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeValidationTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeQueryContractTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeTypedBindContractTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeJoinTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeChartIntegrationTest.java",
-        "src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java"
+        "pojo-lens/src/test/java/laughing/man/commits/ComputedFieldRegistryTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/FieldMetamodelGeneratorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/OperatorInvariantPropertyTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/OptionalIndexExecutionTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensBehaviorFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensConcurrencyBehaviorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensOrderGroupBehaviorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensRuleBehaviorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/RealWorldDomainScenariosTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/StreamingExecutionOutputTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/TimeBucketAggregationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java",
+        "pojo-lens/src/test/java/laughing/man/commits/filter/FastPojoFilterSupportTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/filter/FilterCoreTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/filter/QueryRowAdapterSupportTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/AggregationFluentTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/AggregationGroupByFluentTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentSqlLikeParityTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentWindowFunctionTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/query/QueryTelemetryTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/query/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/BusinessFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/SelectiveMaterializationFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/TestDateFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/TimeBucketTestFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/WindowTestFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/CollectionUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/GroupKeyUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/ObjectUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/QueryFieldLookupUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/ReflectionUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/SchemaIndexUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/StringUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/TimeBucketUtilTest.java"
       ]
     },
     {
-      "category": "fluent-and-joins",
+      "category": "public-surface",
       "files": [
-        "src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
-        "src/test/java/laughing/man/commits/AggregationFluentTest.java",
-        "src/test/java/laughing/man/commits/AggregationGroupByFluentTest.java",
-        "src/test/java/laughing/man/commits/NestedPathQueryTest.java",
-        "src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
-        "src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",
-        "src/test/java/laughing/man/commits/filter/FilterCoreTest.java"
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/AbstractPublicApiCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiCacheCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiEcosystemCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiFluentCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiSqlCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicSurfaceContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/PublicApiModels.java"
       ]
     },
     {
       "category": "runtime-and-cache",
       "files": [
-        "src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
-        "src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
-        "src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
-        "src/test/java/laughing/man/commits/SqlLikeQueryCacheTest.java"
+        "pojo-lens-spring-boot-autoconfigure/src/test/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfigurationTest.java",
+        "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterSmokeIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/CacheConcurrencyTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/CachePolicyConfigTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/RuntimePolicyPresetTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/filter/FilterExecutionPlanCacheKeyTest.java"
       ]
     },
     {
-      "category": "charts-reports-and-tools",
+      "category": "sql-like",
       "files": [
-        "src/test/java/laughing/man/commits/chart/ChartLibraryInteropTest.java",
-        "src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
-        "src/test/java/laughing/man/commits/ChartResultMapperMappingTest.java",
-        "src/test/java/laughing/man/commits/ChartResultMapperValidationTest.java",
-        "src/test/java/laughing/man/commits/ReportDefinitionTest.java",
-        "src/test/java/laughing/man/commits/SnapshotComparisonTest.java",
-        "src/test/java/laughing/man/commits/QueryRegressionFixtureTest.java",
-        "src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
-        "src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java"
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeAliasTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeErrorCodesContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeJoinBindingsContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeJoinTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeKeysetCursorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeLintModeTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeMappingParityTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePaginationParameterSupportTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParametersContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParserTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryCacheTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeStrictParameterTypeModeTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTemplateContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeValidationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeWindowFunctionTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/SqlLikeDocsProjections.java",
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/SqlLikeProjectionFixtures.java"
+      ]
+    },
+    {
+      "category": "starter-example",
+      "files": [
+        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java"
       ]
     }
   ]

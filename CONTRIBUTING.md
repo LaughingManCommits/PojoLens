@@ -1,4 +1,4 @@
-# Contributing
+threat# Contributing
 
 ## Local Validation
 
@@ -7,6 +7,37 @@ Run from repository root:
 ```bash
 mvn -B -ntp test
 ```
+
+## AI Memory Refresh
+
+Markdown under `ai/core`, `ai/state`, `ai/log/events.jsonl`, and `ai/log/archive/*.jsonl` is the source of truth.
+Generated navigation lives under `ai/indexes/*.json`, with optional cold search in `ai/indexes/cold-memory.db`.
+
+Refresh derived AI memory artifacts:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1
+```
+
+Check AI memory freshness and hot-context budget:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check
+```
+
+Compact older event-log history into monthly archives while keeping a small active log:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog
+```
+
+Search the optional cold-search database:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release workflow"
+```
+
+If no local SQLite backend is available, the PowerShell query wrapper falls back to direct text search over the Markdown truth, warm validation ledger, active event log, and archived event logs.
 
 ## Test Strategy
 
