@@ -9,6 +9,13 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - Chart guardrails: `benchmarks/chart-thresholds.json`.
 - Strict benchmark checker remains the gate for threshold validation.
 
+## AI Memory Benchmark
+
+- `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` is the proof harness for AI memory refresh/check/query behavior.
+- Latest measured run on `2026-03-27`: full refresh `1353.49 ms`, incremental refresh `331.509 ms`, check `124.475 ms`, average query `65.398 ms`.
+- Latest no-change incremental reuse on `2026-03-27`: JSON indexes `rebuilt=0 reused=5`; SQLite `updated=0 reused=47 removed=0`.
+- Latest fixed-query hit quality on `2026-03-27`: top-1 `1.0`, top-3 `1.0`.
+
 ## Current Position
 
 - No active benchmark optimization work is open.
@@ -28,4 +35,6 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - `docs/benchmarking.md`
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
+- `ai/indexes/memory-benchmark.json`
+- `scripts/benchmark-ai-memory.py`
 - `target/benchmarks/*.json` (generated artifacts, not source of truth)

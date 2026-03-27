@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-03-27T13:18:42.587711+01:00",
+  "generatedAt": "2026-03-27T16:04:07.930263+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 38,
-      "byteCount": 1287,
+      "lineCount": 40,
+      "byteCount": 1444,
       "coldSearchEligible": true
     },
     {
@@ -15,8 +15,8 @@
       "category": "ai-memory-guide",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 126,
-      "byteCount": 2683,
+      "lineCount": 135,
+      "byteCount": 3484,
       "coldSearchEligible": true
     },
     {
@@ -96,8 +96,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 31,
-      "byteCount": 1785,
+      "lineCount": 41,
+      "byteCount": 2714,
       "coldSearchEligible": true
     },
     {
@@ -119,12 +119,21 @@
       "coldSearchEligible": true
     },
     {
+      "path": "ai/log/archive/2026-03-summary.md",
+      "category": "ai-archive-summary",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 81,
+      "byteCount": 27839,
+      "coldSearchEligible": true
+    },
+    {
       "path": "ai/state/benchmark-state.md",
       "category": "ai-benchmark-state",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 31,
-      "byteCount": 1209,
+      "lineCount": 40,
+      "byteCount": 1800,
       "coldSearchEligible": true
     },
     {
@@ -132,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 36,
-      "byteCount": 1690,
+      "lineCount": 38,
+      "byteCount": 1941,
       "coldSearchEligible": true
     },
     {
@@ -141,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 38,
-      "byteCount": 1721,
+      "lineCount": 41,
+      "byteCount": 2041,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +168,8 @@
       "category": "process-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 173,
-      "byteCount": 5817,
+      "lineCount": 197,
+      "byteCount": 6940,
       "coldSearchEligible": true
     },
     {
@@ -357,8 +366,8 @@
       "category": "memory-maintenance",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 132,
-      "byteCount": 3543,
+      "lineCount": 141,
+      "byteCount": 4584,
       "coldSearchEligible": true
     },
     {

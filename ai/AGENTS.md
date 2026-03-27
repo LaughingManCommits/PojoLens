@@ -13,8 +13,10 @@ core/ -> durable markdown truths
 state/ -> current markdown snapshot
 indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
+indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
+log/archive/*-summary.md -> derived monthly archive summaries
 log/archive/*.jsonl -> archived discovery history
 
 Conceptually:
@@ -37,6 +39,7 @@ Rules:
 - keep hot context small
 - store only startup-critical information
 - move durable knowledge into `core`
+- keep `ai/state/current-state.md` and `ai/state/handoff.md` within their per-file budgets and required heading order
 
 ---
 
@@ -61,6 +64,7 @@ Examples:
 
 Do not auto-load cold files.
 Do not treat generated JSON indexes or the optional SQLite database as source of truth.
+Prefer archive summaries before raw `log/archive/*.jsonl` when archive history is needed.
 
 ---
 
@@ -89,6 +93,8 @@ When durable repository facts change:
 5. regenerate derived memory artifacts with `scripts/refresh-ai-memory.ps1`
 6. log a significant event if useful
 
+Use `scripts/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is required; the default refresh is incremental.
+
 ---
 
 # Compaction
@@ -115,8 +121,11 @@ indexes/
 - derived data
 - regenerate instead of editing
 - `scripts/refresh-ai-memory.ps1` rebuilds `ai/indexes/*.json`
+- `scripts/refresh-ai-memory.ps1` updates `ai/indexes/refresh-state.json` for incremental reuse
 - optional SQLite cold search under `ai/indexes/cold-memory.db` is derived only
 - `scripts/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
+- `scripts/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
+- `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
 
 ---
 

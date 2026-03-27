@@ -1,0 +1,223 @@
+{
+  "generatedAt": "2026-03-27T16:01:20",
+  "refresh": {
+    "full": {
+      "durationMs": 1353.49,
+      "exitCode": 0,
+      "jsonIndexes": {
+        "rebuilt": 5,
+        "reused": 0
+      },
+      "sqlite": {
+        "updatedFiles": 47,
+        "reusedFiles": 0,
+        "removedFiles": 0
+      }
+    },
+    "incremental": {
+      "durationMs": 331.509,
+      "exitCode": 0,
+      "jsonIndexes": {
+        "rebuilt": 0,
+        "reused": 5
+      },
+      "sqlite": {
+        "updatedFiles": 0,
+        "reusedFiles": 47,
+        "removedFiles": 0
+      }
+    }
+  },
+  "check": {
+    "durationMs": 124.475,
+    "exitCode": 0
+  },
+  "queries": {
+    "iterations": 3,
+    "avgQueryMs": 65.398,
+    "top1Rate": 1.0,
+    "top3Rate": 1.0,
+    "cases": [
+      {
+        "id": "release_retry",
+        "query": "release retry",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          64.794,
+          63.95,
+          64.865
+        ],
+        "avgQueryMs": 64.536,
+        "bestQueryMs": 63.95,
+        "worstQueryMs": 64.865,
+        "topResults": [
+          {
+            "path": "ai/state/handoff.md",
+            "title": "Focus",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 11,
+            "lineEnd": 16,
+            "summary": "## Focus\n\n- [Release] [retry] or [release] verification is the main pending repo task.\n- Starter example and dashboard simplification work ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Release",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 21,
+            "lineEnd": 27,
+            "summary": "## [Release]\n\n- Central namespace is verified for `io.github.laughingmancommits`.\n- [Release] workflow publishes runtime plus Boot artifacts.\n- The last ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Focus",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 9,
+            "lineEnd": 13,
+            "summary": "## Focus\n\n- Highest-priority operational work is Maven Central [release] [retry] or verification for `v1.0.0`.\n- Hot memory ... "
+          }
+        ]
+      },
+      {
+        "id": "recent_validations",
+        "query": "DashboardPlaywrightE2eTest",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          64.665,
+          65.095,
+          68.032
+        ],
+        "avgQueryMs": 65.931,
+        "bestQueryMs": 64.665,
+        "worstQueryMs": 68.032,
+        "topResults": [
+          {
+            "path": "ai/state/recent-validations.md",
+            "title": "Recent Validations",
+            "sourceKind": "ai-validation-history",
+            "loadTier": "warm",
+            "sortTs": "",
+            "lineStart": 1,
+            "lineEnd": 8,
+            "summary": " ... examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` passed after the dashboard UI, chart, and form ... "
+          },
+          {
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T18:23:44+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T18:23:44+01:00",
+            "lineStart": 7,
+            "lineEnd": 7,
+            "summary": " ... Revalidated the refactor with `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test`."
+          },
+          {
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T12:38:00+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T12:38:00+01:00",
+            "lineStart": 2,
+            "lineEnd": 2,
+            "summary": " ... ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` plus `scripts/check-doc-consistency.ps1`."
+          }
+        ]
+      },
+      {
+        "id": "archive_history",
+        "query": "single-join fast-path",
+        "pathGlobs": [
+          "ai/log/archive/*"
+        ],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          67.827,
+          65.552,
+          65.505
+        ],
+        "avgQueryMs": 66.295,
+        "bestQueryMs": 65.505,
+        "worstQueryMs": 67.827,
+        "topResults": [
+          {
+            "path": "ai/log/archive/2026-03-summary.md",
+            "title": "Event Snapshots",
+            "sourceKind": "ai-archive-summary",
+            "loadTier": "cold",
+            "sortTs": "",
+            "lineStart": 7,
+            "lineEnd": 81,
+            "summary": " ... Landed selective [single]-[join] [fast]-[path] improvements and kept full test suite green while reducing computed-[join] latency ... "
+          },
+          {
+            "path": "ai/log/archive/2026-03.jsonl",
+            "title": "performance 2026-03-14T16:25:22+01:00",
+            "sourceKind": "ai-log-archive",
+            "loadTier": "archive",
+            "sortTs": "2026-03-14T16:25:22+01:00",
+            "lineStart": 3,
+            "lineEnd": 3,
+            "summary": "performance\nLanded selective [single]-[join] [fast]-[path] improvements and kept full test suite green while reducing computed-[join] ... "
+          }
+        ]
+      },
+      {
+        "id": "module_routing",
+        "query": "starter example",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          64.967,
+          64.477,
+          65.041
+        ],
+        "avgQueryMs": 64.828,
+        "bestQueryMs": 64.477,
+        "worstQueryMs": 65.041,
+        "topResults": [
+          {
+            "path": "ai/state/handoff.md",
+            "title": "Focus",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 11,
+            "lineEnd": 16,
+            "summary": "## Focus\n\n- Release retry or release verification is the main pending repo task.\n- [Starter] [example] and dashboard simplification work ... "
+          },
+          {
+            "path": "ai/state/handoff.md",
+            "title": "Facts",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 17,
+            "lineEnd": 25,
+            "summary": " ... pojo-lens-benchmarks/src/...`.\n- The [starter] [example] at `examples/spring-boot-[starter]-basic` is the current reference app ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Verified",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 14,
+            "lineEnd": 20,
+            "summary": "## Verified\n\n- `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the [starter] [example] Playwright suite ... "
+          }
+        ]
+      }
+    ]
+  }
+}

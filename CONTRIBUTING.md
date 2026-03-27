@@ -1,4 +1,4 @@
-threat# Contributing
+# Contributing
 
 ## Local Validation
 
@@ -19,10 +19,18 @@ Refresh derived AI memory artifacts:
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1
 ```
 
+The default refresh is incremental: JSON indexes are reused when their inputs are unchanged, and SQLite is updated with per-file upserts.
+
 Check AI memory freshness and hot-context budget:
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check
+```
+
+Force a full refresh when the derived schema changes or you need to rule out incremental state:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -ForceFull
 ```
 
 Compact older event-log history into monthly archives while keeping a small active log:
@@ -31,13 +39,29 @@ Compact older event-log history into monthly archives while keeping a small acti
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog
 ```
 
+Archive compaction also regenerates `ai/log/archive/*-summary.md` so archive search can hit summaries before raw JSONL rows.
+
 Search the optional cold-search database:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release workflow"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release retry"
+```
+
+Narrow cold search with facets:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "single-join fast-path" -Path "ai/log/archive/*" -Tier "cold,archive"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release" -Kind "release-doc,process-doc"
+```
+
+Benchmark the AI memory path and persist a report:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json
 ```
 
 If no local SQLite backend is available, the PowerShell query wrapper falls back to direct text search over the Markdown truth, warm validation ledger, active event log, and archived event logs.
+By default, search prefers hot, warm, and cold material and only falls back to raw archive rows when higher-priority tiers do not answer the query.
 
 ## Test Strategy
 

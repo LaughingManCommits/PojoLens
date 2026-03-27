@@ -2,7 +2,8 @@ param(
     [switch]$Check,
     [switch]$NoSQLite,
     [switch]$RequireSQLite,
-    [switch]$CompactLog
+    [switch]$CompactLog,
+    [switch]$ForceFull
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +12,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $aiDir = Join-Path $repoRoot "ai"
 $indexDir = Join-Path $aiDir "indexes"
 $memoryStatePath = Join-Path $aiDir "memory-state.json"
-$schemaVersion = 4
+$schemaVersion = 5
 $hotContextMaxLines = 240
 $hotContextMaxBytes = 24KB
 $hotContextFiles = @(
@@ -773,6 +774,7 @@ function Invoke-PythonRefreshIfAvailable() {
     if ($NoSQLite) { $arguments += "--no-sqlite" }
     if ($RequireSQLite) { $arguments += "--require-sqlite" }
     if ($CompactLog) { $arguments += "--compact-log" }
+    if ($ForceFull) { $arguments += "--force-full" }
     $pythonArgs = @()
     if ($python.Length -gt 1) {
         $pythonArgs = @($python[1..($python.Length - 1)])
@@ -791,6 +793,11 @@ if (Invoke-PythonRefreshIfAvailable) {
 
 if ($CompactLog) {
     Write-Host "[ai-memory] -CompactLog requires the Python backend."
+    exit 1
+}
+
+if ($ForceFull) {
+    Write-Host "[ai-memory] -ForceFull requires the Python backend."
     exit 1
 }
 

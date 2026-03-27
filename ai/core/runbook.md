@@ -8,9 +8,12 @@
 - lint baseline gate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
 - static analysis: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 - ai memory refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1`
+- ai memory full refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -ForceFull`
 - ai memory freshness: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -Check`
 - ai memory compaction: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -CompactLog`
 - ai memory cold search: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\query-ai-memory.ps1 -Query "<text>"`
+- ai memory archive search: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\query-ai-memory.ps1 -Query "<text>" -Path "ai/log/archive/*" -Tier "cold,archive"`
+- ai memory benchmark: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`
 
 ## Benchmark Flow
 
@@ -18,6 +21,13 @@
 2. Resolve `target/*-benchmarks.jar` dynamically.
 3. Run suite args from `scripts/benchmark-suite-*.args`.
 4. Check thresholds with `benchmarks/thresholds.json` or `benchmarks/chart-thresholds.json`.
+
+## AI Memory Benchmark Flow
+
+1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`.
+2. Confirm full refresh, incremental refresh, and `-Check` all exit cleanly.
+3. Confirm incremental refresh reports JSON reuse and SQLite reused-file counts on the no-change run.
+4. Confirm the benchmark report keeps top-1 and top-3 hit quality at `1.0` for the fixed query set before changing the memory workflow again.
 
 ## Release Flow (Maven Central)
 

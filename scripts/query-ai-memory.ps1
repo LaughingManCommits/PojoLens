@@ -2,7 +2,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Query,
     [int]$Limit = 8,
-    [string]$DatabasePath = ""
+    [string]$DatabasePath = "",
+    [string]$Tier = "",
+    [string]$Kind = "",
+    [string[]]$Path = @(),
+    [switch]$Json
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,6 +59,20 @@ function Invoke-PythonQueryIfAvailable() {
     if ($DatabasePath) {
         $arguments += @("--db", $DatabasePath)
     }
+    if ($Tier) {
+        $arguments += @("--tier", $Tier)
+    }
+    if ($Kind) {
+        $arguments += @("--kind", $Kind)
+    }
+    foreach ($pathGlob in $Path) {
+        if ($pathGlob) {
+            $arguments += @("--path", $pathGlob)
+        }
+    }
+    if ($Json) {
+        $arguments += "--json"
+    }
     $pythonArgs = @()
     if ($python.Length -gt 1) {
         $pythonArgs = @($python[1..($python.Length - 1)])
@@ -102,22 +120,97 @@ function Get-ColdSearchFiles() {
     return @($files | Sort-Object -Unique)
 }
 
-if (Invoke-PythonQueryIfAvailable) {
-    exit 0
+function Test-FallbackTier([string]$relativePath, [switch]$IncludeArchiveFallback) {
+    $pathTier = "cold"
+    if ($relativePath -eq "ai/core/agent-invariants.md" -or
+        $relativePath -eq "ai/core/repo-purpose.md" -or
+        $relativePath -eq "ai/state/current-state.md" -or
+        $relativePath -eq "ai/state/handoff.md") {
+        $pathTier = "hot"
+    } elseif ($relativePath -eq "ai/state/recent-validations.md" -or $relativePath -like "ai/log/events.jsonl") {
+        $pathTier = "warm"
+    } elseif ($relativePath -like "ai/log/archive/*.jsonl") {
+        $pathTier = "archive"
+    }
+    if (-not $Tier) {
+        return $IncludeArchiveFallback -or $pathTier -ne "archive"
+    }
+    $tiers = @($Tier -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    return $tiers -contains $pathTier
 }
 
-$matches = @()
-foreach ($path in Get-ColdSearchFiles) {
-    $hits = Select-String -Path $path -Pattern $Query -SimpleMatch -ErrorAction SilentlyContinue
-    foreach ($hit in $hits) {
-        $matches += $hit
+function Test-FallbackKind([string]$relativePath) {
+    if (-not $Kind) {
+        return $true
+    }
+    $kinds = @($Kind -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $pathKind = "document"
+    if ($relativePath -like "ai/core/*") {
+        $pathKind = "ai-core"
+    } elseif ($relativePath -like "ai/state/*") {
+        $pathKind = "ai-state"
+    } elseif ($relativePath -like "ai/log/archive/*-summary.md") {
+        $pathKind = "ai-archive-summary"
+    } elseif ($relativePath -like "ai/log/archive/*.jsonl") {
+        $pathKind = "ai-log-archive"
+    } elseif ($relativePath -eq "ai/log/events.jsonl") {
+        $pathKind = "ai-log"
+    } elseif ($relativePath -eq "CONTRIBUTING.md") {
+        $pathKind = "process-doc"
+    } elseif ($relativePath -eq "RELEASE.md") {
+        $pathKind = "release-doc"
+    }
+    return $kinds -contains $pathKind
+}
+
+function Test-FallbackPath([string]$relativePath) {
+    if (-not $Path -or $Path.Count -eq 0) {
+        return $true
+    }
+    foreach ($pattern in $Path) {
+        if ($relativePath -like $pattern) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Find-FallbackMatches([switch]$IncludeArchiveFallback) {
+    $matches = @()
+    foreach ($path in Get-ColdSearchFiles) {
+        $rootUri = New-Object System.Uri(((Resolve-Path $repoRoot).Path.TrimEnd("\") + "\"))
+        $targetUri = New-Object System.Uri((Resolve-Path $path).Path)
+        $relative = $rootUri.MakeRelativeUri($targetUri).ToString().Replace("\", "/")
+        if (-not (Test-FallbackTier $relative -IncludeArchiveFallback:$IncludeArchiveFallback) -or
+            -not (Test-FallbackKind $relative) -or
+            -not (Test-FallbackPath $relative)) {
+            continue
+        }
+        $hits = Select-String -Path $path -Pattern $Query -SimpleMatch -ErrorAction SilentlyContinue
+        foreach ($hit in $hits) {
+            $matches += [ordered]@{
+                path = $relative
+                lineNumber = $hit.LineNumber
+                summary = $hit.Line.Trim()
+            }
+            if ($matches.Count -ge $Limit) {
+                break
+            }
+        }
         if ($matches.Count -ge $Limit) {
             break
         }
     }
-    if ($matches.Count -ge $Limit) {
-        break
-    }
+    return $matches
+}
+
+if (Invoke-PythonQueryIfAvailable) {
+    exit 0
+}
+
+$matches = Find-FallbackMatches
+if ($matches.Count -eq 0 -and -not $Tier) {
+    $matches = Find-FallbackMatches -IncludeArchiveFallback
 }
 
 if ($matches.Count -eq 0) {
@@ -134,10 +227,14 @@ if (-not (Test-Path $defaultDb)) {
 
 $index = 1
 foreach ($match in $matches) {
-    $rootUri = New-Object System.Uri(((Resolve-Path $repoRoot).Path.TrimEnd("\") + "\"))
-    $targetUri = New-Object System.Uri((Resolve-Path $match.Path).Path)
-    $relative = $rootUri.MakeRelativeUri($targetUri).ToString().Replace("\", "/")
-    Write-Host ("{0}. {1}:{2}" -f $index, $relative, $match.LineNumber)
-    Write-Host ("   hit: {0}" -f $match.Line.Trim())
+    if ($Json) {
+        continue
+    }
+    Write-Host ("{0}. {1}:{2}" -f $index, $match.path, $match.lineNumber)
+    Write-Host ("   hit: {0}" -f $match.summary)
     $index += 1
+}
+
+if ($Json) {
+    $matches | ConvertTo-Json -Depth 5
 }

@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 4,
-  "generatedAt": "2026-03-27T13:18:42.587711+01:00",
+  "schemaVersion": 5,
+  "generatedAt": "2026-03-27T16:04:07.930263+01:00",
   "git": {
-    "headCommit": "d0a69ea0879bf2a9454cf349c1e776b2d2bbc610",
+    "headCommit": "1e521eada2652c148d2a63b2ee885f6321124c38",
     "branch": "ai",
     "dirty": true
   },
-  "inputsHash": "40b67349da7b405fbb170a74347273b3504ac60aa112db2c0aeb780fae3fda13",
+  "inputsHash": "83afa34cd7bae7fe86816efd26975b986506aaa5b5fbb9a2d4587aca65fc2628",
   "hotContext": {
     "files": [
       {
@@ -21,51 +21,158 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 36,
-        "bytes": 1690
+        "lines": 38,
+        "bytes": 1941,
+        "maxLines": 50,
+        "maxBytes": 3072,
+        "allowedHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "requiredHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "expectedHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "headings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "missingHeadings": [],
+        "extraHeadings": [],
+        "headingOrderMatches": true,
+        "withinShape": true
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 38,
-        "bytes": 1721
+        "lines": 41,
+        "bytes": 2041,
+        "maxLines": 50,
+        "maxBytes": 3072,
+        "allowedHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "requiredHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "expectedHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "headings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "missingHeadings": [],
+        "extraHeadings": [],
+        "headingOrderMatches": true,
+        "withinShape": true
       }
     ],
-    "totalLines": 91,
-    "totalBytes": 5550,
+    "totalLines": 96,
+    "totalBytes": 6121,
     "maxLines": 240,
     "maxBytes": 24576,
-    "withinBudget": true
+    "withinBudget": true,
+    "shapeViolations": [],
+    "shapeValid": true
   },
   "eventLog": {
     "activeLog": {
       "path": "ai/log/events.jsonl",
       "entries": 12,
-      "bytes": 6430
+      "bytes": 6501
     },
     "archiveFiles": [
       {
         "path": "ai/log/archive/2026-03.jsonl",
-        "entries": 73,
-        "bytes": 29781
+        "entries": 74,
+        "bytes": 30226
       }
     ],
+    "summaryFiles": [
+      "ai/log/archive/2026-03-summary.md"
+    ],
     "retention": 12,
-    "totalEntries": 85
+    "totalEntries": 86
   },
   "derivedArtifacts": {
+    "refreshCache": "ai/indexes/refresh-state.json",
     "jsonIndexes": [
-      "ai/indexes/files-index.json",
-      "ai/indexes/docs-index.json",
-      "ai/indexes/symbols-index.json",
-      "ai/indexes/test-index.json",
-      "ai/indexes/config-index.json"
+      {
+        "path": "ai/indexes/docs-index.json",
+        "status": "rebuilt",
+        "inputHash": "c9c6c2bdb455af5fc9f5950baffd2a5fdebc62eacc264dbce20d906d3237be09",
+        "inputFiles": 46
+      },
+      {
+        "path": "ai/indexes/files-index.json",
+        "status": "rebuilt",
+        "inputHash": "199a10b30d9dc3b48388a6e6a90ee408f510b66aaf24b15ccaa9e826d0e9d8a8",
+        "inputFiles": 334
+      },
+      {
+        "path": "ai/indexes/symbols-index.json",
+        "status": "reused",
+        "inputHash": "7c7faeaa92d1e364c7d140aea995661cebd3976bb33e6db591b32399e904916c",
+        "inputFiles": 175
+      },
+      {
+        "path": "ai/indexes/test-index.json",
+        "status": "reused",
+        "inputHash": "e7b08da4cc4651c8efa676e04f733ef501a25f65ce282c1a64582bb243beab9b",
+        "inputFiles": 105
+      },
+      {
+        "path": "ai/indexes/config-index.json",
+        "status": "reused",
+        "inputHash": "854f79571806cdad43ada8dc2fa17293dbc6712b3217786c2fed72e354e84a67",
+        "inputFiles": 13
+      }
     ],
     "sqlite": {
       "status": "built",
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
-      "documents": 46,
-      "sections": 441
+      "documents": 47,
+      "sections": 446,
+      "updatedFiles": 1,
+      "reusedFiles": 46,
+      "removedFiles": 0,
+      "mode": "incremental"
     }
   },
   "freshness": {

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
@@ -11,6 +12,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
+from typing import Callable
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,7 @@ AI_DIR = ROOT / "ai"
 INDEX_DIR = AI_DIR / "indexes"
 MEMORY_STATE_PATH = AI_DIR / "memory-state.json"
 SQLITE_DB_PATH = INDEX_DIR / "cold-memory.db"
+REFRESH_CACHE_PATH = INDEX_DIR / "refresh-state.json"
 ACTIVE_LOG_PATH = AI_DIR / "log" / "events.jsonl"
 LOG_ARCHIVE_DIR = AI_DIR / "log" / "archive"
 RECENT_VALIDATIONS_PATH = AI_DIR / "state" / "recent-validations.md"
@@ -32,7 +35,33 @@ HOT_CONTEXT_FILES = [
 HOT_CONTEXT_MAX_LINES = 240
 HOT_CONTEXT_MAX_BYTES = 24 * 1024
 ACTIVE_EVENT_RETENTION = 12
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
+REFRESH_CACHE_SCHEMA_VERSION = 1
+
+HOT_CONTEXT_FILE_SPECS = {
+    "ai/state/current-state.md": {
+        "maxLines": 50,
+        "maxBytes": 3 * 1024,
+        "allowedHeadings": ["Repo", "Focus", "Verified", "Release", "Risks", "Next"],
+        "requiredHeadings": ["Repo", "Focus", "Verified", "Release", "Risks", "Next"],
+        "headingOrder": ["Repo", "Focus", "Verified", "Release", "Risks", "Next"],
+    },
+    "ai/state/handoff.md": {
+        "maxLines": 50,
+        "maxBytes": 3 * 1024,
+        "allowedHeadings": ["Resume", "Focus", "Facts", "Validate", "Cold Pointers"],
+        "requiredHeadings": ["Resume", "Focus", "Facts", "Validate", "Cold Pointers"],
+        "headingOrder": ["Resume", "Focus", "Facts", "Validate", "Cold Pointers"],
+    },
+}
+
+INDEX_OUTPUTS = {
+    "docs": INDEX_DIR / "docs-index.json",
+    "files": INDEX_DIR / "files-index.json",
+    "symbols": INDEX_DIR / "symbols-index.json",
+    "test": INDEX_DIR / "test-index.json",
+    "config": INDEX_DIR / "config-index.json",
+}
 
 ROOT_TEXT_FILES = [
     "AGENTS.md",
@@ -157,6 +186,65 @@ def write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def hash_for_path_hashes(path_hashes: dict[str, str]) -> str:
+    digest = hashlib.sha256()
+    for relative_path, file_hash in sorted(path_hashes.items()):
+        digest.update(relative_path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(file_hash.encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def load_refresh_cache() -> dict[str, object]:
+    if not REFRESH_CACHE_PATH.exists():
+        return {
+            "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
+            "indexes": {},
+        }
+    try:
+        payload = json.loads(read_text(REFRESH_CACHE_PATH))
+    except json.JSONDecodeError:
+        return {
+            "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
+            "indexes": {},
+        }
+    if payload.get("schemaVersion") != REFRESH_CACHE_SCHEMA_VERSION:
+        return {
+            "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
+            "indexes": {},
+        }
+    indexes = payload.get("indexes")
+    if not isinstance(indexes, dict):
+        indexes = {}
+    return {
+        "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
+        "indexes": indexes,
+    }
+
+
+def write_refresh_cache(generated_at: str, cache_payload: dict[str, object]) -> None:
+    write_json(
+        REFRESH_CACHE_PATH,
+        {
+            "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
+            "generatedAt": generated_at,
+            "indexes": cache_payload,
+        },
+    )
+
+
+def markdown_heading_titles(text: str, level: int = 2) -> list[str]:
+    pattern = re.compile(rf"^{'#' * level}\s+(.+?)\s*$", re.MULTILINE)
+    return [match.group(1).strip() for match in pattern.finditer(text)]
+
+
 def repo_files_for_patterns(patterns: list[str]) -> list[Path]:
     files: set[Path] = set()
     for pattern in patterns:
@@ -210,6 +298,8 @@ def collect_hash_inputs() -> list[Path]:
             "scripts/refresh-ai-memory.ps1",
             "scripts/query-ai-memory.py",
             "scripts/query-ai-memory.ps1",
+            "scripts/benchmark-ai-memory.py",
+            "scripts/benchmark-ai-memory.ps1",
         ]
     ))
     files.update(collect_java_files(
@@ -283,6 +373,73 @@ def event_month_key(payload: dict[str, object]) -> str:
     return "unknown"
 
 
+def archive_summary_path(month_key: str) -> Path:
+    return LOG_ARCHIVE_DIR / f"{month_key}-summary.md"
+
+
+def summarize_archive_month(month_key: str, payloads: list[dict[str, object]]) -> str:
+    type_counts: dict[str, int] = defaultdict(int)
+    for payload in payloads:
+        type_counts[str(payload.get("type", "event"))] += 1
+    sorted_types = sorted(type_counts.items(), key=lambda item: (-item[1], item[0]))
+    lines = [
+        f"# {month_key} Archive Summary",
+        "",
+        f"- entries: {len(payloads)}",
+    ]
+    if payloads:
+        lines.append(f"- range: {payloads[0].get('ts', 'unknown')} to {payloads[-1].get('ts', 'unknown')}")
+    if sorted_types:
+        lines.append(
+            "- event types: "
+            + ", ".join(f"{event_type}={count}" for event_type, count in sorted_types)
+        )
+    lines.extend(
+        [
+            "",
+            "## Event Snapshots",
+        ]
+    )
+    for payload in payloads:
+        ts = str(payload.get("ts", "unknown"))
+        summary = str(payload.get("summary", "")).strip()
+        if summary:
+            lines.append(f"- `{ts}`: {summary}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_archive_summaries(archived_by_month: dict[str, list[dict[str, object]]]) -> list[str]:
+    summary_paths: list[str] = []
+    retained = set()
+    for month_key, payloads in sorted(archived_by_month.items()):
+        summary_path = archive_summary_path(month_key)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(summarize_archive_month(month_key, payloads), encoding="utf-8")
+        retained.add(summary_path)
+        summary_paths.append(rel_path(summary_path))
+    if LOG_ARCHIVE_DIR.exists():
+        for existing in LOG_ARCHIVE_DIR.glob("*-summary.md"):
+            if existing not in retained:
+                existing.unlink()
+    return summary_paths
+
+
+def sync_archive_summaries_from_disk() -> list[str]:
+    archived_by_month: dict[str, list[dict[str, object]]] = defaultdict(list)
+    if LOG_ARCHIVE_DIR.exists():
+        for archive_path in sorted(LOG_ARCHIVE_DIR.glob("*.jsonl")):
+            for line in read_text(archive_path).splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                archived_by_month[event_month_key(payload)].append(payload)
+    return generate_archive_summaries(archived_by_month)
+
+
 def count_event_entries(path: Path) -> int:
     return sum(1 for line in read_text(path).splitlines() if line.strip())
 
@@ -296,6 +453,7 @@ def compact_event_logs(retain_recent: int = ACTIVE_EVENT_RETENTION) -> dict[str,
             "activeEntries": 0,
             "archivedEntries": 0,
             "archiveFiles": [],
+            "summaryFiles": [],
             "retention": retain_recent,
         }
 
@@ -318,6 +476,7 @@ def compact_event_logs(retain_recent: int = ACTIVE_EVENT_RETENTION) -> dict[str,
         for existing in LOG_ARCHIVE_DIR.glob("*.jsonl"):
             if existing not in retained_archive_paths:
                 existing.unlink()
+    summary_files = generate_archive_summaries(archived_by_month)
 
     active_payloads = [
         entry["payload"]
@@ -330,12 +489,14 @@ def compact_event_logs(retain_recent: int = ACTIVE_EVENT_RETENTION) -> dict[str,
         "activeEntries": len(active_payloads),
         "archivedEntries": len(archived_entries),
         "archiveFiles": [rel_path(path) for path in sorted(retained_archive_paths)],
+        "summaryFiles": summary_files,
         "retention": retain_recent,
     }
 
 
 def event_log_stats() -> dict[str, object]:
     archive_paths = sorted(path for path in LOG_ARCHIVE_DIR.glob("*.jsonl") if path.is_file()) if LOG_ARCHIVE_DIR.exists() else []
+    summary_paths = sorted(path for path in LOG_ARCHIVE_DIR.glob("*-summary.md") if path.is_file()) if LOG_ARCHIVE_DIR.exists() else []
     active_entries = count_event_entries(ACTIVE_LOG_PATH) if ACTIVE_LOG_PATH.exists() else 0
     active_bytes = ACTIVE_LOG_PATH.stat().st_size if ACTIVE_LOG_PATH.exists() else 0
     archives = [
@@ -353,6 +514,7 @@ def event_log_stats() -> dict[str, object]:
             "bytes": active_bytes,
         },
         "archiveFiles": archives,
+        "summaryFiles": [rel_path(path) for path in summary_paths],
         "retention": ACTIVE_EVENT_RETENTION,
         "totalEntries": active_entries + sum(item["entries"] for item in archives),
     }
@@ -404,19 +566,60 @@ def hot_context_stats() -> dict[str, object]:
     file_stats = []
     total_lines = 0
     total_bytes = 0
+    shape_violations: list[str] = []
     for path in HOT_CONTEXT_FILES:
         text = read_text(path)
         line_count = len(text.splitlines())
         byte_count = len(text.encode("utf-8"))
         total_lines += line_count
         total_bytes += byte_count
-        file_stats.append(
-            {
-                "path": rel_path(path),
-                "lines": line_count,
-                "bytes": byte_count,
-            }
-        )
+        relative_path = rel_path(path)
+        file_state = {
+            "path": relative_path,
+            "lines": line_count,
+            "bytes": byte_count,
+        }
+        spec = HOT_CONTEXT_FILE_SPECS.get(relative_path)
+        if spec:
+            headings = markdown_heading_titles(text, level=2)
+            allowed_headings = spec["allowedHeadings"]
+            required_headings = spec["requiredHeadings"]
+            expected_headings = spec.get("headingOrder", [])
+            missing_headings = [heading for heading in required_headings if heading not in headings]
+            extra_headings = [heading for heading in headings if heading not in allowed_headings]
+            heading_order_matches = not expected_headings or headings == expected_headings
+            within_shape = (
+                line_count <= spec["maxLines"]
+                and byte_count <= spec["maxBytes"]
+                and not missing_headings
+                and not extra_headings
+                and heading_order_matches
+            )
+            file_state.update(
+                {
+                    "maxLines": spec["maxLines"],
+                    "maxBytes": spec["maxBytes"],
+                    "allowedHeadings": allowed_headings,
+                    "requiredHeadings": required_headings,
+                    "expectedHeadings": expected_headings,
+                    "headings": headings,
+                    "missingHeadings": missing_headings,
+                    "extraHeadings": extra_headings,
+                    "headingOrderMatches": heading_order_matches,
+                    "withinShape": within_shape,
+                }
+            )
+            if line_count > spec["maxLines"]:
+                shape_violations.append(f"{relative_path}:lines")
+            if byte_count > spec["maxBytes"]:
+                shape_violations.append(f"{relative_path}:bytes")
+            if missing_headings:
+                shape_violations.append(f"{relative_path}:missing-headings")
+            if extra_headings:
+                shape_violations.append(f"{relative_path}:extra-headings")
+            if not heading_order_matches:
+                shape_violations.append(f"{relative_path}:heading-order")
+        file_stats.append(file_state)
     return {
         "files": file_stats,
         "totalLines": total_lines,
@@ -424,6 +627,8 @@ def hot_context_stats() -> dict[str, object]:
         "maxLines": HOT_CONTEXT_MAX_LINES,
         "maxBytes": HOT_CONTEXT_MAX_BYTES,
         "withinBudget": total_lines <= HOT_CONTEXT_MAX_LINES and total_bytes <= HOT_CONTEXT_MAX_BYTES,
+        "shapeViolations": shape_violations,
+        "shapeValid": not shape_violations,
     }
 
 
@@ -571,6 +776,8 @@ def doc_category(relative_path: str) -> tuple[str, str, str | None]:
         return ("ai-hot-context", "high", "hot")
     if relative_path == rel_path(RECENT_VALIDATIONS_PATH):
         return ("ai-validation-history", "high", "warm")
+    if relative_path.startswith("ai/log/archive/") and relative_path.endswith("-summary.md"):
+        return ("ai-archive-summary", "medium", "cold")
     if relative_path == "ai/state/benchmark-state.md":
         return ("ai-benchmark-state", "medium", "cold")
     if relative_path.startswith("ai/core/"):
@@ -673,6 +880,7 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         {"path": "ai/state/recent-validations.md", "kind": "ai-warm-state"},
         {"path": "scripts/refresh-ai-memory.py", "kind": "memory-script"},
         {"path": "scripts/query-ai-memory.py", "kind": "memory-script"},
+        {"path": "scripts/benchmark-ai-memory.py", "kind": "memory-script"},
         {"path": "scripts/check-doc-consistency.ps1", "kind": "validation-script"},
         {"path": "scripts/check-lint-baseline.ps1", "kind": "validation-script"},
         {"path": "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java", "kind": "public-entry"},
@@ -877,12 +1085,15 @@ def build_config_index(generated_at: str) -> dict[str, object]:
                 "ai/indexes/symbols-index.json",
                 "ai/indexes/test-index.json",
                 "ai/indexes/config-index.json",
+                "ai/indexes/refresh-state.json",
             ],
             "optionalColdSearchDb": "ai/indexes/cold-memory.db",
             "refreshCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1",
             "checkCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check",
             "compactCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog",
+            "fullRefreshCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -ForceFull",
             "searchCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query <text>",
+            "benchmarkCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/benchmark-ai-memory.ps1",
             "eventRetention": {
                 "activeLog": "ai/log/events.jsonl",
                 "archivePattern": "ai/log/archive/*.jsonl",
@@ -899,6 +1110,8 @@ def build_config_index(generated_at: str) -> dict[str, object]:
         "memoryScripts": [
             "scripts/query-ai-memory.ps1",
             "scripts/query-ai-memory.py",
+            "scripts/benchmark-ai-memory.ps1",
+            "scripts/benchmark-ai-memory.py",
         ],
         "releaseScripts": [
             "scripts/export-release-secrets.ps1",
@@ -1000,18 +1213,293 @@ def split_event_log_sections(path: Path) -> list[dict[str, object]]:
 def build_cold_search_sections() -> list[dict[str, object]]:
     sections: list[dict[str, object]] = []
     for path in collect_cold_search_files():
-        relative_path = rel_path(path)
-        if relative_path.endswith(".md"):
-            category, _, load_tier = doc_category(relative_path)
-            sections.extend(split_markdown_sections(path, read_text(path), category, load_tier))
-        elif relative_path.startswith("ai/log/") and relative_path.endswith(".jsonl"):
-            sections.extend(split_event_log_sections(path))
+        sections.extend(build_sections_for_path(path))
     return sections
 
 
-def create_sqlite_db(sqlite_path: Path, generated_at: str, inputs_hash: str, require_sqlite: bool) -> dict[str, object]:
+def build_sections_for_path(path: Path) -> list[dict[str, object]]:
+    relative_path = rel_path(path)
+    if relative_path.endswith(".md"):
+        category, _, load_tier = doc_category(relative_path)
+        return split_markdown_sections(path, read_text(path), category, load_tier)
+    if relative_path.startswith("ai/log/") and relative_path.endswith(".jsonl"):
+        return split_event_log_sections(path)
+    return []
+
+
+def section_id_for(section: dict[str, object]) -> str:
+    digest = hashlib.sha256()
+    for value in [
+        str(section["path"]),
+        str(section["title"]),
+        str(section["sourceKind"]),
+        str(section["loadTier"]),
+        str(section["sortTs"]),
+        str(section["lineStart"]),
+        str(section["lineEnd"]),
+        str(section["content"]),
+    ]:
+        digest.update(value.encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def index_input_paths(index_name: str) -> list[Path]:
+    if index_name == "docs":
+        return sorted(set(collect_markdown_files() + [Path(__file__).resolve()]))
+    if index_name == "files":
+        return sorted(
+            set(
+                collect_markdown_files()
+                + repo_files_for_patterns(
+                    [
+                        "pom.xml",
+                        "pojo-lens/pom.xml",
+                        "pojo-lens-benchmarks/pom.xml",
+                        "pojo-lens-spring-boot-autoconfigure/pom.xml",
+                        "pojo-lens-spring-boot-starter/pom.xml",
+                        ".github/workflows/*.yml",
+                        "scripts/refresh-ai-memory.py",
+                        "scripts/refresh-ai-memory.ps1",
+                        "scripts/benchmark-ai-memory.py",
+                        "scripts/benchmark-ai-memory.ps1",
+                    ]
+                )
+                + collect_java_files(
+                    "pojo-lens/src/main/java",
+                    "pojo-lens/src/test/java",
+                    "pojo-lens-benchmarks/src/main/java",
+                    "pojo-lens-benchmarks/src/test/java",
+                    "pojo-lens-spring-boot-autoconfigure/src/main/java",
+                    "pojo-lens-spring-boot-autoconfigure/src/test/java",
+                    "pojo-lens-spring-boot-starter/src/main/java",
+                    "pojo-lens-spring-boot-starter/src/test/java",
+                    "examples/spring-boot-starter-basic/src/main/java",
+                    "examples/spring-boot-starter-basic/src/test/java",
+                )
+            )
+        )
+    if index_name == "symbols":
+        return sorted(
+            set(
+                collect_java_files(
+                    "pojo-lens/src/main/java",
+                    "pojo-lens-benchmarks/src/main/java",
+                    "pojo-lens-spring-boot-autoconfigure/src/main/java",
+                    "pojo-lens-spring-boot-starter/src/main/java",
+                    "examples/spring-boot-starter-basic/src/main/java",
+                )
+                + [Path(__file__).resolve()]
+            )
+        )
+    if index_name == "test":
+        return sorted(
+            set(
+                collect_java_files(
+                    "pojo-lens/src/test/java",
+                    "pojo-lens-benchmarks/src/test/java",
+                    "pojo-lens-spring-boot-autoconfigure/src/test/java",
+                    "pojo-lens-spring-boot-starter/src/test/java",
+                    "examples/spring-boot-starter-basic/src/test/java",
+                )
+                + [Path(__file__).resolve()]
+            )
+        )
+    if index_name == "config":
+        return sorted(
+            set(
+                repo_files_for_patterns(
+                    [
+                        "pom.xml",
+                        "pojo-lens/pom.xml",
+                        "pojo-lens-benchmarks/pom.xml",
+                        "pojo-lens-spring-boot-autoconfigure/pom.xml",
+                        "pojo-lens-spring-boot-starter/pom.xml",
+                        ".github/workflows/*.yml",
+                        "scripts/refresh-ai-memory.py",
+                        "scripts/refresh-ai-memory.ps1",
+                        "scripts/query-ai-memory.py",
+                        "scripts/query-ai-memory.ps1",
+                        "scripts/benchmark-ai-memory.py",
+                        "scripts/benchmark-ai-memory.ps1",
+                    ]
+                )
+            )
+        )
+    raise ValueError(f"Unknown index name: {index_name}")
+
+
+def build_or_reuse_json_index(
+    index_name: str,
+    generated_at: str,
+    refresh_cache: dict[str, object],
+    builder: Callable[[str], dict[str, object]],
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    input_paths = index_input_paths(index_name)
+    path_hashes = {rel_path(path): file_sha256(path) for path in input_paths}
+    input_hash = hash_for_path_hashes(path_hashes)
+    output_path = INDEX_OUTPUTS[index_name]
+    cached_entry = refresh_cache.get(index_name, {})
+    if (
+        output_path.exists()
+        and cached_entry.get("inputHash") == input_hash
+        and cached_entry.get("outputPath") == rel_path(output_path)
+    ):
+        try:
+            payload = json.loads(read_text(output_path))
+            return (
+                payload,
+                {
+                    "path": rel_path(output_path),
+                    "status": "reused",
+                    "inputHash": input_hash,
+                    "inputFiles": len(path_hashes),
+                },
+                {
+                    "outputPath": rel_path(output_path),
+                    "inputHash": input_hash,
+                    "pathHashes": path_hashes,
+                },
+            )
+        except json.JSONDecodeError:
+            pass
+
+    payload = builder(generated_at)
+    write_json(output_path, payload)
+    return (
+        payload,
+        {
+            "path": rel_path(output_path),
+            "status": "rebuilt",
+            "inputHash": input_hash,
+            "inputFiles": len(path_hashes),
+        },
+        {
+            "outputPath": rel_path(output_path),
+            "inputHash": input_hash,
+            "pathHashes": path_hashes,
+        },
+    )
+
+
+def sqlite_table_exists(cursor: sqlite3.Cursor, name: str) -> bool:
+    row = cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+        (name,),
+    ).fetchone()
+    return row is not None
+
+
+def sqlite_table_columns(cursor: sqlite3.Cursor, table_name: str) -> set[str]:
+    if not sqlite_table_exists(cursor, table_name):
+        return set()
+    rows = cursor.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {str(row[1]) for row in rows}
+
+
+def reset_sqlite_schema(cursor: sqlite3.Cursor) -> None:
+    cursor.executescript(
+        """
+        DROP TABLE IF EXISTS metadata;
+        DROP TABLE IF EXISTS source_files;
+        DROP TABLE IF EXISTS documents;
+        DROP TABLE IF EXISTS document_fts;
+        """
+    )
+
+
+def ensure_sqlite_schema(cursor: sqlite3.Cursor, force_full: bool) -> bool:
+    required_document_columns = {
+        "section_id",
+        "source_path",
+        "path",
+        "title",
+        "source_kind",
+        "load_tier",
+        "priority",
+        "sort_ts",
+        "line_start",
+        "line_end",
+        "content",
+    }
+    reset_required = force_full or not required_document_columns.issubset(sqlite_table_columns(cursor, "documents"))
+    if reset_required:
+        reset_sqlite_schema(cursor)
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_files (
+            path TEXT PRIMARY KEY,
+            file_hash TEXT NOT NULL,
+            section_count INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            section_id TEXT PRIMARY KEY,
+            source_path TEXT NOT NULL,
+            path TEXT NOT NULL,
+            title TEXT NOT NULL,
+            source_kind TEXT NOT NULL,
+            load_tier TEXT NOT NULL,
+            priority INTEGER NOT NULL,
+            sort_ts TEXT NOT NULL,
+            line_start INTEGER NOT NULL,
+            line_end INTEGER NOT NULL,
+            content TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS documents_path_idx ON documents(path)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS documents_source_idx ON documents(source_path)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS documents_rank_idx ON documents(priority, sort_ts DESC, path, line_start)"
+    )
+
+    fts_enabled = sqlite_table_exists(cursor, "document_fts")
+    if not fts_enabled:
+        try:
+            cursor.execute(
+                """
+                CREATE VIRTUAL TABLE document_fts
+                USING fts5(
+                    section_id UNINDEXED,
+                    source_path UNINDEXED,
+                    path,
+                    title,
+                    source_kind,
+                    load_tier,
+                    content
+                )
+                """
+            )
+            fts_enabled = True
+        except sqlite3.Error:
+            fts_enabled = False
+    return fts_enabled
+
+
+def create_sqlite_db(
+    sqlite_path: Path,
+    generated_at: str,
+    inputs_hash: str,
+    require_sqlite: bool,
+    force_full: bool,
+) -> dict[str, object]:
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-    sections = build_cold_search_sections()
+    cold_paths = collect_cold_search_files()
+    file_hashes = {rel_path(path): file_sha256(path) for path in cold_paths}
     try:
         connection = sqlite3.connect(sqlite_path)
     except sqlite3.Error as exc:
@@ -1023,102 +1511,171 @@ def create_sqlite_db(sqlite_path: Path, generated_at: str, inputs_hash: str, req
             "ftsEnabled": False,
             "documents": 0,
             "sections": 0,
+            "updatedFiles": 0,
+            "reusedFiles": 0,
+            "removedFiles": 0,
             "error": str(exc),
         }
 
     try:
         cursor = connection.cursor()
-        cursor.executescript(
-            """
-            DROP TABLE IF EXISTS metadata;
-            DROP TABLE IF EXISTS documents;
-            DROP TABLE IF EXISTS document_fts;
-            CREATE TABLE metadata (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-            CREATE TABLE documents (
-                id INTEGER PRIMARY KEY,
-                path TEXT NOT NULL,
-                title TEXT NOT NULL,
-                source_kind TEXT NOT NULL,
-                load_tier TEXT NOT NULL,
-                priority INTEGER NOT NULL,
-                sort_ts TEXT NOT NULL,
-                line_start INTEGER NOT NULL,
-                line_end INTEGER NOT NULL,
-                content TEXT NOT NULL
-            );
-            CREATE INDEX documents_path_idx ON documents(path);
-            CREATE INDEX documents_rank_idx ON documents(priority, sort_ts DESC, path, line_start);
-            """
-        )
-        fts_enabled = True
-        try:
-            cursor.execute(
-                """
-                CREATE VIRTUAL TABLE document_fts
-                USING fts5(path, title, source_kind, load_tier, content);
-                """
-            )
-        except sqlite3.Error:
-            fts_enabled = False
+        fts_enabled = ensure_sqlite_schema(cursor, force_full=force_full)
+        existing_hashes = {
+            str(path): str(file_hash)
+            for path, file_hash in cursor.execute("SELECT path, file_hash FROM source_files")
+        }
 
-        for section in sections:
-            cursor.execute(
-                """
-                INSERT INTO documents(path, title, source_kind, load_tier, priority, sort_ts, line_start, line_end, content)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    section["path"],
-                    section["title"],
-                    section["sourceKind"],
-                    section["loadTier"],
-                    section["priority"],
-                    section["sortTs"],
-                    section["lineStart"],
-                    section["lineEnd"],
-                    section["content"],
-                ),
-            )
+        current_paths = set(file_hashes)
+        existing_paths = set(existing_hashes)
+        removed_paths = sorted(existing_paths - current_paths)
+        changed_paths = sorted(
+            relative_path
+            for relative_path, file_hash in file_hashes.items()
+            if force_full or existing_hashes.get(relative_path) != file_hash
+        )
+        reused_files = len(current_paths) - len(changed_paths)
+
+        for relative_path in removed_paths:
+            cursor.execute("DELETE FROM documents WHERE source_path = ?", (relative_path,))
             if fts_enabled:
+                cursor.execute("DELETE FROM document_fts WHERE source_path = ?", (relative_path,))
+            cursor.execute("DELETE FROM source_files WHERE path = ?", (relative_path,))
+
+        for relative_path in changed_paths:
+            source_path = ROOT / relative_path
+            sections = build_sections_for_path(source_path)
+            current_section_ids = []
+            fts_rows = []
+            for section in sections:
+                section_id = section_id_for(section)
+                current_section_ids.append(section_id)
                 cursor.execute(
                     """
-                    INSERT INTO document_fts(path, title, source_kind, load_tier, content)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO documents(
+                        section_id,
+                        source_path,
+                        path,
+                        title,
+                        source_kind,
+                        load_tier,
+                        priority,
+                        sort_ts,
+                        line_start,
+                        line_end,
+                        content
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(section_id) DO UPDATE SET
+                        source_path = excluded.source_path,
+                        path = excluded.path,
+                        title = excluded.title,
+                        source_kind = excluded.source_kind,
+                        load_tier = excluded.load_tier,
+                        priority = excluded.priority,
+                        sort_ts = excluded.sort_ts,
+                        line_start = excluded.line_start,
+                        line_end = excluded.line_end,
+                        content = excluded.content
                     """,
                     (
+                        section_id,
+                        relative_path,
                         section["path"],
                         section["title"],
                         section["sourceKind"],
                         section["loadTier"],
+                        section["priority"],
+                        section["sortTs"],
+                        section["lineStart"],
+                        section["lineEnd"],
                         section["content"],
                     ),
                 )
+                if fts_enabled:
+                    fts_rows.append(
+                        (
+                            section_id,
+                            relative_path,
+                            section["path"],
+                            section["title"],
+                            section["sourceKind"],
+                            section["loadTier"],
+                            section["content"],
+                        )
+                    )
 
+            if current_section_ids:
+                placeholders = ",".join("?" for _ in current_section_ids)
+                cursor.execute(
+                    f"DELETE FROM documents WHERE source_path = ? AND section_id NOT IN ({placeholders})",
+                    [relative_path, *current_section_ids],
+                )
+            else:
+                cursor.execute("DELETE FROM documents WHERE source_path = ?", (relative_path,))
+
+            if fts_enabled:
+                cursor.execute("DELETE FROM document_fts WHERE source_path = ?", (relative_path,))
+                cursor.executemany(
+                    """
+                    INSERT INTO document_fts(section_id, source_path, path, title, source_kind, load_tier, content)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    fts_rows,
+                )
+
+            cursor.execute(
+                """
+                INSERT INTO source_files(path, file_hash, section_count, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET
+                    file_hash = excluded.file_hash,
+                    section_count = excluded.section_count,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    relative_path,
+                    file_hashes[relative_path],
+                    len(current_section_ids),
+                    generated_at,
+                ),
+            )
+
+        cursor.execute("DELETE FROM metadata")
         metadata = {
             "generatedAt": generated_at,
             "inputsHash": inputs_hash,
             "ftsEnabled": "true" if fts_enabled else "false",
+            "incremental": "true",
         }
         for key, value in metadata.items():
             cursor.execute("INSERT INTO metadata(key, value) VALUES (?, ?)", (key, value))
         connection.commit()
+
+        document_count = cursor.execute("SELECT COUNT(DISTINCT path) FROM documents").fetchone()[0]
+        section_count = cursor.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
     finally:
         connection.close()
 
-    document_count = len({section["path"] for section in sections})
     return {
         "status": "built",
         "path": rel_path(sqlite_path),
         "ftsEnabled": fts_enabled,
-        "documents": document_count,
-        "sections": len(sections),
+        "documents": int(document_count),
+        "sections": int(section_count),
+        "updatedFiles": len(changed_paths),
+        "reusedFiles": reused_files,
+        "removedFiles": len(removed_paths),
+        "mode": "full" if force_full else "incremental",
     }
 
 
-def build_memory_state(generated_at: str, inputs_hash: str, hot_stats: dict[str, object], sqlite_state: dict[str, object], path_check_errors: list[str]) -> dict[str, object]:
+def build_memory_state(
+    generated_at: str,
+    inputs_hash: str,
+    hot_stats: dict[str, object],
+    json_index_states: list[dict[str, object]],
+    sqlite_state: dict[str, object],
+    path_check_errors: list[str],
+) -> dict[str, object]:
     branch = git_output("branch", "--show-current")
     head_commit = git_output("rev-parse", "HEAD")
     dirty = bool(git_output("status", "--short"))
@@ -1126,6 +1683,8 @@ def build_memory_state(generated_at: str, inputs_hash: str, hot_stats: dict[str,
     freshness_reasons = []
     if not hot_stats["withinBudget"]:
         freshness_reasons.append("hot-context-over-budget")
+    if not hot_stats.get("shapeValid", True):
+        freshness_reasons.append("hot-context-shape-invalid")
     if path_check_errors:
         freshness_reasons.append("indexed-paths-missing")
     if sqlite_state.get("status") == "unavailable":
@@ -1142,13 +1701,8 @@ def build_memory_state(generated_at: str, inputs_hash: str, hot_stats: dict[str,
         "hotContext": hot_stats,
         "eventLog": event_state,
         "derivedArtifacts": {
-            "jsonIndexes": [
-                "ai/indexes/files-index.json",
-                "ai/indexes/docs-index.json",
-                "ai/indexes/symbols-index.json",
-                "ai/indexes/test-index.json",
-                "ai/indexes/config-index.json",
-            ],
+            "refreshCache": rel_path(REFRESH_CACHE_PATH),
+            "jsonIndexes": json_index_states,
             "sqlite": sqlite_state,
         },
         "freshness": {
@@ -1172,17 +1726,46 @@ def validate_generated_paths(index_payloads: list[dict[str, object]]) -> list[st
     return sorted(missing)
 
 
-def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool) -> int:
+def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool, force_full: bool) -> int:
     compaction_state = compact_event_logs() if compact_log else None
+    if compaction_state is None:
+        sync_archive_summaries_from_disk()
     generated_at = now_iso()
     cold_search_paths = {rel_path(path) for path in collect_cold_search_files()}
     inputs_hash = sha256_for_files(collect_hash_inputs())
+    refresh_cache = {} if force_full else load_refresh_cache().get("indexes", {})
 
-    docs_index = build_docs_index(cold_search_paths, generated_at)
-    files_index = build_files_index(generated_at)
-    symbols_index = build_symbols_index(generated_at)
-    test_index = build_test_index(generated_at)
-    config_index = build_config_index(generated_at)
+    docs_index, docs_state, docs_cache = build_or_reuse_json_index(
+        "docs",
+        generated_at,
+        refresh_cache,
+        lambda ts: build_docs_index(cold_search_paths, ts),
+    )
+    files_index, files_state, files_cache = build_or_reuse_json_index(
+        "files",
+        generated_at,
+        refresh_cache,
+        build_files_index,
+    )
+    symbols_index, symbols_state, symbols_cache = build_or_reuse_json_index(
+        "symbols",
+        generated_at,
+        refresh_cache,
+        build_symbols_index,
+    )
+    test_index, test_state, test_cache = build_or_reuse_json_index(
+        "test",
+        generated_at,
+        refresh_cache,
+        build_test_index,
+    )
+    config_index, config_state, config_cache = build_or_reuse_json_index(
+        "config",
+        generated_at,
+        refresh_cache,
+        build_config_index,
+    )
+    json_index_states = [docs_state, files_state, symbols_state, test_state, config_state]
 
     missing_paths = validate_generated_paths(
         [docs_index, files_index, symbols_index, test_index, config_index]
@@ -1196,15 +1779,33 @@ def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool) -> int
         "sections": 0,
     }
     if not no_sqlite:
-        sqlite_state = create_sqlite_db(SQLITE_DB_PATH, generated_at, inputs_hash, require_sqlite)
+        sqlite_state = create_sqlite_db(
+            SQLITE_DB_PATH,
+            generated_at,
+            inputs_hash,
+            require_sqlite,
+            force_full=force_full,
+        )
 
-    memory_state = build_memory_state(generated_at, inputs_hash, hot_stats, sqlite_state, missing_paths)
+    memory_state = build_memory_state(
+        generated_at,
+        inputs_hash,
+        hot_stats,
+        json_index_states,
+        sqlite_state,
+        missing_paths,
+    )
 
-    write_json(INDEX_DIR / "docs-index.json", docs_index)
-    write_json(INDEX_DIR / "files-index.json", files_index)
-    write_json(INDEX_DIR / "symbols-index.json", symbols_index)
-    write_json(INDEX_DIR / "test-index.json", test_index)
-    write_json(INDEX_DIR / "config-index.json", config_index)
+    write_refresh_cache(
+        generated_at,
+        {
+            "docs": docs_cache,
+            "files": files_cache,
+            "symbols": symbols_cache,
+            "test": test_cache,
+            "config": config_cache,
+        },
+    )
     write_json(MEMORY_STATE_PATH, memory_state)
 
     print("[ai-memory] refreshed markdown truth indexes")
@@ -1217,13 +1818,16 @@ def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool) -> int
         )
     print(f"[ai-memory] hot context: {hot_stats['totalLines']} lines / {hot_stats['totalBytes']} bytes")
     print(f"[ai-memory] inputs hash: {inputs_hash}")
+    rebuilt_indexes = [state["path"] for state in json_index_states if state["status"] == "rebuilt"]
+    reused_indexes = [state["path"] for state in json_index_states if state["status"] == "reused"]
+    print(f"[ai-memory] json indexes rebuilt: {len(rebuilt_indexes)} / reused: {len(reused_indexes)}")
     if missing_paths:
         print("[ai-memory] missing indexed paths detected:")
         for path in missing_paths:
             print(f"- {path}")
         return 1
-    if not hot_stats["withinBudget"]:
-        print("[ai-memory] hot context exceeds budget")
+    if not hot_stats["withinBudget"] or not hot_stats.get("shapeValid", True):
+        print("[ai-memory] hot context exceeds budget or shape rules")
         return 1
     if sqlite_state.get("status") == "unavailable":
         print(f"[ai-memory] sqlite unavailable: {sqlite_state.get('error', 'unknown error')}")
@@ -1232,7 +1836,10 @@ def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool) -> int
         print(
             "[ai-memory] sqlite cold search built: "
             f"{sqlite_state['documents']} docs / {sqlite_state['sections']} sections "
-            f"(fts={sqlite_state['ftsEnabled']})"
+            f"(fts={sqlite_state['ftsEnabled']}, "
+            f"updated={sqlite_state.get('updatedFiles', 0)}, "
+            f"reused={sqlite_state.get('reusedFiles', 0)}, "
+            f"removed={sqlite_state.get('removedFiles', 0)})"
         )
     return 0
 
@@ -1259,6 +1866,8 @@ def run_check() -> int:
     hot_stats = hot_context_stats()
     if not hot_stats["withinBudget"]:
         reasons.append("hot-context-over-budget")
+    if not hot_stats.get("shapeValid", True):
+        reasons.append("hot-context-shape-invalid")
 
     indexed_paths = []
     for index_name in [
@@ -1287,6 +1896,9 @@ def run_check() -> int:
     if missing_paths:
         reasons.append("indexed-paths-missing")
 
+    if not REFRESH_CACHE_PATH.exists():
+        reasons.append("missing-refresh-cache")
+
     sqlite_state = memory_state.get("derivedArtifacts", {}).get("sqlite", {})
     if sqlite_state.get("status") == "built" and not SQLITE_DB_PATH.exists():
         reasons.append("missing-sqlite-db")
@@ -1313,6 +1925,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-sqlite", action="store_true", help="Skip the optional SQLite cold-search database.")
     parser.add_argument("--require-sqlite", action="store_true", help="Fail if SQLite/FTS cold search cannot be built.")
     parser.add_argument("--compact-log", action="store_true", help="Archive older event-log entries and keep only recent active history.")
+    parser.add_argument("--force-full", action="store_true", help="Rebuild all derived indexes and the SQLite database from scratch.")
     return parser.parse_args()
 
 
@@ -1324,6 +1937,7 @@ def main() -> int:
         no_sqlite=args.no_sqlite,
         require_sqlite=args.require_sqlite,
         compact_log=args.compact_log,
+        force_full=args.force_full,
     )
 
 

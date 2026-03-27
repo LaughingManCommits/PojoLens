@@ -18,6 +18,7 @@ Cold context:
 - `ai/indexes/*`
 - `ai/state/recent-validations.md`
 - `ai/log/events.jsonl`
+- `ai/log/archive/*-summary.md`
 - `ai/log/archive/*.jsonl`
 - `ai/state/benchmark-state.md`
 
@@ -30,6 +31,7 @@ Memory rules:
 - follow `/ai/AGENTS.md` when updating memory
 - code, tests, and build config override `/ai` if facts conflict
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/refresh-ai-memory.ps1` after structural or documentation changes
+- run `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
 
 End of session:
 - update `ai/state/current-state.md`

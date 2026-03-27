@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-03-27T13:18:42.587711+01:00",
+  "generatedAt": "2026-03-27T16:04:07.930263+01:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 5,
     "mainJavaFiles": 174,
     "testJavaFiles": 104,
-    "markdownDocs": 44,
+    "markdownDocs": 45,
     "aiCoreFiles": 11,
-    "aiIndexFiles": 5
+    "aiIndexFiles": 7
   },
   "roots": [
     {
@@ -184,6 +184,10 @@
     },
     {
       "path": "scripts/query-ai-memory.py",
+      "kind": "memory-script"
+    },
+    {
+      "path": "scripts/benchmark-ai-memory.py",
       "kind": "memory-script"
     },
     {

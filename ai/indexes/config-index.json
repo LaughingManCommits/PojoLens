@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T13:18:42.587711+01:00",
+  "generatedAt": "2026-03-27T16:01:17.709629+01:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -107,13 +107,16 @@
       "ai/indexes/docs-index.json",
       "ai/indexes/symbols-index.json",
       "ai/indexes/test-index.json",
-      "ai/indexes/config-index.json"
+      "ai/indexes/config-index.json",
+      "ai/indexes/refresh-state.json"
     ],
     "optionalColdSearchDb": "ai/indexes/cold-memory.db",
     "refreshCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1",
     "checkCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check",
     "compactCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog",
+    "fullRefreshCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -ForceFull",
     "searchCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query <text>",
+    "benchmarkCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/benchmark-ai-memory.ps1",
     "eventRetention": {
       "activeLog": "ai/log/events.jsonl",
       "archivePattern": "ai/log/archive/*.jsonl",
@@ -129,7 +132,9 @@
   ],
   "memoryScripts": [
     "scripts/query-ai-memory.ps1",
-    "scripts/query-ai-memory.py"
+    "scripts/query-ai-memory.py",
+    "scripts/benchmark-ai-memory.ps1",
+    "scripts/benchmark-ai-memory.py"
   ],
   "releaseScripts": [
     "scripts/export-release-secrets.ps1"
