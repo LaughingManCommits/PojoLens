@@ -44,21 +44,23 @@ competing with the core onboarding path.
 Stable surface is intentionally wider than the default onboarding story. Some
 compatibility or support contracts remain stable even though the preferred
 narrative for new users should start with the core query engine.
+`PojoLens` is stable as a helper-only compatibility facade; the overlapping
+query/chart entry aliases were removed before the current surface was locked.
 
 ### Entry Points
 
 - `PojoLens`
-  - `newQueryBuilder(List<?>)`
-  - `parse(String)`
-  - `template(String, String...)`
   - `newRuntime()`
   - `newRuntime(PojoLensRuntimePreset)`
   - `newKeysetCursorBuilder()`
   - `parseKeysetCursor(String)`
-  - `toChartData(List<T>, ChartSpec)`
+  - `bundle(List<?>)`
+  - `bundle(List<?>, Map<String, List<?>>)`
+  - `bundle(List<?>, JoinBindings)`
 - `PojoLensCore.newQueryBuilder(List<?>)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
+- `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `PojoLensRuntime`
   - `newQueryBuilder(List<?>)`
   - `parse(String)`
@@ -106,10 +108,11 @@ narrative for new users should start with the core query engine.
 
 The following remain public, but are treated as advanced in `1.x`:
 
-- runtime policy tuning and static cache-control APIs on
-  `PojoLens`/`PojoLensCore`/`PojoLensSql`
-- reusable workflow wrappers such as `report` and chart/stats preset helpers
-- `compareSnapshots` and regression/testing helper APIs
+- fine-grained runtime policy tuning and cache observability APIs on
+  `PojoLensRuntime`
+- reusable workflow wrappers such as `PojoLens.report(...)` and chart/stats
+  preset helpers
+- `PojoLens.compareSnapshots(...)` and regression/testing helper APIs
 - metamodel generation helpers
 - benchmark and threshold tooling
 

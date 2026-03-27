@@ -31,7 +31,7 @@ Public runtime surface is intentionally layered:
 
 - `PojoLensCore`: core fluent query-engine entry point
 - `PojoLensSql`: core SQL-like query-engine entry point
-- `PojoLens`: compatibility facade over the same engine
+- `PojoLens`: helper-only compatibility facade over the same engine
 - `PojoLensRuntime`: scoped runtime/configuration surface over the same engine
 - `PojoLensChart`: chart-mapping workflow helper over query results
 
@@ -68,12 +68,14 @@ This writes `target/pojo-lens-<version>-benchmarks.jar` at repository root.
 
 ## Migration Guidance
 
-Existing code using `PojoLens` remains valid. New code can opt into explicit
-entry points incrementally:
+Existing code that already uses the remaining `PojoLens` helper methods remains
+valid. Older code that used the removed overlap aliases should migrate
+incrementally:
 
 1. Replace `PojoLens.newQueryBuilder(...)` with `PojoLensCore.newQueryBuilder(...)`.
 2. Replace `PojoLens.parse(...)` with `PojoLensSql.parse(...)` in SQL-like paths.
-3. Use `PojoLensRuntime` when runtime-scoped policy/configuration is preferable
-   to static/global configuration.
+3. Replace `PojoLens.template(...)` with `PojoLensSql.template(...)` in reusable SQL-like template paths.
 4. Replace `PojoLens.toChartData(...)` with `PojoLensChart.toChartData(...)` where desired.
+5. Use `PojoLensRuntime` when runtime-scoped policy/configuration is preferable
+   to the default singleton cache model behind direct entry points.
 

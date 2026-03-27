@@ -16,6 +16,7 @@
 - `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the starter example Playwright suite passed.
 - `2026-03-27`: AI memory refresh/check passed; SQLite cold search is built and archive-aware.
 - `2026-03-27`: AI memory benchmark passed; incremental refresh reuse is verified and fixed-query top-1/top-3 hit quality is `1.0`.
+- `2026-03-27`: User-facing docs were realigned to the current helper-only `PojoLens` facade and runtime-only public cache-tuning model.
 - `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
 ## Release

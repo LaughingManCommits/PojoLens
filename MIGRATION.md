@@ -9,16 +9,16 @@ Published coordinates now use GitHub namespace style:
 
 Update your dependency declarations accordingly.
 
-## Pre-Adoption Facade Simplification
+## Facade Simplification
 
-If you are using unpublished or pre-adoption builds, treat the explicit entry
-points below as the supported path now.
+If you are upgrading from older unpublished or pre-1.0 builds, treat the
+explicit entry points below as the supported path now.
 
 Current helper-only facade state:
 - keep on `PojoLens`:
   `newRuntime(...)`, keyset cursor helpers, `bundle(...)`,
   `compareSnapshots(...)`, and `report(...)`
-- removed from `PojoLens` in the pre-adoption simplification:
+- removed from `PojoLens`:
   `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
   `toChartData(...)`
 
@@ -57,11 +57,11 @@ Replacement direction:
 - stats-plan cache controls and snapshots ->
   `runtime.statsPlanCache().*`
 
-Pre-adoption target state:
-- remove public static/global cache policy methods from `PojoLens`
-- remove public static/global cache policy methods from `PojoLensSql`
-- remove public static/global cache policy methods from `PojoLensCore`
-- keep the default singleton caches as internal implementation details for the
+Current cache-policy state:
+- public static/global cache policy methods are removed from `PojoLens`
+- public static/global cache policy methods are removed from `PojoLensSql`
+- public static/global cache policy methods are removed from `PojoLensCore`
+- the default singleton caches remain internal implementation details for the
   direct non-runtime entry points
 
 ## Typed Selector API
@@ -99,9 +99,10 @@ Additional typed overloads now available:
 - `addHaving(ResultRow::getMetricAlias, value, clause, separator, dateFormat)`
 - `addJoinBeans(Parent::getId, children, Child::getParentId, Join.LEFT_JOIN)`
 
-## Staged Entry Points (Core / SQL / Chart)
+## Explicit Entry Points (Core / SQL / Chart)
 
-`PojoLens` remains fully compatible, but entry points are now split for clearer boundaries:
+`PojoLens` remains available as a helper-only compatibility facade, but query
+and chart entry now live on explicit types:
 - `PojoLensCore.newQueryBuilder(...)`
 - `PojoLensSql.parse(...)`
 - `PojoLensChart.toChartData(...)`
@@ -118,9 +119,9 @@ runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setMaxEntries(2048);
 ```
 
-The static/global cache-policy APIs were removed in the same pre-adoption
-simplification. Direct non-runtime entry points still use internal default
-singleton caches, but public tuning now lives on `PojoLensRuntime`.
+The static/global cache-policy APIs have been removed. Direct non-runtime entry
+points still use internal default singleton caches, but public tuning now lives
+on `PojoLensRuntime`.
 
 ## Logging Facade Migration
 

@@ -17,6 +17,7 @@
 ## Facts
 
 - `PojoLens` is helper-only; `PojoLensRuntime` owns public cache tuning.
+- User-facing docs now match the helper-only `PojoLens` facade and runtime-only public cache-tuning model.
 - Runtime code lives in `pojo-lens/src/...`; benchmark code lives in `pojo-lens-benchmarks/src/...`.
 - The starter example at `examples/spring-boot-starter-basic` is the current reference app and has Java Playwright E2E coverage.
 - Recent exact validations live in `ai/state/recent-validations.md`.

@@ -188,7 +188,7 @@ These public follow-on features are collected in
 - `PojoLensSql`: default for new SQL-like and template-driven queries
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
-- `PojoLens`: compatibility facade and helper namespace for migration-friendly call sites
+- `PojoLens`: helper-only compatibility facade and helper namespace for migration-friendly call sites
 
 Recommended defaults for new code are documented in
 [docs/entry-points.md](docs/entry-points.md).

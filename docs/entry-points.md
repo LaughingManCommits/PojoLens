@@ -1,11 +1,8 @@
 # Entry Point Guide
 
 For new code, prefer the explicit entry points over the compatibility facade.
-`PojoLens` remains available for migration-friendly call sites and for facade-only helpers that are not split into a narrower type yet.
-For the active pre-adoption simplification path, the target state is even
-stricter: `PojoLens` stays as a helper-only facade, while the pure overlap
-aliases `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
-`toChartData(...)` are scheduled for removal before wider adoption.
+`PojoLens` is now a helper-only facade for migration-friendly helpers that do
+not belong on a narrower type.
 
 ## Recommended Defaults
 
@@ -16,7 +13,7 @@ aliases `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL-like flows on the explicit SQL entry point. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `PojoLens.newRuntime(...)` -> `runtime.newQueryBuilder(...)` / `runtime.parse(...)` | Keeps lint mode, strict parameter typing, telemetry, caches, and computed fields instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
-| Compatibility or migration path | `PojoLens.*` | Preserves older call sites and hosts helper methods that still live on the facade. |
+| Compatibility or helper namespace | `PojoLens.*` | Hosts the remaining helper surface such as runtime creation, keyset cursor helpers, bundles, reports, and snapshot comparison. |
 
 ## Decision Rules
 
@@ -24,7 +21,7 @@ aliases `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically, or otherwise represented as SQL-like text.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped policy instead of global defaults, especially for injected app runtimes, tenant-specific settings, or test/runtime presets.
 - Use `PojoLensChart` when you already have rows and only need deterministic chart payload mapping.
-- Use `PojoLens` mainly as a compatibility facade and helper namespace for `newRuntime(...)`, keyset cursor helpers, `report(...)`, and `bundle(...)`.
+- Use `PojoLens` mainly as a helper-only compatibility facade for `newRuntime(...)`, keyset cursor helpers, `report(...)`, `bundle(...)`, and `compareSnapshots(...)`.
 
 ## Runtime Choice
 
@@ -54,12 +51,12 @@ Some helpers intentionally remain on the facade because they span multiple produ
 - `PojoLens.parseKeysetCursor(...)`
 - `PojoLens.report(...)`
 - `PojoLens.bundle(...)`
+- `PojoLens.compareSnapshots(...)`
 
 That is a surface-organization choice, not a separate execution engine.
 
-Under the pre-adoption simplification decision recorded in
-[consolidation-review.md](consolidation-review.md), the following methods are
-not part of that helper-only target state and should be migrated away from now:
+`PojoLens` no longer carries the overlap aliases below. Use the explicit entry
+points directly:
 
 - `PojoLens.newQueryBuilder(...)` -> `PojoLensCore.newQueryBuilder(...)`
 - `PojoLens.parse(...)` -> `PojoLensSql.parse(...)`

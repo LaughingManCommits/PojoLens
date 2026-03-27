@@ -35,7 +35,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | --- | --- | --- | --- | --- | --- |
 | Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
 | SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
-| Compatibility facade | `Compatibility` | Migration-friendly facade over the same engine | `PojoLens` | `Stable` compatibility surface | `README.md`, `docs/modules.md` |
+| Compatibility facade | `Compatibility` | Migration-friendly helper facade over the same engine | `PojoLens` | `Stable` compatibility surface | `README.md`, `docs/modules.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
 | Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reusable-wrappers.md`, `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
@@ -49,8 +49,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
 
 ## Current Classification Calls
 
-- `PojoLens` is not a separate engine. It is the compatibility facade over the
-  same fluent/SQL-like runtime.
+- `PojoLens` is not a separate engine. It is the helper-only compatibility
+  facade over the same fluent/SQL-like runtime.
 - `PojoLensRuntime` is not a third query style. It is the scoped runtime and
   configuration model around the same engine.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered

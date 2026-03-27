@@ -91,8 +91,7 @@ Unsupported window frame expressions fail fast with actionable parser errors.
 ## Execution Model
 
 For new SQL-like code, use `PojoLensSql.parse(...)` and `PojoLensSql.template(...)`.
-The duplicate `PojoLens.parse(...)` facade was removed in the pre-adoption
-simplification.
+The old `PojoLens.parse(...)` facade alias is removed.
 
 `PojoLensSql.parse(...)` produces a SQL-like query contract that:
 - parses and validates query text

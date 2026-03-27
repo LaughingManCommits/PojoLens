@@ -10,14 +10,14 @@ needs to be tuned or isolated.
 - stats-plan cache
 
 Both caches use Caffeine-backed internals.
-For public policy tuning, prefer `PojoLensRuntime`; that is the intended
-long-term configuration surface.
+For public policy tuning, use `PojoLensRuntime`; it is the public cache-policy
+configuration surface.
 
-Current pre-adoption direction:
-- keep direct query entry points on their default singleton caches
-- move public tuning, clearing, and observability onto `PojoLensRuntime`
-- remove the public static/global cache APIs on `PojoLens`, `PojoLensCore`,
-  and `PojoLensSql`
+Current model:
+- direct query entry points use internal default singleton caches
+- public tuning, clearing, and observability live on `PojoLensRuntime`
+- `PojoLens`, `PojoLensCore`, and `PojoLensSql` do not expose public
+  static/global cache APIs
 
 ## Defaults
 
@@ -65,8 +65,7 @@ runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 
 ## Removed Static APIs
 
-The pre-adoption simplification removed the public static/global cache policy
-methods from:
+Public static/global cache policy methods are removed from:
 
 - `PojoLens`
 - `PojoLensSql`
@@ -99,7 +98,7 @@ code.
 
 ## Replacement Map
 
-When moving off the removed static/global cache APIs:
+When moving off older static/global cache APIs:
 
 - old SQL-like cache controls and snapshots -> `runtime.sqlLikeCache().*`
 - old stats-plan cache controls and snapshots -> `runtime.statsPlanCache().*`
