@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-03-27T16:04:07.930263+01:00",
+  "generatedAt": "2026-03-27T16:37:31.157620+01:00",
   "git": {
-    "headCommit": "1e521eada2652c148d2a63b2ee885f6321124c38",
+    "headCommit": "682c4ee112409fcb7aafe6c6f3c6cbdcf014c9c4",
     "branch": "ai",
     "dirty": true
   },
-  "inputsHash": "83afa34cd7bae7fe86816efd26975b986506aaa5b5fbb9a2d4587aca65fc2628",
+  "inputsHash": "184c6f8dc4794db13cd00a837a5cb0e4f5fb4d360e1ad716689d7cfe78ebdecb",
   "hotContext": {
     "files": [
       {
@@ -22,7 +22,7 @@
       {
         "path": "ai/state/current-state.md",
         "lines": 38,
-        "bytes": 1941,
+        "bytes": 1944,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,7 +65,7 @@
       {
         "path": "ai/state/handoff.md",
         "lines": 41,
-        "bytes": 2041,
+        "bytes": 2072,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,7 +103,7 @@
       }
     ],
     "totalLines": 96,
-    "totalBytes": 6121,
+    "totalBytes": 6155,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -113,8 +113,8 @@
   "eventLog": {
     "activeLog": {
       "path": "ai/log/events.jsonl",
-      "entries": 12,
-      "bytes": 6501
+      "entries": 13,
+      "bytes": 6896
     },
     "archiveFiles": [
       {
@@ -127,21 +127,21 @@
       "ai/log/archive/2026-03-summary.md"
     ],
     "retention": 12,
-    "totalEntries": 86
+    "totalEntries": 87
   },
   "derivedArtifacts": {
     "refreshCache": "ai/indexes/refresh-state.json",
     "jsonIndexes": [
       {
         "path": "ai/indexes/docs-index.json",
-        "status": "rebuilt",
-        "inputHash": "c9c6c2bdb455af5fc9f5950baffd2a5fdebc62eacc264dbce20d906d3237be09",
+        "status": "reused",
+        "inputHash": "f10d9193612a717e945a44faf2cf875d524715282ed7554f5024111aa020740a",
         "inputFiles": 46
       },
       {
         "path": "ai/indexes/files-index.json",
-        "status": "rebuilt",
-        "inputHash": "199a10b30d9dc3b48388a6e6a90ee408f510b66aaf24b15ccaa9e826d0e9d8a8",
+        "status": "reused",
+        "inputHash": "8af4f94b769d9ec64d65f286e1b92cc9c689d4fddafc7268cc66db78697bbbab",
         "inputFiles": 334
       },
       {
@@ -168,7 +168,7 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 47,
-      "sections": 446,
+      "sections": 438,
       "updatedFiles": 1,
       "reusedFiles": 46,
       "removedFiles": 0,

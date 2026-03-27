@@ -4,7 +4,7 @@
 
 - Multi-module Maven Java 17 library with runtime `pojo-lens`, Spring Boot integration modules, and benchmark tooling.
 - Runtime consumer artifact remains `io.github.laughingmancommits:pojo-lens:1.0.0`.
-- `TODO.md` remains the backlog file, but there is no active engineering roadmap.
+- `TODO.md` is now a cleared backlog marker; there is no active engineering roadmap.
 
 ## Focus
 

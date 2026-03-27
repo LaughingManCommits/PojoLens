@@ -4,7 +4,7 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; there is no active engineering roadmap.
+3. Check `TODO.md`; it currently only records that there is no active engineering roadmap.
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
