@@ -1,70 +1,36 @@
 # Current State
 
-## Repository Health
+## Repo
 
-- Multi-module Maven Java 17 library:
-  `pojo-lens-parent`,
-  `pojo-lens`,
-  `pojo-lens-spring-boot-autoconfigure`,
-  `pojo-lens-spring-boot-starter`,
-  `pojo-lens-benchmarks`.
+- Multi-module Maven Java 17 library with runtime `pojo-lens`, Spring Boot integration modules, and benchmark tooling.
 - Runtime consumer artifact remains `io.github.laughingmancommits:pojo-lens:1.0.0`.
-- Release profile and workflows exist for runtime plus Boot artifacts.
-- `TODO.md` still exists as the planning file, but the current roadmap is fully complete.
+- `TODO.md` remains the backlog file, but there is no active engineering roadmap.
 
-## Current Focus
+## Focus
 
-- No active feature roadmap is queued in `TODO.md`.
 - Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
-- AI memory now uses a tiered hybrid model:
-  hot context in `ai/core` and `ai/state`;
-  warm validation history in `ai/state/recent-validations.md`;
-  recent events in `ai/log/events.jsonl`;
-  archived history in `ai/log/archive/*.jsonl`;
-  generated navigation in `ai/indexes/*.json`;
-  optional `ai/indexes/cold-memory.db` for derived SQLite/FTS cold search.
+- Hot memory should stay minimal; exact validation history lives in `ai/state/recent-validations.md`.
 
-## Latest Verified State
+## Verified
 
-- `2026-03-26`: full repository regression passed with `mvn -q test`.
-- `2026-03-26`: docs consistency passed with `scripts/check-doc-consistency.ps1`.
-- `2026-03-26`: starter example Playwright suite passed with
-  `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test`.
-- `2026-03-27`: AI memory compaction and refresh passed with
-  `py -3 scripts/refresh-ai-memory.py --compact-log`,
-  `py -3 scripts/refresh-ai-memory.py --check`,
-  and archive-aware search via `py -3 scripts/query-ai-memory.py "<archive topic>"`.
-- `2026-03-26`: example frontend fixes validated:
-  salary input browser validation fix,
-  local Bootstrap and Chart.js assets,
-  Chart.js null-field serialization hardening,
-  and user-facing `statsView/chartType` selectors.
-- `2026-03-25`: pre-adoption simplification completed:
-  `PojoLens` is helper-only and `PojoLensRuntime` is the only public cache-tuning surface.
+- `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the starter example Playwright suite passed.
+- `2026-03-27`: AI memory refresh/check passed; SQLite cold search is built and archive-aware.
+- `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
-## Release Status
+## Release
 
 - Central namespace is verified for `io.github.laughingmancommits`.
-- Release workflow publishes:
-  `pojo-lens`,
-  `pojo-lens-spring-boot-autoconfigure`,
-  `pojo-lens-spring-boot-starter`.
+- Release workflow publishes runtime plus Boot artifacts.
 - The last publish attempt reached bundle upload but failed signature verification because Central could not find the signer public key.
-- The public key was uploaded to `keyserver.ubuntu.com` and `keys.openpgp.org`; retry is the next operational step.
+- The public key was uploaded to `keyserver.ubuntu.com` and `keys.openpgp.org`; retry remains next.
 
-## Open Risks
+## Risks
 
 - Central publish status is not yet reconfirmed after key propagation.
 - AI memory becomes stale after repo structure or doc changes unless `scripts/refresh-ai-memory.ps1` is rerun.
-- Active AI event history grows noisy unless older entries are compacted into `ai/log/archive/*.jsonl`.
 
-## Next Actions
+## Next
 
 - Retry the release workflow or a manual release dispatch for `v1.0.0`.
-- After structural or doc changes, run:
-  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1`
-- Then verify freshness with:
-  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check`
-- When the active event log grows, compact it with:
-  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog`
+- After structural or doc changes, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
 - Keep `mvn -q test` and `scripts/check-doc-consistency.ps1` green after code or doc changes.

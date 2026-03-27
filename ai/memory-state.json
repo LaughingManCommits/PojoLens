@@ -1,12 +1,12 @@
 {
   "schemaVersion": 4,
-  "generatedAt": "2026-03-27T12:48:45.567649+01:00",
+  "generatedAt": "2026-03-27T13:18:42.587711+01:00",
   "git": {
-    "headCommit": "f1010d6fe53c932b1d61b20a991902eb99344dc1",
-    "branch": "main",
+    "headCommit": "d0a69ea0879bf2a9454cf349c1e776b2d2bbc610",
+    "branch": "ai",
     "dirty": true
   },
-  "inputsHash": "10e4a804b03d429ee6d02ddb4603c42b7f1de0f6fe928069472f21e503c7dde0",
+  "inputsHash": "40b67349da7b405fbb170a74347273b3504ac60aa112db2c0aeb780fae3fda13",
   "hotContext": {
     "files": [
       {
@@ -21,17 +21,17 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 70,
-        "bytes": 3282
+        "lines": 36,
+        "bytes": 1690
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 66,
-        "bytes": 3003
+        "lines": 38,
+        "bytes": 1721
       }
     ],
-    "totalLines": 153,
-    "totalBytes": 8424,
+    "totalLines": 91,
+    "totalBytes": 5550,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true
@@ -40,17 +40,17 @@
     "activeLog": {
       "path": "ai/log/events.jsonl",
       "entries": 12,
-      "bytes": 6498
+      "bytes": 6430
     },
     "archiveFiles": [
       {
         "path": "ai/log/archive/2026-03.jsonl",
-        "entries": 72,
-        "bytes": 29339
+        "entries": 73,
+        "bytes": 29781
       }
     ],
     "retention": 12,
-    "totalEntries": 84
+    "totalEntries": 85
   },
   "derivedArtifacts": {
     "jsonIndexes": [
