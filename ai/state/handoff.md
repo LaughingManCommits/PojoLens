@@ -4,13 +4,13 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; the active roadmap is `Entropy Reduction` (`WP8.1`-`WP8.6`).
+3. Check `TODO.md`; `WP8.1` is done and `WP8.2` / `WP8.3` are ready in the `Entropy Reduction` roadmap.
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
 ## Focus
 
-- `Entropy Reduction` is the active engineering roadmap; `WP8.1` public-surface and entropy audit is the next executable package.
+- `Entropy Reduction` is the active engineering roadmap; `WP8.2` public leak/internalization decisions and `WP8.3` wrapper/binding simplification are now the next executable packages.
 - Release retry or release verification is the main pending repo task.
 - Starter example and dashboard simplification work are complete and validated.
 - Keep hot memory small; use `ai/state/recent-validations.md` and cold files for detail.
@@ -20,6 +20,7 @@
 - `PojoLens` is helper-only; `PojoLensRuntime` owns public cache tuning.
 - User-facing docs now match the helper-only `PojoLens` facade and runtime-only public cache-tuning model.
 - The active backlog is the `Entropy Reduction` roadmap in `TODO.md`.
+- `WP8.1` baseline is recorded in `docs/entropy-audit.md`: `122` public top-level types across `36` packages, including `52` clear internalization candidates.
 - Runtime code lives in `pojo-lens/src/...`; benchmark code lives in `pojo-lens-benchmarks/src/...`.
 - The starter example at `examples/spring-boot-starter-basic` is the current reference app and has Java Playwright E2E coverage.
 - Recent exact validations live in `ai/state/recent-validations.md`.
@@ -39,6 +40,7 @@
 
 - repo structure: `ai/core/module-index.md`, `ai/core/architecture-map.md`
 - docs and process: `ai/core/documentation-index.md`, `ai/core/runbook.md`
+- public-surface baseline: `docs/entropy-audit.md`
 - recent validation details: `ai/state/recent-validations.md`
 - archive history summary: `ai/log/archive/*-summary.md`
 - benchmarks only when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`

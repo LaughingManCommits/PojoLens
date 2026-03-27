@@ -34,9 +34,9 @@ Before implementation starts, confirm two product decisions:
 
 | Work Package                                  | Priority | Status    | Dependency                    |
 |-----------------------------------------------|----------|-----------|-------------------------------|
-| `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Ready`   | decision gate                 |
-| `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Planned` | `WP8.1` findings              |
-| `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Planned` | `WP8.1` findings              |
+| `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Done`    | decision gate                 |
+| `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Ready`   | `WP8.1` findings              |
+| `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Ready`   | `WP8.1` findings              |
 | `WP8.4` Execution Path Unification Audit      | `P1`     | `Planned` | `WP8.1` findings              |
 | `WP8.5` Entropy Reduction Implementation      | `P0`     | `Planned` | `WP8.2`, `WP8.3`, `WP8.4`     |
 | `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Planned` | `WP8.5`                       |
@@ -49,7 +49,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - inventory the current public runtime surface and classify each type or API
@@ -69,13 +69,20 @@ Acceptance criteria:
 - duplicate entry, wrapper, binding, or helper stories are called out with
   concrete reduction options
 
+Result:
+- delivered in `docs/entropy-audit.md`
+- baseline recorded:
+  `122` public top-level types across `36` packages
+- identified `52` clear internalization candidates and `2` packaging anomalies
+- advanced `WP8.2` and `WP8.3` to `Ready`
+
 ### `WP8.2` Public Leak/Internalization Decision
 
 Priority:
 - `P0`
 
 Status:
-- `Planned`
+- `Ready`
 
 Goal:
 - decide which public implementation or intermediate types should stop being
@@ -100,7 +107,7 @@ Priority:
 - `P0`
 
 Status:
-- `Planned`
+- `Ready`
 
 Goal:
 - reduce overlap across reusable wrappers and multi-source binding styles so
