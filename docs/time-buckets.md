@@ -63,3 +63,4 @@ Fluent and SQL-like `explain()` payloads include time bucket entries in:
 Example:
 - `period:hireDate:WEEK:Europe/Amsterdam:SUNDAY`
 
+

@@ -62,7 +62,7 @@ public class ComputedFieldRegistryTest {
         ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
                 .add("salaryDelta", "salary - 100000", Double.class)
                 .build();
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setComputedFieldRegistry(registry);
 
         List<SalaryDeltaRow> sqlRows = runtime
@@ -98,7 +98,7 @@ public class ComputedFieldRegistryTest {
         ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
-        ReportDefinition<DepartmentAdjustedPayrollRow> report = PojoLens.report(
+        ReportDefinition<DepartmentAdjustedPayrollRow> report = ReportDefinition.sql(
                 PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll "
                                 + "group by department order by totalAdjustedPayroll desc")
                         .computedFields(registry),
@@ -170,5 +170,7 @@ public class ComputedFieldRegistryTest {
         }
     }
 }
+
+
 
 

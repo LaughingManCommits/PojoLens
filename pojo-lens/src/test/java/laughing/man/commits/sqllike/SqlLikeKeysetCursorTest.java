@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
@@ -63,14 +62,14 @@ public class SqlLikeKeysetCursorTest {
 
     @Test
     public void keysetAfterShouldSupportTokenBasedCursor() {
-        String token = PojoLens.newKeysetCursorBuilder()
+        String token = SqlLikeCursor.builder()
                 .put("salary", 120000)
                 .put("id", 1)
                 .build()
                 .toToken();
 
         List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit :limit")
-                .keysetAfter(PojoLens.parseKeysetCursor(token))
+                .keysetAfter(SqlLikeCursor.fromToken(token))
                 .params(java.util.Map.of("limit", 20))
                 .filter(sampleCursorSource(), Employee.class);
 
@@ -145,6 +144,8 @@ public class SqlLikeKeysetCursorTest {
         return rows;
     }
 }
+
+
 
 
 

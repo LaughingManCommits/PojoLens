@@ -100,3 +100,5 @@ class StringUtilTest {
         assertFalse(StringUtil.isNumber("123abc"));
     }
 }
+
+

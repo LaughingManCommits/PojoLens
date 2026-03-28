@@ -2,7 +2,6 @@ package laughing.man.commits.query;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
@@ -61,7 +60,7 @@ public class QueryRegressionFixtureTest {
         QuerySnapshotFixture employees = QuerySnapshotFixture.of("employees-report", sampleEmployees());
         QueryRegressionFixture<DepartmentCountRow> reportFixture = QueryRegressionFixture.report(
                 employees,
-                PojoLens.report(
+                laughing.man.commits.report.ReportDefinition.sql(
                         PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                         DepartmentCountRow.class
                 )
@@ -103,4 +102,6 @@ public class QueryRegressionFixtureTest {
         assertThrows(IllegalStateException.class, fluentFixture::lintCodes);
     }
 }
+
+
 

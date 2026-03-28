@@ -107,3 +107,5 @@ public class StatsViewPresetsTest {
         throw new AssertionError("Expected IllegalArgumentException");
     }
 }
+
+

@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -104,7 +105,7 @@ public class ExplainToolingTest {
         assertEquals("unbound", bindings.get("employees"));
 
         Map<String, Object> executedExplain = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .explain(sampleCompanies(), Map.of("employees", sampleCompanyEmployees()), Company.class);
+                .explain(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals("bound", joinSourceBindings(executedExplain).get("employees"));
     }
@@ -277,5 +278,7 @@ public class ExplainToolingTest {
         }
     }
 }
+
+
 
 

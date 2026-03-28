@@ -18,15 +18,14 @@ docs and new code.
 - `DatasetBundle` is the canonical reusable execution snapshot, built from
   primary rows plus `JoinBindings`, when the same multi-source snapshot is
   executed more than once.
-- raw `Map<String, List<?>>` join-source overloads remain public stable
-  compatibility APIs in `1.x`, but docs and new code should treat them as
-  adapter or interop-only rather than the default binding model.
+- raw public `Map<String, List<?>>` join-source execution overloads are
+  removed before `v2`; use `JoinBindings.from(map)` only as a boundary adapter.
 
 ## Compatibility Inputs
 
 - [public-api-stability.md](public-api-stability.md) keeps `JoinBindings`,
-  `DatasetBundle`, and the relevant `PojoLens.bundle(...)` overloads inside the
-  stable `1.x` surface.
+  `DatasetBundle`, and the relevant `DatasetBundle.of(...)` overloads inside the
+  intended stable `v2` surface.
 - [reusable-wrappers.md](reusable-wrappers.md), [reports.md](reports.md),
   [charts.md](charts.md), and [stats-presets.md](stats-presets.md) already
   position `ReportDefinition<T>` as the general wrapper and expose bridging
@@ -34,8 +33,9 @@ docs and new code.
 - `ReportDefinition`, `ChartQueryPreset`, and `StatsViewPreset` already share
   the same execution engine and dataset-bundle or join-binding execution paths;
   `WP8.3` narrows the narrative rather than introducing new runtime mechanics.
-- `SqlLikeQuery` and the wrapper types still expose raw map overloads, so any
-  stronger surface reduction waits for `2.x` or a later compatibility review.
+- `JoinBindings.from(map)` remains available as the explicit adapter for
+  existing map-shaped join-source inputs, so bridgeability is preserved without
+  keeping map-shaped execution overloads public.
 
 ## Wrapper Disposition
 
@@ -49,7 +49,7 @@ docs and new code.
 
 | Surface | Role | Disposition | Preferred story | Notes |
 | --- | --- | --- | --- | --- |
-| raw `Map<String, List<?>>` join-source overloads | Compatibility or adapter input | `Keep stable` + `de-emphasize for new code` | Use only at boundaries that already speak map-shaped join sources | This remains a `1.x` compatibility path, but it should not lead docs or new examples. |
+| raw `Map<String, List<?>>` join-source execution overloads | Compatibility overlap | `Removed pre-v2` | Convert once with `JoinBindings.from(map)` at the boundary | The public execution surface now stays typed while still allowing map adaptation where needed. |
 | `JoinBindings` | Named multi-source binding contract | `Keep default` | Default ad-hoc binding input for multi-source execution | Gives clearer source names and validation than ad-hoc maps. |
 | `DatasetBundle` | Reusable execution snapshot | `Keep default reusable form` | Wrap primary rows plus `JoinBindings` when the same snapshot will be executed repeatedly | This is the reusable or snapshot form of the same binding model, not a competing concept. |
 
@@ -72,15 +72,16 @@ docs and new code.
 3. Promote the same primary rows plus `JoinBindings` into `DatasetBundle` when
    the snapshot will be executed more than once across rows, chart, report, or
    preset calls.
-4. Use raw `Map<String, List<?>>` only when adapting from existing map-shaped
-   code or external configuration.
+4. If a boundary already produces `Map<String, List<?>>`, convert once with
+   `JoinBindings.from(map)` and continue on the typed surface.
 
 ## Result
 
 - `WP8.3` resolves the overlapping wrapper story onto one default reusable
   contract: `ReportDefinition<T>`.
 - `WP8.3` resolves the overlapping binding story onto one default progression:
-  `JoinBindings` first, `DatasetBundle` when reuse begins, raw maps only for
-  compatibility edges.
+  `JoinBindings` first, `DatasetBundle` when reuse begins, and
+  `JoinBindings.from(map)` only for boundary adaptation.
 - `WP8.5` can now implement any code deletions or deprecations against a
   settled docs and product-story baseline.
+

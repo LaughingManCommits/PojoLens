@@ -1,6 +1,5 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Metric;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -36,7 +35,7 @@ public class CacheConcurrencyJmhBenchmark {
 
     @Setup
     public void setup() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         source = new ArrayList<>(20_000);
         for (int i = 0; i < 20_000; i++) {
             String value = "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 701L, i, 8);

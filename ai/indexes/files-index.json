@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-03-28T14:18:57.196033+01:00",
+  "generatedAt": "2026-03-28T19:07:52.729017+01:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 5,
-    "mainJavaFiles": 174,
+    "mainJavaFiles": 173,
     "testJavaFiles": 104,
     "markdownDocs": 50,
     "aiCoreFiles": 11,
@@ -72,7 +72,7 @@
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 141,
+      "mainJavaFiles": 140,
       "testJavaFiles": 94,
       "resourceFiles": 0
     },
@@ -197,10 +197,6 @@
     {
       "path": "scripts/check-lint-baseline.ps1",
       "kind": "validation-script"
-    },
-    {
-      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java",
-      "kind": "public-entry"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java",

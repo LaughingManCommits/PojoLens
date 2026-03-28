@@ -27,8 +27,14 @@ these user-facing points into the release notes:
 - default path per job remains:
   `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
   `ReportDefinition<T>`
+- the `PojoLens` facade is removed; use the owning types directly
 - `JoinBindings` is the default one-off multi-source binding contract, with
   `DatasetBundle` as the reusable snapshot form
+- public raw join-map execution overloads are removed; use
+  `JoinBindings.from(map)` at boundaries when adapting existing map-shaped
+  inputs
+- the public `FilterExecutionPlanCache` compatibility facade is removed;
+  runtime cache handles are now the only public cache-tuning surface
 - SQL-like execution explain now reports stage counts from the live bound
   execution path, including stable `HAVING`/`QUALIFY` counts without `ORDER BY`
 - `laughing.man.commits.chart.validation.ChartValidation` is no longer a
@@ -119,7 +125,10 @@ git push origin v<version>
 - [ ] Full validation passed (`test`, lint baseline gate, benchmark guardrails).
 - [ ] Coordinates and namespace are verified and aligned with `pom.xml`.
 - [ ] Docs are synced (`README`, `MIGRATION`, `RELEASE`, `docs/*.md`).
+- [ ] If this is the first `v2` tag, binary compatibility enforcement is now
+      expected to start from `v2*` baselines in CI.
 - [ ] SQL-like limitations text is still accurate: supports limited `WHERE ... IN (select oneField ...)` subqueries.
 - [ ] SQL-like join capability text is still accurate: chained joins are supported when each `JOIN ... ON ...` references the current plan correctly.
 - [ ] CI/workflow changes are intentional.
 - [ ] Release tag pushed and visible.
+

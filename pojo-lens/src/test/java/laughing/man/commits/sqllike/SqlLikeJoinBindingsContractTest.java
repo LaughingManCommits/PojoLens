@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -24,19 +23,20 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class SqlLikeJoinBindingsContractTest {
 
     @Test
-    public void typedJoinBindingsShouldMatchMapBasedFilterExecution() {
+    public void joinBindingsFromMapShouldMatchDirectTypedFilterExecution() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
         String sql = "select * from companies left join employees on id = companyId where title = 'Engineer'";
 
         Map<String, List<?>> joinSources = new HashMap<>();
         joinSources.put("employees", employees);
-        List<Company> mapRows = PojoLensSql.parse(sql).filter(companies, joinSources, Company.class);
+        JoinBindings adaptedBindings = JoinBindings.from(joinSources);
 
         JoinBindings joinBindings = JoinBindings.of("employees", employees);
+        List<Company> adaptedRows = PojoLensSql.parse(sql).filter(companies, adaptedBindings, Company.class);
         List<Company> typedRows = PojoLensSql.parse(sql).filter(companies, joinBindings, Company.class);
 
-        assertEquals(ids(mapRows), ids(typedRows));
+        assertEquals(ids(adaptedRows), ids(typedRows));
     }
 
     @Test
@@ -102,6 +102,8 @@ public class SqlLikeJoinBindingsContractTest {
         return rows.stream().map(r -> r.id).collect(Collectors.toList());
     }
 }
+
+
 
 
 

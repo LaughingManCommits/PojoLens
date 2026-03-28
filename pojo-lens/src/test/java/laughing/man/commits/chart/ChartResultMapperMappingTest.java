@@ -2,7 +2,6 @@ package laughing.man.commits.chart;
 
 import laughing.man.commits.PojoLensChart;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
@@ -382,6 +381,8 @@ public class ChartResultMapperMappingTest {
         return row;
     }
 }
+
+
 
 
 

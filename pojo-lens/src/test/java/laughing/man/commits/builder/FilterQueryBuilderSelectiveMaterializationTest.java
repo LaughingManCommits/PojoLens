@@ -286,3 +286,5 @@ class FilterQueryBuilderSelectiveMaterializationTest {
         assertEquals(Map.of(1, "stringField"), preparedExecution.getGroupFields());
     }
 }
+
+

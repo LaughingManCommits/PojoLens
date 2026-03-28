@@ -345,3 +345,4 @@ The Streams baseline suite is intentionally reproducible but not currently a mer
 - Do not use fluent-vs-SQL-like performance ratios as a merge gate; SQL-like intentionally pays query-translation cost that fluent does not.
 - Do not compare `PojoLens` to databases or unrelated libraries as if the workloads were equivalent.
 - When a comparison needs caveats, write the caveats next to the number.
+

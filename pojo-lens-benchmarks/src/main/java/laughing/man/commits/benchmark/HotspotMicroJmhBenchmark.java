@@ -9,7 +9,6 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.filter.FilterCore;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
@@ -195,6 +194,7 @@ public class HotspotMicroJmhBenchmark {
         public int size;
 
         private List<BenchmarkFoo> source;
+        private FilterExecutionPlanCacheStore executionPlanCache;
         private Map<Integer, List<?>> joinSourcesByIndex;
         private FilterQueryBuilder preparedTemplate;
         private FilterExecutionPlanCacheKey rawExecutionPlanCacheKey;
@@ -202,15 +202,16 @@ public class HotspotMicroJmhBenchmark {
         @Setup(Level.Trial)
         public void setup() {
             source = statsSource(size);
+            executionPlanCache = new FilterExecutionPlanCacheStore();
             joinSourcesByIndex = Map.of();
 
-            FilterExecutionPlanCache.setEnabled(true);
-            FilterExecutionPlanCache.setStatsEnabled(true);
-            FilterExecutionPlanCache.setMaxEntries(1024);
-            FilterExecutionPlanCache.setMaxWeight(0L);
-            FilterExecutionPlanCache.setExpireAfterWriteMillis(0L);
-            FilterExecutionPlanCache.clear();
-            FilterExecutionPlanCache.resetStats();
+            executionPlanCache.setEnabled(true);
+            executionPlanCache.setStatsEnabled(true);
+            executionPlanCache.setMaxEntries(1024);
+            executionPlanCache.setMaxWeight(0L);
+            executionPlanCache.setExpireAfterWriteMillis(0L);
+            executionPlanCache.clear();
+            executionPlanCache.resetStats();
 
             QueryAst ast = SqlLikeParser.parse(
                     "select bucket(dateField,'month') as period, count(*) as total, sum(integerField) as totalValue "
@@ -229,7 +230,8 @@ public class HotspotMicroJmhBenchmark {
                     source,
                     Map.of(),
                     BenchmarkFoo.class,
-                    ComputedFieldRegistry.empty()
+                    ComputedFieldRegistry.empty(),
+                    executionPlanCache
             );
             preparedTemplate = boundBuilder.snapshotForPreparedExecution();
             rawExecutionPlanCacheKey = FilterExecutionPlanCacheKey.from(boundBuilder);

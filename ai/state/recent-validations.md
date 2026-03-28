@@ -23,3 +23,5 @@
 - `2026-03-28`: forked JMH spot checks passed through `target/pojo-lens-1.0.0-benchmarks.jar` for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and the existing `StreamingExecutionJmhBenchmark` list-vs-stream methods.
 - `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after completing `WP8.6` docs, benchmark, and release refresh updates.
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after marking `WP8.6` done and refreshing the completed roadmap state.
+- `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks -am test-compile` passed after aligning benchmark sources/tests with the removed `PojoLens` facade and `FilterExecutionPlanCache` compatibility facade.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after executing the stronger pre-v2 cleanup stance in code/docs and updating the benchmark module to the owning-type/runtime surface.

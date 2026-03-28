@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -14,9 +13,7 @@ import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
@@ -78,11 +75,10 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindShouldSupportJoinExecutionPath() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("employees", employees);
+        JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
         List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .bindTyped(companies, Company.class, joinSources)
+                .bindTyped(companies, Company.class, joinBindings)
                 .filter();
 
         assertEquals(1, rows.size());
@@ -104,11 +100,10 @@ public class SqlLikeTypedBindContractTest {
     public void typedBindShouldRemainReusableAcrossRepeatedJoinFilters() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("employees", employees);
+        JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
         SqlLikeBoundQuery<Company> bound = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .bindTyped(companies, Company.class, joinSources);
+                .bindTyped(companies, Company.class, joinBindings);
 
         List<Company> first = bound.filter();
         List<Company> second = bound.filter();
@@ -149,6 +144,8 @@ public class SqlLikeTypedBindContractTest {
     }
 
 }
+
+
 
 
 

@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowEmployee;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
 import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
@@ -268,6 +267,8 @@ public class SqlLikeWindowFunctionTest {
         }
     }
 }
+
+
 
 
 

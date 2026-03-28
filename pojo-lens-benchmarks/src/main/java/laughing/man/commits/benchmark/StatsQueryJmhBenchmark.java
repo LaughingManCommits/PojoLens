@@ -1,6 +1,5 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
@@ -50,7 +49,7 @@ public class StatsQueryJmhBenchmark {
 
     @Setup
     public void setup() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         source = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             String value = "dept" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED + 101L, i, 12);

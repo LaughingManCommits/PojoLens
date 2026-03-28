@@ -14,12 +14,21 @@
 
 ## Facts
 
-- `PojoLens` is helper-only; `PojoLensRuntime` owns public cache tuning.
+- `PojoLens` is removed from the public surface; owning entry/workflow types
+  now carry the API directly.
+- `PojoLensRuntime` owns the only public cache-tuning surface.
 - `WP8.1` through `WP8.4` are recorded in `docs/entropy-audit.md`, `docs/entropy-internalization-decision.md`, `docs/entropy-wrapper-binding-decision.md`, and `docs/entropy-execution-path-audit.md`.
-- The first `WP8.5` slice is landed: `SqlLikeExecutionFlowSupport` now shares one output-mode resolver across `filter` / `stream` / `chart`, `SqlLikeExecutionSupport.executeIteratorWithOptionalJoin(...)` is deleted, and `ChartValidation` is package-private in `laughing.man.commits.chart`.
-- The second `WP8.5` slice is landed: `FilterImpl` now shares one internal materialization resolver for flat fluent `filter` and `chart`, covering window/qualify fallback, fast-array rows, fast-stats rows, and raw-row fallback without changing the fast-path choices.
-- The final `WP8.5` slice is landed: SQL-like explain stage counts now come from an unpaged bound execution context that runs through the real fluent pipeline, the manual SQL-like `QUALIFY` replay helper is deleted, and `FilterImpl.filterGroups(...)` shares one internal base distinct/filter stage runner with the row-based flat path.
-- `WP8.6` is landed in `docs/entropy-release-refresh.md`: README/selection docs reinforce the reduced default path set, migration and release wording call out `ChartValidation` internalization plus execution-explain alignment, and benchmark guidance now includes the new `fluentGroupedRows` and `parseAndExplainExecution` evidence paths.
+- `WP8.5` is complete: shared execution-path cleanup landed, SQL-like explain
+  stage counts now come from live bound execution, and `ChartValidation` is
+  internal.
+- `WP8.6` is complete: README/selection docs, migration/release wording, and
+  benchmark notes now reflect the reduced default path set.
+- The stronger pre-v2 cleanup is now executed end-to-end: `PojoLens` is gone,
+  raw public join-map execution overloads are gone, public static/global cache
+  policy methods are gone, and the public `FilterExecutionPlanCache`
+  compatibility facade is gone.
+- `pojo-lens-benchmarks` is already updated to the owning-type/runtime surface,
+  so full multi-module builds no longer depend on the removed facade.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
 
 ## Validate

@@ -52,6 +52,8 @@ Current `WP8.3` keep/de-emphasize call:
 - de-emphasize the idea that these are separate product identities
 
 No wrapper is a current deprecation candidate.
-If later roadmap work reduces this surface, the first move should be lower docs prominence or stronger bridging guidance, not `1.x` API removal.
+Further wrapper reduction remains a pre-v2 product decision, not a compatibility
+constraint.
 The formal decision record for this call lives in
 [docs/entropy-wrapper-binding-decision.md](entropy-wrapper-binding-decision.md).
+

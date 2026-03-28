@@ -193,7 +193,7 @@ These public follow-on features are collected in
 - `PojoLensSql`: default for new SQL-like and template-driven queries
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
-- `PojoLens`: helper-only compatibility facade and helper namespace for migration-friendly call sites
+- `ReportDefinition`: reusable business-query wrapper when the contract itself should be carried around
 
 Recommended defaults for new code are documented in
 [docs/entry-points.md](docs/entry-points.md).
@@ -201,7 +201,7 @@ Recommended defaults for new code are documented in
 ## Public API Stability
 
 PojoLens uses three API tiers:
-- `Stable`: compatibility-guaranteed for `1.x`
+- `Stable`: intended v2 surface, enforced from the first `v2` tag onward
 - `Advanced`: public but faster-evolving (best-effort compatibility)
 - `Internal`: no compatibility guarantee (`*.internal.*`)
 
@@ -210,7 +210,7 @@ These tiers are orthogonal to the product-surface families in
 - core query engine
 - workflow helpers
 - integration
-- compatibility
+- compatibility adapters
 - tooling
 
 The explicit stable-surface contract and deprecation policy are documented in
@@ -219,9 +219,9 @@ The explicit stable-surface contract and deprecation policy are documented in
 ## Runtime Presets
 
 ```java
-PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.TEST);
+PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
+PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
 ```
 
 Preset intent:
@@ -286,3 +286,4 @@ mvn -B -ntp test
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for lint, benchmarks, and release-quality guardrail commands.
+

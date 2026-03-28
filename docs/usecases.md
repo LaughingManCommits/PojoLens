@@ -18,7 +18,7 @@ Source guides:
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
 | Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
-| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLens.newRuntime(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
+| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 
 ## 2. Pick Reusable Wrapper
@@ -122,7 +122,7 @@ List<EmployeeFeedRow> rows = PojoLensSql
 Use keyset for deep pages:
 
 ```java
-SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+SqlLikeCursor cursor = SqlLikeCursor.builder()
     .put("salary", 120000)
     .put("id", 1)
     .build();
@@ -200,7 +200,7 @@ Problem:
 Use:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -330,9 +330,9 @@ Outcome:
 
 - Use `PojoLensCore` for service-owned fluent queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
-- Use `PojoLens.newRuntime(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
+- Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.
-- Use `PojoLens` mainly for compatibility helpers such as runtime creation, keyset cursor helpers, `report(...)`, and `bundle(...)`.
+- Use `SqlLikeCursor`, `ReportDefinition`, `DatasetBundle`, and `SnapshotComparison` directly for those helper workflows.
 - Use `JoinBindings` for one-off multi-source execution.
 - Use `DatasetBundle` when the same multi-source snapshot will be executed repeatedly.
 - Use `ChartData` as the boundary model between query and rendering.
@@ -349,3 +349,4 @@ Outcome:
 - [docs/time-buckets.md](time-buckets.md)
 - [docs/telemetry.md](telemetry.md)
 - [docs/regression-fixtures.md](regression-fixtures.md)
+

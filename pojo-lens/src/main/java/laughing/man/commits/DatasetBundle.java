@@ -26,11 +26,6 @@ public final class DatasetBundle {
         return new DatasetBundle(primaryRows, JoinBindings.empty());
     }
 
-    public static DatasetBundle of(List<?> primaryRows, Map<String, List<?>> joinSources) {
-        Objects.requireNonNull(joinSources, "joinSources must not be null");
-        return new DatasetBundle(primaryRows, JoinBindings.from(joinSources));
-    }
-
     public static DatasetBundle of(List<?> primaryRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         return new DatasetBundle(primaryRows, joinBindings);
@@ -42,10 +37,6 @@ public final class DatasetBundle {
 
     public List<?> primaryRows() {
         return primaryRows;
-    }
-
-    public Map<String, List<?>> joinSources() {
-        return joinBindings.asMap();
     }
 
     public JoinBindings joinBindings() {
@@ -90,17 +81,12 @@ public final class DatasetBundle {
             return this;
         }
 
-        public Builder addAll(Map<String, List<?>> joinSources) {
-            Objects.requireNonNull(joinSources, "joinSources must not be null");
-            for (Map.Entry<String, List<?>> entry : joinSources.entrySet()) {
+        public Builder addAll(JoinBindings joinBindings) {
+            Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+            for (Map.Entry<String, List<?>> entry : joinBindings.asMap().entrySet()) {
                 add(entry.getKey(), entry.getValue());
             }
             return this;
-        }
-
-        public Builder addAll(JoinBindings joinBindings) {
-            Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-            return addAll(joinBindings.asMap());
         }
 
         public DatasetBundle build() {

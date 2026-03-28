@@ -2,9 +2,9 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.domain.Foo;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedScalarProjection;
@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -345,7 +344,7 @@ public class SqlLikeValidationTest {
         List<Company> companies = sampleCompanies();
         try {
             PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
-                    .filter(companies, Map.of(), Company.class);
+                    .filter(companies, JoinBindings.empty(), Company.class);
             fail("Expected missing subquery source binding error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
@@ -397,6 +396,8 @@ public class SqlLikeValidationTest {
         }
     }
 }
+
+
 
 
 

@@ -105,8 +105,8 @@ Bind-first typed execution:
   `bindTyped(rows, Projection.class, joinBindings).filter()`
 - promote repeated multi-source snapshots to
   `bindTyped(datasetBundle, Projection.class).filter()`
-- raw `Map<String, List<?>>` overloads remain available for compatibility or
-  adapter code
+- if a boundary already provides `Map<String, List<?>>`, convert once with
+  `JoinBindings.from(map)`
 - reusable computed fields attach via `.computedFields(registry)`
 - chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly
 
@@ -240,7 +240,7 @@ List<DepartmentRunningTotal> rows = PojoLensSql
 ### Recipe: First-Class Keyset Cursor API
 
 ```java
-SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+SqlLikeCursor cursor = SqlLikeCursor.builder()
     .put("salary", 120000)
     .put("id", 1)
     .build();
@@ -255,7 +255,7 @@ Tokenized cursor flow:
 
 ```java
 String token = cursor.toToken();
-SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
 ```
 
 Cursor contract:
@@ -293,7 +293,7 @@ List<Employee> rows = PojoLensSql
 Per runtime:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setStrictParameterTypes(true);
 
 List<Employee> rows = runtime
@@ -342,7 +342,7 @@ SqlLikeQuery query = PojoLensSql
 Per runtime:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setLintMode(true);
 
 SqlLikeQuery query = runtime.parse("select * from companies limit 5");
@@ -353,9 +353,9 @@ SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 Use presets when you want a preconfigured runtime and still keep manual overrides available afterward.
 
 ```java
-PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.TEST);
+PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
+PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
 ```
 
 Preset intent:
@@ -367,7 +367,7 @@ Preset intent:
 Manual overrides still apply after preset selection:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 runtime.setLintMode(true);
 runtime.setStrictParameterTypes(true);
 ```
@@ -390,7 +390,7 @@ runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets 
 Equivalent preset creation through the facade is also available:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 ```
 
 ### Recipe: WHERE IN Subquery
@@ -408,7 +408,7 @@ Named source subquery using runtime join-source bindings:
 ```java
 List<Company> rows = PojoLensSql
     .parse("where id in (select companyId from employees where title = 'Engineer')")
-    .filter(companies, Map.of("employees", employees), Company.class);
+    .filter(companies, JoinBindings.of("employees", employees), Company.class);
 ```
 
 Current subquery scope:
@@ -510,7 +510,7 @@ Canonical binding story:
 - use `JoinBindings` for named secondary sources
 - promote to `DatasetBundle` when the same multi-source snapshot will be
   executed repeatedly
-- keep raw map overloads for compatibility or adapter boundaries
+- convert boundary maps once with `JoinBindings.from(map)` when needed
 
 Typed bindings:
 
@@ -543,7 +543,7 @@ List<Company> rows = PojoLensSql
 Dataset bundle execution:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -552,15 +552,14 @@ List<Company> rows = PojoLensSql
     .filter(bundle, Company.class);
 ```
 
-Compatibility map bindings:
+Boundary adaptation from an existing map:
 
 ```java
-Map<String, List<?>> joinSources = new HashMap<>();
-joinSources.put("employees", employees);
+JoinBindings joinBindings = JoinBindings.from(Map.of("employees", employees));
 
 List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-    .filter(companies, joinSources, Company.class);
+    .filter(companies, joinBindings, Company.class);
 ```
 
 Notes:
@@ -646,8 +645,8 @@ Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWar
 Avoid these patterns when writing SQL-like integrations:
 - string concatenation for dynamic values; use named parameters instead
 - bind-first SQL-like calls that repeat sort and projection class; use `bindTyped(...)`
-- raw join maps for new code; prefer `JoinBindings`, and `DatasetBundle` when
-  the same snapshot is reused
+- carrying raw join maps through execution code; convert once to `JoinBindings`,
+  and use `DatasetBundle` when the same snapshot is reused
 - rebuilding the same multi-source snapshot repeatedly; prefer `DatasetBundle`
 - deep `offset` pagination on high-cardinality feeds when cursor semantics are available
 
@@ -670,7 +669,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-PAR-004` | Clause-specific item/predicate limit exceeded. | Reduce `SELECT`, `GROUP BY`, `ORDER BY`, `WHERE`, or `HAVING` breadth. |
 | `EQ-SQL-VAL-001` | Unknown field/reference during validation. | Fix the field name or use the suggestion in the message. |
 | `EQ-SQL-VAL-002` | Duplicate `SELECT` output name. | Rename aliases so each projected column is unique. |
-| `EQ-SQL-VAL-003` | Missing JOIN source binding. | Provide the JOIN rows via `JoinBindings` or the compatibility `joinSources` map overload. |
+| `EQ-SQL-VAL-003` | Missing JOIN source binding. | Provide the JOIN rows via `JoinBindings`; convert existing maps with `JoinBindings.from(map)` if needed. |
 | `EQ-SQL-VAL-004` | JOIN source rows were empty/invalid for validation. | Bind a non-empty list containing at least one non-null row. |
 | `EQ-SQL-VAL-005` | Invalid, ambiguous, or unsupported `HAVING` reference. | Restrict `HAVING` to grouped fields and aggregate outputs. |
 | `EQ-SQL-VAL-006` | Aggregate or `GROUP BY` semantics are invalid. | Add required aggregates/groups or remove unsupported combinations. |
@@ -765,7 +764,7 @@ Meaning:
 - A query references a JOIN source that was not bound at execution time.
 
 Fix:
-- Supply the JOIN rows via `JoinBindings` or the compatibility `Map<String, List<?>>` overload.
+- Supply the JOIN rows via `JoinBindings`; convert existing maps with `JoinBindings.from(map)` if needed.
 
 ### Error Code EQ-SQL-VAL-004
 
@@ -937,4 +936,5 @@ Meaning:
 
 Fix:
 - Ensure computed expressions reference valid fields from the source rows.
+
 

@@ -149,7 +149,7 @@ ChartJsPayload payload = ChartQueryPresets
 Bundle-driven chart:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -209,4 +209,5 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
 

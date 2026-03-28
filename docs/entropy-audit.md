@@ -1,12 +1,13 @@
 # Entropy Audit
 
 This document is the `WP8.1` baseline for the `Entropy Reduction` roadmap.
-It records the current public runtime surface, the main duplicate concept
-families, and the strongest code-reduction candidates.
+It records the public runtime surface as it existed at the start of the
+roadmap, the main duplicate concept families, and the strongest code-reduction
+candidates that fed later pre-v2 cleanup work.
 
 ## Baseline
 
-- The runtime module currently exposes `122` public top-level types across
+- At baseline time, the runtime module exposed `122` public top-level types across
   `36` packages.
 - `19` public top-level types already live under `14` `*.internal.*`
   packages.
@@ -43,7 +44,7 @@ families, and the strongest code-reduction candidates.
 | Fluent builder contracts and value objects  | `QueryBuilder`, `FieldSelector`, `QueryRule`, `QueryMetric`, `QueryTimeBucket`, `QueryWindow`, `QueryWindowOrder`                                                                                                                                                                                                                                                                                                                                                                                                                                                    |     7 | `Keep default` / `Keep advanced`                       | Core query contract plus builder-support value objects.                                                           |
 | Fluent builder implementation helpers       | `FieldSelectors`, `FilterQueryBuilder`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |     2 | `Internalize candidate`                                | `FilterQueryBuilder` is the mutable implementation behind `QueryBuilder`; `FieldSelectors` is support glue.       |
 | Filter execution public contracts           | `Filter`, `FilterExecutionPlanCacheStore`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |     2 | `Keep default` / `Keep advanced`                       | `Filter` is core fluent execution. `FilterExecutionPlanCacheStore` is the current public stats-plan cache handle. |
-| Filter execution implementation leakage     | `FilterCore`, `FilterImpl`, `FilterExecutionPlan`, `FilterExecutionPlanCache`, `FilterExecutionPlanCacheKey`, `FastStatsQuerySupport`                                                                                                                                                                                                                                                                                                                                                                                                                                |     6 | `Internalize candidate`                                | These are pipeline and cache internals, but they remain public today.                                             |
+| Filter execution implementation leakage     | `FilterCore`, `FilterImpl`, `FilterExecutionPlan`, `FilterExecutionPlanCache`, `FilterExecutionPlanCacheKey`, `FastStatsQuerySupport`                                                                                                                                                                                                                                                                                                                                                                                                                                |     6 | `Internalize candidate`                                | These were pipeline and cache internals that were still public at baseline time.                                  |
 | SQL-like core contracts                     | `SqlLikeQuery`, `SqlLikeTemplate`, `SqlLikeBoundQuery`, `SqlLikeCursor`, `SqlParams`, `JoinBindings`                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |     6 | `Keep default` / `Keep compatibility/support`          | This is the explicit SQL-like contract surface.                                                                   |
 | SQL-like diagnostics and cache handles      | `SqlLikeLintCodes`, `SqlLikeLintWarning`, `SqlLikeParseException`, `SqlLikeErrorCodes`, `SqlLikeQueryCache`                                                                                                                                                                                                                                                                                                                                                                                                                                                          |     5 | `Keep advanced` / `Packaging anomaly`                  | Diagnostics are public, but `SqlLikeErrorCodes` and `SqlLikeQueryCache` live under `*.internal.*` packages.       |
 | SQL-like parser, AST, and execution helpers | `SqlLikeParser`, `SqlLikeErrors`, `FilterExpressionAst`, `FilterAst`, `FilterBinaryAst`, `FilterPredicateAst`, `JoinAst`, `OrderAst`, `ParameterValueAst`, `QueryAst`, `SelectAst`, `SelectFieldAst`, `SubqueryValueAst`, `AggregateExpressionSupport`, `SqlLikeBinder`, `DefaultSqlLikeQueryCacheSupport`, `SqlLikeKeysetSupport`, `SqlLikeExecutionSupport`, `SqlLikeExplainSupport`, `BooleanExpressionNormalizer`, `SqlExpressionEvaluator`, `SqlLikeLintSupport`, `BoundParameterValue`, `SqlLikeParameterSupport`, `SqlLikeJoinResolution`, `SqlLikeValidator` |    26 | `Internalize candidate`                                | This is the single largest concentration of public parser and execution internals.                                |
@@ -69,7 +70,7 @@ families, and the strongest code-reduction candidates.
 
 ### 1. The public surface is much wider than the documented product story
 
-The explicit default story is roughly:
+At baseline time, the explicit default story was roughly:
 
 - `PojoLensCore`
 - `PojoLensSql`
@@ -145,7 +146,7 @@ before.
 |----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------|--------------------|
 | Reusable query contract    | `ReportDefinition`, `ChartQueryPreset`, `StatsViewPreset`                                   | Three peer-level wrapper identities for one engine            | `WP8.3`            |
 | Multi-source binding       | raw `Map<String, List<?>>`, `JoinBindings`, `DatasetBundle`                                 | Three ways to express join sources and snapshot reuse         | `WP8.3`            |
-| Runtime construction       | `PojoLens.newRuntime(...)`, `PojoLensRuntime.ofPreset(...)`                                 | Two equally-valid creation idioms for the same scoped runtime | `WP8.3`            |
+| Runtime construction       | `new PojoLensRuntime()`, `PojoLensRuntime.ofPreset(...)`                                         | Two equally-valid creation idioms for the same scoped runtime | `WP8.3`            |
 | Cache tuning surface       | `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`                                        | Public tuning depends on implementation-heavy cache classes   | `WP8.2`            |
 | Chart mapping access paths | `PojoLensChart`, `Filter.chart(...)`, `SqlLikeQuery.chart(...)`, wrappers, `ChartJsAdapter` | Many access points around one mapping pipeline                | `WP8.3` / `WP8.4`  |
 
@@ -210,3 +211,4 @@ before.
   `FilterImpl`, `FilterCore`, parser/AST flow, and chart mapping helpers
 - tie any internal-path unification to benchmark and regression coverage before
   changing hot code
+

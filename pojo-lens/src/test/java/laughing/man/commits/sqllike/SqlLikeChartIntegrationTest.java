@@ -3,7 +3,6 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -155,6 +154,8 @@ public class SqlLikeChartIntegrationTest {
     }
 
 }
+
+
 
 
 

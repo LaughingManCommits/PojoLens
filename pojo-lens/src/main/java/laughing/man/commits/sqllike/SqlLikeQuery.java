@@ -5,8 +5,8 @@ import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Sort;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
@@ -56,12 +56,12 @@ public final class SqlLikeQuery {
 
     private SqlLikeQuery(String source, QueryAst ast) {
         this(source, ast, false, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
-                FilterExecutionPlanCache.defaultStore());
+                DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
     private SqlLikeQuery(String source, QueryAst ast, boolean strictParameterTypes) {
         this(source, ast, strictParameterTypes, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
-                FilterExecutionPlanCache.defaultStore());
+                DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
     private SqlLikeQuery(String source,
@@ -328,7 +328,7 @@ public final class SqlLikeQuery {
      * @return typed SQL-like bound query
      */
     public <T> SqlLikeBoundQuery<T> bindTyped(List<?> pojos, Class<T> projectionClass) {
-        return bindTyped(pojos, projectionClass, Collections.emptyMap());
+        return bindTyped(pojos, projectionClass, JoinBindings.empty());
     }
 
     /**
@@ -342,23 +342,7 @@ public final class SqlLikeQuery {
      */
     public <T> SqlLikeBoundQuery<T> bindTyped(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return bindTyped(datasetBundle.primaryRows(), projectionClass, datasetBundle.joinSources());
-    }
-
-    /**
-     * Binds query with join sources and captures projection type for typed execution.
-     *
-     * @param pojos parent/source rows
-     * @param projectionClass projection/validation class
-     * @param joinSources join source rows keyed by JOIN source name
-     * @param <T> projection type
-     * @return typed SQL-like bound query
-     */
-    public <T> SqlLikeBoundQuery<T> bindTyped(List<?> pojos,
-                                               Class<T> projectionClass,
-                                               Map<String, List<?>> joinSources) {
-        ExecutionContext context = prepareExecution(pojos, joinSources, projectionClass);
-        return new DefaultSqlLikeBoundQuery<>(context, projectionClass);
+        return bindTyped(datasetBundle.primaryRows(), projectionClass, datasetBundle.joinBindings());
     }
 
     /**
@@ -374,7 +358,8 @@ public final class SqlLikeQuery {
                                                Class<T> projectionClass,
                                                JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return bindTyped(pojos, projectionClass, joinBindings.asMap());
+        ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), projectionClass);
+        return new DefaultSqlLikeBoundQuery<>(context, projectionClass);
     }
 
     /**
@@ -386,7 +371,8 @@ public final class SqlLikeQuery {
      * @return filtered rows
      */
     public <T> List<T> filter(List<?> pojos, Class<T> cls) {
-        return filter(pojos, Collections.emptyMap(), cls);
+        ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), cls);
+        return executeFilter(context, cls);
     }
 
     /**
@@ -399,21 +385,7 @@ public final class SqlLikeQuery {
      */
     public <T> List<T> filter(DatasetBundle datasetBundle, Class<T> cls) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return filter(datasetBundle.primaryRows(), datasetBundle.joinSources(), cls);
-    }
-
-    /**
-     * Executes query against provided rows with optional SQL-like JOIN sources.
-     *
-     * @param pojos parent/source rows
-     * @param joinSources join source rows keyed by JOIN source name
-     * @param cls projection class
-     * @param <T> projection type
-     * @return filtered rows
-     */
-    public <T> List<T> filter(List<?> pojos, Map<String, List<?>> joinSources, Class<T> cls) {
-        ExecutionContext context = prepareExecution(pojos, joinSources, cls);
-        return executeFilter(context, cls);
+        return filter(datasetBundle.primaryRows(), datasetBundle.joinBindings(), cls);
     }
 
     /**
@@ -427,7 +399,8 @@ public final class SqlLikeQuery {
      */
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return filter(pojos, joinBindings.asMap(), cls);
+        ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
+        return executeFilter(context, cls);
     }
 
     /**
@@ -456,20 +429,6 @@ public final class SqlLikeQuery {
     }
 
     /**
-     * Executes query against provided rows with optional SQL-like JOIN sources
-     * and exposes rows through an iterator.
-     *
-     * @param pojos parent/source rows
-     * @param joinSources join source rows keyed by JOIN source name
-     * @param cls projection class
-     * @param <T> projection type
-     * @return result iterator
-     */
-    public <T> Iterator<T> iterator(List<?> pojos, Map<String, List<?>> joinSources, Class<T> cls) {
-        return stream(pojos, joinSources, cls).iterator();
-    }
-
-    /**
      * Executes query with typed SQL-like JOIN source bindings and exposes rows
      * through an iterator.
      *
@@ -492,7 +451,8 @@ public final class SqlLikeQuery {
      * @return result stream
      */
     public <T> Stream<T> stream(List<?> pojos, Class<T> cls) {
-        return stream(pojos, Collections.emptyMap(), cls);
+        ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), cls);
+        return executeStream(context, cls);
     }
 
     /**
@@ -506,22 +466,7 @@ public final class SqlLikeQuery {
      */
     public <T> Stream<T> stream(DatasetBundle datasetBundle, Class<T> cls) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return stream(datasetBundle.primaryRows(), datasetBundle.joinSources(), cls);
-    }
-
-    /**
-     * Executes query against provided rows with optional SQL-like JOIN sources
-     * and exposes rows through a stream.
-     *
-     * @param pojos parent/source rows
-     * @param joinSources join source rows keyed by JOIN source name
-     * @param cls projection class
-     * @param <T> projection type
-     * @return result stream
-     */
-    public <T> Stream<T> stream(List<?> pojos, Map<String, List<?>> joinSources, Class<T> cls) {
-        ExecutionContext context = prepareExecution(pojos, joinSources, cls);
-        return executeStream(context, cls);
+        return stream(datasetBundle.primaryRows(), datasetBundle.joinBindings(), cls);
     }
 
     /**
@@ -536,7 +481,8 @@ public final class SqlLikeQuery {
      */
     public <T> Stream<T> stream(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return stream(pojos, joinBindings.asMap(), cls);
+        ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
+        return executeStream(context, cls);
     }
 
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
@@ -557,7 +503,8 @@ public final class SqlLikeQuery {
      * @return chart payload
      */
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
-        return chart(pojos, Collections.emptyMap(), projectionClass, spec);
+        ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), projectionClass);
+        return executeChart(context, projectionClass, spec);
     }
 
     /**
@@ -572,25 +519,7 @@ public final class SqlLikeQuery {
      */
     public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass, ChartSpec spec) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return chart(datasetBundle.primaryRows(), datasetBundle.joinSources(), projectionClass, spec);
-    }
-
-    /**
-     * Executes SQL-like query with JOIN sources and maps output rows to chart payload.
-     *
-     * @param pojos source rows
-     * @param joinSources join source rows keyed by source name
-     * @param projectionClass projection class used by SQL-like execution
-     * @param spec chart mapping spec
-     * @param <T> projection type
-     * @return chart payload
-     */
-    public <T> ChartData chart(List<?> pojos,
-                               Map<String, List<?>> joinSources,
-                               Class<T> projectionClass,
-                               ChartSpec spec) {
-        ExecutionContext context = prepareExecution(pojos, joinSources, projectionClass);
-        return executeChart(context, projectionClass, spec);
+        return chart(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass, spec);
     }
 
     /**
@@ -608,7 +537,8 @@ public final class SqlLikeQuery {
                                Class<T> projectionClass,
                                ChartSpec spec) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return chart(pojos, joinBindings.asMap(), projectionClass, spec);
+        ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), projectionClass);
+        return executeChart(context, projectionClass, spec);
     }
 
     /**
@@ -644,7 +574,8 @@ public final class SqlLikeQuery {
      * @return explain payload with stage row counts
      */
     public <T> Map<String, Object> explain(List<?> pojos, Class<T> projectionClass) {
-        return explain(pojos, Collections.emptyMap(), projectionClass);
+        ExecutionContext explainContext = prepareExplainExecution(pojos, Collections.emptyMap(), projectionClass);
+        return buildExplainPayload(Collections.emptyMap(), buildStageRowCounts(explainContext, ast));
     }
 
     /**
@@ -658,24 +589,7 @@ public final class SqlLikeQuery {
      */
     public <T> Map<String, Object> explain(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return explain(datasetBundle.primaryRows(), datasetBundle.joinSources(), projectionClass);
-    }
-
-    /**
-     * Returns deterministic debug metadata for this SQL-like query including
-     * stage row counts for the provided execution rows and joins.
-     *
-     * @param pojos source rows
-     * @param joinSources join source rows keyed by JOIN source name
-     * @param projectionClass projection class
-     * @param <T> projection type
-     * @return explain payload with stage row counts
-     */
-    public <T> Map<String, Object> explain(List<?> pojos,
-                                           Map<String, List<?>> joinSources,
-                                           Class<T> projectionClass) {
-        ExecutionContext explainContext = prepareExplainExecution(pojos, joinSources, projectionClass);
-        return buildExplainPayload(joinSources, buildStageRowCounts(explainContext, ast));
+        return explain(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
     }
 
     /**
@@ -692,7 +606,9 @@ public final class SqlLikeQuery {
                                            JoinBindings joinBindings,
                                            Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return explain(pojos, joinBindings.asMap(), projectionClass);
+        Map<String, List<?>> joinSourceMap = joinBindings.asMap();
+        ExecutionContext explainContext = prepareExplainExecution(pojos, joinSourceMap, projectionClass);
+        return buildExplainPayload(joinSourceMap, buildStageRowCounts(explainContext, ast));
     }
 
     private Map<String, Object> buildExplainPayload(Map<String, List<?>> joinSources,

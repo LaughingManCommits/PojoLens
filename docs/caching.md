@@ -16,8 +16,7 @@ configuration surface.
 Current model:
 - direct query entry points use internal default singleton caches
 - public tuning, clearing, and observability live on `PojoLensRuntime`
-- `PojoLens`, `PojoLensCore`, and `PojoLensSql` do not expose public
-  static/global cache APIs
+- direct entry types do not expose public static/global cache APIs
 
 ## Defaults
 
@@ -58,20 +57,19 @@ Both returned cache objects expose the full policy and observability model:
 Example:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 ```
 
 ## Removed Static APIs
 
-Public static/global cache policy methods are removed from:
+Public static/global cache policy methods are removed from the public surface.
+The old `PojoLens` facade is gone, `PojoLensSql` / `PojoLensCore` no longer
+expose cache-policy mutators, and the old public
+`FilterExecutionPlanCache` default-store facade is internalized.
 
-- `PojoLens`
-- `PojoLensSql`
-- `PojoLensCore`
-
-Use `PojoLens.newRuntime()` and the returned cache handles instead.
+Use `new PojoLensRuntime()` and the returned cache handles instead.
 
 ## Instance-Scoped Runtime (DI / Multi-Tenant)
 
@@ -79,10 +77,10 @@ Runtime-scoped cache handles are the preferred public model.
 Direct non-runtime entry points still use process-default singleton caches, but
 those caches no longer have a public tuning API.
 
-For isolated cache policy per tenant/request scope, use `PojoLens.newRuntime()`:
+For isolated cache policy per tenant/request scope, use `new PojoLensRuntime()`:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 
@@ -124,4 +122,5 @@ When moving off older static/global cache APIs:
 - For hot repeated SQL-like queries, increase SQL cache size before enabling TTL.
 - For high-cardinality grouped metrics, increase stats-plan cache limits.
 - Use cache snapshots to monitor hit/miss trends after every change.
+
 

@@ -1,8 +1,6 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLensCore;
-
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import org.openjdk.jmh.annotations.Benchmark;

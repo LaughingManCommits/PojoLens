@@ -8,18 +8,24 @@
 ## Focus
 
 - The `Entropy Reduction` roadmap (`WP8.1`-`WP8.6`) is complete.
-- Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
+- Pre-v2 surface cleanup is now executed in code/docs, and the highest-priority
+  operational work is Maven Central release retry or verification for
+  `v1.0.0`.
 
 ## Verified
 
-- `2026-03-28`: `WP8.4` landed in `docs/entropy-execution-path-audit.md`.
-- `2026-03-28`: the first `WP8.5` slice landed: shared SQL-like output resolution across `filter` / `stream` / `chart`, deleted `executeIteratorWithOptionalJoin(...)`, and internalized `ChartValidation`.
-- `2026-03-28`: the second `WP8.5` slice landed: flat fluent `filter` and `chart` now share one internal materialization path across window/qualify, fast-array, fast-stats, and raw-row fallback.
-- `2026-03-28`: the final `WP8.5` slice landed: SQL-like explain stage counts now run through an unpaged bound execution context and the live fluent execution path, `FilterImpl.filterGroups(...)` shares one base distinct/filter stage runner with the row-based flat path, and the manual SQL-like `QUALIFY` replay helper is gone.
-- `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
-- `2026-03-28`: `WP8.6` landed in `docs/entropy-release-refresh.md`; README/selection docs, migration text, release wording, and benchmarking guidance now reflect the reduced default path set and the `WP8.5` execution-path changes.
-- `2026-03-28`: forked JMH spot checks were captured for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and `StreamingExecutionJmhBenchmark` to cover the exact hot paths touched by `WP8.5`.
-- `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
+- `2026-03-28`: `WP8.5` completed with shared execution-path cleanup,
+  execution-backed SQL-like explain stage counts, and `ChartValidation`
+  internalization.
+- `2026-03-28`: `WP8.6` completed with docs, migration/release wording, and
+  benchmark evidence refresh around the reduced default path set.
+- `2026-03-28`: the stronger pre-v2 cleanup stance is now executed: the
+  `PojoLens` facade, raw public join-map execution overloads, public
+  static/global cache policy methods, and the public
+  `FilterExecutionPlanCache` compatibility facade are removed.
+- `2026-03-28`: `pojo-lens-benchmarks` is aligned to the owning-type/runtime
+  surface; `mvn -q -pl pojo-lens-benchmarks -am test-compile`, `mvn -q test`,
+  and `scripts/check-doc-consistency.ps1` passed after the cleanup.
 
 ## Release
 

@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -269,7 +268,7 @@ public class SqlLikeQueryContractTest {
         List<Company> companies = sampleCompanies();
 
         List<Company> results = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
-                .filter(companies, Map.of("employees", sampleCompanyEmployees()), Company.class);
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals(1, results.size());
         assertEquals("Acme", results.get(0).name);
@@ -432,6 +431,8 @@ public class SqlLikeQueryContractTest {
         }
     }
 }
+
+
 
 
 

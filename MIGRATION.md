@@ -9,27 +9,38 @@ Published coordinates now use GitHub namespace style:
 
 Update your dependency declarations accordingly.
 
-## Facade Simplification
+## Facade Removal
 
 If you are upgrading from older unpublished or pre-1.0 builds, treat the
-explicit entry points below as the supported path now.
+explicit owning types below as the supported path now.
 
-Current helper-only facade state:
-- keep on `PojoLens`:
-  `newRuntime(...)`, keyset cursor helpers, `bundle(...)`,
-  `compareSnapshots(...)`, and `report(...)`
-- removed from `PojoLens`:
-  `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
-  `toChartData(...)`
+`PojoLens` is removed from the public surface.
 
 Replacement map:
 - `PojoLens.newQueryBuilder(rows)` ->
   `PojoLensCore.newQueryBuilder(rows)`
-- `PojoLens.parse(queryText)` -> `PojoLensSql.parse(queryText)`
+- `PojoLens.parse(queryText)` ->
+  `PojoLensSql.parse(queryText)`
 - `PojoLens.template(queryText, params...)` ->
   `PojoLensSql.template(queryText, params...)`
 - `PojoLens.toChartData(rows, spec)` ->
   `PojoLensChart.toChartData(rows, spec)`
+- `PojoLens.newRuntime()` ->
+  `new PojoLensRuntime()`
+- `PojoLens.newRuntime(preset)` ->
+  `PojoLensRuntime.ofPreset(preset)`
+- `PojoLens.newKeysetCursorBuilder()` ->
+  `SqlLikeCursor.builder()`
+- `PojoLens.parseKeysetCursor(token)` ->
+  `SqlLikeCursor.fromToken(token)`
+- `PojoLens.report(sqlQuery, projectionClass, ...)` ->
+  `ReportDefinition.sql(sqlQuery, projectionClass, ...)`
+- `PojoLens.report(projectionClass, configurer, ...)` ->
+  `ReportDefinition.fluent(projectionClass, configurer, ...)`
+- `PojoLens.bundle(...)` ->
+  `DatasetBundle.of(...)`
+- `PojoLens.compareSnapshots(currentRows, previousRows)` ->
+  `SnapshotComparison.builder(currentRows, previousRows)`
 
 ## Advanced Helper Narrowing
 
@@ -74,7 +85,7 @@ PojoLens.setStatsPlanCacheExpireAfterWriteMillis(30_000L);
 After:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 ```
@@ -89,6 +100,7 @@ Current cache-policy state:
 - public static/global cache policy methods are removed from `PojoLens`
 - public static/global cache policy methods are removed from `PojoLensSql`
 - public static/global cache policy methods are removed from `PojoLensCore`
+- the public `FilterExecutionPlanCache` compatibility facade is removed
 - the default singleton caches remain internal implementation details for the
   direct non-runtime entry points
 
@@ -129,8 +141,7 @@ Additional typed overloads now available:
 
 ## Explicit Entry Points (Core / SQL / Chart)
 
-`PojoLens` remains available as a helper-only compatibility facade, but query
-and chart entry now live on explicit types:
+Query and chart entry live on explicit types:
 - `PojoLensCore.newQueryBuilder(...)`
 - `PojoLensSql.parse(...)`
 - `PojoLensChart.toChartData(...)`
@@ -142,7 +153,7 @@ Use these directly if you want explicit dependency boundaries in your applicatio
 If you need DI/test isolation or per-tenant cache policy, use:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setMaxEntries(2048);
 ```
@@ -252,8 +263,10 @@ List<Employee> rows = query
 Join-aware typed bind is also supported:
 
 ```java
+JoinBindings joinBindings = JoinBindings.of("employees", employees);
+
 List<Company> rows = query
-    .bindTyped(companies, Company.class, joinSources)
+    .bindTyped(companies, Company.class, joinBindings)
     .filter();
 ```
 
@@ -277,25 +290,21 @@ Validation behavior:
 
 ## SQL-like Typed Join Bindings
 
-You can replace raw `Map<String, List<?>>` join sources with typed bindings.
+Public SQL-like multi-source execution now accepts `JoinBindings` only.
 
-Before:
-
-```java
-Map<String, List<?>> joinSources = new HashMap<>();
-joinSources.put("employees", employees);
-List<Company> rows = query.filter(companies, joinSources, Company.class);
-```
-
-After:
+Direct usage:
 
 ```java
 JoinBindings joinBindings = JoinBindings.of("employees", employees);
 List<Company> rows = query.filter(companies, joinBindings, Company.class);
 ```
 
-Backwards compatibility:
-- Existing map-based SQL-like join APIs remain unchanged.
+Boundary adaptation from an existing map:
+
+```java
+JoinBindings joinBindings = JoinBindings.from(joinSources);
+List<Company> rows = query.filter(companies, joinBindings, Company.class);
+```
 
 ## HAVING v1 Design Note
 
@@ -357,7 +366,7 @@ API entry points:
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
-- `SqlLikeQuery.chart(List<?>, Map<String,List<?>>, Class<T>, ChartSpec)`
+- `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 
 ## Builder Public Surface Cleanup
 
@@ -379,4 +388,5 @@ API entry points:
 - `setReturnFields`
 
 Use the fluent `QueryBuilder` methods instead (`addRule`, `addGroup`, `addOrder`, `addDistinct`, `addField`, `limit`, joins, metrics, time buckets). Internal pipeline state is now managed only inside the execution engine.
+
 

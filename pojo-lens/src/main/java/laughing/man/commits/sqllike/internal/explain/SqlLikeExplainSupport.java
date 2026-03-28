@@ -11,7 +11,7 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.cache.DefaultSqlLikeQueryCacheSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
@@ -67,7 +67,7 @@ public final class SqlLikeExplainSupport {
             explain.put("lintWarnings", SqlLikeLintSupport.warningEntries(lintWarnings));
         }
         explain.put("sqlLikeCache", DefaultSqlLikeQueryCacheSupport.snapshot());
-        explain.put("statsPlanCache", FilterExecutionPlanCache.snapshot());
+        explain.put("statsPlanCache", DefaultFilterExecutionPlanCacheSupport.snapshot());
         explain.put("stageRowCounts", stageRowCounts);
         return Collections.unmodifiableMap(explain);
     }

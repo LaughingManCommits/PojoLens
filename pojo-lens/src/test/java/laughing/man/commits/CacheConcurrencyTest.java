@@ -26,7 +26,7 @@ public class CacheConcurrencyTest {
 
     @BeforeEach
     public void setUp() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
 
         runtime.sqlLikeCache().setEnabled(true);
         runtime.sqlLikeCache().setStatsEnabled(true);
@@ -192,3 +192,5 @@ public class CacheConcurrencyTest {
         }
     }
 }
+
+

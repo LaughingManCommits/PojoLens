@@ -95,9 +95,11 @@ Suggested release-note wording for the `WP8.5`/`WP8.6` refresh:
 > PojoLens now documents one default path per job: `PojoLensCore`,
 > `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and `ReportDefinition<T>`.
 > `JoinBindings` is the default one-off multi-source binding input, with
-> `DatasetBundle` as the reusable snapshot form. SQL-like execution explain now
-> reports stage counts from the live bound execution path, including stable
-> `HAVING`/`QUALIFY` counts without `ORDER BY`. The legacy
+> `DatasetBundle` as the reusable snapshot form. Cache policy tuning is now
+> public only through `PojoLensRuntime`; the old
+> `FilterExecutionPlanCache` compatibility facade is gone. SQL-like execution
+> explain now reports stage counts from the live bound execution path,
+> including stable `HAVING`/`QUALIFY` counts without `ORDER BY`. The legacy
 > `chart.validation.ChartValidation` helper is no longer a supported public
 > contract.
 
@@ -109,3 +111,4 @@ Suggested release-note wording for the `WP8.5`/`WP8.6` refresh:
   surface and the explain-stage-count alignment
 - benchmark evidence now exists for the exact grouped, execution-explain, and
   streaming paths touched during `WP8.5`
+

@@ -28,7 +28,7 @@ public class DatasetBundleExecutionContextTest {
 
     @Test
     public void sqlLikeQueryShouldSupportBundleFilterBindChartAndExplain() {
-        DatasetBundle bundle = PojoLens.bundle(
+        DatasetBundle bundle = DatasetBundle.of(
                 sampleCompanies(),
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
@@ -59,18 +59,18 @@ public class DatasetBundleExecutionContextTest {
 
     @Test
     public void reportDefinitionsAndChartPresetsShouldSupportBundleExecution() {
-        DatasetBundle joinBundle = PojoLens.bundle(
+        DatasetBundle joinBundle = DatasetBundle.of(
                 sampleCompanies(),
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
-        ReportDefinition<Company> report = PojoLens.report(
+        ReportDefinition<Company> report = ReportDefinition.sql(
                 PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
                 Company.class
         );
 
         List<Company> reportRows = report.rows(joinBundle);
 
-        DatasetBundle employeeBundle = PojoLens.bundle(sampleEmployees());
+        DatasetBundle employeeBundle = DatasetBundle.of(sampleEmployees());
         ChartQueryPreset<DepartmentCountRow> preset = ChartQueryPresets
                 .categoryCounts("department", "total", DepartmentCountRow.class);
         List<DepartmentCountRow> presetRows = preset.rows(employeeBundle);
@@ -102,7 +102,7 @@ public class DatasetBundleExecutionContextTest {
 
     @Test
     public void datasetBundleWithoutNamedSourcesShouldPreserveExplicitMissingSourceErrors() {
-        DatasetBundle bundle = PojoLens.bundle(sampleCompanies());
+        DatasetBundle bundle = DatasetBundle.of(sampleCompanies());
 
         try {
             PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
@@ -122,5 +122,7 @@ public class DatasetBundleExecutionContextTest {
     }
 
 }
+
+
 
 

@@ -60,11 +60,7 @@ public final class StatsViewPreset<T> {
     }
 
     public List<T> rows(List<?> sourceRows) {
-        return rows(sourceRows, Collections.emptyMap());
-    }
-
-    public List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return query.filter(sourceRows, joinSources, projectionClass);
+        return query.filter(sourceRows, projectionClass);
     }
 
     public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
@@ -78,14 +74,10 @@ public final class StatsViewPreset<T> {
     }
 
     public Map<String, Object> totals(List<?> sourceRows) {
-        return totals(sourceRows, Collections.emptyMap());
-    }
-
-    public Map<String, Object> totals(List<?> sourceRows, Map<String, List<?>> joinSources) {
         if (totalsQuery == null) {
             return Collections.emptyMap();
         }
-        List<T> totalRows = totalsQuery.filter(sourceRows, joinSources, projectionClass);
+        List<T> totalRows = totalsQuery.filter(sourceRows, projectionClass);
         if (totalRows.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -94,38 +86,37 @@ public final class StatsViewPreset<T> {
 
     public Map<String, Object> totals(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return totals(sourceRows, joinBindings.asMap());
+        if (totalsQuery == null) {
+            return Collections.emptyMap();
+        }
+        List<T> totalRows = totalsQuery.filter(sourceRows, joinBindings, projectionClass);
+        if (totalRows.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return TabularRows.firstRowAsMap(totalRows, totalsQuery.schema(projectionClass));
     }
 
     public Map<String, Object> totals(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return totals(datasetBundle.primaryRows(), datasetBundle.joinSources());
+        return totals(datasetBundle.primaryRows(), datasetBundle.joinBindings());
     }
 
     public StatsTable<T> table(List<?> sourceRows) {
-        return table(sourceRows, Collections.emptyMap());
-    }
-
-    public StatsTable<T> table(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return StatsTable.of(rows(sourceRows, joinSources), totals(sourceRows, joinSources), schema());
+        return StatsTable.of(rows(sourceRows), totals(sourceRows), schema());
     }
 
     public StatsTable<T> table(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return table(sourceRows, joinBindings.asMap());
+        return StatsTable.of(rows(sourceRows, joinBindings), totals(sourceRows, joinBindings), schema());
     }
 
     public StatsTable<T> table(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return table(datasetBundle.primaryRows(), datasetBundle.joinSources());
+        return table(datasetBundle.primaryRows(), datasetBundle.joinBindings());
     }
 
     public StatsTablePayload tablePayload(List<?> sourceRows) {
         return table(sourceRows).payload();
-    }
-
-    public StatsTablePayload tablePayload(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return table(sourceRows, joinSources).payload();
     }
 
     public StatsTablePayload tablePayload(List<?> sourceRows, JoinBindings joinBindings) {

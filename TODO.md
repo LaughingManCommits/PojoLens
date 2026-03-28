@@ -11,16 +11,22 @@ Prefer deletions and internalization over reshuffling.
 - keep one default path per job:
   `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
   `ReportDefinition`
-- internalize implementation details that do not need public `1.x` contracts
+- internalize implementation details that do not need to survive into the
+  intended `v2` surface
 - only take execution-path cleanup that is plausibly performance-neutral or
   performance-positive
 
 ## Decision Gate
 
 Resolved for this roadmap:
-- stable-surface removals wait for `2.x`
-- advanced/helper implementation leaks may be narrowed in `1.x` when the
-  stable compatibility gate is unaffected and migration notes are explicit
+- pre-v2 stable-surface cleanup is allowed when it removes compatibility-only
+  overlap and migration notes are explicit
+- the intended default surface is:
+  `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`,
+  `ReportDefinition`, `JoinBindings`, and `DatasetBundle`
+- compatibility-only wrappers/adapters such as the `PojoLens` facade and raw
+  public join-map execution overloads may be removed before the first `v2`
+  release
 
 ## Status Model
 
@@ -103,12 +109,13 @@ Acceptance criteria:
 
 Result:
 - delivered in `docs/entropy-internalization-decision.md`
-- approved `1.x` internalization for builder/filter internals, execution-plan
-  types, SQL-like parser/AST helpers, chart mapping helpers, intermediate row
-  models, and support/util packages
+- approved pre-v2 internalization for builder/filter internals,
+  execution-plan types, SQL-like parser/AST helpers, chart mapping helpers,
+  intermediate row models, and support/util packages
 - kept `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`, and
-  `SqlLikeErrorCodes` public in `1.x`, with package cleanup deferred unless it
-  also removes code
+  `SqlLikeErrorCodes` public as advanced runtime-facing handles
+- removed the public `FilterExecutionPlanCache` compatibility facade so direct
+  entry points now rely on internal default cache ownership
 
 ### `WP8.3` Wrapper and Binding Simplification
 
@@ -139,8 +146,7 @@ Result:
 - established `ReportDefinition<T>` as the canonical reusable-query contract
   for docs and new code
 - established the default multi-source binding progression as
-  `JoinBindings` first, then `DatasetBundle` when the same snapshot is reused,
-  with raw map overloads retained only as compatibility-first paths
+  `JoinBindings` first, then `DatasetBundle` when the same snapshot is reused
 - realigned README and core docs to lead with `ReportDefinition<T>`,
   `JoinBindings`, and `DatasetBundle`
 

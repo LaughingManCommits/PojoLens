@@ -116,3 +116,5 @@ final class ChartResultMapperFixtures {
         }
     }
 }
+
+

@@ -1,6 +1,5 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -48,7 +47,7 @@ public class SqlLikePipelineJmhBenchmark {
 
     @Setup
     public void setup() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         source = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             String value = "s" + BenchmarkProfiles.deterministicInt(BenchmarkProfiles.DATA_SEED, i, 100);

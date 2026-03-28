@@ -177,9 +177,9 @@
                                 <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
                                 <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
                                 <includes>
-                                    <include>laughing.man.commits.PojoLens</include>
                                     <include>laughing.man.commits.PojoLensCore</include>
                                     <include>laughing.man.commits.PojoLensSql</include>
+                                    <include>laughing.man.commits.PojoLensChart</include>
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>

@@ -2,7 +2,6 @@ package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.domain.Foo;
@@ -222,7 +221,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
 
         List<Foo> distinctRows = PojoLensCore.newQueryBuilder(source)
                 .addDistinct(Foo::getStringField)
-                .addRule(Foo::getDateField, now, Clauses.EQUAL, Separator.AND, PojoLens.SDF)
+                .addRule(Foo::getDateField, now, Clauses.EQUAL, Separator.AND, PojoLensCore.SDF)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(2, distinctRows.size());
@@ -257,4 +256,6 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals("c1", joined.get(0).tag);
     }
 }
+
+
 

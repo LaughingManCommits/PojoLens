@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
@@ -104,7 +103,7 @@ public class SqlLikeTemplateContractTest {
 
     @Test
     public void runtimeTemplateEntryPointShouldReuseRuntimeParsingCache() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         SqlLikeTemplate template = runtime.template(
                 "where department = :dept and active = :active order by salary desc",
                 "dept",
@@ -122,6 +121,8 @@ public class SqlLikeTemplateContractTest {
         return rows.stream().map(r -> r.name).collect(Collectors.toList());
     }
 }
+
+
 
 
 

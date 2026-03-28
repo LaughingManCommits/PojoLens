@@ -20,7 +20,7 @@ Use it when the same report/query shape is executed across:
 ## SQL-like Report Definition
 
 ```java
-ReportDefinition<DepartmentCount> report = PojoLens.report(
+ReportDefinition<DepartmentCount> report = ReportDefinition.sql(
     PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
     DepartmentCount.class,
     ChartSpec.of(ChartType.BAR, "department", "total"));
@@ -41,7 +41,7 @@ If the same snapshot is reused across multiple report calls, wrap the primary
 rows plus `JoinBindings` once in `DatasetBundle`:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -52,7 +52,7 @@ ChartData chart = report.chart(bundle);
 ## Fluent Report Definition
 
 ```java
-ReportDefinition<DepartmentCount> report = PojoLens.report(
+ReportDefinition<DepartmentCount> report = ReportDefinition.fluent(
     DepartmentCount.class,
     builder -> builder
         .addRule("active", true, Clauses.EQUAL)
@@ -73,7 +73,7 @@ ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
     .add("adjustedSalary", "salary * 1.1", Double.class)
     .build();
 
-ReportDefinition<DepartmentAdjustedPayroll> report = PojoLens.report(
+ReportDefinition<DepartmentAdjustedPayroll> report = ReportDefinition.sql(
     PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
         .computedFields(registry),
     DepartmentAdjustedPayroll.class);
@@ -88,7 +88,7 @@ If the report definition was created without a `ChartSpec`, `chart(...)` will th
 You can attach one later:
 
 ```java
-ReportDefinition<DepartmentCount> rowsOnly = PojoLens.report(
+ReportDefinition<DepartmentCount> rowsOnly = ReportDefinition.sql(
     PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
@@ -132,4 +132,5 @@ ReportDefinition<DepartmentCount> report = StatsViewPresets
     .by("department", DepartmentCount.class)
     .reportDefinition();
 ```
+
 
