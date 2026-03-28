@@ -37,8 +37,8 @@ Resolved for this roadmap:
 | `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Done`    | decision gate                 |
 | `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
-| `WP8.4` Execution Path Unification Audit      | `P1`     | `Ready`   | `WP8.1` findings              |
-| `WP8.5` Entropy Reduction Implementation      | `P0`     | `Planned` | `WP8.2`, `WP8.3`, `WP8.4`     |
+| `WP8.4` Execution Path Unification Audit      | `P1`     | `Done`    | `WP8.1` findings              |
+| `WP8.5` Entropy Reduction Implementation      | `P0`     | `Ready`   | `WP8.2`, `WP8.3`, `WP8.4`     |
 | `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Planned` | `WP8.5`                       |
 
 ## Work Packages
@@ -150,7 +150,7 @@ Priority:
 - `P1`
 
 Status:
-- `Planned`
+- `Done`
 
 Goal:
 - find duplicate execution, planning, binding, or materialization paths whose
@@ -169,13 +169,24 @@ Acceptance criteria:
 - execution-path cleanup is sequenced behind surface decisions, not mixed with
   them blindly
 
+Result:
+- delivered in `docs/entropy-execution-path-audit.md`
+- identified three primary `WP8.5` targets:
+  shared fluent stage running, shared SQL-like stage accounting, and unified
+  SQL-like output materialization
+- identified one low-risk cleanup target:
+  optional-join helper consolidation beginning with the unused
+  `executeIteratorWithOptionalJoin(...)`
+- explicitly deferred prepared-rebind mode removal and broad chart/tabular
+  helper convergence as lower-value or higher-risk than the stage-runner work
+
 ### `WP8.5` Entropy Reduction Implementation
 
 Priority:
 - `P0`
 
 Status:
-- `Planned`
+- `Ready`
 
 Goal:
 - implement the chosen surface reductions, internalizations, and execution-path

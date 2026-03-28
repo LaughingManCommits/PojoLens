@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-28T08:25:55.425424+01:00",
+  "generatedAt": "2026-03-28T09:23:21.707005+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 40,
-      "byteCount": 2200,
+      "lineCount": 42,
+      "byteCount": 2411,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 41,
-      "byteCount": 2475,
+      "lineCount": 42,
+      "byteCount": 2765,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 10,
-      "byteCount": 1289,
+      "lineCount": 12,
+      "byteCount": 1597,
       "coldSearchEligible": true
     },
     {
@@ -233,6 +233,15 @@
       "loadTier": null,
       "lineCount": 212,
       "byteCount": 29745,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/entropy-execution-path-audit.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 182,
+      "byteCount": 8844,
       "coldSearchEligible": true
     },
     {
@@ -429,8 +438,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 224,
-      "byteCount": 7673,
+      "lineCount": 235,
+      "byteCount": 8185,
       "coldSearchEligible": true
     }
   ]

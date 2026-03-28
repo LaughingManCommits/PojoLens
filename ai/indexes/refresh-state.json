@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-28T08:25:55.425424+01:00",
+  "generatedAt": "2026-03-28T09:23:21.707005+01:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "0fd605430938caf8353efc2abffa6e5c8b220901b37f8929a3a18e8758dc5146",
+      "inputHash": "db546652af71c180c316b67beee89e6ff98b7b1921546d378780d48efaef6dc0",
       "pathHashes": {
         "AGENTS.md": "d01e9ffd396dcc1580070a50ab52a6d8984e9c7345560e0e13834a8af017cc9f",
         "ai/AGENTS.md": "feef666660b4f132ac4a9acbb7115cf9b562732aaef9fbacf5771d10e3545d05",
@@ -21,9 +21,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "f4e2647646cb200947ad2a56fe859d13d84344ae74d1fd650eec22b17a2a5d79",
-        "ai/state/handoff.md": "ed16b424715f5e353913649abe6194b279abe933794ee4ee3073c7d19bb81d9b",
-        "ai/state/recent-validations.md": "81c7c10e8c15511b918dcc1473ccb5a47f6d0af745c35d3af6b0d0d4ffdd1ecd",
+        "ai/state/current-state.md": "4278bf322c30af49fa82946700541ada111ddbbe54da07a505a81ad935c4c979",
+        "ai/state/handoff.md": "d8bbe5040e99e14dcf99ad5267b16fe251cbb9d7ed155b5ae25b7b0a5e9332c0",
+        "ai/state/recent-validations.md": "02cce65a26b6e10b87120319b8dbab035f9f46b17305f397c25c027c41eb719a",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
         "docs/benchmarking.md": "09b80a5d535ee147709c793d2249b511749aff6d850b35f4ce1045f52705484c",
@@ -32,6 +32,7 @@
         "docs/computed-fields.md": "414c396626b305806fd2f2ac068907ebbb126720a7da2eacfec7ea033bd5c496",
         "docs/consolidation-review.md": "6e14d1f897fdaf32cbc746f93887749fd4d25373b542b0f97d4884f23e5e82af",
         "docs/entropy-audit.md": "76793341dc06db333d3def2d92593bdbbafbef33149a3ebfaec98f4472e05185",
+        "docs/entropy-execution-path-audit.md": "e96534a367a07901752195f8ebf7fbb53715e454233f467f747f66cbed595baf",
         "docs/entropy-internalization-decision.md": "49b82f5e44e496563a5475176186956e3aa51f8f7c5fdc9c648e445178f29b6f",
         "docs/entropy-wrapper-binding-decision.md": "048d2dc58cbb05e5d1c5e128a813c8164e7792aef246ad06f8c2482206be0bd4",
         "docs/entry-points.md": "bd18455322232ac3fdc7dea2bf739b0d41c71c9580548e9d0b7d2d02aca3f9eb",
@@ -54,12 +55,12 @@
         "README.md": "c9d8b6fcf20448cf3778b06a18efe1faefd319144c7d2db90164ef913fb0ab23",
         "RELEASE.md": "d539290f0f08401bf3ce12d4c6fd89a62da14aca71f59e558b84198f8e98538f",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "4004dc5b8e92349966512544184be258bfe7d475772aa5f92b75e3d7ad88e29a"
+        "TODO.md": "f548f6076fa70b0551bdbea19c16909f64b3837a2ed6f0d65451e7fe1c7a422c"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "4904df98d166e56b0b4edd8e8c86937fcd2d6d1ce94b617ca05c0b7f34095eef",
+      "inputHash": "f17b77082661052fad719f9f3ba28380596cec38599e1d4cba57531c04d15f95",
       "pathHashes": {
         ".github/workflows/ci.yml": "3ce945881e198c027ce37cc24bcfca42578f36d2c2094aa48f4a01d077fd63ad",
         ".github/workflows/release.yml": "29d5241aae0cb37d2614384cebfbc43d8da9d67248147997c24dc2d9c3962377",
@@ -78,9 +79,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "f4e2647646cb200947ad2a56fe859d13d84344ae74d1fd650eec22b17a2a5d79",
-        "ai/state/handoff.md": "ed16b424715f5e353913649abe6194b279abe933794ee4ee3073c7d19bb81d9b",
-        "ai/state/recent-validations.md": "81c7c10e8c15511b918dcc1473ccb5a47f6d0af745c35d3af6b0d0d4ffdd1ecd",
+        "ai/state/current-state.md": "4278bf322c30af49fa82946700541ada111ddbbe54da07a505a81ad935c4c979",
+        "ai/state/handoff.md": "d8bbe5040e99e14dcf99ad5267b16fe251cbb9d7ed155b5ae25b7b0a5e9332c0",
+        "ai/state/recent-validations.md": "02cce65a26b6e10b87120319b8dbab035f9f46b17305f397c25c027c41eb719a",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
         "docs/benchmarking.md": "09b80a5d535ee147709c793d2249b511749aff6d850b35f4ce1045f52705484c",
@@ -89,6 +90,7 @@
         "docs/computed-fields.md": "414c396626b305806fd2f2ac068907ebbb126720a7da2eacfec7ea033bd5c496",
         "docs/consolidation-review.md": "6e14d1f897fdaf32cbc746f93887749fd4d25373b542b0f97d4884f23e5e82af",
         "docs/entropy-audit.md": "76793341dc06db333d3def2d92593bdbbafbef33149a3ebfaec98f4472e05185",
+        "docs/entropy-execution-path-audit.md": "e96534a367a07901752195f8ebf7fbb53715e454233f467f747f66cbed595baf",
         "docs/entropy-internalization-decision.md": "49b82f5e44e496563a5475176186956e3aa51f8f7c5fdc9c648e445178f29b6f",
         "docs/entropy-wrapper-binding-decision.md": "048d2dc58cbb05e5d1c5e128a813c8164e7792aef246ad06f8c2482206be0bd4",
         "docs/entry-points.md": "bd18455322232ac3fdc7dea2bf739b0d41c71c9580548e9d0b7d2d02aca3f9eb",
@@ -397,7 +399,7 @@
         "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "4004dc5b8e92349966512544184be258bfe7d475772aa5f92b75e3d7ad88e29a"
+        "TODO.md": "f548f6076fa70b0551bdbea19c16909f64b3837a2ed6f0d65451e7fe1c7a422c"
       }
     },
     "symbols": {

@@ -8,7 +8,7 @@
 
 ## Focus
 
-- `Entropy Reduction` is active; `WP8.1` through `WP8.3` are complete and `WP8.4` is next.
+- `Entropy Reduction` is active; `WP8.1` through `WP8.4` are complete and `WP8.5` is next.
 - Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
 - Hot memory should stay minimal; exact validation history lives in `ai/state/recent-validations.md`.
 
@@ -18,6 +18,7 @@
 - `2026-03-27`: AI memory refresh/check and benchmark passed; SQLite cold search and fixed-query hit quality are verified.
 - `2026-03-27`: `WP8.1` and `WP8.2` artifacts landed in `docs/entropy-audit.md` and `docs/entropy-internalization-decision.md`.
 - `2026-03-28`: `WP8.3` landed in `docs/entropy-wrapper-binding-decision.md`; docs now default to `ReportDefinition<T>` and `JoinBindings` -> `DatasetBundle`.
+- `2026-03-28`: `WP8.4` landed in `docs/entropy-execution-path-audit.md`; `WP8.5` now has three primary targets: shared fluent stage running, shared SQL-like stage accounting, and unified SQL-like output materialization, plus low-risk optional-join cleanup.
 - `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
 ## Release
@@ -34,7 +35,8 @@
 
 ## Next
 
-- Start `WP8.4` and map duplicate execution, planning, binding, and materialization paths.
-- Use `docs/entropy-internalization-decision.md` and `docs/entropy-wrapper-binding-decision.md` to scope `WP8.5`.
+- Start `WP8.5` using `docs/entropy-internalization-decision.md`,
+  `docs/entropy-wrapper-binding-decision.md`, and
+  `docs/entropy-execution-path-audit.md`.
 - Retry the release workflow or a manual release dispatch for `v1.0.0`.
 - After structural or doc changes, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
