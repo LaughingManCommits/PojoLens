@@ -1,27 +1,22 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryWindow;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.enums.Separator;
 import laughing.man.commits.filter.FastStatsQuerySupport;
-import laughing.man.commits.filter.FilterCore;
-import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionContext;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionRun;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
+import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
-import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.Collections;
@@ -163,95 +158,39 @@ final class SqlLikeExecutionFlowSupport {
         throw new IllegalStateException("Unhandled SQL-like output mode: " + output.mode());
     }
 
-    static Map<String, Object> buildStageRowCounts(ExecutionContext context) {
-        FilterQueryBuilder working = context.newRun().builder();
-        FilterCore core = new FilterCore(working);
-        if (context.applyJoin()) {
-            working.setRows(core.join(working.getRows()));
-            core = new FilterCore(working);
-        }
+    static Map<String, Object> buildStageRowCounts(ExecutionContext context, QueryAst originalAst) {
+        FilterQueryBuilder working = context.newExecutionBuilder();
+        StageTelemetryCollector collector = new StageTelemetryCollector();
+        working.telemetryContext("sql-like", "sql-like-explain", collector);
+        materializeSourceRows(working);
+        List<QueryRow> unpagedRows = SqlLikeExecutionSupport.executeWithOptionalJoin(
+                working,
+                context.sort(),
+                context.applyJoin(),
+                QueryRow.class
+        );
 
         boolean whereApplied = hasWherePredicates(working);
         boolean groupApplied = !working.getMetrics().isEmpty();
         boolean havingApplied = hasHavingPredicates(working);
         boolean qualifyApplied = hasQualifyPredicates(working);
         boolean orderApplied = !working.getOrderFields().isEmpty();
-        boolean limitApplied = working.getLimit() != null || (working.getOffset() != null && working.getOffset() > 0);
-        Integer paginationWindow = CollectionUtil.pagingWindow(working.getOffset(), working.getLimit());
+        boolean limitApplied = originalAst.hasLimitClause() || originalAst.hasOffsetClause();
 
-        int beforeWhere = sizeOf(working.getRows());
-        int afterWhere = beforeWhere;
+        int beforeWhere = collector.before(QueryTelemetryStage.FILTER);
+        int afterWhere = collector.after(QueryTelemetryStage.FILTER);
         int beforeGroup = afterWhere;
-        int afterGroup = beforeGroup;
+        int afterGroup = groupApplied ? collector.after(QueryTelemetryStage.AGGREGATE) : afterWhere;
         int beforeHaving = afterGroup;
-        int afterHaving = beforeHaving;
+        int afterHaving = groupApplied ? unpagedRows.size() : afterGroup;
         int beforeQualify = afterHaving;
-        int afterQualify = beforeQualify;
+        int afterQualify = qualifyApplied ? unpagedRows.size() : afterHaving;
         int beforeOrder = afterQualify;
-        int afterOrder = beforeOrder;
+        int afterOrder = orderApplied ? unpagedRows.size() : afterQualify;
         int beforeLimit = afterOrder;
-        int afterLimit = beforeLimit;
-
-        if (working.getRows() != null && !working.getRows().isEmpty()) {
-            if (working.requiresRuntimeSchemaCleaning()) {
-                core.clean(working.getRows().get(0));
-            }
-            FilterExecutionPlan plan = core.buildExecutionPlan();
-            List<QueryRow> distinctRows = core.filterDistinctFields(plan);
-            beforeWhere = sizeOf(distinctRows);
-            List<QueryRow> whereRows = core.filterFields(distinctRows, plan);
-            afterWhere = sizeOf(whereRows);
-
-            beforeGroup = afterWhere;
-            List<QueryRow> groupedRows = whereRows;
-            if (groupApplied) {
-                groupedRows = core.aggregateMetrics(whereRows, plan);
-            }
-            afterGroup = sizeOf(groupedRows);
-
-            beforeHaving = afterGroup;
-            List<QueryRow> havingRows = groupedRows;
-            FilterCore groupedCore = null;
-            FilterExecutionPlan groupedPlan = null;
-            if (havingApplied) {
-                FilterQueryBuilder havingBuilder = working.snapshotForRows(groupedRows);
-                groupedCore = new FilterCore(havingBuilder);
-                groupedPlan = groupedCore.buildExecutionPlan();
-                havingRows = groupedCore.filterHavingFields(groupedRows, groupedPlan);
-            }
-            afterHaving = sizeOf(havingRows);
-            beforeQualify = afterHaving;
-            List<QueryRow> qualifyRows = havingRows;
-            if (qualifyApplied) {
-                qualifyRows = applyQualifyStageViaFluent(working, havingRows);
-            }
-            afterQualify = sizeOf(qualifyRows);
-
-            beforeOrder = afterQualify;
-            List<QueryRow> orderedRows = qualifyRows;
-            if (orderApplied) {
-                if (groupedPlan != null && groupedCore != null) {
-                    FilterQueryBuilder orderBuilder = groupedCore.getBuilder().snapshotForRows(qualifyRows);
-                    FilterCore orderCore = new FilterCore(orderBuilder);
-                    FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(qualifyRows, context.sort(), orderPlan, paginationWindow);
-                } else {
-                    FilterQueryBuilder orderBuilder = working.snapshotForRows(qualifyRows);
-                    FilterCore orderCore = new FilterCore(orderBuilder);
-                    FilterExecutionPlan orderPlan = orderCore.buildExecutionPlan();
-                    orderedRows = orderCore.orderByFields(qualifyRows, context.sort(), orderPlan, paginationWindow);
-                }
-            }
-            afterOrder = sizeOf(orderedRows);
-
-            beforeLimit = afterOrder;
-            List<QueryRow> limitedRows = CollectionUtil.applyOffsetAndLimit(
-                    orderedRows,
-                    working.getOffset(),
-                    working.getLimit()
-            );
-            afterLimit = sizeOf(limitedRows);
-        }
+        int afterLimit = limitApplied
+                ? applyOffsetAndLimitCount(afterOrder, originalAst.offset(), originalAst.limit())
+                : afterOrder;
 
         Map<String, Object> stageCounts = new LinkedHashMap<>();
         stageCounts.put("where", stageEntry(whereApplied, beforeWhere, afterWhere));
@@ -338,42 +277,17 @@ final class SqlLikeExecutionFlowSupport {
                 && !select.hasWindowFields();
     }
 
-    private static List<QueryRow> applyQualifyStageViaFluent(FilterQueryBuilder sourceBuilder, List<QueryRow> inputRows) {
-        if (inputRows == null || inputRows.isEmpty()) {
-            return inputRows;
-        }
-        FilterQueryBuilder qualifyBuilder = new FilterQueryBuilder(inputRows).copyOnBuild(false);
-        for (QueryWindow window : sourceBuilder.getWindows()) {
-            qualifyBuilder.addWindow(
-                    window.alias(),
-                    window.function(),
-                    window.valueField(),
-                    window.countAll(),
-                    window.partitionFields(),
-                    window.orderFields()
-            );
-        }
-        for (Map.Entry<String, String> fieldEntry : sourceBuilder.getQualifyFields().entrySet()) {
-            String ruleId = fieldEntry.getKey();
-            qualifyBuilder.addQualify(
-                    fieldEntry.getValue(),
-                    sourceBuilder.getQualifyValues().get(ruleId),
-                    sourceBuilder.getQualifyClause().get(ruleId),
-                    sourceBuilder.getQualifySeparator().getOrDefault(ruleId, Separator.AND),
-                    sourceBuilder.getQualifyDateFormats().get(ruleId)
-            );
-        }
-        for (List<QueryRule> group : sourceBuilder.getQualifyAllOfGroups()) {
-            qualifyBuilder.addQualifyAllOf(group.toArray(new QueryRule[0]));
-        }
-        for (List<QueryRule> group : sourceBuilder.getQualifyAnyOfGroups()) {
-            qualifyBuilder.addQualifyAnyOf(group.toArray(new QueryRule[0]));
-        }
-        return qualifyBuilder.initFilter().filter(QueryRow.class);
+    private static void materializeSourceRows(FilterQueryBuilder builder) {
+        builder.setRows(builder.getRows(), builder.getSourceFieldTypesForExecution());
     }
 
-    private static int sizeOf(List<?> rows) {
-        return rows == null ? 0 : rows.size();
+    private static int applyOffsetAndLimitCount(int rowCount, Integer offset, Integer limit) {
+        int normalizedOffset = offset == null ? 0 : Math.max(offset, 0);
+        int remaining = Math.max(rowCount - normalizedOffset, 0);
+        if (limit == null) {
+            return remaining;
+        }
+        return Math.min(remaining, Math.max(limit, 0));
     }
 
     private static Map<String, Object> stageEntry(boolean applied, int before, int after) {
@@ -416,5 +330,31 @@ final class SqlLikeExecutionFlowSupport {
     private record OutputResolution(OutputMode mode,
                                     SelectAst select,
                                     FastStatsQuerySupport.FastStatsState statsState) {
+    }
+
+    private static final class StageTelemetryCollector implements QueryTelemetryListener {
+        private final Map<QueryTelemetryStage, QueryTelemetryEvent> events = new LinkedHashMap<>();
+
+        @Override
+        public void onTelemetry(QueryTelemetryEvent event) {
+            if (event == null) {
+                return;
+            }
+            switch (event.stage()) {
+                case FILTER, AGGREGATE, ORDER -> events.put(event.stage(), event);
+                default -> {
+                }
+            }
+        }
+
+        private int before(QueryTelemetryStage stage) {
+            QueryTelemetryEvent event = events.get(stage);
+            return event == null || event.rowCountBefore() == null ? 0 : event.rowCountBefore();
+        }
+
+        private int after(QueryTelemetryStage stage) {
+            QueryTelemetryEvent event = events.get(stage);
+            return event == null || event.rowCountAfter() == null ? 0 : event.rowCountAfter();
+        }
     }
 }

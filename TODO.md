@@ -38,8 +38,8 @@ Resolved for this roadmap:
 | `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.4` Execution Path Unification Audit      | `P1`     | `Done`    | `WP8.1` findings              |
-| `WP8.5` Entropy Reduction Implementation      | `P0`     | `In progress` | `WP8.2`, `WP8.3`, `WP8.4`     |
-| `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Planned` | `WP8.5`                       |
+| `WP8.5` Entropy Reduction Implementation      | `P0`     | `Done` | `WP8.2`, `WP8.3`, `WP8.4`     |
+| `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Ready` | `WP8.5`                       |
 
 ## Work Packages
 
@@ -186,7 +186,7 @@ Priority:
 - `P0`
 
 Status:
-- `In progress`
+- `Done`
 
 Goal:
 - implement the chosen surface reductions, internalizations, and execution-path
@@ -212,8 +212,18 @@ Progress:
 - flat fluent `filter` and `chart` now share one internal materialization
   resolver for window/qualify, fast-array, fast-stats, and raw-row fallback
 - internalized `ChartValidation` to a package-private chart helper
-- shared SQL-like stage accounting and shared fluent stage running are still
-  open before `WP8.5` can move to `Done`
+- SQL-like explain stage counts now run through an unpaged bound execution
+  context and the real fluent execution path, replacing the manual replay and
+  ad-hoc `QUALIFY` reconstruction
+- grouped fluent `filterGroups(...)` and row-based flat execution now share
+  one internal distinct/filter stage runner
+
+Result:
+- completed all `WP8.4` execution-path unification targets selected for
+  `WP8.5`
+- removed the remaining duplicated SQL-like explain stage-replay path
+- removed the remaining grouped-vs-flat fluent duplication at the base
+  distinct/filter stage
 
 ### `WP8.6` Docs, Benchmarks, and Release Refresh
 
@@ -221,7 +231,7 @@ Priority:
 - `P1`
 
 Status:
-- `Planned`
+- `Ready`
 
 Goal:
 - make the simplified library shape visible and durable across docs, benchmarks,

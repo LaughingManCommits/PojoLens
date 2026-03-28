@@ -7,7 +7,7 @@
 
 ## Focus
 
-- `WP8.5` is in progress.
+- `WP8.5` is complete; `WP8.6` is ready.
 - Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
 
 ## Verified
@@ -15,7 +15,8 @@
 - `2026-03-28`: `WP8.4` landed in `docs/entropy-execution-path-audit.md`.
 - `2026-03-28`: the first `WP8.5` slice landed: shared SQL-like output resolution across `filter` / `stream` / `chart`, deleted `executeIteratorWithOptionalJoin(...)`, and internalized `ChartValidation`.
 - `2026-03-28`: the second `WP8.5` slice landed: flat fluent `filter` and `chart` now share one internal materialization path across window/qualify, fast-array, fast-stats, and raw-row fallback.
-- `2026-03-28`: `mvn -q test` passed after the `WP8.5` slice.
+- `2026-03-28`: the final `WP8.5` slice landed: SQL-like explain stage counts now run through an unpaged bound execution context and the live fluent execution path, `FilterImpl.filterGroups(...)` shares one base distinct/filter stage runner with the row-based flat path, and the manual SQL-like `QUALIFY` replay helper is gone.
+- `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
 - `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
 ## Release
@@ -26,10 +27,9 @@
 ## Risks
 
 - Central publish status is not yet reconfirmed after key propagation.
-- `WP8.5` still has open SQL-like stage-accounting and grouped fluent stage-runner work.
 
 ## Next
 
-- Continue `WP8.5`: shared SQL-like stage accounting, then grouped fluent stage-running cleanup.
+- Start `WP8.6`: docs, benchmark notes, and release refresh for the reduced runtime shape.
 - Retry the release workflow or a manual release dispatch for `v1.0.0`.
 - After structural or doc changes, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.

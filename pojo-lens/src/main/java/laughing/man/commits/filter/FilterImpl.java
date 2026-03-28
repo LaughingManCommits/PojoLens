@@ -54,25 +54,19 @@ public class FilterImpl implements Filter {
         try {
             if (core.getBuilder().getRows() != null
                     && !core.getBuilder().getRows().isEmpty()) {
-                FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, true);
-                if (executionBuilder.requiresRuntimeSchemaCleaning()) {
-                    core.clean(core.getBuilder().getRows().get(0));
-                }
-                // Remove duplicate rows when distinct columns are configured.
-                List<QueryRow> distinctClasses = core.filterDistinctFields(plan);
-                // Apply rule filtering (AND/OR and grouped operators).
-                long filterStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                List<QueryRow> filterClasses = core.filterFields(distinctClasses, plan);
-                emitStage(executionBuilder,
-                        QueryTelemetryStage.FILTER,
-                        filterStarted,
-                        distinctClasses.size(),
-                        filterClasses.size(),
-                        QueryTelemetrySupport.metadata("grouped", true));
+                FilterStageResult stage = runFilterStage(
+                        executionBuilder,
+                        core,
+                        true,
+                        true,
+                        false,
+                        QueryTelemetrySupport.metadata("grouped", true)
+                );
                 // Project configured display fields.
-                List<QueryRow> displayFields = core.filterDisplayFields(filterClasses, plan);
+                List<QueryRow> displayFields = core.filterDisplayFields(stage.filteredRows(), stage.plan());
                 // Group rows using configured grouping fields.
-                Map<String, List<QueryRow>> groupedClasses = core.groupByFields(filterClasses, displayFields, plan);
+                Map<String, List<QueryRow>> groupedClasses =
+                        core.groupByFields(stage.filteredRows(), displayFields, stage.plan());
                 // Convert grouped rows back to caller type.
                 Set<String> keys = groupedClasses.keySet();
                 Map<String, List<T>> map = new HashMap<>();
@@ -167,23 +161,16 @@ public class FilterImpl implements Filter {
             FluentQualifySupport.validate(executionBuilder);
             Integer paginationWindow = CollectionUtil.pagingWindow(executionBuilder.getOffset(), executionBuilder.getLimit());
             if (core.getBuilder().getRows() != null && !core.getBuilder().getRows().isEmpty()) {
-                FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, false);
-                if (!fastPojoFilterApplied && executionBuilder.requiresRuntimeSchemaCleaning()) {
-                    core.clean(core.getBuilder().getRows().get(0));
-                }
-                // Remove duplicate rows when distinct columns are configured.
-                List<QueryRow> distinctClasses = core.filterDistinctFields(plan);
-                // Apply rule filtering (AND/OR and grouped operators).
-                long filterStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
-                List<QueryRow> filterClasses = fastPojoFilterApplied
-                        ? distinctClasses
-                        : core.filterFields(distinctClasses, plan);
-                emitStage(executionBuilder,
-                        QueryTelemetryStage.FILTER,
-                        filterStarted,
-                        distinctClasses.size(),
-                        filterClasses.size(),
-                        null);
+                FilterStageResult stage = runFilterStage(
+                        executionBuilder,
+                        core,
+                        false,
+                        !fastPojoFilterApplied,
+                        fastPojoFilterApplied,
+                        null
+                );
+                FilterExecutionPlan plan = stage.plan();
+                List<QueryRow> filterClasses = stage.filteredRows();
                 if (!executionBuilder.getMetrics().isEmpty()) {
                     // Compute aggregate metrics (global or grouped based on GROUP BY config).
                     long aggregateStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
@@ -337,6 +324,30 @@ public class FilterImpl implements Filter {
             );
         }
         return FluentExecutionMaterialization.queryRows(filterRows(sortMethod));
+    }
+
+    private FilterStageResult runFilterStage(FilterQueryBuilder executionBuilder,
+                                             FilterCore core,
+                                             boolean groupedQuery,
+                                             boolean allowSchemaCleaning,
+                                             boolean skipFieldFiltering,
+                                             Map<String, Object> metadata) {
+        FilterExecutionPlan plan = resolveExecutionPlan(core, executionBuilder, groupedQuery);
+        if (allowSchemaCleaning && executionBuilder.requiresRuntimeSchemaCleaning()) {
+            core.clean(core.getBuilder().getRows().get(0));
+        }
+        List<QueryRow> distinctRows = core.filterDistinctFields(plan);
+        long filterStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
+        List<QueryRow> filteredRows = skipFieldFiltering
+                ? distinctRows
+                : core.filterFields(distinctRows, plan);
+        emitStage(executionBuilder,
+                QueryTelemetryStage.FILTER,
+                filterStarted,
+                distinctRows.size(),
+                filteredRows.size(),
+                metadata);
+        return new FilterStageResult(plan, filteredRows);
     }
 
     private FilterExecutionPlan resolveExecutionPlan(FilterCore core,
@@ -602,6 +613,10 @@ public class FilterImpl implements Filter {
             }
             return queryRows == null ? 0 : queryRows.size();
         }
+    }
+
+    private record FilterStageResult(FilterExecutionPlan plan,
+                                     List<QueryRow> filteredRows) {
     }
 
 }

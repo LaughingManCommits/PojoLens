@@ -15,3 +15,7 @@
 - `2026-03-28`: `mvn -q test` passed after the `WP8.5` SQL-like output-materialization cleanup, optional-join helper deletion, stream coverage additions, and `ChartValidation` internalization.
 - `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=FluentChartIntegrationTest,QueryTelemetryTest,PojoLensOrderGroupBehaviorTest,PojoLensConcurrencyBehaviorTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest" test` passed for the fluent shared-materialization slice in `FilterImpl`.
 - `2026-03-28`: `mvn -q test` passed after the `WP8.5` fluent flat `filter`/`chart` materialization refactor.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=ExplainToolingTest,SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,QueryTelemetryTest,PojoLensOrderGroupBehaviorTest,PojoLensConcurrencyBehaviorTest" test` passed after replacing SQL-like explain stage replay with unpaged real-execution tracing and sharing the fluent base distinct/filter stage runner.
+- `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
+- `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after marking `WP8.5` done and advancing the roadmap to `WP8.6`.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing hot state and derived indexes for completed `WP8.5`.

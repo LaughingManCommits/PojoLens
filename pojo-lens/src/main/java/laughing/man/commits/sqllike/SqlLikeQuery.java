@@ -674,8 +674,8 @@ public final class SqlLikeQuery {
     public <T> Map<String, Object> explain(List<?> pojos,
                                            Map<String, List<?>> joinSources,
                                            Class<T> projectionClass) {
-        ExecutionContext context = prepareExecution(pojos, joinSources, projectionClass);
-        return buildExplainPayload(joinSources, buildStageRowCounts(context));
+        ExecutionContext explainContext = prepareExplainExecution(pojos, joinSources, projectionClass);
+        return buildExplainPayload(joinSources, buildStageRowCounts(explainContext, ast));
     }
 
     /**
@@ -700,8 +700,8 @@ public final class SqlLikeQuery {
         return SqlLikeExplainSupport.payload(source, ast, joinSources, stageRowCounts, lintMode, lintWarnings(), computedFieldRegistry);
     }
 
-    private Map<String, Object> buildStageRowCounts(ExecutionContext context) {
-        return SqlLikeExecutionFlowSupport.buildStageRowCounts(context);
+    private Map<String, Object> buildStageRowCounts(ExecutionContext context, QueryAst originalAst) {
+        return SqlLikeExecutionFlowSupport.buildStageRowCounts(context, originalAst);
     }
 
     private <T> ChartData executeChart(ExecutionContext context, Class<T> projectionClass, ChartSpec spec) {
@@ -717,17 +717,53 @@ public final class SqlLikeQuery {
     private <T> ExecutionContext prepareExecution(List<?> pojos,
                                                   Map<String, List<?>> joinSources,
                                                   Class<T> projectionClass) {
+        return prepareExecution(ast, telemetryListener, pojos, joinSources, projectionClass);
+    }
+
+    private <T> ExecutionContext prepareExplainExecution(List<?> pojos,
+                                                         Map<String, List<?>> joinSources,
+                                                         Class<T> projectionClass) {
+        return prepareExecution(withoutPagination(ast), null, pojos, joinSources, projectionClass);
+    }
+
+    private <T> ExecutionContext prepareExecution(QueryAst executionAst,
+                                                  QueryTelemetryListener executionTelemetryListener,
+                                                  List<?> pojos,
+                                                  Map<String, List<?>> joinSources,
+                                                  Class<T> projectionClass) {
         return SqlLikePreparedExecutionSupport.prepareExecution(
                 source,
-                ast,
+                executionAst,
                 strictParameterTypes,
                 computedFieldRegistry,
                 executionPlanCache,
-                telemetryListener,
+                executionTelemetryListener,
                 preparedExecutions,
                 pojos,
                 joinSources,
                 projectionClass
+        );
+    }
+
+    private static QueryAst withoutPagination(QueryAst ast) {
+        if (!ast.hasLimitClause() && !ast.hasOffsetClause()) {
+            return ast;
+        }
+        return new QueryAst(
+                ast.select(),
+                ast.joins(),
+                ast.filters(),
+                ast.whereExpression(),
+                ast.groupByFields(),
+                ast.havingFilters(),
+                ast.havingExpression(),
+                ast.qualifyFilters(),
+                ast.qualifyExpression(),
+                ast.orders(),
+                null,
+                null,
+                null,
+                null
         );
     }
 
