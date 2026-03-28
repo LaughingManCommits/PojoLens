@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T20:12:42.704826+01:00",
+  "generatedAt": "2026-03-28T08:25:55.425424+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 44,
-      "byteCount": 2946,
+      "lineCount": 40,
+      "byteCount": 2200,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 48,
-      "byteCount": 3072,
+      "lineCount": 41,
+      "byteCount": 2475,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 8,
-      "byteCount": 947,
+      "lineCount": 10,
+      "byteCount": 1289,
       "coldSearchEligible": true
     },
     {
@@ -204,8 +204,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 207,
-      "byteCount": 6278,
+      "lineCount": 212,
+      "byteCount": 6570,
       "coldSearchEligible": true
     },
     {
@@ -241,7 +241,16 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 80,
-      "byteCount": 7315,
+      "byteCount": 14703,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/entropy-wrapper-binding-decision.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 86,
+      "byteCount": 5181,
       "coldSearchEligible": true
     },
     {
@@ -303,8 +312,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 132,
-      "byteCount": 4323,
+      "lineCount": 135,
+      "byteCount": 4456,
       "coldSearchEligible": true
     },
     {
@@ -312,8 +321,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 53,
-      "byteCount": 3719,
+      "lineCount": 57,
+      "byteCount": 3945,
       "coldSearchEligible": true
     },
     {
@@ -330,8 +339,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 919,
-      "byteCount": 32061,
+      "lineCount": 931,
+      "byteCount": 32529,
       "coldSearchEligible": true
     },
     {
@@ -375,8 +384,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 347,
-      "byteCount": 11416,
+      "lineCount": 348,
+      "byteCount": 11535,
       "coldSearchEligible": true
     },
     {
@@ -402,8 +411,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 282,
-      "byteCount": 10264,
+      "lineCount": 283,
+      "byteCount": 10389,
       "coldSearchEligible": true
     },
     {
@@ -420,8 +429,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 214,
-      "byteCount": 7190,
+      "lineCount": 224,
+      "byteCount": 7673,
       "coldSearchEligible": true
     }
   ]

@@ -9,6 +9,8 @@ They all reuse the same in-memory query engine; the difference is the default ou
 - `ChartQueryPreset<T>`: chart-first SQL-like convenience wrapper
 - `StatsViewPreset<T>`: table-first SQL-like convenience wrapper
 
+For docs and new code, `ReportDefinition<T>` is the canonical reusable-query
+contract.
 When in doubt, start with `ReportDefinition<T>`.
 Use the specialized presets only when the wrapper itself should encode a chart-first or table-first workflow.
 
@@ -43,7 +45,7 @@ Documentation-noise overlap:
 
 Those overlaps are expected because the wrappers share one execution engine and one snapshot-reuse model.
 
-Current keep/de-emphasize call:
+Current `WP8.3` keep/de-emphasize call:
 - keep `ReportDefinition<T>` as the default general reusable wrapper
 - keep `ChartQueryPreset<T>` as specialized chart-first convenience
 - keep `StatsViewPreset<T>` as specialized table-first convenience
@@ -51,3 +53,5 @@ Current keep/de-emphasize call:
 
 No wrapper is a current deprecation candidate.
 If later roadmap work reduces this surface, the first move should be lower docs prominence or stronger bridging guidance, not `1.x` API removal.
+The formal decision record for this call lives in
+[docs/entropy-wrapper-binding-decision.md](entropy-wrapper-binding-decision.md).

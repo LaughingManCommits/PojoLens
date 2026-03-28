@@ -2,31 +2,29 @@
 
 ## Repo
 
-- Multi-module Maven Java 17 library with runtime `pojo-lens`, Spring Boot integration modules, and benchmark tooling.
+- Multi-module Maven Java 17 library: runtime `pojo-lens`, Spring Boot integration modules, and benchmark tooling.
 - Runtime consumer artifact remains `io.github.laughingmancommits:pojo-lens:1.0.0`.
 - `TODO.md` now tracks the active `Entropy Reduction` roadmap (`WP8.1`-`WP8.6`).
 
 ## Focus
 
-- The active engineering roadmap is `Entropy Reduction`; `WP8.1` and `WP8.2` are complete, and `WP8.3` is now the next executable package.
+- `Entropy Reduction` is active; `WP8.1` through `WP8.3` are complete and `WP8.4` is next.
 - Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
 - Hot memory should stay minimal; exact validation history lives in `ai/state/recent-validations.md`.
 
 ## Verified
 
-- `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the starter example Playwright suite passed.
-- `2026-03-27`: AI memory refresh/check passed; SQLite cold search is built and archive-aware.
-- `2026-03-27`: AI memory benchmark passed; incremental refresh reuse is verified and fixed-query top-1/top-3 hit quality is `1.0`.
-- `2026-03-27`: User-facing docs were realigned to the current helper-only `PojoLens` facade and runtime-only public cache-tuning model.
-- `2026-03-27`: `WP8.1` audit was delivered in `docs/entropy-audit.md`; baseline is `122` public top-level types across `36` packages with `52` clear internalization candidates.
-- `2026-03-27`: `WP8.2` decisions were delivered in `docs/entropy-internalization-decision.md`; `1.x` now targets internalization of builder/filter internals, execution-plan types, parser/AST helpers, chart mapping helpers, row models, and support/util packages while keeping the runtime cache handles public.
+- `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the starter-example Playwright suite passed.
+- `2026-03-27`: AI memory refresh/check and benchmark passed; SQLite cold search and fixed-query hit quality are verified.
+- `2026-03-27`: `WP8.1` and `WP8.2` artifacts landed in `docs/entropy-audit.md` and `docs/entropy-internalization-decision.md`.
+- `2026-03-28`: `WP8.3` landed in `docs/entropy-wrapper-binding-decision.md`; docs now default to `ReportDefinition<T>` and `JoinBindings` -> `DatasetBundle`.
 - `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
 ## Release
 
 - Central namespace is verified for `io.github.laughingmancommits`.
 - Release workflow publishes runtime plus Boot artifacts.
-- The last publish attempt reached bundle upload but failed signature verification because Central could not find the signer public key.
+- The last publish attempt uploaded the bundle but failed signature verification because Central could not find the signer public key.
 - The public key was uploaded to `keyserver.ubuntu.com` and `keys.openpgp.org`; retry remains next.
 
 ## Risks
@@ -36,9 +34,7 @@
 
 ## Next
 
-- Start `WP8.3` and decide the canonical reusable-wrapper and multi-source binding stories.
-- Use `docs/entropy-internalization-decision.md` to scope `WP8.5` implementation so `1.x` work deletes public leaks before any `2.x` package cleanup.
+- Start `WP8.4` and map duplicate execution, planning, binding, and materialization paths.
+- Use `docs/entropy-internalization-decision.md` and `docs/entropy-wrapper-binding-decision.md` to scope `WP8.5`.
 - Retry the release workflow or a manual release dispatch for `v1.0.0`.
 - After structural or doc changes, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
-- After AI memory retrieval changes, rerun `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`.
-- Keep `mvn -q test` and `scripts/check-doc-consistency.ps1` green after code or doc changes.

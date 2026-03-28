@@ -36,8 +36,8 @@ Resolved for this roadmap:
 |-----------------------------------------------|----------|-----------|-------------------------------|
 | `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Done`    | decision gate                 |
 | `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
-| `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Ready`   | `WP8.1` findings              |
-| `WP8.4` Execution Path Unification Audit      | `P1`     | `Planned` | `WP8.1` findings              |
+| `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
+| `WP8.4` Execution Path Unification Audit      | `P1`     | `Ready`   | `WP8.1` findings              |
 | `WP8.5` Entropy Reduction Implementation      | `P0`     | `Planned` | `WP8.2`, `WP8.3`, `WP8.4`     |
 | `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Planned` | `WP8.5`                       |
 
@@ -116,7 +116,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - reduce overlap across reusable wrappers and multi-source binding styles so
@@ -133,6 +133,16 @@ Acceptance criteria:
 - there is one default multi-source binding story
 - every overlapping wrapper or binding path is marked `keep`, `de-emphasize`,
   `deprecate`, or `remove later`
+
+Result:
+- delivered in `docs/entropy-wrapper-binding-decision.md`
+- established `ReportDefinition<T>` as the canonical reusable-query contract
+  for docs and new code
+- established the default multi-source binding progression as
+  `JoinBindings` first, then `DatasetBundle` when the same snapshot is reused,
+  with raw map overloads retained only as compatibility-first paths
+- realigned README and core docs to lead with `ReportDefinition<T>`,
+  `JoinBindings`, and `DatasetBundle`
 
 ### `WP8.4` Execution Path Unification Audit
 

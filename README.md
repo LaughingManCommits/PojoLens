@@ -85,6 +85,7 @@ Runnable example project:
 | A reusable business query contract | `ReportDefinition` | `docs/reusable-wrappers.md`, `docs/reports.md` |
 | A reusable chart-first preset | `ChartQueryPreset` | `docs/reusable-wrappers.md`, `docs/charts.md` |
 | A reusable table payload with totals/schema | `StatsViewPreset` / `StatsTable` | `docs/reusable-wrappers.md`, `docs/stats-presets.md` |
+| Joined multi-source execution | `JoinBindings`, then `DatasetBundle` when reused | `docs/sql-like.md`, `docs/reports.md` |
 
 ## Product Shape
 

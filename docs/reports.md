@@ -3,7 +3,8 @@
 `ReportDefinition<T>` captures a reusable query + projection contract for repeated execution against different in-memory dataset snapshots.
 
 It also exposes deterministic table metadata through `schema()`.
-It is the general reusable wrapper in PojoLens.
+It is the general reusable wrapper in PojoLens and the default reusable-query
+contract for docs and new code.
 `ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and table-first wrappers that can bridge back to it.
 
 Wrapper selection guide:
@@ -29,13 +30,15 @@ ChartData chart = report.chart(snapshotB);
 TabularSchema schema = report.schema();
 ```
 
-For SQL-like definitions, join sources can still be supplied per execution:
+For SQL-like definitions, `JoinBindings` is the default one-off multi-source
+execution input:
 
 ```java
 List<Company> rows = report.rows(companies, JoinBindings.of("employees", employees));
 ```
 
-If the same snapshot is reused across multiple report calls, wrap it once:
+If the same snapshot is reused across multiple report calls, wrap the primary
+rows plus `JoinBindings` once in `DatasetBundle`:
 
 ```java
 DatasetBundle bundle = PojoLens.bundle(

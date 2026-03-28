@@ -22,7 +22,7 @@ Source guides:
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| A reusable business query contract | `ReportDefinition<T>` | General reusable wrapper for row-first queries that may feed more than one consumer. |
+| A reusable business query contract | `ReportDefinition<T>` | Default reusable wrapper for row-first queries that may feed more than one consumer. |
 | A reusable chart-first preset | `ChartQueryPreset<T>` | Specialized SQL-like convenience wrapper for chart-shaped workflows. |
 | A reusable table payload with totals and schema | `StatsViewPreset<T>` / `StatsTable<T>` | Specialized table-first wrapper for grouped stats and leaderboard flows. |
 
@@ -52,7 +52,7 @@ Source guides:
 | Large data, first-page consumers | Scenario 2C | `.stream(...)` / `.iterator(...)` |
 | Repeated hot equality filters | Scenario 2D | `.addIndex(...)` + normal rules |
 | Time-based finance/product summaries | Scenario 3 | `bucket(...) + group by + having` |
-| Multi-source views with joins | Scenario 4 | `JoinBindings` / `DatasetBundle` |
+| Multi-source views with joins | Scenario 4 | `JoinBindings`, promoted to `DatasetBundle` for repeated execution |
 | Chart payloads for frontend/reporting | Scenario 5 | `.chart(...)` + `ChartData` |
 | Dashboard-ready stats tables | Scenario 5B | `StatsViewPresets` + `StatsTable` |
 | Safe refactors + regression protection | Scenario 6 | `QueryRegressionFixture` |
@@ -330,7 +330,8 @@ Outcome:
 - Use `PojoLens.newRuntime(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.
 - Use `PojoLens` mainly for compatibility helpers such as runtime creation, keyset cursor helpers, `report(...)`, and `bundle(...)`.
-- Use `DatasetBundle` for repeated multi-source execution.
+- Use `JoinBindings` for one-off multi-source execution.
+- Use `DatasetBundle` when the same multi-source snapshot will be executed repeatedly.
 - Use `ChartData` as the boundary model between query and rendering.
 
 ## 8. Next Reads
