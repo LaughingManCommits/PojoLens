@@ -209,6 +209,8 @@ Progress:
 - unified SQL-like output materialization now resolves one shared internal
   mode across `filter`, `stream`, and `chart`
 - removed the unused optional-join iterator helper
+- flat fluent `filter` and `chart` now share one internal materialization
+  resolver for window/qualify, fast-array, fast-stats, and raw-row fallback
 - internalized `ChartValidation` to a package-private chart helper
 - shared SQL-like stage accounting and shared fluent stage running are still
   open before `WP8.5` can move to `Done`

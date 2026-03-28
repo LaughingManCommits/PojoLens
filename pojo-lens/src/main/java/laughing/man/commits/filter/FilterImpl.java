@@ -105,22 +105,10 @@ public class FilterImpl implements Filter {
      */
     @Override
     public <T> List<T> filter(Sort sortMethod, Class<T> cls) {
-        if (hasWindowOrQualify(builderState)) {
-            return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
-        }
-        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
-        if (fastState != null) {
-            return FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
-        }
-        FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
-        if (statsState == null) {
-            statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
-            fastStatsState = statsState;
-        }
-        if (statsState != null) {
-            return ReflectionUtil.toClassList(cls, statsState.rows(), statsState.schemaFields());
-        }
-        return ReflectionUtil.toClassList(cls, filterRows(sortMethod));
+        FilterQueryBuilder executionBuilder = builderState;
+        boolean hasWindowOrQualify = hasWindowOrQualify(executionBuilder);
+        return resolveExecutionMaterialization(executionBuilder, sortMethod, cls, hasWindowOrQualify)
+                .toTypedRows(cls);
     }
 
     @Override
@@ -147,22 +135,17 @@ public class FilterImpl implements Filter {
     }
 
     private List<QueryRow> filterRows(Sort sortMethod) {
-        if (hasWindowOrQualify(builderState)) {
+        FilterQueryBuilder executionBuilder = builderState;
+        boolean hasWindowOrQualify = hasWindowOrQualify(executionBuilder);
+        if (hasWindowOrQualify) {
             fastStatsState = null;
         }
-        FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
-        if (statsState == null) {
-            if (!hasWindowOrQualify(builderState)) {
-                statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
-            }
-            fastStatsState = statsState;
-        }
+        FastStatsQuerySupport.FastStatsState statsState = resolveFastStatsState(executionBuilder, !hasWindowOrQualify);
         if (statsState != null) {
             return FastStatsQuerySupport.toQueryRows(statsState);
         }
 
         List<QueryRow> results = new ArrayList<>();
-        FilterQueryBuilder executionBuilder = builderState;
 
         // Fast path: for POJO-source simple filter queries, materialize only matching rows.
         boolean fastPojoFilterApplied = false;
@@ -297,46 +280,20 @@ public class FilterImpl implements Filter {
 
     @Override
     public <T> ChartData chart(Sort sortMethod, Class<T> cls, ChartSpec spec) {
-        if (hasWindowOrQualify(builderState)) {
-            List<QueryRow> rows = filterRows(sortMethod);
-            long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
-            ChartData chart = ChartMapper.toChartData(rows, spec);
-            emitStage(builderState,
-                    QueryTelemetryStage.CHART,
-                    chartStarted,
-                    rows.size(),
-                    rows.size(),
-                    QueryTelemetrySupport.metadata(
-                            "chartType", chart.getType(),
-                            "labelCount", chart.getLabels() == null ? 0 : chart.getLabels().size(),
-                            "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
-                    ));
-            return chart;
-        }
-        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
-        int rowCount;
-        long chartStarted = QueryTelemetrySupport.start(builderState.getTelemetryListener());
-        ChartData chart;
-        if (fastState != null) {
-            List<T> rows = FastArrayQuerySupport.filter(builderState, fastState, sortMethod, cls);
-            rowCount = rows.size();
-            chart = ChartMapper.toChartData(rows, spec);
+        FilterQueryBuilder executionBuilder = builderState;
+        boolean hasWindowOrQualify = hasWindowOrQualify(executionBuilder);
+        FluentExecutionMaterialization<T> execution;
+        long chartStarted;
+        if (hasWindowOrQualify) {
+            execution = resolveExecutionMaterialization(executionBuilder, sortMethod, cls, true);
+            chartStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
         } else {
-            FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
-            if (statsState == null) {
-                statsState = FastStatsQuerySupport.tryBuildState(builderState, planCacheKey(builderState));
-                fastStatsState = statsState;
-            }
-            if (statsState != null) {
-                rowCount = statsState.rows().size();
-                chart = ChartMapper.toChartData(statsState.rows(), statsState.schemaFields(), spec);
-            } else {
-                List<QueryRow> rows = filterRows(sortMethod);
-                rowCount = rows.size();
-                chart = ChartMapper.toChartData(rows, spec);
-            }
+            chartStarted = QueryTelemetrySupport.start(executionBuilder.getTelemetryListener());
+            execution = resolveExecutionMaterialization(executionBuilder, sortMethod, cls, false);
         }
-        emitStage(builderState,
+        ChartData chart = execution.toChartData(spec);
+        int rowCount = execution.rowCount();
+        emitStage(executionBuilder,
                 QueryTelemetryStage.CHART,
                 chartStarted,
                 rowCount,
@@ -347,6 +304,39 @@ public class FilterImpl implements Filter {
                         "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
                 ));
         return chart;
+    }
+
+    private FastStatsQuerySupport.FastStatsState resolveFastStatsState(FilterQueryBuilder executionBuilder,
+                                                                       boolean allowBuild) {
+        FastStatsQuerySupport.FastStatsState statsState = fastStatsState;
+        if (statsState == null && allowBuild) {
+            statsState = FastStatsQuerySupport.tryBuildState(executionBuilder, planCacheKey(executionBuilder));
+            fastStatsState = statsState;
+        }
+        return statsState;
+    }
+
+    private <T> FluentExecutionMaterialization<T> resolveExecutionMaterialization(FilterQueryBuilder executionBuilder,
+                                                                                  Sort sortMethod,
+                                                                                  Class<T> projectionClass,
+                                                                                  boolean hasWindowOrQualify) {
+        if (hasWindowOrQualify) {
+            return FluentExecutionMaterialization.queryRows(filterRows(sortMethod));
+        }
+        FastArrayQuerySupport.FastArrayState fastState = fastArrayState;
+        if (fastState != null) {
+            return FluentExecutionMaterialization.typedRows(
+                    FastArrayQuerySupport.filter(executionBuilder, fastState, sortMethod, projectionClass)
+            );
+        }
+        FastStatsQuerySupport.FastStatsState statsState = resolveFastStatsState(executionBuilder, true);
+        if (statsState != null) {
+            return FluentExecutionMaterialization.arrayRows(
+                    statsState.rows(),
+                    statsState.schemaFields()
+            );
+        }
+        return FluentExecutionMaterialization.queryRows(filterRows(sortMethod));
     }
 
     private FilterExecutionPlan resolveExecutionPlan(FilterCore core,
@@ -563,6 +553,54 @@ public class FilterImpl implements Filter {
                 return null;
             }
             return index;
+        }
+    }
+
+    private record FluentExecutionMaterialization<T>(List<T> typedRows,
+                                                     List<Object[]> arrayRows,
+                                                     List<String> schemaFields,
+                                                     List<QueryRow> queryRows) {
+        private static <T> FluentExecutionMaterialization<T> typedRows(List<T> typedRows) {
+            return new FluentExecutionMaterialization<>(typedRows, null, null, null);
+        }
+
+        private static <T> FluentExecutionMaterialization<T> arrayRows(List<Object[]> arrayRows,
+                                                                       List<String> schemaFields) {
+            return new FluentExecutionMaterialization<>(null, arrayRows, schemaFields, null);
+        }
+
+        private static <T> FluentExecutionMaterialization<T> queryRows(List<QueryRow> queryRows) {
+            return new FluentExecutionMaterialization<>(null, null, null, queryRows);
+        }
+
+        private List<T> toTypedRows(Class<T> projectionClass) {
+            if (typedRows != null) {
+                return typedRows;
+            }
+            if (arrayRows != null) {
+                return ReflectionUtil.toClassList(projectionClass, arrayRows, schemaFields);
+            }
+            return ReflectionUtil.toClassList(projectionClass, queryRows);
+        }
+
+        private ChartData toChartData(ChartSpec spec) {
+            if (typedRows != null) {
+                return ChartMapper.toChartData(typedRows, spec);
+            }
+            if (arrayRows != null) {
+                return ChartMapper.toChartData(arrayRows, schemaFields, spec);
+            }
+            return ChartMapper.toChartData(queryRows, spec);
+        }
+
+        private int rowCount() {
+            if (typedRows != null) {
+                return typedRows.size();
+            }
+            if (arrayRows != null) {
+                return arrayRows.size();
+            }
+            return queryRows == null ? 0 : queryRows.size();
         }
     }
 

@@ -18,6 +18,7 @@
 - `PojoLens` is helper-only; `PojoLensRuntime` owns public cache tuning.
 - `WP8.1` through `WP8.4` are recorded in `docs/entropy-audit.md`, `docs/entropy-internalization-decision.md`, `docs/entropy-wrapper-binding-decision.md`, and `docs/entropy-execution-path-audit.md`.
 - The first `WP8.5` slice is landed: `SqlLikeExecutionFlowSupport` now shares one output-mode resolver across `filter` / `stream` / `chart`, `SqlLikeExecutionSupport.executeIteratorWithOptionalJoin(...)` is deleted, and `ChartValidation` is package-private in `laughing.man.commits.chart`.
+- The second `WP8.5` slice is landed: `FilterImpl` now shares one internal materialization resolver for flat fluent `filter` and `chart`, covering window/qualify fallback, fast-array rows, fast-stats rows, and raw-row fallback without changing the fast-path choices.
 - The next `WP8.5` move is still open: explain/stage-accounting cleanup hit a package-boundary constraint because `FluentWindowSupport` and `FluentQualifySupport` are package-private in `laughing.man.commits.filter`.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
 

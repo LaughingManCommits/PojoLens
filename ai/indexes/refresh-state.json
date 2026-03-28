@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-28T11:15:07.790855+01:00",
+  "generatedAt": "2026-03-28T11:45:17.116463+01:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "ac18f57c9a83f53bbb2d3e6cf3744d0e92bfe7b6f9614a618a9856ab20cf9689",
+      "inputHash": "bdb679014351a112870dfc4798d8efa6395b379f6aee25c37161f53182f47b78",
       "pathHashes": {
         "AGENTS.md": "d01e9ffd396dcc1580070a50ab52a6d8984e9c7345560e0e13834a8af017cc9f",
         "ai/AGENTS.md": "feef666660b4f132ac4a9acbb7115cf9b562732aaef9fbacf5771d10e3545d05",
@@ -21,9 +21,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "b3d43e689625a8b147c4cd287571db15a7d75fcd96c1b00d6e66f7d367b7e3b8",
-        "ai/state/handoff.md": "e801996b7762b9102fad7f7859c613bcc8ae66d332fa636796d671cc8437524d",
-        "ai/state/recent-validations.md": "f948307ee8944d4d807201feb0d800206409a91cf475bd7bc064a15958afe312",
+        "ai/state/current-state.md": "20e7876da34e891cf5e1a1e62e50c22a399f1cae3309eca4f9250235f8007081",
+        "ai/state/handoff.md": "494c29527c3fd28bc1a43c25bc0db09000b7a93f9e0ad182e6b9a5c6fa98427c",
+        "ai/state/recent-validations.md": "8c9b1ea31c39b7edfb6ad6d8af0d43665fbff8f92e220a96bfbf50742bf253a2",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
         "docs/benchmarking.md": "09b80a5d535ee147709c793d2249b511749aff6d850b35f4ce1045f52705484c",
@@ -55,12 +55,12 @@
         "README.md": "c9d8b6fcf20448cf3778b06a18efe1faefd319144c7d2db90164ef913fb0ab23",
         "RELEASE.md": "d539290f0f08401bf3ce12d4c6fd89a62da14aca71f59e558b84198f8e98538f",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "42e7c376089c4cc4a76bf2439d7bf7b84acb5d32199c432e2d1c85a8fc087278"
+        "TODO.md": "3d9b470ac606ee3076e7144a596de635bbde4d421de3e2e623aa0c2e6183a0b8"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "64b8d02d37dc45ad3cccaab82956d7d1bc0cdcc0c98ed6b89a988a79ff6331c0",
+      "inputHash": "dde09953cdc94a96ae995172fd79bc7cba6fa4e011bfcdeb377d67b68c49b2eb",
       "pathHashes": {
         ".github/workflows/ci.yml": "3ce945881e198c027ce37cc24bcfca42578f36d2c2094aa48f4a01d077fd63ad",
         ".github/workflows/release.yml": "29d5241aae0cb37d2614384cebfbc43d8da9d67248147997c24dc2d9c3962377",
@@ -79,9 +79,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "b3d43e689625a8b147c4cd287571db15a7d75fcd96c1b00d6e66f7d367b7e3b8",
-        "ai/state/handoff.md": "e801996b7762b9102fad7f7859c613bcc8ae66d332fa636796d671cc8437524d",
-        "ai/state/recent-validations.md": "f948307ee8944d4d807201feb0d800206409a91cf475bd7bc064a15958afe312",
+        "ai/state/current-state.md": "20e7876da34e891cf5e1a1e62e50c22a399f1cae3309eca4f9250235f8007081",
+        "ai/state/handoff.md": "494c29527c3fd28bc1a43c25bc0db09000b7a93f9e0ad182e6b9a5c6fa98427c",
+        "ai/state/recent-validations.md": "8c9b1ea31c39b7edfb6ad6d8af0d43665fbff8f92e220a96bfbf50742bf253a2",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "7c70263c20650ed6988ceb6c3d9681700a57dc7ef15948facb6f984b39eb8afb",
         "docs/benchmarking.md": "09b80a5d535ee147709c793d2249b511749aff6d850b35f4ce1045f52705484c",
@@ -172,7 +172,7 @@
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCache.java": "3cfa7cb1b997d2948cc66e1ddd3c3c901f34c9b9113fd1f3e20887d1e1a0bcae",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheKey.java": "bda49784495603cccfb26a6fab652290c8615dc55fb3956bbb68bca6531e2d4e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheStore.java": "336bfebb8305f520399b0c0ff63a0e8a8669beeb0b20f1eaf4f1d5cacb5288c2",
-        "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java": "345e3a974117a544cffb67b8a6b1cd41a81edb3d1edce138fa49a61f098cbf90",
+        "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java": "709829990870c84c85174d09603a72ded918454230b323e3c239c6fe90320f5b",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FluentQualifySupport.java": "a68257d296638edf2724cbd62bd9d5ec9833d5609e04a2ca47d982ab759c136e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FluentWindowSupport.java": "40bf6e0f50f933832801f628ad4724640b997246caf680d1270b6b5c84fe1d3e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/GroupEngine.java": "4ac6304ff489b45a83cd913022a99639f956fbe91ec82a059248988bdc09a382",
@@ -399,12 +399,12 @@
         "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "42e7c376089c4cc4a76bf2439d7bf7b84acb5d32199c432e2d1c85a8fc087278"
+        "TODO.md": "3d9b470ac606ee3076e7144a596de635bbde4d421de3e2e623aa0c2e6183a0b8"
       }
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "900ba1530a2462513ed7d56908858df4144c6767d1800703c36c79a626b62730",
+      "inputHash": "ecfd430848cbc64fbbebc0bcb3e1117cce79b2454e36f1a2751e58c50715c80a",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java": "229c79998a85f3a7ec9326d5fff5aebf5839d0250634dc158ce0a67ae35956cd",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java": "64f2627c6d8062a39ac2bad829b73f618758158fc21c7b0846a33a3d2b01c798",
@@ -466,7 +466,7 @@
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCache.java": "3cfa7cb1b997d2948cc66e1ddd3c3c901f34c9b9113fd1f3e20887d1e1a0bcae",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheKey.java": "bda49784495603cccfb26a6fab652290c8615dc55fb3956bbb68bca6531e2d4e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FilterExecutionPlanCacheStore.java": "336bfebb8305f520399b0c0ff63a0e8a8669beeb0b20f1eaf4f1d5cacb5288c2",
-        "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java": "345e3a974117a544cffb67b8a6b1cd41a81edb3d1edce138fa49a61f098cbf90",
+        "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java": "709829990870c84c85174d09603a72ded918454230b323e3c239c6fe90320f5b",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FluentQualifySupport.java": "a68257d296638edf2724cbd62bd9d5ec9833d5609e04a2ca47d982ab759c136e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/FluentWindowSupport.java": "40bf6e0f50f933832801f628ad4724640b997246caf680d1270b6b5c84fe1d3e",
         "pojo-lens/src/main/java/laughing/man/commits/filter/GroupEngine.java": "4ac6304ff489b45a83cd913022a99639f956fbe91ec82a059248988bdc09a382",

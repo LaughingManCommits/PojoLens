@@ -13,3 +13,5 @@
 - `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed for the first `WP8.5` SQL-like output-materialization slice.
 - `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,ChartMapperArrayRowsTest,ChartResultMapperMappingTest,ChartResultMapperValidationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed after internalizing `ChartValidation`.
 - `2026-03-28`: `mvn -q test` passed after the `WP8.5` SQL-like output-materialization cleanup, optional-join helper deletion, stream coverage additions, and `ChartValidation` internalization.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=FluentChartIntegrationTest,QueryTelemetryTest,PojoLensOrderGroupBehaviorTest,PojoLensConcurrencyBehaviorTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest" test` passed for the fluent shared-materialization slice in `FilterImpl`.
+- `2026-03-28`: `mvn -q test` passed after the `WP8.5` fluent flat `filter`/`chart` materialization refactor.
