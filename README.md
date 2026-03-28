@@ -76,6 +76,10 @@ Runnable example project:
 
 ## Pick A Path
 
+For new code, prefer one default path per job:
+`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`ReportDefinition<T>`.
+
 | If you need... | Choose... | Read next |
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore` | `docs/entry-points.md`, `docs/usecases.md` |
@@ -255,6 +259,7 @@ Preset intent:
 ### Reference
 
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
+- Entropy release refresh: [docs/entropy-release-refresh.md](docs/entropy-release-refresh.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
 - Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
 - Consolidation review: [docs/consolidation-review.md](docs/consolidation-review.md)

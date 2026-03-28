@@ -7,7 +7,7 @@
 
 ## Focus
 
-- `WP8.5` is complete; `WP8.6` is ready.
+- The `Entropy Reduction` roadmap (`WP8.1`-`WP8.6`) is complete.
 - Highest-priority operational work is Maven Central release retry or verification for `v1.0.0`.
 
 ## Verified
@@ -17,6 +17,8 @@
 - `2026-03-28`: the second `WP8.5` slice landed: flat fluent `filter` and `chart` now share one internal materialization path across window/qualify, fast-array, fast-stats, and raw-row fallback.
 - `2026-03-28`: the final `WP8.5` slice landed: SQL-like explain stage counts now run through an unpaged bound execution context and the live fluent execution path, `FilterImpl.filterGroups(...)` shares one base distinct/filter stage runner with the row-based flat path, and the manual SQL-like `QUALIFY` replay helper is gone.
 - `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
+- `2026-03-28`: `WP8.6` landed in `docs/entropy-release-refresh.md`; README/selection docs, migration text, release wording, and benchmarking guidance now reflect the reduced default path set and the `WP8.5` execution-path changes.
+- `2026-03-28`: forked JMH spot checks were captured for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and `StreamingExecutionJmhBenchmark` to cover the exact hot paths touched by `WP8.5`.
 - `PojoLens` is helper-only; `PojoLensRuntime` is the public cache-tuning surface.
 
 ## Release
@@ -30,6 +32,5 @@
 
 ## Next
 
-- Start `WP8.6`: docs, benchmark notes, and release refresh for the reduced runtime shape.
 - Retry the release workflow or a manual release dispatch for `v1.0.0`.
 - After structural or doc changes, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.

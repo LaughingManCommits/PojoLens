@@ -3,6 +3,9 @@
 If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
+For new code, keep one default path per job:
+`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`ReportDefinition<T>`.
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)

@@ -31,6 +31,34 @@ Replacement map:
 - `PojoLens.toChartData(rows, spec)` ->
   `PojoLensChart.toChartData(rows, spec)`
 
+## Advanced Helper Narrowing
+
+`laughing.man.commits.chart.validation.ChartValidation` is no longer a
+supported public helper contract.
+
+Migration direction:
+- remove direct imports/usages of `ChartValidation`
+- use `PojoLensChart.toChartData(...)`, `Filter.chart(...)`,
+  `SqlLikeQuery.chart(...)`, `ChartMapper`, or `ChartResultMapper`
+  instead
+- treat chart validation as internal runtime behavior rather than an API you
+  call directly
+
+## SQL-like Execution Explain Alignment
+
+`SqlLikeQuery.explain(rows, projectionClass)` stage counts now come from the
+same live bound execution path used by normal SQL-like execution.
+
+Behavior note:
+- `where`, `group`, `having`, `qualify`, and `order` counts now reflect the
+  unpaged live execution stages
+- `limit` reflects the final `OFFSET`/`LIMIT` window
+
+Migration direction:
+- refresh explain snapshots or assertions that depended on the old
+  explain-only replay behavior, especially around `HAVING` or `QUALIFY`
+  queries without `ORDER BY`
+
 ## Runtime-First Cache Policy
 
 If you were tuning caches through `PojoLens`, `PojoLensCore`, or

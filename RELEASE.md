@@ -14,9 +14,28 @@ Before tagging, confirm these are current and mutually aligned:
 - `README.md`
 - `MIGRATION.md`
 - `RELEASE.md`
+- `docs/entropy-release-refresh.md`
 - `docs/sql-like.md`
 - `docs/charts.md`
 - `docs/benchmarking.md`
+
+## 2.1) Current Release Notes Highlights
+
+If the release includes the completed `Entropy Reduction` roadmap work, carry
+these user-facing points into the release notes:
+
+- default path per job remains:
+  `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
+  `ReportDefinition<T>`
+- `JoinBindings` is the default one-off multi-source binding contract, with
+  `DatasetBundle` as the reusable snapshot form
+- SQL-like execution explain now reports stage counts from the live bound
+  execution path, including stable `HAVING`/`QUALIFY` counts without `ORDER BY`
+- `laughing.man.commits.chart.validation.ChartValidation` is no longer a
+  supported public helper contract
+
+Reference wording and benchmark evidence are recorded in:
+- `docs/entropy-release-refresh.md`
 
 ## 3) Benchmark Guardrail Evidence
 

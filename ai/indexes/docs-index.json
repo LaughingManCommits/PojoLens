@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-28T13:13:44.059603+01:00",
+  "generatedAt": "2026-03-28T14:18:57.196033+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 35,
-      "byteCount": 2031,
+      "lineCount": 36,
+      "byteCount": 2439,
       "coldSearchEligible": true
     },
     {
@@ -151,7 +151,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 37,
-      "byteCount": 2524,
+      "byteCount": 2781,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 21,
-      "byteCount": 3487,
+      "lineCount": 25,
+      "byteCount": 4226,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +186,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 312,
-      "byteCount": 17696,
+      "lineCount": 347,
+      "byteCount": 20199,
       "coldSearchEligible": true
     },
     {
@@ -251,6 +251,15 @@
       "loadTier": null,
       "lineCount": 80,
       "byteCount": 14703,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "docs/entropy-release-refresh.md",
+      "category": "product-doc",
+      "relevance": "medium",
+      "loadTier": null,
+      "lineCount": 111,
+      "byteCount": 5558,
       "coldSearchEligible": true
     },
     {
@@ -348,8 +357,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 931,
-      "byteCount": 32529,
+      "lineCount": 940,
+      "byteCount": 32928,
       "coldSearchEligible": true
     },
     {
@@ -393,8 +402,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 348,
-      "byteCount": 11535,
+      "lineCount": 351,
+      "byteCount": 11673,
       "coldSearchEligible": true
     },
     {
@@ -411,8 +420,8 @@
       "category": "process-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 354,
-      "byteCount": 11085,
+      "lineCount": 382,
+      "byteCount": 12078,
       "coldSearchEligible": true
     },
     {
@@ -420,8 +429,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 283,
-      "byteCount": 10389,
+      "lineCount": 288,
+      "byteCount": 10624,
       "coldSearchEligible": true
     },
     {
@@ -429,8 +438,8 @@
       "category": "release-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 106,
-      "byteCount": 3635,
+      "lineCount": 125,
+      "byteCount": 4452,
       "coldSearchEligible": true
     },
     {
@@ -438,8 +447,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 255,
-      "byteCount": 9140,
+      "lineCount": 265,
+      "byteCount": 9632,
       "coldSearchEligible": true
     }
   ]

@@ -38,6 +38,7 @@ public class StatsQueryJmhBenchmark {
     private String bucketSql;
     private ChartSpec groupedChartSpec;
     private ChartSpec bucketChartSpec;
+    private Filter fluentGroupedRowsFilter;
     private Filter fluentGroupedFilter;
     private Filter fluentTimeBucketFilter;
     private Filter fluentGroupedToChartFilter;
@@ -75,6 +76,9 @@ public class StatsQueryJmhBenchmark {
         runtime.sqlLikeCache().setStatsEnabled(true);
         runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
 
+        fluentGroupedRowsFilter = runtime.newQueryBuilder(source)
+                .addGroup("stringField")
+                .initFilter();
         fluentGroupedFilter = runtime.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
@@ -106,6 +110,11 @@ public class StatsQueryJmhBenchmark {
     @Benchmark
     public List<GroupedStatsRow> fluentGroupedMetrics() {
         return fluentGroupedFilter.filter(GroupedStatsRow.class);
+    }
+
+    @Benchmark
+    public Map<String, List<BenchmarkFoo>> fluentGroupedRows() {
+        return fluentGroupedRowsFilter.filterGroups(BenchmarkFoo.class);
     }
 
     @Benchmark

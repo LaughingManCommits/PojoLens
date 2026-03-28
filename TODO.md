@@ -39,7 +39,7 @@ Resolved for this roadmap:
 | `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.4` Execution Path Unification Audit      | `P1`     | `Done`    | `WP8.1` findings              |
 | `WP8.5` Entropy Reduction Implementation      | `P0`     | `Done` | `WP8.2`, `WP8.3`, `WP8.4`     |
-| `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Ready` | `WP8.5`                       |
+| `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Done` | `WP8.5`                       |
 
 ## Work Packages
 
@@ -231,7 +231,7 @@ Priority:
 - `P1`
 
 Status:
-- `Ready`
+- `Done`
 
 Goal:
 - make the simplified library shape visible and durable across docs, benchmarks,
@@ -246,6 +246,16 @@ Acceptance criteria:
 - docs describe one default path per job
 - migration text is sufficient for any narrowed advanced/helper surface
 - benchmark evidence exists for any cleanup that touched runtime hot paths
+
+Result:
+- delivered in `docs/entropy-release-refresh.md`
+- refreshed `README.md`, `docs/usecases.md`, `docs/sql-like.md`,
+  `docs/benchmarking.md`, `MIGRATION.md`, and `RELEASE.md`
+- added benchmark coverage for the exact `WP8.5` paths in
+  `StatsQueryJmhBenchmark.fluentGroupedRows` and
+  `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`
+- captured forked JMH spot-check evidence for grouped fluent execution,
+  execution-backed SQL-like explain, and streaming materialization behavior
 
 ## Operational Follow-Up
 

@@ -176,6 +176,41 @@ Interpretation:
 - Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
 
+## `WP8.5` Execution-Path Spot Checks
+
+The `WP8.5` entropy-reduction work changed three hot internal areas:
+
+- fluent grouped stage running
+- SQL-like execution explain stage accounting
+- SQL-like output materialization for list-vs-stream execution
+
+Forked local spot-check commands used for `WP8.6`:
+
+```bash
+java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-group-benchmarks-forked.json
+java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-sqllike-execution-explain-benchmarks-forked.json
+java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-streaming-benchmarks-forked.json
+```
+
+Representative `2026-03-28` forked spot-check results:
+
+| Benchmark | Size | Score | Units |
+|---|---:|---:|---|
+| `StatsQueryJmhBenchmark.fluentGroupedRows` | `1000` | `0.108` | `ms/op` |
+| `StatsQueryJmhBenchmark.fluentGroupedRows` | `10000` | `1.010` | `ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseAndExplainExecution` | `1000` | `3.662` | `ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseAndExplainExecution` | `10000` | `57.199` | `ms/op` |
+| `StreamingExecutionJmhBenchmark.fluentFilterListMaterialized` | `10000` | `2555.610` | `us/op` |
+| `StreamingExecutionJmhBenchmark.fluentFilterStreamLazy` | `10000` | `45.733` | `us/op` |
+| `StreamingExecutionJmhBenchmark.sqlLikeFilterListMaterialized` | `10000` | `3485.327` | `us/op` |
+| `StreamingExecutionJmhBenchmark.sqlLikeFilterStreamLazy` | `10000` | `60.815` | `us/op` |
+
+Interpretation:
+
+- `filterGroups(...)` remains in the low-millisecond band in this local cold spot check.
+- Execution-backed SQL-like `explain(rows, projection)` remains materially slower than metadata-only explain, as expected, because it now walks the live bound execution path.
+- The lazy stream advantage remains intact after the SQL-like materialization cleanup: at `size=10000`, the stream path is still roughly `56x` faster (fluent) and `57x` faster (SQL-like) than the list-materializing path for this first-page-style workload.
+
 ## Optional Index Hint Tradeoffs
 
 Optional fluent index hints are now benchmarked with a selective equality workload (`IndexHintJmhBenchmark`):

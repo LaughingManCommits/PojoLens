@@ -19,3 +19,7 @@
 - `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
 - `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after marking `WP8.5` done and advancing the roadmap to `WP8.6`.
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing hot state and derived indexes for completed `WP8.5`.
+- `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks test` passed after adding benchmark coverage for `fluentGroupedRows` and `parseAndExplainExecution`.
+- `2026-03-28`: forked JMH spot checks passed through `target/pojo-lens-1.0.0-benchmarks.jar` for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and the existing `StreamingExecutionJmhBenchmark` list-vs-stream methods.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after completing `WP8.6` docs, benchmark, and release refresh updates.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after marking `WP8.6` done and refreshing the completed roadmap state.

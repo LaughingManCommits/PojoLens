@@ -626,6 +626,15 @@ Map<String, Object> explain = PojoLensSql
 
 For parameterized queries, `parameterSnapshot` reports parameter names with redacted metadata such as `status`, `shape`, `type`, and collection `size` when applicable. For JOIN queries, `joinSourceBindings` reports whether each named JOIN source is currently bound.
 
+Execution explain notes:
+
+- `where`, `group`, `having`, `qualify`, and `order` counts are gathered from
+  the live unpaged bound execution path used by normal SQL-like execution
+- `limit` reflects the final `OFFSET`/`LIMIT` window on top of those stage
+  counts
+- refresh stored explain snapshots if you previously depended on older
+  `HAVING` or `QUALIFY` counts from the explain-only replay path
+
 Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWarnings`. Current warning codes:
 
 - `EQ-SQL-LINT-001`: broad `select *`

@@ -118,6 +118,11 @@ public class SqlLikePipelineJmhBenchmark {
     }
 
     @Benchmark
+    public Map<String, Object> parseAndExplainExecution() {
+        return parsedExplainQuery.explain(source, BenchmarkGroupRow.class);
+    }
+
+    @Benchmark
     public List<BenchmarkFoo> parseAndFilterBooleanDepth() {
         return parsedBooleanDepthQuery.filter(source, BenchmarkFoo.class);
     }
