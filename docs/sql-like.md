@@ -1,6 +1,6 @@
 # SQL-like Query Guide
 
-## Supported Grammar (v1)
+## Supported Grammar
 
 - `SELECT` (optional, supports `AS` aliases)
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
@@ -24,7 +24,7 @@ Supported operators in `WHERE`:
 - `CONTAINS`
 - `MATCHES`
 
-## HAVING v1 Contract
+## HAVING Contract
 
 `HAVING` is defined for grouped/aggregated SQL-like queries and is evaluated after aggregation.
 
@@ -41,7 +41,7 @@ Disallowed references in `HAVING`:
 - unknown names
 - ambiguous names
 
-Boolean support in v1:
+Boolean support:
 - `AND` is supported
 - `OR` is supported
 
@@ -50,7 +50,7 @@ Validation errors for invalid `HAVING`:
 - `Unknown HAVING reference '<name>'`
 - `Invalid HAVING reference '<name>': expected grouped field or aggregate output`
 
-## QUALIFY v1 Contract
+## QUALIFY Contract
 
 `QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
 
@@ -72,7 +72,7 @@ Validation errors for invalid `QUALIFY`:
 - `QUALIFY is only supported for non-aggregate SQL-like queries`
 - `Unknown field '<name>' in QUALIFY clause`
 
-## Window Functions v1 Contract
+## Window Functions Contract
 
 Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
 
@@ -263,7 +263,7 @@ Cursor contract:
 - cursor values must be non-null
 - `keysetAfter(...)` resolves the "next page" window
 - `keysetBefore(...)` resolves the "previous page" window
-- token format is opaque Base64URL (`v1`) and preserves common scalar value types
+- token format is opaque Base64URL (current format) and preserves common scalar value types
 
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
@@ -936,5 +936,11 @@ Meaning:
 
 Fix:
 - Ensure computed expressions reference valid fields from the source rows.
+
+
+
+
+
+
 
 

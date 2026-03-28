@@ -9,7 +9,7 @@ From `List<T>` to query and chart-ready results, without a database.
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
-  <version>1.0.0</version>
+  <version>2026.03.28.1919</version>
 </dependency>
 ```
 
@@ -31,7 +31,7 @@ Central distribution:
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens-spring-boot-starter</artifactId>
-  <version>1.0.0</version>
+  <version>2026.03.28.1919</version>
 </dependency>
 ```
 
@@ -201,7 +201,8 @@ Recommended defaults for new code are documented in
 ## Public API Stability
 
 PojoLens uses three API tiers:
-- `Stable`: intended v2 surface, enforced from the first `v2` tag onward
+- `Stable`: intended dated-release surface, enforced from the first
+  `release-*` tag onward
 - `Advanced`: public but faster-evolving (best-effort compatibility)
 - `Internal`: no compatibility guarantee (`*.internal.*`)
 

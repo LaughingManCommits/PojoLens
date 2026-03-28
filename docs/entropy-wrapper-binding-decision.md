@@ -19,13 +19,13 @@ docs and new code.
   primary rows plus `JoinBindings`, when the same multi-source snapshot is
   executed more than once.
 - raw public `Map<String, List<?>>` join-source execution overloads are
-  removed before `v2`; use `JoinBindings.from(map)` only as a boundary adapter.
+  removed before the first public release; use `JoinBindings.from(map)` only as a boundary adapter.
 
 ## Compatibility Inputs
 
 - [public-api-stability.md](public-api-stability.md) keeps `JoinBindings`,
   `DatasetBundle`, and the relevant `DatasetBundle.of(...)` overloads inside the
-  intended stable `v2` surface.
+  intended stable dated-release surface.
 - [reusable-wrappers.md](reusable-wrappers.md), [reports.md](reports.md),
   [charts.md](charts.md), and [stats-presets.md](stats-presets.md) already
   position `ReportDefinition<T>` as the general wrapper and expose bridging
@@ -49,7 +49,7 @@ docs and new code.
 
 | Surface | Role | Disposition | Preferred story | Notes |
 | --- | --- | --- | --- | --- |
-| raw `Map<String, List<?>>` join-source execution overloads | Compatibility overlap | `Removed pre-v2` | Convert once with `JoinBindings.from(map)` at the boundary | The public execution surface now stays typed while still allowing map adaptation where needed. |
+| raw `Map<String, List<?>>` join-source execution overloads | Compatibility overlap | `Removed pre-first-release` | Convert once with `JoinBindings.from(map)` at the boundary | The public execution surface now stays typed while still allowing map adaptation where needed. |
 | `JoinBindings` | Named multi-source binding contract | `Keep default` | Default ad-hoc binding input for multi-source execution | Gives clearer source names and validation than ad-hoc maps. |
 | `DatasetBundle` | Reusable execution snapshot | `Keep default reusable form` | Wrap primary rows plus `JoinBindings` when the same snapshot will be executed repeatedly | This is the reusable or snapshot form of the same binding model, not a competing concept. |
 

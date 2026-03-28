@@ -11,7 +11,7 @@ Update your dependency declarations accordingly.
 
 ## Facade Removal
 
-If you are upgrading from older unpublished or pre-1.0 builds, treat the
+If you are upgrading from older unpublished or pre-public-release builds, treat the
 explicit owning types below as the supported path now.
 
 `PojoLens` is removed from the public surface.
@@ -216,7 +216,7 @@ List<Foo> result = template.initFilter().filter(Foo.class);
 
 ## Fluent API and SQL-like API
 
-You can now choose either style for supported v1 operations (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`).
+You can now choose either style for currently supported operations (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`).
 
 Fluent:
 
@@ -241,9 +241,9 @@ Migration guidance:
 - For user-authored/config-defined queries, prefer SQL-like input.
 - For compile-time safety and complex Java-side composition, keep fluent API.
 - SQL-like validation is strict: unknown or `@Exclude` fields are rejected.
-- SQL-like v1 supports a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
-- SQL-like v1 supports `HAVING` for grouped/aggregated queries (`AND`/`OR`).
-- SQL-like v1 supports limited `WHERE ... IN (select oneField ...)` subqueries.
+- Current SQL-like support includes a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
+- Current SQL-like support includes `HAVING` for grouped/aggregated queries (`AND`/`OR`).
+- Current SQL-like supports limited `WHERE ... IN (select oneField ...)` subqueries.
 - SQL-like chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the previous source explicitly.
 - Aggregate, grouped, and joined subquery plans are still unsupported.
 
@@ -306,7 +306,7 @@ JoinBindings joinBindings = JoinBindings.from(joinSources);
 List<Company> rows = query.filter(companies, joinBindings, Company.class);
 ```
 
-## HAVING v1 Design Note
+## HAVING Design Note
 
 This section defines the SQL-like `HAVING` behavior.
 
@@ -319,7 +319,7 @@ Allowed in `HAVING`:
 - aggregate aliases from `SELECT`
 - grouped fields
 
-Not allowed in v1:
+Not allowed in the current release:
 - non-grouped, non-aggregated fields
 
 Validation expectations:
@@ -327,7 +327,7 @@ Validation expectations:
 - unknown, ambiguous, or illegal references are rejected with deterministic error text.
 - `HAVING` must appear after `GROUP BY` and before `ORDER BY`/`LIMIT`.
 
-## Chart Data v1 Design Note
+## Chart Data Design Note
 
 This section defines the chart-data contract.
 
@@ -336,7 +336,7 @@ Policy:
 - `PojoLens` will not implement native image/chart rendering.
 - external chart libraries are allowed in tests/examples only (test scope dependencies).
 
-v1 scope:
+Current scope:
 - chart types: `BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`
 - source paths: fluent results and SQL-like results
 - output: typed chart payload (`ChartData` + datasets)
@@ -388,5 +388,4 @@ API entry points:
 - `setReturnFields`
 
 Use the fluent `QueryBuilder` methods instead (`addRule`, `addGroup`, `addOrder`, `addDistinct`, `addField`, `limit`, joins, metrics, time buckets). Internal pipeline state is now managed only inside the execution engine.
-
 

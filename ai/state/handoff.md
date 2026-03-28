@@ -10,10 +10,12 @@
 
 ## Focus
 
-- Release retry or release verification is the main pending repo task.
+- Release retry or release verification for the dated version/tag scheme is the main pending repo task.
 
 ## Facts
 
+- Release versioning is date-based now: Maven versions use
+  `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
 - `PojoLens` is removed from the public surface; owning entry/workflow types
   now carry the API directly.
 - `PojoLensRuntime` owns the only public cache-tuning surface.
@@ -23,7 +25,7 @@
   internal.
 - `WP8.6` is complete: README/selection docs, migration/release wording, and
   benchmark notes now reflect the reduced default path set.
-- The stronger pre-v2 cleanup is now executed end-to-end: `PojoLens` is gone,
+- The stronger pre-first-release cleanup is now executed end-to-end: `PojoLens` is gone,
   raw public join-map execution overloads are gone, public static/global cache
   policy methods are gone, and the public `FilterExecutionPlanCache`
   compatibility facade is gone.
@@ -44,3 +46,4 @@
 - roadmap artifacts: `docs/entropy-audit.md`, `docs/entropy-internalization-decision.md`, `docs/entropy-wrapper-binding-decision.md`, `docs/entropy-execution-path-audit.md`
 - release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
 - benchmark context when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`
+

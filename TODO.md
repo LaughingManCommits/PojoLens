@@ -12,20 +12,20 @@ Prefer deletions and internalization over reshuffling.
   `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
   `ReportDefinition`
 - internalize implementation details that do not need to survive into the
-  intended `v2` surface
+  intended stable surface
 - only take execution-path cleanup that is plausibly performance-neutral or
   performance-positive
 
 ## Decision Gate
 
 Resolved for this roadmap:
-- pre-v2 stable-surface cleanup is allowed when it removes compatibility-only
+- pre-first-release stable-surface cleanup is allowed when it removes compatibility-only
   overlap and migration notes are explicit
 - the intended default surface is:
   `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`,
   `ReportDefinition`, `JoinBindings`, and `DatasetBundle`
 - compatibility-only wrappers/adapters such as the `PojoLens` facade and raw
-  public join-map execution overloads may be removed before the first `v2`
+  public join-map execution overloads may be removed before the first public
   release
 
 ## Status Model
@@ -98,7 +98,7 @@ Deliverables:
 - a keep or internalize table for public implementation-heavy types such as
   builder/filter implementations, row/intermediate models, and SQL-like AST
   helpers
-- explicit compatibility notes for each candidate that cannot move in `1.x`
+- explicit compatibility notes for each candidate that cannot move before the first public release
 - a package policy for what must remain public versus move under
   `*.internal.*` or package-private scope
 
@@ -109,7 +109,7 @@ Acceptance criteria:
 
 Result:
 - delivered in `docs/entropy-internalization-decision.md`
-- approved pre-v2 internalization for builder/filter internals,
+- approved pre-first-release internalization for builder/filter internals,
   execution-plan types, SQL-like parser/AST helpers, chart mapping helpers,
   intermediate row models, and support/util packages
 - kept `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`, and
@@ -265,7 +265,8 @@ Result:
 
 ## Operational Follow-Up
 
-- Maven Central release retry or verification for `v1.0.0` remains the main
+- Maven Central release retry or verification for the current dated release remains the main
   repo-level operational task.
 - Treat that release work as operational follow-up, not as a roadmap package in
   this file.
+

@@ -20,8 +20,11 @@
 - `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after marking `WP8.5` done and advancing the roadmap to `WP8.6`.
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing hot state and derived indexes for completed `WP8.5`.
 - `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks test` passed after adding benchmark coverage for `fluentGroupedRows` and `parseAndExplainExecution`.
-- `2026-03-28`: forked JMH spot checks passed through `target/pojo-lens-1.0.0-benchmarks.jar` for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and the existing `StreamingExecutionJmhBenchmark` list-vs-stream methods.
+- `2026-03-28`: forked JMH spot checks passed through the resolved `target/*-benchmarks.jar` runner for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and the existing `StreamingExecutionJmhBenchmark` list-vs-stream methods.
 - `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after completing `WP8.6` docs, benchmark, and release refresh updates.
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after marking `WP8.6` done and refreshing the completed roadmap state.
 - `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks -am test-compile` passed after aligning benchmark sources/tests with the removed `PojoLens` facade and `FilterExecutionPlanCache` compatibility facade.
-- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after executing the stronger pre-v2 cleanup stance in code/docs and updating the benchmark module to the owning-type/runtime surface.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after executing the stronger pre-first-release cleanup stance in code/docs and updating the benchmark module to the owning-type/runtime surface.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after switching the repo to date-based release versioning (`2026.03.28.1919`, `release-<version>`) and aligning the release/benchmark/process docs.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after trimming hot state and refreshing derived indexes for the date-based release-versioning migration.
+

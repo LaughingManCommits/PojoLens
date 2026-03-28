@@ -12,7 +12,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
   objects.
 - Chart/table/report helpers, runtime wiring, and tooling layer on top of that
   same engine.
-- Compatibility-only facade overlap has been removed ahead of `v2`.
+- Compatibility-only facade overlap has been removed ahead of the first public release.
 
 ## Family Definitions
 
@@ -71,4 +71,6 @@ This classification remains the input for:
 - entry-point guidance
 - reusable wrapper guidance
 - advanced-feature containment in README/docs
-- post-v2 compatibility enforcement
+- post-first-release compatibility enforcement
+
+

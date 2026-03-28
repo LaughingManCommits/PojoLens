@@ -1,7 +1,7 @@
 # Entry Point Guide
 
 For new code, use the owning type directly.
-The old `PojoLens` facade is gone; the repo now documents only the intended v2
+The old `PojoLens` facade is gone; the repo now documents only the intended stable dated-release
 entry surface.
 
 ## Recommended Defaults
@@ -68,3 +68,4 @@ types instead of on a facade:
 
 This keeps the public story narrower: direct engine entry points first, helper
 types only where the use case actually needs them.
+

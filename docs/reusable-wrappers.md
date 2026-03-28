@@ -52,8 +52,8 @@ Current `WP8.3` keep/de-emphasize call:
 - de-emphasize the idea that these are separate product identities
 
 No wrapper is a current deprecation candidate.
-Further wrapper reduction remains a pre-v2 product decision, not a compatibility
-constraint.
+Further wrapper reduction remains a pre-first-release product decision, not a
+compatibility constraint.
 The formal decision record for this call lives in
 [docs/entropy-wrapper-binding-decision.md](entropy-wrapper-binding-decision.md).
 

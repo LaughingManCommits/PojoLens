@@ -1,5 +1,16 @@
 # Release Guide
 
+## Versioning
+
+PojoLens uses date-based releases.
+
+- Maven version: `YYYY.MM.DD.HHmm`
+- Git tag: `release-<version>`
+
+Example:
+- `pom.xml`: `2026.03.28.1919`
+- git tag: `release-2026.03.28.1919`
+
 ## 1) Pre-Release Validation
 
 ```bash
@@ -18,6 +29,7 @@ Before tagging, confirm these are current and mutually aligned:
 - `docs/sql-like.md`
 - `docs/charts.md`
 - `docs/benchmarking.md`
+- `docs/public-api-stability.md`
 
 ## 2.1) Current Release Notes Highlights
 
@@ -45,7 +57,8 @@ Reference wording and benchmark evidence are recorded in:
 
 ## 3) Benchmark Guardrail Evidence
 
-Run benchmark and parity checks from `docs/benchmarking.md` and archive produced JSON/CSV outputs as release evidence.
+Run benchmark and parity checks from `docs/benchmarking.md` and archive produced
+JSON/CSV outputs as release evidence.
 
 Minimum required checks:
 - strict core thresholds (`benchmarks/thresholds.json`)
@@ -53,7 +66,8 @@ Minimum required checks:
 - chart parity check
 - benchmark metrics plot generation
 
-When building the benchmark runner locally, resolve the real jar from `target/*-benchmarks.jar` instead of hardcoding a versioned filename.
+When building the benchmark runner locally, resolve the real jar from
+`target/*-benchmarks.jar` instead of hardcoding a versioned filename.
 
 ## 4) Maven Central Namespace and Coordinates
 
@@ -72,13 +86,15 @@ If using GitHub namespace verification:
 
 ## 5) Publish to Maven Central
 
-After namespace verification and publish credentials are configured in `~/.m2/settings.xml`:
+After namespace verification and publish credentials are configured in
+`~/.m2/settings.xml`:
 
 ```bash
 mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests
 ```
 
-The `release-central` profile attaches source/javadoc jars, signs artifacts, and publishes via the Central plugin.
+The `release-central` profile attaches source/javadoc jars, signs artifacts,
+and publishes via the Central plugin.
 Benchmark and example modules remain non-published.
 
 ### 5.1) Pipeline Release (GitHub Actions)
@@ -86,7 +102,7 @@ Benchmark and example modules remain non-published.
 Release workflow: `.github/workflows/release.yml`
 
 Triggers:
-- tag push `v*`
+- tag push `release-*`
 - manual `workflow_dispatch`
 
 Required repository secrets:
@@ -102,22 +118,25 @@ Optional helper for generating `GPG_PRIVATE_KEY` export + template files:
 ./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
 ```
 
-The release job validates `v<version>` tag vs `pom.xml` version, runs tests, and executes:
+The release job validates `release-<version>` vs `pom.xml` version, runs tests,
+and executes:
 
 ```bash
 mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
 ```
 
-The Central plugin is configured with `autoPublish=true` and `waitUntil=published`, so successful pipeline runs should complete publication without manual portal confirmation.
+The Central plugin is configured with `autoPublish=true` and
+`waitUntil=published`, so successful pipeline runs should complete publication
+without manual portal confirmation.
 
 ## 6) Git Tag and Push
 
 ```bash
 git add .
 git commit -m "Release <version>"
-git tag -a v<version> -m "PojoLens v<version>"
+git tag -a release-<version> -m "PojoLens release <version>"
 git push
-git push origin v<version>
+git push origin release-<version>
 ```
 
 ## 7) Release Checklist
@@ -125,10 +144,9 @@ git push origin v<version>
 - [ ] Full validation passed (`test`, lint baseline gate, benchmark guardrails).
 - [ ] Coordinates and namespace are verified and aligned with `pom.xml`.
 - [ ] Docs are synced (`README`, `MIGRATION`, `RELEASE`, `docs/*.md`).
-- [ ] If this is the first `v2` tag, binary compatibility enforcement is now
-      expected to start from `v2*` baselines in CI.
+- [ ] If this is the first public `release-*` tag, binary compatibility
+      enforcement is now expected to start from `release-*` baselines in CI.
 - [ ] SQL-like limitations text is still accurate: supports limited `WHERE ... IN (select oneField ...)` subqueries.
 - [ ] SQL-like join capability text is still accurate: chained joins are supported when each `JOIN ... ON ...` references the current plan correctly.
 - [ ] CI/workflow changes are intentional.
 - [ ] Release tag pushed and visible.
-

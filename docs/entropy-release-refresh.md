@@ -55,10 +55,13 @@ Methodology:
 Commands used:
 
 ```powershell
-java -jar target/pojo-lens-1.0.0-benchmarks.jar "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$" -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-group-benchmarks-forked.json
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-sqllike-execution-explain-benchmarks-forked.json
-java -jar target/pojo-lens-1.0.0-benchmarks.jar "laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$" -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-streaming-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$" -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-group-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-sqllike-execution-explain-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar "laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$" -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-streaming-benchmarks-forked.json
 ```
+
+As with the main benchmark guide, resolve the actual runner jar from
+`target/*-benchmarks.jar` instead of hardcoding a specific release filename.
 
 Representative `2026-03-28` results:
 

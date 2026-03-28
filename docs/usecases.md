@@ -300,7 +300,7 @@ Use:
 
 ```java
 QueryRegressionFixture<EmployeeApiRow> fixture = QueryRegressionFixture
-    .builder("employee-api-v1", EmployeeApiRow.class)
+    .builder("employee-api", EmployeeApiRow.class)
     .fluent(builder -> builder
         .addRule("active", true, Clauses.EQUAL)
         .addOrder("salary", 1))

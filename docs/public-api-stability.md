@@ -1,17 +1,23 @@
-# Public API Stability (Pre-V2)
+# Public API Stability (Date-Based Releases)
 
-PojoLens is in an explicit pre-v2 surface-reduction phase.
-The intended v2 surface is already documented and tested, but compatibility-only
-wrappers and adapter overloads are still allowed to shrink before the first
-`v2` release.
+PojoLens now uses date-based releases.
+
+Release format:
+- Maven version: `YYYY.MM.DD.HHmm`
+- Git tag: `release-<version>`
+
+The repo is still in an explicit pre-first-release surface-reduction phase.
+The intended stable surface is already documented and tested, but
+compatibility-only wrappers and adapter overloads are still allowed to shrink
+before the first public `release-*` tag.
 
 ## Tier Definitions
 
 - `Stable`:
-  - intended v2 product surface
+  - intended long-lived product surface
   - covered by contract tests now
-  - covered by binary/source compatibility checks starting from the first `v2`
-    release tag
+  - covered by binary/source compatibility checks starting from the first
+    public `release-*` tag
 - `Advanced`:
   - public and supported, but expected to evolve faster
   - best-effort compatibility only
@@ -31,7 +37,7 @@ Product-surface families are defined in [product-surface.md](product-surface.md)
 
 The families and tiers are related, but not the same thing:
 
-- `Stable` means "part of the intended v2 surface"
+- `Stable` means "part of the intended dated-release stable surface"
 - `Advanced` means "public, but not part of the narrow core promise"
 - compatibility adapters are allowed, but they should not become a second
   product story
@@ -112,16 +118,16 @@ The following remain public, but are treated as advanced:
 Current overlap dispositions live in
 [consolidation-review.md](consolidation-review.md).
 
-## Pre-V2 Cleanup Policy
+## Pre-First-Release Cleanup Policy
 
-Before the first `v2` release:
+Before the first public `release-*` tag:
 
 - compatibility-only wrappers, execution overloads, and public default-cache
   facades may be removed directly
 - migration notes must be explicit
 - contract tests should be updated in the same change
 
-This rule is why the following were removed before `v2`:
+This rule is why the following were removed before the first public release:
 
 - the `PojoLens` facade
 - public raw `Map<String, List<?>>` execution overloads on SQL-like and wrapper
@@ -132,35 +138,36 @@ This rule is why the following were removed before `v2`:
 If you need to adapt existing map-shaped join inputs, convert once at the
 boundary with `JoinBindings.from(map)` and continue on the typed surface.
 
-## Post-V2 Compatibility Policy
+## Post-First-Release Compatibility Policy
 
-After the first `v2` release tag:
+After the first public `release-*` tag:
 
-- do not remove stable methods/classes in `2.x` minors or patches
-- do not change stable method signatures incompatibly in `2.x`
+- do not remove stable methods/classes in later dated releases
+- do not change stable method signatures incompatibly in later dated releases
 - keep behavioral contracts consistent except for bug fixes
 - additive API changes are allowed
 
 For `Advanced` APIs:
 
-- changes are allowed in minors when needed for maintainability/performance
+- changes are allowed in later releases when needed for
+  maintainability/performance
 - release notes must call out notable advanced-surface changes
 
 ## Deprecation Policy
 
-Before `v2`:
+Before the first public release:
 
 - compatibility-only surfaces can be removed without a deprecation window
 - migration guidance must land in `MIGRATION.md`
 
-After `v2`:
+After the first public release:
 
-- stable APIs deprecate first, remove in the next major
+- stable APIs deprecate first, remove only after an explicit compatibility reset
 - every deprecation includes migration guidance
 
 ## Enforcement
 
-- `StablePublicApiContractTest` validates the intended v2 stable surface and
+- `StablePublicApiContractTest` validates the intended stable surface and
   baseline behavior.
-- CI binary compatibility checks start from `v2` release tags, not from the
-  pre-v2 facade/adapter surface.
+- CI binary compatibility checks start from the first `release-*` tag rather
+  than from coarse major-version markers.

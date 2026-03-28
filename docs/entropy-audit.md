@@ -3,7 +3,7 @@
 This document is the `WP8.1` baseline for the `Entropy Reduction` roadmap.
 It records the public runtime surface as it existed at the start of the
 roadmap, the main duplicate concept families, and the strongest code-reduction
-candidates that fed later pre-v2 cleanup work.
+candidates that fed later pre-first-release cleanup work.
 
 ## Baseline
 
@@ -193,7 +193,7 @@ before.
 ### Input to `WP8.2`
 
 - start with the `52` internalization candidates above
-- decide which can move in `1.x` versus which must wait for `2.x`
+- decide which can move before the first public release versus which must wait for a later compatibility reset
 - decide whether public cache handles should be wrapped behind smaller public
   interfaces instead of exposing implementation classes
 

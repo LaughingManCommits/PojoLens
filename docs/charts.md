@@ -1,10 +1,10 @@
 # Chart Data Guide
 
-## Contract (v1)
+## Current Contract
 
 `PojoLens` chart support is data-contract mapping only (no internal renderer).
 
-Supported v1 chart types:
+Supported chart types:
 - `BAR`
 - `LINE`
 - `PIE`
@@ -209,5 +209,7 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
+
 
 
