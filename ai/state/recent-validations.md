@@ -10,3 +10,6 @@
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after trimming hot state back under the per-file memory budgets and refreshing the new `WP8.3` decision record.
 - `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after the `WP8.4` execution-path audit and roadmap-state updates.
 - `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing the new `WP8.4` audit artifact and advancing hot memory to `WP8.5`.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed for the first `WP8.5` SQL-like output-materialization slice.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,ChartMapperArrayRowsTest,ChartResultMapperMappingTest,ChartResultMapperValidationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed after internalizing `ChartValidation`.
+- `2026-03-28`: `mvn -q test` passed after the `WP8.5` SQL-like output-materialization cleanup, optional-join helper deletion, stream coverage additions, and `ChartValidation` internalization.

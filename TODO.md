@@ -38,7 +38,7 @@ Resolved for this roadmap:
 | `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
 | `WP8.4` Execution Path Unification Audit      | `P1`     | `Done`    | `WP8.1` findings              |
-| `WP8.5` Entropy Reduction Implementation      | `P0`     | `Ready`   | `WP8.2`, `WP8.3`, `WP8.4`     |
+| `WP8.5` Entropy Reduction Implementation      | `P0`     | `In progress` | `WP8.2`, `WP8.3`, `WP8.4`     |
 | `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Planned` | `WP8.5`                       |
 
 ## Work Packages
@@ -186,7 +186,7 @@ Priority:
 - `P0`
 
 Status:
-- `Ready`
+- `In progress`
 
 Goal:
 - implement the chosen surface reductions, internalizations, and execution-path
@@ -204,6 +204,14 @@ Acceptance criteria:
   `mvn -q test`
   `scripts/check-doc-consistency.ps1`
 - benchmark guardrails are unchanged or improved for touched hot paths
+
+Progress:
+- unified SQL-like output materialization now resolves one shared internal
+  mode across `filter`, `stream`, and `chart`
+- removed the unused optional-join iterator helper
+- internalized `ChartValidation` to a package-private chart helper
+- shared SQL-like stage accounting and shared fluent stage running are still
+  open before `WP8.5` can move to `Done`
 
 ### `WP8.6` Docs, Benchmarks, and Release Refresh
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-28T09:23:21.707005+01:00",
+  "generatedAt": "2026-03-28T11:15:07.790855+01:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 42,
-      "byteCount": 2411,
+      "lineCount": 34,
+      "byteCount": 1561,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 42,
-      "byteCount": 2765,
+      "lineCount": 36,
+      "byteCount": 2142,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 12,
-      "byteCount": 1597,
+      "lineCount": 15,
+      "byteCount": 2360,
       "coldSearchEligible": true
     },
     {
@@ -438,8 +438,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 235,
-      "byteCount": 8185,
+      "lineCount": 243,
+      "byteCount": 8563,
       "coldSearchEligible": true
     }
   ]

@@ -131,6 +131,43 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void streamShouldMatchFilterForAliasedProjection() {
+        List<TestBean> source = Arrays.asList(
+                new TestBean("abc", 2),
+                new TestBean("xyz", 5)
+        );
+        SqlLikeQuery query = PojoLensSql.parse(
+                "select name as employeeName, value as annualSalary where value >= 2 order by value desc");
+
+        List<TestBeanSummary> filtered = query.filter(source, TestBeanSummary.class);
+        List<TestBeanSummary> streamed = query.stream(source, TestBeanSummary.class).toList();
+
+        assertEquals(
+                filtered.stream().map(r -> r.employeeName + ":" + r.annualSalary).toList(),
+                streamed.stream().map(r -> r.employeeName + ":" + r.annualSalary).toList()
+        );
+    }
+
+    @Test
+    public void streamShouldMatchFilterForAliasedStatsProjection() {
+        List<DepartmentEmployee> source = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+        SqlLikeQuery query = PojoLensSql.parse(
+                "select department as dept, count(*) as total group by department order by total desc");
+
+        List<DepartmentCountAlias> filtered = query.filter(source, DepartmentCountAlias.class);
+        List<DepartmentCountAlias> streamed = query.stream(source, DepartmentCountAlias.class).toList();
+
+        assertEquals(
+                filtered.stream().map(r -> r.dept + ":" + r.total).toList(),
+                streamed.stream().map(r -> r.dept + ":" + r.total).toList()
+        );
+    }
+
+    @Test
     public void whereParenthesesShouldRespectBooleanPrecedence() {
         List<TestBean> source = Arrays.asList(
                 new TestBean("abc", 10),
@@ -384,6 +421,14 @@ public class SqlLikeQueryContractTest {
         long people;
 
         public DepartmentAvgProjection() {
+        }
+    }
+
+    public static class TestBeanSummary {
+        String employeeName;
+        int annualSalary;
+
+        public TestBeanSummary() {
         }
     }
 }

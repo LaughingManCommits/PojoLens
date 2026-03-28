@@ -37,119 +37,130 @@ final class SqlLikeExecutionFlowSupport {
 
     static <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {
         ExecutionRun run = context.newRun();
-        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
-        SelectAst select = context.select();
-        QueryAst ast = context.ast();
-        boolean hasQualify = ast != null && ast.hasQualifyClause();
-        if (select != null
-                && !select.wildcard()
-                && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
-            if (statsState != null && !hasQualify && !select.hasComputedFields() && !select.hasWindowFields()) {
-                return SqlLikeExecutionSupport.projectAliasedRows(
-                        statsState.rows(),
-                        statsState.schemaFields(),
-                        projectionClass,
-                        select
-                );
-            }
-            List<QueryRow> sourceRows = executeRawRows(run);
-            return SqlLikeExecutionSupport.projectAliasedRows(sourceRows, projectionClass, select);
-        }
-        if (hasQualify) {
-            return ReflectionUtil.toClassList(projectionClass, executeRawRows(run));
-        }
-        if (statsState != null) {
-            return ReflectionUtil.toClassList(
+        OutputResolution output = resolveOutput(context, run);
+        return switch (output.mode()) {
+            case FAST_STATS_ALIASED -> SqlLikeExecutionSupport.projectAliasedRows(
+                    output.statsState().rows(),
+                    output.statsState().schemaFields(),
                     projectionClass,
-                    statsState.rows(),
-                    statsState.schemaFields()
+                    output.select()
             );
-        }
-        return SqlLikeExecutionSupport.executeWithOptionalJoin(
-                run.builder(),
-                context.sort(),
-                context.applyJoin(),
-                projectionClass
-        );
+            case RAW_ROWS_PROJECTED -> SqlLikeExecutionSupport.projectAliasedRows(
+                    executeRawRows(run),
+                    projectionClass,
+                    output.select()
+            );
+            case RAW_ROWS_TYPED -> ReflectionUtil.toClassList(projectionClass, executeRawRows(run));
+            case FAST_STATS_TYPED -> ReflectionUtil.toClassList(
+                    projectionClass,
+                    output.statsState().rows(),
+                    output.statsState().schemaFields()
+            );
+            case DIRECT -> SqlLikeExecutionSupport.executeWithOptionalJoin(
+                    run.builder(),
+                    context.sort(),
+                    context.applyJoin(),
+                    projectionClass
+            );
+        };
     }
 
     static <T> Stream<T> executeStream(ExecutionContext context, Class<T> projectionClass) {
         ExecutionRun run = context.newRun();
-        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
-        SelectAst select = context.select();
-        QueryAst ast = context.ast();
-        boolean hasQualify = ast != null && ast.hasQualifyClause();
-        if (select != null
-                && !select.wildcard()
-                && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
-            return executeFilter(context, projectionClass).stream();
-        }
-        if (hasQualify) {
-            return ReflectionUtil.toClassList(
+        OutputResolution output = resolveOutput(context, run);
+        return switch (output.mode()) {
+            case FAST_STATS_ALIASED -> SqlLikeExecutionSupport.projectAliasedRows(
+                    output.statsState().rows(),
+                    output.statsState().schemaFields(),
+                    projectionClass,
+                    output.select()
+            ).stream();
+            case RAW_ROWS_PROJECTED -> SqlLikeExecutionSupport.projectAliasedRows(
+                    executeRawRows(run),
+                    projectionClass,
+                    output.select()
+            ).stream();
+            case RAW_ROWS_TYPED -> ReflectionUtil.toClassList(
                     projectionClass,
                     executeRawRows(run)
             ).stream();
-        }
-        if (statsState != null) {
-            return ReflectionUtil.toClassList(
+            case FAST_STATS_TYPED -> ReflectionUtil.toClassList(
                     projectionClass,
-                    statsState.rows(),
-                    statsState.schemaFields()
+                    output.statsState().rows(),
+                    output.statsState().schemaFields()
             ).stream();
-        }
-        return SqlLikeExecutionSupport.executeStreamWithOptionalJoin(
-                run.builder(),
-                context.sort(),
-                context.applyJoin(),
-                projectionClass
-        );
+            case DIRECT -> SqlLikeExecutionSupport.executeStreamWithOptionalJoin(
+                    run.builder(),
+                    context.sort(),
+                    context.applyJoin(),
+                    projectionClass
+            );
+        };
     }
 
     static <T> ChartData executeChart(ExecutionContext context,
                                       Class<T> projectionClass,
                                       ChartSpec spec,
                                       QueryTelemetryListener telemetryListener,
-                                      String source) {
+        String source) {
         ExecutionRun run = context.newRun();
-        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
-        SelectAst select = context.select();
-        QueryAst ast = context.ast();
-        boolean hasQualify = ast != null && ast.hasQualifyClause();
-        if (statsState != null) {
-            if (select != null && !select.wildcard() && (hasQualify || select.hasComputedFields() || select.hasWindowFields())) {
+        OutputResolution output = resolveOutput(context, run);
+        switch (output.mode()) {
+            case FAST_STATS_ALIASED -> {
+                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+                ChartData chart = ChartMapper.toChartData(
+                        output.statsState().rows(),
+                        SqlLikeExecutionSupport.aliasedOutputSchema(
+                                output.statsState().schemaFields(),
+                                output.select()
+                        ),
+                        spec
+                );
+                emitChartTelemetry(
+                        chartStarted,
+                        output.statsState().rows().size(),
+                        chart,
+                        telemetryListener,
+                        source
+                );
+                return chart;
+            }
+            case RAW_ROWS_PROJECTED -> {
                 List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(
                         executeRawRows(run),
                         projectionClass,
-                        select
+                        output.select()
                 );
                 long chartStarted = QueryTelemetrySupport.start(telemetryListener);
                 ChartData chart = ChartMapper.toChartData(projectedRows, spec);
                 emitChartTelemetry(chartStarted, projectedRows.size(), chart, telemetryListener, source);
                 return chart;
             }
-            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-            List<String> chartSchema =
-                    select != null && !select.wildcard() && hasPlainFieldAliases(select)
-                            ? SqlLikeExecutionSupport.aliasedOutputSchema(statsState.schemaFields(), select)
-                            : statsState.schemaFields();
-            ChartData chart = ChartMapper.toChartData(statsState.rows(), chartSchema, spec);
-            emitChartTelemetry(chartStarted, statsState.rows().size(), chart, telemetryListener, source);
-            return chart;
+            case FAST_STATS_TYPED -> {
+                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+                ChartData chart = ChartMapper.toChartData(
+                        output.statsState().rows(),
+                        output.statsState().schemaFields(),
+                        spec
+                );
+                emitChartTelemetry(
+                        chartStarted,
+                        output.statsState().rows().size(),
+                        chart,
+                        telemetryListener,
+                        source
+                );
+                return chart;
+            }
+            case RAW_ROWS_TYPED, DIRECT -> {
+                List<QueryRow> rows = executeRawRows(run);
+                long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+                ChartData chart = ChartResultMapper.toChartData(rows, spec);
+                emitChartTelemetry(chartStarted, rows.size(), chart, telemetryListener, source);
+                return chart;
+            }
         }
-        List<QueryRow> rows = executeRawRows(run);
-        if (select != null
-                && !select.wildcard()
-                && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select))) {
-            List<T> projectedRows = SqlLikeExecutionSupport.projectAliasedRows(rows, projectionClass, select);
-            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-            ChartData chart = ChartMapper.toChartData(projectedRows, spec);
-            emitChartTelemetry(chartStarted, projectedRows.size(), chart, telemetryListener, source);
-            return chart;
-        }
-        long chartStarted = QueryTelemetrySupport.start(telemetryListener);
-        ChartData chart = ChartResultMapper.toChartData(rows, spec);
-        emitChartTelemetry(chartStarted, rows.size(), chart, telemetryListener, source);
-        return chart;
+        throw new IllegalStateException("Unhandled SQL-like output mode: " + output.mode());
     }
 
     static Map<String, Object> buildStageRowCounts(ExecutionContext context) {
@@ -295,6 +306,38 @@ final class SqlLikeExecutionFlowSupport {
                 || !builder.getQualifyAnyOfGroups().isEmpty();
     }
 
+    private static OutputResolution resolveOutput(ExecutionContext context, ExecutionRun run) {
+        SelectAst select = context.select();
+        FastStatsQuerySupport.FastStatsState statsState = run.fastStatsState();
+        boolean hasQualify = context.ast() != null && context.ast().hasQualifyClause();
+        if (requiresProjectedOutput(select, hasQualify)) {
+            if (statsState != null && canProjectFromStats(select, hasQualify)) {
+                return new OutputResolution(OutputMode.FAST_STATS_ALIASED, select, statsState);
+            }
+            return new OutputResolution(OutputMode.RAW_ROWS_PROJECTED, select, statsState);
+        }
+        if (hasQualify) {
+            return new OutputResolution(OutputMode.RAW_ROWS_TYPED, select, statsState);
+        }
+        if (statsState != null) {
+            return new OutputResolution(OutputMode.FAST_STATS_TYPED, select, statsState);
+        }
+        return new OutputResolution(OutputMode.DIRECT, select, null);
+    }
+
+    private static boolean requiresProjectedOutput(SelectAst select, boolean hasQualify) {
+        return select != null
+                && !select.wildcard()
+                && (hasQualify || select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select));
+    }
+
+    private static boolean canProjectFromStats(SelectAst select, boolean hasQualify) {
+        return select != null
+                && !hasQualify
+                && !select.hasComputedFields()
+                && !select.hasWindowFields();
+    }
+
     private static List<QueryRow> applyQualifyStageViaFluent(FilterQueryBuilder sourceBuilder, List<QueryRow> inputRows) {
         if (inputRows == null || inputRows.isEmpty()) {
             return inputRows;
@@ -333,24 +376,6 @@ final class SqlLikeExecutionFlowSupport {
         return rows == null ? 0 : rows.size();
     }
 
-    private static void emitStage(FilterQueryBuilder builder,
-                                  QueryTelemetryStage stage,
-                                  long startedNanos,
-                                  Integer beforeCount,
-                                  Integer afterCount,
-                                  Map<String, Object> metadata) {
-        QueryTelemetrySupport.emit(
-                builder.getTelemetryListener(),
-                stage,
-                builder.getTelemetryQueryType(),
-                builder.getTelemetrySource(),
-                startedNanos,
-                beforeCount,
-                afterCount,
-                metadata
-        );
-    }
-
     private static Map<String, Object> stageEntry(boolean applied, int before, int after) {
         Map<String, Object> stage = new LinkedHashMap<>();
         stage.put("applied", applied);
@@ -378,5 +403,18 @@ final class SqlLikeExecutionFlowSupport {
                         "datasetCount", chart.getDatasets() == null ? 0 : chart.getDatasets().size()
                 )
         );
+    }
+
+    private enum OutputMode {
+        DIRECT,
+        FAST_STATS_TYPED,
+        FAST_STATS_ALIASED,
+        RAW_ROWS_TYPED,
+        RAW_ROWS_PROJECTED
+    }
+
+    private record OutputResolution(OutputMode mode,
+                                    SelectAst select,
+                                    FastStatsQuerySupport.FastStatsState statsState) {
     }
 }
