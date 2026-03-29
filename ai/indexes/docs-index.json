@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T10:48:09.529936+02:00",
+  "generatedAt": "2026-03-29T13:49:10.444364+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -60,8 +60,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 51,
-      "byteCount": 1597,
+      "lineCount": 47,
+      "byteCount": 1174,
       "coldSearchEligible": true
     },
     {
@@ -141,8 +141,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 38,
-      "byteCount": 2390,
+      "lineCount": 37,
+      "byteCount": 2223,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 46,
-      "byteCount": 2078,
+      "lineCount": 48,
+      "byteCount": 2161,
       "coldSearchEligible": true
     },
     {
@@ -187,7 +187,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 351,
-      "byteCount": 20564,
+      "byteCount": 20583,
       "coldSearchEligible": true
     },
     {
@@ -215,60 +215,6 @@
       "loadTier": null,
       "lineCount": 96,
       "byteCount": 2655,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/consolidation-review.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 60,
-      "byteCount": 4216,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/entropy-audit.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 214,
-      "byteCount": 29903,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/entropy-execution-path-audit.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 183,
-      "byteCount": 8845,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/entropy-internalization-decision.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 85,
-      "byteCount": 7726,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/entropy-release-refresh.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 117,
-      "byteCount": 5871,
-      "coldSearchEligible": true
-    },
-    {
-      "path": "docs/entropy-wrapper-binding-decision.md",
-      "category": "product-doc",
-      "relevance": "medium",
-      "loadTier": null,
-      "lineCount": 87,
-      "byteCount": 5240,
       "coldSearchEligible": true
     },
     {
@@ -312,8 +258,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 173,
-      "byteCount": 5404,
+      "lineCount": 174,
+      "byteCount": 5453,
       "coldSearchEligible": true
     },
     {
@@ -339,8 +285,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 59,
-      "byteCount": 3905,
+      "lineCount": 57,
+      "byteCount": 3760,
       "coldSearchEligible": true
     },
     {
@@ -429,8 +375,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 290,
-      "byteCount": 10717,
+      "lineCount": 288,
+      "byteCount": 10538,
       "coldSearchEligible": true
     },
     {
@@ -438,8 +384,8 @@
       "category": "release-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 152,
-      "byteCount": 5212,
+      "lineCount": 127,
+      "byteCount": 4044,
       "coldSearchEligible": true
     },
     {
@@ -447,8 +393,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 315,
-      "byteCount": 14575,
+      "lineCount": 168,
+      "byteCount": 8669,
       "coldSearchEligible": true
     }
   ]

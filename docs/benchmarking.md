@@ -179,20 +179,20 @@ Interpretation:
 - Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
 
-## `WP8.5` Execution-Path Spot Checks
+## Execution-Path Spot Checks
 
-The `WP8.5` entropy-reduction work changed three hot internal areas:
+A recent execution-path cleanup changed three hot internal areas:
 
 - fluent grouped stage running
 - SQL-like execution explain stage accounting
 - SQL-like output materialization for list-vs-stream execution
 
-Forked local spot-check commands used for `WP8.6`:
+Forked local spot-check commands used for this refresh:
 
 ```bash
-java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-group-benchmarks-forked.json
-java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-sqllike-execution-explain-benchmarks-forked.json
-java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/wp8.6-streaming-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-group-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-sqllike-execution-explain-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-streaming-benchmarks-forked.json
 ```
 
 Representative `2026-03-28` forked spot-check results:
@@ -297,7 +297,7 @@ Current correctness guardrails:
 
 ## End-To-End Computed Join Diagnostics
 
-When WP5 selective single-join changes need end-to-end validation, use the dedicated computed-field join benchmarks in `PojoLensJoinJmhBenchmark`:
+When selective single-join behavior needs end-to-end validation, use the dedicated computed-field join benchmarks in `PojoLensJoinJmhBenchmark`:
 - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`
 - `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField`
 

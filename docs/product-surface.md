@@ -2,7 +2,7 @@
 
 This document is the canonical feature-family classification for PojoLens.
 
-Use it to keep README, examples, API guidance, and roadmap decisions aligned on
+Use it to keep README, examples, API guidance, and surface decisions aligned on
 what is core, what is convenience, and what is advanced/tooling surface.
 
 ## Canonical Product Story

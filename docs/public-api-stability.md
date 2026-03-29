@@ -115,8 +115,9 @@ The following remain public, but are treated as advanced:
 - metamodel generation
 - benchmark tooling and threshold helpers
 
-Current overlap dispositions live in
-[consolidation-review.md](consolidation-review.md).
+Cross-module surface guidance is documented in
+[product-surface.md](product-surface.md) and
+[reusable-wrappers.md](reusable-wrappers.md).
 
 ## Pre-First-Release Cleanup Policy
 

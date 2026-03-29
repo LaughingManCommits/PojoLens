@@ -4,7 +4,7 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; `WP9.1`, `WP9.2`, `WP9.3`, `WP9.4`, and `WP9.6` are complete.
+3. Check `TODO.md`; `WP9` context-loading work is complete.
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
@@ -26,6 +26,8 @@
   `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
 - For module/architecture retrieval, use facet-constrained lookup:
   `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
+- `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*`
+  wording were removed.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
 
 ## Validate

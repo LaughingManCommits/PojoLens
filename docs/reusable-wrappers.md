@@ -45,7 +45,7 @@ Documentation-noise overlap:
 
 Those overlaps are expected because the wrappers share one execution engine and one snapshot-reuse model.
 
-Current `WP8.3` keep/de-emphasize call:
+Current wrapper guidance:
 - keep `ReportDefinition<T>` as the default general reusable wrapper
 - keep `ChartQueryPreset<T>` as specialized chart-first convenience
 - keep `StatsViewPreset<T>` as specialized table-first convenience
@@ -54,6 +54,4 @@ Current `WP8.3` keep/de-emphasize call:
 No wrapper is a current deprecation candidate.
 Further wrapper reduction remains a pre-first-release product decision, not a
 compatibility constraint.
-The formal decision record for this call lives in
-[docs/entropy-wrapper-binding-decision.md](entropy-wrapper-binding-decision.md).
 

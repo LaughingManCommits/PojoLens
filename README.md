@@ -260,10 +260,8 @@ Preset intent:
 ### Reference
 
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
-- Entropy release refresh: [docs/entropy-release-refresh.md](docs/entropy-release-refresh.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
 - Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
-- Consolidation review: [docs/consolidation-review.md](docs/consolidation-review.md)
 - Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
 - Migration notes: [MIGRATION.md](MIGRATION.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
