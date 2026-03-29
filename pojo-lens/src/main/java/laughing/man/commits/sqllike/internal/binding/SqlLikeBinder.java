@@ -9,8 +9,8 @@ import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.WindowFunction;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -69,7 +69,8 @@ public final class SqlLikeBinder {
                                     Map<String, List<?>> joinSources,
                                     Class<?> sourceClass,
                                     ComputedFieldRegistry computedFieldRegistry) {
-        return bind(ast, pojos, joinSources, sourceClass, computedFieldRegistry, FilterExecutionPlanCache.defaultStore());
+        return bind(ast, pojos, joinSources, sourceClass, computedFieldRegistry,
+                DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
     public static QueryBuilder bind(QueryAst ast,

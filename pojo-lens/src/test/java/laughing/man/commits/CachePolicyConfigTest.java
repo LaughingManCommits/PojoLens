@@ -22,7 +22,7 @@ public class CachePolicyConfigTest {
 
     @BeforeEach
     public void setUp() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         resetSqlLikePolicyDefaults();
         resetStatsPlanPolicyDefaults();
     }
@@ -153,3 +153,5 @@ public class CachePolicyConfigTest {
         runtime.statsPlanCache().resetStats();
     }
 }
+
+

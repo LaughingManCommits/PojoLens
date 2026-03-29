@@ -7,6 +7,13 @@
 - lint: `mvn -B -ntp -Plint verify -DskipTests`
 - lint baseline gate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-lint-baseline.ps1 -Report target\checkstyle-result.xml -Baseline scripts\checkstyle-baseline.txt -RepoRoot .`
 - static analysis: `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+- ai memory refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1`
+- ai memory full refresh: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -ForceFull`
+- ai memory freshness: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -Check`
+- ai memory compaction: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\refresh-ai-memory.ps1 -CompactLog`
+- ai memory cold search: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\query-ai-memory.ps1 -Query "<text>"`
+- ai memory archive search: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\query-ai-memory.ps1 -Query "<text>" -Path "ai/log/archive/*" -Tier "cold,archive"`
+- ai memory benchmark: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`
 
 ## Benchmark Flow
 
@@ -15,12 +22,20 @@
 3. Run suite args from `scripts/benchmark-suite-*.args`.
 4. Check thresholds with `benchmarks/thresholds.json` or `benchmarks/chart-thresholds.json`.
 
+## AI Memory Benchmark Flow
+
+1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`.
+2. Confirm full refresh, incremental refresh, and `-Check` all exit cleanly.
+3. Confirm incremental refresh reports JSON reuse and SQLite reused-file counts on the no-change run.
+4. Confirm the benchmark report keeps top-1 and top-3 hit quality at `1.0` for the fixed query set before changing the memory workflow again.
+
 ## Release Flow (Maven Central)
 
 1. Ensure required GitHub secrets are set:
    `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
-2. Ensure PGP public key is available on supported keyservers.
+2. Ensure the PGP public key is available on supported keyservers.
 3. Trigger `.github/workflows/release.yml` by:
    - pushing tag `vX.Y.Z` (must match `pom.xml` version), or
    - manual `workflow_dispatch`.
-4. Workflow runs tests then `mvn -B -ntp -Prelease-central -DskipTests deploy`.
+4. Workflow runs tests then:
+   `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy`.

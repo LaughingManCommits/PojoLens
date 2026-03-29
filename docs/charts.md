@@ -1,10 +1,10 @@
 # Chart Data Guide
 
-## Contract (v1)
+## Current Contract
 
 `PojoLens` chart support is data-contract mapping only (no internal renderer).
 
-Supported v1 chart types:
+Supported chart types:
 - `BAR`
 - `LINE`
 - `PIE`
@@ -60,6 +60,8 @@ Interop policy:
 - integration with chart libraries is validated via tests/examples.
 
 Wrapper choice:
+- for docs and new code, treat `ReportDefinition<T>` as the default reusable
+  contract
 - `ChartQueryPreset<T>` is the specialized chart-first reusable wrapper
 - `ReportDefinition<T>` is the general reusable wrapper when the same query may feed chart and non-chart consumers
 - wrapper selection guide: [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -70,12 +72,15 @@ Recommended defaults:
 - start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
 - start from `PojoLensSql.parse(...)` for SQL-like chart flows
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
+- for multi-source SQL-like chart execution, start with `JoinBindings` and
+  promote to `DatasetBundle` when the same snapshot is reused
 
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `ChartJsAdapter.toPayload(ChartData)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
+- `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Map<String,List<?>>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
 - `ChartQueryPresets.categoryCounts(...)`
@@ -144,7 +149,7 @@ ChartJsPayload payload = ChartQueryPresets
 Bundle-driven chart:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -204,4 +209,7 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
+
+
 

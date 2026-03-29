@@ -10,7 +10,7 @@ public class RuntimePolicyPresetTest {
 
     @Test
     public void devPresetShouldFavorDiagnosticsAndVisibleCacheStats() {
-        PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+        PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 
         assertTrue(runtime.sqlLikeCache().isEnabled());
         assertTrue(runtime.sqlLikeCache().isStatsEnabled());
@@ -28,7 +28,7 @@ public class RuntimePolicyPresetTest {
 
     @Test
     public void prodPresetShouldFavorBoundedCachesAndLowerOverhead() {
-        PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
+        PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 
         assertTrue(runtime.sqlLikeCache().isEnabled());
         assertFalse(runtime.sqlLikeCache().isStatsEnabled());
@@ -46,7 +46,7 @@ public class RuntimePolicyPresetTest {
 
     @Test
     public void testPresetShouldDisableCachesAndEnableStrictDiagnostics() {
-        PojoLensRuntime runtime = PojoLens.newRuntime().applyPreset(PojoLensRuntimePreset.TEST);
+        PojoLensRuntime runtime = new PojoLensRuntime().applyPreset(PojoLensRuntimePreset.TEST);
 
         assertFalse(runtime.sqlLikeCache().isEnabled());
         assertFalse(runtime.sqlLikeCache().isStatsEnabled());
@@ -62,7 +62,7 @@ public class RuntimePolicyPresetTest {
 
     @Test
     public void manualOverridesShouldRemainAvailableAfterApplyingPreset() {
-        PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
+        PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 
         runtime.setLintMode(true);
         runtime.setStrictParameterTypes(true);
@@ -75,4 +75,6 @@ public class RuntimePolicyPresetTest {
         assertFalse(runtime.statsPlanCache().isEnabled());
     }
 }
+
+
 

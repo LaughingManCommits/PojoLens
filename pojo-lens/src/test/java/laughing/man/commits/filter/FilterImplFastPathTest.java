@@ -2,7 +2,6 @@ package laughing.man.commits.filter;
 
 import laughing.man.commits.PojoLensCore;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -179,3 +178,5 @@ class FilterImplFastPathTest {
         public String tag;
     }
 }
+
+

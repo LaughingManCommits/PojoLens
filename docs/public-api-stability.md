@@ -1,18 +1,29 @@
-# Public API Stability (1.x)
+# Public API Stability (Date-Based Releases)
 
-PojoLens now uses explicit API tiers so compatibility expectations are clear.
+PojoLens now uses date-based releases.
+
+Release format:
+- Maven version: `YYYY.MM.DD.HHmm`
+- Git tag: `release-<version>`
+
+The repo is still in an explicit pre-first-release surface-reduction phase.
+The intended stable surface is already documented and tested, but
+compatibility-only wrappers and adapter overloads are still allowed to shrink
+before the first public `release-*` tag.
 
 ## Tier Definitions
 
 - `Stable`:
-  - Covered by compatibility guarantees for `1.x`.
-  - Breaking source/binary changes require deprecation first (or a major version).
+  - intended long-lived product surface
+  - covered by contract tests now
+  - covered by binary/source compatibility checks starting from the first
+    public `release-*` tag
 - `Advanced`:
-  - Public and supported, but may evolve faster within `1.x`.
-  - Best-effort compatibility only.
+  - public and supported, but expected to evolve faster
+  - best-effort compatibility only
 - `Internal`:
-  - No compatibility guarantee.
-  - Includes any `*.internal.*` package.
+  - no compatibility guarantee
+  - includes `*.internal.*` packages and implementation helpers
 
 ## Reading The Tiers
 
@@ -21,58 +32,48 @@ Product-surface families are defined in [product-surface.md](product-surface.md)
 - core query engine
 - workflow helpers
 - integration
-- compatibility
 - tooling
+- compatibility adapters
 
-The tiers and families are related, but they are not the same thing:
+The families and tiers are related, but not the same thing:
 
-- `Stable` means compatibility-guaranteed for `1.x`.
-- `Advanced` means public but faster-evolving.
-- a surface can be `Compatibility` and still be `Stable`
-  (for example `PojoLens`)
-- a surface can be a `Workflow helper` and still be `Advanced`
-  (for example report/preset convenience wrappers)
-- the default first-read product story should still center on the core query
-  engine even when other public surfaces are stable
+- `Stable` means "part of the intended dated-release stable surface"
+- `Advanced` means "public, but not part of the narrow core promise"
+- compatibility adapters are allowed, but they should not become a second
+  product story
 
-The non-default public surfaces are grouped in
-[advanced-features.md](advanced-features.md) so they stay discoverable without
-competing with the core onboarding path.
+The default first-read story stays centered on the core engine:
+`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
+`ReportDefinition<T>`.
 
-## Stable Surface (1.x)
-
-Stable surface is intentionally wider than the default onboarding story. Some
-compatibility or support contracts remain stable even though the preferred
-narrative for new users should start with the core query engine.
+## Stable Surface
 
 ### Entry Points
 
-- `PojoLens`
-  - `newQueryBuilder(List<?>)`
-  - `parse(String)`
-  - `template(String, String...)`
-  - `newRuntime()`
-  - `newRuntime(PojoLensRuntimePreset)`
-  - `newKeysetCursorBuilder()`
-  - `parseKeysetCursor(String)`
-  - `toChartData(List<T>, ChartSpec)`
 - `PojoLensCore.newQueryBuilder(List<?>)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
+- `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `PojoLensRuntime`
+  - constructor
+  - `ofPreset(PojoLensRuntimePreset)`
   - `newQueryBuilder(List<?>)`
   - `parse(String)`
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
   - strict/lint toggles
+- `DatasetBundle`
+  - `of(List<?>)`
+  - `of(List<?>, JoinBindings)`
+  - `builder(List<?>)`
 
 ### Fluent Query Contracts
 
 - `QueryBuilder`:
-  - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`, `addHaving`
+  - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`
+  - `addHaving`, `addQualify`, `addJoinBeans`
   - `limit`, `offset`
   - `initFilter`, `explain`, `schema`
-  - `addJoinBeans`
 - `Filter`:
   - `filter`, `iterator`, `stream`, `chart`, `join`
 
@@ -82,6 +83,7 @@ narrative for new users should start with the core query engine.
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
   - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `SqlLikeBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`
 - `SqlLikeTemplate`:
@@ -91,55 +93,82 @@ narrative for new users should start with the core query engine.
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
 - `JoinBindings`:
-  - `of`, `builder`, `asMap`
+  - `empty`, `of`, `from`, `builder`, `asMap`
 
 ### Shared Stable Types
 
-- `DatasetBundle`
 - `PojoLensRuntimePreset`
-- Query enums:
+- query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
-- Chart contracts used by stable entry points:
+- chart contracts:
   - `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType`
 
 ## Advanced Surface (Examples)
 
-The following remain public, but are treated as advanced in `1.x`:
+The following remain public, but are treated as advanced:
 
-- runtime policy tuning and static cache-control APIs on
-  `PojoLens`/`PojoLensCore`/`PojoLensSql`
-- reusable workflow wrappers such as `report` and chart/stats preset helpers
-- `compareSnapshots` and regression/testing helper APIs
-- metamodel generation helpers
-- benchmark and threshold tooling
+- fine-grained runtime cache tuning and observability on `PojoLensRuntime`
+- reusable workflow wrappers such as `ReportDefinition`, `ChartQueryPreset`,
+  `StatsViewPreset`, and related helper types
+- `SnapshotComparison`, regression fixtures, parity helpers, and other testing
+  support
+- metamodel generation
+- benchmark tooling and threshold helpers
 
-See [advanced-features.md](advanced-features.md) for the grouped landing page
-used in the docs.
-Current overlap dispositions live in
-[consolidation-review.md](consolidation-review.md).
+Cross-module surface guidance is documented in
+[product-surface.md](product-surface.md) and
+[reusable-wrappers.md](reusable-wrappers.md).
 
-## Compatibility Policy
+## Pre-First-Release Cleanup Policy
 
-For `Stable` APIs in `1.x`:
+Before the first public `release-*` tag:
 
-- Do not remove stable methods/classes in minor/patch releases.
-- Do not change method signatures or return types incompatibly.
-- Keep behavioral contracts consistent except for bug fixes.
-- Additive API changes are allowed.
+- compatibility-only wrappers, execution overloads, and public default-cache
+  facades may be removed directly
+- migration notes must be explicit
+- contract tests should be updated in the same change
+
+This rule is why the following were removed before the first public release:
+
+- the `PojoLens` facade
+- public raw `Map<String, List<?>>` execution overloads on SQL-like and wrapper
+  APIs
+- the public `FilterExecutionPlanCache` compatibility facade around the
+  default stats-plan cache
+
+If you need to adapt existing map-shaped join inputs, convert once at the
+boundary with `JoinBindings.from(map)` and continue on the typed surface.
+
+## Post-First-Release Compatibility Policy
+
+After the first public `release-*` tag:
+
+- do not remove stable methods/classes in later dated releases
+- do not change stable method signatures incompatibly in later dated releases
+- keep behavioral contracts consistent except for bug fixes
+- additive API changes are allowed
 
 For `Advanced` APIs:
 
-- Changes are allowed in minors when needed for maintainability/performance.
-- Release notes must call out notable advanced-surface changes.
+- changes are allowed in later releases when needed for
+  maintainability/performance
+- release notes must call out notable advanced-surface changes
 
 ## Deprecation Policy
 
-- Deprecate first, remove later.
-- Keep deprecated stable APIs for at least one minor release before any removal.
-- Every deprecation must include migration guidance in `MIGRATION.md`.
-- Removal or incompatible change to stable APIs requires a major version.
+Before the first public release:
+
+- compatibility-only surfaces can be removed without a deprecation window
+- migration guidance must land in `MIGRATION.md`
+
+After the first public release:
+
+- stable APIs deprecate first, remove only after an explicit compatibility reset
+- every deprecation includes migration guidance
 
 ## Enforcement
 
-- Contract tests in `StablePublicApiContractTest` validate stable entry-point availability and baseline behavior.
-- CI runs `japicmp` through the `binary-compat` Maven profile against the latest `v*` tag baseline and fails on binary/source-incompatible stable-surface changes.
+- `StablePublicApiContractTest` validates the intended stable surface and
+  baseline behavior.
+- CI binary compatibility checks start from the first `release-*` tag rather
+  than from coarse major-version markers.

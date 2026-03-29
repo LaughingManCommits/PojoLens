@@ -2,8 +2,8 @@ package laughing.man.commits.sqllike.internal.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
@@ -26,7 +26,7 @@ public final class SqlLikeQueryCache {
     private final Object mutationLock = new Object();
     private final AtomicLong bypassMisses = new AtomicLong();
 
-    private volatile FilterExecutionPlanCacheStore executionPlanCache = FilterExecutionPlanCache.defaultStore();
+    private volatile FilterExecutionPlanCacheStore executionPlanCache = DefaultFilterExecutionPlanCacheSupport.defaultStore();
     private volatile boolean enabled = true;
     private volatile boolean statsEnabled = true;
     private volatile int maxEntries = DEFAULT_MAX_ENTRIES;

@@ -4,7 +4,6 @@ import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.DatasetBundle;
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.chart.ChartQueryPreset;
@@ -46,11 +45,11 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
     @Test
     public void runtimePolicyPresetsShouldBeUsableFromPublicApi() {
-        PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+        PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
         assertTrue(devRuntime.isStrictParameterTypes());
         assertTrue(devRuntime.isLintMode());
 
-        PojoLensRuntime prodRuntime = PojoLens.newRuntime().applyPreset(PojoLensRuntimePreset.PROD);
+        PojoLensRuntime prodRuntime = new PojoLensRuntime().applyPreset(PojoLensRuntimePreset.PROD);
         assertFalse(prodRuntime.isStrictParameterTypes());
         assertFalse(prodRuntime.isLintMode());
         assertTrue(prodRuntime.sqlLikeCache().isEnabled());
@@ -100,13 +99,13 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
     @Test
     public void reportDefinitionsShouldBeUsableFromPublicApi() {
-        ReportDefinition<StatsRow> sqlReport = PojoLens.report(
+        ReportDefinition<StatsRow> sqlReport = ReportDefinition.sql(
                 PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 StatsRow.class
         );
         assertEquals(2, sqlReport.rows(sampleEmployees()).size());
 
-        ReportDefinition<StatsRow> fluentReport = PojoLens.report(
+        ReportDefinition<StatsRow> fluentReport = ReportDefinition.fluent(
                 StatsRow.class,
                 builder -> builder.addGroup("department").addCount("total")
         );
@@ -116,7 +115,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
     @Test
     public void datasetBundleFactoriesShouldBeUsableFromPublicApi() {
-        DatasetBundle bundle = PojoLens.bundle(
+        DatasetBundle bundle = DatasetBundle.of(
                 sampleCompanies(),
                 JoinBindings.of("employees", sampleCompanyEmployees())
         );
@@ -133,7 +132,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     public void telemetryHooksShouldBeUsableFromPublicApi() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
 
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setTelemetryListener(events::add);
         runtime.parse("where salary >= 100000").filter(sampleEmployees(), Employee.class);
         assertFalse(events.isEmpty());
@@ -157,7 +156,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .computedFields(registry)
                 .filter(sampleEmployees(), ComputedSalaryRow.class);
 
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setComputedFieldRegistry(registry);
         assertEquals("adjustedSalary", runtime.getComputedFieldRegistry().get("adjustedSalary").name());
         assertEquals(3, rows.size());
@@ -166,8 +165,8 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     @Test
     public void snapshotComparisonShouldBeUsableFromPublicApi() {
         List<Employee> employees = sampleEmployees();
-        SnapshotComparison<Employee, Integer> comparison = PojoLens
-                .compareSnapshots(employees, employees)
+        SnapshotComparison<Employee, Integer> comparison = SnapshotComparison
+                .builder(employees, employees)
                 .byKey(employee -> employee.id);
 
         assertEquals(4, comparison.rows().size());
@@ -200,7 +199,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         TabularSchema sqlSchema = PojoLensSql.parse("select department, count(*) as total group by department")
                 .schema(StatsRow.class);
 
-        ReportDefinition<StatsRow> report = PojoLens.report(
+        ReportDefinition<StatsRow> report = ReportDefinition.sql(
                 PojoLensSql.parse("select department, count(*) as total group by department"),
                 StatsRow.class
         );
@@ -228,6 +227,8 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                         "Finance:1");
     }
 }
+
+
 
 
 

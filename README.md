@@ -1,4 +1,4 @@
-# PojoLens
+# PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
 `PojoLens` is a POJO-first in-memory query engine for Java. It supports both a fluent API and SQL-like query strings for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
@@ -9,7 +9,7 @@ From `List<T>` to query and chart-ready results, without a database.
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
-  <version>1.0.0</version>
+  <version>2026.03.28.1919</version>
 </dependency>
 ```
 
@@ -31,7 +31,7 @@ Central distribution:
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens-spring-boot-starter</artifactId>
-  <version>1.0.0</version>
+  <version>2026.03.28.1919</version>
 </dependency>
 ```
 
@@ -48,7 +48,8 @@ pojo-lens:
 ```
 
 Runnable example project:
-- `examples/spring-boot-starter-basic` (REST endpoint + starter auto-configuration usage)
+- `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
+- `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
 
 ## Why PojoLens
 
@@ -76,6 +77,10 @@ Runnable example project:
 
 ## Pick A Path
 
+For new code, prefer one default path per job:
+`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`ReportDefinition<T>`.
+
 | If you need... | Choose... | Read next |
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore` | `docs/entry-points.md`, `docs/usecases.md` |
@@ -85,6 +90,7 @@ Runnable example project:
 | A reusable business query contract | `ReportDefinition` | `docs/reusable-wrappers.md`, `docs/reports.md` |
 | A reusable chart-first preset | `ChartQueryPreset` | `docs/reusable-wrappers.md`, `docs/charts.md` |
 | A reusable table payload with totals/schema | `StatsViewPreset` / `StatsTable` | `docs/reusable-wrappers.md`, `docs/stats-presets.md` |
+| Joined multi-source execution | `JoinBindings`, then `DatasetBundle` when reused | `docs/sql-like.md`, `docs/reports.md` |
 
 ## Product Shape
 
@@ -188,7 +194,7 @@ These public follow-on features are collected in
 - `PojoLensSql`: default for new SQL-like and template-driven queries
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
-- `PojoLens`: compatibility facade and helper namespace for migration-friendly call sites
+- `ReportDefinition`: reusable business-query wrapper when the contract itself should be carried around
 
 Recommended defaults for new code are documented in
 [docs/entry-points.md](docs/entry-points.md).
@@ -196,7 +202,8 @@ Recommended defaults for new code are documented in
 ## Public API Stability
 
 PojoLens uses three API tiers:
-- `Stable`: compatibility-guaranteed for `1.x`
+- `Stable`: intended dated-release surface, enforced from the first
+  `release-*` tag onward
 - `Advanced`: public but faster-evolving (best-effort compatibility)
 - `Internal`: no compatibility guarantee (`*.internal.*`)
 
@@ -205,7 +212,7 @@ These tiers are orthogonal to the product-surface families in
 - core query engine
 - workflow helpers
 - integration
-- compatibility
+- compatibility adapters
 - tooling
 
 The explicit stable-surface contract and deprecation policy are documented in
@@ -214,9 +221,9 @@ The explicit stable-surface contract and deprecation policy are documented in
 ## Runtime Presets
 
 ```java
-PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.TEST);
+PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
+PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
 ```
 
 Preset intent:
@@ -256,7 +263,6 @@ Preset intent:
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
 - Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
-- Consolidation review: [docs/consolidation-review.md](docs/consolidation-review.md)
 - Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
 - Migration notes: [MIGRATION.md](MIGRATION.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -280,3 +286,4 @@ mvn -B -ntp test
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for lint, benchmarks, and release-quality guardrail commands.
+

@@ -3,7 +3,6 @@ package laughing.man.commits.query;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Sort;
@@ -126,6 +125,8 @@ public class NestedPathQueryTest {
         }
     }
 }
+
+
 
 
 

@@ -31,3 +31,5 @@ class GroupKeyUtilTest {
         assertEquals("<NULL>", GroupKeyUtil.NULL_GROUP_KEY);
     }
 }
+
+

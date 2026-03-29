@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import org.junit.jupiter.api.Test;
@@ -62,7 +61,7 @@ public class SqlLikeLintModeTest {
 
     @Test
     public void runtimeShouldApplyLintModeIndependentlyFromStrictTyping() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         assertFalse(runtime.isLintMode());
         assertFalse(runtime.isStrictParameterTypes());
 
@@ -88,6 +87,8 @@ public class SqlLikeLintModeTest {
         assertEquals(SqlLikeLintCodes.LIMIT_WITHOUT_ORDER, warnings.get(1).code());
     }
 }
+
+
 
 
 

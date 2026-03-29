@@ -54,3 +54,5 @@ class SqlExpressionEvaluatorTest {
         assertTrue(ex.getMessage().contains("Function ABS requires 1 argument(s)"));
     }
 }
+
+

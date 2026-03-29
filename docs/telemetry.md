@@ -20,7 +20,7 @@ Supported stages:
 Use `PojoLensRuntime` when you want parse-time telemetry as well as execution-stage telemetry:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setTelemetryListener(event -> {
     System.out.println(event.stage() + " " + event.durationNanos());
 });
@@ -94,4 +94,5 @@ When no listener is configured, telemetry is effectively disabled:
 - no listener callbacks
 - no event allocations
 - no stage timing calls beyond null checks
+
 

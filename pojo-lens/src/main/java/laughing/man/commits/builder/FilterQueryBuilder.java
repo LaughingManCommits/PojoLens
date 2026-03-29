@@ -26,10 +26,10 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import static laughing.man.commits.util.ObjectUtil.castToString;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.filter.FilterExecutionPlanCache;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.filter.FilterImpl;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
@@ -61,7 +61,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private volatile long executionPlanShapeVersion;
 
     public FilterQueryBuilder(List<?> pojos) {
-        this(pojos, FilterExecutionPlanCache.defaultStore());
+        this(pojos, DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
     public FilterQueryBuilder(List<?> pojos, FilterExecutionPlanCacheStore executionPlanCache) {

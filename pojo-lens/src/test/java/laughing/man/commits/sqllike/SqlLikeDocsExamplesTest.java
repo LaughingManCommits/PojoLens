@@ -3,7 +3,6 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.chart.ChartData;
@@ -28,7 +27,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -151,7 +149,7 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, true)
         );
 
-        SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+        SqlLikeCursor cursor = SqlLikeCursor.builder()
                 .put("salary", 120000)
                 .put("id", 1)
                 .build();
@@ -165,7 +163,7 @@ public class SqlLikeDocsExamplesTest {
         assertEquals("Bob", rows.get(1).name);
 
         String token = cursor.toToken();
-        SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+        SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
         assertEquals(cursor, decoded);
     }
 
@@ -345,9 +343,9 @@ public class SqlLikeDocsExamplesTest {
 
     @Test
     public void docsRecipeRuntimePolicyPresetsShouldWork() {
-        PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
-        PojoLensRuntime prodRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
-        PojoLensRuntime testRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.TEST);
+        PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+        PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
+        PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
 
         assertTrue(devRuntime.isStrictParameterTypes());
         assertTrue(devRuntime.isLintMode());
@@ -378,7 +376,7 @@ public class SqlLikeDocsExamplesTest {
 
         List<Company> companies = sampleCompanies();
         List<Company> namedSourceRows = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
-                .filter(companies, Map.of("employees", sampleCompanyEmployees()), Company.class);
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
         assertEquals(1, namedSourceRows.size());
         assertEquals("Acme", namedSourceRows.get(0).name);
     }
@@ -497,12 +495,10 @@ public class SqlLikeDocsExamplesTest {
     public void readmeJoinWithRuntimeBindingExampleShouldWork() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
-
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("employees", employees);
+        JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
         List<Company> rows = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .filter(companies, joinSources, Company.class);
+                .filter(companies, joinBindings, Company.class);
 
         assertEquals(1, rows.size());
         assertEquals(1, rows.get(0).id);
@@ -656,6 +652,8 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(3, ((Number) whereStage.get("after")).intValue());
     }
 }
+
+
 
 
 

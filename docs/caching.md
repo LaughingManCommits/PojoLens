@@ -10,14 +10,13 @@ needs to be tuned or isolated.
 - stats-plan cache
 
 Both caches use Caffeine-backed internals.
-For public policy tuning, prefer `PojoLensRuntime`; that is the intended
-long-term configuration surface.
+For public policy tuning, use `PojoLensRuntime`; it is the public cache-policy
+configuration surface.
 
-Current pre-adoption direction:
-- keep direct query entry points on their default singleton caches
-- move public tuning, clearing, and observability onto `PojoLensRuntime`
-- remove the public static/global cache APIs on `PojoLens`, `PojoLensCore`,
-  and `PojoLensSql`
+Current model:
+- direct query entry points use internal default singleton caches
+- public tuning, clearing, and observability live on `PojoLensRuntime`
+- direct entry types do not expose public static/global cache APIs
 
 ## Defaults
 
@@ -58,21 +57,19 @@ Both returned cache objects expose the full policy and observability model:
 Example:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 ```
 
 ## Removed Static APIs
 
-The pre-adoption simplification removed the public static/global cache policy
-methods from:
+Public static/global cache policy methods are removed from the public surface.
+The old `PojoLens` facade is gone, `PojoLensSql` / `PojoLensCore` no longer
+expose cache-policy mutators, and the old public
+`FilterExecutionPlanCache` default-store facade is internalized.
 
-- `PojoLens`
-- `PojoLensSql`
-- `PojoLensCore`
-
-Use `PojoLens.newRuntime()` and the returned cache handles instead.
+Use `new PojoLensRuntime()` and the returned cache handles instead.
 
 ## Instance-Scoped Runtime (DI / Multi-Tenant)
 
@@ -80,10 +77,10 @@ Runtime-scoped cache handles are the preferred public model.
 Direct non-runtime entry points still use process-default singleton caches, but
 those caches no longer have a public tuning API.
 
-For isolated cache policy per tenant/request scope, use `PojoLens.newRuntime()`:
+For isolated cache policy per tenant/request scope, use `new PojoLensRuntime()`:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 
@@ -99,7 +96,7 @@ code.
 
 ## Replacement Map
 
-When moving off the removed static/global cache APIs:
+When moving off older static/global cache APIs:
 
 - old SQL-like cache controls and snapshots -> `runtime.sqlLikeCache().*`
 - old stats-plan cache controls and snapshots -> `runtime.statsPlanCache().*`
@@ -125,4 +122,5 @@ When moving off the removed static/global cache APIs:
 - For hot repeated SQL-like queries, increase SQL cache size before enabling TTL.
 - For high-cardinality grouped metrics, increase stats-plan cache limits.
 - Use cache snapshots to monitor hit/miss trends after every change.
+
 

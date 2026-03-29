@@ -1,6 +1,5 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -10,7 +9,7 @@ abstract class AbstractPublicApiCoverageTest {
 
     @BeforeEach
     void setUpRuntimeDefaults() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         runtime.sqlLikeCache().setEnabled(true);
         runtime.sqlLikeCache().setStatsEnabled(true);
         runtime.sqlLikeCache().setMaxEntries(256);
@@ -28,3 +27,5 @@ abstract class AbstractPublicApiCoverageTest {
         runtime.statsPlanCache().resetStats();
     }
 }
+
+

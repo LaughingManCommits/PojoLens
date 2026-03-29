@@ -23,7 +23,7 @@ public class SnapshotComparisonTest {
 
     @Test
     public void snapshotComparisonShouldClassifyAddedRemovedChangedAndUnchangedRows() {
-        SnapshotComparison<Employee, Integer> comparison = PojoLens.compareSnapshots(currentEmployees(), previousEmployees())
+        SnapshotComparison<Employee, Integer> comparison = SnapshotComparison.builder(currentEmployees(), previousEmployees())
                 .byKey(employee -> employee.id);
 
         SnapshotComparisonSummary summary = comparison.summary();
@@ -47,14 +47,14 @@ public class SnapshotComparisonTest {
 
     @Test
     public void snapshotDeltaRowsShouldBeQueryableViaSqlLikeAndChartFlows() {
-        SnapshotComparison<Employee, Integer> comparison = PojoLens.compareSnapshots(currentEmployees(), previousEmployees())
+        SnapshotComparison<Employee, Integer> comparison = SnapshotComparison.builder(currentEmployees(), previousEmployees())
                 .byKey(employee -> employee.id);
 
         List<ChangeProjection> changedRows = PojoLensSql.parse("select keyText, changedFieldCount, changedFieldSummary "
                         + "where changeType = 'CHANGED' order by keyText asc")
                 .filter(comparison.rows(), ChangeProjection.class);
 
-        ReportDefinition<ChangeCountRow> report = PojoLens.report(
+        ReportDefinition<ChangeCountRow> report = ReportDefinition.sql(
                 PojoLensSql.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
                 ChangeCountRow.class,
                 ChartSpec.of(ChartType.BAR, "changeType", "total")
@@ -73,7 +73,7 @@ public class SnapshotComparisonTest {
     @Test
     public void snapshotComparisonShouldRejectNullAndDuplicateKeysByDefault() {
         try {
-            PojoLens.compareSnapshots(
+            SnapshotComparison.builder(
                             List.of(new Employee(1, "A", "X", 10, new Date(), true), new Employee(1, "B", "X", 20, new Date(), true)),
                             List.of()
                     )
@@ -84,7 +84,7 @@ public class SnapshotComparisonTest {
         }
 
         try {
-            PojoLens.compareSnapshots(
+            SnapshotComparison.builder(
                             List.of(new Employee(1, "A", "X", 10, new Date(), true)),
                             List.of(new Employee(2, "B", "X", 20, new Date(), true))
                     )
@@ -100,8 +100,8 @@ public class SnapshotComparisonTest {
         NullKeyRow current = new NullKeyRow(null, "current");
         NullKeyRow previous = new NullKeyRow(null, "previous");
 
-        SnapshotComparison<NullKeyRow, String> comparison = PojoLens
-                .compareSnapshots(List.of(current), List.of(previous))
+        SnapshotComparison<NullKeyRow, String> comparison = SnapshotComparison
+                .builder(List.of(current), List.of(previous))
                 .allowNullKeys()
                 .byKey(row -> row.externalId);
 
@@ -159,5 +159,7 @@ public class SnapshotComparisonTest {
         }
     }
 }
+
+
 
 

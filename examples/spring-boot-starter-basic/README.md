@@ -1,6 +1,9 @@
-# Spring Boot Starter Basic Example
+# Spring Boot Starter Dashboard Example (Advanced)
 
-This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring Boot app and use the auto-configured `PojoLensRuntime`.
+This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring Boot app and use the auto-configured `PojoLensRuntime` across a full dashboard workflow.
+
+For the minimal onboarding path, use:
+`examples/spring-boot-starter-quickstart`.
 
 The example is intentionally split so each file demonstrates one concern:
 - `EmployeeQueryController` stays as the HTTP adapter.

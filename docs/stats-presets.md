@@ -103,3 +103,4 @@ ReportDefinition<DepartmentPayrollRow> report = preset.reportDefinition();
 ```
 
 `reportDefinition()` keeps the reusable row query, but totals remain on `StatsViewPreset<T>` and `StatsTable<T>`.
+

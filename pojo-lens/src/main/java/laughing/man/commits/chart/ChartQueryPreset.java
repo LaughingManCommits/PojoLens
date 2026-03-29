@@ -8,9 +8,7 @@ import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.table.TabularSchema;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -77,11 +75,7 @@ public final class ChartQueryPreset<T> {
     }
 
     public List<T> rows(List<?> sourceRows) {
-        return rows(sourceRows, Collections.emptyMap());
-    }
-
-    public List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return query.filter(sourceRows, joinSources, projectionClass);
+        return query.filter(sourceRows, projectionClass);
     }
 
     public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
@@ -95,11 +89,7 @@ public final class ChartQueryPreset<T> {
     }
 
     public ChartData chart(List<?> sourceRows) {
-        return chart(sourceRows, Collections.emptyMap());
-    }
-
-    public ChartData chart(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return query.chart(sourceRows, joinSources, projectionClass, chartSpec);
+        return query.chart(sourceRows, projectionClass, chartSpec);
     }
 
     public ChartData chart(List<?> sourceRows, JoinBindings joinBindings) {
@@ -114,10 +104,6 @@ public final class ChartQueryPreset<T> {
 
     public ChartJsPayload chartJs(List<?> sourceRows) {
         return ChartJsAdapter.toPayload(chart(sourceRows));
-    }
-
-    public ChartJsPayload chartJs(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return ChartJsAdapter.toPayload(chart(sourceRows, joinSources));
     }
 
     public ChartJsPayload chartJs(List<?> sourceRows, JoinBindings joinBindings) {

@@ -39,7 +39,7 @@ TabularSchema schema = PojoLensSql
 Report example:
 
 ```java
-ReportDefinition<DepartmentCount> report = PojoLens.report(
+ReportDefinition<DepartmentCount> report = ReportDefinition.sql(
     PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
@@ -49,4 +49,5 @@ TabularSchema schema = report.schema();
 Current format hints:
 - metrics: `metric:COUNT`, `metric:SUM`, ...
 - time buckets: `time-bucket:MONTH:UTC:MONDAY`, etc.
+
 

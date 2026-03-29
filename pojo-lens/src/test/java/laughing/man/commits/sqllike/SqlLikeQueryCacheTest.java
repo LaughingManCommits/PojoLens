@@ -1,6 +1,5 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,7 @@ public class SqlLikeQueryCacheTest {
 
     @BeforeEach
     public void setUp() {
-        runtime = PojoLens.newRuntime();
+        runtime = new PojoLensRuntime();
         runtime.sqlLikeCache().setEnabled(true);
         runtime.sqlLikeCache().setStatsEnabled(true);
         runtime.sqlLikeCache().setMaxEntries(256);
@@ -78,3 +77,5 @@ public class SqlLikeQueryCacheTest {
         assertEquals(runtime.sqlLikeCache().getEvictions(), ((Number) snapshot.get("evictions")).longValue());
     }
 }
+
+

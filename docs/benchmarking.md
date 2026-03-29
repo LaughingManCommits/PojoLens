@@ -39,35 +39,38 @@ mvn -Pbenchmark -DskipTests test-compile exec:java "-Djmh.args=laughing.man.comm
 
 ```bash
 mvn -Pbenchmark-runner -DskipTests package
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline -f 1 -wi 1 -i 3
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline -f 1 -wi 1 -i 3
 ```
+
+Resolve the actual runner jar from `target/*-benchmarks.jar`; do not hardcode a
+specific dated release filename in scripts or notes.
 
 ## Budgeted CI Suites
 
 Core guardrail suite:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
-java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
+java -cp target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
 ```
 
 Chart guardrail suite:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
-java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
+java -cp target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
 ```
 
 Cache concurrency scenario:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
 ```
 
 Hotspot microbenchmark suite:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
 ```
 
 ## Representative Budgets
@@ -103,7 +106,7 @@ For apples-to-apples comparisons, `PojoLens` now ships a dedicated JMH baseline 
 Baseline suite command:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
 ```
 
 Baseline workloads:
@@ -127,7 +130,7 @@ Streaming has two different behaviors depending on consumer usage:
 Dedicated benchmark suite:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
 ```
 
 Benchmark shape (`StreamingExecutionJmhBenchmark`):
@@ -155,7 +158,7 @@ Window queries are now benchmarked against an equivalent non-window SQL-like bas
 Dedicated suite:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
 ```
 
 Benchmarks (`SqlLikePipelineJmhBenchmark`):
@@ -176,6 +179,41 @@ Interpretation:
 - Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
 
+## Execution-Path Spot Checks
+
+A recent execution-path cleanup changed three hot internal areas:
+
+- fluent grouped stage running
+- SQL-like execution explain stage accounting
+- SQL-like output materialization for list-vs-stream execution
+
+Forked local spot-check commands used for this refresh:
+
+```bash
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StatsQueryJmhBenchmark.(fluentGroupedRows|fluentGroupedMetrics)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-group-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-sqllike-execution-explain-benchmarks-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.StreamingExecutionJmhBenchmark.(fluentFilterListMaterialized|fluentFilterStreamLazy|sqlLikeFilterListMaterialized|sqlLikeFilterStreamLazy)$' -p size=1000,10000 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/execution-path-streaming-benchmarks-forked.json
+```
+
+Representative `2026-03-28` forked spot-check results:
+
+| Benchmark | Size | Score | Units |
+|---|---:|---:|---|
+| `StatsQueryJmhBenchmark.fluentGroupedRows` | `1000` | `0.108` | `ms/op` |
+| `StatsQueryJmhBenchmark.fluentGroupedRows` | `10000` | `1.010` | `ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseAndExplainExecution` | `1000` | `3.662` | `ms/op` |
+| `SqlLikePipelineJmhBenchmark.parseAndExplainExecution` | `10000` | `57.199` | `ms/op` |
+| `StreamingExecutionJmhBenchmark.fluentFilterListMaterialized` | `10000` | `2555.610` | `us/op` |
+| `StreamingExecutionJmhBenchmark.fluentFilterStreamLazy` | `10000` | `45.733` | `us/op` |
+| `StreamingExecutionJmhBenchmark.sqlLikeFilterListMaterialized` | `10000` | `3485.327` | `us/op` |
+| `StreamingExecutionJmhBenchmark.sqlLikeFilterStreamLazy` | `10000` | `60.815` | `us/op` |
+
+Interpretation:
+
+- `filterGroups(...)` remains in the low-millisecond band in this local cold spot check.
+- Execution-backed SQL-like `explain(rows, projection)` remains materially slower than metadata-only explain, as expected, because it now walks the live bound execution path.
+- The lazy stream advantage remains intact after the SQL-like materialization cleanup: at `size=10000`, the stream path is still roughly `56x` faster (fluent) and `57x` faster (SQL-like) than the list-materializing path for this first-page-style workload.
+
 ## Optional Index Hint Tradeoffs
 
 Optional fluent index hints are now benchmarked with a selective equality workload (`IndexHintJmhBenchmark`):
@@ -186,13 +224,13 @@ Optional fluent index hints are now benchmarked with a selective equality worklo
 Warm (repeated) run command:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
 ```
 
 Cold run command:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
 ```
 
 Representative `2026-03-21` results (`size=10000`):
@@ -225,12 +263,12 @@ Use the hotspot suite when tuning reflection flattening, typed projection, execu
 Allocation-focused local run examples:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
-java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.sqlLikePreparedStats(Rebind|FastPathSetup)(Copy|View)' -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
-java -jar target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.statsPlanCacheHit -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.sqlLikePreparedStats(Rebind|FastPathSetup)(Copy|View)' -p size=10000 -f 1 -wi 1 -i 5 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.groupedMultiMetricAggregation -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 ```
 
 For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
@@ -259,14 +297,14 @@ Current correctness guardrails:
 
 ## End-To-End Computed Join Diagnostics
 
-When WP5 selective single-join changes need end-to-end validation, use the dedicated computed-field join benchmarks in `PojoLensJoinJmhBenchmark`:
+When selective single-join behavior needs end-to-end validation, use the dedicated computed-field join benchmarks in `PojoLensJoinJmhBenchmark`:
 - `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField`
 - `PojoLensJoinJmhBenchmark.manualHashJoinLeftComputedField`
 
 Example local comparison run:
 
 ```bash
-java -jar target/pojo-lens-1.0.0-benchmarks.jar 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
+java -jar target/pojo-lens-2026.03.28.1919-benchmarks.jar 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
 ```
 
 The PojoLens path is part of the core guardrail suite through `scripts/benchmark-suite-main.args`.
@@ -280,7 +318,7 @@ Keep `manualHashJoinLeftComputedField` as a local comparison baseline rather tha
 ## Plot Generation
 
 ```bash
-java -cp target/pojo-lens-1.0.0-benchmarks.jar laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator target/benchmarks.json benchmarks/thresholds.json target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/images
+java -cp target/pojo-lens-2026.03.28.1919-benchmarks.jar laughing.man.commits.benchmark.BenchmarkMetricsPlotGenerator target/benchmarks.json benchmarks/thresholds.json target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/images
 ```
 
 Artifacts:
@@ -310,3 +348,4 @@ The Streams baseline suite is intentionally reproducible but not currently a mer
 - Do not use fluent-vs-SQL-like performance ratios as a merge gate; SQL-like intentionally pays query-translation cost that fluent does not.
 - Do not compare `PojoLens` to databases or unrelated libraries as if the workloads were equivalent.
 - When a comparison needs caveats, write the caveats next to the number.
+

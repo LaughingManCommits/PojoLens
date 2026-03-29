@@ -5,7 +5,6 @@ import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.util.StringUtil;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -25,10 +24,6 @@ public final class QuerySnapshotFixture {
         return new QuerySnapshotFixture(name, DatasetBundle.of(primaryRows));
     }
 
-    public static QuerySnapshotFixture of(String name, List<?> primaryRows, Map<String, List<?>> joinSources) {
-        return new QuerySnapshotFixture(name, DatasetBundle.of(primaryRows, joinSources));
-    }
-
     public static QuerySnapshotFixture of(String name, List<?> primaryRows, JoinBindings joinBindings) {
         return new QuerySnapshotFixture(name, DatasetBundle.of(primaryRows, joinBindings));
     }
@@ -43,10 +38,6 @@ public final class QuerySnapshotFixture {
 
     public List<?> primaryRows() {
         return bundle.primaryRows();
-    }
-
-    public Map<String, List<?>> joinSources() {
-        return bundle.joinSources();
     }
 
     public JoinBindings joinBindings() {

@@ -4,7 +4,6 @@ import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentHeadcountRow;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
@@ -305,6 +304,8 @@ public class ChartLibraryInteropTest {
         return x;
     }
 }
+
+
 
 
 

@@ -1,6 +1,5 @@
 package laughing.man.commits.chart;
 
-import laughing.man.commits.chart.validation.ChartValidation;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;

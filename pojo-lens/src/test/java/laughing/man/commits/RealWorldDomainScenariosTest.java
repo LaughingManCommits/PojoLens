@@ -3,6 +3,7 @@ package laughing.man.commits;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
@@ -10,7 +11,6 @@ import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,11 +76,10 @@ public class RealWorldDomainScenariosTest {
     public void sqlLikeJoinShouldFilterCompaniesByEmployeeTitle() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> companyEmployees = sampleCompanyEmployees();
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("employees", companyEmployees);
+        JoinBindings joinBindings = JoinBindings.of("employees", companyEmployees);
 
         List<Company> filtered = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .filter(companies, joinSources, Company.class);
+                .filter(companies, joinBindings, Company.class);
 
         assertEquals(1, filtered.size());
         assertEquals("Acme", filtered.get(0).name);
@@ -99,5 +98,7 @@ public class RealWorldDomainScenariosTest {
         assertEquals(130000, rows.get(2).salary);
     }
 }
+
+
 
 

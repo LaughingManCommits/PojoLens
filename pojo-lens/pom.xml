@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.laughingmancommits</groupId>
         <artifactId>pojo-lens-parent</artifactId>
-        <version>1.0.0</version>
+        <version>2026.03.28.1919</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -177,9 +177,9 @@
                                 <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
                                 <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
                                 <includes>
-                                    <include>laughing.man.commits.PojoLens</include>
                                     <include>laughing.man.commits.PojoLensCore</include>
                                     <include>laughing.man.commits.PojoLensSql</include>
+                                    <include>laughing.man.commits.PojoLensChart</include>
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>

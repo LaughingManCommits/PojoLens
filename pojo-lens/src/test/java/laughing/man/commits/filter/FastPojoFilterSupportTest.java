@@ -2,7 +2,6 @@ package laughing.man.commits.filter;
 
 import laughing.man.commits.PojoLensCore;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.domain.QueryRow;
@@ -214,4 +213,6 @@ class FastPojoFilterSupportTest {
         return names;
     }
 }
+
+
 

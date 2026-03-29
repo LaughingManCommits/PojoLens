@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.laughingmancommits</groupId>
         <artifactId>pojo-lens-parent</artifactId>
-        <version>1.0.0</version>
+        <version>2026.03.28.1919</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 

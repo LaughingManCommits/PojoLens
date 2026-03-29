@@ -9,27 +9,66 @@ Published coordinates now use GitHub namespace style:
 
 Update your dependency declarations accordingly.
 
-## Pre-Adoption Facade Simplification
+## Facade Removal
 
-If you are using unpublished or pre-adoption builds, treat the explicit entry
-points below as the supported path now.
+If you are upgrading from older unpublished or pre-public-release builds, treat the
+explicit owning types below as the supported path now.
 
-Current helper-only facade state:
-- keep on `PojoLens`:
-  `newRuntime(...)`, keyset cursor helpers, `bundle(...)`,
-  `compareSnapshots(...)`, and `report(...)`
-- removed from `PojoLens` in the pre-adoption simplification:
-  `newQueryBuilder(...)`, `parse(...)`, `template(...)`, and
-  `toChartData(...)`
+`PojoLens` is removed from the public surface.
 
 Replacement map:
 - `PojoLens.newQueryBuilder(rows)` ->
   `PojoLensCore.newQueryBuilder(rows)`
-- `PojoLens.parse(queryText)` -> `PojoLensSql.parse(queryText)`
+- `PojoLens.parse(queryText)` ->
+  `PojoLensSql.parse(queryText)`
 - `PojoLens.template(queryText, params...)` ->
   `PojoLensSql.template(queryText, params...)`
 - `PojoLens.toChartData(rows, spec)` ->
   `PojoLensChart.toChartData(rows, spec)`
+- `PojoLens.newRuntime()` ->
+  `new PojoLensRuntime()`
+- `PojoLens.newRuntime(preset)` ->
+  `PojoLensRuntime.ofPreset(preset)`
+- `PojoLens.newKeysetCursorBuilder()` ->
+  `SqlLikeCursor.builder()`
+- `PojoLens.parseKeysetCursor(token)` ->
+  `SqlLikeCursor.fromToken(token)`
+- `PojoLens.report(sqlQuery, projectionClass, ...)` ->
+  `ReportDefinition.sql(sqlQuery, projectionClass, ...)`
+- `PojoLens.report(projectionClass, configurer, ...)` ->
+  `ReportDefinition.fluent(projectionClass, configurer, ...)`
+- `PojoLens.bundle(...)` ->
+  `DatasetBundle.of(...)`
+- `PojoLens.compareSnapshots(currentRows, previousRows)` ->
+  `SnapshotComparison.builder(currentRows, previousRows)`
+
+## Advanced Helper Narrowing
+
+`laughing.man.commits.chart.validation.ChartValidation` is no longer a
+supported public helper contract.
+
+Migration direction:
+- remove direct imports/usages of `ChartValidation`
+- use `PojoLensChart.toChartData(...)`, `Filter.chart(...)`,
+  `SqlLikeQuery.chart(...)`, `ChartMapper`, or `ChartResultMapper`
+  instead
+- treat chart validation as internal runtime behavior rather than an API you
+  call directly
+
+## SQL-like Execution Explain Alignment
+
+`SqlLikeQuery.explain(rows, projectionClass)` stage counts now come from the
+same live bound execution path used by normal SQL-like execution.
+
+Behavior note:
+- `where`, `group`, `having`, `qualify`, and `order` counts now reflect the
+  unpaged live execution stages
+- `limit` reflects the final `OFFSET`/`LIMIT` window
+
+Migration direction:
+- refresh explain snapshots or assertions that depended on the old
+  explain-only replay behavior, especially around `HAVING` or `QUALIFY`
+  queries without `ORDER BY`
 
 ## Runtime-First Cache Policy
 
@@ -46,7 +85,7 @@ PojoLens.setStatsPlanCacheExpireAfterWriteMillis(30_000L);
 After:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 ```
@@ -57,11 +96,12 @@ Replacement direction:
 - stats-plan cache controls and snapshots ->
   `runtime.statsPlanCache().*`
 
-Pre-adoption target state:
-- remove public static/global cache policy methods from `PojoLens`
-- remove public static/global cache policy methods from `PojoLensSql`
-- remove public static/global cache policy methods from `PojoLensCore`
-- keep the default singleton caches as internal implementation details for the
+Current cache-policy state:
+- public static/global cache policy methods are removed from `PojoLens`
+- public static/global cache policy methods are removed from `PojoLensSql`
+- public static/global cache policy methods are removed from `PojoLensCore`
+- the public `FilterExecutionPlanCache` compatibility facade is removed
+- the default singleton caches remain internal implementation details for the
   direct non-runtime entry points
 
 ## Typed Selector API
@@ -99,9 +139,9 @@ Additional typed overloads now available:
 - `addHaving(ResultRow::getMetricAlias, value, clause, separator, dateFormat)`
 - `addJoinBeans(Parent::getId, children, Child::getParentId, Join.LEFT_JOIN)`
 
-## Staged Entry Points (Core / SQL / Chart)
+## Explicit Entry Points (Core / SQL / Chart)
 
-`PojoLens` remains fully compatible, but entry points are now split for clearer boundaries:
+Query and chart entry live on explicit types:
 - `PojoLensCore.newQueryBuilder(...)`
 - `PojoLensSql.parse(...)`
 - `PojoLensChart.toChartData(...)`
@@ -113,14 +153,14 @@ Use these directly if you want explicit dependency boundaries in your applicatio
 If you need DI/test isolation or per-tenant cache policy, use:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setMaxEntries(2048);
 ```
 
-The static/global cache-policy APIs were removed in the same pre-adoption
-simplification. Direct non-runtime entry points still use internal default
-singleton caches, but public tuning now lives on `PojoLensRuntime`.
+The static/global cache-policy APIs have been removed. Direct non-runtime entry
+points still use internal default singleton caches, but public tuning now lives
+on `PojoLensRuntime`.
 
 ## Logging Facade Migration
 
@@ -176,7 +216,7 @@ List<Foo> result = template.initFilter().filter(Foo.class);
 
 ## Fluent API and SQL-like API
 
-You can now choose either style for supported v1 operations (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`).
+You can now choose either style for currently supported operations (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`).
 
 Fluent:
 
@@ -201,9 +241,9 @@ Migration guidance:
 - For user-authored/config-defined queries, prefer SQL-like input.
 - For compile-time safety and complex Java-side composition, keep fluent API.
 - SQL-like validation is strict: unknown or `@Exclude` fields are rejected.
-- SQL-like v1 supports a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
-- SQL-like v1 supports `HAVING` for grouped/aggregated queries (`AND`/`OR`).
-- SQL-like v1 supports limited `WHERE ... IN (select oneField ...)` subqueries.
+- Current SQL-like support includes a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
+- Current SQL-like support includes `HAVING` for grouped/aggregated queries (`AND`/`OR`).
+- Current SQL-like supports limited `WHERE ... IN (select oneField ...)` subqueries.
 - SQL-like chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the previous source explicitly.
 - Aggregate, grouped, and joined subquery plans are still unsupported.
 
@@ -223,8 +263,10 @@ List<Employee> rows = query
 Join-aware typed bind is also supported:
 
 ```java
+JoinBindings joinBindings = JoinBindings.of("employees", employees);
+
 List<Company> rows = query
-    .bindTyped(companies, Company.class, joinSources)
+    .bindTyped(companies, Company.class, joinBindings)
     .filter();
 ```
 
@@ -248,27 +290,23 @@ Validation behavior:
 
 ## SQL-like Typed Join Bindings
 
-You can replace raw `Map<String, List<?>>` join sources with typed bindings.
+Public SQL-like multi-source execution now accepts `JoinBindings` only.
 
-Before:
-
-```java
-Map<String, List<?>> joinSources = new HashMap<>();
-joinSources.put("employees", employees);
-List<Company> rows = query.filter(companies, joinSources, Company.class);
-```
-
-After:
+Direct usage:
 
 ```java
 JoinBindings joinBindings = JoinBindings.of("employees", employees);
 List<Company> rows = query.filter(companies, joinBindings, Company.class);
 ```
 
-Backwards compatibility:
-- Existing map-based SQL-like join APIs remain unchanged.
+Boundary adaptation from an existing map:
 
-## HAVING v1 Design Note
+```java
+JoinBindings joinBindings = JoinBindings.from(joinSources);
+List<Company> rows = query.filter(companies, joinBindings, Company.class);
+```
+
+## HAVING Design Note
 
 This section defines the SQL-like `HAVING` behavior.
 
@@ -281,7 +319,7 @@ Allowed in `HAVING`:
 - aggregate aliases from `SELECT`
 - grouped fields
 
-Not allowed in v1:
+Not allowed in the current release:
 - non-grouped, non-aggregated fields
 
 Validation expectations:
@@ -289,7 +327,7 @@ Validation expectations:
 - unknown, ambiguous, or illegal references are rejected with deterministic error text.
 - `HAVING` must appear after `GROUP BY` and before `ORDER BY`/`LIMIT`.
 
-## Chart Data v1 Design Note
+## Chart Data Design Note
 
 This section defines the chart-data contract.
 
@@ -298,7 +336,7 @@ Policy:
 - `PojoLens` will not implement native image/chart rendering.
 - external chart libraries are allowed in tests/examples only (test scope dependencies).
 
-v1 scope:
+Current scope:
 - chart types: `BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`
 - source paths: fluent results and SQL-like results
 - output: typed chart payload (`ChartData` + datasets)
@@ -328,7 +366,7 @@ API entry points:
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
-- `SqlLikeQuery.chart(List<?>, Map<String,List<?>>, Class<T>, ChartSpec)`
+- `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 
 ## Builder Public Surface Cleanup
 

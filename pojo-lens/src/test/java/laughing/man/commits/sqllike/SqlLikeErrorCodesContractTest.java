@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.parser.SqlLikeParseException;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -116,4 +115,6 @@ public class SqlLikeErrorCodesContractTest {
         }
     }
 }
+
+
 

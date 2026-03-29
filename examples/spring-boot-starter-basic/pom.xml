@@ -7,14 +7,14 @@
     <parent>
         <groupId>io.github.laughingmancommits</groupId>
         <artifactId>pojo-lens-parent</artifactId>
-        <version>1.0.0</version>
+        <version>2026.03.28.1919</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>pojo-lens-spring-boot-starter-basic-example</artifactId>
     <packaging>jar</packaging>
-    <name>PojoLens Spring Boot Starter Basic Example</name>
-    <description>Standalone demo app showing PojoLens Spring Boot starter usage.</description>
+    <name>PojoLens Spring Boot Starter Dashboard Example</name>
+    <description>Advanced dashboard demo app showing presets, charts, and runtime usage.</description>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>

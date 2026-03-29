@@ -31,3 +31,5 @@ class QueryRowAdapterSupportTest {
         assertTrue(QueryRowAdapterSupport.toQueryRows(List.of("alpha"), null).isEmpty());
     }
 }
+
+

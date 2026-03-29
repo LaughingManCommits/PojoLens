@@ -15,3 +15,6 @@ pojo-lens-spring-boot-starter/target/
 pojo-lens-benchmarks/target/
 pojo-lens/target/
 examples/**/target/
+ai/indexes/*.db
+ai/indexes/*.sqlite
+ai/indexes/*.sqlite3

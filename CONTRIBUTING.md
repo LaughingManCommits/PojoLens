@@ -8,6 +8,61 @@ Run from repository root:
 mvn -B -ntp test
 ```
 
+## AI Memory Refresh
+
+Markdown under `ai/core`, `ai/state`, `ai/log/events.jsonl`, and `ai/log/archive/*.jsonl` is the source of truth.
+Generated navigation lives under `ai/indexes/*.json`, with optional cold search in `ai/indexes/cold-memory.db`.
+
+Refresh derived AI memory artifacts:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1
+```
+
+The default refresh is incremental: JSON indexes are reused when their inputs are unchanged, and SQLite is updated with per-file upserts.
+
+Check AI memory freshness and hot-context budget:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check
+```
+
+Force a full refresh when the derived schema changes or you need to rule out incremental state:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -ForceFull
+```
+
+Compact older event-log history into monthly archives while keeping a small active log:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog
+```
+
+Archive compaction also regenerates `ai/log/archive/*-summary.md` so archive search can hit summaries before raw JSONL rows.
+
+Search the optional cold-search database:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release retry"
+```
+
+Narrow cold search with facets:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "single-join fast-path" -Path "ai/log/archive/*" -Tier "cold,archive"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release" -Kind "release-doc,process-doc"
+```
+
+Benchmark the AI memory path and persist a report:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json
+```
+
+If no local SQLite backend is available, the PowerShell query wrapper falls back to direct text search over the Markdown truth, warm validation ledger, active event log, and archived event logs.
+By default, search prefers hot, warm, and cold material and only falls back to raw archive rows when higher-priority tiers do not answer the query.
+
 ## Test Strategy
 
 Tests are organized by intent, not just by API:

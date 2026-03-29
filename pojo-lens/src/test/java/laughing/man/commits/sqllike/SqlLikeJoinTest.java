@@ -3,7 +3,6 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
@@ -13,9 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,8 +49,7 @@ public class SqlLikeJoinTest {
                 .join()
                 .filter(ParentBean.class);
 
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("children", children);
+        JoinBindings joinSources = JoinBindings.of("children", children);
         List<ParentBean> sqlLike = PojoLensSql.parse("select * from parents left join children on id = parentId where tag = null")
                 .filter(parents, joinSources, ParentBean.class);
 
@@ -90,9 +86,10 @@ public class SqlLikeJoinTest {
                 new ToyBean(20, "puzzle")
         );
 
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("children", children);
-        joinSources.put("toys", toys);
+        JoinBindings joinSources = JoinBindings.builder()
+                .add("children", children)
+                .add("toys", toys)
+                .build();
 
         List<ParentBean> rows = PojoLensSql.parse("select * from parents "
                         + "left join children on parents.id = children.parentId "
@@ -113,12 +110,12 @@ public class SqlLikeJoinTest {
 
         List<ParentBean> first = query.filter(
                 parents,
-                Map.of("children", List.of(new ChildBean(1, "match"))),
+                JoinBindings.of("children", List.of(new ChildBean(1, "match"))),
                 ParentBean.class
         );
         List<ParentBean> second = query.filter(
                 parents,
-                Map.of("children", List.of(new ChildBean(2, "match"))),
+                JoinBindings.of("children", List.of(new ChildBean(2, "match"))),
                 ParentBean.class
         );
 
@@ -139,9 +136,10 @@ public class SqlLikeJoinTest {
                 new ToyBean(10, "truck")
         );
 
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("children", children);
-        joinSources.put("toys", toys);
+        JoinBindings joinSources = JoinBindings.builder()
+                .add("children", children)
+                .add("toys", toys)
+                .build();
 
         try {
             PojoLensSql.parse("select * from parents "
@@ -212,6 +210,8 @@ public class SqlLikeJoinTest {
         }
     }
 }
+
+
 
 
 

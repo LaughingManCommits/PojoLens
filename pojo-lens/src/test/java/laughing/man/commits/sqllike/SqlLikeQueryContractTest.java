@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -131,6 +130,43 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void streamShouldMatchFilterForAliasedProjection() {
+        List<TestBean> source = Arrays.asList(
+                new TestBean("abc", 2),
+                new TestBean("xyz", 5)
+        );
+        SqlLikeQuery query = PojoLensSql.parse(
+                "select name as employeeName, value as annualSalary where value >= 2 order by value desc");
+
+        List<TestBeanSummary> filtered = query.filter(source, TestBeanSummary.class);
+        List<TestBeanSummary> streamed = query.stream(source, TestBeanSummary.class).toList();
+
+        assertEquals(
+                filtered.stream().map(r -> r.employeeName + ":" + r.annualSalary).toList(),
+                streamed.stream().map(r -> r.employeeName + ":" + r.annualSalary).toList()
+        );
+    }
+
+    @Test
+    public void streamShouldMatchFilterForAliasedStatsProjection() {
+        List<DepartmentEmployee> source = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+        SqlLikeQuery query = PojoLensSql.parse(
+                "select department as dept, count(*) as total group by department order by total desc");
+
+        List<DepartmentCountAlias> filtered = query.filter(source, DepartmentCountAlias.class);
+        List<DepartmentCountAlias> streamed = query.stream(source, DepartmentCountAlias.class).toList();
+
+        assertEquals(
+                filtered.stream().map(r -> r.dept + ":" + r.total).toList(),
+                streamed.stream().map(r -> r.dept + ":" + r.total).toList()
+        );
+    }
+
+    @Test
     public void whereParenthesesShouldRespectBooleanPrecedence() {
         List<TestBean> source = Arrays.asList(
                 new TestBean("abc", 10),
@@ -232,7 +268,7 @@ public class SqlLikeQueryContractTest {
         List<Company> companies = sampleCompanies();
 
         List<Company> results = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
-                .filter(companies, Map.of("employees", sampleCompanyEmployees()), Company.class);
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals(1, results.size());
         assertEquals("Acme", results.get(0).name);
@@ -386,7 +422,17 @@ public class SqlLikeQueryContractTest {
         public DepartmentAvgProjection() {
         }
     }
+
+    public static class TestBeanSummary {
+        String employeeName;
+        int annualSalary;
+
+        public TestBeanSummary() {
+        }
+    }
 }
+
+
 
 
 

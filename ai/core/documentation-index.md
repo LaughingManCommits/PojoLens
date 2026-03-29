@@ -3,10 +3,12 @@
 ## Primary Product Docs
 
 - `README.md`
+- `docs/entry-points.md`
+- `docs/reusable-wrappers.md`
 - `docs/usecases.md`
 - `docs/sql-like.md`
 - `docs/charts.md`
-- `docs/benchmarking.md`
+- `docs/advanced-features.md`
 
 ## Feature Reference Docs
 
@@ -14,9 +16,12 @@
 - `docs/computed-fields.md`
 - `docs/metamodel.md`
 - `docs/modules.md`
+- `docs/product-surface.md`
+- `docs/public-api-stability.md`
 - `docs/regression-fixtures.md`
 - `docs/reports.md`
 - `docs/snapshot-comparison.md`
+- `docs/stats-presets.md`
 - `docs/tabular-schema.md`
 - `docs/telemetry.md`
 - `docs/time-buckets.md`
@@ -34,6 +39,9 @@
 
 ## Notes
 
-- `TODO.md` is the backlog file and is currently empty.
-- `MAINTENANCE.md` applies only to `/ai` memory cleanup passes.
+- `TODO.md` remains the backlog file for active planning and follow-up.
+- `MAINTENANCE.md` applies only to `/ai` cleanup passes.
+- `scripts/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
+- `ai/state/recent-validations.md` is the compact warm ledger for exact recent validation commands and results.
 - Keep `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` aligned with `pom.xml` and workflows.
+

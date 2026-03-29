@@ -15,7 +15,6 @@ import laughing.man.commits.sqllike.SqlLikeQuery;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -61,7 +60,7 @@ public final class ReportDefinition<T> {
                 projectionClass,
                 null,
                 query.schema(projectionClass),
-                (sourceRows, joinSources) -> query.filter(sourceRows, joinSources, projectionClass),
+                (sourceRows, joinBindings) -> query.filter(sourceRows, joinBindings, projectionClass),
                 true
         );
     }
@@ -78,10 +77,10 @@ public final class ReportDefinition<T> {
                 projectionClass,
                 null,
                 deriveFluentSchema(projectionClass, configurer),
-                (sourceRows, joinSources) -> {
-                    if (joinSources != null && !joinSources.isEmpty()) {
+                (sourceRows, joinBindings) -> {
+                    if (!joinBindings.isEmpty()) {
                         throw new IllegalArgumentException(
-                                "joinSources are not supported for fluent report definitions; "
+                                "joinBindings are not supported for fluent report definitions; "
                                         + "capture joined rows in the fluent configurer or use a SQL-like report definition"
                         );
                     }
@@ -150,49 +149,37 @@ public final class ReportDefinition<T> {
     }
 
     public List<T> rows(List<?> sourceRows) {
-        return rows(sourceRows, Collections.emptyMap());
-    }
-
-    public List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources) {
         Objects.requireNonNull(sourceRows, "sourceRows must not be null");
-        Objects.requireNonNull(joinSources, "joinSources must not be null");
-        return executor.rows(sourceRows, joinSources);
+        return executor.rows(sourceRows, JoinBindings.empty());
     }
 
     public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
+        Objects.requireNonNull(sourceRows, "sourceRows must not be null");
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return rows(sourceRows, joinBindings.asMap());
+        return executor.rows(sourceRows, joinBindings);
     }
 
     public List<T> rows(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return rows(datasetBundle.primaryRows(), datasetBundle.joinSources());
+        return rows(datasetBundle.primaryRows(), datasetBundle.joinBindings());
     }
 
     public ChartData chart(List<?> sourceRows) {
-        return chart(sourceRows, Collections.emptyMap());
-    }
-
-    public ChartData chart(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return ChartResultMapper.toChartData(rows(sourceRows, joinSources), requireChartSpec());
+        return ChartResultMapper.toChartData(rows(sourceRows), requireChartSpec());
     }
 
     public ChartData chart(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return chart(sourceRows, joinBindings.asMap());
+        return ChartResultMapper.toChartData(rows(sourceRows, joinBindings), requireChartSpec());
     }
 
     public ChartData chart(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return chart(datasetBundle.primaryRows(), datasetBundle.joinSources());
+        return chart(datasetBundle.primaryRows(), datasetBundle.joinBindings());
     }
 
     public ChartJsPayload chartJs(List<?> sourceRows) {
         return ChartJsAdapter.toPayload(chart(sourceRows));
-    }
-
-    public ChartJsPayload chartJs(List<?> sourceRows, Map<String, List<?>> joinSources) {
-        return ChartJsAdapter.toPayload(chart(sourceRows, joinSources));
     }
 
     public ChartJsPayload chartJs(List<?> sourceRows, JoinBindings joinBindings) {
@@ -212,7 +199,7 @@ public final class ReportDefinition<T> {
 
     @FunctionalInterface
     private interface ReportExecutor<T> {
-        List<T> rows(List<?> sourceRows, Map<String, List<?>> joinSources);
+        List<T> rows(List<?> sourceRows, JoinBindings joinBindings);
     }
 
     private static <T> TabularSchema deriveFluentSchema(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {

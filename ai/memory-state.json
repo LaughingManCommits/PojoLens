@@ -1,6 +1,183 @@
 {
-  "schema_version": 2,
-  "last_full_scan_commit": "a20a5b79bca62a187fb8afe854e73270e9aaf392",
-  "index_build_time": "2026-03-20T18:31:04.0519769+01:00",
-  "confidence": "high"
+  "schemaVersion": 5,
+  "generatedAt": "2026-03-29T16:59:38.846565+02:00",
+  "git": {
+    "headCommit": "2a9de1990c89f3ec888eb7bbb6b388e51d864797",
+    "branch": "ai",
+    "dirty": true
+  },
+  "inputsHash": "3c2b4e9d4d75f46de6b690e2b2827273aba349fa5b030d9dbfe9e70499682624",
+  "hotContext": {
+    "files": [
+      {
+        "path": "ai/core/agent-invariants.md",
+        "lines": 6,
+        "bytes": 638
+      },
+      {
+        "path": "ai/core/repo-purpose.md",
+        "lines": 23,
+        "bytes": 1700
+      },
+      {
+        "path": "ai/state/current-state.md",
+        "lines": 39,
+        "bytes": 2698,
+        "maxLines": 50,
+        "maxBytes": 3072,
+        "allowedHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "requiredHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "expectedHeadings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "headings": [
+          "Repo",
+          "Focus",
+          "Verified",
+          "Release",
+          "Risks",
+          "Next"
+        ],
+        "missingHeadings": [],
+        "extraHeadings": [],
+        "headingOrderMatches": true,
+        "withinShape": true
+      },
+      {
+        "path": "ai/state/handoff.md",
+        "lines": 50,
+        "bytes": 2558,
+        "maxLines": 50,
+        "maxBytes": 3072,
+        "allowedHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "requiredHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "expectedHeadings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "headings": [
+          "Resume",
+          "Focus",
+          "Facts",
+          "Validate",
+          "Cold Pointers"
+        ],
+        "missingHeadings": [],
+        "extraHeadings": [],
+        "headingOrderMatches": true,
+        "withinShape": true
+      }
+    ],
+    "totalLines": 118,
+    "totalBytes": 7594,
+    "maxLines": 240,
+    "maxBytes": 24576,
+    "withinBudget": true,
+    "shapeViolations": [],
+    "shapeValid": true
+  },
+  "eventLog": {
+    "activeLog": {
+      "path": "ai/log/events.jsonl",
+      "entries": 29,
+      "bytes": 15228
+    },
+    "archiveFiles": [
+      {
+        "path": "ai/log/archive/2026-03.jsonl",
+        "entries": 74,
+        "bytes": 30226
+      }
+    ],
+    "summaryFiles": [
+      "ai/log/archive/2026-03-summary.md"
+    ],
+    "retention": 12,
+    "totalEntries": 103
+  },
+  "derivedArtifacts": {
+    "refreshCache": "ai/indexes/refresh-state.json",
+    "jsonIndexes": [
+      {
+        "path": "ai/indexes/docs-index.json",
+        "status": "rebuilt",
+        "inputHash": "7eb02838580e75e24bdf6e1c7a132c83d0531f5c2bedc27341be11363681cfb6",
+        "inputFiles": 45
+      },
+      {
+        "path": "ai/indexes/files-index.json",
+        "status": "rebuilt",
+        "inputHash": "f6191f9cbf33fb49c2709055b0a8e7144abb729cdb14fae3af0b1e7016e1c845",
+        "inputFiles": 336
+      },
+      {
+        "path": "ai/indexes/symbols-index.json",
+        "status": "reused",
+        "inputHash": "d510d3832c299b9b2b60cbf60b50f3a4d482dd68f104d869de6cd0f786beeca3",
+        "inputFiles": 177
+      },
+      {
+        "path": "ai/indexes/test-index.json",
+        "status": "reused",
+        "inputHash": "51933c57be9d1484deef241b81f3b55b2c7be0b4eb8d72aede0cf9ecff202518",
+        "inputFiles": 106
+      },
+      {
+        "path": "ai/indexes/config-index.json",
+        "status": "reused",
+        "inputHash": "4bdf99d4680c13a0664c671461c12bd901de808512c5fe932b97f8f4eac5aa90",
+        "inputFiles": 13
+      }
+    ],
+    "sqlite": {
+      "status": "built",
+      "path": "ai/indexes/cold-memory.db",
+      "ftsEnabled": true,
+      "documents": 46,
+      "sections": 465,
+      "updatedFiles": 1,
+      "reusedFiles": 45,
+      "removedFiles": 0,
+      "mode": "incremental"
+    }
+  },
+  "freshness": {
+    "status": "fresh",
+    "reasons": [],
+    "missingPaths": []
+  }
 }

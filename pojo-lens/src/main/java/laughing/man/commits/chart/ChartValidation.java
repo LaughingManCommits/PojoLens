@@ -1,19 +1,17 @@
-package laughing.man.commits.chart.validation;
+package laughing.man.commits.chart;
 
-import laughing.man.commits.chart.ChartSpec;
-import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.ObjectUtil;
+import laughing.man.commits.util.ReflectionUtil;
 
 /**
  * Validation helpers for chart specification and value constraints.
  */
-public final class ChartValidation {
+final class ChartValidation {
 
     private ChartValidation() {
     }
 
-    public static void validateSpec(ChartSpec spec) {
+    static void validateSpec(ChartSpec spec) {
         if (spec == null) {
             throw new IllegalArgumentException("Chart spec is required");
         }
@@ -44,7 +42,7 @@ public final class ChartValidation {
         }
     }
 
-    public static void requireFieldExists(Class<?> type, String fieldName) {
+    static void requireFieldExists(Class<?> type, String fieldName) {
         for (java.lang.reflect.Field field : ReflectionUtil.getFields(type)) {
             if (fieldName.equals(field.getName())) {
                 return;
@@ -58,7 +56,7 @@ public final class ChartValidation {
         throw new IllegalArgumentException("Unknown chart field '" + fieldName + "'");
     }
 
-    public static String validateXValue(Object value, String fieldName, String dateFormat) {
+    static String validateXValue(Object value, String fieldName, String dateFormat) {
         if (value == null) {
             return null;
         }
@@ -72,7 +70,7 @@ public final class ChartValidation {
                 "Chart xField '" + fieldName + "' has unsupported type '" + value.getClass().getSimpleName() + "'");
     }
 
-    public static double validateYValue(Object value, String fieldName) {
+    static double validateYValue(Object value, String fieldName) {
         if (value == null) {
             throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
         }
@@ -82,4 +80,3 @@ public final class ChartValidation {
         return ((Number) value).doubleValue();
     }
 }
-

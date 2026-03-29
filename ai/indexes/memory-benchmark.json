@@ -1,0 +1,203 @@
+{
+  "generatedAt": "2026-03-29T16:49:02",
+  "refresh": {
+    "full": {
+      "durationMs": 1974.173,
+      "exitCode": 0,
+      "jsonIndexes": {
+        "rebuilt": 5,
+        "reused": 0
+      },
+      "sqlite": {
+        "updatedFiles": 46,
+        "reusedFiles": 0,
+        "removedFiles": 0
+      }
+    },
+    "incremental": {
+      "durationMs": 334.843,
+      "exitCode": 0,
+      "jsonIndexes": {
+        "rebuilt": 0,
+        "reused": 5
+      },
+      "sqlite": {
+        "updatedFiles": 0,
+        "reusedFiles": 46,
+        "removedFiles": 0
+      }
+    }
+  },
+  "check": {
+    "durationMs": 125.04,
+    "exitCode": 0
+  },
+  "queries": {
+    "iterations": 3,
+    "avgQueryMs": 58.054,
+    "top1Rate": 1.0,
+    "top3Rate": 1.0,
+    "cases": [
+      {
+        "id": "release_retry",
+        "query": "release retry",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          60.806,
+          57.849,
+          56.454
+        ],
+        "avgQueryMs": 58.37,
+        "bestQueryMs": 56.454,
+        "worstQueryMs": 60.806,
+        "topResults": [
+          {
+            "path": "ai/state/handoff.md",
+            "title": "Focus",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 11,
+            "lineEnd": 15,
+            "summary": "## Focus\n\n- [Release] [retry] or [release] verification for the dated version/tag scheme is the main pending repo task ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Next",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 33,
+            "lineEnd": 38,
+            "summary": "## Next\n\n- [Retry] the [release] workflow or a manual [release] dispatch for `2026.03.28.1919`.\n- Keep memory indexes ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Release",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 23,
+            "lineEnd": 27,
+            "summary": "## [Release]\n\n- Central namespace is verified for `io.github.laughingmancommits`.\n- The last publish attempt uploaded the bundle but failed ... "
+          }
+        ]
+      },
+      {
+        "id": "recent_validations",
+        "query": "DashboardPlaywrightE2eTest",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          58.12,
+          57.179,
+          57.476
+        ],
+        "avgQueryMs": 57.592,
+        "bestQueryMs": 57.179,
+        "worstQueryMs": 58.12,
+        "topResults": [
+          {
+            "path": "ai/state/recent-validations.md",
+            "title": "Recent Validations",
+            "sourceKind": "ai-validation-history",
+            "loadTier": "warm",
+            "sortTs": "",
+            "lineStart": 1,
+            "lineEnd": 30,
+            "summary": " ... examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` passed after the dashboard UI, chart, and form ... "
+          },
+          {
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T18:23:44+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T18:23:44+01:00",
+            "lineStart": 7,
+            "lineEnd": 7,
+            "summary": " ... Revalidated the refactor with `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test`."
+          },
+          {
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T12:38:00+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T12:38:00+01:00",
+            "lineStart": 2,
+            "lineEnd": 2,
+            "summary": " ... ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` plus `scripts/check-doc-consistency.ps1`."
+          }
+        ]
+      },
+      {
+        "id": "archive_history",
+        "query": "single-join fast-path",
+        "pathGlobs": [
+          "ai/log/archive/*"
+        ],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          59.376,
+          57.753,
+          57.726
+        ],
+        "avgQueryMs": 58.285,
+        "bestQueryMs": 57.726,
+        "worstQueryMs": 59.376,
+        "topResults": [
+          {
+            "path": "ai/log/archive/2026-03-summary.md",
+            "title": "Event Snapshots",
+            "sourceKind": "ai-archive-summary",
+            "loadTier": "cold",
+            "sortTs": "",
+            "lineStart": 7,
+            "lineEnd": 81,
+            "summary": " ... Landed selective [single]-[join] [fast]-[path] improvements and kept full test suite green while reducing computed-[join] latency ... "
+          },
+          {
+            "path": "ai/log/archive/2026-03.jsonl",
+            "title": "performance 2026-03-14T16:25:22+01:00",
+            "sourceKind": "ai-log-archive",
+            "loadTier": "archive",
+            "sortTs": "2026-03-14T16:25:22+01:00",
+            "lineStart": 3,
+            "lineEnd": 3,
+            "summary": "performance\nLanded selective [single]-[join] [fast]-[path] improvements and kept full test suite green while reducing computed-[join] ... "
+          }
+        ]
+      },
+      {
+        "id": "module_routing",
+        "query": "module index",
+        "pathGlobs": [],
+        "top1Hit": true,
+        "top3Hit": true,
+        "timingsMs": [
+          57.615,
+          58.312,
+          57.98
+        ],
+        "avgQueryMs": 57.969,
+        "bestQueryMs": 57.615,
+        "worstQueryMs": 58.312,
+        "topResults": [
+          {
+            "path": "ai/core/module-index.md",
+            "title": "Module Index",
+            "sourceKind": "ai-core",
+            "loadTier": "cold",
+            "sortTs": "",
+            "lineStart": 1,
+            "lineEnd": 17,
+            "summary": "# [Module] [Index]\n\nRuntime Java package roles under `pojo-lens/src/main/java/laughing/man/commits`:\n\n- facades: `PojoLens`, `PojoLensCore ... "
+          }
+        ]
+      }
+    ]
+  }
+}

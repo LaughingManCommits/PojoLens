@@ -1,7 +1,6 @@
 package laughing.man.commits.spring.boot.autoconfigure;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.computed.ComputedFieldRegistry;
@@ -34,7 +33,7 @@ public class PojoLensSpringBootAutoConfiguration {
                 ? PojoLensRuntimePreset.PROD
                 : properties.getPreset();
 
-        PojoLensRuntime runtime = PojoLens.newRuntime(preset);
+        PojoLensRuntime runtime = PojoLensRuntime.ofPreset(preset);
 
         if (properties.getStrictParameterTypes() != null) {
             runtime.setStrictParameterTypes(properties.getStrictParameterTypes());

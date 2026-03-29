@@ -15,8 +15,8 @@ Use it when you need:
 ## Basic Comparison
 
 ```java
-SnapshotComparison<Employee, Integer> comparison = PojoLens
-    .compareSnapshots(currentSnapshot, previousSnapshot)
+SnapshotComparison<Employee, Integer> comparison = SnapshotComparison
+    .builder(currentSnapshot, previousSnapshot)
     .byKey(employee -> employee.id);
 ```
 
@@ -61,7 +61,7 @@ List<ChangeProjection> rows = PojoLensSql
 Delta rows are just another in-memory dataset, so they can be used directly in reports and chart flows:
 
 ```java
-ReportDefinition<ChangeCountRow> report = PojoLens.report(
+ReportDefinition<ChangeCountRow> report = ReportDefinition.sql(
     PojoLensSql.parse("select changeType, count(*) as total group by changeType order by changeType asc"),
     ChangeCountRow.class,
     ChartSpec.of(ChartType.BAR, "changeType", "total"));
@@ -93,8 +93,8 @@ Default behavior:
 If null keys are intentional:
 
 ```java
-SnapshotComparison<MyRow, String> comparison = PojoLens
-    .compareSnapshots(currentSnapshot, previousSnapshot)
+SnapshotComparison<MyRow, String> comparison = SnapshotComparison
+    .builder(currentSnapshot, previousSnapshot)
     .allowNullKeys()
     .byKey(row -> row.externalId);
 ```
@@ -106,4 +106,5 @@ SnapshotComparison<MyRow, String> comparison = PojoLens
 - nested POJO fields participate in change detection
 - `@Exclude` fields do not participate
 - if a row type exposes no queryable fields, comparison falls back to object equality
+
 

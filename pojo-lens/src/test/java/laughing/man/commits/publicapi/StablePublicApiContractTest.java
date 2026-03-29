@@ -4,7 +4,7 @@ import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
 
-import laughing.man.commits.PojoLens;
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.QueryBuilder;
@@ -17,6 +17,7 @@ import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
@@ -37,17 +38,15 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
-        requirePublicStaticMethod(PojoLens.class, "newRuntime");
-        requirePublicStaticMethod(PojoLens.class, "newRuntime", PojoLensRuntimePreset.class);
-        requirePublicStaticMethod(PojoLens.class, "newKeysetCursorBuilder");
-        requirePublicStaticMethod(PojoLens.class, "parseKeysetCursor", String.class);
-
         requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
+        requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
         requirePublicMethod(PojoLensRuntime.class, "sqlLikeCache");
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
+        requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
+        requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
     }
 
     @Test
@@ -85,12 +84,18 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "keysetAfter", SqlLikeCursor.class);
         requirePublicMethod(SqlLikeQuery.class, "keysetBefore", SqlLikeCursor.class);
         requirePublicMethod(SqlLikeQuery.class, "bindTyped", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "bindTyped", List.class, Class.class, JoinBindings.class);
         requirePublicMethod(SqlLikeQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "iterator", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "stream", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "stream", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "chart", List.class, Class.class, ChartSpec.class);
+        requirePublicMethod(SqlLikeQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(SqlLikeQuery.class, "schema", Class.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "explain", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "sort");
 
         requirePublicMethod(SqlLikeBoundQuery.class, "filter");
@@ -120,8 +125,7 @@ public class StablePublicApiContractTest {
 
         assertEquals(List.of("Cara", "Alice"), fluentRows.stream().map(row -> row.name).toList());
 
-        List<Employee> sqlRows = PojoLens
-                .newRuntime()
+        List<Employee> sqlRows = new PojoLensRuntime()
                 .parse("where active = true order by salary desc limit 2")
                 .filter(sampleEmployees(), Employee.class);
 
@@ -136,7 +140,7 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableRuntimeTemplateAndCursorFlowsShouldExecute() {
-        PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+        PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
         assertTrue(runtime.isStrictParameterTypes());
         assertTrue(runtime.isLintMode());
 
@@ -150,9 +154,9 @@ public class StablePublicApiContractTest {
                 .filter(sampleEmployees(), Employee.class);
         assertEquals(2, rows.size());
 
-        SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder().put("salary", 120000).put("id", 1).build();
+        SqlLikeCursor cursor = SqlLikeCursor.builder().put("salary", 120000).put("id", 1).build();
         String token = cursor.toToken();
-        SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+        SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
         assertNotNull(decoded);
         assertEquals(cursor, decoded);
     }
@@ -173,3 +177,5 @@ public class StablePublicApiContractTest {
         return method;
     }
 }
+
+

@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: pojo-lens-spring-boot-starter-quickstart
+
+pojo-lens:
+  preset: DEV
+  strict-parameter-types: true
+  lint-mode: true

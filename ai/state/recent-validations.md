@@ -1,0 +1,30 @@
+# Recent Validations
+
+- `2026-03-26`: `mvn -q test` passed after the dashboard-simplification and starter-example hardening work.
+- `2026-03-26`: `scripts/check-doc-consistency.ps1` passed after the starter example and docs refresh.
+- `2026-03-26`: `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test` passed after the dashboard UI, chart, and form-validation fixes.
+- `2026-03-27`: `py -3 scripts/refresh-ai-memory.py --compact-log` passed and compacted AI event history to `12` active events plus `73` archived events in `ai/log/archive/2026-03.jsonl`.
+- `2026-03-27`: `py -3 scripts/refresh-ai-memory.py --check` passed with hot context reduced to `91` lines / `5550` bytes and SQLite cold search built.
+- `2026-03-27`: `py -3 scripts/query-ai-memory.py "<archive topic>"` and the PowerShell wrapper both returned archive-aware cold-search results, confirming the archived event log is searchable.
+- `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after the `WP8.3` wrapper/binding decision artifact and doc realignment.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after trimming hot state back under the per-file memory budgets and refreshing the new `WP8.3` decision record.
+- `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after the `WP8.4` execution-path audit and roadmap-state updates.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing the new `WP8.4` audit artifact and advancing hot memory to `WP8.5`.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed for the first `WP8.5` SQL-like output-materialization slice.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,ChartMapperArrayRowsTest,ChartResultMapperMappingTest,ChartResultMapperValidationTest,CachePolicyConfigTest,SqlLikeJoinBindingsContractTest" test` passed after internalizing `ChartValidation`.
+- `2026-03-28`: `mvn -q test` passed after the `WP8.5` SQL-like output-materialization cleanup, optional-join helper deletion, stream coverage additions, and `ChartValidation` internalization.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=FluentChartIntegrationTest,QueryTelemetryTest,PojoLensOrderGroupBehaviorTest,PojoLensConcurrencyBehaviorTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest" test` passed for the fluent shared-materialization slice in `FilterImpl`.
+- `2026-03-28`: `mvn -q test` passed after the `WP8.5` fluent flat `filter`/`chart` materialization refactor.
+- `2026-03-28`: `mvn -q -pl pojo-lens "-Dtest=ExplainToolingTest,SqlLikeQueryContractTest,SqlLikeMappingParityTest,SqlLikeChartIntegrationTest,QueryTelemetryTest,PojoLensOrderGroupBehaviorTest,PojoLensConcurrencyBehaviorTest" test` passed after replacing SQL-like explain stage replay with unpaged real-execution tracing and sharing the fluent base distinct/filter stage runner.
+- `2026-03-28`: `mvn -q test` passed after completing `WP8.5`.
+- `2026-03-28`: `scripts/check-doc-consistency.ps1` passed after marking `WP8.5` done and advancing the roadmap to `WP8.6`.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after refreshing hot state and derived indexes for completed `WP8.5`.
+- `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks test` passed after adding benchmark coverage for `fluentGroupedRows` and `parseAndExplainExecution`.
+- `2026-03-28`: forked JMH spot checks passed through the resolved `target/*-benchmarks.jar` runner for `StatsQueryJmhBenchmark.fluentGroupedRows`, `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, and the existing `StreamingExecutionJmhBenchmark` list-vs-stream methods.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after completing `WP8.6` docs, benchmark, and release refresh updates.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after marking `WP8.6` done and refreshing the completed roadmap state.
+- `2026-03-28`: `mvn -q -pl pojo-lens-benchmarks -am test-compile` passed after aligning benchmark sources/tests with the removed `PojoLens` facade and `FilterExecutionPlanCache` compatibility facade.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after executing the stronger pre-first-release cleanup stance in code/docs and updating the benchmark module to the owning-type/runtime surface.
+- `2026-03-28`: `mvn -q test` and `scripts/check-doc-consistency.ps1` passed after switching the repo to date-based release versioning (`2026.03.28.1919`, `release-<version>`) and aligning the release/benchmark/process docs.
+- `2026-03-28`: `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check` passed after trimming hot state and refreshing derived indexes for the date-based release-versioning migration.
+

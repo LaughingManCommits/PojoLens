@@ -3,7 +3,6 @@ package laughing.man.commits.query;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -26,7 +25,7 @@ public class QueryTelemetryTest {
 
     @Test
     public void runtimeParseAndSqlLikeChartShouldEmitTelemetryStages() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         List<QueryTelemetryEvent> events = new ArrayList<>();
         runtime.setTelemetryListener(events::add);
 
@@ -102,6 +101,8 @@ public class QueryTelemetryTest {
         }
     }
 }
+
+
 
 
 

@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -104,7 +105,7 @@ public class ExplainToolingTest {
         assertEquals("unbound", bindings.get("employees"));
 
         Map<String, Object> executedExplain = PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .explain(sampleCompanies(), Map.of("employees", sampleCompanyEmployees()), Company.class);
+                .explain(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
 
         assertEquals("bound", joinSourceBindings(executedExplain).get("employees"));
     }
@@ -156,6 +157,19 @@ public class ExplainToolingTest {
     }
 
     @Test
+    public void sqlLikeExecutionExplainShouldIncludeHavingStageCountsWithoutOrderBy() {
+        Map<String, Object> explain = PojoLensSql.parse("select department, count(*) as total group by department having total >= 1 limit 1")
+                .explain(sampleEmployees(), DepartmentCount.class);
+
+        Map<String, Object> stageCounts = stageCounts(explain);
+        assertStage(stageCounts, "where", false, 4, 4);
+        assertStage(stageCounts, "group", true, 4, 2);
+        assertStage(stageCounts, "having", true, 2, 2);
+        assertStage(stageCounts, "order", false, 2, 2);
+        assertStage(stageCounts, "limit", true, 2, 1);
+    }
+
+    @Test
     public void sqlLikeExecutionExplainShouldIncludeQualifyStageCounts() {
         Map<String, Object> explain = PojoLensSql.parse("select department as dept, name, salary, "
                         + "row_number() over (partition by department order by salary desc) as rn "
@@ -169,6 +183,22 @@ public class ExplainToolingTest {
         assertStage(stageCounts, "qualify", true, 3, 2);
         assertStage(stageCounts, "order", true, 2, 2);
         assertStage(stageCounts, "limit", false, 2, 2);
+    }
+
+    @Test
+    public void sqlLikeExecutionExplainShouldIncludeQualifyStageCountsWithoutOrderBy() {
+        Map<String, Object> explain = PojoLensSql.parse("select department as dept, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 limit 1")
+                .explain(sampleEmployees(), RankedEmployee.class);
+
+        Map<String, Object> stageCounts = stageCounts(explain);
+        assertStage(stageCounts, "where", true, 4, 3);
+        assertStage(stageCounts, "group", false, 3, 3);
+        assertStage(stageCounts, "having", false, 3, 3);
+        assertStage(stageCounts, "qualify", true, 3, 2);
+        assertStage(stageCounts, "order", false, 2, 2);
+        assertStage(stageCounts, "limit", true, 2, 1);
     }
 
     @Test
@@ -248,5 +278,7 @@ public class ExplainToolingTest {
         }
     }
 }
+
+
 
 

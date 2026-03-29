@@ -30,7 +30,7 @@ public class ReportDefinitionTest {
 
     @Test
     public void sqlLikeReportDefinitionShouldBeReusableAcrossSnapshots() {
-        ReportDefinition<DepartmentCountRow> report = PojoLens.report(
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.sql(
                 PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 DepartmentCountRow.class,
                 ChartSpec.of(ChartType.BAR, "department", "total")
@@ -52,7 +52,7 @@ public class ReportDefinitionTest {
 
     @Test
     public void fluentReportDefinitionShouldRebuildQueryPerExecution() {
-        ReportDefinition<DepartmentCountRow> report = PojoLens.report(
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.fluent(
                 DepartmentCountRow.class,
                 builder -> builder
                         .addRule("active", true, Clauses.EQUAL)
@@ -80,7 +80,7 @@ public class ReportDefinitionTest {
 
     @Test
     public void reportDefinitionWithoutChartSpecShouldRejectChartExecution() {
-        ReportDefinition<Employee> report = PojoLens.report(
+        ReportDefinition<Employee> report = ReportDefinition.sql(
                 PojoLensSql.parse("where active = true order by salary desc"),
                 Employee.class
         );
@@ -97,7 +97,7 @@ public class ReportDefinitionTest {
     public void sqlLikeReportDefinitionShouldSupportJoinBindings() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
-        ReportDefinition<Company> report = PojoLens.report(
+        ReportDefinition<Company> report = ReportDefinition.sql(
                 PojoLensSql.parse("select * from companies left join employees on id = companyId where title = 'Engineer'"),
                 Company.class
         );
@@ -132,7 +132,7 @@ public class ReportDefinitionTest {
 
     @Test
     public void reportDefinitionShouldExposeOrderedSchemaMetadata() {
-        ReportDefinition<DepartmentCountRow> report = PojoLens.report(
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.sql(
                 PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
                 DepartmentCountRow.class
         );
@@ -165,4 +165,6 @@ public class ReportDefinitionTest {
         }
     }
 }
+
+
 

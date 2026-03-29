@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -46,7 +45,7 @@ public class SqlLikeStrictParameterTypeModeTest {
 
     @Test
     public void strictRuntimeModeShouldRejectBooleanParameterTypeMismatchEarly() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setStrictParameterTypes(true);
 
         try {
@@ -88,6 +87,8 @@ public class SqlLikeStrictParameterTypeModeTest {
     }
 
 }
+
+
 
 
 

@@ -188,3 +188,5 @@ public class ChartJsAdapterBridgeTest {
         return (Map<String, Object>) scales.get("y");
     }
 }
+
+

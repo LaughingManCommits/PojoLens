@@ -3,7 +3,8 @@
 `ReportDefinition<T>` captures a reusable query + projection contract for repeated execution against different in-memory dataset snapshots.
 
 It also exposes deterministic table metadata through `schema()`.
-It is the general reusable wrapper in PojoLens.
+It is the general reusable wrapper in PojoLens and the default reusable-query
+contract for docs and new code.
 `ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and table-first wrappers that can bridge back to it.
 
 Wrapper selection guide:
@@ -19,7 +20,7 @@ Use it when the same report/query shape is executed across:
 ## SQL-like Report Definition
 
 ```java
-ReportDefinition<DepartmentCount> report = PojoLens.report(
+ReportDefinition<DepartmentCount> report = ReportDefinition.sql(
     PojoLensSql.parse("select department, count(*) as total group by department order by department asc"),
     DepartmentCount.class,
     ChartSpec.of(ChartType.BAR, "department", "total"));
@@ -29,16 +30,18 @@ ChartData chart = report.chart(snapshotB);
 TabularSchema schema = report.schema();
 ```
 
-For SQL-like definitions, join sources can still be supplied per execution:
+For SQL-like definitions, `JoinBindings` is the default one-off multi-source
+execution input:
 
 ```java
 List<Company> rows = report.rows(companies, JoinBindings.of("employees", employees));
 ```
 
-If the same snapshot is reused across multiple report calls, wrap it once:
+If the same snapshot is reused across multiple report calls, wrap the primary
+rows plus `JoinBindings` once in `DatasetBundle`:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -49,7 +52,7 @@ ChartData chart = report.chart(bundle);
 ## Fluent Report Definition
 
 ```java
-ReportDefinition<DepartmentCount> report = PojoLens.report(
+ReportDefinition<DepartmentCount> report = ReportDefinition.fluent(
     DepartmentCount.class,
     builder -> builder
         .addRule("active", true, Clauses.EQUAL)
@@ -70,7 +73,7 @@ ComputedFieldRegistry registry = ComputedFieldRegistry.builder()
     .add("adjustedSalary", "salary * 1.1", Double.class)
     .build();
 
-ReportDefinition<DepartmentAdjustedPayroll> report = PojoLens.report(
+ReportDefinition<DepartmentAdjustedPayroll> report = ReportDefinition.sql(
     PojoLensSql.parse("select department, sum(adjustedSalary) as totalAdjustedPayroll group by department")
         .computedFields(registry),
     DepartmentAdjustedPayroll.class);
@@ -85,7 +88,7 @@ If the report definition was created without a `ChartSpec`, `chart(...)` will th
 You can attach one later:
 
 ```java
-ReportDefinition<DepartmentCount> rowsOnly = PojoLens.report(
+ReportDefinition<DepartmentCount> rowsOnly = ReportDefinition.sql(
     PojoLensSql.parse("select department, count(*) as total group by department"),
     DepartmentCount.class);
 
@@ -129,4 +132,5 @@ ReportDefinition<DepartmentCount> report = StatsViewPresets
     .by("department", DepartmentCount.class)
     .reportDefinition();
 ```
+
 

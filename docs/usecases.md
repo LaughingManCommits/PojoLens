@@ -3,6 +3,9 @@
 If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
+For new code, keep one default path per job:
+`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`ReportDefinition<T>`.
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
@@ -15,14 +18,14 @@ Source guides:
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
 | Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
-| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLens.newRuntime(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
+| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 
 ## 2. Pick Reusable Wrapper
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| A reusable business query contract | `ReportDefinition<T>` | General reusable wrapper for row-first queries that may feed more than one consumer. |
+| A reusable business query contract | `ReportDefinition<T>` | Default reusable wrapper for row-first queries that may feed more than one consumer. |
 | A reusable chart-first preset | `ChartQueryPreset<T>` | Specialized SQL-like convenience wrapper for chart-shaped workflows. |
 | A reusable table payload with totals and schema | `StatsViewPreset<T>` / `StatsTable<T>` | Specialized table-first wrapper for grouped stats and leaderboard flows. |
 
@@ -52,7 +55,7 @@ Source guides:
 | Large data, first-page consumers | Scenario 2C | `.stream(...)` / `.iterator(...)` |
 | Repeated hot equality filters | Scenario 2D | `.addIndex(...)` + normal rules |
 | Time-based finance/product summaries | Scenario 3 | `bucket(...) + group by + having` |
-| Multi-source views with joins | Scenario 4 | `JoinBindings` / `DatasetBundle` |
+| Multi-source views with joins | Scenario 4 | `JoinBindings`, promoted to `DatasetBundle` for repeated execution |
 | Chart payloads for frontend/reporting | Scenario 5 | `.chart(...)` + `ChartData` |
 | Dashboard-ready stats tables | Scenario 5B | `StatsViewPresets` + `StatsTable` |
 | Safe refactors + regression protection | Scenario 6 | `QueryRegressionFixture` |
@@ -119,7 +122,7 @@ List<EmployeeFeedRow> rows = PojoLensSql
 Use keyset for deep pages:
 
 ```java
-SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+SqlLikeCursor cursor = SqlLikeCursor.builder()
     .put("salary", 120000)
     .put("id", 1)
     .build();
@@ -197,7 +200,7 @@ Problem:
 Use:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -297,7 +300,7 @@ Use:
 
 ```java
 QueryRegressionFixture<EmployeeApiRow> fixture = QueryRegressionFixture
-    .builder("employee-api-v1", EmployeeApiRow.class)
+    .builder("employee-api", EmployeeApiRow.class)
     .fluent(builder -> builder
         .addRule("active", true, Clauses.EQUAL)
         .addOrder("salary", 1))
@@ -327,10 +330,11 @@ Outcome:
 
 - Use `PojoLensCore` for service-owned fluent queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
-- Use `PojoLens.newRuntime(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
+- Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.
-- Use `PojoLens` mainly for compatibility helpers such as runtime creation, keyset cursor helpers, `report(...)`, and `bundle(...)`.
-- Use `DatasetBundle` for repeated multi-source execution.
+- Use `SqlLikeCursor`, `ReportDefinition`, `DatasetBundle`, and `SnapshotComparison` directly for those helper workflows.
+- Use `JoinBindings` for one-off multi-source execution.
+- Use `DatasetBundle` when the same multi-source snapshot will be executed repeatedly.
 - Use `ChartData` as the boundary model between query and rendering.
 
 ## 8. Next Reads
@@ -345,3 +349,4 @@ Outcome:
 - [docs/time-buckets.md](time-buckets.md)
 - [docs/telemetry.md](telemetry.md)
 - [docs/regression-fixtures.md](regression-fixtures.md)
+

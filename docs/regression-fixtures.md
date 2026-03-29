@@ -54,7 +54,7 @@ fixture
 ```java
 QueryRegressionFixture<DepartmentCount> fixture = QueryRegressionFixture.report(
     snapshot,
-    PojoLens.report(
+    ReportDefinition.sql(
         PojoLensSql.parse("select department, count(*) as total group by department"),
         DepartmentCount.class));
 
@@ -78,4 +78,5 @@ Notes:
 - snapshots are immutable
 - report/fluent fixtures do not expose `explain()` or lint assertions unless the underlying contract supports them
 - SQL-like fixture parity carries SQL-like sort direction into fluent execution automatically
+
 

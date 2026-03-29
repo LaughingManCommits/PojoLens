@@ -1,6 +1,6 @@
 # SQL-like Query Guide
 
-## Supported Grammar (v1)
+## Supported Grammar
 
 - `SELECT` (optional, supports `AS` aliases)
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
@@ -24,7 +24,7 @@ Supported operators in `WHERE`:
 - `CONTAINS`
 - `MATCHES`
 
-## HAVING v1 Contract
+## HAVING Contract
 
 `HAVING` is defined for grouped/aggregated SQL-like queries and is evaluated after aggregation.
 
@@ -41,7 +41,7 @@ Disallowed references in `HAVING`:
 - unknown names
 - ambiguous names
 
-Boolean support in v1:
+Boolean support:
 - `AND` is supported
 - `OR` is supported
 
@@ -50,7 +50,7 @@ Validation errors for invalid `HAVING`:
 - `Unknown HAVING reference '<name>'`
 - `Invalid HAVING reference '<name>': expected grouped field or aggregate output`
 
-## QUALIFY v1 Contract
+## QUALIFY Contract
 
 `QUALIFY` is defined for non-aggregate SQL-like queries and is evaluated after window computation.
 
@@ -72,7 +72,7 @@ Validation errors for invalid `QUALIFY`:
 - `QUALIFY is only supported for non-aggregate SQL-like queries`
 - `Unknown field '<name>' in QUALIFY clause`
 
-## Window Functions v1 Contract
+## Window Functions Contract
 
 Window functions are supported for non-aggregate SQL-like query shapes and execute after `WHERE` and before `QUALIFY`.
 
@@ -91,8 +91,7 @@ Unsupported window frame expressions fail fast with actionable parser errors.
 ## Execution Model
 
 For new SQL-like code, use `PojoLensSql.parse(...)` and `PojoLensSql.template(...)`.
-The duplicate `PojoLens.parse(...)` facade was removed in the pre-adoption
-simplification.
+The old `PojoLens.parse(...)` facade alias is removed.
 
 `PojoLensSql.parse(...)` produces a SQL-like query contract that:
 - parses and validates query text
@@ -102,8 +101,12 @@ simplification.
 Bind-first typed execution:
 - `bindTyped(rows, Projection.class).filter()` captures projection type once at bind-time
 - `ORDER BY` direction is applied automatically during typed execution
-- join queries use `bindTyped(rows, Projection.class, joinSources).filter()`
-- bundle-backed joins use `bindTyped(datasetBundle, Projection.class).filter()`
+- join queries should start with
+  `bindTyped(rows, Projection.class, joinBindings).filter()`
+- promote repeated multi-source snapshots to
+  `bindTyped(datasetBundle, Projection.class).filter()`
+- if a boundary already provides `Map<String, List<?>>`, convert once with
+  `JoinBindings.from(map)`
 - reusable computed fields attach via `.computedFields(registry)`
 - chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly
 
@@ -237,7 +240,7 @@ List<DepartmentRunningTotal> rows = PojoLensSql
 ### Recipe: First-Class Keyset Cursor API
 
 ```java
-SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+SqlLikeCursor cursor = SqlLikeCursor.builder()
     .put("salary", 120000)
     .put("id", 1)
     .build();
@@ -252,7 +255,7 @@ Tokenized cursor flow:
 
 ```java
 String token = cursor.toToken();
-SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
 ```
 
 Cursor contract:
@@ -260,7 +263,7 @@ Cursor contract:
 - cursor values must be non-null
 - `keysetAfter(...)` resolves the "next page" window
 - `keysetBefore(...)` resolves the "previous page" window
-- token format is opaque Base64URL (`v1`) and preserves common scalar value types
+- token format is opaque Base64URL (current format) and preserves common scalar value types
 
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
@@ -290,7 +293,7 @@ List<Employee> rows = PojoLensSql
 Per runtime:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setStrictParameterTypes(true);
 
 List<Employee> rows = runtime
@@ -339,7 +342,7 @@ SqlLikeQuery query = PojoLensSql
 Per runtime:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setLintMode(true);
 
 SqlLikeQuery query = runtime.parse("select * from companies limit 5");
@@ -350,9 +353,9 @@ SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 Use presets when you want a preconfigured runtime and still keep manual overrides available afterward.
 
 ```java
-PojoLensRuntime devRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLens.newRuntime(PojoLensRuntimePreset.TEST);
+PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
+PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
 ```
 
 Preset intent:
@@ -364,7 +367,7 @@ Preset intent:
 Manual overrides still apply after preset selection:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.PROD);
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 runtime.setLintMode(true);
 runtime.setStrictParameterTypes(true);
 ```
@@ -387,7 +390,7 @@ runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets 
 Equivalent preset creation through the facade is also available:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime(PojoLensRuntimePreset.DEV);
+PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 ```
 
 ### Recipe: WHERE IN Subquery
@@ -405,7 +408,7 @@ Named source subquery using runtime join-source bindings:
 ```java
 List<Company> rows = PojoLensSql
     .parse("where id in (select companyId from employees where title = 'Engineer')")
-    .filter(companies, Map.of("employees", employees), Company.class);
+    .filter(companies, JoinBindings.of("employees", employees), Company.class);
 ```
 
 Current subquery scope:
@@ -503,36 +506,11 @@ FluentSqlLikeParity.assertUnorderedEquals(
 
 ### Recipe: SQL-like Joins
 
-Runtime map bindings:
-
-```java
-Map<String, List<?>> joinSources = new HashMap<>();
-joinSources.put("employees", employees);
-
-List<Company> rows = PojoLensSql
-    .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
-    .filter(companies, joinSources, Company.class);
-```
-
-Multi-join example:
-
-```java
-Map<String, List<?>> joinSources = new HashMap<>();
-joinSources.put("employees", employees);
-joinSources.put("badges", badges);
-
-List<Company> rows = PojoLensSql
-    .parse("select * from companies "
-            + "left join employees on companies.id = employees.companyId "
-            + "left join badges on employees.id = badges.employeeId "
-            + "where code = 'A1'")
-    .filter(companies, joinSources, Company.class);
-```
-
-Notes:
-- each new `JOIN` can reference fields already present in the current plan
-- qualifying previous-source fields like `employees.id` is supported for later joins
-- deterministic merged-field names still follow the fluent join collision rules (`child_...`)
+Canonical binding story:
+- use `JoinBindings` for named secondary sources
+- promote to `DatasetBundle` when the same multi-source snapshot will be
+  executed repeatedly
+- convert boundary maps once with `JoinBindings.from(map)` when needed
 
 Typed bindings:
 
@@ -546,10 +524,26 @@ List<Company> rows = PojoLensSql
     .filter(companies, joinBindings, Company.class);
 ```
 
+Multi-join example:
+
+```java
+JoinBindings joinBindings = JoinBindings.builder()
+    .add("employees", employees)
+    .add("badges", badges)
+    .build();
+
+List<Company> rows = PojoLensSql
+    .parse("select * from companies "
+            + "left join employees on companies.id = employees.companyId "
+            + "left join badges on employees.id = badges.employeeId "
+            + "where code = 'A1'")
+    .filter(companies, joinBindings, Company.class);
+```
+
 Dataset bundle execution:
 
 ```java
-DatasetBundle bundle = PojoLens.bundle(
+DatasetBundle bundle = DatasetBundle.of(
     companies,
     JoinBindings.of("employees", employees));
 
@@ -557,6 +551,21 @@ List<Company> rows = PojoLensSql
     .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
     .filter(bundle, Company.class);
 ```
+
+Boundary adaptation from an existing map:
+
+```java
+JoinBindings joinBindings = JoinBindings.from(Map.of("employees", employees));
+
+List<Company> rows = PojoLensSql
+    .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+    .filter(companies, joinBindings, Company.class);
+```
+
+Notes:
+- each new `JOIN` can reference fields already present in the current plan
+- qualifying previous-source fields like `employees.id` is supported for later joins
+- deterministic merged-field names still follow the fluent join collision rules (`child_...`)
 
 ### Recipe: HAVING Queries
 
@@ -616,6 +625,15 @@ Map<String, Object> explain = PojoLensSql
 
 For parameterized queries, `parameterSnapshot` reports parameter names with redacted metadata such as `status`, `shape`, `type`, and collection `size` when applicable. For JOIN queries, `joinSourceBindings` reports whether each named JOIN source is currently bound.
 
+Execution explain notes:
+
+- `where`, `group`, `having`, `qualify`, and `order` counts are gathered from
+  the live unpaged bound execution path used by normal SQL-like execution
+- `limit` reflects the final `OFFSET`/`LIMIT` window on top of those stage
+  counts
+- refresh stored explain snapshots if you previously depended on older
+  `HAVING` or `QUALIFY` counts from the explain-only replay path
+
 Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWarnings`. Current warning codes:
 
 - `EQ-SQL-LINT-001`: broad `select *`
@@ -627,7 +645,8 @@ Lint mode adds deterministic non-blocking warnings to `explain()` under `lintWar
 Avoid these patterns when writing SQL-like integrations:
 - string concatenation for dynamic values; use named parameters instead
 - bind-first SQL-like calls that repeat sort and projection class; use `bindTyped(...)`
-- ad-hoc join maps for long-lived code paths; prefer `JoinBindings`
+- carrying raw join maps through execution code; convert once to `JoinBindings`,
+  and use `DatasetBundle` when the same snapshot is reused
 - rebuilding the same multi-source snapshot repeatedly; prefer `DatasetBundle`
 - deep `offset` pagination on high-cardinality feeds when cursor semantics are available
 
@@ -650,7 +669,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-PAR-004` | Clause-specific item/predicate limit exceeded. | Reduce `SELECT`, `GROUP BY`, `ORDER BY`, `WHERE`, or `HAVING` breadth. |
 | `EQ-SQL-VAL-001` | Unknown field/reference during validation. | Fix the field name or use the suggestion in the message. |
 | `EQ-SQL-VAL-002` | Duplicate `SELECT` output name. | Rename aliases so each projected column is unique. |
-| `EQ-SQL-VAL-003` | Missing JOIN source binding. | Provide the JOIN rows in `joinSources` or `JoinBindings`. |
+| `EQ-SQL-VAL-003` | Missing JOIN source binding. | Provide the JOIN rows via `JoinBindings`; convert existing maps with `JoinBindings.from(map)` if needed. |
 | `EQ-SQL-VAL-004` | JOIN source rows were empty/invalid for validation. | Bind a non-empty list containing at least one non-null row. |
 | `EQ-SQL-VAL-005` | Invalid, ambiguous, or unsupported `HAVING` reference. | Restrict `HAVING` to grouped fields and aggregate outputs. |
 | `EQ-SQL-VAL-006` | Aggregate or `GROUP BY` semantics are invalid. | Add required aggregates/groups or remove unsupported combinations. |
@@ -745,7 +764,7 @@ Meaning:
 - A query references a JOIN source that was not bound at execution time.
 
 Fix:
-- Supply the JOIN rows via `Map<String, List<?>>` or `JoinBindings`.
+- Supply the JOIN rows via `JoinBindings`; convert existing maps with `JoinBindings.from(map)` if needed.
 
 ### Error Code EQ-SQL-VAL-004
 
@@ -917,4 +936,11 @@ Meaning:
 
 Fix:
 - Ensure computed expressions reference valid fields from the source rows.
+
+
+
+
+
+
+
 

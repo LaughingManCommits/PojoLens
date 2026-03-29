@@ -2,9 +2,9 @@ package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -16,7 +16,6 @@ import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.PublicApiModels.SqlLikeRunningTotalRow;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,12 +45,11 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
     public void sqlLikeQueryBindTypedWithJoinSourcesShouldReturnExecutableRows() {
         List<Company> companies = sampleCompanies();
         List<CompanyEmployee> employees = sampleCompanyEmployees();
-        Map<String, List<?>> joinSources = new HashMap<>();
-        joinSources.put("employees", employees);
+        JoinBindings joinBindings = JoinBindings.of("employees", employees);
 
         List<Company> rows = SqlLikeQuery
                 .of("select * from companies left join employees on id = companyId where title = 'Engineer'")
-                .bindTyped(companies, Company.class, joinSources)
+                .bindTyped(companies, Company.class, joinBindings)
                 .filter();
 
         assertEquals(1, rows.size());
@@ -76,7 +74,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void strictParameterTypingControlsShouldBeUsableFromPublicApi() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         assertFalse(runtime.isStrictParameterTypes());
 
         runtime.setStrictParameterTypes(true);
@@ -90,13 +88,13 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void keysetCursorControlsShouldBeUsableFromPublicApi() {
-        SqlLikeCursor cursor = PojoLens.newKeysetCursorBuilder()
+        SqlLikeCursor cursor = SqlLikeCursor.builder()
                 .put("salary", 120000)
                 .put("id", 1)
                 .build();
 
         String token = cursor.toToken();
-        SqlLikeCursor decoded = PojoLens.parseKeysetCursor(token);
+        SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
         assertEquals(cursor, decoded);
 
         List<Employee> rows = PojoLensSql.parse("where active = true order by salary desc, id desc limit 20")
@@ -161,7 +159,7 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
     @Test
     public void lintControlsShouldBeUsableFromPublicApi() {
-        PojoLensRuntime runtime = PojoLens.newRuntime();
+        PojoLensRuntime runtime = new PojoLensRuntime();
         assertFalse(runtime.isLintMode());
 
         runtime.setLintMode(true);
@@ -173,6 +171,8 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertFalse(PojoLensSql.parse("select * from companies limit 1").lintMode(false).isLintModeEnabled());
     }
 }
+
+
 
 
 

@@ -29,7 +29,7 @@ Current scope:
 Attach the registry to the parsed query:
 
 ```java
-List<AdjustedSalaryRow> rows = PojoLens
+List<AdjustedSalaryRow> rows = PojoLensSql
     .parse("select name, adjustedSalary where adjustedSalary >= 120000 order by adjustedSalary desc")
     .computedFields(registry)
     .filter(source, AdjustedSalaryRow.class);
@@ -69,7 +69,7 @@ Once attached, computed-field names can be used anywhere the materialized row sc
 For app-wide defaults, attach the registry to a runtime:
 
 ```java
-PojoLensRuntime runtime = PojoLens.newRuntime();
+PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setComputedFieldRegistry(registry);
 
 List<AdjustedSalaryRow> rows = runtime
@@ -92,4 +92,5 @@ Explain payloads surface computed fields in use:
 - output types must be numeric
 - unknown computed-field references still fail with deterministic validation errors
 - strict parameter typing uses the computed field output type when available
+
 

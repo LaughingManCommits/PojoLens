@@ -3,7 +3,6 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.PojoLens;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.domain.Foo;
@@ -328,6 +327,8 @@ public class SqlLikeMappingParityTest {
         );
     }
 }
+
+
 
 
 
