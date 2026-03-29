@@ -81,6 +81,10 @@ Conditional cold-load triggers (additive hints, not hard gates):
 Routing fallback:
 - if task intent is broad or ambiguous after applying the trigger table, run:
   `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
+- for domain-specific precision, add facets:
+  `-Kind ai-core` for architecture/module facts
+  `-Tier hot,warm` for recency-focused state
+  `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before raw archive logs
 
 ---

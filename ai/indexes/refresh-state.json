@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-29T09:31:26.581049+02:00",
+  "generatedAt": "2026-03-29T10:10:23.377860+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "8f8887a0664c1aaf1a315118fe7d76f983af444852b23b7483d2be98cda8cf7a",
+      "inputHash": "e2fca85037a7daeae3bcc9286a631df26846a3b3287a8a591df23b64bc901c42",
       "pathHashes": {
-        "AGENTS.md": "c9ea8b0e2ac81e56f02d1a42819037dc6aec8651953a9ebb09ffbfc7f108988a",
-        "ai/AGENTS.md": "656f1514f003c513011f6fc815821778e38a3d9a2db8436a39f6ace594149c10",
+        "AGENTS.md": "82091957fc8064c837c154b05604e78bca26a0725c7549e70cea529e90decc4b",
+        "ai/AGENTS.md": "ed4cd3db7998c11497b02c369d85c5addd4da45b80505fd8c13b27abaaef7174",
         "ai/core/agent-invariants.md": "bc60ed88a6123d5b18f7c843a48e00e7f2980af7808a05a195b77cddfa43846a",
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
@@ -21,8 +21,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "c245cf0a4e88770a94e6e90b57acfeea06bbd8c2dbda73fceb5713122b295dd3",
-        "ai/state/handoff.md": "eb45f86dc283fc5e3e7ebe59b1893dfec7d76bf091e9e19a59e4c86967feef5b",
+        "ai/state/current-state.md": "2a68bd069032f1988d26359ff14e45d60e2aa2e6712a77ac9b0cc4282bf18f27",
+        "ai/state/handoff.md": "dfac956409ba70ae683837b5c77e878edda700ee35be77862a2274b9ee8f8dd2",
         "ai/state/recent-validations.md": "00174e9ab108a38cbe736dcd4f3fb0642439324bb06c1a61d128d7cb6e79415e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
@@ -56,17 +56,17 @@
         "README.md": "ec6abdd1f7063048a3597ebeb7ecbd9d7755458239aff8055aaf91ec3065409d",
         "RELEASE.md": "3ebd1e0308ee1479a47f1c1a0ec1185c3703f4d58660eebd02048217419551c7",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "a69409bed261feed13131f4990da93bf5821dff24f6236c75dab9df6756eff3b"
+        "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "f8cc302fcb9bbec485a9aab6c0efa8e31304daed7a96a7c85d9e5914cb0e4cac",
+      "inputHash": "5971038ab64f93b5feda73dfdde417dc0ee2cdc9ab8cf6a4ee245fd6e68e7331",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
-        "AGENTS.md": "c9ea8b0e2ac81e56f02d1a42819037dc6aec8651953a9ebb09ffbfc7f108988a",
-        "ai/AGENTS.md": "656f1514f003c513011f6fc815821778e38a3d9a2db8436a39f6ace594149c10",
+        "AGENTS.md": "82091957fc8064c837c154b05604e78bca26a0725c7549e70cea529e90decc4b",
+        "ai/AGENTS.md": "ed4cd3db7998c11497b02c369d85c5addd4da45b80505fd8c13b27abaaef7174",
         "ai/core/agent-invariants.md": "bc60ed88a6123d5b18f7c843a48e00e7f2980af7808a05a195b77cddfa43846a",
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
@@ -80,8 +80,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "c245cf0a4e88770a94e6e90b57acfeea06bbd8c2dbda73fceb5713122b295dd3",
-        "ai/state/handoff.md": "eb45f86dc283fc5e3e7ebe59b1893dfec7d76bf091e9e19a59e4c86967feef5b",
+        "ai/state/current-state.md": "2a68bd069032f1988d26359ff14e45d60e2aa2e6712a77ac9b0cc4282bf18f27",
+        "ai/state/handoff.md": "dfac956409ba70ae683837b5c77e878edda700ee35be77862a2274b9ee8f8dd2",
         "ai/state/recent-validations.md": "00174e9ab108a38cbe736dcd4f3fb0642439324bb06c1a61d128d7cb6e79415e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
@@ -397,10 +397,10 @@
         "README.md": "ec6abdd1f7063048a3597ebeb7ecbd9d7755458239aff8055aaf91ec3065409d",
         "RELEASE.md": "3ebd1e0308ee1479a47f1c1a0ec1185c3703f4d58660eebd02048217419551c7",
         "scripts/benchmark-ai-memory.ps1": "1768f5811f3b5674b0ba1069003e4225ab25ae0ac1951934471c87d713ca56a1",
-        "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
+        "scripts/benchmark-ai-memory.py": "81e016200dd2691ac4966e69fe2d14af58624e7430b2f5148545620c89d77e89",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "a69409bed261feed13131f4990da93bf5821dff24f6236c75dab9df6756eff3b"
+        "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
       }
     },
     "symbols": {
@@ -696,7 +696,7 @@
     },
     "config": {
       "outputPath": "ai/indexes/config-index.json",
-      "inputHash": "1166fa215bdcb36fa22459f88b24fafe3db61e8fce513f3d1ef1a2d0b0025f63",
+      "inputHash": "5f7484d43ce00fa44a86e405385a059ec27ff5915ffc3a543ef1f23465ec50d2",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
@@ -706,7 +706,7 @@
         "pojo-lens-spring-boot-starter/pom.xml": "12d870648e588510e5fea65a3b8de6bd837d854fee4f6f91303fd5d8fd360947",
         "pom.xml": "6bd68a78685986ae28611294a49964f45d0d478b24ce254ac9896be22156e19f",
         "scripts/benchmark-ai-memory.ps1": "1768f5811f3b5674b0ba1069003e4225ab25ae0ac1951934471c87d713ca56a1",
-        "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
+        "scripts/benchmark-ai-memory.py": "81e016200dd2691ac4966e69fe2d14af58624e7430b2f5148545620c89d77e89",
         "scripts/query-ai-memory.ps1": "dd49287620e8dcbf85ba9beaf2bd72276b008286bcd88d9070a35a1079fa40bb",
         "scripts/query-ai-memory.py": "0ec56f8a4fa85565448c32ff62e229fa16b57122dc2568c75bae7f37640e7d5c",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",

@@ -28,9 +28,9 @@ Use coarse, durable triggers so the rules stay maintainable.
 |------------------------------------------------|----------|---------|------------|
 | `WP9.1` Define Trigger Matrix                  | `P0`     | `Done` | none |
 | `WP9.2` Add Conditional Load Rules             | `P0`     | `Done` | `WP9.1`  |
-| `WP9.3` Validate Rule Behavior on Real Tasks   | `P1`     | `Ready` | `WP9.2`  |
-| `WP9.4` Refresh Derived Memory Artifacts       | `P1`     | `Ready` | `WP9.2`  |
-| `WP9.5` Update Handoff and Current-State Notes | `P1`     | `Planned` | `WP9.3`  |
+| `WP9.3` Validate Rule Behavior on Real Tasks   | `P1`     | `Done` | `WP9.2`  |
+| `WP9.4` Refresh Derived Memory Artifacts       | `P1`     | `Done` | `WP9.2`  |
+| `WP9.5` Update Handoff and Current-State Notes | `P1`     | `Done` | `WP9.3`  |
 | `WP9.6` Summarization and Budget Guardrails    | `P0`     | `Done` | `WP9.2`  |
 
 ## Spike Outcome (2026-03-29)
@@ -102,6 +102,15 @@ Acceptance criteria:
 - no missed required context in validation scenarios
 - measurable reduction in unnecessary cold-context loading
 
+Result (2026-03-29):
+- validated representative routing queries:
+  `release retry` -> hot release state (`ai/state/handoff.md`, `ai/state/current-state.md`)
+  `DashboardPlaywrightE2eTest` -> warm validation history (`ai/state/recent-validations.md`)
+  `module index` with `-Kind ai-core` -> module routing core doc (`ai/core/module-index.md`)
+  `single-join fast-path` with archive path filter -> archive summary (`ai/log/archive/2026-03-summary.md`)
+- tightened fallback guidance and benchmark case to use facet-constrained module routing (`-Kind ai-core`) for stable intent-targeted retrieval
+- benchmark quality recovered to `top1Rate=1.0` and `top3Rate=1.0`
+
 ### `WP9.4` Refresh Derived Memory Artifacts
 
 Goal:
@@ -117,6 +126,11 @@ Acceptance criteria:
 - refresh/check complete without errors
 - derived artifacts match updated instructions
 
+Result (2026-03-29):
+- `scripts/refresh-ai-memory.ps1` passed
+- `scripts/refresh-ai-memory.ps1 -Check` passed
+- `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` passed
+
 ### `WP9.5` Update Handoff and Current-State Notes
 
 Goal:
@@ -129,6 +143,11 @@ Deliverables:
 
 Acceptance criteria:
 - startup instructions and TODO roadmap are aligned
+
+Result (2026-03-29):
+- refreshed `ai/state/current-state.md` to reflect `WP9` completion and routing baseline
+- refreshed `ai/state/handoff.md` to reflect new startup expectations, routing facets, and validation commands
+- handoff/startup notes now align with `TODO.md` and the updated AGENTS policy
 
 ### `WP9.6` Summarization and Budget Guardrails
 

@@ -44,9 +44,10 @@ BENCHMARK_CASES = [
     },
     {
         "id": "module_routing",
-        "query": "starter example",
-        "expectedTop1": ["ai/state/handoff.md", "ai/state/current-state.md", "ai/core/module-index.md"],
-        "expectedTop3": ["ai/state/handoff.md", "ai/state/current-state.md", "ai/core/module-index.md"],
+        "query": "module index",
+        "kinds": ["ai-core"],
+        "expectedTop1": ["ai/core/module-index.md"],
+        "expectedTop3": ["ai/core/module-index.md", "ai/core/system-boundaries.md", "ai/core/architecture-map.md"],
     },
 ]
 
