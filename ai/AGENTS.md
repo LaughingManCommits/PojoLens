@@ -4,6 +4,7 @@ This directory stores persistent repository memory used by AI agents.
 
 The root `AGENTS.md` defines agent workflow.
 This file defines how the memory system is organized and maintained.
+Cross-references between these two guides are informational; loading one does not require reloading the other in the same session.
 
 ---
 

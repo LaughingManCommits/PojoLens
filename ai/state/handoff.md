@@ -26,8 +26,8 @@
   `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
 - For module/architecture retrieval, use facet-constrained lookup:
   `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
-- `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*`
-  wording were removed.
+- `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*` wording were removed.
+- Context-loading guidance is explicitly non-recursive between `AGENTS.md` and `ai/AGENTS.md`, and hot-context reloads are skipped for same-task `ai/state/*` edits unless the refreshed wording is immediately needed.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
 
 ## Validate

@@ -13,6 +13,7 @@
 
 ## Verified
 
+- `2026-03-29`: clarified context-loading policy to avoid recursive/extra reloads when `ai/state/*` is edited in the current task; cross-references between `AGENTS.md` and `ai/AGENTS.md` are now explicitly non-recursive.
 - `2026-03-29`: removed internal process docs from `docs/` (`consolidation-review.md`) and rewrote remaining benchmark `WP*` references to user-facing wording.
 - `2026-03-29`: added conditional cold-load matrix and routing fallback guidance to `AGENTS.md` and `ai/AGENTS.md`.
 - `2026-03-29`: validated routing on representative release, validation-history, archive-history, and module-routing queries (module routing uses `-Kind ai-core`).

@@ -45,10 +45,12 @@ Routing fallback:
 Session rules:
 - load hot context once per new session
 - do not reload hot context after every work package
-- reload only if state files changed, context was lost, or deeper repo knowledge is needed
+- reload only if state files changed outside the current edit flow, context was lost, or deeper repo knowledge is needed
+- if the current task edits `ai/state/*`, do not immediately reload hot context unless the updated wording is needed for the next decision
 
 Memory rules:
 - follow `/ai/AGENTS.md` when updating memory
+- treat cross-references between `AGENTS.md` and `ai/AGENTS.md` as guidance links, not recursive load triggers
 - code, tests, and build config override `/ai` if facts conflict
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/refresh-ai-memory.ps1` after structural or documentation changes
 - run `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
