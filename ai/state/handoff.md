@@ -15,20 +15,13 @@
 
 ## Facts
 
-- Release versioning is date-based now: Maven versions use
-  `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
-- Context-loading hardening is in place:
-  conditional cold-load matrix in `AGENTS.md` and `ai/AGENTS.md`,
-  with query fallback via `scripts/query-ai-memory.ps1`.
-- Hot-context budget policy is now explicit:
-  hard cap `240` lines and `24 KB`; target range `160-200` total lines.
-- Query routing quality is benchmarked and currently healthy:
-  `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
-- For module/architecture retrieval, use facet-constrained lookup:
-  `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
-- Starter examples are now split by complexity:
-  `examples/spring-boot-starter-quickstart` for onboarding and
-  `examples/spring-boot-starter-basic` for advanced dashboard workflows.
+- Release versioning is date-based now: Maven versions use `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
+- Context-loading hardening is in place: conditional cold-load matrix in `AGENTS.md` and `ai/AGENTS.md`, with query fallback via `scripts/query-ai-memory.ps1`.
+- Hot-context budget policy is now explicit: hard cap `240` lines and `24 KB`; target range `160-200` total lines.
+- Query routing quality is benchmarked and currently healthy: `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
+- For module/architecture retrieval, use facet-constrained lookup: `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
+- Lint baseline was refreshed on `2026-03-29`; run `mvn -B -ntp -Plint verify -DskipTests` before using `scripts/check-lint-baseline.ps1 -WriteBaseline` again.
+- Starter examples are now split by complexity: `examples/spring-boot-starter-quickstart` for onboarding and `examples/spring-boot-starter-basic` for advanced dashboard workflows.
 - `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*` wording were removed.
 - Context-loading guidance is explicitly non-recursive between `AGENTS.md` and `ai/AGENTS.md`, and hot-context reloads are skipped for same-task `ai/state/*` edits unless the refreshed wording is immediately needed.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.

@@ -24,14 +24,14 @@ Cold context:
 
 Conditional cold-load matrix (additive hints, not hard gates):
 
-| Task signal | Also load |
-|---|---|
-| release/publish/signing/versioning work or touching `RELEASE.md`, `.github/workflows/release.yml`, `pom.xml`, `pojo-lens*/pom.xml` | `ai/core/runbook.md`, `ai/state/recent-validations.md` |
-| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmark-*` | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md` |
-| public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
-| module topology/build boundary work or touching module structure and build wiring | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
-| test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
-| AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*` | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
+| Task signal                                                                                                                        | Also load                                                                                |
+|------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| release/publish/signing/versioning work or touching `RELEASE.md`, `.github/workflows/release.yml`, `pom.xml`, `pojo-lens*/pom.xml` | `ai/core/runbook.md`, `ai/state/recent-validations.md`                                   |
+| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmark-*`                                   | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`                            |
+| public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
+| module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
+| test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
+| AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*`                                | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Routing fallback:
 - if task intent is broad or ambiguous after applying the matrix, run:
