@@ -13,6 +13,7 @@
 
 ## Verified
 
+- `2026-03-29`: split Spring Boot starter examples into a minimal onboarding app (`examples/spring-boot-starter-quickstart`) and an advanced dashboard reference (`examples/spring-boot-starter-basic`); quickstart tests and docs/memory validations passed.
 - `2026-03-29`: clarified context-loading policy to avoid recursive/extra reloads when `ai/state/*` is edited in the current task; cross-references between `AGENTS.md` and `ai/AGENTS.md` are now explicitly non-recursive.
 - `2026-03-29`: removed internal process docs from `docs/` (`consolidation-review.md`) and rewrote remaining benchmark `WP*` references to user-facing wording.
 - `2026-03-29`: added conditional cold-load matrix and routing fallback guidance to `AGENTS.md` and `ai/AGENTS.md`.

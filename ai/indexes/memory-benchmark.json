@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-03-29T10:10:24",
+  "generatedAt": "2026-03-29T16:49:02",
   "refresh": {
     "full": {
-      "durationMs": 1705.903,
+      "durationMs": 1974.173,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 5,
         "reused": 0
       },
       "sqlite": {
-        "updatedFiles": 52,
+        "updatedFiles": 46,
         "reusedFiles": 0,
         "removedFiles": 0
       }
     },
     "incremental": {
-      "durationMs": 305.668,
+      "durationMs": 334.843,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 0,
@@ -23,18 +23,18 @@
       },
       "sqlite": {
         "updatedFiles": 0,
-        "reusedFiles": 52,
+        "reusedFiles": 46,
         "removedFiles": 0
       }
     }
   },
   "check": {
-    "durationMs": 114.423,
+    "durationMs": 125.04,
     "exitCode": 0
   },
   "queries": {
     "iterations": 3,
-    "avgQueryMs": 55.567,
+    "avgQueryMs": 58.054,
     "top1Rate": 1.0,
     "top3Rate": 1.0,
     "cases": [
@@ -45,13 +45,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          57.674,
-          54.43,
-          54.401
+          60.806,
+          57.849,
+          56.454
         ],
-        "avgQueryMs": 55.502,
-        "bestQueryMs": 54.401,
-        "worstQueryMs": 57.674,
+        "avgQueryMs": 58.37,
+        "bestQueryMs": 56.454,
+        "worstQueryMs": 60.806,
         "topResults": [
           {
             "path": "ai/state/handoff.md",
@@ -92,13 +92,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          55.059,
-          55.841,
-          55.27
+          58.12,
+          57.179,
+          57.476
         ],
-        "avgQueryMs": 55.39,
-        "bestQueryMs": 55.059,
-        "worstQueryMs": 55.841,
+        "avgQueryMs": 57.592,
+        "bestQueryMs": 57.179,
+        "worstQueryMs": 58.12,
         "topResults": [
           {
             "path": "ai/state/recent-validations.md",
@@ -141,13 +141,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          54.998,
-          58.619,
-          55.894
+          59.376,
+          57.753,
+          57.726
         ],
-        "avgQueryMs": 56.504,
-        "bestQueryMs": 54.998,
-        "worstQueryMs": 58.619,
+        "avgQueryMs": 58.285,
+        "bestQueryMs": 57.726,
+        "worstQueryMs": 59.376,
         "topResults": [
           {
             "path": "ai/log/archive/2026-03-summary.md",
@@ -178,13 +178,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          54.599,
-          55.102,
-          54.915
+          57.615,
+          58.312,
+          57.98
         ],
-        "avgQueryMs": 54.872,
-        "bestQueryMs": 54.599,
-        "worstQueryMs": 55.102,
+        "avgQueryMs": 57.969,
+        "bestQueryMs": 57.615,
+        "worstQueryMs": 58.312,
         "topResults": [
           {
             "path": "ai/core/module-index.md",

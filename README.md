@@ -1,4 +1,4 @@
-# PojoLens
+# PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
 `PojoLens` is a POJO-first in-memory query engine for Java. It supports both a fluent API and SQL-like query strings for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
@@ -48,7 +48,8 @@ pojo-lens:
 ```
 
 Runnable example project:
-- `examples/spring-boot-starter-basic` (REST endpoint + starter auto-configuration usage)
+- `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
+- `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
 
 ## Why PojoLens
 

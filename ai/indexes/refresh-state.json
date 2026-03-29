@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-29T14:30:52.954556+02:00",
+  "generatedAt": "2026-03-29T16:59:38.846565+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "8449797bf887d943cc3b843943462bc6efe18b0e0b9e34e6a728a4e344f25fc5",
+      "inputHash": "7eb02838580e75e24bdf6e1c7a132c83d0531f5c2bedc27341be11363681cfb6",
       "pathHashes": {
         "AGENTS.md": "8e5fa3dbb8b51d910b0dbaebd7c9603338354948fe26eec4c33c038f35ced50a",
         "ai/AGENTS.md": "43877c769c63b12f42905a9d5b8cf43e4f55b74193cf12edcf809baa88112120",
@@ -21,8 +21,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "2c788fd5c2a6ebcdb572b0c56e564b5de4de2435f04589f82064b7fb83439714",
-        "ai/state/handoff.md": "3fe98ddab7cca85595d18ad2e9f3d67536a0281ee6526ce5f0eb036c3943dbe3",
+        "ai/state/current-state.md": "af60fbcbe3ac9035ef48df32dfbad771c4c4e7863b619b91c15414dcaa8e6c3c",
+        "ai/state/handoff.md": "eff3e1489997791e92607ddf9323b6966893fa4cc01f59c5e4dd348e92075aba",
         "ai/state/recent-validations.md": "00174e9ab108a38cbe736dcd4f3fb0642439324bb06c1a61d128d7cb6e79415e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
@@ -32,7 +32,7 @@
         "docs/computed-fields.md": "86400c534bac2fbe8c8936ff5f271916c8a67adec4936a3417a1d8ce0b1e7876",
         "docs/entry-points.md": "f7ead14603c5ad580a8d29809b46cf09dad7f611603b69b84e9dda0053fedf5a",
         "docs/metamodel.md": "b1dc10984e4a78844f48c2725be72f7a9e41eee3acc722d8a6d90ca60e88c03a",
-        "docs/modules.md": "c9b71fcb181f8bb0b8aafd861bf2f0f37bd62420d0edc73f22ce134dba2a148a",
+        "docs/modules.md": "8cbb46e32b237978da03d0257f3e186a5b1cacc05aa6e7a5a039551aeb877cf6",
         "docs/product-surface.md": "22ac3c6e061ddd993263e61744314a6eff2dea56191d886274c10e4702a80ca6",
         "docs/public-api-stability.md": "87c65ff6a90071cb7bc4a4d82b14640317d49e7f9d83405ccc810d7109ca9b9a",
         "docs/regression-fixtures.md": "978cf9ff37aa6e8be3c8e66854dd708cbfd3da6924f6ce30c820810bb35dd66c",
@@ -47,15 +47,15 @@
         "docs/usecases.md": "5daf4b758a2b16e5397c0638c4172e8ff00baba06d1527eef34f355c7719ba3c",
         "MAINTENANCE.md": "aafc2bc4395163cb31611929b5629a574188e3be23a3417afb0c5152778997d7",
         "MIGRATION.md": "37807de276edaa1eab0f18249ced4bc6a82f65df3e5e22bb2f913d9f7e74d8bf",
-        "README.md": "c128f9c77bb896af6d81a0e9475015d5a990579bf5f292b7d566273fe64450c0",
+        "README.md": "6dc2bce1f05997d26eff14d460b0fe1bdc1d668971c5b97bd28291fd03fcde74",
         "RELEASE.md": "fdbdaf24f8bd8762c600c1149a7dd1fa469bcb86d20f496a7edbe08e1c3a0cb1",
-        "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
+        "scripts/refresh-ai-memory.py": "e030aa3b8a4558e331c3351ead158ec08ba615acd4bb9e7f0ec916feb7a6c921",
         "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "1140d75bd4aea86ecfb3cacd89d352ecb750bd39072cadf0b70fb20b17774d45",
+      "inputHash": "f6191f9cbf33fb49c2709055b0a8e7144abb729cdb14fae3af0b1e7016e1c845",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
@@ -74,8 +74,8 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "49141f643c93bd4b7eb1258819d27e37f7c6d659eb37f337c43aa24a1b563ace",
-        "ai/state/current-state.md": "2c788fd5c2a6ebcdb572b0c56e564b5de4de2435f04589f82064b7fb83439714",
-        "ai/state/handoff.md": "3fe98ddab7cca85595d18ad2e9f3d67536a0281ee6526ce5f0eb036c3943dbe3",
+        "ai/state/current-state.md": "af60fbcbe3ac9035ef48df32dfbad771c4c4e7863b619b91c15414dcaa8e6c3c",
+        "ai/state/handoff.md": "eff3e1489997791e92607ddf9323b6966893fa4cc01f59c5e4dd348e92075aba",
         "ai/state/recent-validations.md": "00174e9ab108a38cbe736dcd4f3fb0642439324bb06c1a61d128d7cb6e79415e",
         "CONTRIBUTING.md": "753e9018e374f269dfa8b8f2969d388320f49705362506594524b0ae47c73e41",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
@@ -85,7 +85,7 @@
         "docs/computed-fields.md": "86400c534bac2fbe8c8936ff5f271916c8a67adec4936a3417a1d8ce0b1e7876",
         "docs/entry-points.md": "f7ead14603c5ad580a8d29809b46cf09dad7f611603b69b84e9dda0053fedf5a",
         "docs/metamodel.md": "b1dc10984e4a78844f48c2725be72f7a9e41eee3acc722d8a6d90ca60e88c03a",
-        "docs/modules.md": "c9b71fcb181f8bb0b8aafd861bf2f0f37bd62420d0edc73f22ce134dba2a148a",
+        "docs/modules.md": "8cbb46e32b237978da03d0257f3e186a5b1cacc05aa6e7a5a039551aeb877cf6",
         "docs/product-surface.md": "22ac3c6e061ddd993263e61744314a6eff2dea56191d886274c10e4702a80ca6",
         "docs/public-api-stability.md": "87c65ff6a90071cb7bc4a4d82b14640317d49e7f9d83405ccc810d7109ca9b9a",
         "docs/regression-fixtures.md": "978cf9ff37aa6e8be3c8e66854dd708cbfd3da6924f6ce30c820810bb35dd66c",
@@ -104,6 +104,10 @@
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeQueryController.java": "c33f6f39b06af61212d1723e14b13cfd32fd7d9acf30f0341ac034f7a8ad3637",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeStore.java": "fa02c4481f4b7a66e7f29f60bc8d1f3832d6b5a12fc16afeae56df269f8fb670",
         "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java": "8732dac711b778e1707f8464beb95b872849731d83f8d93118bd42644561401b",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java": "36e2725d181978350a5fee75a70a18fd569adde0e65efa32d4e82cdc2a42fd0a",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java": "6939b9542a3ba8e03352275a830e605810ed274da34b9559810ffa759df6dbfa",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartExampleApplication.java": "0a4240d7af7f5a3c4bbd1288ccf292612e5c6f227f2e7e66273dafbdbd24affa",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java": "6cd2930e3cacda7d185da2091359ca05af72c4b289cabd850e8030c9cc56e98f",
         "MAINTENANCE.md": "aafc2bc4395163cb31611929b5629a574188e3be23a3417afb0c5152778997d7",
         "MIGRATION.md": "37807de276edaa1eab0f18249ced4bc6a82f65df3e5e22bb2f913d9f7e74d8bf",
         "pojo-lens/pom.xml": "020f29117d9ae7484ff03443e2571c0f63358afa99749709bed3a4bb83bc794a",
@@ -382,24 +386,27 @@
         "pojo-lens-spring-boot-starter/src/main/java/laughing/man/commits/spring/boot/starter/PojoLensSpringBootStarterMarker.java": "365fe5e59612679734b6c09e12037cb95f66498ef195d93a584df150e8a6a6c3",
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterSmokeIntegrationTest.java": "61b0acdef35f8bb148ea0dc553cfceba2f20b36ab7d74818e192ab83f45bf5fc",
         "pom.xml": "6bd68a78685986ae28611294a49964f45d0d478b24ce254ac9896be22156e19f",
-        "README.md": "c128f9c77bb896af6d81a0e9475015d5a990579bf5f292b7d566273fe64450c0",
+        "README.md": "6dc2bce1f05997d26eff14d460b0fe1bdc1d668971c5b97bd28291fd03fcde74",
         "RELEASE.md": "fdbdaf24f8bd8762c600c1149a7dd1fa469bcb86d20f496a7edbe08e1c3a0cb1",
         "scripts/benchmark-ai-memory.ps1": "1768f5811f3b5674b0ba1069003e4225ab25ae0ac1951934471c87d713ca56a1",
         "scripts/benchmark-ai-memory.py": "81e016200dd2691ac4966e69fe2d14af58624e7430b2f5148545620c89d77e89",
-        "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
-        "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
+        "scripts/refresh-ai-memory.ps1": "5f3714862a23545dd5b746cc2150fcd0e8869f474539abeea841f275a280d1c8",
+        "scripts/refresh-ai-memory.py": "e030aa3b8a4558e331c3351ead158ec08ba615acd4bb9e7f0ec916feb7a6c921",
         "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
       }
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "1994b9f1526815505a9b74e1c8e72d4fd33b69c8fea9e38e43aea4a55596e80d",
+      "inputHash": "d510d3832c299b9b2b60cbf60b50f3a4d482dd68f104d869de6cd0f786beeca3",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java": "229c79998a85f3a7ec9326d5fff5aebf5839d0250634dc158ce0a67ae35956cd",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java": "64f2627c6d8062a39ac2bad829b73f618758158fc21c7b0846a33a3d2b01c798",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeExampleTypes.java": "5dd4c1c8778b30648d2cb758b969b32c0dfa1692fa44e89ff8bb72fa8cc94b26",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeQueryController.java": "c33f6f39b06af61212d1723e14b13cfd32fd7d9acf30f0341ac034f7a8ad3637",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeStore.java": "fa02c4481f4b7a66e7f29f60bc8d1f3832d6b5a12fc16afeae56df269f8fb670",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java": "36e2725d181978350a5fee75a70a18fd569adde0e65efa32d4e82cdc2a42fd0a",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java": "6939b9542a3ba8e03352275a830e605810ed274da34b9559810ffa759df6dbfa",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartExampleApplication.java": "0a4240d7af7f5a3c4bbd1288ccf292612e5c6f227f2e7e66273dafbdbd24affa",
         "pojo-lens/src/main/java/laughing/man/commits/annotations/Exclude.java": "f981d62e0bdf6d87b2ab880f396e7ab8b4c5e024fcc435c8b68f9b815775fda3",
         "pojo-lens/src/main/java/laughing/man/commits/builder/FieldSelector.java": "c73a7f80feb52e6a93f10c839ed3278cc11a348873fbae40375568ad627f4f70",
         "pojo-lens/src/main/java/laughing/man/commits/builder/FieldSelectors.java": "f47ed061abf9b8a46a91a8c6fcf76ea6ac8371edf8dee4804de65ff715763274",
@@ -568,14 +575,15 @@
         "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensProperties.java": "928daa46b42eff4d80ce92ec52f5bed275c4db43dc92264f7bf892589c33b9e7",
         "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfiguration.java": "6638956775023f8db8912fe84b35ef70fd6caeff15dea168400a5fabe67961cb",
         "pojo-lens-spring-boot-starter/src/main/java/laughing/man/commits/spring/boot/starter/PojoLensSpringBootStarterMarker.java": "365fe5e59612679734b6c09e12037cb95f66498ef195d93a584df150e8a6a6c3",
-        "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e"
+        "scripts/refresh-ai-memory.py": "e030aa3b8a4558e331c3351ead158ec08ba615acd4bb9e7f0ec916feb7a6c921"
       }
     },
     "test": {
       "outputPath": "ai/indexes/test-index.json",
-      "inputHash": "a1b250d15ce0eb56c186f9c898a749fedc0025ca8956327443407fd6dbec048d",
+      "inputHash": "51933c57be9d1484deef241b81f3b55b2c7be0b4eb8d72aede0cf9ecff202518",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java": "8732dac711b778e1707f8464beb95b872849731d83f8d93118bd42644561401b",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java": "6cd2930e3cacda7d185da2091359ca05af72c4b289cabd850e8030c9cc56e98f",
         "pojo-lens/src/test/java/laughing/man/commits/builder/FilterQueryBuilderSelectiveMaterializationTest.java": "17459d037569fe56c941201cbf2a8b576cb675926ad6efbea78d8166a7c0c3ea",
         "pojo-lens/src/test/java/laughing/man/commits/CacheConcurrencyTest.java": "bb13899b42c79cbbe0343c1ebd8e905baf310b64d328bf19afb288b0cb3597fb",
         "pojo-lens/src/test/java/laughing/man/commits/CachePolicyConfigTest.java": "d7c4c8de596f229da067dd7c786fb81d8fa594fc97cf0d2fae4739b02b5f41e7",
@@ -679,12 +687,12 @@
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/StreamsBenchmarkParityTest.java": "868e945915a14728835ac76808837fb255514c32628d3a08ae9c6a795fa47fc5",
         "pojo-lens-spring-boot-autoconfigure/src/test/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfigurationTest.java": "87abfbac0b2783ab70138d8be43a88158288e552e00b8bcc029743a56046088e",
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterSmokeIntegrationTest.java": "61b0acdef35f8bb148ea0dc553cfceba2f20b36ab7d74818e192ab83f45bf5fc",
-        "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e"
+        "scripts/refresh-ai-memory.py": "e030aa3b8a4558e331c3351ead158ec08ba615acd4bb9e7f0ec916feb7a6c921"
       }
     },
     "config": {
       "outputPath": "ai/indexes/config-index.json",
-      "inputHash": "5f7484d43ce00fa44a86e405385a059ec27ff5915ffc3a543ef1f23465ec50d2",
+      "inputHash": "4bdf99d4680c13a0664c671461c12bd901de808512c5fe932b97f8f4eac5aa90",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
@@ -697,8 +705,8 @@
         "scripts/benchmark-ai-memory.py": "81e016200dd2691ac4966e69fe2d14af58624e7430b2f5148545620c89d77e89",
         "scripts/query-ai-memory.ps1": "dd49287620e8dcbf85ba9beaf2bd72276b008286bcd88d9070a35a1079fa40bb",
         "scripts/query-ai-memory.py": "0ec56f8a4fa85565448c32ff62e229fa16b57122dc2568c75bae7f37640e7d5c",
-        "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
-        "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e"
+        "scripts/refresh-ai-memory.ps1": "5f3714862a23545dd5b746cc2150fcd0e8869f474539abeea841f275a280d1c8",
+        "scripts/refresh-ai-memory.py": "e030aa3b8a4558e331c3351ead158ec08ba615acd4bb9e7f0ec916feb7a6c921"
       }
     }
   }

@@ -16,6 +16,10 @@ PojoLens uses a parent + module split:
 Standalone runnable examples live under `examples/` and are intentionally not
 published as release artifacts.
 
+Current starter examples:
+- `examples/spring-boot-starter-quickstart`: minimal onboarding path
+- `examples/spring-boot-starter-basic`: advanced dashboard reference
+
 Canonical product-surface classification:
 - [product-surface.md](product-surface.md)
 

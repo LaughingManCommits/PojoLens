@@ -26,6 +26,9 @@
   `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
 - For module/architecture retrieval, use facet-constrained lookup:
   `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
+- Starter examples are now split by complexity:
+  `examples/spring-boot-starter-quickstart` for onboarding and
+  `examples/spring-boot-starter-basic` for advanced dashboard workflows.
 - `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*` wording were removed.
 - Context-loading guidance is explicitly non-recursive between `AGENTS.md` and `ai/AGENTS.md`, and hot-context reloads are skipped for same-task `ai/state/*` edits unless the refreshed wording is immediately needed.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
@@ -45,4 +48,3 @@
 - routing/summarization policy: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
 - release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
 - benchmark context when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`
-

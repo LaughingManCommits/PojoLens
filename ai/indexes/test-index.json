@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T12:57:09.620811+02:00",
+  "generatedAt": "2026-03-29T16:48:59.259765+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -7,11 +7,12 @@
     "pojo-lens-benchmarks/src/test/resources/fixtures",
     "pojo-lens-spring-boot-autoconfigure/src/test/java",
     "pojo-lens-spring-boot-starter/src/test/java",
-    "examples/spring-boot-starter-basic/src/test/java"
+    "examples/spring-boot-starter-basic/src/test/java",
+    "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 104,
-    "testClasses": 104
+    "testJavaFiles": 105,
+    "testClasses": 105
   },
   "modules": [
     {
@@ -32,6 +33,10 @@
     },
     {
       "path": "examples/spring-boot-starter-basic",
+      "testJavaFiles": 1
+    },
+    {
+      "path": "examples/spring-boot-starter-quickstart",
       "testJavaFiles": 1
     }
   ],
@@ -177,7 +182,8 @@
     {
       "category": "starter-example",
       "files": [
-        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java"
+        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java"
       ]
     }
   ]

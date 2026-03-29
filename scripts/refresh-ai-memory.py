@@ -101,7 +101,13 @@ MODULE_SPECS = [
     {
         "path": "examples/spring-boot-starter-basic",
         "kind": "example-module",
-        "role": "starter-example",
+        "role": "starter-dashboard-example",
+        "published": False,
+    },
+    {
+        "path": "examples/spring-boot-starter-quickstart",
+        "kind": "example-module",
+        "role": "starter-quickstart-example",
         "published": False,
     },
 ]
@@ -161,6 +167,8 @@ SYMBOL_GROUPS = {
     ],
     "examples": [
         "BasicExampleApplication",
+        "QuickstartExampleApplication",
+        "QuickstartEmployeeController",
         "EmployeeDashboardService",
         "EmployeeQueryController",
         "EmployeeStore",
@@ -313,6 +321,8 @@ def collect_hash_inputs() -> list[Path]:
         "pojo-lens-spring-boot-starter/src/test/java",
         "examples/spring-boot-starter-basic/src/main/java",
         "examples/spring-boot-starter-basic/src/test/java",
+        "examples/spring-boot-starter-quickstart/src/main/java",
+        "examples/spring-boot-starter-quickstart/src/test/java",
     ))
     files.add(AI_DIR / "AGENTS.md")
     files.update(collect_event_log_files())
@@ -855,6 +865,7 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-spring-boot-autoconfigure/src/main/java",
         "pojo-lens-spring-boot-starter/src/main/java",
         "examples/spring-boot-starter-basic/src/main/java",
+        "examples/spring-boot-starter-quickstart/src/main/java",
     )
     test_java_files = collect_java_files(
         "pojo-lens/src/test/java",
@@ -862,6 +873,7 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
         "examples/spring-boot-starter-basic/src/test/java",
+        "examples/spring-boot-starter-quickstart/src/test/java",
     )
 
     important_files = [
@@ -896,6 +908,7 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         {"path": "pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java", "kind": "feature"},
         {"path": "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java", "kind": "feature"},
         {"path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java", "kind": "example"},
+        {"path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java", "kind": "example"},
     ]
 
     return {
@@ -923,6 +936,7 @@ def build_files_index(generated_at: str) -> dict[str, object]:
             {"path": "pojo-lens/src/test/java/laughing/man/commits", "kind": "runtime-test-root"},
             {"path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark", "kind": "benchmark-source-root"},
             {"path": "examples/spring-boot-starter-basic", "kind": "example"},
+            {"path": "examples/spring-boot-starter-quickstart", "kind": "example"},
         ],
         "moduleRoots": module_roots,
         "importantFiles": [entry for entry in important_files if path_exists(entry["path"])],
@@ -981,6 +995,7 @@ def build_test_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
         "examples/spring-boot-starter-basic/src/test/java",
+        "examples/spring-boot-starter-quickstart/src/test/java",
     ]:
         if (ROOT / root).exists():
             test_roots.append(root)
@@ -991,6 +1006,7 @@ def build_test_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
         "examples/spring-boot-starter-basic/src/test/java",
+        "examples/spring-boot-starter-quickstart/src/test/java",
     )
     categories: dict[str, list[str]] = {}
     for path in test_files:
@@ -1276,6 +1292,8 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-spring-boot-starter/src/test/java",
                     "examples/spring-boot-starter-basic/src/main/java",
                     "examples/spring-boot-starter-basic/src/test/java",
+                    "examples/spring-boot-starter-quickstart/src/main/java",
+                    "examples/spring-boot-starter-quickstart/src/test/java",
                 )
             )
         )
@@ -1288,6 +1306,7 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-spring-boot-autoconfigure/src/main/java",
                     "pojo-lens-spring-boot-starter/src/main/java",
                     "examples/spring-boot-starter-basic/src/main/java",
+                    "examples/spring-boot-starter-quickstart/src/main/java",
                 )
                 + [Path(__file__).resolve()]
             )
@@ -1301,6 +1320,7 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-spring-boot-autoconfigure/src/test/java",
                     "pojo-lens-spring-boot-starter/src/test/java",
                     "examples/spring-boot-starter-basic/src/test/java",
+                    "examples/spring-boot-starter-quickstart/src/test/java",
                 )
                 + [Path(__file__).resolve()]
             )

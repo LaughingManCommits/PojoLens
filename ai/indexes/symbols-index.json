@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T12:57:09.620811+02:00",
+  "generatedAt": "2026-03-29T16:48:59.259765+02:00",
   "groups": [
     {
       "component": "facades",
@@ -233,6 +233,16 @@
           "name": "BasicExampleApplication",
           "kind": "class",
           "path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java"
+        },
+        {
+          "name": "QuickstartExampleApplication",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartExampleApplication.java"
+        },
+        {
+          "name": "QuickstartEmployeeController",
+          "kind": "class",
+          "path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
         },
         {
           "name": "EmployeeDashboardService",

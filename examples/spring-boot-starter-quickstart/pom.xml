@@ -11,14 +11,13 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>pojo-lens-spring-boot-starter-basic-example</artifactId>
+    <artifactId>pojo-lens-spring-boot-starter-quickstart-example</artifactId>
     <packaging>jar</packaging>
-    <name>PojoLens Spring Boot Starter Dashboard Example</name>
-    <description>Advanced dashboard demo app showing presets, charts, and runtime usage.</description>
+    <name>PojoLens Spring Boot Starter Quickstart Example</name>
+    <description>Minimal runnable example showing starter auto-configuration and one query flow.</description>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
-        <playwright.version>1.53.0</playwright.version>
     </properties>
 
     <dependencies>
@@ -33,32 +32,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>bootstrap</artifactId>
-            <version>5.3.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>chart.js</artifactId>
-            <version>4.4.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.microsoft.playwright</groupId>
-            <artifactId>playwright</artifactId>
-            <version>${playwright.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
