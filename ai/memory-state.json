@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-03-28T21:08:28.049796+01:00",
+  "generatedAt": "2026-03-29T09:31:26.581049+02:00",
   "git": {
-    "headCommit": "2a5a65210234361eb9290f5fde8f23fda33ca6e1",
+    "headCommit": "ebb8bc190c9ffc19ae60419437e9fb5310ad27f5",
     "branch": "ai",
     "dirty": true
   },
-  "inputsHash": "8d2130cfa7996bd8943ff1f8f1c266d4e1d3d355f3eaa9057d70af6f3cc19911",
+  "inputsHash": "1e333d647b7710cc662041db3fac58b02be5d62d80df591f3a17bfd39a57a3ad",
   "hotContext": {
     "files": [
       {
@@ -134,14 +134,14 @@
     "jsonIndexes": [
       {
         "path": "ai/indexes/docs-index.json",
-        "status": "rebuilt",
-        "inputHash": "9d68552dfa6f2dee4db2779067d7c3f7190faeed93d69c84e84bcf7894859243",
+        "status": "reused",
+        "inputHash": "8f8887a0664c1aaf1a315118fe7d76f983af444852b23b7483d2be98cda8cf7a",
         "inputFiles": 51
       },
       {
         "path": "ai/indexes/files-index.json",
-        "status": "rebuilt",
-        "inputHash": "6e681a05bbbf2606db938df009314a97cd6167a48732fbecc9c0084c716ef6cf",
+        "status": "reused",
+        "inputHash": "f8cc302fcb9bbec485a9aab6c0efa8e31304daed7a96a7c85d9e5914cb0e4cac",
         "inputFiles": 338
       },
       {
@@ -168,9 +168,9 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 52,
-      "sections": 518,
-      "updatedFiles": 1,
-      "reusedFiles": 51,
+      "sections": 520,
+      "updatedFiles": 0,
+      "reusedFiles": 52,
       "removedFiles": 0,
       "mode": "incremental"
     }

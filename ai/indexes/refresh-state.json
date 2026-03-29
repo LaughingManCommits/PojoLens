@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-28T21:08:28.049796+01:00",
+  "generatedAt": "2026-03-29T09:31:26.581049+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "9d68552dfa6f2dee4db2779067d7c3f7190faeed93d69c84e84bcf7894859243",
+      "inputHash": "8f8887a0664c1aaf1a315118fe7d76f983af444852b23b7483d2be98cda8cf7a",
       "pathHashes": {
-        "AGENTS.md": "d01e9ffd396dcc1580070a50ab52a6d8984e9c7345560e0e13834a8af017cc9f",
-        "ai/AGENTS.md": "feef666660b4f132ac4a9acbb7115cf9b562732aaef9fbacf5771d10e3545d05",
+        "AGENTS.md": "c9ea8b0e2ac81e56f02d1a42819037dc6aec8651953a9ebb09ffbfc7f108988a",
+        "ai/AGENTS.md": "656f1514f003c513011f6fc815821778e38a3d9a2db8436a39f6ace594149c10",
         "ai/core/agent-invariants.md": "bc60ed88a6123d5b18f7c843a48e00e7f2980af7808a05a195b77cddfa43846a",
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
@@ -56,17 +56,17 @@
         "README.md": "ec6abdd1f7063048a3597ebeb7ecbd9d7755458239aff8055aaf91ec3065409d",
         "RELEASE.md": "3ebd1e0308ee1479a47f1c1a0ec1185c3703f4d58660eebd02048217419551c7",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "d348133d0881478abf732ad90133be2ce2b49230fb3b36929149ea8817b1b825"
+        "TODO.md": "a69409bed261feed13131f4990da93bf5821dff24f6236c75dab9df6756eff3b"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "6e681a05bbbf2606db938df009314a97cd6167a48732fbecc9c0084c716ef6cf",
+      "inputHash": "f8cc302fcb9bbec485a9aab6c0efa8e31304daed7a96a7c85d9e5914cb0e4cac",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
-        "AGENTS.md": "d01e9ffd396dcc1580070a50ab52a6d8984e9c7345560e0e13834a8af017cc9f",
-        "ai/AGENTS.md": "feef666660b4f132ac4a9acbb7115cf9b562732aaef9fbacf5771d10e3545d05",
+        "AGENTS.md": "c9ea8b0e2ac81e56f02d1a42819037dc6aec8651953a9ebb09ffbfc7f108988a",
+        "ai/AGENTS.md": "656f1514f003c513011f6fc815821778e38a3d9a2db8436a39f6ace594149c10",
         "ai/core/agent-invariants.md": "bc60ed88a6123d5b18f7c843a48e00e7f2980af7808a05a195b77cddfa43846a",
         "ai/core/architecture-map.md": "11b1e7202169a8532c3526b9bbaea74f816fbc67927172378807179ef4e999e0",
         "ai/core/benchmark-context.md": "aac761196ba55dc1087ebf9a4d6533d1ea52d397382a3464de1c15c40b253b72",
@@ -400,7 +400,7 @@
         "scripts/benchmark-ai-memory.py": "af46a2ee0fae9dca080abf3feaede5049d8741ee5becd9e6703565ff609e7ac8",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "d348133d0881478abf732ad90133be2ce2b49230fb3b36929149ea8817b1b825"
+        "TODO.md": "a69409bed261feed13131f4990da93bf5821dff24f6236c75dab9df6756eff3b"
       }
     },
     "symbols": {

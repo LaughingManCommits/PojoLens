@@ -1,32 +1,18 @@
 # TODO
 
-## Current Roadmap: Entropy Reduction
+## Current Roadmap: Context Loading Rules
 
-Use this roadmap to reduce code, public-surface overlap, and conceptual sprawl.
-Prefer deletions and internalization over reshuffling.
+This roadmap is for tightening AI memory retrieval with conditional cold loads.
+Use coarse, durable triggers so the rules stay maintainable.
 
 ## Objective
 
-- reduce runtime code and public-surface complexity
-- keep one default path per job:
-  `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
-  `ReportDefinition`
-- internalize implementation details that do not need to survive into the
-  intended stable surface
-- only take execution-path cleanup that is plausibly performance-neutral or
-  performance-positive
-
-## Decision Gate
-
-Resolved for this roadmap:
-- pre-first-release stable-surface cleanup is allowed when it removes compatibility-only
-  overlap and migration notes are explicit
-- the intended default surface is:
-  `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`,
-  `ReportDefinition`, `JoinBindings`, and `DatasetBundle`
-- compatibility-only wrappers/adapters such as the `PojoLens` facade and raw
-  public join-map execution overloads may be removed before the first public
-  release
+- keep hot context fixed and small
+- keep hot context within budget: hard cap `240` lines and `24 KB`; target operating range `160-200` lines total
+- add conditional cold-load rules tied to work domains
+- reduce unnecessary file loading while preserving task accuracy
+- keep rule maintenance cost low as the repo evolves
+- add summarization and compaction rules so context stays inside budget over time
 
 ## Status Model
 
@@ -34,239 +20,130 @@ Resolved for this roadmap:
 - `In progress`: active current work
 - `Ready`: next executable work with no unresolved dependency
 - `Planned`: sequenced work, not started yet
-- `Blocked`: waiting on an explicit product or release decision
+- `Blocked`: waiting on an explicit decision
 
 ## Execution Board
 
-| Work Package                                  | Priority | Status    | Dependency                    |
-|-----------------------------------------------|----------|-----------|-------------------------------|
-| `WP8.1` Public Surface and Entropy Audit      | `P0`     | `Done`    | decision gate                 |
-| `WP8.2` Public Leak/Internalization Decision  | `P0`     | `Done`    | `WP8.1` findings              |
-| `WP8.3` Wrapper and Binding Simplification    | `P0`     | `Done`    | `WP8.1` findings              |
-| `WP8.4` Execution Path Unification Audit      | `P1`     | `Done`    | `WP8.1` findings              |
-| `WP8.5` Entropy Reduction Implementation      | `P0`     | `Done` | `WP8.2`, `WP8.3`, `WP8.4`     |
-| `WP8.6` Docs, Benchmarks, and Release Refresh | `P1`     | `Done` | `WP8.5`                       |
+| Work Package                                   | Priority | Status  | Dependency |
+|------------------------------------------------|----------|---------|------------|
+| `WP9.1` Define Trigger Matrix                  | `P0`     | `Done` | none |
+| `WP9.2` Add Conditional Load Rules             | `P0`     | `Done` | `WP9.1`  |
+| `WP9.3` Validate Rule Behavior on Real Tasks   | `P1`     | `Ready` | `WP9.2`  |
+| `WP9.4` Refresh Derived Memory Artifacts       | `P1`     | `Ready` | `WP9.2`  |
+| `WP9.5` Update Handoff and Current-State Notes | `P1`     | `Planned` | `WP9.3`  |
+| `WP9.6` Summarization and Budget Guardrails    | `P0`     | `Done` | `WP9.2`  |
+
+## Spike Outcome (2026-03-29)
+
+### Option Matrix
+
+| Option                              | Summary                                                                                      | Strengths                                                                            | Risks                                                                                                    | Fit                           |
+|-------------------------------------|----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|-------------------------------|
+| `A` Static Rule Table Only          | Add domain-to-file conditional rules in `AGENTS.md` and `ai/AGENTS.md`.                      | Simple, deterministic, low runtime overhead.                                         | Manual maintenance drift; weak for ambiguous tasks.                                                      | Good baseline                 |
+| `B` Query-Driven Only               | Route cold loads using `scripts/query-ai-memory.ps1` per task.                               | Adaptive and low manual rule churn.                                                  | Query wording sensitivity (`release-central signing retry` returned no hit); depends on index freshness. | Useful but insufficient alone |
+| `C` Hybrid (Rules + Query Fallback) | Use static domain rules first, then query-based lookup when task intent is broad or unclear. | Predictable defaults plus adaptive recovery path; best accuracy/maintenance balance. | Slightly more process complexity than `A`.                                                               | Best overall                  |
+| `D` Generated Routing Index         | Extend refresh pipeline to emit an explicit task-routing map from metadata.                  | Potentially strongest consistency at scale.                                          | Highest implementation cost and maintenance burden right now.                                            | Overkill for current scope    |
+
+### Quick Spike Evidence
+
+- `scripts/query-ai-memory.ps1 -Query "release retry"` returned high-signal hot context hits (`ai/state/handoff.md`, `ai/state/current-state.md`).
+- `scripts/query-ai-memory.ps1 -Query "benchmark JMH"` returned useful warm/cold benchmark context.
+- `scripts/query-ai-memory.ps1 -Query "release-central signing retry"` returned no match, confirming query-only routing is brittle for phrasing variants.
+
+### Recommendation
+
+- proceed with `Option C`:
+  static rules for known domains, query fallback when uncertain
+- enforce hot-context budget targets:
+  hard cap `240` lines and `24 KB`; target range `160-200` lines total
+- keep rules coarse (domain/path triggers) and avoid file-level microrules
+- validate with at least three task types before marking `WP9.1` done
 
 ## Work Packages
 
-### `WP8.1` Public Surface and Entropy Audit
-
-Priority:
-- `P0`
-
-Status:
-- `Done`
+### `WP9.1` Define Trigger Matrix
 
 Goal:
-- inventory the current public runtime surface and classify each type or API
-  family as:
-  `default path`, `specialized helper`, `compatibility-only`, `advanced`, or
-  `internalize`
+- map major task domains to required cold-context files
 
 Deliverables:
-- a public package and type inventory for the runtime artifact
-- a shortlist of code-deletion and internalization candidates
-- a baseline count for public packages, public types, and duplicate concept
-  families
+- one compact trigger table grouped by domain (release, benchmarks, docs, module structure, AI memory updates)
+- explicit rule scope (`if task touches X, also load Y`)
 
 Acceptance criteria:
-- every public runtime type is classified
-- public implementation leaks are identified explicitly
-- duplicate entry, wrapper, binding, or helper stories are called out with
-  concrete reduction options
+- no file-level microrules unless they are stable and high-value
+- every rule links to an existing cold-context source
+- overlap and conflicting rules are resolved
 
-Result:
-- delivered in `docs/entropy-audit.md`
-- baseline recorded:
-  `122` public top-level types across `36` packages
-- identified `52` clear internalization candidates and `2` packaging anomalies
-- advanced `WP8.2` and `WP8.3` to `Ready`
-
-### `WP8.2` Public Leak/Internalization Decision
-
-Priority:
-- `P0`
-
-Status:
-- `Done`
+### `WP9.2` Add Conditional Load Rules
 
 Goal:
-- decide which public implementation or intermediate types should stop being
-  part of the intended library surface
+- encode the trigger matrix in agent instructions
 
 Deliverables:
-- a keep or internalize table for public implementation-heavy types such as
-  builder/filter implementations, row/intermediate models, and SQL-like AST
-  helpers
-- explicit compatibility notes for each candidate that cannot move before the first public release
-- a package policy for what must remain public versus move under
-  `*.internal.*` or package-private scope
+- updated conditional-load section in `AGENTS.md` and/or `ai/AGENTS.md`
+- examples for benchmark, release, docs/api, and memory-maintenance tasks
 
 Acceptance criteria:
-- no public implementation class remains public without explicit justification
-- the intended public package boundary is materially narrower than today
-- compatibility implications are documented before implementation work starts
+- rules are additive hints, not hard gates
+- hot context behavior remains unchanged
+- instructions stay concise and scannable
 
-Result:
-- delivered in `docs/entropy-internalization-decision.md`
-- approved pre-first-release internalization for builder/filter internals,
-  execution-plan types, SQL-like parser/AST helpers, chart mapping helpers,
-  intermediate row models, and support/util packages
-- kept `SqlLikeQueryCache`, `FilterExecutionPlanCacheStore`, and
-  `SqlLikeErrorCodes` public as advanced runtime-facing handles
-- removed the public `FilterExecutionPlanCache` compatibility facade so direct
-  entry points now rely on internal default cache ownership
-
-### `WP8.3` Wrapper and Binding Simplification
-
-Priority:
-- `P0`
-
-Status:
-- `Done`
+### `WP9.3` Validate Rule Behavior on Real Tasks
 
 Goal:
-- reduce overlap across reusable wrappers and multi-source binding styles so
-  the library exposes fewer peer-level concepts
+- verify rules load only what is needed while preserving accuracy
 
 Deliverables:
-- a disposition for `ReportDefinition`, `ChartQueryPreset`,
-  `StatsViewPreset`, raw join maps, `JoinBindings`, and `DatasetBundle`
-- one canonical reusable-query contract for docs and new code
-- one canonical multi-source binding story for docs and new code
+- validation notes for at least 3 representative tasks
+- adjustments for any under-loading or over-loading patterns
 
 Acceptance criteria:
-- there is one default reusable wrapper story
-- there is one default multi-source binding story
-- every overlapping wrapper or binding path is marked `keep`, `de-emphasize`,
-  `deprecate`, or `remove later`
+- no missed required context in validation scenarios
+- measurable reduction in unnecessary cold-context loading
 
-Result:
-- delivered in `docs/entropy-wrapper-binding-decision.md`
-- established `ReportDefinition<T>` as the canonical reusable-query contract
-  for docs and new code
-- established the default multi-source binding progression as
-  `JoinBindings` first, then `DatasetBundle` when the same snapshot is reused
-- realigned README and core docs to lead with `ReportDefinition<T>`,
-  `JoinBindings`, and `DatasetBundle`
-
-### `WP8.4` Execution Path Unification Audit
-
-Priority:
-- `P1`
-
-Status:
-- `Done`
+### `WP9.4` Refresh Derived Memory Artifacts
 
 Goal:
-- find duplicate execution, planning, binding, or materialization paths whose
-  removal can lower code volume and may also improve runtime behavior
+- keep generated memory indexes aligned after instruction changes
 
 Deliverables:
-- a map of duplicate internal paths across parse, bind, join, projection, and
-  materialization stages
-- a shortlist of unification targets tied to benchmark or test coverage
-- a risk note for any target that is likely complexity-only with no performance
-  upside
+- run `scripts/refresh-ai-memory.ps1`
+- run `scripts/refresh-ai-memory.ps1 -Check`
+- if retrieval path changes materially, run:
+  `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`
 
 Acceptance criteria:
-- each target is tied to actual code deletion or path removal
-- each target has a validation plan (`tests` and, where relevant, benchmarks)
-- execution-path cleanup is sequenced behind surface decisions, not mixed with
-  them blindly
+- refresh/check complete without errors
+- derived artifacts match updated instructions
 
-Result:
-- delivered in `docs/entropy-execution-path-audit.md`
-- identified three primary `WP8.5` targets:
-  shared fluent stage running, shared SQL-like stage accounting, and unified
-  SQL-like output materialization
-- identified one low-risk cleanup target:
-  optional-join helper consolidation beginning with the unused
-  `executeIteratorWithOptionalJoin(...)`
-- explicitly deferred prepared-rebind mode removal and broad chart/tabular
-  helper convergence as lower-value or higher-risk than the stage-runner work
-
-### `WP8.5` Entropy Reduction Implementation
-
-Priority:
-- `P0`
-
-Status:
-- `Done`
+### `WP9.5` Update Handoff and Current-State Notes
 
 Goal:
-- implement the chosen surface reductions, internalizations, and execution-path
-  unifications
+- make next-session startup guidance reflect the new rules
 
 Deliverables:
-- removed or internalized public surface where approved
-- reduced duplicate wrapper or binding paths where approved
-- strengthened public-surface guardrails so new public API growth is explicit
+- refreshed `ai/state/current-state.md`
+- refreshed `ai/state/handoff.md`
+- optional significant event in `ai/log/events.jsonl` if the change affects normal operating flow
 
 Acceptance criteria:
-- code and concept count are materially reduced
-- default user guidance is simpler than before the change
-- validations pass:
-  `mvn -q test`
-  `scripts/check-doc-consistency.ps1`
-- benchmark guardrails are unchanged or improved for touched hot paths
+- startup instructions and TODO roadmap are aligned
 
-Progress:
-- unified SQL-like output materialization now resolves one shared internal
-  mode across `filter`, `stream`, and `chart`
-- removed the unused optional-join iterator helper
-- flat fluent `filter` and `chart` now share one internal materialization
-  resolver for window/qualify, fast-array, fast-stats, and raw-row fallback
-- internalized `ChartValidation` to a package-private chart helper
-- SQL-like explain stage counts now run through an unpaged bound execution
-  context and the real fluent execution path, replacing the manual replay and
-  ad-hoc `QUALIFY` reconstruction
-- grouped fluent `filterGroups(...)` and row-based flat execution now share
-  one internal distinct/filter stage runner
-
-Result:
-- completed all `WP8.4` execution-path unification targets selected for
-  `WP8.5`
-- removed the remaining duplicated SQL-like explain stage-replay path
-- removed the remaining grouped-vs-flat fluent duplication at the base
-  distinct/filter stage
-
-### `WP8.6` Docs, Benchmarks, and Release Refresh
-
-Priority:
-- `P1`
-
-Status:
-- `Done`
+### `WP9.6` Summarization and Budget Guardrails
 
 Goal:
-- make the simplified library shape visible and durable across docs, benchmarks,
-  and release notes
+- define and enforce summarization techniques that keep hot context inside budget
 
 Deliverables:
-- updated README and selection docs with the reduced concept set
-- migration and release-note wording for any changed advanced/helper surface
-- benchmark evidence where execution-path cleanup changed hot internals
+- add a short summarization playbook to `AGENTS.md` and/or `ai/AGENTS.md` covering:
+  summary-first bullets, de-duplication, date-stamped facts, and promotion of durable items from `state` to `core`
+- add explicit compaction guidance:
+  use `scripts/refresh-ai-memory.ps1 -CompactLog` when active log noise grows
+- add verification steps after memory edits:
+  `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`
 
 Acceptance criteria:
-- docs describe one default path per job
-- migration text is sufficient for any narrowed advanced/helper surface
-- benchmark evidence exists for any cleanup that touched runtime hot paths
-
-Result:
-- delivered in `docs/entropy-release-refresh.md`
-- refreshed `README.md`, `docs/usecases.md`, `docs/sql-like.md`,
-  `docs/benchmarking.md`, `MIGRATION.md`, and `RELEASE.md`
-- added benchmark coverage for the exact `WP8.5` paths in
-  `StatsQueryJmhBenchmark.fluentGroupedRows` and
-  `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`
-- captured forked JMH spot-check evidence for grouped fluent execution,
-  execution-backed SQL-like explain, and streaming materialization behavior
-
-## Operational Follow-Up
-
-- Maven Central release retry or verification for the current dated release remains the main
-  repo-level operational task.
-- Treat that release work as operational follow-up, not as a roadmap package in
-  this file.
-
+- hot context remains at or below `240` lines and `24 KB`
+- preferred operating range (`160-200` lines total) is documented
+- no repeated facts across `ai/state/current-state.md` and `ai/state/handoff.md` without clear reason

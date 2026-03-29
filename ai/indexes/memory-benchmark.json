@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-03-27T16:01:20",
+  "generatedAt": "2026-03-29T09:31:27",
   "refresh": {
     "full": {
-      "durationMs": 1353.49,
+      "durationMs": 1792.08,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 5,
         "reused": 0
       },
       "sqlite": {
-        "updatedFiles": 47,
+        "updatedFiles": 52,
         "reusedFiles": 0,
         "removedFiles": 0
       }
     },
     "incremental": {
-      "durationMs": 331.509,
+      "durationMs": 316.542,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 0,
@@ -23,20 +23,20 @@
       },
       "sqlite": {
         "updatedFiles": 0,
-        "reusedFiles": 47,
+        "reusedFiles": 52,
         "removedFiles": 0
       }
     }
   },
   "check": {
-    "durationMs": 124.475,
+    "durationMs": 120.963,
     "exitCode": 0
   },
   "queries": {
     "iterations": 3,
-    "avgQueryMs": 65.398,
-    "top1Rate": 1.0,
-    "top3Rate": 1.0,
+    "avgQueryMs": 56.677,
+    "top1Rate": 0.75,
+    "top3Rate": 0.75,
     "cases": [
       {
         "id": "release_retry",
@@ -45,13 +45,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          64.794,
-          63.95,
-          64.865
+          58.249,
+          56.658,
+          56.189
         ],
-        "avgQueryMs": 64.536,
-        "bestQueryMs": 63.95,
-        "worstQueryMs": 64.865,
+        "avgQueryMs": 57.032,
+        "bestQueryMs": 56.189,
+        "worstQueryMs": 58.249,
         "topResults": [
           {
             "path": "ai/state/handoff.md",
@@ -60,8 +60,18 @@
             "loadTier": "hot",
             "sortTs": "",
             "lineStart": 11,
-            "lineEnd": 16,
-            "summary": "## Focus\n\n- [Release] [retry] or [release] verification is the main pending repo task.\n- Starter example and dashboard simplification work ... "
+            "lineEnd": 14,
+            "summary": "## Focus\n\n- [Release] [retry] or [release] verification for the dated version/tag scheme is the main pending repo task."
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Next",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 41,
+            "lineEnd": 45,
+            "summary": "## Next\n\n- [Retry] the [release] workflow or a manual [release] dispatch for `2026.03.28.1919`.\n- After structural or ... "
           },
           {
             "path": "ai/state/current-state.md",
@@ -69,19 +79,9 @@
             "sourceKind": "ai-hot-context",
             "loadTier": "hot",
             "sortTs": "",
-            "lineStart": 21,
-            "lineEnd": 27,
-            "summary": "## [Release]\n\n- Central namespace is verified for `io.github.laughingmancommits`.\n- [Release] workflow publishes runtime plus Boot artifacts.\n- The last ... "
-          },
-          {
-            "path": "ai/state/current-state.md",
-            "title": "Focus",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
-            "sortTs": "",
-            "lineStart": 9,
-            "lineEnd": 13,
-            "summary": "## Focus\n\n- Highest-priority operational work is Maven Central [release] [retry] or verification for `v1.0.0`.\n- Hot memory ... "
+            "lineStart": 32,
+            "lineEnd": 36,
+            "summary": "## [Release]\n\n- Central namespace is verified for `io.github.laughingmancommits`.\n- The last publish attempt uploaded the bundle but failed ... "
           }
         ]
       },
@@ -92,13 +92,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          64.665,
-          65.095,
-          68.032
+          56.734,
+          56.833,
+          56.242
         ],
-        "avgQueryMs": 65.931,
-        "bestQueryMs": 64.665,
-        "worstQueryMs": 68.032,
+        "avgQueryMs": 56.603,
+        "bestQueryMs": 56.242,
+        "worstQueryMs": 56.833,
         "topResults": [
           {
             "path": "ai/state/recent-validations.md",
@@ -107,7 +107,7 @@
             "loadTier": "warm",
             "sortTs": "",
             "lineStart": 1,
-            "lineEnd": 8,
+            "lineEnd": 30,
             "summary": " ... examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` passed after the dashboard UI, chart, and form ... "
           },
           {
@@ -141,13 +141,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          67.827,
-          65.552,
-          65.505
+          56.204,
+          57.607,
+          54.869
         ],
-        "avgQueryMs": 66.295,
-        "bestQueryMs": 65.505,
-        "worstQueryMs": 67.827,
+        "avgQueryMs": 56.227,
+        "bestQueryMs": 54.869,
+        "worstQueryMs": 57.607,
         "topResults": [
           {
             "path": "ai/log/archive/2026-03-summary.md",
@@ -175,46 +175,46 @@
         "id": "module_routing",
         "query": "starter example",
         "pathGlobs": [],
-        "top1Hit": true,
-        "top3Hit": true,
+        "top1Hit": false,
+        "top3Hit": false,
         "timingsMs": [
-          64.967,
-          64.477,
-          65.041
+          55.847,
+          58.631,
+          56.056
         ],
-        "avgQueryMs": 64.828,
-        "bestQueryMs": 64.477,
-        "worstQueryMs": 65.041,
+        "avgQueryMs": 56.845,
+        "bestQueryMs": 55.847,
+        "worstQueryMs": 58.631,
         "topResults": [
           {
-            "path": "ai/state/handoff.md",
-            "title": "Focus",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
+            "path": "ai/state/recent-validations.md",
+            "title": "Recent Validations",
+            "sourceKind": "ai-validation-history",
+            "loadTier": "warm",
             "sortTs": "",
-            "lineStart": 11,
-            "lineEnd": 16,
-            "summary": "## Focus\n\n- Release retry or release verification is the main pending repo task.\n- [Starter] [example] and dashboard simplification work ... "
+            "lineStart": 1,
+            "lineEnd": 30,
+            "summary": "# Recent Validations\n\n- `2026-03-26`: `mvn -q test` passed after the dashboard-simplification and [starter]-[example] hardening work ... "
           },
           {
-            "path": "ai/state/handoff.md",
-            "title": "Facts",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
-            "sortTs": "",
-            "lineStart": 17,
-            "lineEnd": 25,
-            "summary": " ... pojo-lens-benchmarks/src/...`.\n- The [starter] [example] at `examples/spring-boot-[starter]-basic` is the current reference app ... "
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T17:54:55+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T17:54:55+01:00",
+            "lineStart": 6,
+            "lineEnd": 6,
+            "summary": "implementation\nRefocused the Spring Boot [starter] [example] dashboard around user-facing controls instead of backend implementation modes. Replaced ... "
           },
           {
-            "path": "ai/state/current-state.md",
-            "title": "Verified",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
-            "sortTs": "",
-            "lineStart": 14,
-            "lineEnd": 20,
-            "summary": "## Verified\n\n- `2026-03-26`: `mvn -q test`, `scripts/check-doc-consistency.ps1`, and the [starter] [example] Playwright suite ... "
+            "path": "ai/log/events.jsonl",
+            "title": "implementation 2026-03-26T16:55:17+01:00",
+            "sourceKind": "ai-log",
+            "loadTier": "warm",
+            "sortTs": "2026-03-26T16:55:17+01:00",
+            "lineStart": 5,
+            "lineEnd": 5,
+            "summary": "implementation\nHardened the [starter] [example] frontend after reproducing a real browser chart failure. Root cause was the new ... "
           }
         ]
       }

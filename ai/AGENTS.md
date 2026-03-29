@@ -40,6 +40,7 @@ Rules:
 - store only startup-critical information
 - move durable knowledge into `core`
 - keep `ai/state/current-state.md` and `ai/state/handoff.md` within their per-file budgets and required heading order
+- keep combined hot context within hard cap `240` lines and `24 KB`; target operating range `160-200` lines total
 
 ---
 
@@ -65,6 +66,22 @@ Examples:
 Do not auto-load cold files.
 Do not treat generated JSON indexes or the optional SQLite database as source of truth.
 Prefer archive summaries before raw `log/archive/*.jsonl` when archive history is needed.
+
+Conditional cold-load triggers (additive hints, not hard gates):
+
+| Task signal | Also load |
+|---|---|
+| release/publish/signing/versioning work or touching `RELEASE.md`, `.github/workflows/release.yml`, `pom.xml`, `pojo-lens*/pom.xml` | `ai/core/runbook.md`, `ai/state/recent-validations.md` |
+| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmark-*` | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md` |
+| public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
+| module topology/build boundary work | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
+| test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
+| AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
+
+Routing fallback:
+- if task intent is broad or ambiguous after applying the trigger table, run:
+  `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
+- prefer top non-archive hits before raw archive logs
 
 ---
 
@@ -112,6 +129,8 @@ state/
 - active work only
 - remove completed tasks
 - promote durable knowledge to `core`
+- use summary-first bullets and avoid repeating the same fact across `current-state.md` and `handoff.md`
+- prefer date-stamped bullets (`YYYY-MM-DD`) for volatile facts
 
 core/
 - durable truths only
@@ -126,6 +145,14 @@ indexes/
 - `scripts/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
 - `scripts/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
 - `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
+
+Summary guardrails:
+- one bullet should carry one fact; split mixed bullets
+- keep only startup-critical content in hot files; demote detail to cold docs
+- when event history becomes noisy, run `scripts/refresh-ai-memory.ps1 -CompactLog`
+- after AI memory edits, run:
+  `scripts/refresh-ai-memory.ps1`
+  `scripts/refresh-ai-memory.ps1 -Check`
 
 ---
 

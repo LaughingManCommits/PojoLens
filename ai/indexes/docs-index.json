@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-03-28T21:08:28.049796+01:00",
+  "generatedAt": "2026-03-29T09:31:24.790485+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 40,
-      "byteCount": 1444,
+      "lineCount": 67,
+      "byteCount": 3380,
       "coldSearchEligible": true
     },
     {
@@ -15,8 +15,8 @@
       "category": "ai-memory-guide",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 135,
-      "byteCount": 3484,
+      "lineCount": 162,
+      "byteCount": 5350,
       "coldSearchEligible": true
     },
     {
@@ -447,8 +447,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 272,
-      "byteCount": 10012,
+      "lineCount": 149,
+      "byteCount": 7515,
       "coldSearchEligible": true
     }
   ]
