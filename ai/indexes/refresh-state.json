@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-29T10:10:23.377860+02:00",
+  "generatedAt": "2026-03-29T10:48:09.529936+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "e2fca85037a7daeae3bcc9286a631df26846a3b3287a8a591df23b64bc901c42",
+      "inputHash": "2297eda27fe20df5a48e6fe9e30ac1f20b93a7a6edb8ed048f1f43d0bf4ab683",
       "pathHashes": {
         "AGENTS.md": "82091957fc8064c837c154b05604e78bca26a0725c7549e70cea529e90decc4b",
         "ai/AGENTS.md": "ed4cd3db7998c11497b02c369d85c5addd4da45b80505fd8c13b27abaaef7174",
@@ -56,12 +56,12 @@
         "README.md": "ec6abdd1f7063048a3597ebeb7ecbd9d7755458239aff8055aaf91ec3065409d",
         "RELEASE.md": "3ebd1e0308ee1479a47f1c1a0ec1185c3703f4d58660eebd02048217419551c7",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
+        "TODO.md": "1d89b2f7762bfd17ced8ab0635d7688e95d599da91b7c20f6a247639878957f4"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "5971038ab64f93b5feda73dfdde417dc0ee2cdc9ab8cf6a4ee245fd6e68e7331",
+      "inputHash": "a204ede895148ab49c9c6f820cc3a7fcfa440497b255da7be7ea2e7098cce8a3",
       "pathHashes": {
         ".github/workflows/ci.yml": "780a0b8b48e36ff2e508dcb6746ed737a16aa70ce669b12e2b1a0c9110241452",
         ".github/workflows/release.yml": "5b7374cfb9af1c4c44b33c197d4559004a9421b20069455fb3cb54e5cee8e796",
@@ -400,7 +400,7 @@
         "scripts/benchmark-ai-memory.py": "81e016200dd2691ac4966e69fe2d14af58624e7430b2f5148545620c89d77e89",
         "scripts/refresh-ai-memory.ps1": "e78f64a5cfa3e8fe23b31e1e148be5d07eef1476ea1825bcf5cd8077ad94be16",
         "scripts/refresh-ai-memory.py": "f067f1c323fc24f7222ce93b8368e655042c5ad207b9668e8fb6ed71034f928e",
-        "TODO.md": "46fe68f52033ead4da7d2f3380cec6210041353cd795aa71a754070854a189aa"
+        "TODO.md": "1d89b2f7762bfd17ced8ab0635d7688e95d599da91b7c20f6a247639878957f4"
       }
     },
     "symbols": {

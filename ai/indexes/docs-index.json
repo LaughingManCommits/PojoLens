@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T10:10:21.672024+02:00",
+  "generatedAt": "2026-03-29T10:48:09.529936+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -447,8 +447,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 168,
-      "byteCount": 8669,
+      "lineCount": 315,
+      "byteCount": 14575,
       "coldSearchEligible": true
     }
   ]
