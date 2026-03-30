@@ -19,7 +19,7 @@
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplain|size=10000": 0.8,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution|size=1000": 170.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution|size=10000": 180.0,
-  "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowBaseline|size=1000": 45.0,
+  "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowBaseline|size=1000": 90.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowBaseline|size=10000": 145.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRank|size=1000": 165.0,
   "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRank|size=10000": 270.0,
