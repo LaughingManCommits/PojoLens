@@ -1,14 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
-    branches: ["**"]
   workflow_dispatch:
 
 jobs:
   lint-workflows:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,6 +13,7 @@ jobs:
         uses: reviewdog/action-actionlint@v1
 
   test:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -34,6 +32,7 @@ jobs:
         run: mvn -B -ntp test
 
   runtime-artifact-scope:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +59,7 @@ jobs:
           echo "Runtime jar scope check passed: $RUNTIME_JAR"
 
   binary-compat:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,6 +113,7 @@ jobs:
           fi
 
   lint-java:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -129,6 +130,7 @@ jobs:
         run: ./scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .
 
   static-analysis:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -164,6 +166,7 @@ jobs:
           if-no-files-found: warn
 
   doc-consistency:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -172,8 +175,8 @@ jobs:
         run: ./scripts/check-doc-consistency.ps1
 
   benchmark-guardrail:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Java
@@ -219,6 +222,7 @@ jobs:
             target/benchmark-report.csv
 
   cache-concurrency-stress:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -237,6 +241,7 @@ jobs:
           done
 
   chart-artifacts:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -257,8 +262,8 @@ jobs:
           if-no-files-found: warn
 
   benchmark-plot-artifacts:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Java

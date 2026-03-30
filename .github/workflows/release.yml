@@ -1,10 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "release-*"
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Optional Maven version (YYYY.MM.DD.HHmm). Leave empty to auto-generate from current UTC time."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ concurrency:
 
 jobs:
   publish-central:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
@@ -38,21 +41,25 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Validate release tag matches pom version
-        if: startsWith(github.ref, 'refs/tags/release-')
+      - name: Resolve release version
+        id: release_version
         shell: bash
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#release-}"
-          POM_VERSION="$(mvn -q -DforceStdout -f pom.xml help:evaluate -Dexpression=project.version)"
-          echo "Tag version: ${TAG_VERSION}"
-          echo "POM version: ${POM_VERSION}"
-          if [ "${TAG_VERSION}" != "${POM_VERSION}" ]; then
-            echo "Tag version and pom version do not match."
-            exit 1
+          INPUT_VERSION="${{ github.event.inputs.release_version }}"
+          if [ -n "${INPUT_VERSION}" ]; then
+            RELEASE_VERSION="${INPUT_VERSION}"
+          else
+            RELEASE_VERSION="$(date -u +'%Y.%m.%d.%H%M')"
           fi
+          echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
+          echo "Release version: ${RELEASE_VERSION}"
+
+      - name: Set Maven project version
+        run: mvn -B -ntp -DnewVersion="${{ steps.release_version.outputs.release_version }}" -DgenerateBackupPoms=false versions:set
 
       - name: Run tests
         run: mvn -B -ntp test
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
+        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests -DwaitUntil=validated deploy

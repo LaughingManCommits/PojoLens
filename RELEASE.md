@@ -65,7 +65,7 @@ After namespace verification and publish credentials are configured in
 `~/.m2/settings.xml`:
 
 ```bash
-mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central clean deploy -DskipTests -DwaitUntil=validated
 ```
 
 The `release-central` profile attaches source/javadoc jars, signs artifacts,
@@ -77,8 +77,7 @@ Benchmark and example modules remain non-published.
 Release workflow: `.github/workflows/release.yml`
 
 Triggers:
-- tag push `release-*`
-- manual `workflow_dispatch`
+- manual `workflow_dispatch` only (must be started from `main`; jobs are branch-gated)
 
 Required repository secrets:
 - `CENTRAL_TOKEN_USERNAME`
@@ -93,16 +92,17 @@ Optional helper for generating `GPG_PRIVATE_KEY` export + template files:
 ./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
 ```
 
-The release job validates `release-<version>` vs `pom.xml` version, runs tests,
-and executes:
+The release job resolves a release version (workflow input `release_version`, or
+auto-generated UTC `YYYY.MM.DD.HHmm` if omitted), applies it with
+`versions:set`, runs tests, and executes:
 
 ```bash
-mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests deploy
+mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests -DwaitUntil=validated deploy
 ```
 
-The Central plugin is configured with `autoPublish=true` and
-`waitUntil=published`, so successful pipeline runs should complete publication
-without manual portal confirmation.
+The Central plugin is configured with `autoPublish=true`. CI deploy runs use
+`-DwaitUntil=validated` so the workflow does not time out waiting for Central's
+final publish queue; publication continues automatically after validation.
 
 ## 6) Git Tag and Push
 
