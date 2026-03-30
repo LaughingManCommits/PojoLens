@@ -37,7 +37,7 @@
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics|size=10000": 162.1,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetrics|size=1000": 15.3,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetrics|size=10000": 79.4,
-  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics|size=1000": 79.2,
+  "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics|size=1000": 130.0,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics|size=10000": 172.9,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsToChart|size=1000": 5.3,
   "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsToChart|size=10000": 52.7,
