@@ -3,6 +3,8 @@ From `List<T>` to query and chart-ready results, without a database.
 
 `PojoLens` is a POJO-first in-memory query engine for Java. It supports both a fluent API and SQL-like query strings for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
 
+> Note: This project is fully AI-built and is maintained as an experiment.
+
 ## Installation
 
 ```xml
