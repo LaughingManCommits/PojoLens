@@ -7,6 +7,19 @@ on:
         description: "Optional Maven version (YYYY.MM.DD.HHmm). Leave empty to auto-generate from current UTC time."
         required: false
         type: string
+      dry_run:
+        description: "Run release build and preflight checks but skip Central publish and GPG signing."
+        required: false
+        default: false
+        type: boolean
+      wait_until:
+        description: "Central deployment wait mode."
+        required: false
+        default: validated
+        type: choice
+        options:
+          - validated
+          - published
 
 permissions:
   contents: read
@@ -51,15 +64,122 @@ jobs:
           else
             RELEASE_VERSION="$(date -u +'%Y.%m.%d.%H%M')"
           fi
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}$ ]]; then
+            echo "Invalid release version '${RELEASE_VERSION}'. Expected format: YYYY.MM.DD.HHmm"
+            exit 1
+          fi
           echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
           echo "Release version: ${RELEASE_VERSION}"
 
+      - name: Resolve deploy options
+        id: deploy_options
+        shell: bash
+        run: |
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          WAIT_UNTIL="${{ github.event.inputs.wait_until }}"
+          if [ -z "${WAIT_UNTIL}" ]; then
+            WAIT_UNTIL="validated"
+          fi
+          if [ "${WAIT_UNTIL}" != "validated" ] && [ "${WAIT_UNTIL}" != "published" ]; then
+            echo "Invalid wait_until value '${WAIT_UNTIL}'. Allowed: validated, published"
+            exit 1
+          fi
+          DEPLOY_FLAGS="-DwaitUntil=${WAIT_UNTIL}"
+          if [ "${DRY_RUN}" = "true" ]; then
+            DEPLOY_FLAGS="${DEPLOY_FLAGS} -DskipPublishing=true -Dgpg.skip=true"
+          fi
+          echo "deploy_flags=${DEPLOY_FLAGS}" >> "$GITHUB_OUTPUT"
+          echo "Deploy flags: ${DEPLOY_FLAGS}"
+
       - name: Set Maven project version
         run: mvn -B -ntp -DnewVersion="${{ steps.release_version.outputs.release_version }}" -DgenerateBackupPoms=false versions:set
+
+      - name: Generate effective and flattened POMs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$PWD"
+          EFFECTIVE_DIR="$ROOT/target/release-preflight/effective"
+          FLATTENED_DIR="$ROOT/target/release-preflight/flattened"
+          mkdir -p "$EFFECTIVE_DIR" "$FLATTENED_DIR"
+          MODULES=("pom.xml" "pojo-lens/pom.xml" "pojo-lens-spring-boot-autoconfigure/pom.xml" "pojo-lens-spring-boot-starter/pom.xml")
+          for POM in "${MODULES[@]}"; do
+            NAME="$(dirname "$POM")"
+            if [ "$NAME" = "." ]; then
+              NAME="pojo-lens-parent"
+            fi
+            mvn -B -ntp -f "$POM" help:effective-pom -Doutput="$EFFECTIVE_DIR/${NAME}-effective.xml"
+            mkdir -p "$FLATTENED_DIR/$NAME"
+            mvn -B -ntp -f "$POM" org.codehaus.mojo:flatten-maven-plugin:1.7.3:flatten \
+              -Dflatten.mode=ossrh \
+              -DupdatePomFile=false \
+              -DoutputDirectory="$FLATTENED_DIR/$NAME" \
+              -DflattenedPomFilename=flattened.xml
+          done
+
+      - name: Preflight metadata validation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          NS = {"m": "http://maven.apache.org/POM/4.0.0"}
+          ROOT = Path("target/release-preflight")
+          effective_files = sorted((ROOT / "effective").glob("*-effective.xml"))
+          flattened_files = sorted((ROOT / "flattened").glob("*/flattened.xml"))
+          errors = []
+
+          def get_text(node, xpath):
+              found = node.find(xpath, NS)
+              if found is None or found.text is None:
+                  return ""
+              return found.text.strip()
+
+          def iter_projects(xml_root):
+              if xml_root.tag.endswith("projects"):
+                  return xml_root.findall("m:project", NS)
+              return [xml_root]
+
+          def check_metadata(pom_path: Path):
+              tree = ET.parse(pom_path)
+              xml_root = tree.getroot()
+              for root in iter_projects(xml_root):
+                  coords = f"{get_text(root, 'm:groupId')}:{get_text(root, 'm:artifactId')}:{get_text(root, 'm:version')}"
+                  if not get_text(root, "m:url"):
+                      errors.append(f"{pom_path}: missing project url ({coords})")
+                  if not get_text(root, "m:licenses/m:license/m:name"):
+                      errors.append(f"{pom_path}: missing license ({coords})")
+                  if not get_text(root, "m:scm/m:url"):
+                      errors.append(f"{pom_path}: missing scm url ({coords})")
+                  if not get_text(root, "m:developers/m:developer/m:name"):
+                      errors.append(f"{pom_path}: missing developer ({coords})")
+                  for dep in root.findall("./m:dependencies/m:dependency", NS):
+                      gid = get_text(dep, "m:groupId")
+                      aid = get_text(dep, "m:artifactId")
+                      ver = get_text(dep, "m:version")
+                      if not gid:
+                          errors.append(f"{pom_path}: dependency missing groupId ({aid})")
+                      if not ver:
+                          errors.append(f"{pom_path}: dependency missing version ({gid}:{aid})")
+
+          for p in effective_files:
+              check_metadata(p)
+          for p in flattened_files:
+              check_metadata(p)
+
+          if errors:
+              print("Release preflight failed:")
+              for e in errors:
+                  print(f"- {e}")
+              sys.exit(1)
+          print("Release preflight passed: metadata and dependency coordinates are complete.")
+          PY
 
       - name: Run tests
         run: mvn -B -ntp test
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests -DwaitUntil=validated deploy
+        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests ${{ steps.deploy_options.outputs.deploy_flags }} deploy

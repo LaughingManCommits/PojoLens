@@ -92,17 +92,22 @@ Optional helper for generating `GPG_PRIVATE_KEY` export + template files:
 ./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
 ```
 
-The release job resolves a release version (workflow input `release_version`, or
-auto-generated UTC `YYYY.MM.DD.HHmm` if omitted), applies it with
-`versions:set`, runs tests, and executes:
+Workflow inputs:
+- `release_version` (optional): explicit version in `YYYY.MM.DD.HHmm` format.
+  If omitted, the workflow auto-generates UTC `YYYY.MM.DD.HHmm`.
+- `dry_run` (optional, default `false`): runs versioning/tests/preflight and
+  deploy lifecycle with Central upload/signing skipped.
+- `wait_until` (optional, default `validated`): Central wait mode
+  (`validated` or `published`).
 
-```bash
-mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests -DwaitUntil=validated deploy
-```
+The release job validates `release_version` format with
+`^\d{4}\.\d{2}\.\d{2}\.\d{4}$`, applies the version with `versions:set`,
+generates effective + flattened POMs, validates required metadata and
+dependency coordinates, runs tests, and deploys with the selected wait mode.
 
-The Central plugin is configured with `autoPublish=true`. CI deploy runs use
-`-DwaitUntil=validated` so the workflow does not time out waiting for Central's
-final publish queue; publication continues automatically after validation.
+Central publish configuration is centralized in the parent `release-central`
+profile; child modules no longer declare `central-publishing-maven-plugin`
+directly.
 
 ## 6) Git Tag and Push
 
