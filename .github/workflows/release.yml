@@ -22,7 +22,7 @@ on:
           - published
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -41,6 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Set up Java, Maven server credentials, and GPG
         uses: actions/setup-java@v4
@@ -94,6 +95,16 @@ jobs:
 
       - name: Set Maven project version
         run: mvn -B -ntp -DnewVersion="${{ steps.release_version.outputs.release_version }}" -DgenerateBackupPoms=false versions:set
+
+      - name: Validate release tag is available
+        if: github.event.inputs.dry_run != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/release-${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Tag release-${RELEASE_VERSION} already exists on origin."
+            exit 1
+          fi
 
       - name: Generate effective and flattened POMs
         shell: bash
@@ -183,3 +194,24 @@ jobs:
 
       - name: Publish to Maven Central
         run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests ${{ steps.deploy_options.outputs.deploy_flags }} deploy
+
+      - name: Commit version bump and push release tag
+        if: github.event.inputs.dry_run != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          if git diff --cached --quiet; then
+            echo "No tracked changes to commit after versions:set."
+          else
+            git commit -m "Release ${RELEASE_VERSION}"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+          if git rev-parse "refs/tags/release-${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Tag release-${RELEASE_VERSION} already exists locally."
+          else
+            git tag -a "release-${RELEASE_VERSION}" -m "PojoLens release ${RELEASE_VERSION}"
+          fi
+          git push origin "refs/tags/release-${RELEASE_VERSION}"

@@ -174,8 +174,7 @@ Keep deterministic profile constants in `BenchmarkProfiles` unchanged unless int
 Automated Central publishing is handled by `.github/workflows/release.yml`.
 
 Triggers:
-- tag push `v*`
-- manual workflow dispatch
+- manual workflow dispatch only
 
 Required repository secrets:
 - `CENTRAL_TOKEN_USERNAME`

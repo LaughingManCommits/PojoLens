@@ -103,13 +103,15 @@ Workflow inputs:
 The release job validates `release_version` format with
 `^\d{4}\.\d{2}\.\d{2}\.\d{4}$`, applies the version with `versions:set`,
 generates effective + flattened POMs, validates required metadata and
-dependency coordinates, runs tests, and deploys with the selected wait mode.
+dependency coordinates, runs tests, deploys with the selected wait mode, and on
+successful non-dry-run releases commits the version bump back to `main` and
+pushes tag `release-<version>`.
 
 Central publish configuration is centralized in the parent `release-central`
 profile; child modules no longer declare `central-publishing-maven-plugin`
 directly.
 
-## 6) Git Tag and Push
+## 6) Post-Release Git Update
 
 ```bash
 git add .
@@ -118,6 +120,10 @@ git tag -a release-<version> -m "PojoLens release <version>"
 git push
 git push origin release-<version>
 ```
+
+`release-*` tags are no longer the release trigger, but successful non-dry-run
+workflow releases now create them automatically as the public release baseline
+marker.
 
 ## 7) Release Checklist
 
@@ -129,4 +135,4 @@ git push origin release-<version>
 - [ ] SQL-like limitations text is still accurate: supports limited `WHERE ... IN (select oneField ...)` subqueries.
 - [ ] SQL-like join capability text is still accurate: chained joins are supported when each `JOIN ... ON ...` references the current plan correctly.
 - [ ] CI/workflow changes are intentional.
-- [ ] Release tag pushed and visible.
+- [ ] Release baseline tag pushed and visible.
