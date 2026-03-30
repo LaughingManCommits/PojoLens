@@ -81,16 +81,16 @@ For new code, prefer one default path per job:
 `PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
-| If you need... | Choose... | Read next |
-| --- | --- | --- |
-| Service-owned query logic in code | `PojoLensCore` | `docs/entry-points.md`, `docs/usecases.md` |
-| Config-driven or dynamic query strings | `PojoLensSql` | `docs/entry-points.md`, `docs/sql-like.md` |
-| Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime` | `docs/entry-points.md`, `docs/advanced-features.md` |
-| Rows already exist and only chart mapping remains | `PojoLensChart` | `docs/entry-points.md`, `docs/charts.md` |
-| A reusable business query contract | `ReportDefinition` | `docs/reusable-wrappers.md`, `docs/reports.md` |
-| A reusable chart-first preset | `ChartQueryPreset` | `docs/reusable-wrappers.md`, `docs/charts.md` |
-| A reusable table payload with totals/schema | `StatsViewPreset` / `StatsTable` | `docs/reusable-wrappers.md`, `docs/stats-presets.md` |
-| Joined multi-source execution | `JoinBindings`, then `DatasetBundle` when reused | `docs/sql-like.md`, `docs/reports.md` |
+| If you need...                                            | Choose...                                        | Read next                                                                                              |
+|-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
+| Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
+| Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
+| A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
+| A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
+| A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTable`                 | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
+| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md)                               |
 
 ## Product Shape
 
