@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-03-31`: forked full benchmark suite ran through the rebuilt `target/*-benchmarks.jar` runner into `target/benchmarks/2026-03-31-full/`; core/chart threshold checks passed, chart parity failed for every chart type, and the generated reports were mapped into `TODO.md`.
 - `2026-03-26`: `mvn -q test` passed after the dashboard-simplification and starter-example hardening work.
 - `2026-03-26`: `scripts/check-doc-consistency.ps1` passed after the starter example and docs refresh.
 - `2026-03-26`: `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=DashboardPlaywrightE2eTest test` passed after the dashboard UI, chart, and form-validation fixes.

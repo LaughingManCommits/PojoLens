@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T19:10:17.061061+02:00",
+  "generatedAt": "2026-03-31T10:47:15.165274+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -142,7 +142,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 40,
-      "byteCount": 2904,
+      "byteCount": 2741,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +150,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 43,
-      "byteCount": 2702,
+      "lineCount": 44,
+      "byteCount": 3027,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 30,
-      "byteCount": 5084,
+      "lineCount": 31,
+      "byteCount": 5360,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +168,8 @@
       "category": "process-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 197,
-      "byteCount": 6940,
+      "lineCount": 196,
+      "byteCount": 6929,
       "coldSearchEligible": true
     },
     {
@@ -375,8 +375,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 289,
-      "byteCount": 10655,
+      "lineCount": 291,
+      "byteCount": 11918,
       "coldSearchEligible": true
     },
     {
@@ -384,8 +384,8 @@
       "category": "release-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 127,
-      "byteCount": 4044,
+      "lineCount": 138,
+      "byteCount": 4809,
       "coldSearchEligible": true
     },
     {
@@ -393,8 +393,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 168,
-      "byteCount": 8669,
+      "lineCount": 61,
+      "byteCount": 4663,
       "coldSearchEligible": true
     }
   ]
