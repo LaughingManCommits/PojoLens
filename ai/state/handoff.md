@@ -19,9 +19,9 @@
 - The `2026-03-31` full benchmark suite lives under `target/benchmarks/2026-03-31-full/`; thresholds passed, but chart parity failed for every chart type.
 - The corrected follow-up lives under `target/benchmarks/2026-03-31-followup-cache-reset/`; clearing fluent `FilterImpl` caches per invocation cut chart parity failures to `3/15`.
 - The warmed stability rerun lives under `target/benchmarks/2026-03-31-followup-stability/charts-full/`; chart thresholds and chart parity passed there, so the remaining chart risk is SQL-like scatter allocation.
-- The bound scatter follow-up artifacts show the bind-first SQL-like path cuts repeated scatter allocation by about `1.32x` (`1k`), `1.39x` (`10k`), and `1.89x` (`100k`) versus the direct repeated path.
+- The latest scatter follow-up adds a simple direct-source SQL-like chart fast path; warmed GC artifacts in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json` now put direct and bound scatter at near-allocation parity.
 - Fresh benchmark risks are scatter allocation, SQL window allocation overhead, computed-field join materialization, reflection/projection conversion, and list materialization vs lazy streaming.
-- Remaining scatter work should separate direct repeated-path cost from residual chart/execution cost; bind-first workloads are no longer worst-case scatter.
+- Remaining scatter work should focus on the residual SQL-like-vs-fluent overhead shared by direct and bound runs.
 - Context-loading hardening is in place: conditional cold-load matrix in `AGENTS.md` and `ai/AGENTS.md`, with query fallback via `scripts/query-ai-memory.ps1`.
 - For module/architecture retrieval, use facet-constrained lookup: `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.

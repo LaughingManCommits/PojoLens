@@ -1,5 +1,9 @@
 # Recent Validations
 
+- `2026-03-31`: `mvn -q test` passed after adding the simple-source SQL-like chart fast path and the mutated-source scatter regression coverage.
+- `2026-03-31`: `mvn -B -ntp -Pbenchmark-runner -DskipTests package` passed before the updated scatter reruns.
+- `2026-03-31`: warmed scatter GC rerun in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json` shows direct SQL-like scatter now matches bound allocation within `1.001x` (`1k`) and effectively `1.000x` (`10k`, `100k`) while remaining `1.43x` / `1.57x` / `3.41x` above fluent.
+- `2026-03-31`: cold scatter spot-check in `target/benchmarks/2026-03-31-bound-scatter-threshold.json` plus `BenchmarkThresholdChecker` passed with direct `0.642 / 8.834 / 35.136 ms/op` and bound `0.550 / 6.165 / 39.683 ms/op`.
 - `2026-03-31`: `mvn -q -pl pojo-lens-benchmarks -am test` passed after adding reusable non-join bound SQL-like execution and repeated bound scatter chart coverage; targeted JMH follow-ups saved `target/benchmarks/2026-03-31-bound-scatter-threshold.json` and `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json`.
 - `2026-03-31`: warmed chart stability rerun under `target/benchmarks/2026-03-31-followup-stability/charts-full/` passed chart thresholds and chart parity with `-wi 3 -i 5 -w 200ms -r 200ms`; the paired `chart-scatter-line-gc.json` spot-checks show scatter latency parity is acceptable but SQL-like scatter allocation is still higher.
 - `2026-03-31`: `mvn -q -pl pojo-lens-benchmarks -am test` passed after adding per-invocation benchmark cache reset coverage for fluent `FilterImpl` state in `ChartVisualizationJmhBenchmark` and `StatsQueryJmhBenchmark`.

@@ -263,6 +263,10 @@ final class SqlLikePreparedExecutionSupport {
             return prepared.ast();
         }
 
+        List<?> sourceRows() {
+            return pojos;
+        }
+
         FilterExecutionPlan resolveRawExecutionPlan(FilterCore core, FilterQueryBuilder builder) {
             FilterExecutionPlanCacheKey cachedKey = prepared.rawExecutionPlanCacheKey();
             if (cachedKey == null) {

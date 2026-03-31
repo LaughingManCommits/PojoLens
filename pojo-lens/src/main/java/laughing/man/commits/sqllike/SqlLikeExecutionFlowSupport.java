@@ -20,9 +20,11 @@ import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 final class SqlLikeExecutionFlowSupport {
@@ -98,6 +100,13 @@ final class SqlLikeExecutionFlowSupport {
                                       ChartSpec spec,
                                       QueryTelemetryListener telemetryListener,
         String source) {
+        if (canMapChartFromSourceRows(context, spec)) {
+            List<?> sourceRows = context.sourceRows();
+            long chartStarted = QueryTelemetrySupport.start(telemetryListener);
+            ChartData chart = ChartMapper.toChartData(sourceRows, spec);
+            emitChartTelemetry(chartStarted, countNonNullRows(sourceRows), chart, telemetryListener, source);
+            return chart;
+        }
         ExecutionRun run = context.newRun();
         OutputResolution output = resolveOutput(context, run);
         switch (output.mode()) {
@@ -243,6 +252,60 @@ final class SqlLikeExecutionFlowSupport {
         return !builder.getQualifyFields().isEmpty()
                 || !builder.getQualifyAllOfGroups().isEmpty()
                 || !builder.getQualifyAnyOfGroups().isEmpty();
+    }
+
+    private static boolean canMapChartFromSourceRows(ExecutionContext context, ChartSpec spec) {
+        QueryAst ast = context.ast();
+        if (ast == null
+                || context.applyJoin()
+                || context.sort() != null
+                || ast.hasJoins()
+                || ast.hasAggregation()
+                || ast.hasLimitClause()
+                || ast.hasOffsetClause()
+                || ast.hasQualifyClause()
+                || !ast.filters().isEmpty()
+                || ast.whereExpression() != null
+                || !ast.groupByFields().isEmpty()
+                || !ast.havingFilters().isEmpty()
+                || ast.havingExpression() != null
+                || !ast.orders().isEmpty()) {
+            return false;
+        }
+        SelectAst select = context.select();
+        if (select == null) {
+            return false;
+        }
+        if (select.wildcard()) {
+            return true;
+        }
+        if (select.hasComputedFields() || select.hasWindowFields() || hasPlainFieldAliases(select)) {
+            return false;
+        }
+        Set<String> selectedFields = new LinkedHashSet<>(select.fields().size());
+        for (SelectFieldAst field : select.fields()) {
+            if (field.metricField() || field.timeBucketField() || field.aliased()) {
+                return false;
+            }
+            selectedFields.add(field.field());
+        }
+        if (!selectedFields.contains(spec.xField()) || !selectedFields.contains(spec.yField())) {
+            return false;
+        }
+        return !spec.multiSeries() || selectedFields.contains(spec.seriesField());
+    }
+
+    private static int countNonNullRows(List<?> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Object row : rows) {
+            if (row != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static OutputResolution resolveOutput(ExecutionContext context, ExecutionRun run) {

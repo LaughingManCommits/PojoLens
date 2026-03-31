@@ -145,6 +145,41 @@ public class SqlLikeChartIntegrationTest {
         assertEquals(List.of(50000d, 200000d), second.getDatasets().get(0).getValues());
     }
 
+    @Test
+    public void repeatedDirectScatterChartsShouldRemainStable() {
+        List<ScatterPoint> rows = List.of(new ScatterPoint(1, 10), new ScatterPoint(2, 25));
+        SqlLikeQuery query = PojoLensSql.parse("select x, y");
+        ChartSpec spec = ChartSpec.of(ChartType.SCATTER, "x", "y");
+
+        ChartData first = query.chart(rows, ScatterPoint.class, spec);
+        ChartData second = query.chart(rows, ScatterPoint.class, spec);
+
+        assertEquals(first.getLabels(), second.getLabels());
+        assertEquals(first.getDatasets().get(0).getValues(), second.getDatasets().get(0).getValues());
+    }
+
+    @Test
+    public void repeatedDirectScatterChartsShouldReReadMutatedSourceRows() {
+        List<ScatterPoint> rows = new ArrayList<>();
+        rows.add(new ScatterPoint(1, 10));
+        rows.add(new ScatterPoint(2, 25));
+        SqlLikeQuery query = PojoLensSql.parse("select x, y");
+        ChartSpec spec = ChartSpec.of(ChartType.SCATTER, "x", "y");
+
+        ChartData first = query.chart(rows, ScatterPoint.class, spec);
+
+        rows.set(0, new ScatterPoint(5, 50));
+        rows.remove(1);
+        rows.add(new ScatterPoint(7, 70));
+
+        ChartData second = query.chart(rows, ScatterPoint.class, spec);
+
+        assertEquals(List.of("1", "2"), first.getLabels());
+        assertEquals(List.of(10d, 25d), first.getDatasets().get(0).getValues());
+        assertEquals(List.of("5", "7"), second.getLabels());
+        assertEquals(List.of(50d, 70d), second.getDatasets().get(0).getValues());
+    }
+
     private static List<String> datasetSummary(List<ChartDataset> datasets) {
         List<String> summary = new ArrayList<>();
         for (ChartDataset dataset : datasets) {
