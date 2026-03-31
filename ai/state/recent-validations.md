@@ -1,5 +1,7 @@
 # Recent Validations
 
+- `2026-03-31`: `mvn -q -pl pojo-lens-benchmarks -am test` passed after adding reusable non-join bound SQL-like execution and repeated bound scatter chart coverage; targeted JMH follow-ups saved `target/benchmarks/2026-03-31-bound-scatter-threshold.json` and `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json`.
+- `2026-03-31`: warmed chart stability rerun under `target/benchmarks/2026-03-31-followup-stability/charts-full/` passed chart thresholds and chart parity with `-wi 3 -i 5 -w 200ms -r 200ms`; the paired `chart-scatter-line-gc.json` spot-checks show scatter latency parity is acceptable but SQL-like scatter allocation is still higher.
 - `2026-03-31`: `mvn -q -pl pojo-lens-benchmarks -am test` passed after adding per-invocation benchmark cache reset coverage for fluent `FilterImpl` state in `ChartVisualizationJmhBenchmark` and `StatsQueryJmhBenchmark`.
 - `2026-03-31`: corrected follow-up benchmark rerun under `target/benchmarks/2026-03-31-followup-cache-reset/` passed core/chart threshold checks and reduced chart parity failures from `15` to `3`, leaving only `SCATTER` above the `1.75x` cap.
 - `2026-03-31`: forked full benchmark suite ran through the rebuilt `target/*-benchmarks.jar` runner into `target/benchmarks/2026-03-31-full/`; core/chart threshold checks passed, chart parity failed for every chart type, and the generated reports were mapped into `TODO.md`.

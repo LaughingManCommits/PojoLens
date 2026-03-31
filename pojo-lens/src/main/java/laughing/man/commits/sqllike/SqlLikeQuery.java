@@ -688,7 +688,7 @@ public final class SqlLikeQuery {
         private final Class<T> projectionClass;
 
         private DefaultSqlLikeBoundQuery(ExecutionContext context, Class<T> projectionClass) {
-            this.context = context;
+            this.context = context.reusableBoundContext();
             this.projectionClass = projectionClass;
         }
 

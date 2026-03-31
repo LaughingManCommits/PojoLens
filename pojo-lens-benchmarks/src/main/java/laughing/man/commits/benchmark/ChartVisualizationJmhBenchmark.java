@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chart.NullPointPolicy;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.filter.Filter;
+import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -57,6 +58,7 @@ public class ChartVisualizationJmhBenchmark {
     private SqlLikeQuery parsedPieSql;
     private SqlLikeQuery parsedAreaSql;
     private SqlLikeQuery parsedScatterSql;
+    private SqlLikeBoundQuery<ScatterRow> boundScatterSql;
 
     @Setup
     public void setup() {
@@ -114,6 +116,7 @@ public class ChartVisualizationJmhBenchmark {
         parsedPieSql = PojoLensSql.parse(pieSql);
         parsedAreaSql = PojoLensSql.parse(areaSql);
         parsedScatterSql = PojoLensSql.parse(scatterSql);
+        boundScatterSql = parsedScatterSql.bindTyped(source, ScatterRow.class);
 
         barData = barFilter.chart(CategoryTotalRow.class, barSpec);
         lineData = lineFilter.chart(PeriodSeriesTotalRow.class, lineSpec);
@@ -179,6 +182,11 @@ public class ChartVisualizationJmhBenchmark {
     @Benchmark
     public ChartData sqlLikeScatterMapping() {
         return parsedScatterSql.chart(source, ScatterRow.class, scatterSpec);
+    }
+
+    @Benchmark
+    public ChartData sqlLikeBoundScatterMapping() {
+        return boundScatterSql.chart(scatterSpec);
     }
 
     @Benchmark

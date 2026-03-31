@@ -4,7 +4,7 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; the latest benchmark entries are the `2026-03-31` full snapshot and cache-reset follow-up.
+3. Check `TODO.md`; the latest benchmark entries are the `2026-03-31` full snapshot and follow-ups.
 4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
 5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
 
@@ -17,13 +17,13 @@
 
 - Release versioning is date-based now: Maven versions use `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
 - The `2026-03-31` full benchmark suite lives under `target/benchmarks/2026-03-31-full/`; thresholds passed, but chart parity failed for every chart type.
-- The corrected follow-up lives under `target/benchmarks/2026-03-31-followup-cache-reset/`; thresholds still passed and chart parity dropped to `3/15` failures after clearing fluent `FilterImpl` caches per invocation in the chart/stats harness.
-- Fresh benchmark risks are `SCATTER` parity, SQL window allocation overhead, computed-field join materialization, reflection/projection conversion, and list materialization vs lazy streaming.
+- The corrected follow-up lives under `target/benchmarks/2026-03-31-followup-cache-reset/`; clearing fluent `FilterImpl` caches per invocation cut chart parity failures to `3/15`.
+- The warmed stability rerun lives under `target/benchmarks/2026-03-31-followup-stability/charts-full/`; chart thresholds and chart parity passed there, so the remaining chart risk is SQL-like scatter allocation.
+- The bound scatter follow-up artifacts show the bind-first SQL-like path cuts repeated scatter allocation by about `1.32x` (`1k`), `1.39x` (`10k`), and `1.89x` (`100k`) versus the direct repeated path.
+- Fresh benchmark risks are scatter allocation, SQL window allocation overhead, computed-field join materialization, reflection/projection conversion, and list materialization vs lazy streaming.
+- Remaining scatter work should separate direct repeated-path cost from residual chart/execution cost; bind-first workloads are no longer worst-case scatter.
 - Context-loading hardening is in place: conditional cold-load matrix in `AGENTS.md` and `ai/AGENTS.md`, with query fallback via `scripts/query-ai-memory.ps1`.
-- Hot-context budget policy is now explicit: hard cap `240` lines and `24 KB`; target range `160-200` total lines.
 - For module/architecture retrieval, use facet-constrained lookup: `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
-- Lint baseline was refreshed on `2026-03-29`; run `mvn -B -ntp -Plint verify -DskipTests` before using `scripts/check-lint-baseline.ps1 -WriteBaseline` again.
-- Context-loading guidance is non-recursive between `AGENTS.md` and `ai/AGENTS.md`, and same-task `ai/state/*` edits do not force reloads unless needed immediately.
 - Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
 
 ## Validate
@@ -40,4 +40,4 @@
 
 - routing/summarization policy: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
 - release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
-- benchmark context when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`, `target/benchmarks/2026-03-31-full/`, `target/benchmarks/2026-03-31-followup-cache-reset/`
+- benchmark context when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`, `target/benchmarks/2026-03-31-full/`, `target/benchmarks/2026-03-31-followup-cache-reset/`, `target/benchmarks/2026-03-31-followup-stability/`

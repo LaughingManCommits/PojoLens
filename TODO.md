@@ -54,11 +54,44 @@
   - `TimeBucketMetrics`: `1.291x` at `1k`, `1.194x` at `10k`
   - `TimeBucketMetricsToChart`: `1.325x` at `1k`, `1.285x` at `10k`
 
+## Stability Result (2026-03-31 warmup+measurement rerun)
+
+- Reran the corrected chart suite with steadier settings under `target/benchmarks/2026-03-31-followup-stability/charts-full/`:
+  - `-wi 3 -i 5 -w 200ms -r 200ms`
+  - reports: `chart.json`, `chart-threshold-report.csv`, `chart-parity-report.csv`
+- Stable chart thresholds: pass.
+  - Closest budget stays `sqlLikeScatterMapping|size=10000`: `1.268 ms/op` vs `112.833 ms/op` (`1.1%` of limit).
+- Stable chart parity: pass (`15/15` rows).
+  - Worst stable ratio is `SCATTER|100000` at `1.610x`.
+  - Other largest stable ratios: `SCATTER|1000` `1.360x`, `SCATTER|10000` `1.281x`, `BAR|100000` `1.079x`.
+  - `LINE|100000` settled at `0.884x`, so the earlier single-iteration inversion/noise is not a current concern.
+- Stable scatter GC spot-checks live in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-line-gc.json`.
+  - Latency still passes parity: `1.350x` (`1k`), `1.246x` (`10k`), `1.592x` (`100k`).
+  - Allocation remains meaningfully higher on SQL-like scatter: `1.70x` (`1k`), `1.89x` (`10k`), `4.77x` (`100k`).
+  - `SCATTER|100000` alloc/op: fluent `4.99 MB/op` vs SQL-like `23.80 MB/op`.
+
+## Bound Scatter Follow-Up (2026-03-31 reusable bind path)
+
+- Added a non-join bound SQL-like reuse path so repeated `bindTyped(...).chart(...)` executions keep the prepared/materialized source rows instead of rebuilding them every call.
+  - runtime change: `SqlLikePreparedExecutionSupport.ExecutionContext.reusableBoundContext()`
+  - coverage: repeated bound scatter charts in `SqlLikeTypedBindContractTest`
+- Added a targeted benchmark method `ChartVisualizationJmhBenchmark.sqlLikeBoundScatterMapping`.
+- Cold threshold spot-check artifacts live in `target/benchmarks/2026-03-31-bound-scatter-threshold.json`.
+  - `sqlLikeBoundScatterMapping|size=1000`: `0.542 ms/op`
+  - `sqlLikeBoundScatterMapping|size=10000`: `5.542 ms/op`
+  - `sqlLikeBoundScatterMapping|size=100000`: `23.055 ms/op`
+- Warmed GC comparison artifacts live in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json`.
+  - Bound scatter stays slightly faster than direct repeated SQL-like scatter: `1.136x` (`1k`), `1.178x` (`10k`), `1.061x` (`100k`) in favor of the bound path.
+  - Bound scatter allocation is materially lower than direct repeated SQL-like scatter: `1.324x` (`1k`), `1.390x` (`10k`), `1.890x` (`100k`) less allocation on the bound path.
+  - `SCATTER|100000` direct-vs-bound alloc/op: direct `23.80 MB/op` vs bound `12.59 MB/op`.
+  - This isolates a meaningful part of the remaining SQL-like scatter overhead to repeated source rebind/materialization rather than the chart mapper itself.
+
 ## Problem Areas
 
-- Scatter chart parity is the remaining corrected chart hotspot.
-  - After clearing fluent execution caches per invocation, `BAR`, `LINE`, `PIE`, and `AREA` dropped back under the `1.75x` parity cap.
-  - `SCATTER` still fails at every size: `2.264x` (`1k`), `1.815x` (`10k`), `2.057x` (`100k`).
+- Stable chart latency parity is healthy after the cache-reset fix and a warmed rerun.
+  - The remaining chart-specific concern is scatter allocation, not scatter latency parity.
+  - In the targeted GC rerun, SQL-like scatter allocates `1.70x` more at `1k`, `1.89x` more at `10k`, and `4.77x` more at `100k`.
+  - The new bound scatter rerun shows part of that overhead is avoidable on reusable bind-first workloads, but direct repeated SQL-like scatter is still the heavier default path.
 - SQL-like window stages are allocation-heavy.
   - `parseAndFilterWindowRank|size=10000`: `1.630 ms/op`, `4,397,611.991 B/op`
   - `parseAndFilterWindowRunningTotal|size=10000`: `1.655 ms/op`, `4,594,287.429 B/op`
@@ -80,8 +113,9 @@
 ## Follow-Up
 
 - Treat the broad chart-parity failure in `2026-03-31-full` as a benchmark artifact first, not a product regression.
-- Investigate corrected `SCATTER` chart parity with the cache-reset harness before doing more chart-threshold work.
-- Re-run corrected high-volume chart mapping with more than one measurement iteration before over-interpreting the `LINE|100000` inversion (`fluent 29.692 ms/op` vs `sqlLike 6.929 ms/op`).
+- Treat the one-iteration cache-reset chart follow-up as noisy; use warmed multi-iteration reruns before opening parity bugs.
+- If chart follow-up continues, profile SQL-like scatter allocation rather than chart latency parity.
+- Prefer `bindTyped(...)` when the same SQL-like chart runs repeatedly against the same in-memory snapshot; the new bound scatter follow-up shows that reuse materially trims allocation.
 - Profile allocation sources in window rank/running-total execution, computed-field join materialization, and reflection/projection conversion.
 - Keep recommending lazy stream consumption for first-page or bounded-window callers.
 - Keep index hints scoped to repeated hot snapshots; avoid selling them as a cold one-shot optimization.

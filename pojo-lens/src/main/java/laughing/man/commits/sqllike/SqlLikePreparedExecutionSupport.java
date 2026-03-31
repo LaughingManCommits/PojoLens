@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
@@ -205,21 +206,45 @@ final class SqlLikePreparedExecutionSupport {
         private final Map<String, List<?>> joinSources;
         private final QueryTelemetryListener telemetryListener;
         private final String source;
+        private final FilterQueryBuilder reusableBuilderTemplate;
 
         ExecutionContext(PreparedExecution prepared,
                          List<?> pojos,
                          Map<String, List<?>> joinSources,
                          QueryTelemetryListener telemetryListener,
                          String source) {
+            this(prepared, pojos, joinSources, telemetryListener, source, null);
+        }
+
+        private ExecutionContext(PreparedExecution prepared,
+                                 List<?> pojos,
+                                 Map<String, List<?>> joinSources,
+                                 QueryTelemetryListener telemetryListener,
+                                 String source,
+                                 FilterQueryBuilder reusableBuilderTemplate) {
             this.prepared = prepared;
             this.pojos = pojos;
             this.joinSources = joinSources;
             this.telemetryListener = telemetryListener;
             this.source = source;
+            this.reusableBuilderTemplate = reusableBuilderTemplate;
         }
 
         FilterQueryBuilder newExecutionBuilder() {
+            if (reusableBuilderTemplate != null) {
+                return reusableBuilderTemplate.snapshotForExecution();
+            }
             return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
+        }
+
+        ExecutionContext reusableBoundContext() {
+            if (prepared.applyJoin() || reusableBuilderTemplate != null) {
+                return this;
+            }
+            FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
+            List<QueryRow> rows = builder.getRows();
+            builder.setMaterializedRows(rows, builder.getSourceFieldTypesForExecution());
+            return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, source, builder);
         }
 
         Sort sort() {
