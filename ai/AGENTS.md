@@ -15,6 +15,7 @@ state/ -> current markdown snapshot
 indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
 indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
+orchestrator/ -> tracked orchestration specs and guide
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
 log/archive/*-summary.md -> derived monthly archive summaries
@@ -58,6 +59,7 @@ Examples:
 - ai/core/readme-alignment.md
 - ai/core/benchmark-context.md
 - ai/core/discovery-notes.md
+- ai/orchestrator/README.md
 - ai/state/recent-validations.md
 - ai/state/benchmark-state.md
 - ai/indexes/*
@@ -77,6 +79,7 @@ Conditional cold-load triggers (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**` | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md` |
 | module topology/build boundary work | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work | `ai/core/test-strategy.md`, `ai/state/recent-validations.md` |
+| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 | AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 
 Routing fallback:
@@ -84,6 +87,7 @@ Routing fallback:
   `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
+  `-Kind ai-orchestrator` for orchestration workflow docs
   `-Tier hot,warm` for recency-focused state
   `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before raw archive logs
@@ -119,6 +123,15 @@ Use `scripts/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is requi
 
 ---
 
+# Orchestration
+
+- `ai/orchestrator/` is tracked control plane, not transient worker output
+- keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under `../.claude-orchestrator/<repo-name>/`
+- workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
+- the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs
+
+---
+
 # Compaction
 
 Keep memory lightweight.
@@ -150,6 +163,10 @@ indexes/
 - `scripts/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
 - `scripts/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
 - `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` proves refresh/query latency and fixed-query hit quality
+
+orchestrator/
+- keep only stable tracked specs and guide material here
+- do not store per-run manifests, worker transcripts, or workspace snapshots under `ai/`
 
 Summary guardrails:
 - one bullet should carry one fact; split mixed bullets

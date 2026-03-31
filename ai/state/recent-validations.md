@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-03-31`: local Claude orchestration MVP validation passed with `python -m py_compile scripts/claude-orchestrator.py scripts/refresh-ai-memory.py scripts/query-ai-memory.py`, `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`, `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run`, `python scripts/claude-orchestrator.py plan "Demonstrate planner contract" --name planner-smoke --dry-run`, `scripts/check-doc-consistency.ps1`, `scripts/query-ai-memory.ps1 -Query orchestrator -Kind ai-orchestrator -Limit 5`, `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`, and `scripts/refresh-ai-memory.ps1` plus `-Check`.
 - `2026-03-31`: `mvn -q test` passed after adding the simple-source SQL-like chart fast path and the mutated-source scatter regression coverage.
 - `2026-03-31`: `mvn -B -ntp -Pbenchmark-runner -DskipTests package` passed before the updated scatter reruns.
 - `2026-03-31`: warmed scatter GC rerun in `target/benchmarks/2026-03-31-followup-stability/chart-scatter-bound-gc.json` shows direct SQL-like scatter now matches bound allocation within `1.001x` (`1k`) and effectively `1.000x` (`10k`, `100k`) while remaining `1.43x` / `1.57x` / `3.41x` above fluent.

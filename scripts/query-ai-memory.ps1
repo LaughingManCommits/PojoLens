@@ -147,6 +147,8 @@ function Test-FallbackKind([string]$relativePath) {
     $pathKind = "document"
     if ($relativePath -like "ai/core/*") {
         $pathKind = "ai-core"
+    } elseif ($relativePath -like "ai/orchestrator/*") {
+        $pathKind = "ai-orchestrator"
     } elseif ($relativePath -like "ai/state/*") {
         $pathKind = "ai-state"
     } elseif ($relativePath -like "ai/log/archive/*-summary.md") {

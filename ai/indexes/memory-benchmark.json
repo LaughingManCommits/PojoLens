@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-03-29T16:49:02",
+  "generatedAt": "2026-03-31T22:00:41",
   "refresh": {
     "full": {
-      "durationMs": 1974.173,
+      "durationMs": 1907.849,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 5,
         "reused": 0
       },
       "sqlite": {
-        "updatedFiles": 46,
+        "updatedFiles": 47,
         "reusedFiles": 0,
         "removedFiles": 0
       }
     },
     "incremental": {
-      "durationMs": 334.843,
+      "durationMs": 328.291,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 0,
@@ -23,18 +23,18 @@
       },
       "sqlite": {
         "updatedFiles": 0,
-        "reusedFiles": 46,
+        "reusedFiles": 47,
         "removedFiles": 0
       }
     }
   },
   "check": {
-    "durationMs": 125.04,
+    "durationMs": 121.109,
     "exitCode": 0
   },
   "queries": {
     "iterations": 3,
-    "avgQueryMs": 58.054,
+    "avgQueryMs": 55.934,
     "top1Rate": 1.0,
     "top3Rate": 1.0,
     "cases": [
@@ -45,13 +45,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          60.806,
-          57.849,
-          56.454
+          55.94,
+          55.29,
+          55.658
         ],
-        "avgQueryMs": 58.37,
-        "bestQueryMs": 56.454,
-        "worstQueryMs": 60.806,
+        "avgQueryMs": 55.629,
+        "bestQueryMs": 55.29,
+        "worstQueryMs": 55.94,
         "topResults": [
           {
             "path": "ai/state/handoff.md",
@@ -61,7 +61,17 @@
             "sortTs": "",
             "lineStart": 11,
             "lineEnd": 15,
-            "summary": "## Focus\n\n- [Release] [retry] or [release] verification for the dated version/tag scheme is the main pending repo task ... "
+            "summary": "## Focus\n\n- [Release] [retry] or verification for the dated version/tag scheme is the pending repo task.\n- Keep context ... "
+          },
+          {
+            "path": "ai/state/current-state.md",
+            "title": "Focus",
+            "sourceKind": "ai-hot-context",
+            "loadTier": "hot",
+            "sortTs": "",
+            "lineStart": 9,
+            "lineEnd": 13,
+            "summary": "## Focus\n\n- `WP9` context-loading hardening is complete and live.\n- Main repo task is Maven Central [release] [retry] or ... "
           },
           {
             "path": "ai/state/current-state.md",
@@ -69,19 +79,9 @@
             "sourceKind": "ai-hot-context",
             "loadTier": "hot",
             "sortTs": "",
-            "lineStart": 33,
-            "lineEnd": 38,
-            "summary": "## Next\n\n- [Retry] the [release] workflow or a manual [release] dispatch for `2026.03.28.1919`.\n- Keep memory indexes ... "
-          },
-          {
-            "path": "ai/state/current-state.md",
-            "title": "Release",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
-            "sortTs": "",
-            "lineStart": 23,
-            "lineEnd": 27,
-            "summary": "## [Release]\n\n- Central namespace is verified for `io.github.laughingmancommits`.\n- The last publish attempt uploaded the bundle but failed ... "
+            "lineStart": 36,
+            "lineEnd": 42,
+            "summary": "## Next\n\n- [Retry] the [release] workflow or a manual [release] dispatch for `2026.03.28.1919`.\n- If benchmark work ... "
           }
         ]
       },
@@ -92,13 +92,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          58.12,
-          57.179,
-          57.476
+          56.941,
+          55.495,
+          57.163
         ],
-        "avgQueryMs": 57.592,
-        "bestQueryMs": 57.179,
-        "worstQueryMs": 58.12,
+        "avgQueryMs": 56.533,
+        "bestQueryMs": 55.495,
+        "worstQueryMs": 57.163,
         "topResults": [
           {
             "path": "ai/state/recent-validations.md",
@@ -107,7 +107,7 @@
             "loadTier": "warm",
             "sortTs": "",
             "lineStart": 1,
-            "lineEnd": 30,
+            "lineEnd": 40,
             "summary": " ... examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` passed after the dashboard UI, chart, and form ... "
           },
           {
@@ -141,13 +141,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          59.376,
-          57.753,
-          57.726
+          56.006,
+          56.022,
+          55.585
         ],
-        "avgQueryMs": 58.285,
-        "bestQueryMs": 57.726,
-        "worstQueryMs": 59.376,
+        "avgQueryMs": 55.871,
+        "bestQueryMs": 55.585,
+        "worstQueryMs": 56.022,
         "topResults": [
           {
             "path": "ai/log/archive/2026-03-summary.md",
@@ -178,13 +178,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          57.615,
-          58.312,
-          57.98
+          55.75,
+          55.63,
+          55.722
         ],
-        "avgQueryMs": 57.969,
-        "bestQueryMs": 57.615,
-        "worstQueryMs": 58.312,
+        "avgQueryMs": 55.701,
+        "bestQueryMs": 55.63,
+        "worstQueryMs": 55.75,
         "topResults": [
           {
             "path": "ai/core/module-index.md",
