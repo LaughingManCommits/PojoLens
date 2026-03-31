@@ -1,5 +1,7 @@
 # Recent Validations
 
+- `2026-03-31`: `mvn -q -pl pojo-lens-benchmarks -am test` passed after adding per-invocation benchmark cache reset coverage for fluent `FilterImpl` state in `ChartVisualizationJmhBenchmark` and `StatsQueryJmhBenchmark`.
+- `2026-03-31`: corrected follow-up benchmark rerun under `target/benchmarks/2026-03-31-followup-cache-reset/` passed core/chart threshold checks and reduced chart parity failures from `15` to `3`, leaving only `SCATTER` above the `1.75x` cap.
 - `2026-03-31`: forked full benchmark suite ran through the rebuilt `target/*-benchmarks.jar` runner into `target/benchmarks/2026-03-31-full/`; core/chart threshold checks passed, chart parity failed for every chart type, and the generated reports were mapped into `TODO.md`.
 - `2026-03-26`: `mvn -q test` passed after the dashboard-simplification and starter-example hardening work.
 - `2026-03-26`: `scripts/check-doc-consistency.ps1` passed after the starter example and docs refresh.

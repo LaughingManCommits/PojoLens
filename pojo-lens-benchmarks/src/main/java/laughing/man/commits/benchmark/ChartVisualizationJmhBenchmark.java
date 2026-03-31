@@ -11,6 +11,7 @@ import laughing.man.commits.filter.Filter;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
@@ -119,6 +120,15 @@ public class ChartVisualizationJmhBenchmark {
         pieData = pieFilter.chart(CategoryTotalRow.class, pieSpec);
         areaData = areaFilter.chart(PeriodSeriesTotalRow.class, areaSpec);
         scatterData = scatterFilter.chart(ScatterRow.class, scatterSpec);
+    }
+
+    @Setup(Level.Invocation)
+    public void resetFluentExecutionCaches() {
+        BenchmarkFilterCacheReset.clear(barFilter);
+        BenchmarkFilterCacheReset.clear(lineFilter);
+        BenchmarkFilterCacheReset.clear(pieFilter);
+        BenchmarkFilterCacheReset.clear(areaFilter);
+        BenchmarkFilterCacheReset.clear(scatterFilter);
     }
 
     @Benchmark

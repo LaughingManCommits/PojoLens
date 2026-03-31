@@ -29,11 +29,36 @@
   - `GroupedMetrics`: fluent is much faster and leaner than Streams (`0.044x` latency / `0.521x` allocation at `1k`; `0.005x` latency / `0.510x` allocation at `10k`).
   - `TimeBucketMetrics`: fluent is much faster and leaner than Streams (`0.018x` latency / `0.010x` allocation at both `1k` and `10k`).
 
+## Follow-Up Result (2026-03-31 cache-reset rerun)
+
+- Added a benchmark-harness fix so fluent JMH runs no longer reuse `FilterImpl` execution caches across invocations:
+  - new helper `BenchmarkFilterCacheReset`
+  - `@Setup(Level.Invocation)` resets in `ChartVisualizationJmhBenchmark` and `StatsQueryJmhBenchmark`
+- Corrected artifacts captured under `target/benchmarks/2026-03-31-followup-cache-reset/`:
+  - `core.json`, `core-threshold-report.csv`
+  - `charts/chart.json`, `charts/chart-threshold-report.csv`, `charts/chart-parity-report.csv`
+- Corrected core thresholds: pass.
+- Corrected chart thresholds: pass.
+- Corrected chart parity: fail only `3/15` rows, all `SCATTER`.
+  - `SCATTER|1000`: `2.264x`
+  - `SCATTER|10000`: `1.815x`
+  - `SCATTER|100000`: `2.057x`
+- The prior broad chart-parity blow-up was mostly benchmark-harness bias from warmed fluent caches.
+  - `BAR|100000`: `2299.236x -> 1.643x`
+  - `PIE|100000`: `2363.090x -> 1.491x`
+  - `AREA|100000`: `1170.540x -> 1.273x`
+  - `LINE|100000`: `1382.223x -> 0.233x` (`sqlLike` is faster than fluent in the corrected single-iteration run)
+- The same cache-reset correction collapsed the stats-query gap back to near parity.
+  - `GroupedMetrics`: `1.346x` at `1k`, `1.076x` at `10k`
+  - `GroupedMetricsToChart`: `1.345x` at `1k`, `1.130x` at `10k`
+  - `TimeBucketMetrics`: `1.291x` at `1k`, `1.194x` at `10k`
+  - `TimeBucketMetricsToChart`: `1.325x` at `1k`, `1.285x` at `10k`
+
 ## Problem Areas
 
-- SQL-like chart mapping parity is the clearest current hotspot.
-  - Every chart parity row failed despite generous absolute budgets.
-  - The main gap is SQL-like `BAR`, `LINE`, `PIE`, and `AREA` mapping relative to fluent mapping; `SCATTER` also fails but by smaller multiples.
+- Scatter chart parity is the remaining corrected chart hotspot.
+  - After clearing fluent execution caches per invocation, `BAR`, `LINE`, `PIE`, and `AREA` dropped back under the `1.75x` parity cap.
+  - `SCATTER` still fails at every size: `2.264x` (`1k`), `1.815x` (`10k`), `2.057x` (`100k`).
 - SQL-like window stages are allocation-heavy.
   - `parseAndFilterWindowRank|size=10000`: `1.630 ms/op`, `4,397,611.991 B/op`
   - `parseAndFilterWindowRunningTotal|size=10000`: `1.655 ms/op`, `4,594,287.429 B/op`
@@ -54,7 +79,9 @@
 
 ## Follow-Up
 
-- Investigate SQL-like chart mapping parity failures before treating chart performance as healthy.
+- Treat the broad chart-parity failure in `2026-03-31-full` as a benchmark artifact first, not a product regression.
+- Investigate corrected `SCATTER` chart parity with the cache-reset harness before doing more chart-threshold work.
+- Re-run corrected high-volume chart mapping with more than one measurement iteration before over-interpreting the `LINE|100000` inversion (`fluent 29.692 ms/op` vs `sqlLike 6.929 ms/op`).
 - Profile allocation sources in window rank/running-total execution, computed-field join materialization, and reflection/projection conversion.
 - Keep recommending lazy stream consumption for first-page or bounded-window callers.
 - Keep index hints scoped to repeated hot snapshots; avoid selling them as a cold one-shot optimization.

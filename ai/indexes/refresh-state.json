@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-31T10:47:15.165274+02:00",
+  "generatedAt": "2026-03-31T12:46:29.443409+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "31d15bf677bfdbc0866de63d2b47a1f63a29aa1c8a9e114d2888120b64ed7687",
+      "inputHash": "25492436278600392b9c88a268f7329d3a8bb61204a3db48a009653292c39012",
       "pathHashes": {
         "AGENTS.md": "d4993e447bbdbeae3bab89b6f9f228bf244d66ff8ae1e84f1de2f1e6fdc39b42",
         "ai/AGENTS.md": "44aad9e7291351c0a91908408f0164697c8528640923f95669d59e0f97567d7e",
@@ -21,9 +21,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "aa9e18adcbb27af273af49b8f4d67a270166a40c31a6307f2b65c7850cd94509",
-        "ai/state/handoff.md": "0cf0b18cca670a1d61b6cba27a0bca143842a7ffa8048c2582b9da09c928ad73",
-        "ai/state/recent-validations.md": "4bd3e8d1e1e4b3aba4b643cb8f14825d9bac43db252f6f857eba189cf9660c2a",
+        "ai/state/current-state.md": "08170edb7ae5a1ba87985b9206649209e74c2f17ba6ece2b6806df85025ef1ee",
+        "ai/state/handoff.md": "4cc12642e74aefb88fbc128b35cae5ebbd902b92af8f713b3178886500c3d886",
+        "ai/state/recent-validations.md": "47ae2bb2cea517eb354f2299cf11bf9c442f435d227f8a8aa7989b19c0e3f64b",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",
@@ -50,12 +50,12 @@
         "README.md": "d3abb8cc421537c47cfde5bec2ec952f4ad2901b65b03f91dd8345c9b02f4641",
         "RELEASE.md": "abf61ab7e14eb9d255388b4a7a52b9d0ce398f027f6e1337193060235b001436",
         "scripts/refresh-ai-memory.py": "79ebe161ae66b2a3ba6f86702e81a3fa48a5b68f25cc932f165e96bffc75ceb2",
-        "TODO.md": "cabd0fc2fe658e86f5988cd77968b4512a7d60be91d227b20445579081a09ac5"
+        "TODO.md": "2c94e11eaa38a7d9a574a22b65ad27eefbd8bb0bc8fa81a228701b78bc2a80fa"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "c637d7545935f271a3f49489b5cdc7dedcfb89dc21d028bceb23335c3970a0da",
+      "inputHash": "4f10780b56a6fbb68b42f1fa36c5b753923818b2afd1621d36d2dbd27a10970d",
       "pathHashes": {
         ".github/workflows/ci.yml": "f182571210a25fa92ab8d2f2284ac2255496d12d2a6570d1a71346a1515af194",
         ".github/workflows/release.yml": "f00571c35c1cd32e61d2d33a978507b09bac5f3702f24492eef971eff77f3d7c",
@@ -74,9 +74,9 @@
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
         "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "aa9e18adcbb27af273af49b8f4d67a270166a40c31a6307f2b65c7850cd94509",
-        "ai/state/handoff.md": "0cf0b18cca670a1d61b6cba27a0bca143842a7ffa8048c2582b9da09c928ad73",
-        "ai/state/recent-validations.md": "4bd3e8d1e1e4b3aba4b643cb8f14825d9bac43db252f6f857eba189cf9660c2a",
+        "ai/state/current-state.md": "08170edb7ae5a1ba87985b9206649209e74c2f17ba6ece2b6806df85025ef1ee",
+        "ai/state/handoff.md": "4cc12642e74aefb88fbc128b35cae5ebbd902b92af8f713b3178886500c3d886",
+        "ai/state/recent-validations.md": "47ae2bb2cea517eb354f2299cf11bf9c442f435d227f8a8aa7989b19c0e3f64b",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",
@@ -346,6 +346,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/util/StringUtilTest.java": "d9996c72dec678f9df9b77753cf872009a7f76ee4fa866897d31ad74d96003cc",
         "pojo-lens/src/test/java/laughing/man/commits/util/TimeBucketUtilTest.java": "33d4e712a7fdf969213bd10a188eab94e21ee0736c32bce42d88fcd943899a22",
         "pojo-lens-benchmarks/pom.xml": "3b06a829b85d153b3829b5b429c023f914ce99870e0177c32823ecb2c9075be9",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkFilterCacheReset.java": "c2dc627652a594f95cc0805309143b51a8a7f5ededd5b1a0d2c41e77855761aa",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkFoo.java": "e6baba3b3a301617e203abfdbdf9895a577fb1d753184db536e77e9ecebb5c36",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricCsvExporter.java": "73970f85fae351b59192252c71b04d9b69009f04f422e9397f933a7b219b42b7",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricLoader.java": "51fbdae536183323af87a86e374aa65a685a48faa3f95c63568b1a5e64f17475",
@@ -358,7 +359,7 @@
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CacheConcurrencyJmhBenchmark.java": "693a275909385fef3ee02c2e611760d402f9f8e12de908435b547d99ceeb0b10",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartParityChecker.java": "de64d2d1ca7cfd48c70af986c4c0d5a1eb1e4af495c9c619c49e6fe789307073",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartPayloadJsonExporter.java": "1a0a81574977af77b6fde81d711f1afb4839035305c75eb27329ff49a36e4fb1",
-        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java": "e77f0272af86471c9c238a354e29ce5c6df9c188160ed0ba0b9c0ac7154c02d6",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java": "722ebae36bc46059aa4f1346c5aa2aaaaeef6a1f225116a66095b4b4b6fa52a7",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java": "873152a5ce66f01c4cc771182474634ec9814bf4a0d2592dbd7daeb1e194c32e",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/IndexHintJmhBenchmark.java": "d1260845d57a87e516a44c2093dd3c40cc236c537dc15fa21b7ce82a273ccc9e",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/JmhRunner.java": "8af92e5cd919c77caca634ba403bfc8e28503c371bfad3f86a81373ec0ebb7c3",
@@ -366,7 +367,7 @@
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmark.java": "e56be070856a91b80c496c83e1a4e81ee0c131c170b0a6daf887b6b71d0e9dd5",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/PojoLensPipelineJmhBenchmark.java": "1d3972683d66157779abae8ad5b2c2bf41b0321643df0a9dc4829782de4fb993",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/SqlLikePipelineJmhBenchmark.java": "4290c423aa00066f2c51f45042607e09b8f2539889df84e0d9afd1b5e57fd48c",
-        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StatsQueryJmhBenchmark.java": "3cce97742a1627f377e2db2fe9cea31f8a3d3c9ead8c32c7f0189c65514db103",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StatsQueryJmhBenchmark.java": "0360b443732384f04e2a007e32fad6d98a642acf21dcba23619815801757e669",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamingExecutionJmhBenchmark.java": "b0e6aab4a388cb2e1e9f934fc2ee2f012f0901b5ce56bd8c066d217d2c1ad6d3",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamsBaselineJmhBenchmark.java": "f780a4e642c1bfef9a3ee1b925453694cf3fc0cd414fe75b7c932a4ef380ec54",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamsBaselineSupport.java": "aad5a19d6a8c53ff409d38767b3a3c75803616a69890faa1fe3fe1d3275629cb",
@@ -392,12 +393,12 @@
         "scripts/benchmark-ai-memory.py": "5dca8a7c3b0cd47302b593c33aa8728c5651be2a44d8dd9e8d302e60fed6ea39",
         "scripts/refresh-ai-memory.ps1": "8da382326e45d5978a64462ca9e7a332a8fcc42d440c176091418552d23e0b32",
         "scripts/refresh-ai-memory.py": "79ebe161ae66b2a3ba6f86702e81a3fa48a5b68f25cc932f165e96bffc75ceb2",
-        "TODO.md": "cabd0fc2fe658e86f5988cd77968b4512a7d60be91d227b20445579081a09ac5"
+        "TODO.md": "2c94e11eaa38a7d9a574a22b65ad27eefbd8bb0bc8fa81a228701b78bc2a80fa"
       }
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "77a980d3f3321627d97aa39715aefd569ff8541738c4d8f8b807a234aff9a295",
+      "inputHash": "c4faa51550fe10c7b17cd9988e2c21e9275c5f58c52d63101d61e791cfb79352",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java": "229c79998a85f3a7ec9326d5fff5aebf5839d0250634dc158ce0a67ae35956cd",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java": "64f2627c6d8062a39ac2bad829b73f618758158fc21c7b0846a33a3d2b01c798",
@@ -547,6 +548,7 @@
         "pojo-lens/src/main/java/laughing/man/commits/util/SchemaIndexUtil.java": "93220fe7b34166df8698389f747f399c883d5abd35f82c5fad786d3ea0620d2a",
         "pojo-lens/src/main/java/laughing/man/commits/util/StringUtil.java": "4339024e0a79dafb217d65ed3df4c5322e02d2aa5bfe0e5aaf27d0bd0fc10dc6",
         "pojo-lens/src/main/java/laughing/man/commits/util/TimeBucketUtil.java": "da533259f52298bb15cd9eff718702f84dd3d7d939ef03dee7b51a0b5c7418e8",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkFilterCacheReset.java": "c2dc627652a594f95cc0805309143b51a8a7f5ededd5b1a0d2c41e77855761aa",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkFoo.java": "e6baba3b3a301617e203abfdbdf9895a577fb1d753184db536e77e9ecebb5c36",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricCsvExporter.java": "73970f85fae351b59192252c71b04d9b69009f04f422e9397f933a7b219b42b7",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricLoader.java": "51fbdae536183323af87a86e374aa65a685a48faa3f95c63568b1a5e64f17475",
@@ -559,7 +561,7 @@
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CacheConcurrencyJmhBenchmark.java": "693a275909385fef3ee02c2e611760d402f9f8e12de908435b547d99ceeb0b10",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartParityChecker.java": "de64d2d1ca7cfd48c70af986c4c0d5a1eb1e4af495c9c619c49e6fe789307073",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartPayloadJsonExporter.java": "1a0a81574977af77b6fde81d711f1afb4839035305c75eb27329ff49a36e4fb1",
-        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java": "e77f0272af86471c9c238a354e29ce5c6df9c188160ed0ba0b9c0ac7154c02d6",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java": "722ebae36bc46059aa4f1346c5aa2aaaaeef6a1f225116a66095b4b4b6fa52a7",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/HotspotMicroJmhBenchmark.java": "873152a5ce66f01c4cc771182474634ec9814bf4a0d2592dbd7daeb1e194c32e",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/IndexHintJmhBenchmark.java": "d1260845d57a87e516a44c2093dd3c40cc236c537dc15fa21b7ce82a273ccc9e",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/JmhRunner.java": "8af92e5cd919c77caca634ba403bfc8e28503c371bfad3f86a81373ec0ebb7c3",
@@ -567,7 +569,7 @@
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmark.java": "e56be070856a91b80c496c83e1a4e81ee0c131c170b0a6daf887b6b71d0e9dd5",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/PojoLensPipelineJmhBenchmark.java": "1d3972683d66157779abae8ad5b2c2bf41b0321643df0a9dc4829782de4fb993",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/SqlLikePipelineJmhBenchmark.java": "4290c423aa00066f2c51f45042607e09b8f2539889df84e0d9afd1b5e57fd48c",
-        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StatsQueryJmhBenchmark.java": "3cce97742a1627f377e2db2fe9cea31f8a3d3c9ead8c32c7f0189c65514db103",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StatsQueryJmhBenchmark.java": "0360b443732384f04e2a007e32fad6d98a642acf21dcba23619815801757e669",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamingExecutionJmhBenchmark.java": "b0e6aab4a388cb2e1e9f934fc2ee2f012f0901b5ce56bd8c066d217d2c1ad6d3",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamsBaselineJmhBenchmark.java": "f780a4e642c1bfef9a3ee1b925453694cf3fc0cd414fe75b7c932a4ef380ec54",
         "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/StreamsBaselineSupport.java": "aad5a19d6a8c53ff409d38767b3a3c75803616a69890faa1fe3fe1d3275629cb",
