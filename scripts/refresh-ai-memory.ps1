@@ -435,8 +435,10 @@ function Build-FilesIndex([string]$generatedAt) {
         [ordered]@{ path = "MAINTENANCE.md"; kind = "memory-maintenance" },
         [ordered]@{ path = "ai/state/recent-validations.md"; kind = "ai-warm-state" },
         [ordered]@{ path = "ai/orchestrator/README.md"; kind = "ai-orchestrator-guide" },
+        [ordered]@{ path = "ai/orchestrator/SYSTEM-SPEC.md"; kind = "ai-orchestrator-guide" },
         [ordered]@{ path = "ai/orchestrator/agents.json"; kind = "ai-orchestration-config" },
         [ordered]@{ path = "ai/orchestrator/tasks/example-review.json"; kind = "ai-orchestration-task-plan" },
+        [ordered]@{ path = "ai/orchestrator/tasks/example-parallel.json"; kind = "ai-orchestration-task-plan" },
         [ordered]@{ path = "scripts/refresh-ai-memory.py"; kind = "memory-script" },
         [ordered]@{ path = "scripts/query-ai-memory.py"; kind = "memory-script" },
         [ordered]@{ path = "scripts/claude-orchestrator.py"; kind = "orchestration-script" },
@@ -662,10 +664,10 @@ function Build-ConfigIndex([string]$generatedAt) {
             }
         }
         orchestration = [ordered]@{
-            trackedControlPlane = @("ai/orchestrator/README.md", "ai/orchestrator/agents.json", "ai/orchestrator/tasks/*.json")
+            trackedControlPlane = @("ai/orchestrator/README.md", "ai/orchestrator/SYSTEM-SPEC.md", "ai/orchestrator/agents.json", "ai/orchestrator/tasks/*.json")
             defaultAgentsPath = "ai/orchestrator/agents.json"
             taskPlanGlob = "ai/orchestrator/tasks/*.json"
-            runtimeRoot = "../.claude-orchestrator/<repo-name>/"
+            runtimeRoot = ".claude-orchestrator/"
             validateCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json"
             planCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run"
             runCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run"

@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-03-31T22:02:22.088675+02:00",
+  "generatedAt": "2026-04-01T09:16:49.936180+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
       "category": "agent-guide",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 83,
-      "byteCount": 5728,
+      "lineCount": 84,
+      "byteCount": 5819,
       "coldSearchEligible": true
     },
     {
@@ -15,8 +15,8 @@
       "category": "ai-memory-guide",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 184,
-      "byteCount": 6645,
+      "lineCount": 186,
+      "byteCount": 6769,
       "coldSearchEligible": true
     },
     {
@@ -51,8 +51,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 9,
-      "byteCount": 854,
+      "lineCount": 10,
+      "byteCount": 1067,
       "coldSearchEligible": true
     },
     {
@@ -60,8 +60,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 47,
-      "byteCount": 1174,
+      "lineCount": 49,
+      "byteCount": 1239,
       "coldSearchEligible": true
     },
     {
@@ -132,8 +132,17 @@
       "category": "ai-orchestrator",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 40,
-      "byteCount": 1862,
+      "lineCount": 51,
+      "byteCount": 2642,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/SYSTEM-SPEC.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 111,
+      "byteCount": 5882,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +159,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 42,
-      "byteCount": 2416,
+      "lineCount": 44,
+      "byteCount": 2801,
       "coldSearchEligible": true
     },
     {
@@ -160,7 +169,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 45,
-      "byteCount": 3068,
+      "byteCount": 3062,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +177,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 40,
-      "byteCount": 7996,
+      "lineCount": 41,
+      "byteCount": 8775,
       "coldSearchEligible": true
     },
     {

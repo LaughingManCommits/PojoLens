@@ -59,7 +59,8 @@ Memory rules:
 
 Claude orchestration:
 - tracked orchestration specs live in `ai/orchestrator/`; the coordinator entrypoints live in `scripts/claude-orchestrator.py` and `scripts/claude-orchestrator.ps1`
-- keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under `../.claude-orchestrator/<repo-name>/`
+- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
+- keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
 - only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
 - default workers to isolated `copy` workspaces; use `worktree` only when a clean repo and git metadata are required; use `repo` only as an explicit high-risk exception
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`

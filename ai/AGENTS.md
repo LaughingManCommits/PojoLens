@@ -60,6 +60,7 @@ Examples:
 - ai/core/benchmark-context.md
 - ai/core/discovery-notes.md
 - ai/orchestrator/README.md
+- ai/orchestrator/SYSTEM-SPEC.md
 - ai/state/recent-validations.md
 - ai/state/benchmark-state.md
 - ai/indexes/*
@@ -126,7 +127,8 @@ Use `scripts/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is requi
 # Orchestration
 
 - `ai/orchestrator/` is tracked control plane, not transient worker output
-- keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under `../.claude-orchestrator/<repo-name>/`
+- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
+- keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
 - workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs
 

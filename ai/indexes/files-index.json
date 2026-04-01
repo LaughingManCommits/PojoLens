@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-03-31T22:02:22.088675+02:00",
+  "generatedAt": "2026-04-01T09:16:49.936180+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
     "mainJavaFiles": 177,
     "testJavaFiles": 105,
-    "markdownDocs": 45,
+    "markdownDocs": 46,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
-    "orchestratorTaskPlans": 1
+    "orchestratorTaskPlans": 2
   },
   "roots": [
     {
@@ -204,11 +204,19 @@
       "kind": "ai-orchestrator-guide"
     },
     {
+      "path": "ai/orchestrator/SYSTEM-SPEC.md",
+      "kind": "ai-orchestrator-guide"
+    },
+    {
       "path": "ai/orchestrator/agents.json",
       "kind": "ai-orchestration-config"
     },
     {
       "path": "ai/orchestrator/tasks/example-review.json",
+      "kind": "ai-orchestration-task-plan"
+    },
+    {
+      "path": "ai/orchestrator/tasks/example-parallel.json",
       "kind": "ai-orchestration-task-plan"
     },
     {

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "example-parallel",
+  "goal": "Demonstrate two concurrent-ready workers followed by a shared review.",
+  "sharedContext": {
+    "summary": "Use this file as a template for parallel local Claude orchestration. The first two tasks are independent and can run together; the final task reviews both outputs.",
+    "constraints": [
+      "Keep work bounded to AI memory and orchestration guidance.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "files": [
+      "AGENTS.md",
+      "ai/AGENTS.md",
+      "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
+      "scripts/claude-orchestrator.py"
+    ],
+    "validation": [
+      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json",
+      "scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "inspect-memory-contract",
+      "title": "Inspect the AI memory contract",
+      "agent": "analyst",
+      "prompt": "Read the agent workflow and AI memory guide. Summarize the hot-context rules and the two most important memory freshness requirements.",
+      "files": [
+        "AGENTS.md",
+        "ai/AGENTS.md",
+        "ai/orchestrator/SYSTEM-SPEC.md"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "inspect-runtime-contract",
+      "title": "Inspect the orchestration runtime contract",
+      "agent": "analyst",
+      "prompt": "Read the orchestrator guide and runtime script. Summarize the repo-local runtime layout, workspace modes, and the concurrency safety rules.",
+      "files": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-contracts",
+      "title": "Review the combined concurrency contract",
+      "agent": "reviewer",
+      "prompt": "Review the dependency outputs. Call out any missing concurrency, runtime-root, or portability risk and propose one concrete coordinator follow-up.",
+      "dependsOn": [
+        "inspect-memory-contract",
+        "inspect-runtime-contract"
+      ],
+      "files": [
+        "AGENTS.md",
+        "ai/AGENTS.md",
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

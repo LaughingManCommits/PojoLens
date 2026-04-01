@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
 DEFAULT_AGENTS_PATH = AI_ORCHESTRATOR_DIR / "agents.json"
 DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"
-DEFAULT_RUNTIME_ROOT = ROOT.parent / ".claude-orchestrator" / ROOT.name
+DEFAULT_RUNTIME_ROOT = ROOT / ".claude-orchestrator"
 DEFAULT_CLAUDE_BIN = "claude"
 DEFAULT_TASK_TIMEOUT_SEC = 30 * 60
 PLANNER_TASK_ID = "planner"
@@ -30,6 +30,7 @@ TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 COPY_IGNORE_NAMES = {
     ".git",
     ".claude",
+    ".claude-orchestrator",
     ".idea",
     ".mvn",
     ".vs",
@@ -599,26 +600,49 @@ def ensure_clean_for_worktrees() -> None:
         )
 
 
-def repo_copy_ignore(directory: str, names: list[str]) -> set[str]:
+def path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def repo_copy_ignore(directory: str, names: list[str], runtime_root: Path) -> set[str]:
+    current_dir = Path(directory).resolve()
+    resolved_runtime_root = runtime_root.resolve()
+    indexes_dir = (ROOT / "ai" / "indexes").resolve()
     ignored = set()
     for name in names:
+        candidate = (current_dir / name).resolve()
         if name in COPY_IGNORE_NAMES:
             ignored.add(name)
-        elif directory == str(ROOT / "ai" / "indexes") and (
+        elif current_dir == indexes_dir and (
             name.endswith(".db") or name.endswith(".sqlite") or name.endswith(".sqlite3")
         ):
+            ignored.add(name)
+        elif path_is_relative_to(resolved_runtime_root, candidate):
             ignored.add(name)
     return ignored
 
 
-def prepare_workspace(task: TaskDefinition, workspace_mode: str, workspace_path: Path) -> Path:
+def prepare_workspace(
+    task: TaskDefinition,
+    workspace_mode: str,
+    workspace_path: Path,
+    runtime_root: Path,
+) -> Path:
     if workspace_mode == "repo":
         return ROOT
     if workspace_path.exists():
         shutil.rmtree(workspace_path)
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     if workspace_mode == "copy":
-        shutil.copytree(ROOT, workspace_path, ignore=repo_copy_ignore)
+        shutil.copytree(
+            ROOT,
+            workspace_path,
+            ignore=lambda directory, names: repo_copy_ignore(directory, names, runtime_root),
+        )
         return workspace_path
     if workspace_mode == "worktree":
         ensure_clean_for_worktrees()
@@ -991,6 +1015,7 @@ def blocked_record(
 
 def execute_task(
     run_dir: Path,
+    runtime_root: Path,
     workspaces_dir: Path,
     plan: TaskPlan,
     agents: dict[str, AgentDefinition],
@@ -1008,7 +1033,7 @@ def execute_task(
     task_dir.mkdir(parents=True, exist_ok=True)
     prepared_workspace = ROOT if workspace_mode == "repo" else workspace_path
     if not dry_run:
-        prepared_workspace = prepare_workspace(task, workspace_mode, workspace_path)
+        prepared_workspace = prepare_workspace(task, workspace_mode, workspace_path, runtime_root)
     prompt = worker_prompt(
         plan,
         task,
@@ -1155,6 +1180,7 @@ def manifest_payload(
     run_id: str,
     plan_path: Path,
     agents_path: Path,
+    runtime_root: Path,
     run_dir: Path,
     workspaces_dir: Path,
     plan: TaskPlan,
@@ -1169,6 +1195,7 @@ def manifest_payload(
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
         "agentsPath": str(agents_path),
+        "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
         "plan": {
@@ -1184,6 +1211,7 @@ def write_manifest(
     run_id: str,
     plan_path: Path,
     agents_path: Path,
+    runtime_root: Path,
     run_dir: Path,
     workspaces_dir: Path,
     plan: TaskPlan,
@@ -1197,6 +1225,7 @@ def write_manifest(
             run_id,
             plan_path,
             agents_path,
+            runtime_root,
             run_dir,
             workspaces_dir,
             plan,
@@ -1278,7 +1307,17 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 pending.pop(task_id)
                 newly_blocked = True
         if newly_blocked:
-            write_manifest(run_id, plan_path, agents_path, run_dir, workspaces_dir, plan, records, dry_run=args.dry_run)
+            write_manifest(
+                run_id,
+                plan_path,
+                agents_path,
+                runtime_root,
+                run_dir,
+                workspaces_dir,
+                plan,
+                records,
+                dry_run=args.dry_run,
+            )
             continue
 
         if fail_fast_triggered:
@@ -1307,6 +1346,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 executor.submit(
                     execute_task,
                     run_dir,
+                    runtime_root,
                     workspaces_dir,
                     plan,
                     agents,
@@ -1322,11 +1362,31 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 task = future_map[future]
                 records[task.id] = future.result()
                 pending.pop(task.id, None)
-                write_manifest(run_id, plan_path, agents_path, run_dir, workspaces_dir, plan, records, dry_run=args.dry_run)
+                write_manifest(
+                    run_id,
+                    plan_path,
+                    agents_path,
+                    runtime_root,
+                    run_dir,
+                    workspaces_dir,
+                    plan,
+                    records,
+                    dry_run=args.dry_run,
+                )
                 if not args.continue_on_error and records[task.id].status not in {"completed", "planned"}:
                     fail_fast_triggered = True
 
-    write_manifest(run_id, plan_path, agents_path, run_dir, workspaces_dir, plan, records, dry_run=args.dry_run)
+    write_manifest(
+        run_id,
+        plan_path,
+        agents_path,
+        runtime_root,
+        run_dir,
+        workspaces_dir,
+        plan,
+        records,
+        dry_run=args.dry_run,
+    )
     status_counts: dict[str, int] = {}
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
@@ -1335,6 +1395,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         "plan": plan.name,
         "goal": plan.goal,
         "dryRun": args.dry_run,
+        "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
         "statusCounts": status_counts,

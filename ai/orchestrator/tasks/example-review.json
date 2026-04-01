@@ -3,7 +3,7 @@
   "name": "example-review",
   "goal": "Demonstrate a bounded orchestrated review flow.",
   "sharedContext": {
-    "summary": "Use this file as a template for local Claude orchestration. The first task inspects repository guidance; the second reviews the first task output.",
+    "summary": "Use this file as a template for a minimal sequential local Claude orchestration flow. The first task inspects repository guidance; the second reviews the first task output.",
     "constraints": [
       "Keep work bounded to repository guidance and local scripts.",
       "Do not edit TODO.md or ai/state files."
@@ -12,6 +12,7 @@
       "AGENTS.md",
       "ai/AGENTS.md",
       "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
       "scripts/claude-orchestrator.py"
     ],
     "validation": [
@@ -27,7 +28,8 @@
       "files": [
         "AGENTS.md",
         "ai/AGENTS.md",
-        "ai/orchestrator/README.md"
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md"
       ],
       "workspaceMode": "copy"
     },
@@ -42,7 +44,8 @@
       "files": [
         "AGENTS.md",
         "ai/AGENTS.md",
-        "ai/orchestrator/README.md"
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md"
       ],
       "workspaceMode": "copy"
     }

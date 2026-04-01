@@ -9,6 +9,7 @@
 
 .claude/settings.local.json
 /.claude/
+/.claude-orchestrator/
 
 pojo-lens-spring-boot-autoconfigure/target/
 pojo-lens-spring-boot-starter/target/

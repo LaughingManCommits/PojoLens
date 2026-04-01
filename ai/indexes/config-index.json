@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-31T22:00:38.818889+02:00",
+  "generatedAt": "2026-04-01T08:50:17.117455+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -135,12 +135,13 @@
   "orchestration": {
     "trackedControlPlane": [
       "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
       "ai/orchestrator/agents.json",
       "ai/orchestrator/tasks/*.json"
     ],
     "defaultAgentsPath": "ai/orchestrator/agents.json",
     "taskPlanGlob": "ai/orchestrator/tasks/*.json",
-    "runtimeRoot": "../.claude-orchestrator/<repo-name>/",
+    "runtimeRoot": ".claude-orchestrator/",
     "validateCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json",
     "planCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run",
     "runCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run",
