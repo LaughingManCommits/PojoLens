@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-31T10:30:03.037374+02:00",
+  "generatedAt": "2026-04-01T18:35:01.793198+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -132,6 +132,25 @@
       "recentEntries": 12
     }
   },
+  "orchestration": {
+    "trackedControlPlane": [
+      "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
+      "ai/orchestrator/agents.json",
+      "ai/orchestrator/tasks/*.json"
+    ],
+    "defaultAgentsPath": "ai/orchestrator/agents.json",
+    "taskPlanGlob": "ai/orchestrator/tasks/*.json",
+    "runtimeRoot": ".claude-orchestrator/",
+    "validateCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json",
+    "planCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run",
+    "runCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run",
+    "workerProtectionRules": [
+      "Workers must not edit TODO.md.",
+      "Workers must not edit ai/state/*, ai/log/*, or ai/indexes/*.",
+      "The coordinator owns review, merge decisions, memory updates, and final validation."
+    ]
+  },
   "validationScripts": [
     "scripts/check-doc-consistency.ps1",
     "scripts/check-doc-consistency.py",
@@ -144,6 +163,10 @@
     "scripts/query-ai-memory.py",
     "scripts/benchmark-ai-memory.ps1",
     "scripts/benchmark-ai-memory.py"
+  ],
+  "orchestrationScripts": [
+    "scripts/claude-orchestrator.ps1",
+    "scripts/claude-orchestrator.py"
   ],
   "releaseScripts": [
     "scripts/export-release-secrets.ps1"

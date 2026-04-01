@@ -1,13 +1,14 @@
 {
-  "generatedAt": "2026-03-31T19:41:36.777824+02:00",
+  "generatedAt": "2026-04-01T19:41:25.618427+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
     "mainJavaFiles": 177,
     "testJavaFiles": 105,
-    "markdownDocs": 44,
+    "markdownDocs": 46,
     "aiCoreFiles": 11,
-    "aiIndexFiles": 7
+    "aiIndexFiles": 7,
+    "orchestratorTaskPlans": 3
   },
   "roots": [
     {
@@ -21,6 +22,10 @@
     {
       "path": "ai/state",
       "kind": "ai-state"
+    },
+    {
+      "path": "ai/orchestrator",
+      "kind": "ai-orchestrator"
     },
     {
       "path": "ai/indexes",
@@ -195,12 +200,40 @@
       "kind": "ai-warm-state"
     },
     {
+      "path": "ai/orchestrator/README.md",
+      "kind": "ai-orchestrator-guide"
+    },
+    {
+      "path": "ai/orchestrator/SYSTEM-SPEC.md",
+      "kind": "ai-orchestrator-guide"
+    },
+    {
+      "path": "ai/orchestrator/agents.json",
+      "kind": "ai-orchestration-config"
+    },
+    {
+      "path": "ai/orchestrator/tasks/example-review.json",
+      "kind": "ai-orchestration-task-plan"
+    },
+    {
+      "path": "ai/orchestrator/tasks/example-parallel.json",
+      "kind": "ai-orchestration-task-plan"
+    },
+    {
       "path": "scripts/refresh-ai-memory.py",
       "kind": "memory-script"
     },
     {
       "path": "scripts/query-ai-memory.py",
       "kind": "memory-script"
+    },
+    {
+      "path": "scripts/claude-orchestrator.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/claude-orchestrator.ps1",
+      "kind": "orchestration-script"
     },
     {
       "path": "scripts/benchmark-ai-memory.py",

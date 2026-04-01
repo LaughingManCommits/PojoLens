@@ -35,6 +35,8 @@
 - `MAINTENANCE.md`
 - `AGENTS.md`
 - `ai/AGENTS.md`
+- `ai/orchestrator/README.md`
+- `ai/orchestrator/SYSTEM-SPEC.md`
 - `LICENSE.md`
 
 ## Notes

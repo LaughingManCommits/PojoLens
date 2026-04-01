@@ -24,6 +24,9 @@ REFRESH_CACHE_PATH = INDEX_DIR / "refresh-state.json"
 ACTIVE_LOG_PATH = AI_DIR / "log" / "events.jsonl"
 LOG_ARCHIVE_DIR = AI_DIR / "log" / "archive"
 RECENT_VALIDATIONS_PATH = AI_DIR / "state" / "recent-validations.md"
+ORCHESTRATOR_DIR = AI_DIR / "orchestrator"
+ORCHESTRATOR_AGENTS_PATH = ORCHESTRATOR_DIR / "agents.json"
+ORCHESTRATOR_TASKS_GLOB = "ai/orchestrator/tasks/*.json"
 
 HOT_CONTEXT_FILES = [
     AI_DIR / "core" / "agent-invariants.md",
@@ -306,8 +309,12 @@ def collect_hash_inputs() -> list[Path]:
             "scripts/refresh-ai-memory.ps1",
             "scripts/query-ai-memory.py",
             "scripts/query-ai-memory.ps1",
+            "scripts/claude-orchestrator.py",
+            "scripts/claude-orchestrator.ps1",
             "scripts/benchmark-ai-memory.py",
             "scripts/benchmark-ai-memory.ps1",
+            "ai/orchestrator/agents.json",
+            ORCHESTRATOR_TASKS_GLOB,
         ]
     ))
     files.update(collect_java_files(
@@ -786,12 +793,16 @@ def doc_category(relative_path: str) -> tuple[str, str, str | None]:
         return ("ai-hot-context", "high", "hot")
     if relative_path == rel_path(RECENT_VALIDATIONS_PATH):
         return ("ai-validation-history", "high", "warm")
+    if relative_path == "ai/orchestrator/README.md":
+        return ("ai-orchestrator", "high", "cold")
     if relative_path.startswith("ai/log/archive/") and relative_path.endswith("-summary.md"):
         return ("ai-archive-summary", "medium", "cold")
     if relative_path == "ai/state/benchmark-state.md":
         return ("ai-benchmark-state", "medium", "cold")
     if relative_path.startswith("ai/core/"):
         return ("ai-core", "medium", "cold")
+    if relative_path.startswith("ai/orchestrator/"):
+        return ("ai-orchestrator", "medium", "cold")
     if relative_path.startswith("ai/state/"):
         return ("ai-state", "medium", "cold")
     if relative_path == "README.md":
@@ -890,8 +901,15 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         {"path": "TODO.md", "kind": "planning"},
         {"path": "MAINTENANCE.md", "kind": "memory-maintenance"},
         {"path": "ai/state/recent-validations.md", "kind": "ai-warm-state"},
+        {"path": "ai/orchestrator/README.md", "kind": "ai-orchestrator-guide"},
+        {"path": "ai/orchestrator/SYSTEM-SPEC.md", "kind": "ai-orchestrator-guide"},
+        {"path": "ai/orchestrator/agents.json", "kind": "ai-orchestration-config"},
+        {"path": "ai/orchestrator/tasks/example-review.json", "kind": "ai-orchestration-task-plan"},
+        {"path": "ai/orchestrator/tasks/example-parallel.json", "kind": "ai-orchestration-task-plan"},
         {"path": "scripts/refresh-ai-memory.py", "kind": "memory-script"},
         {"path": "scripts/query-ai-memory.py", "kind": "memory-script"},
+        {"path": "scripts/claude-orchestrator.py", "kind": "orchestration-script"},
+        {"path": "scripts/claude-orchestrator.ps1", "kind": "orchestration-script"},
         {"path": "scripts/benchmark-ai-memory.py", "kind": "memory-script"},
         {"path": "scripts/check-doc-consistency.ps1", "kind": "validation-script"},
         {"path": "scripts/check-lint-baseline.ps1", "kind": "validation-script"},
@@ -921,11 +939,13 @@ def build_files_index(generated_at: str) -> dict[str, object]:
             "markdownDocs": len(collect_markdown_files()),
             "aiCoreFiles": sum(1 for _ in (AI_DIR / "core").glob("*.md")),
             "aiIndexFiles": sum(1 for _ in INDEX_DIR.glob("*.json")),
+            "orchestratorTaskPlans": len(list((ORCHESTRATOR_DIR / "tasks").glob("*.json"))) if (ORCHESTRATOR_DIR / "tasks").exists() else 0,
         },
         "roots": [
             {"path": ".github/workflows", "kind": "ci"},
             {"path": "ai/core", "kind": "ai-core"},
             {"path": "ai/state", "kind": "ai-state"},
+            {"path": "ai/orchestrator", "kind": "ai-orchestrator"},
             {"path": "ai/indexes", "kind": "ai-indexes"},
             {"path": "ai/log", "kind": "ai-log"},
             {"path": "ai/log/archive", "kind": "ai-log-archive"},
@@ -1116,6 +1136,25 @@ def build_config_index(generated_at: str) -> dict[str, object]:
                 "recentEntries": ACTIVE_EVENT_RETENTION,
             },
         },
+        "orchestration": {
+            "trackedControlPlane": [
+                "ai/orchestrator/README.md",
+                "ai/orchestrator/SYSTEM-SPEC.md",
+                "ai/orchestrator/agents.json",
+                ORCHESTRATOR_TASKS_GLOB,
+            ],
+            "defaultAgentsPath": rel_path(ORCHESTRATOR_AGENTS_PATH),
+            "taskPlanGlob": ORCHESTRATOR_TASKS_GLOB,
+            "runtimeRoot": ".claude-orchestrator/",
+            "validateCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json",
+            "planCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run",
+            "runCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run",
+            "workerProtectionRules": [
+                "Workers must not edit TODO.md.",
+                "Workers must not edit ai/state/*, ai/log/*, or ai/indexes/*.",
+                "The coordinator owns review, merge decisions, memory updates, and final validation.",
+            ],
+        },
         "validationScripts": [
             "scripts/check-doc-consistency.ps1",
             "scripts/check-doc-consistency.py",
@@ -1128,6 +1167,10 @@ def build_config_index(generated_at: str) -> dict[str, object]:
             "scripts/query-ai-memory.py",
             "scripts/benchmark-ai-memory.ps1",
             "scripts/benchmark-ai-memory.py",
+        ],
+        "orchestrationScripts": [
+            "scripts/claude-orchestrator.ps1",
+            "scripts/claude-orchestrator.py",
         ],
         "releaseScripts": [
             "scripts/export-release-secrets.ps1",
@@ -1277,8 +1320,12 @@ def index_input_paths(index_name: str) -> list[Path]:
                         ".github/workflows/*.yml",
                         "scripts/refresh-ai-memory.py",
                         "scripts/refresh-ai-memory.ps1",
+                        "scripts/claude-orchestrator.py",
+                        "scripts/claude-orchestrator.ps1",
                         "scripts/benchmark-ai-memory.py",
                         "scripts/benchmark-ai-memory.ps1",
+                        "ai/orchestrator/agents.json",
+                        ORCHESTRATOR_TASKS_GLOB,
                     ]
                 )
                 + collect_java_files(
@@ -1340,8 +1387,12 @@ def index_input_paths(index_name: str) -> list[Path]:
                         "scripts/refresh-ai-memory.ps1",
                         "scripts/query-ai-memory.py",
                         "scripts/query-ai-memory.ps1",
+                        "scripts/claude-orchestrator.py",
+                        "scripts/claude-orchestrator.ps1",
                         "scripts/benchmark-ai-memory.py",
                         "scripts/benchmark-ai-memory.ps1",
+                        "ai/orchestrator/agents.json",
+                        ORCHESTRATOR_TASKS_GLOB,
                     ]
                 )
             )

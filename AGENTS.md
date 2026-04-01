@@ -31,6 +31,7 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
 | module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
+| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*`                                      | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 | AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*`                                | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Routing fallback:
@@ -38,6 +39,7 @@ Routing fallback:
   `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
+  `-Kind ai-orchestrator` for orchestration workflow docs
   `-Tier hot,warm` for recency-focused state
   `-Path "ai/core/*"` or `-Path "ai/state/*"` to constrain scope
 - prefer top non-archive hits before opening archive logs
@@ -54,6 +56,15 @@ Memory rules:
 - code, tests, and build config override `/ai` if facts conflict
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/refresh-ai-memory.ps1` after structural or documentation changes
 - run `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
+
+Claude orchestration:
+- tracked orchestration specs live in `ai/orchestrator/`; the coordinator entrypoints live in `scripts/claude-orchestrator.py` and `scripts/claude-orchestrator.ps1`
+- the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
+- keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
+- only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
+- default workers to isolated `copy` workspaces; use `worktree` only when a clean repo and git metadata are required; use `repo` only as an explicit high-risk exception
+- workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
+- the coordinator owns review, merge decisions, memory updates, and final validation after worker runs
 
 Context budget and summarization:
 - hot context hard cap: `240` lines and `24 KB` total across the 4 hot files

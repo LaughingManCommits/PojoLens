@@ -12,6 +12,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $aiDir = Join-Path $repoRoot "ai"
 $indexDir = Join-Path $aiDir "indexes"
 $memoryStatePath = Join-Path $aiDir "memory-state.json"
+$orchestratorDir = Join-Path $aiDir "orchestrator"
 $schemaVersion = 5
 $hotContextMaxLines = 240
 $hotContextMaxBytes = 24KB
@@ -148,12 +149,18 @@ function Get-HashInputs() {
         "scripts/refresh-ai-memory.py",
         "scripts/refresh-ai-memory.ps1",
         "scripts/query-ai-memory.py",
-        "scripts/query-ai-memory.ps1"
+        "scripts/query-ai-memory.ps1",
+        "scripts/claude-orchestrator.py",
+        "scripts/claude-orchestrator.ps1",
+        "ai/orchestrator/agents.json"
     )) {
         $path = Join-Path $repoRoot $relative
         if (Test-Path $path) {
             $files.Add((Resolve-Path $path).Path) | Out-Null
         }
+    }
+    foreach ($path in Get-ChildItem (Join-Path $repoRoot "ai\orchestrator\tasks") -Filter *.json -File -ErrorAction SilentlyContinue) {
+        $files.Add($path.FullName) | Out-Null
     }
     foreach ($path in Get-JavaFiles @(
         "pojo-lens/src/main/java",
@@ -329,8 +336,10 @@ function Get-DocCategory([string]$relativePath) {
     if ($relativePath -eq "ai/AGENTS.md") { return @("ai-memory-guide", "high", "cold") }
     if ($hotPaths -contains $relativePath) { return @("ai-hot-context", "high", "hot") }
     if ($relativePath -eq "ai/state/recent-validations.md") { return @("ai-validation-history", "high", "warm") }
+    if ($relativePath -eq "ai/orchestrator/README.md") { return @("ai-orchestrator", "high", "cold") }
     if ($relativePath -eq "ai/state/benchmark-state.md") { return @("ai-benchmark-state", "medium", "cold") }
     if ($relativePath.StartsWith("ai/core/")) { return @("ai-core", "medium", "cold") }
+    if ($relativePath.StartsWith("ai/orchestrator/")) { return @("ai-orchestrator", "medium", "cold") }
     if ($relativePath.StartsWith("ai/state/")) { return @("ai-state", "medium", "cold") }
     if ($relativePath -eq "README.md") { return @("readme", "high", $null) }
     if ($relativePath -eq "TODO.md") { return @("planning", "high", $null) }
@@ -425,8 +434,15 @@ function Build-FilesIndex([string]$generatedAt) {
         [ordered]@{ path = "TODO.md"; kind = "planning" },
         [ordered]@{ path = "MAINTENANCE.md"; kind = "memory-maintenance" },
         [ordered]@{ path = "ai/state/recent-validations.md"; kind = "ai-warm-state" },
+        [ordered]@{ path = "ai/orchestrator/README.md"; kind = "ai-orchestrator-guide" },
+        [ordered]@{ path = "ai/orchestrator/SYSTEM-SPEC.md"; kind = "ai-orchestrator-guide" },
+        [ordered]@{ path = "ai/orchestrator/agents.json"; kind = "ai-orchestration-config" },
+        [ordered]@{ path = "ai/orchestrator/tasks/example-review.json"; kind = "ai-orchestration-task-plan" },
+        [ordered]@{ path = "ai/orchestrator/tasks/example-parallel.json"; kind = "ai-orchestration-task-plan" },
         [ordered]@{ path = "scripts/refresh-ai-memory.py"; kind = "memory-script" },
         [ordered]@{ path = "scripts/query-ai-memory.py"; kind = "memory-script" },
+        [ordered]@{ path = "scripts/claude-orchestrator.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/claude-orchestrator.ps1"; kind = "orchestration-script" },
         [ordered]@{ path = "scripts/check-doc-consistency.ps1"; kind = "validation-script" },
         [ordered]@{ path = "scripts/check-lint-baseline.ps1"; kind = "validation-script" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java"; kind = "public-entry" },
@@ -454,11 +470,13 @@ function Build-FilesIndex([string]$generatedAt) {
             markdownDocs = (Get-MarkdownFiles).Count
             aiCoreFiles = (Get-ChildItem (Join-Path $aiDir "core") -Filter *.md -File).Count
             aiIndexFiles = (Get-ChildItem $indexDir -Filter *.json -File -ErrorAction SilentlyContinue).Count
+            orchestratorTaskPlans = (Get-ChildItem (Join-Path $orchestratorDir "tasks") -Filter *.json -File -ErrorAction SilentlyContinue).Count
         }
         roots = @(
             [ordered]@{ path = ".github/workflows"; kind = "ci" },
             [ordered]@{ path = "ai/core"; kind = "ai-core" },
             [ordered]@{ path = "ai/state"; kind = "ai-state" },
+            [ordered]@{ path = "ai/orchestrator"; kind = "ai-orchestrator" },
             [ordered]@{ path = "ai/indexes"; kind = "ai-indexes" },
             [ordered]@{ path = "ai/log"; kind = "ai-log" },
             [ordered]@{ path = "ai/log/archive"; kind = "ai-log-archive" },
@@ -645,6 +663,20 @@ function Build-ConfigIndex([string]$generatedAt) {
                 recentEntries = 12
             }
         }
+        orchestration = [ordered]@{
+            trackedControlPlane = @("ai/orchestrator/README.md", "ai/orchestrator/SYSTEM-SPEC.md", "ai/orchestrator/agents.json", "ai/orchestrator/tasks/*.json")
+            defaultAgentsPath = "ai/orchestrator/agents.json"
+            taskPlanGlob = "ai/orchestrator/tasks/*.json"
+            runtimeRoot = ".claude-orchestrator/"
+            validateCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json"
+            planCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run"
+            runCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run"
+            workerProtectionRules = @(
+                "Workers must not edit TODO.md.",
+                "Workers must not edit ai/state/*, ai/log/*, or ai/indexes/*.",
+                "The coordinator owns review, merge decisions, memory updates, and final validation."
+            )
+        }
         validationScripts = @(
             "scripts/check-doc-consistency.ps1",
             "scripts/check-doc-consistency.py",
@@ -655,6 +687,10 @@ function Build-ConfigIndex([string]$generatedAt) {
         memoryScripts = @(
             "scripts/query-ai-memory.ps1",
             "scripts/query-ai-memory.py"
+        )
+        orchestrationScripts = @(
+            "scripts/claude-orchestrator.ps1",
+            "scripts/claude-orchestrator.py"
         )
         releaseScripts = @("scripts/export-release-secrets.ps1")
         benchmarkConfigs = @(
