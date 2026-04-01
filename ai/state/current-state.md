@@ -18,6 +18,7 @@
 - `2026-03-31`: the cache-reset follow-up in `target/benchmarks/2026-03-31-followup-cache-reset/` cut chart parity failures from `15` to `3`.
 - `2026-03-31`: the warmed chart rerun in `target/benchmarks/2026-03-31-followup-stability/charts-full/` passed thresholds and chart parity.
 - `2026-03-31`: plain source-backed SQL-like scatter charts now skip `QueryRow` materialization; direct and bound are near-allocation parity.
+- `2026-04-01`: warmed scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` kept direct and bound SQL-like scatter near parity and pointed the remaining gap at reflection-heavy source-row chart mapping.
 - `2026-04-01`: the local Claude orchestration runtime now defaults to repo-local `.claude-orchestrator/`, and dry-run output is Git-ignored inside the project root.
 - `2026-04-01`: copy-mode workspaces now exclude `.claude-orchestrator/`; `example-parallel.json` validates a two-task first batch under `--max-parallel 2`.
 - `2026-04-01`: `ai/orchestrator/SYSTEM-SPEC.md` is the reusable AI memory plus orchestration bootstrap contract for porting this setup to another repo.
@@ -38,7 +39,7 @@
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
-- If benchmark work resumes, use `TODO.md` plus the `2026-03-31` artifacts and focus on the shared SQL-like scatter gap.
+- If benchmark work resumes, use `target/benchmarks/2026-04-01-sqllike-profile/` plus `TODO.md` and focus on the reflection-heavy SQL-like scatter chart-mapping gap.
 - If orchestration work resumes, start with `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json` and `run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`.
 - After memory/doc edits, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
 
