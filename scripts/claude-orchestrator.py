@@ -27,6 +27,15 @@ DEFAULT_TASK_TIMEOUT_SEC = 30 * 60
 PLANNER_TASK_ID = "planner"
 WORKSPACE_MODES = {"copy", "repo", "worktree"}
 TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+CONTEXT_MODES = {"minimal", "full"}
+DEFAULT_CONTEXT_MODE = "minimal"
+MODEL_PROFILE_TO_MODEL = {
+    "simple": "claude-haiku-4-5",
+    "balanced": "claude-sonnet-4-6",
+    "complex": "claude-opus-4-6",
+}
+MODEL_TO_PROFILE = {value: key for key, value in MODEL_PROFILE_TO_MODEL.items()}
+MAX_HYDRATED_FILE_BYTES = 512 * 1024
 COPY_IGNORE_NAMES = {
     ".git",
     ".claude",
@@ -97,6 +106,21 @@ PLAN_RESULT_SCHEMA = {
                         "type": "string",
                         "enum": sorted(WORKSPACE_MODES),
                     },
+                    "model": {"type": "string"},
+                    "modelProfile": {
+                        "type": "string",
+                        "enum": sorted(MODEL_PROFILE_TO_MODEL),
+                    },
+                    "contextMode": {
+                        "type": "string",
+                        "enum": sorted(CONTEXT_MODES),
+                    },
+                    "effort": {"type": "string"},
+                    "permissionMode": {"type": "string"},
+                    "timeoutSec": {"type": "integer", "minimum": 1},
+                    "maxBudgetUsd": {"type": "number", "exclusiveMinimum": 0},
+                    "allowedTools": {"type": "array", "items": {"type": "string"}},
+                    "disallowedTools": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["id", "title", "agent", "prompt"],
                 "additionalProperties": False,
@@ -118,9 +142,11 @@ class AgentDefinition:
     description: str
     prompt: str
     model: str | None = None
+    model_profile: str | None = None
     effort: str | None = None
     permission_mode: str | None = None
     workspace_mode: str = "copy"
+    context_mode: str = DEFAULT_CONTEXT_MODE
     timeout_sec: int = DEFAULT_TASK_TIMEOUT_SEC
     max_budget_usd: float | None = None
     allowed_tools: list[str] = field(default_factory=list)
@@ -147,8 +173,10 @@ class TaskDefinition:
     validation: list[str] = field(default_factory=list)
     workspace_mode: str | None = None
     model: str | None = None
+    model_profile: str | None = None
     effort: str | None = None
     permission_mode: str | None = None
+    context_mode: str | None = None
     timeout_sec: int | None = None
     max_budget_usd: float | None = None
     allowed_tools: list[str] = field(default_factory=list)
@@ -179,6 +207,11 @@ class TaskRunRecord:
     validation_commands: list[str]
     follow_ups: list[str]
     notes: list[str]
+    model: str | None
+    model_profile: str | None
+    prompt_chars: int
+    prompt_estimated_tokens: int
+    usage: dict[str, Any] | None
     return_code: int | None
     prompt_path: str
     command_path: str
@@ -347,9 +380,9 @@ def read_json(path: Path) -> Any:
         raise OrchestratorError(f"Invalid JSON in {path}: {exc}") from exc
 
 
-def write_text(path: Path, text: str) -> None:
+def write_text(path: Path, text: str | None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text or "", encoding="utf-8")
 
 
 def write_json(path: Path, payload: object) -> None:
@@ -409,6 +442,26 @@ def ensure_workspace_mode(value: str | None, *, location: str) -> str | None:
     return value
 
 
+def ensure_context_mode(value: str | None, *, location: str) -> str | None:
+    if value is None:
+        return None
+    if value not in CONTEXT_MODES:
+        raise OrchestratorError(
+            f"{location}: invalid contextMode '{value}', expected one of {sorted(CONTEXT_MODES)}"
+        )
+    return value
+
+
+def ensure_model_profile(value: str | None, *, location: str) -> str | None:
+    if value is None:
+        return None
+    if value not in MODEL_PROFILE_TO_MODEL:
+        raise OrchestratorError(
+            f"{location}: invalid modelProfile '{value}', expected one of {sorted(MODEL_PROFILE_TO_MODEL)}"
+        )
+    return value
+
+
 def load_agents(path: Path) -> dict[str, AgentDefinition]:
     payload = read_json(path)
     if not isinstance(payload, dict):
@@ -435,9 +488,18 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             description=require_string(definition, "description", location=location),
             prompt=require_string(definition, "prompt", location=location),
             model=require_optional_string(definition, "model", location=location),
+            model_profile=ensure_model_profile(
+                require_optional_string(definition, "modelProfile", location=location),
+                location=location,
+            ),
             effort=require_optional_string(definition, "effort", location=location),
             permission_mode=require_optional_string(definition, "permissionMode", location=location),
             workspace_mode=workspace_mode or "copy",
+            context_mode=ensure_context_mode(
+                require_optional_string(definition, "contextMode", location=location) or DEFAULT_CONTEXT_MODE,
+                location=location,
+            )
+            or DEFAULT_CONTEXT_MODE,
             timeout_sec=require_optional_int(definition, "timeoutSec", location=location) or DEFAULT_TASK_TIMEOUT_SEC,
             max_budget_usd=require_optional_float(definition, "maxBudgetUsd", location=location),
             allowed_tools=require_string_list(definition, "allowedTools", location=location),
@@ -500,8 +562,16 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
                 location=location,
             ),
             model=require_optional_string(task_payload, "model", location=location),
+            model_profile=ensure_model_profile(
+                require_optional_string(task_payload, "modelProfile", location=location),
+                location=location,
+            ),
             effort=require_optional_string(task_payload, "effort", location=location),
             permission_mode=require_optional_string(task_payload, "permissionMode", location=location),
+            context_mode=ensure_context_mode(
+                require_optional_string(task_payload, "contextMode", location=location),
+                location=location,
+            ),
             timeout_sec=require_optional_int(task_payload, "timeoutSec", location=location),
             max_budget_usd=require_optional_float(task_payload, "maxBudgetUsd", location=location),
             allowed_tools=require_string_list(task_payload, "allowedTools", location=location),
@@ -626,7 +696,29 @@ def repo_copy_ignore(directory: str, names: list[str], runtime_root: Path) -> se
     return ignored
 
 
+def hydrate_copy_workspace(workspace_path: Path, file_hints: list[str]) -> None:
+    copied: set[Path] = set()
+    for hint in file_hints:
+        relative = Path(hint)
+        if relative.is_absolute():
+            continue
+        source = (ROOT / relative).resolve()
+        if not source.exists() or not path_is_relative_to(source, ROOT.resolve()):
+            continue
+        if source.is_dir():
+            continue
+        if source.stat().st_size > MAX_HYDRATED_FILE_BYTES:
+            continue
+        destination = workspace_path / relative
+        if destination.exists() or source in copied:
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        copied.add(source)
+
+
 def prepare_workspace(
+    plan: TaskPlan,
     task: TaskDefinition,
     workspace_mode: str,
     workspace_path: Path,
@@ -643,6 +735,7 @@ def prepare_workspace(
             workspace_path,
             ignore=lambda directory, names: repo_copy_ignore(directory, names, runtime_root),
         )
+        hydrate_copy_workspace(workspace_path, plan.shared_context.files + task.files)
         return workspace_path
     if workspace_mode == "worktree":
         ensure_clean_for_worktrees()
@@ -712,12 +805,54 @@ def planner_prompt(
         - Use `workspaceMode="copy"` for most tasks.
         - Use `workspaceMode="worktree"` only when a task clearly benefits from isolated git metadata.
         - Avoid `workspaceMode="repo"` unless direct in-place execution is essential.
+        - Use `contextMode="minimal"` unless a task truly needs the full shared file and validation context.
+        - Pick `modelProfile` deliberately to control cost:
+          - `simple` -> `claude-haiku-4-5` for quick summaries, classification, or narrow lookups
+          - `balanced` -> `claude-sonnet-4-6` for most coding, analysis, and implementation tasks
+          - `complex` -> `claude-opus-4-6` for architecture or deeply nuanced multi-step reasoning
         - Keep file lists repo-relative and concrete.
+        - Minimize per-task context; only include the files and validations each worker actually needs.
         - Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.
         - Put cross-task setup in `sharedContext`.
         - Use `dependsOn` only when one task genuinely needs another task's output.
         """
     )
+
+
+def dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def estimate_tokens(text: str) -> int:
+    return max(1, (len(text) + 3) // 4)
+
+
+def effective_context_mode(task: TaskDefinition, agent: AgentDefinition) -> str:
+    return task.context_mode or agent.context_mode or DEFAULT_CONTEXT_MODE
+
+
+def resolved_model_profile(task: TaskDefinition, agent: AgentDefinition) -> str | None:
+    explicit_model = task.model or agent.model
+    if explicit_model:
+        return MODEL_TO_PROFILE.get(explicit_model)
+    return task.model_profile or agent.model_profile
+
+
+def resolved_model(task: TaskDefinition, agent: AgentDefinition) -> str | None:
+    explicit_model = task.model or agent.model
+    if explicit_model:
+        return explicit_model
+    profile = resolved_model_profile(task, agent)
+    if profile:
+        return MODEL_PROFILE_TO_MODEL[profile]
+    return None
 
 
 def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) -> str:
@@ -733,17 +868,23 @@ def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) 
 def worker_prompt(
     plan: TaskPlan,
     task: TaskDefinition,
+    agent: AgentDefinition,
     workspace_mode: str,
     workspace_path: Path,
     dependency_text: str,
 ) -> str:
-    shared_files = "\n".join(f"- `{item}`" for item in plan.shared_context.files) or "- none"
-    task_files = "\n".join(f"- `{item}`" for item in task.files) or "- none"
-    shared_constraints = "\n".join(f"- {item}" for item in plan.shared_context.constraints) or "- none"
-    task_constraints = "\n".join(f"- {item}" for item in task.constraints) or "- none"
-    validation_hints = "\n".join(
-        f"- `{item}`" for item in (plan.shared_context.validation + task.validation)
-    ) or "- none"
+    task_root = ROOT if workspace_mode == "repo" else workspace_path
+    context_mode = effective_context_mode(task, agent)
+    relevant_files = dedupe_strings(task.files or plan.shared_context.files)
+    constraints = dedupe_strings(plan.shared_context.constraints + task.constraints)
+    validation_hints = (
+        dedupe_strings(task.validation)
+        if context_mode == "minimal"
+        else dedupe_strings(plan.shared_context.validation + task.validation)
+    )
+    file_lines = "\n".join(f"- `{item}`" for item in relevant_files) or "- none"
+    constraint_lines = "\n".join(f"- {item}" for item in constraints) or "- none"
+    validation_lines = "\n".join(f"- `{item}`" for item in validation_hints) or "- none"
     workspace_rule = {
         "copy": (
             "You are running in an isolated filesystem copy of the repo that includes the current working tree state. "
@@ -758,10 +899,13 @@ def worker_prompt(
     }[workspace_mode]
     return textwrap.dedent(
         f"""\
-        Repository root: {ROOT}
+        Task repo root: {task_root}
+        Source repo root: {ROOT}
         Task workspace: {workspace_path}
         Workspace mode: {workspace_mode}
+        Context mode: {context_mode}
         {workspace_rule}
+        Use the task repo root for file and shell access. In copy/worktree mode, do not access files through the source repo root.
 
         Coordinator goal:
         {plan.goal}
@@ -769,29 +913,23 @@ def worker_prompt(
         Shared context summary:
         {plan.shared_context.summary}
 
-        Shared file hints:
-        {shared_files}
-
         Task id/title:
         {task.id} / {task.title}
 
         Task objective:
         {task.prompt}
 
-        Task-specific file hints:
-        {task_files}
+        Relevant file hints:
+        {file_lines}
 
-        Shared constraints:
-        {shared_constraints}
-
-        Task-specific constraints:
-        {task_constraints}
+        Constraints:
+        {constraint_lines}
 
         Dependency outputs:
         {dependency_text}
 
         Validation hints:
-        {validation_hints}
+        {validation_lines}
 
         Worker rules:
         - Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.
@@ -885,11 +1023,87 @@ def coerce_worker_result(payload: Any) -> dict[str, Any]:
     if isinstance(payload, dict) and required.issubset(payload):
         return payload
     if isinstance(payload, dict):
-        for key in ("result", "data", "response"):
+        for key in ("result", "data", "response", "structured_output"):
             nested = payload.get(key)
             if isinstance(nested, dict) and required.issubset(nested):
                 return nested
     raise OrchestratorError("Claude JSON output did not match the expected worker schema")
+
+
+def extract_usage(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    usage = payload.get("usage")
+    model_usage = payload.get("modelUsage")
+    total_cost = payload.get("total_cost_usd")
+    if usage is None and model_usage is None and total_cost is None:
+        return None
+    summary: dict[str, Any] = {
+        "inputTokens": int(usage.get("input_tokens", 0)) if isinstance(usage, dict) else 0,
+        "outputTokens": int(usage.get("output_tokens", 0)) if isinstance(usage, dict) else 0,
+        "cacheReadInputTokens": int(usage.get("cache_read_input_tokens", 0)) if isinstance(usage, dict) else 0,
+        "cacheCreationInputTokens": int(usage.get("cache_creation_input_tokens", 0))
+        if isinstance(usage, dict)
+        else 0,
+        "serviceTier": usage.get("service_tier") if isinstance(usage, dict) else None,
+        "durationMs": payload.get("duration_ms"),
+        "durationApiMs": payload.get("duration_api_ms"),
+        "numTurns": payload.get("num_turns"),
+        "stopReason": payload.get("stop_reason"),
+        "isError": payload.get("is_error"),
+        "totalCostUsd": float(total_cost) if isinstance(total_cost, (int, float)) else None,
+        "modelUsage": model_usage if isinstance(model_usage, dict) else {},
+    }
+    return summary
+
+
+def aggregate_usage(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
+    totals: dict[str, Any] = {
+        "tasksWithUsage": 0,
+        "promptEstimatedTokens": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "totalCostUsd": 0.0,
+        "perModel": {},
+    }
+    for record in records.values():
+        totals["promptEstimatedTokens"] += record.prompt_estimated_tokens
+        if not record.usage:
+            continue
+        totals["tasksWithUsage"] += 1
+        totals["inputTokens"] += int(record.usage.get("inputTokens", 0) or 0)
+        totals["outputTokens"] += int(record.usage.get("outputTokens", 0) or 0)
+        totals["cacheReadInputTokens"] += int(record.usage.get("cacheReadInputTokens", 0) or 0)
+        totals["cacheCreationInputTokens"] += int(record.usage.get("cacheCreationInputTokens", 0) or 0)
+        totals["totalCostUsd"] += float(record.usage.get("totalCostUsd", 0.0) or 0.0)
+        model_usage = record.usage.get("modelUsage", {})
+        if not isinstance(model_usage, dict):
+            continue
+        per_model = totals["perModel"]
+        for model_name, model_record in model_usage.items():
+            if not isinstance(model_record, dict):
+                continue
+            bucket = per_model.setdefault(
+                model_name,
+                {
+                    "inputTokens": 0,
+                    "outputTokens": 0,
+                    "cacheReadInputTokens": 0,
+                    "cacheCreationInputTokens": 0,
+                    "costUsd": 0.0,
+                },
+            )
+            bucket["inputTokens"] += int(model_record.get("inputTokens", 0) or 0)
+            bucket["outputTokens"] += int(model_record.get("outputTokens", 0) or 0)
+            bucket["cacheReadInputTokens"] += int(model_record.get("cacheReadInputTokens", 0) or 0)
+            bucket["cacheCreationInputTokens"] += int(model_record.get("cacheCreationInputTokens", 0) or 0)
+            bucket["costUsd"] += float(model_record.get("costUSD", 0.0) or 0.0)
+    totals["totalCostUsd"] = round(totals["totalCostUsd"], 6)
+    for model_name, model_totals in totals["perModel"].items():
+        model_totals["costUsd"] = round(float(model_totals["costUsd"]), 6)
+    return totals
 
 
 def coerce_plan_result(payload: Any) -> dict[str, Any]:
@@ -916,6 +1130,8 @@ def run_subprocess(
             cwd=cwd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout_sec,
             check=False,
         )
@@ -941,6 +1157,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         agents,
     )
     agent = agents[args.planner_agent]
+    planner_model = agent.model or (MODEL_PROFILE_TO_MODEL[agent.model_profile] if agent.model_profile else None)
     agents_json = agent_payload_for_claude(agents)
     output_path = planner_output_path(args.name, args.out)
     command = claude_command(
@@ -949,7 +1166,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         args.planner_agent,
         prompt,
         plan_output_schema_json(),
-        model=agent.model,
+        model=planner_model,
         effort=agent.effort,
         permission_mode=agent.permission_mode,
         allowed_tools=agent.allowed_tools,
@@ -962,6 +1179,10 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         "outputPath": str(output_path),
         "command": command,
         "prompt": prompt,
+        "model": planner_model,
+        "modelProfile": agent.model_profile,
+        "promptChars": len(prompt),
+        "promptEstimatedTokens": estimate_tokens(prompt),
         "dryRun": args.dry_run,
     }
     if args.dry_run:
@@ -973,9 +1194,14 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
             f"Planner failed with exit code {completed.returncode}: "
             f"{completed.stderr.strip() or completed.stdout.strip()}"
         )
-    payload = coerce_plan_result(extract_json_payload(completed.stdout))
+    raw_payload = extract_json_payload(completed.stdout)
+    payload = coerce_plan_result(raw_payload)
     write_json(output_path, payload)
-    return {**request_payload, "status": "written"}
+    return {
+        **request_payload,
+        "status": "written",
+        "usage": extract_usage(raw_payload),
+    }
 
 
 def effective_workspace_mode(task: TaskDefinition, agent: AgentDefinition) -> str:
@@ -984,7 +1210,8 @@ def effective_workspace_mode(task: TaskDefinition, agent: AgentDefinition) -> st
 
 def blocked_record(
     task: TaskDefinition,
-    agent: str,
+    agent_name: str,
+    agent: AgentDefinition,
     workspace_mode: str,
     *,
     reason: str,
@@ -993,7 +1220,7 @@ def blocked_record(
     return TaskRunRecord(
         id=task.id,
         title=task.title,
-        agent=agent,
+        agent=agent_name,
         status="blocked",
         summary=reason,
         workspace_mode=workspace_mode,
@@ -1004,6 +1231,11 @@ def blocked_record(
         validation_commands=[],
         follow_ups=[reason],
         notes=[],
+        model=resolved_model(task, agent),
+        model_profile=resolved_model_profile(task, agent),
+        prompt_chars=0,
+        prompt_estimated_tokens=0,
+        usage=None,
         return_code=None,
         prompt_path="",
         command_path="",
@@ -1027,27 +1259,32 @@ def execute_task(
     dry_run: bool,
 ) -> TaskRunRecord:
     agent = agents[task.agent]
+    model_name = resolved_model(task, agent)
+    model_profile = resolved_model_profile(task, agent)
     workspace_mode = effective_workspace_mode(task, agent)
     workspace_path = workspaces_dir / task.id
     task_dir = run_dir / "tasks" / task.id
     task_dir.mkdir(parents=True, exist_ok=True)
     prepared_workspace = ROOT if workspace_mode == "repo" else workspace_path
     if not dry_run:
-        prepared_workspace = prepare_workspace(task, workspace_mode, workspace_path, runtime_root)
+        prepared_workspace = prepare_workspace(plan, task, workspace_mode, workspace_path, runtime_root)
     prompt = worker_prompt(
         plan,
         task,
+        agent,
         workspace_mode,
         prepared_workspace,
         dependency_summary(dependency_records, task),
     )
+    prompt_chars = len(prompt)
+    prompt_estimated_tokens = estimate_tokens(prompt)
     command = claude_command(
         claude_bin,
         agents_json,
         task.agent,
         prompt,
         task_output_schema_json(),
-        model=task.model or agent.model,
+        model=model_name,
         effort=task.effort or agent.effort,
         permission_mode=task.permission_mode or agent.permission_mode,
         allowed_tools=task.allowed_tools or agent.allowed_tools,
@@ -1076,6 +1313,11 @@ def execute_task(
             validation_commands=[],
             follow_ups=[],
             notes=[],
+            model=model_name,
+            model_profile=model_profile,
+            prompt_chars=prompt_chars,
+            prompt_estimated_tokens=prompt_estimated_tokens,
+            usage=None,
             return_code=None,
             prompt_path=str(prompt_path),
             command_path=str(command_path),
@@ -1090,6 +1332,7 @@ def execute_task(
     stderr_path = task_dir / "stderr.txt"
     worker_result_path = task_dir / "worker-result.json"
     return_code: int | None = None
+    usage: dict[str, Any] | None = None
     try:
         completed = run_subprocess(
             command,
@@ -1099,6 +1342,12 @@ def execute_task(
         return_code = completed.returncode
         write_text(stdout_path, completed.stdout)
         write_text(stderr_path, completed.stderr)
+        raw_payload: Any | None = None
+        try:
+            raw_payload = extract_json_payload(completed.stdout)
+            usage = extract_usage(raw_payload)
+        except OrchestratorError:
+            raw_payload = None
         if completed.returncode != 0:
             record = TaskRunRecord(
                 id=task.id,
@@ -1114,6 +1363,11 @@ def execute_task(
                 validation_commands=[],
                 follow_ups=["Inspect stderr/stdout artifacts for details."],
                 notes=[],
+                model=model_name,
+                model_profile=model_profile,
+                prompt_chars=prompt_chars,
+                prompt_estimated_tokens=prompt_estimated_tokens,
+                usage=usage,
                 return_code=return_code,
                 prompt_path=str(prompt_path),
                 command_path=str(command_path),
@@ -1124,7 +1378,9 @@ def execute_task(
             write_json(result_path, asdict(record))
             return record
 
-        payload = coerce_worker_result(extract_json_payload(completed.stdout))
+        if raw_payload is None:
+            raise OrchestratorError("Claude output did not contain a standalone JSON payload")
+        payload = coerce_worker_result(raw_payload)
         write_json(worker_result_path, payload)
         record = TaskRunRecord(
             id=task.id,
@@ -1140,6 +1396,11 @@ def execute_task(
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
             notes=[str(item) for item in payload["notes"]],
+            model=model_name,
+            model_profile=model_profile,
+            prompt_chars=prompt_chars,
+            prompt_estimated_tokens=prompt_estimated_tokens,
+            usage=usage,
             return_code=return_code,
             prompt_path=str(prompt_path),
             command_path=str(command_path),
@@ -1165,6 +1426,11 @@ def execute_task(
             validation_commands=[],
             follow_ups=["Retry after fixing the worker failure."],
             notes=[],
+            model=model_name,
+            model_profile=model_profile,
+            prompt_chars=prompt_chars,
+            prompt_estimated_tokens=prompt_estimated_tokens,
+            usage=usage,
             return_code=return_code,
             prompt_path=str(prompt_path),
             command_path=str(command_path),
@@ -1188,6 +1454,7 @@ def manifest_payload(
     *,
     dry_run: bool,
 ) -> dict[str, Any]:
+    usage_totals = aggregate_usage(records)
     return {
         "runId": run_id,
         "generatedAt": iso_now(),
@@ -1203,6 +1470,7 @@ def manifest_payload(
             "goal": plan.goal,
             "taskIds": [task.id for task in plan.tasks],
         },
+        "usageTotals": usage_totals,
         "tasks": {task_id: asdict(record) for task_id, record in sorted(records.items())},
     }
 
@@ -1272,6 +1540,8 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                     "validation": task.validation,
                     "workspaceMode": task.workspace_mode,
                     "model": task.model,
+                    "modelProfile": task.model_profile,
+                    "contextMode": task.context_mode,
                     "effort": task.effort,
                     "permissionMode": task.permission_mode,
                     "timeoutSec": task.timeout_sec,
@@ -1301,6 +1571,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 records[task_id] = blocked_record(
                     task,
                     task.agent,
+                    agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
                     reason="Dependency failed or was blocked.",
                 )
@@ -1325,6 +1596,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 records[task_id] = blocked_record(
                     task,
                     task.agent,
+                    agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
                     reason="Coordinator stopped scheduling new tasks after a worker failure.",
                 )
@@ -1390,6 +1662,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     status_counts: dict[str, int] = {}
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
+    usage_totals = aggregate_usage(records)
     return {
         "runId": run_id,
         "plan": plan.name,
@@ -1399,6 +1672,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
         "statusCounts": status_counts,
+        "usageTotals": usage_totals,
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
     }
 

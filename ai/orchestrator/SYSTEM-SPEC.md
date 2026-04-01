@@ -58,11 +58,23 @@ This file defines the portable contract for recreating the repository's AI memor
   - optional dependencies
   - concrete file hints
   - constraints and validation hints
+  - optional `contextMode` to keep worker prompts minimal by default
+  - optional `modelProfile` to trade off speed, cost, and depth
   - workspace mode overrides when needed
 - Supported workspace modes are:
   - `copy`: isolated filesystem copy of the current working tree; default
   - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
   - `repo`: live repo root; explicit high-risk exception only
+- Prompt context should default to `contextMode = minimal`:
+  - include the shared summary
+  - include only task-local file hints unless fuller shared context is explicitly required
+  - include task-local validation hints by default
+- Copy-mode workspace hydration should copy only explicit file hints, skip directories, and skip oversized files so workers do not inherit large generated trees by accident.
+- The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
+- Model selection should support both explicit `model` strings and profile-based routing:
+  - `simple` -> `claude-haiku-4-5`
+  - `balanced` -> `claude-sonnet-4-6`
+  - `complex` -> `claude-opus-4-6`
 
 ## Concurrency Contract
 

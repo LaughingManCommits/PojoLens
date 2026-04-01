@@ -32,11 +32,30 @@ scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" 
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
+- dry-run task records include `prompt_chars` and `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 
 Workspace modes:
 - `copy`: isolated filesystem copy of the current repo state; safe default
 - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
 - `repo`: live repo root; high-risk and opt-in only
+
+Context discipline:
+- worker prompts default to `contextMode = minimal`
+- minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
+- full shared file and validation context is opt-in via `contextMode = full`
+- copy-mode workspace hydration only pulls explicit file hints, skips directories, and skips files above `512 KB`
+
+Token and cost visibility:
+- each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
+- run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
+- per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
+
+Model selection:
+- use `modelProfile = simple` for `claude-haiku-4-5`
+- use `modelProfile = balanced` for `claude-sonnet-4-6`
+- use `modelProfile = complex` for `claude-opus-4-6`
+- `model` still works as an explicit override and wins over `modelProfile`
+- `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap doc-summary work
 
 Concurrency:
 - ready tasks run in batches up to `--max-parallel`

@@ -24,6 +24,7 @@
       "id": "inspect-guidance",
       "title": "Inspect orchestration guidance",
       "agent": "analyst",
+      "modelProfile": "simple",
       "prompt": "Read the orchestration guide and agent workflow docs. Summarize the three most important coordinator rules and note any obvious gaps in the MVP.",
       "files": [
         "AGENTS.md",
@@ -37,6 +38,7 @@
       "id": "review-guidance",
       "title": "Review the guidance summary",
       "agent": "reviewer",
+      "modelProfile": "simple",
       "prompt": "Review the dependency output. Call out any missing risk, conflict, or operational hole in the guidance and propose one concrete follow-up.",
       "dependsOn": [
         "inspect-guidance"

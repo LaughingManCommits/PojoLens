@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "name": "sql-like-scatter-followup",
+  "goal": "Reduce the remaining SQL-like scatter chart overhead after the 2026-04-01 profile isolated the gap to reflection-heavy source-row chart mapping.",
+  "sharedContext": {
+    "summary": "The 2026-04-01 warmed scatter profile kept direct and bound SQL-like scatter near parity, so bind/setup reuse is no longer the main issue. Versus fluent scatter, SQL-like scatter still measured 1.470x/1.340x/1.872x latency and 1.426x/1.566x/3.406x allocation at sizes 1000/10000/100000. The remaining gap is in the direct source-row chart path, with the hottest stack frames in ChartMapper.readField, ReflectionUtil.getFieldValue, ReflectionUtil.resolveFieldPath, and ChartMapper.MultiSeriesAccumulator.",
+    "constraints": [
+      "Keep work bounded to the SQL-like scatter follow-up and the benchmark diagnostics needed to verify it.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes.",
+      "Do not schedule parallel workers that edit the same files.",
+      "Preserve chart semantics for BAR, LINE, PIE, AREA, and SCATTER while optimizing the typed source-row path."
+    ],
+    "files": [
+      "target/benchmarks/2026-04-01-sqllike-profile/scatter-gc.json",
+      "target/benchmarks/2026-04-01-sqllike-profile/sqlLikeScatter-stack.txt",
+      "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java",
+      "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeExecutionFlowSupport.java",
+      "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikePreparedExecutionSupport.java",
+      "pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java",
+      "pojo-lens/src/main/java/laughing/man/commits/chart/ChartValidation.java",
+      "pojo-lens/src/main/java/laughing/man/commits/util/ReflectionUtil.java",
+      "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java",
+      "pojo-lens/src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+      "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperMappingTest.java",
+      "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",
+      "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java",
+      "docs/benchmarking.md"
+    ],
+    "validation": [
+      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/sql-like-scatter-followup.json",
+      "scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/sql-like-scatter-followup.json --dry-run --max-parallel 2",
+      "mvn -B -ntp -Pbenchmark-runner -DskipTests package",
+      "java -jar target/*-benchmarks.jar 'laughing.man.commits.benchmark.ChartVisualizationJmhBenchmark.(fluentScatterMapping|sqlLikeScatterMapping|sqlLikeBoundScatterMapping)$' -p size=1000,10000,100000 -f 1 -wi 3 -i 5 -w 200ms -r 200ms -prof gc -rf json -rff target/benchmarks/<run>/scatter-gc.json"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "analyze-chart-fast-path",
+      "title": "Analyze the chart fast-path shape",
+      "agent": "analyst",
+      "prompt": "Inspect the 2026-04-01 scatter profile and the current chart/runtime code paths. Recommend the smallest runtime change that removes reflection-heavy typed source-row chart reads from the direct SQL-like scatter path. Be explicit about which existing array/query-row/flat-read-plan helpers should be reused and which semantics must remain unchanged.",
+      "files": [
+        "target/benchmarks/2026-04-01-sqllike-profile/scatter-gc.json",
+        "target/benchmarks/2026-04-01-sqllike-profile/sqlLikeScatter-stack.txt",
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeExecutionFlowSupport.java",
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikePreparedExecutionSupport.java",
+        "pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java",
+        "pojo-lens/src/main/java/laughing/man/commits/chart/ChartValidation.java",
+        "pojo-lens/src/main/java/laughing/man/commits/util/ReflectionUtil.java",
+        "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java"
+      ],
+      "constraints": [
+        "Do not edit files.",
+        "Keep the recommendation scoped to the direct SQL-like chart path and reusable chart-mapper internals."
+      ],
+      "validation": [
+        "Summarize the proposed runtime change and the exact methods to touch."
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "analyze-benchmark-slice",
+      "title": "Design the benchmark isolation slice",
+      "agent": "analyst",
+      "prompt": "Inspect the scatter benchmark, the 2026-04-01 profile artifacts, and the benchmarking guide. Propose a focused JMH slice that can distinguish chart-mapper typed-source overhead from SQL-like execution/setup overhead for scatter charts. Return concrete benchmark method additions or command changes and the exact validation command to run them.",
+      "files": [
+        "target/benchmarks/2026-04-01-sqllike-profile/scatter-gc.json",
+        "target/benchmarks/2026-04-01-sqllike-profile/sqlLikeScatter-stack.txt",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java",
+        "docs/benchmarking.md"
+      ],
+      "constraints": [
+        "Do not edit files.",
+        "Keep the proposal benchmark-only; do not propose runtime edits in this task."
+      ],
+      "validation": [
+        "Summarize the proposed benchmark additions and the command needed to run them."
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "implement-chart-fast-path",
+      "title": "Implement the chart fast-path change",
+      "agent": "implementer",
+      "prompt": "Implement the smallest coherent runtime optimization that reduces reflection-heavy typed source-row chart mapping for the direct SQL-like scatter path. Prefer reusing existing flat-read-plan, array-row, or indexed-row machinery instead of adding a SQL-like-only special case. Preserve the current direct-vs-bound scatter parity contract while adding or updating focused chart and SQL-like integration tests that protect the behavior.",
+      "dependsOn": [
+        "analyze-chart-fast-path"
+      ],
+      "files": [
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeExecutionFlowSupport.java",
+        "pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java",
+        "pojo-lens/src/main/java/laughing/man/commits/chart/ChartValidation.java",
+        "pojo-lens/src/main/java/laughing/man/commits/util/ReflectionUtil.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperMappingTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java"
+      ],
+      "constraints": [
+        "Do not edit benchmark-module files in this task.",
+        "Preserve existing chart semantics and SQL-like scatter stability guarantees.",
+        "Keep direct and bound SQL-like scatter on the same optimized mapping path unless a test-proven reason requires divergence."
+      ],
+      "validation": [
+        "mvn -q -pl pojo-lens \"-Dtest=ChartMapperArrayRowsTest,ChartResultMapperMappingTest,SqlLikeChartIntegrationTest,SqlLikeTypedBindContractTest\" test"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "add-scatter-benchmark-slice",
+      "title": "Add the scatter diagnostic benchmark slice",
+      "agent": "implementer",
+      "prompt": "Add a focused benchmark slice that makes the remaining scatter overhead easier to separate into chart-mapper typed-source work versus SQL-like execution/setup work. Keep the change isolated to the benchmark/docs layer and align it with the current benchmark conventions and artifact naming.",
+      "dependsOn": [
+        "analyze-benchmark-slice"
+      ],
+      "files": [
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java",
+        "docs/benchmarking.md"
+      ],
+      "constraints": [
+        "Do not edit pojo-lens runtime files in this task.",
+        "Keep benchmark additions concrete, reproducible, and narrowly scoped to scatter diagnostics."
+      ],
+      "validation": [
+        "mvn -q -pl pojo-lens-benchmarks -am test-compile",
+        "mvn -B -ntp -Pbenchmark-runner -DskipTests package"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-scatter-followup",
+      "title": "Review the scatter follow-up package",
+      "agent": "reviewer",
+      "prompt": "Review the runtime and benchmark changes together. Prioritize regressions, semantic drift, and validation gaps. Explicitly answer whether the runtime change really targets the reflection-heavy scatter cost identified in the 2026-04-01 profile and whether the new benchmark slice is strong enough to prove it.",
+      "dependsOn": [
+        "implement-chart-fast-path",
+        "add-scatter-benchmark-slice"
+      ],
+      "files": [
+        "target/benchmarks/2026-04-01-sqllike-profile/scatter-gc.json",
+        "target/benchmarks/2026-04-01-sqllike-profile/sqlLikeScatter-stack.txt",
+        "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/ChartVisualizationJmhBenchmark.java",
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeExecutionFlowSupport.java",
+        "pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java",
+        "pojo-lens/src/main/java/laughing/man/commits/util/ReflectionUtil.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartMapperArrayRowsTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/chart/ChartResultMapperMappingTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java",
+        "docs/benchmarking.md"
+      ],
+      "constraints": [
+        "Do not edit files.",
+        "Findings first; focus on runtime risk, benchmark quality, and missing validation."
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}
