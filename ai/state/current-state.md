@@ -2,7 +2,7 @@
 
 ## Repo
 
-- Java 17 multi-module library with runtime, Spring Boot, and benchmark modules.
+- Java 17 library with runtime, Spring Boot, and benchmark modules.
 - Runtime artifact: `io.github.laughingmancommits:pojo-lens:2026.03.28.1919`.
 - Date-based releases: Maven `YYYY.MM.DD.HHmm`, Git `release-<version>`.
 
@@ -12,15 +12,16 @@
 
 ## Verified
 
-- `2026-03-31`: the chart reruns under `target/benchmarks/2026-03-31-followup-stability/` passed thresholds and parity after the cache-reset follow-up.
+- `2026-03-31`: chart reruns under `target/benchmarks/2026-03-31-followup-stability/` passed thresholds and parity.
 - `2026-03-31`: plain source-backed SQL-like scatter charts now skip `QueryRow` materialization; direct and bound are near-allocation parity.
-- `2026-04-01`: warmed scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` kept direct and bound SQL-like scatter near parity and isolated the remaining gap to reflection-heavy source-row chart mapping.
-- `2026-04-01`: the local Claude orchestration runtime now defaults to repo-local `.claude-orchestrator/`.
-- `2026-04-01`: copy-mode workspaces now exclude `.claude-orchestrator/`; `example-parallel.json` validates a parallel first batch.
-- `2026-04-01`: `ai/orchestrator/SYSTEM-SPEC.md` is the portable AI memory plus orchestration bootstrap contract.
-- `2026-04-01`: `ai/orchestrator/tasks/sql-like-scatter-followup.json` defines the five-task parallel-safe scatter follow-up DAG.
-- `2026-04-01`: orchestrator dry-runs now expose model choice plus prompt-size estimates, and worker prompts default to minimal task-local context.
-- `2026-04-01`: root `SPIKE.md` explores a controlled plain-English query surface (`PojoLensNatural`) that compiles to the existing engine.
+- `2026-04-01`: scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` kept direct and bound near parity and isolated reflection-heavy chart mapping.
+- `2026-04-01`: Claude orchestration now defaults to repo-local `.claude-orchestrator/`.
+- `2026-04-01`: copy-mode workspaces exclude `.claude-orchestrator/`; `example-parallel.json` validates a parallel batch.
+- `2026-04-01`: `ai/orchestrator/SYSTEM-SPEC.md` is the portable AI memory plus orchestration contract.
+- `2026-04-01`: `ai/orchestrator/tasks/sql-like-scatter-followup.json` defines the five-task scatter follow-up DAG.
+- `2026-04-01`: orchestrator dry-runs now expose model choice and prompt estimates; worker prompts default to minimal context.
+- `2026-04-01`: root `SPIKE.md` explores a controlled plain-English query surface beside SQL-like and fluent.
+- `2026-04-01`: root `SPIKE-CSV.md` scopes CSV support as a bounded adapter into the existing engine, not a dataframe pivot.
 
 ## Release
 
@@ -41,6 +42,6 @@
 - If benchmark work resumes, use `target/benchmarks/2026-04-01-sqllike-profile/` plus `TODO.md` and focus on the scatter chart-mapping gap.
 - For multi-agent scatter follow-up, validate and dry-run `ai/orchestrator/tasks/sql-like-scatter-followup.json` with `--max-parallel 2`.
 - For orchestration smoke tests, validate and dry-run `ai/orchestrator/tasks/example-parallel.json` with `--max-parallel 2`.
-- Use orchestration dry-runs to inspect `prompt_estimated_tokens`, `usageTotals`, and resolved `model` or `model_profile` before live worker runs.
+- Use orchestration dry-runs to inspect `prompt_estimated_tokens`, `usageTotals`, and model choice before live runs.
 - After memory/doc edits, run `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
 
