@@ -4,6 +4,9 @@ For new code, use the owning type directly.
 The old `PojoLens` facade is gone; the repo now documents only the intended stable dated-release
 entry surface.
 
+Core execution model:
+`query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
+
 ## Recommended Defaults
 
 | Scenario | Recommended entry point | Why |
