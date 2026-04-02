@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-01T20:09:27.242659+02:00",
+  "generatedAt": "2026-04-02T10:32:59.210353+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 105,
-    "testClasses": 105
+    "testJavaFiles": 108,
+    "testClasses": 108
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 94
+      "testJavaFiles": 97
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -109,6 +109,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentSqlLikeParityTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentWindowFunctionTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java",
+        "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/QueryTelemetryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/package-info.java",
@@ -134,6 +136,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiCacheCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiEcosystemCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiFluentCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiNaturalCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiSqlCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicSurfaceContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java",

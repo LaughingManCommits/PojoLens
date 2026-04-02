@@ -43,20 +43,22 @@ The families and tiers are related, but not the same thing:
   product story
 
 The default first-read story stays centered on the core engine:
-`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
-`ReportDefinition<T>`.
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`,
+`PojoLensChart`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
 ### Entry Points
 
 - `PojoLensCore.newQueryBuilder(List<?>)`
+- `PojoLensNatural.parse(String)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `PojoLensRuntime`
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
+  - `natural()`
   - `newQueryBuilder(List<?>)`
   - `parse(String)`
   - `template(String, String...)`
@@ -94,6 +96,15 @@ The default first-read story stays centered on the core engine:
   - `builder`, `fromToken`, `toToken`
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
+
+### Plain-English Contracts
+
+- `NaturalQuery`:
+  - `of`, `source`, `equivalentSqlLike`, `params`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `NaturalBoundQuery`:
+  - `filter`, `iterator`, `stream`, `chart`
 
 ### Shared Stable Types
 

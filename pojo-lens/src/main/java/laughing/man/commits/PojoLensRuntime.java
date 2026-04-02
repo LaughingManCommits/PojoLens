@@ -3,6 +3,7 @@ package laughing.man.commits;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.internal.cache.SqlLikeQueryCache;
@@ -54,6 +55,10 @@ public final class PojoLensRuntime {
         return PojoLensCore.newQueryBuilder(pojos, statsPlanCache)
                 .computedFields(computedFieldRegistry)
                 .telemetry(telemetryListener);
+    }
+
+    public NaturalRuntime natural() {
+        return new NaturalRuntime(this);
     }
 
     public SqlLikeQuery parse(String sqlLikeQuery) {

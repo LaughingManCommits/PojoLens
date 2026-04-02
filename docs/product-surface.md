@@ -8,8 +8,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
 ## Canonical Product Story
 
 - PojoLens is an in-memory POJO query engine.
-- Its first-class surface is fluent and SQL-like querying over existing Java
-  objects.
+- Its first-class surface is fluent, controlled plain-English, and SQL-like
+  querying over existing Java objects.
 - Chart/table/report helpers, runtime wiring, and tooling layer on top of that
   same engine.
 - Compatibility-only facade overlap has been removed ahead of the first public release.
@@ -35,6 +35,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Surface | Family | Positioning | Primary contracts | Current classification | Primary docs |
 | --- | --- | --- | --- | --- | --- |
 | Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
+| Plain-English querying | `Core query engine` | First-class guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md` |
 | SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |

@@ -4,7 +4,7 @@ If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
 For new code, keep one default path per job:
-`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 Source guides:
@@ -17,6 +17,7 @@ Source guides:
 | If you need... | Choose... | Why |
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
+| Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax. |
 | Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
 | Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
@@ -41,7 +42,7 @@ Source guides:
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| One shared app-level default policy | explicit entry points (`PojoLensCore` / `PojoLensSql`) | Keeps the main query path simple. |
+| One shared app-level default policy | explicit entry points (`PojoLensCore` / `PojoLensNatural` / `PojoLensSql`) | Keeps the main query path simple. |
 | Environment-, tenant-, or test-scoped policy | `PojoLensRuntime` | Instance-scoped configuration and execution. |
 | Optional diagnostics, cache tuning, telemetry, regression tooling, or build-time helpers | [docs/advanced-features.md](advanced-features.md) | Follow-on public surface after the main path is chosen. |
 

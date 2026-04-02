@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports both a fluent API and SQL-like query strings for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
 
 > Note: This project is fully AI-built and is maintained as an experiment.
 
@@ -58,6 +58,7 @@ Runnable example project:
 - Query existing domain classes directly (no ORM model rewrite).
 - Choose query style per use case:
   - fluent API for type-safe Java composition
+  - controlled plain-English queries for guided non-SQL text authoring
   - SQL-like strings for dynamic/user-authored queries
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
@@ -80,12 +81,13 @@ Runnable example project:
 ## Pick A Path
 
 For new code, prefer one default path per job:
-`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
+| Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md)                                                            |
 | Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
@@ -137,6 +139,16 @@ List<Employee> rows = PojoLensSql
     .filter(source, Employee.class);
 ```
 
+### Controlled plain-English query
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where department is :dept and salary is at least :minSalary "
+        + "sort by salary descending limit 10")
+    .params(Map.of("dept", "Engineering", "minSalary", 120000))
+    .filter(source, Employee.class);
+```
+
 ### Chart payload in one call
 
 ```java
@@ -159,6 +171,7 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ### Core query engine
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
+- Controlled plain-English querying for guided non-SQL text authoring (`show ... where ... sort by ... limit ...`)
 - First-class keyset/cursor pagination primitives with token support
 - Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
 - Optional in-memory index hints for repeated fluent equality filters
@@ -193,6 +206,7 @@ These public follow-on features are collected in
 ## API Entry Points
 
 - `PojoLensCore`: default for new service-owned fluent queries
+- `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensSql`: default for new SQL-like and template-driven queries
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist

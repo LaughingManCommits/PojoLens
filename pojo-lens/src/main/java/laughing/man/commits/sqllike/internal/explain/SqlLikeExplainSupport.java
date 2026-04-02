@@ -36,7 +36,9 @@ public final class SqlLikeExplainSupport {
     private SqlLikeExplainSupport() {
     }
 
-    public static Map<String, Object> payload(String source,
+    public static Map<String, Object> payload(String queryType,
+                                              String source,
+                                              String normalizedQuery,
                                               QueryAst ast,
                                               Map<String, List<?>> joinSources,
                                               Map<String, Object> stageRowCounts,
@@ -44,9 +46,9 @@ public final class SqlLikeExplainSupport {
                                               List<SqlLikeLintWarning> lintWarnings,
                                               ComputedFieldRegistry computedFieldRegistry) {
         LinkedHashMap<String, Object> explain = new LinkedHashMap<>();
-        explain.put("type", "sql-like");
+        explain.put("type", queryType);
         explain.put("source", source);
-        explain.put("normalizedQuery", source);
+        explain.put("normalizedQuery", normalizedQuery);
         explain.put("hasJoin", ast.hasJoins());
         explain.put("whereRuleCount", ast.filters().size());
         explain.put("havingRuleCount", ast.havingFilters().size());

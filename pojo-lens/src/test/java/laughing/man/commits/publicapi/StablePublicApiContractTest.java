@@ -1,6 +1,7 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
 
@@ -15,6 +16,8 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
+import laughing.man.commits.natural.NaturalBoundQuery;
+import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -39,10 +42,12 @@ public class StablePublicApiContractTest {
     @Test
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
         requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
+        requirePublicStaticMethod(PojoLensNatural.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
         requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
+        requirePublicMethod(PojoLensRuntime.class, "natural");
         requirePublicMethod(PojoLensRuntime.class, "sqlLikeCache");
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
@@ -115,6 +120,34 @@ public class StablePublicApiContractTest {
     }
 
     @Test
+    public void stableNaturalContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(NaturalQuery.class, "of", String.class);
+        requirePublicMethod(NaturalQuery.class, "source");
+        requirePublicMethod(NaturalQuery.class, "equivalentSqlLike");
+        requirePublicMethod(NaturalQuery.class, "params", Map.class);
+        requirePublicMethod(NaturalQuery.class, "params", SqlParams.class);
+        requirePublicMethod(NaturalQuery.class, "bindTyped", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "bindTyped", List.class, Class.class, JoinBindings.class);
+        requirePublicMethod(NaturalQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "iterator", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "stream", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "chart", List.class, Class.class, ChartSpec.class);
+        requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
+        requirePublicMethod(NaturalQuery.class, "schema", Class.class);
+        requirePublicMethod(NaturalQuery.class, "explain", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "explain", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "sort");
+
+        requirePublicMethod(NaturalBoundQuery.class, "filter");
+        requirePublicMethod(NaturalBoundQuery.class, "iterator");
+        requirePublicMethod(NaturalBoundQuery.class, "stream");
+        requirePublicMethod(NaturalBoundQuery.class, "chart", ChartSpec.class);
+    }
+
+    @Test
     public void stableFluentAndSqlLikeFlowsShouldExecute() {
         List<Employee> fluentRows = PojoLensCore.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
@@ -136,6 +169,19 @@ public class StablePublicApiContractTest {
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), directSqlRows.stream().map(row -> row.name).toList());
+
+        List<Employee> naturalRows = PojoLensNatural
+                .parse("show employees where active is true sort by salary descending limit 2")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), naturalRows.stream().map(row -> row.name).toList());
+
+        List<Employee> runtimeNaturalRows = new PojoLensRuntime()
+                .natural()
+                .parse("show employees where active is true sort by salary descending limit 2")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), runtimeNaturalRows.stream().map(row -> row.name).toList());
     }
 
     @Test

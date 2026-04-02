@@ -9,6 +9,7 @@ entry surface.
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
 | Service-owned fluent query | `PojoLensCore.newQueryBuilder(rows)` | Makes the fluent path explicit and keeps new code on the core engine surface. |
+| Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine. |
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, and computed fields instance-scoped. |
@@ -23,6 +24,8 @@ entry surface.
 
 - Use `PojoLensCore` when the query shape is owned by application code and you
   are composing it through fluent builder calls.
+- Use `PojoLensNatural` when the query should stay text-driven but the author
+  should not have to learn SQL-like clause syntax.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
@@ -50,6 +53,7 @@ Two public construction patterns remain:
 ```java
 PojoLensRuntime runtime = new PojoLensRuntime();
 PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+NaturalQuery naturalQuery = runtime.natural().parse("show employees where active is true limit 10");
 ```
 
 Use the constructor when you want neutral defaults and explicit setup.

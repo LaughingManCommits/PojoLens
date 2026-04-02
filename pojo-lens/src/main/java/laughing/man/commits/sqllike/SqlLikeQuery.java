@@ -45,6 +45,8 @@ import java.util.stream.Stream;
 public final class SqlLikeQuery {
 
     private final String source;
+    private final String normalizedQuery;
+    private final String queryType;
     private final QueryAst ast;
     private final boolean strictParameterTypes;
     private final boolean lintMode;
@@ -54,17 +56,24 @@ public final class SqlLikeQuery {
     private final FilterExecutionPlanCacheStore executionPlanCache;
     private final ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions;
 
-    private SqlLikeQuery(String source, QueryAst ast) {
-        this(source, ast, false, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
-                DefaultFilterExecutionPlanCacheSupport.defaultStore());
-    }
-
-    private SqlLikeQuery(String source, QueryAst ast, boolean strictParameterTypes) {
-        this(source, ast, strictParameterTypes, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
+    private SqlLikeQuery(String source, String normalizedQuery, String queryType, QueryAst ast) {
+        this(source, normalizedQuery, queryType, ast, false, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
                 DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
     private SqlLikeQuery(String source,
+                         String normalizedQuery,
+                         String queryType,
+                         QueryAst ast,
+                         boolean strictParameterTypes) {
+        this(source, normalizedQuery, queryType, ast, strictParameterTypes, false, Collections.emptySet(), null,
+                ComputedFieldRegistry.empty(),
+                DefaultFilterExecutionPlanCacheSupport.defaultStore());
+    }
+
+    private SqlLikeQuery(String source,
+                         String normalizedQuery,
+                         String queryType,
                          QueryAst ast,
                          boolean strictParameterTypes,
                          boolean lintMode,
@@ -73,6 +82,8 @@ public final class SqlLikeQuery {
                          ComputedFieldRegistry computedFieldRegistry,
                          FilterExecutionPlanCacheStore executionPlanCache) {
         this.source = source;
+        this.normalizedQuery = normalizedQuery;
+        this.queryType = queryType;
         this.ast = ast;
         this.strictParameterTypes = strictParameterTypes;
         this.lintMode = lintMode;
@@ -94,7 +105,30 @@ public final class SqlLikeQuery {
                     "SQL-like query must not be blank");
         }
         QueryAst ast = SqlLikeParser.parse(normalized);
-        return new SqlLikeQuery(normalized, ast);
+        return new SqlLikeQuery(normalized, normalized, "sql-like", ast);
+    }
+
+    public static SqlLikeQuery fromAst(String source,
+                                       String normalizedQuery,
+                                       String queryType,
+                                       QueryAst ast) {
+        Objects.requireNonNull(ast, "ast must not be null");
+        if (source == null) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.API_QUERY_NULL,
+                    "SQL-like query must not be null");
+        }
+        String normalizedSource = source.trim();
+        if (normalizedSource.isEmpty()) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.API_QUERY_BLANK,
+                    "SQL-like query must not be blank");
+        }
+        if (StringUtil.isNullOrBlank(normalizedQuery)) {
+            throw new IllegalArgumentException("normalizedQuery must not be null/blank");
+        }
+        if (StringUtil.isNullOrBlank(queryType)) {
+            throw new IllegalArgumentException("queryType must not be null/blank");
+        }
+        return new SqlLikeQuery(normalizedSource, normalizedQuery.trim(), queryType.trim(), ast);
     }
 
     /**
@@ -126,6 +160,8 @@ public final class SqlLikeQuery {
      */
     public SqlLikeQuery params(Map<String, ?> parameters) {
         return new SqlLikeQuery(source,
+                normalizedQuery,
+                queryType,
                 SqlLikeParameterSupport.bind(ast, parameters),
                 strictParameterTypes,
                 lintMode,
@@ -157,6 +193,8 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(cursor, "cursor must not be null");
         return new SqlLikeQuery(
                 source,
+                normalizedQuery,
+                queryType,
                 SqlLikeKeysetSupport.applyAfter(ast, cursor),
                 strictParameterTypes,
                 lintMode,
@@ -178,6 +216,8 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(cursor, "cursor must not be null");
         return new SqlLikeQuery(
                 source,
+                normalizedQuery,
+                queryType,
                 SqlLikeKeysetSupport.applyBefore(ast, cursor),
                 strictParameterTypes,
                 lintMode,
@@ -207,7 +247,7 @@ public final class SqlLikeQuery {
         if (strictParameterTypes == enabled) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, enabled, lintMode, suppressedLintCodes, telemetryListener, computedFieldRegistry,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, enabled, lintMode, suppressedLintCodes, telemetryListener, computedFieldRegistry,
                 executionPlanCache);
     }
 
@@ -239,7 +279,7 @@ public final class SqlLikeQuery {
         if (lintMode == enabled) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, strictParameterTypes, enabled, suppressedLintCodes, telemetryListener,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, enabled, suppressedLintCodes, telemetryListener,
                 computedFieldRegistry, executionPlanCache);
     }
 
@@ -256,7 +296,7 @@ public final class SqlLikeQuery {
         if (telemetryListener == listener) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, strictParameterTypes, lintMode, suppressedLintCodes, listener,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, listener,
                 computedFieldRegistry, executionPlanCache);
     }
 
@@ -271,7 +311,7 @@ public final class SqlLikeQuery {
         if (computedFieldRegistry == registry) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
                 registry, executionPlanCache);
     }
 
@@ -284,7 +324,7 @@ public final class SqlLikeQuery {
         if (this.executionPlanCache == executionPlanCache) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
                 computedFieldRegistry, executionPlanCache);
     }
 
@@ -315,7 +355,7 @@ public final class SqlLikeQuery {
         if (normalized.equals(suppressedLintCodes)) {
             return this;
         }
-        return new SqlLikeQuery(source, ast, strictParameterTypes, lintMode, normalized, telemetryListener,
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized, telemetryListener,
                 computedFieldRegistry, executionPlanCache);
     }
 
@@ -613,7 +653,17 @@ public final class SqlLikeQuery {
 
     private Map<String, Object> buildExplainPayload(Map<String, List<?>> joinSources,
                                                     Map<String, Object> stageRowCounts) {
-        return SqlLikeExplainSupport.payload(source, ast, joinSources, stageRowCounts, lintMode, lintWarnings(), computedFieldRegistry);
+        return SqlLikeExplainSupport.payload(
+                queryType,
+                source,
+                normalizedQuery,
+                ast,
+                joinSources,
+                stageRowCounts,
+                lintMode,
+                lintWarnings(),
+                computedFieldRegistry
+        );
     }
 
     private Map<String, Object> buildStageRowCounts(ExecutionContext context, QueryAst originalAst) {
@@ -648,6 +698,7 @@ public final class SqlLikeQuery {
                                                   Map<String, List<?>> joinSources,
                                                   Class<T> projectionClass) {
         return SqlLikePreparedExecutionSupport.prepareExecution(
+                queryType,
                 source,
                 executionAst,
                 strictParameterTypes,

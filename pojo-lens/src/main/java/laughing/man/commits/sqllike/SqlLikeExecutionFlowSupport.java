@@ -99,12 +99,12 @@ final class SqlLikeExecutionFlowSupport {
                                       Class<T> projectionClass,
                                       ChartSpec spec,
                                       QueryTelemetryListener telemetryListener,
-        String source) {
+                                      String source) {
         if (canMapChartFromSourceRows(context, spec)) {
             List<?> sourceRows = context.sourceRows();
             long chartStarted = QueryTelemetrySupport.start(telemetryListener);
             ChartData chart = ChartMapper.toChartData(sourceRows, spec);
-            emitChartTelemetry(chartStarted, countNonNullRows(sourceRows), chart, telemetryListener, source);
+            emitChartTelemetry(chartStarted, countNonNullRows(sourceRows), chart, telemetryListener, context.queryType(), source);
             return chart;
         }
         ExecutionRun run = context.newRun();
@@ -125,6 +125,7 @@ final class SqlLikeExecutionFlowSupport {
                         output.statsState().rows().size(),
                         chart,
                         telemetryListener,
+                        context.queryType(),
                         source
                 );
                 return chart;
@@ -137,7 +138,7 @@ final class SqlLikeExecutionFlowSupport {
                 );
                 long chartStarted = QueryTelemetrySupport.start(telemetryListener);
                 ChartData chart = ChartMapper.toChartData(projectedRows, spec);
-                emitChartTelemetry(chartStarted, projectedRows.size(), chart, telemetryListener, source);
+                emitChartTelemetry(chartStarted, projectedRows.size(), chart, telemetryListener, context.queryType(), source);
                 return chart;
             }
             case FAST_STATS_TYPED -> {
@@ -152,6 +153,7 @@ final class SqlLikeExecutionFlowSupport {
                         output.statsState().rows().size(),
                         chart,
                         telemetryListener,
+                        context.queryType(),
                         source
                 );
                 return chart;
@@ -160,7 +162,7 @@ final class SqlLikeExecutionFlowSupport {
                 List<QueryRow> rows = executeRawRows(run);
                 long chartStarted = QueryTelemetrySupport.start(telemetryListener);
                 ChartData chart = ChartResultMapper.toChartData(rows, spec);
-                emitChartTelemetry(chartStarted, rows.size(), chart, telemetryListener, source);
+                emitChartTelemetry(chartStarted, rows.size(), chart, telemetryListener, context.queryType(), source);
                 return chart;
             }
         }
@@ -170,7 +172,7 @@ final class SqlLikeExecutionFlowSupport {
     static Map<String, Object> buildStageRowCounts(ExecutionContext context, QueryAst originalAst) {
         FilterQueryBuilder working = context.newExecutionBuilder();
         StageTelemetryCollector collector = new StageTelemetryCollector();
-        working.telemetryContext("sql-like", "sql-like-explain", collector);
+        working.telemetryContext(context.queryType(), context.queryType() + "-explain", collector);
         materializeSourceRows(working);
         List<QueryRow> unpagedRows = SqlLikeExecutionSupport.executeWithOptionalJoin(
                 working,
@@ -365,11 +367,12 @@ final class SqlLikeExecutionFlowSupport {
                                            int rowCount,
                                            ChartData chart,
                                            QueryTelemetryListener telemetryListener,
+                                           String queryType,
                                            String source) {
         QueryTelemetrySupport.emit(
                 telemetryListener,
                 QueryTelemetryStage.CHART,
-                "sql-like",
+                queryType,
                 source,
                 chartStarted,
                 rowCount,

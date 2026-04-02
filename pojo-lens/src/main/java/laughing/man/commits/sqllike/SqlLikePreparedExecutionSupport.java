@@ -39,7 +39,8 @@ final class SqlLikePreparedExecutionSupport {
     private SqlLikePreparedExecutionSupport() {
     }
 
-    static <T> ExecutionContext prepareExecution(String source,
+    static <T> ExecutionContext prepareExecution(String queryType,
+                                                 String source,
                                                  QueryAst ast,
                                                  boolean strictParameterTypes,
                                                  ComputedFieldRegistry computedFieldRegistry,
@@ -85,7 +86,7 @@ final class SqlLikePreparedExecutionSupport {
         QueryTelemetrySupport.emit(
                 telemetryListener,
                 QueryTelemetryStage.BIND,
-                "sql-like",
+                queryType,
                 source,
                 bindStarted,
                 pojos.size(),
@@ -96,7 +97,7 @@ final class SqlLikePreparedExecutionSupport {
                         "applyJoin", prepared.applyJoin()
                 )
         );
-        return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, source);
+        return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source);
     }
 
     private static <T> PreparedExecution buildPreparedExecution(QueryAst ast,
@@ -205,6 +206,7 @@ final class SqlLikePreparedExecutionSupport {
         private final List<?> pojos;
         private final Map<String, List<?>> joinSources;
         private final QueryTelemetryListener telemetryListener;
+        private final String queryType;
         private final String source;
         private final FilterQueryBuilder reusableBuilderTemplate;
 
@@ -212,20 +214,23 @@ final class SqlLikePreparedExecutionSupport {
                          List<?> pojos,
                          Map<String, List<?>> joinSources,
                          QueryTelemetryListener telemetryListener,
+                         String queryType,
                          String source) {
-            this(prepared, pojos, joinSources, telemetryListener, source, null);
+            this(prepared, pojos, joinSources, telemetryListener, queryType, source, null);
         }
 
         private ExecutionContext(PreparedExecution prepared,
                                  List<?> pojos,
                                  Map<String, List<?>> joinSources,
                                  QueryTelemetryListener telemetryListener,
+                                 String queryType,
                                  String source,
                                  FilterQueryBuilder reusableBuilderTemplate) {
             this.prepared = prepared;
             this.pojos = pojos;
             this.joinSources = joinSources;
             this.telemetryListener = telemetryListener;
+            this.queryType = queryType;
             this.source = source;
             this.reusableBuilderTemplate = reusableBuilderTemplate;
         }
@@ -234,17 +239,17 @@ final class SqlLikePreparedExecutionSupport {
             if (reusableBuilderTemplate != null) {
                 return reusableBuilderTemplate.snapshotForExecution();
             }
-            return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
+            return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
         }
 
         ExecutionContext reusableBoundContext() {
             if (prepared.applyJoin() || reusableBuilderTemplate != null) {
                 return this;
             }
-            FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
+            FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
             List<QueryRow> rows = builder.getRows();
             builder.setMaterializedRows(rows, builder.getSourceFieldTypesForExecution());
-            return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, source, builder);
+            return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source, builder);
         }
 
         Sort sort() {
@@ -261,6 +266,10 @@ final class SqlLikePreparedExecutionSupport {
 
         QueryAst ast() {
             return prepared.ast();
+        }
+
+        String queryType() {
+            return queryType;
         }
 
         List<?> sourceRows() {
@@ -355,13 +364,14 @@ final class SqlLikePreparedExecutionSupport {
         private FilterQueryBuilder newExecutionBuilder(List<?> pojos,
                                                        Map<String, List<?>> joinSources,
                                                        QueryTelemetryListener telemetryListener,
+                                                       String queryType,
                                                        String source) {
             FilterQueryBuilder builder = templateBuilder.preparedExecutionView(
                     pojos,
                     joinSourcesByIndex(joinSources)
             );
             builder.telemetry(telemetryListener);
-            builder.telemetryContext("sql-like", source, telemetryListener);
+            builder.telemetryContext(queryType, source, telemetryListener);
             return builder;
         }
 

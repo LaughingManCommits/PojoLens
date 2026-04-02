@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-04-01T20:09:27.242659+02:00",
+  "generatedAt": "2026-04-02T10:54:46.613521+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
-    "mainJavaFiles": 177,
-    "testJavaFiles": 105,
+    "mainJavaFiles": 183,
+    "testJavaFiles": 108,
     "markdownDocs": 46,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
@@ -81,8 +81,8 @@
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 140,
-      "testJavaFiles": 94,
+      "mainJavaFiles": 146,
+      "testJavaFiles": 97,
       "resourceFiles": 0
     },
     {

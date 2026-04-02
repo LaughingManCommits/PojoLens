@@ -93,11 +93,40 @@ public class QueryTelemetryTest {
         assertEquals(130000, rows.get(0).pay);
     }
 
+    @Test
+    public void runtimeNaturalExecutionShouldEmitNaturalTelemetryStages() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+        runtime.setTelemetryListener(events::add);
+
+        List<EmployeeSummaryRow> rows = runtime.natural()
+                .parse("show name as employee name, salary as annual salary where active is true sort by salary desc limit 2")
+                .filter(sampleEmployees(), EmployeeSummaryRow.class);
+
+        assertEquals(List.of(
+                        QueryTelemetryStage.PARSE,
+                        QueryTelemetryStage.BIND,
+                        QueryTelemetryStage.FILTER,
+                        QueryTelemetryStage.ORDER
+                ),
+                events.stream().map(QueryTelemetryEvent::stage).toList());
+        assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.employeeName).toList());
+    }
+
     public static class SalaryAliasRow {
         public String name;
         public int pay;
 
         public SalaryAliasRow() {
+        }
+    }
+
+    public static class EmployeeSummaryRow {
+        public String employeeName;
+        public int annualSalary;
+
+        public EmployeeSummaryRow() {
         }
     }
 }
