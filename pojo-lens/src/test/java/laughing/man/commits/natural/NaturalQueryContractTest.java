@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NaturalQueryContractTest {
@@ -67,5 +68,73 @@ public class NaturalQueryContractTest {
 
         assertEquals(2, chart.getLabels().size());
         assertTrue(query.isStrictParameterTypesEnabled() == runtime.isStrictParameterTypes());
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveAliasesForExecutionAndExplain() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay", "pay")
+                .field("department", "team")
+                .build());
+
+        NaturalQuery query = runtime.natural()
+                .parse("show name, annual pay where team is Engineering sort by annual pay descending limit 2");
+
+        List<Employee> rows = query.filter(sampleEmployees(), Employee.class);
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+        assertEquals(List.of(130000, 120000), rows.stream().map(row -> row.salary).toList());
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), Employee.class);
+        assertEquals(
+                Map.of("annual pay", "salary", "team", "department"),
+                explain.get("resolvedNaturalFields")
+        );
+        assertEquals(
+                "select name, salary where department = 'Engineering' order by salary desc limit 2",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
+    @Test
+    public void exactFieldMatchShouldWinOverVocabularyAlias() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("department", "salary")
+                .build());
+
+        List<Employee> rows = runtime.natural()
+                .parse("show employees where salary is at least 120000 sort by salary descending")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void ambiguousVocabularyAliasShouldFailDeterministically() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "pay")
+                .field("department", "pay")
+                .build());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> runtime.natural()
+                        .parse("show pay")
+                        .filter(sampleEmployees(), Employee.class)
+        );
+
+        assertTrue(error.getMessage().contains("Ambiguous natural field term 'pay'"));
+    }
+
+    @Test
+    public void unknownNaturalFieldTermShouldFailDeterministically() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensNatural.parse("show bonus").filter(sampleEmployees(), Employee.class)
+        );
+
+        assertTrue(error.getMessage().contains("Unknown natural field term 'bonus'"));
     }
 }

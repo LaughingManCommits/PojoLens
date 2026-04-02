@@ -18,6 +18,7 @@ import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
+import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -50,6 +51,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(PojoLensRuntime.class, "natural");
         requirePublicMethod(PojoLensRuntime.class, "sqlLikeCache");
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
+        requirePublicMethod(PojoLensRuntime.class, "setNaturalVocabulary", NaturalVocabulary.class);
+        requirePublicMethod(PojoLensRuntime.class, "getNaturalVocabulary");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
     }
@@ -145,6 +148,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalBoundQuery.class, "iterator");
         requirePublicMethod(NaturalBoundQuery.class, "stream");
         requirePublicMethod(NaturalBoundQuery.class, "chart", ChartSpec.class);
+
+        requirePublicStaticMethod(NaturalVocabulary.class, "empty");
+        requirePublicStaticMethod(NaturalVocabulary.class, "builder");
     }
 
     @Test

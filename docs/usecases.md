@@ -19,7 +19,7 @@ Source guides:
 | Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
 | Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax. |
 | Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
-| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, and computed fields scoped to a runtime instance. |
+| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, computed fields, and natural-query vocabulary scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 
 ## 2. Pick Reusable Wrapper
@@ -331,7 +331,7 @@ Outcome:
 
 - Use `PojoLensCore` for service-owned fluent queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
-- Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, or computed fields should be instance-scoped.
+- Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, computed fields, or natural-query vocabulary should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.
 - Use `SqlLikeCursor`, `ReportDefinition`, `DatasetBundle`, and `SnapshotComparison` directly for those helper workflows.
 - Use `JoinBindings` for one-off multi-source execution.

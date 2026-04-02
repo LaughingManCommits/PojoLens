@@ -11,6 +11,7 @@ import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
+import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -113,6 +114,9 @@ final class NaturalQueryRenderer {
     private static String renderValue(Object value) {
         if (value instanceof ParameterValueAst parameterValueAst) {
             return ":" + parameterValueAst.name();
+        }
+        if (value instanceof BoundParameterValue boundParameterValue) {
+            return ":" + boundParameterValue.name();
         }
         if (value == null) {
             return "null";

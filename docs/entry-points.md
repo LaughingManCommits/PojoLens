@@ -12,7 +12,7 @@ entry surface.
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine. |
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
-| Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, and computed fields instance-scoped. |
+| Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
 | Reusable business query contract | `ReportDefinition.sql(...)` or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
 | One-off named secondary sources | `JoinBindings.of(...)` or `JoinBindings.builder()` | Makes multi-source SQL-like execution explicit and typed. |
@@ -46,6 +46,7 @@ environment, tenant, request path, or test harness:
 - strict parameter typing
 - telemetry listener registration
 - computed field registry
+- natural vocabulary for plain-English field aliases
 - SQL-like parse cache and fluent execution-plan cache behavior
 
 Two public construction patterns remain:
@@ -53,6 +54,10 @@ Two public construction patterns remain:
 ```java
 PojoLensRuntime runtime = new PojoLensRuntime();
 PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+    .field("salary", "annual pay", "pay")
+    .field("department", "team")
+    .build());
 NaturalQuery naturalQuery = runtime.natural().parse("show employees where active is true limit 10");
 ```
 

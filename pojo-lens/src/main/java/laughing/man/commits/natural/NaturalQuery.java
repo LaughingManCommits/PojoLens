@@ -6,19 +6,27 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
 import laughing.man.commits.natural.parser.NaturalQueryParser;
+import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlParams;
+import laughing.man.commits.sqllike.ast.QueryAst;
+import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
+import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
+import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.Iterator;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Collections;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -26,25 +34,29 @@ import java.util.stream.Stream;
  */
 public final class NaturalQuery {
 
-    private final SqlLikeQuery delegate;
+    private final String source;
     private final String equivalentSqlLike;
+    private final QueryState state;
 
-    private NaturalQuery(SqlLikeQuery delegate, String equivalentSqlLike) {
-        this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
+    private NaturalQuery(String source, String equivalentSqlLike, QueryState state) {
+        this.source = Objects.requireNonNull(source, "source must not be null");
         this.equivalentSqlLike = Objects.requireNonNull(equivalentSqlLike, "equivalentSqlLike must not be null");
+        this.state = Objects.requireNonNull(state, "state must not be null");
     }
 
     public static NaturalQuery of(String source) {
-        var ast = NaturalQueryParser.parse(source);
-        String equivalentSqlLike = NaturalQueryRenderer.toSqlLike(ast);
+        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(source);
+        String normalizedSource = source == null ? null : source.trim();
+        String equivalentSqlLike = NaturalQueryRenderer.toSqlLike(parseResult.ast());
         return new NaturalQuery(
-                SqlLikeQuery.fromAst(source, equivalentSqlLike, "natural", ast),
-                equivalentSqlLike
+                normalizedSource,
+                equivalentSqlLike,
+                QueryState.of(parseResult)
         );
     }
 
     public String source() {
-        return delegate.source();
+        return source;
     }
 
     public String equivalentSqlLike() {
@@ -52,11 +64,12 @@ public final class NaturalQuery {
     }
 
     public NaturalQuery params(Map<String, ?> parameters) {
-        return new NaturalQuery(delegate.params(parameters), equivalentSqlLike);
+        return withState(state.withAst(SqlLikeParameterSupport.bind(state.ast(), parameters)));
     }
 
     public NaturalQuery params(SqlParams parameters) {
-        return new NaturalQuery(delegate.params(parameters), equivalentSqlLike);
+        Objects.requireNonNull(parameters, "parameters must not be null");
+        return params(parameters.asMap());
     }
 
     public NaturalQuery strictParameterTypes() {
@@ -64,12 +77,11 @@ public final class NaturalQuery {
     }
 
     public NaturalQuery strictParameterTypes(boolean enabled) {
-        SqlLikeQuery updated = delegate.strictParameterTypes(enabled);
-        return updated == delegate ? this : new NaturalQuery(updated, equivalentSqlLike);
+        return state.strictParameterTypes() == enabled ? this : withState(state.withStrictParameterTypes(enabled));
     }
 
     public boolean isStrictParameterTypesEnabled() {
-        return delegate.isStrictParameterTypesEnabled();
+        return state.strictParameterTypes();
     }
 
     public NaturalQuery lintMode() {
@@ -77,35 +89,40 @@ public final class NaturalQuery {
     }
 
     public NaturalQuery lintMode(boolean enabled) {
-        SqlLikeQuery updated = delegate.lintMode(enabled);
-        return updated == delegate ? this : new NaturalQuery(updated, equivalentSqlLike);
+        return state.lintMode() == enabled ? this : withState(state.withLintMode(enabled));
     }
 
     public boolean isLintModeEnabled() {
-        return delegate.isLintModeEnabled();
+        return state.lintMode();
     }
 
     public NaturalQuery telemetry(QueryTelemetryListener listener) {
-        SqlLikeQuery updated = delegate.telemetry(listener);
-        return updated == delegate ? this : new NaturalQuery(updated, equivalentSqlLike);
+        return state.telemetryListener() == listener ? this : withState(state.withTelemetryListener(listener));
     }
 
     public QueryTelemetryListener telemetryListener() {
-        return delegate.telemetryListener();
+        return state.telemetryListener();
     }
 
     public NaturalQuery computedFields(ComputedFieldRegistry registry) {
-        SqlLikeQuery updated = delegate.computedFields(registry);
-        return updated == delegate ? this : new NaturalQuery(updated, equivalentSqlLike);
+        if (registry == null) {
+            throw new IllegalArgumentException("registry must not be null");
+        }
+        return state.computedFieldRegistry() == registry ? this : withState(state.withComputedFieldRegistry(registry));
     }
 
     public ComputedFieldRegistry computedFieldRegistry() {
-        return delegate.computedFieldRegistry();
+        return state.computedFieldRegistry();
     }
 
     public NaturalQuery executionPlanCache(FilterExecutionPlanCacheStore executionPlanCache) {
-        SqlLikeQuery updated = delegate.executionPlanCache(executionPlanCache);
-        return updated == delegate ? this : new NaturalQuery(updated, equivalentSqlLike);
+        Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
+        return state.executionPlanCache() == executionPlanCache ? this : withState(state.withExecutionPlanCache(executionPlanCache));
+    }
+
+    NaturalQuery vocabulary(NaturalVocabulary vocabulary) {
+        Objects.requireNonNull(vocabulary, "vocabulary must not be null");
+        return state.vocabulary() == vocabulary ? this : withState(state.withVocabulary(vocabulary));
     }
 
     public <T> NaturalBoundQuery<T> bindTyped(List<?> pojos, Class<T> projectionClass) {
@@ -120,90 +137,285 @@ public final class NaturalQuery {
     public <T> NaturalBoundQuery<T> bindTyped(List<?> pojos,
                                               Class<T> projectionClass,
                                               JoinBindings joinBindings) {
-        return new DefaultNaturalBoundQuery<>(delegate.bindTyped(pojos, projectionClass, joinBindings));
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return new DefaultNaturalBoundQuery<>(
+                resolvedDelegate(pojos, projectionClass).bindTyped(pojos, projectionClass, joinBindings)
+        );
     }
 
     public <T> List<T> filter(List<?> pojos, Class<T> projectionClass) {
-        return delegate.filter(pojos, projectionClass);
+        return resolvedDelegate(pojos, projectionClass).filter(pojos, projectionClass);
     }
 
     public <T> List<T> filter(DatasetBundle datasetBundle, Class<T> projectionClass) {
-        return delegate.filter(datasetBundle, projectionClass);
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).filter(datasetBundle, projectionClass);
     }
 
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
-        return delegate.filter(pojos, joinBindings, projectionClass);
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return resolvedDelegate(pojos, projectionClass).filter(pojos, joinBindings, projectionClass);
     }
 
     public <T> Iterator<T> iterator(List<?> pojos, Class<T> projectionClass) {
-        return delegate.iterator(pojos, projectionClass);
+        return resolvedDelegate(pojos, projectionClass).iterator(pojos, projectionClass);
     }
 
     public <T> Iterator<T> iterator(DatasetBundle datasetBundle, Class<T> projectionClass) {
-        return delegate.iterator(datasetBundle, projectionClass);
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).iterator(datasetBundle, projectionClass);
     }
 
     public <T> Iterator<T> iterator(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
-        return delegate.iterator(pojos, joinBindings, projectionClass);
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return resolvedDelegate(pojos, projectionClass).iterator(pojos, joinBindings, projectionClass);
     }
 
     public <T> Stream<T> stream(List<?> pojos, Class<T> projectionClass) {
-        return delegate.stream(pojos, projectionClass);
+        return resolvedDelegate(pojos, projectionClass).stream(pojos, projectionClass);
     }
 
     public <T> Stream<T> stream(DatasetBundle datasetBundle, Class<T> projectionClass) {
-        return delegate.stream(datasetBundle, projectionClass);
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).stream(datasetBundle, projectionClass);
     }
 
     public <T> Stream<T> stream(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
-        return delegate.stream(pojos, joinBindings, projectionClass);
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return resolvedDelegate(pojos, projectionClass).stream(pojos, joinBindings, projectionClass);
     }
 
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
-        return delegate.chart(pojos, projectionClass, spec);
+        return resolvedDelegate(pojos, projectionClass).chart(pojos, projectionClass, spec);
     }
 
     public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass, ChartSpec spec) {
-        return delegate.chart(datasetBundle, projectionClass, spec);
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).chart(datasetBundle, projectionClass, spec);
     }
 
     public <T> ChartData chart(List<?> pojos,
                                JoinBindings joinBindings,
                                Class<T> projectionClass,
                                ChartSpec spec) {
-        return delegate.chart(pojos, joinBindings, projectionClass, spec);
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return resolvedDelegate(pojos, projectionClass).chart(pojos, joinBindings, projectionClass, spec);
     }
 
     public Sort sort() {
-        return delegate.sort();
+        return createDelegate(state.ast()).sort();
     }
 
     public TabularSchema schema(Class<?> projectionClass) {
-        return delegate.schema(projectionClass);
+        return createDelegate(state.ast()).schema(projectionClass);
     }
 
     public Map<String, Object> explain() {
-        return addEquivalentSqlLike(delegate.explain());
+        return addExplainMetadata(createDelegate(state.ast()).explain(), null);
     }
 
     public <T> Map<String, Object> explain(List<?> pojos, Class<T> projectionClass) {
-        return addEquivalentSqlLike(delegate.explain(pojos, projectionClass));
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+        return addExplainMetadata(
+                createDelegate(resolved.ast()).explain(pojos, projectionClass),
+                resolved
+        );
     }
 
     public <T> Map<String, Object> explain(DatasetBundle datasetBundle, Class<T> projectionClass) {
-        return addEquivalentSqlLike(delegate.explain(datasetBundle, projectionClass));
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(datasetBundle.primaryRows(), projectionClass);
+        return addExplainMetadata(
+                createDelegate(resolved.ast()).explain(datasetBundle, projectionClass),
+                resolved
+        );
     }
 
     public <T> Map<String, Object> explain(List<?> pojos,
                                            JoinBindings joinBindings,
                                            Class<T> projectionClass) {
-        return addEquivalentSqlLike(delegate.explain(pojos, joinBindings, projectionClass));
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+        return addExplainMetadata(
+                createDelegate(resolved.ast()).explain(pojos, joinBindings, projectionClass),
+                resolved
+        );
     }
 
-    private Map<String, Object> addEquivalentSqlLike(Map<String, Object> explain) {
+    private NaturalQuery withState(QueryState updatedState) {
+        return updatedState == state ? this : new NaturalQuery(source, equivalentSqlLike, updatedState);
+    }
+
+    private SqlLikeQuery resolvedDelegate(List<?> pojos, Class<?> projectionClass) {
+        return createDelegate(resolve(pojos, projectionClass).ast());
+    }
+
+    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolve(List<?> pojos, Class<?> projectionClass) {
+        Class<?> sourceClass = SqlLikeExecutionSupport.inferSourceClass(pojos, projectionClass);
+        Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
+        allowedFields.addAll(state.computedFieldRegistry().names());
+        return NaturalQueryResolutionSupport.resolve(
+                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases()),
+                allowedFields,
+                state.vocabulary()
+        );
+    }
+
+    private SqlLikeQuery createDelegate(QueryAst ast) {
+        return SqlLikeQuery.fromAst(source, equivalentSqlLike, "natural", ast)
+                .strictParameterTypes(state.strictParameterTypes())
+                .lintMode(state.lintMode())
+                .computedFields(state.computedFieldRegistry())
+                .executionPlanCache(state.executionPlanCache())
+                .telemetry(state.telemetryListener());
+    }
+
+    private Map<String, Object> addExplainMetadata(Map<String, Object> explain,
+                                                   NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved) {
         LinkedHashMap<String, Object> updated = new LinkedHashMap<>(explain);
         updated.put("equivalentSqlLike", equivalentSqlLike);
+        if (resolved != null) {
+            updated.put("resolvedNaturalFields", explainableResolutionMappings(resolved.resolvedByOriginalPhrase()));
+            updated.put("resolvedEquivalentSqlLike", resolved.equivalentSqlLike());
+        }
         return Collections.unmodifiableMap(updated);
+    }
+
+    private static Map<String, String> explainableResolutionMappings(Map<String, String> resolvedByOriginalPhrase) {
+        if (resolvedByOriginalPhrase.isEmpty()) {
+            return Map.of();
+        }
+        LinkedHashMap<String, String> filtered = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : resolvedByOriginalPhrase.entrySet()) {
+            if (!entry.getKey().equals(entry.getValue())) {
+                filtered.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return Collections.unmodifiableMap(filtered);
+    }
+
+    private record QueryState(QueryAst ast,
+                              Map<String, String> sourceFieldPhrases,
+                              boolean strictParameterTypes,
+                              boolean lintMode,
+                              QueryTelemetryListener telemetryListener,
+                              ComputedFieldRegistry computedFieldRegistry,
+                              FilterExecutionPlanCacheStore executionPlanCache,
+                              NaturalVocabulary vocabulary) {
+
+        private QueryState {
+            Objects.requireNonNull(ast, "ast must not be null");
+            sourceFieldPhrases = Collections.unmodifiableMap(new LinkedHashMap<>(
+                    sourceFieldPhrases == null ? Map.of() : sourceFieldPhrases
+            ));
+            computedFieldRegistry = computedFieldRegistry == null ? ComputedFieldRegistry.empty() : computedFieldRegistry;
+            executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
+            vocabulary = vocabulary == null ? NaturalVocabulary.empty() : vocabulary;
+        }
+
+        private static QueryState of(NaturalQueryParseResult parseResult) {
+            return new QueryState(
+                    parseResult.ast(),
+                    parseResult.sourceFieldPhrases(),
+                    false,
+                    false,
+                    null,
+                    ComputedFieldRegistry.empty(),
+                    DefaultFilterExecutionPlanCacheSupport.defaultStore(),
+                    NaturalVocabulary.empty()
+            );
+        }
+
+        private QueryState withAst(QueryAst updatedAst) {
+            return new QueryState(
+                    updatedAst,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withStrictParameterTypes(boolean enabled) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    enabled,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withLintMode(boolean enabled) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    enabled,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withTelemetryListener(QueryTelemetryListener listener) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    listener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withComputedFieldRegistry(ComputedFieldRegistry registry) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    registry,
+                    executionPlanCache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withExecutionPlanCache(FilterExecutionPlanCacheStore cache) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    cache,
+                    vocabulary
+            );
+        }
+
+        private QueryState withVocabulary(NaturalVocabulary updatedVocabulary) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    updatedVocabulary
+            );
+        }
     }
 
     private static final class DefaultNaturalBoundQuery<T> implements NaturalBoundQuery<T> {

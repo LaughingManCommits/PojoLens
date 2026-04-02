@@ -4,6 +4,7 @@ import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -31,10 +32,13 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setStrictParameterTypes(true);
         runtime.setLintMode(true);
+        NaturalVocabulary vocabulary = NaturalVocabulary.builder().field("salary", "pay").build();
+        runtime.setNaturalVocabulary(vocabulary);
 
         NaturalQuery query = runtime.natural().parse("show employees where salary is at least :minSalary");
         assertTrue(query.isStrictParameterTypesEnabled());
         assertTrue(query.isLintModeEnabled());
+        assertEquals(vocabulary, runtime.getNaturalVocabulary());
     }
 
     @Test
@@ -68,5 +72,20 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         var chart = PojoLensNatural.parse("show name, salary where active is true sort by salary descending limit 2")
                 .chart(sampleEmployees(), Employee.class, ChartSpec.of(ChartType.BAR, "name", "salary"));
         assertEquals(2, chart.getLabels().size());
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldBeUsableFromPublicApi() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay")
+                .field("department", "team")
+                .build());
+
+        List<Employee> rows = runtime.natural()
+                .parse("show employees where team is Engineering sort by annual pay descending limit 2")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
     }
 }

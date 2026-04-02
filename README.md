@@ -191,6 +191,7 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ### Runtime integration
 
 - Runtime-scoped presets and policy controls via `PojoLensRuntime`
+- Runtime-scoped natural vocabulary for plain-English field aliases
 - Optional Spring Boot starter/autoconfigure modules
 
 ### Advanced and tooling
@@ -240,6 +241,20 @@ The explicit stable-surface contract and deprecation policy are documented in
 PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
+```
+
+Runtime-scoped natural vocabulary:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+    .field("salary", "annual pay", "pay")
+    .field("department", "team")
+    .build());
+
+List<Employee> rows = runtime.natural()
+    .parse("show employees where team is Engineering sort by annual pay descending limit 10")
+    .filter(source, Employee.class);
 ```
 
 Preset intent:

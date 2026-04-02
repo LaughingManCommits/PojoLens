@@ -3,6 +3,7 @@ package laughing.man.commits.natural.parser;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.natural.NaturalVocabularySupport;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -16,6 +17,7 @@ import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -40,6 +42,10 @@ public final class NaturalQueryParser {
     }
 
     public static QueryAst parse(String input) {
+        return parseResult(input).ast();
+    }
+
+    public static NaturalQueryParseResult parseResult(String input) {
         if (input == null) {
             throw new IllegalArgumentException("Natural query must not be null");
         }
@@ -53,6 +59,7 @@ public final class NaturalQueryParser {
     private static final class Parser {
         private final String input;
         private final List<Token> tokens;
+        private final LinkedHashMap<String, String> sourceFieldPhrases = new LinkedHashMap<>();
         private int index;
 
         private Parser(String input) {
@@ -60,7 +67,7 @@ public final class NaturalQueryParser {
             this.tokens = tokenize(input);
         }
 
-        private QueryAst parseQuery() {
+        private NaturalQueryParseResult parseQuery() {
             expectWord("show");
             SelectAst select = parseSelect();
             FilterExpressionAst whereExpression = null;
@@ -93,21 +100,24 @@ public final class NaturalQueryParser {
             if (!peek().isEof()) {
                 throw error("Unexpected token '" + peek().text + "'", peek().position);
             }
-            return new QueryAst(
-                    select,
-                    List.of(),
-                    filters,
-                    whereExpression,
-                    List.of(),
-                    List.of(),
-                    null,
-                    List.of(),
-                    null,
-                    orders,
-                    limit,
-                    limitParameter,
-                    offset,
-                    offsetParameter
+            return new NaturalQueryParseResult(
+                    new QueryAst(
+                            select,
+                            List.of(),
+                            filters,
+                            whereExpression,
+                            List.of(),
+                            List.of(),
+                            null,
+                            List.of(),
+                            null,
+                            orders,
+                            limit,
+                            limitParameter,
+                            offset,
+                            offsetParameter
+                    ),
+                    sourceFieldPhrases
             );
         }
 
@@ -141,6 +151,7 @@ public final class NaturalQueryParser {
             int asIndex = lastIndexOfWord(itemTokens, "as");
             List<Token> fieldTokens = asIndex < 0 ? itemTokens : itemTokens.subList(0, asIndex);
             List<Token> aliasTokens = asIndex < 0 ? List.of() : itemTokens.subList(asIndex + 1, itemTokens.size());
+            rememberSourceFieldPhrase(fieldTokens);
             String field = normalizeFieldReference(fieldTokens);
             String alias = aliasTokens.isEmpty() ? null : normalizeAlias(aliasTokens);
             return new SelectFieldAst(field, alias, null, false, (TimeBucketPreset) null, false);
@@ -184,6 +195,7 @@ public final class NaturalQueryParser {
             if (fieldTokens.isEmpty()) {
                 throw error("Expected field before operator", peek().position);
             }
+            rememberSourceFieldPhrase(fieldTokens);
             String field = normalizeFieldReference(fieldTokens);
 
             index = operator.endIndex();
@@ -217,6 +229,7 @@ public final class NaturalQueryParser {
                 sort = Sort.DESC;
                 fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
             }
+            rememberSourceFieldPhrase(fieldTokens);
             return new OrderAst(normalizeFieldReference(fieldTokens), sort);
         }
 
@@ -368,6 +381,15 @@ public final class NaturalQueryParser {
             return List.copyOf(tokens.subList(startInclusive, endExclusive));
         }
 
+        private void rememberSourceFieldPhrase(List<Token> fieldTokens) {
+            if (fieldTokens == null || fieldTokens.isEmpty()) {
+                return;
+            }
+            String original = joinTokens(fieldTokens);
+            String normalized = normalizeFieldReference(fieldTokens);
+            sourceFieldPhrases.putIfAbsent(original, normalized);
+        }
+
         private boolean matchesWords(int startIndex, String[] expected) {
             for (int i = 0; i < expected.length; i++) {
                 Token token = tokenAt(startIndex + i);
@@ -444,57 +466,14 @@ public final class NaturalQueryParser {
         if (tokens == null || tokens.isEmpty()) {
             throw new IllegalArgumentException("Field reference must not be blank");
         }
-        String raw = joinTokens(tokens);
-        if (raw.contains(".")) {
-            String[] parts = raw.split("\\.");
-            ArrayList<String> normalized = new ArrayList<>(parts.length);
-            for (String part : parts) {
-                normalized.add(normalizeIdentifierPhrase(part));
-            }
-            return String.join(".", normalized);
-        }
-        return normalizeIdentifierPhrase(raw);
+        return NaturalVocabularySupport.normalizeNaturalFieldToken(joinTokens(tokens));
     }
 
     private static String normalizeAlias(List<Token> tokens) {
         if (tokens == null || tokens.isEmpty()) {
             throw new IllegalArgumentException("Alias must not be blank");
         }
-        return normalizeIdentifierPhrase(joinTokens(tokens));
-    }
-
-    private static String normalizeIdentifierPhrase(String raw) {
-        String trimmed = raw == null ? "" : raw.trim();
-        if (trimmed.isEmpty()) {
-            throw new IllegalArgumentException("Identifier phrase must not be blank");
-        }
-        if (trimmed.matches("[A-Za-z_][A-Za-z0-9_]*")) {
-            return trimmed;
-        }
-        String cleaned = trimmed.replace('-', ' ').replace('/', ' ');
-        String[] parts = cleaned.split("\\s+");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i].replaceAll("[^A-Za-z0-9_]", "");
-            if (part.isEmpty()) {
-                continue;
-            }
-            if (sb.length() == 0) {
-                sb.append(part.substring(0, 1).toLowerCase(Locale.ROOT));
-                if (part.length() > 1) {
-                    sb.append(part.substring(1));
-                }
-            } else {
-                sb.append(part.substring(0, 1).toUpperCase(Locale.ROOT));
-                if (part.length() > 1) {
-                    sb.append(part.substring(1));
-                }
-            }
-        }
-        if (sb.length() == 0) {
-            throw new IllegalArgumentException("Identifier phrase must contain letters or digits");
-        }
-        return sb.toString();
+        return NaturalVocabularySupport.normalizeNaturalFieldToken(joinTokens(tokens));
     }
 
     private static Object parseValue(List<Token> tokens, Operator operator) {

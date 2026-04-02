@@ -23,6 +23,7 @@ public final class NaturalRuntime {
                 .strictParameterTypes(runtime.isStrictParameterTypes())
                 .lintMode(runtime.isLintMode())
                 .computedFields(runtime.getComputedFieldRegistry())
+                .vocabulary(runtime.getNaturalVocabulary())
                 .executionPlanCache(runtime.statsPlanCache())
                 .telemetry(runtime.getTelemetryListener());
         QueryTelemetrySupport.emit(

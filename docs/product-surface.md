@@ -40,7 +40,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
 | Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reusable-wrappers.md`, `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
-| Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
+| Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration, natural-query vocabulary, and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset`, `NaturalVocabulary` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
 | Spring Boot support | `Integration` | Optional framework wiring for Boot applications | `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter` | Optional integration surface | `README.md`, `docs/modules.md` |
 | Query diagnostics and policy controls | `Tooling` | Operational visibility and tuning around the core engine | `explain`, telemetry hooks, lint mode, cache stats and controls | Mixed: `explain` is core-adjacent, policy controls are largely `Advanced` | `docs/sql-like.md`, `docs/telemetry.md`, `docs/caching.md` |
 | Schema metadata | `Workflow helper` | Deterministic table/chart column metadata for renderers | `schema()`, `TabularSchema`, `TabularColumn` | `Stable` support contract | `docs/tabular-schema.md`, `docs/reports.md`, `docs/stats-presets.md` |
@@ -53,7 +53,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
 
 - `PojoLens` is no longer part of the public surface.
 - `PojoLensRuntime` is not a third query style. It is the scoped runtime and
-  configuration model around the same engine.
+  configuration model around the same engine, including runtime-owned natural
+  vocabulary for guided text queries.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered
   on top of query execution, not separate product pillars.
 - `ReportDefinition` is the general reusable execution wrapper.

@@ -64,6 +64,8 @@ The default first-read story stays centered on the core engine:
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
   - strict/lint toggles
+  - `setNaturalVocabulary(NaturalVocabulary)`
+  - `getNaturalVocabulary()`
 - `DatasetBundle`
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
@@ -108,6 +110,7 @@ The default first-read story stays centered on the core engine:
 
 ### Shared Stable Types
 
+- `NaturalVocabulary`
 - `PojoLensRuntimePreset`
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
