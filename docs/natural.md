@@ -190,9 +190,7 @@ Window notes:
 
 Natural chart phrases configure chart type only. Field mapping stays deterministic from the `show` outputs.
 
-Supported call shapes:
-
-- parsed chart phrase + inferred chart spec:
+Default one-shot execution:
 
 ```java
 ChartData chart = PojoLensNatural
@@ -201,7 +199,7 @@ ChartData chart = PojoLensNatural
     .chart(source, DepartmentCount.class);
 ```
 
-- parsed chart phrase + bind-first execution:
+Use bound execution when you want to bind rows plus projection once, then choose the terminal operation:
 
 ```java
 ChartData chart = PojoLensNatural
@@ -211,13 +209,19 @@ ChartData chart = PojoLensNatural
     .chart();
 ```
 
-- explicit `ChartSpec` still overrides inference when you want a different mapping:
+Use explicit `ChartSpec` only when you want to override inferred field mapping:
 
 ```java
 ChartData chart = PojoLensNatural
     .parse("show name, salary where active is true sort by salary descending limit 10")
     .chart(source, Employee.class, ChartSpec.of(ChartType.BAR, "name", "salary"));
 ```
+
+Call-shape notes:
+
+- `chart(source, Projection.class)` is the default one-shot path
+- `bindTyped(...).chart()` follows the shared bound-query pattern and is useful when the same bound query may also call `filter()`, `iterator()`, or `stream()`
+- `chart(..., ChartSpec)` is an explicit mapping override, not a different binding model
 
 Inference rules:
 

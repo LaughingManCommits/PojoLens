@@ -23,6 +23,25 @@ text surface.
 This should be treated as a deterministic query language, not as unconstrained
 natural language and not as a remote AI feature.
 
+## Status
+
+As of `2026-04-02`, this spike is mostly implemented.
+
+Done:
+
+- `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()`
+- deterministic parsing/lowering into the shared execution path
+- runtime-scoped `NaturalVocabulary`
+- grouped aggregates, time buckets, and chart phrases
+- explicit joins with `JoinBindings` / `DatasetBundle`
+- deterministic windows plus alias-based `qualify`
+- canonical natural-query docs in `docs/natural.md`
+
+Remaining:
+
+- computed fields in plain wording
+- reusable natural templates and presets
+
 ## What This Is
 
 - a new query authoring surface for non-SQL users
@@ -118,8 +137,8 @@ Candidate names:
 
 Recommendation:
 
-- public name: `PojoLensNatural`
-- documentation wording: "controlled plain-English query surface"
+- [x] public name: `PojoLensNatural`
+- [x] documentation wording: "controlled plain-English query surface"
 
 `PojoLensNatural` matches `PojoLensSql` well, while the docs can still be honest
 that the grammar is controlled rather than free-form.
@@ -321,61 +340,65 @@ Recommendation:
 - target architecture should be a shared normalized query model, not generated
   SQL-like strings
 
+Implemented outcome:
+
+- [x] natural queries lower into the shared `QueryAst` / execution path rather than generated SQL-like text
+
 ## Feature Scope By Phase
 
-### Phase 1: MVP
+### Phase 1: MVP `(Done)`
 
 Support:
 
-- `show`
-- `where`
-- `sort by`
-- `limit`
-- `offset`
-- named parameters like `:minSalary`
-- projection aliases via `as`
-- strict field validation
-- `filter(...)`, `stream(...)`, `bindTyped(...)`, and `explain()`
+- [x] `show`
+- [x] `where`
+- [x] `sort by`
+- [x] `limit`
+- [x] `offset`
+- [x] named parameters like `:minSalary`
+- [x] projection aliases via `as`
+- [x] strict field validation
+- [x] `filter(...)`, `stream(...)`, `bindTyped(...)`, and `explain()`
 
 Example:
 
 - `show name, salary where department is :dept sort by salary descending limit 20`
 
-### Phase 2: Aggregation And Charts
+### Phase 2: Aggregation And Charts `(Done)`
 
 Support:
 
-- `group by`
-- `having`
-- `count of`, `sum of`, `average of`, `minimum of`, `maximum of`
-- chart phrases like `as bar chart`
-- time bucket phrases like `bucket hire date by month`
+- [x] `group by`
+- [x] `having`
+- [x] `count of`, `sum of`, `average of`, `minimum of`, `maximum of`
+- [x] chart phrases like `as bar chart`
+- [x] time bucket phrases like `bucket hire date by month`
 
 Example:
 
 - `show department, count of employees as total group by department having total at least 5 as bar chart`
 
-### Phase 3: Joins And Multi-source Queries
+### Phase 3: Joins And Multi-source Queries `(Done)`
 
 Support:
 
-- `join`
-- explicit source labels
-- join conditions in plain wording
-- compatibility with `JoinBindings`
+- [x] `join`
+- [x] explicit source labels
+- [x] join conditions in plain wording
+- [x] compatibility with `JoinBindings`
 
 Example:
 
 - `from companies join employees on company id equals employee company id show company name where employee title is Engineer`
 
-### Phase 4: Advanced Analytics
+### Phase 4: Advanced Analytics `(Partially Done)`
 
 Support:
 
-- window functions
-- `qualify`
-- computed fields in plain wording
-- reusable templates and presets
+- [x] window functions
+- [x] `qualify`
+- [ ] computed fields in plain wording
+- [ ] reusable templates and presets
 
 This is likely where complexity rises sharply.
 
@@ -478,13 +501,10 @@ Recommended first-cut strategy:
 
 ## Open Questions
 
-- Should the public name be `PojoLensNatural`, `PojoLensPlain`, or
-  `PojoLensIntent`?
-- Should the first implementation lower through existing SQL-like planning
-  internals or wait for a shared normalized planner abstraction?
-- Should chart phrases be in MVP or Phase 2?
-- Should field vocabulary live only on `PojoLensRuntime`, or also have a static
-  default path?
+- [x] Public name: `PojoLensNatural`
+- [x] Lowering path: shared normalized planner/execution model, not generated SQL-like text
+- [x] Chart phrases landed in Phase 2
+- [x] Field vocabulary is runtime-scoped on `PojoLensRuntime`; direct `PojoLensNatural.parse(...)` stays vocabulary-free
 - How much synonym support is acceptable before parsing becomes unstable?
 - Do we want locale support early, or should v1 be English-only?
 
