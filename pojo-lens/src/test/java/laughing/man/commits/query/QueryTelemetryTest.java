@@ -114,6 +114,29 @@ public class QueryTelemetryTest {
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.employeeName).toList());
     }
 
+    @Test
+    public void runtimeGroupedNaturalExecutionShouldEmitAggregateTelemetryStages() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+        runtime.setTelemetryListener(events::add);
+
+        List<DepartmentCountRow> rows = runtime.natural()
+                .parse("show department, count of employees as total "
+                        + "where active is true group by department having total is at least 1 sort by total descending")
+                .filter(sampleEmployees(), DepartmentCountRow.class);
+
+        assertEquals(List.of(
+                        QueryTelemetryStage.PARSE,
+                        QueryTelemetryStage.BIND,
+                        QueryTelemetryStage.FILTER,
+                        QueryTelemetryStage.AGGREGATE,
+                        QueryTelemetryStage.ORDER
+                ),
+                events.stream().map(QueryTelemetryEvent::stage).toList());
+        assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
+        assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
+    }
+
     public static class SalaryAliasRow {
         public String name;
         public int pay;

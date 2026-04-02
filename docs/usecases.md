@@ -17,7 +17,7 @@ Source guides:
 | If you need... | Choose... | Why |
 | --- | --- | --- |
 | Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
-| Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax. |
+| Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax, including grouped aggregate phrases. |
 | Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
 | Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, computed fields, and natural-query vocabulary scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |

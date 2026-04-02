@@ -1,6 +1,7 @@
 package laughing.man.commits.natural.parser;
 
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.natural.NaturalVocabularySupport;
@@ -72,6 +73,9 @@ public final class NaturalQueryParser {
             SelectAst select = parseSelect();
             FilterExpressionAst whereExpression = null;
             List<FilterAst> filters = List.of();
+            List<String> groupByFields = List.of();
+            FilterExpressionAst havingExpression = null;
+            List<FilterAst> havingFilters = List.of();
             List<OrderAst> orders = List.of();
             Integer limit = null;
             String limitParameter = null;
@@ -79,8 +83,16 @@ public final class NaturalQueryParser {
             String offsetParameter = null;
 
             if (matchWord("where")) {
-                whereExpression = parseWhereExpression();
+                whereExpression = parseBooleanExpression(false, "WHERE");
                 filters = flatten(whereExpression);
+            }
+            if (matchWord("group")) {
+                expectWord("by");
+                groupByFields = parseGroupBy();
+            }
+            if (matchWord("having")) {
+                havingExpression = parseBooleanExpression(true, "HAVING");
+                havingFilters = flatten(havingExpression);
             }
             if (peekSortBy()) {
                 next();
@@ -106,9 +118,9 @@ public final class NaturalQueryParser {
                             List.of(),
                             filters,
                             whereExpression,
-                            List.of(),
-                            List.of(),
-                            null,
+                            groupByFields,
+                            havingFilters,
+                            havingExpression,
                             List.of(),
                             null,
                             orders,
@@ -151,52 +163,61 @@ public final class NaturalQueryParser {
             int asIndex = lastIndexOfWord(itemTokens, "as");
             List<Token> fieldTokens = asIndex < 0 ? itemTokens : itemTokens.subList(0, asIndex);
             List<Token> aliasTokens = asIndex < 0 ? List.of() : itemTokens.subList(asIndex + 1, itemTokens.size());
-            rememberSourceFieldPhrase(fieldTokens);
-            String field = normalizeFieldReference(fieldTokens);
             String alias = aliasTokens.isEmpty() ? null : normalizeAlias(aliasTokens);
-            return new SelectFieldAst(field, alias, null, false, (TimeBucketPreset) null, false);
+            MetricPhrase metricPhrase = tryParseMetricPhrase(fieldTokens, "SHOW");
+            if (metricPhrase != null) {
+                return new SelectFieldAst(
+                        metricPhrase.field(),
+                        alias,
+                        metricPhrase.metric(),
+                        metricPhrase.countAll(),
+                        (TimeBucketPreset) null,
+                        false
+                );
+            }
+            rememberSourceFieldPhrase(fieldTokens);
+            return new SelectFieldAst(normalizeFieldReference(fieldTokens), alias, null, false, (TimeBucketPreset) null, false);
         }
 
-        private FilterExpressionAst parseWhereExpression() {
-            FilterExpressionAst expression = parseOrExpression();
+        private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences, String clauseName) {
+            FilterExpressionAst expression = parseOrExpression(allowAggregateReferences, clauseName);
             if (expression == null) {
-                throw error("WHERE requires at least one predicate", peek().position);
+                throw error(clauseName + " requires at least one predicate", peek().position);
             }
             return expression;
         }
 
-        private FilterExpressionAst parseOrExpression() {
-            FilterExpressionAst left = parseAndExpression();
+        private FilterExpressionAst parseOrExpression(boolean allowAggregateReferences, String clauseName) {
+            FilterExpressionAst left = parseAndExpression(allowAggregateReferences, clauseName);
             while (matchWord("or")) {
-                left = new FilterBinaryAst(left, parseAndExpression(), Separator.OR);
+                left = new FilterBinaryAst(left, parseAndExpression(allowAggregateReferences, clauseName), Separator.OR);
             }
             return left;
         }
 
-        private FilterExpressionAst parseAndExpression() {
-            FilterExpressionAst left = parsePredicate();
+        private FilterExpressionAst parseAndExpression(boolean allowAggregateReferences, String clauseName) {
+            FilterExpressionAst left = parsePredicate(allowAggregateReferences, clauseName);
             while (matchWord("and")) {
-                left = new FilterBinaryAst(left, parsePredicate(), Separator.AND);
+                left = new FilterBinaryAst(left, parsePredicate(allowAggregateReferences, clauseName), Separator.AND);
             }
             return left;
         }
 
-        private FilterExpressionAst parsePredicate() {
+        private FilterExpressionAst parsePredicate(boolean allowAggregateReferences, String clauseName) {
             if (peek().type == TokenType.LEFT_PAREN || peek().type == TokenType.RIGHT_PAREN) {
                 throw error("Parentheses are not supported in MVP natural queries", peek().position);
             }
 
             OperatorMatch operator = findOperator();
             if (operator == null) {
-                throw error("Expected a supported operator phrase in WHERE", peek().position);
+                throw error("Expected a supported operator phrase in " + clauseName, peek().position);
             }
 
             List<Token> fieldTokens = slice(index, operator.startIndex());
             if (fieldTokens.isEmpty()) {
                 throw error("Expected field before operator", peek().position);
             }
-            rememberSourceFieldPhrase(fieldTokens);
-            String field = normalizeFieldReference(fieldTokens);
+            String field = parseReference(fieldTokens, allowAggregateReferences, clauseName);
 
             index = operator.endIndex();
             List<Token> valueTokens = readValueTokens();
@@ -205,6 +226,23 @@ public final class NaturalQueryParser {
             }
             Object value = parseValue(valueTokens, operator.operator());
             return new FilterPredicateAst(new FilterAst(field, operator.operator().clause, value, null));
+        }
+
+        private List<String> parseGroupBy() {
+            ArrayList<String> groups = new ArrayList<>();
+            groups.add(parseGroupItem(readClauseItem("GROUP BY")));
+            while (match(TokenType.COMMA)) {
+                groups.add(parseGroupItem(readClauseItem("GROUP BY")));
+            }
+            return List.copyOf(groups);
+        }
+
+        private String parseGroupItem(List<Token> itemTokens) {
+            if (itemTokens.isEmpty()) {
+                throw error("GROUP BY item must not be blank", peek().position);
+            }
+            rememberSourceFieldPhrase(itemTokens);
+            return normalizeFieldReference(itemTokens);
         }
 
         private List<OrderAst> parseSortBy() {
@@ -229,8 +267,10 @@ public final class NaturalQueryParser {
                 sort = Sort.DESC;
                 fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
             }
-            rememberSourceFieldPhrase(fieldTokens);
-            return new OrderAst(normalizeFieldReference(fieldTokens), sort);
+            if (fieldTokens.isEmpty()) {
+                throw error("SORT BY field must not be blank", peek().position);
+            }
+            return new OrderAst(parseReference(fieldTokens, true, "ORDER BY"), sort);
         }
 
         private PaginationValue parsePagination(String clauseName) {
@@ -330,7 +370,10 @@ public final class NaturalQueryParser {
             if (token.isEof()) {
                 return true;
             }
-            if (isWord(token, "where") || isWord(token, "limit") || isWord(token, "offset")) {
+            if (isWord(token, "where") || isWord(token, "having") || isWord(token, "limit") || isWord(token, "offset")) {
+                return true;
+            }
+            if (isWord(token, "group") && isWord(tokenAt(tokenIndex + 1), "by")) {
                 return true;
             }
             return isWord(token, "sort") && isWord(tokenAt(tokenIndex + 1), "by");
@@ -415,6 +458,68 @@ public final class NaturalQueryParser {
             return new IllegalArgumentException(
                     "Natural query parse error: " + message + " at line " + line + ", column " + column
             );
+        }
+
+        private String parseReference(List<Token> fieldTokens,
+                                      boolean allowAggregateReferences,
+                                      String clauseName) {
+            if (fieldTokens == null || fieldTokens.isEmpty()) {
+                throw error("Expected field/expression in " + clauseName, peek().position);
+            }
+            MetricPhrase metricPhrase = allowAggregateReferences ? tryParseMetricPhrase(fieldTokens, clauseName) : null;
+            if (metricPhrase != null) {
+                return renderMetricReference(metricPhrase);
+            }
+            rememberSourceFieldPhrase(fieldTokens);
+            return normalizeFieldReference(fieldTokens);
+        }
+
+        private MetricPhrase tryParseMetricPhrase(List<Token> tokens, String clauseName) {
+            if (tokens == null || tokens.isEmpty()) {
+                return null;
+            }
+            Metric metric = metricFromWord(tokens.get(0));
+            if (metric == null) {
+                return null;
+            }
+            int fieldStart = 1;
+            if (fieldStart < tokens.size() && isWord(tokens.get(fieldStart), "of")) {
+                fieldStart++;
+            }
+            if (fieldStart >= tokens.size()) {
+                throw error("Expected field after aggregate phrase in " + clauseName, tokens.get(0).position);
+            }
+            List<Token> fieldTokens = tokens.subList(fieldStart, tokens.size());
+            if (metric == Metric.COUNT && isWildcardItem(fieldTokens)) {
+                return new MetricPhrase(metric, true, "*");
+            }
+            if (isWildcardItem(fieldTokens)) {
+                throw error(metric.name() + " of wildcard terms is not supported in " + clauseName, fieldTokens.get(0).position);
+            }
+            rememberSourceFieldPhrase(fieldTokens);
+            return new MetricPhrase(metric, false, normalizeFieldReference(fieldTokens));
+        }
+
+        private Metric metricFromWord(Token token) {
+            if (token.type != TokenType.RAW) {
+                return null;
+            }
+            String word = token.text.toLowerCase(Locale.ROOT);
+            return switch (word) {
+                case "count" -> Metric.COUNT;
+                case "sum" -> Metric.SUM;
+                case "average", "avg" -> Metric.AVG;
+                case "minimum", "min" -> Metric.MIN;
+                case "maximum", "max" -> Metric.MAX;
+                default -> null;
+            };
+        }
+
+        private String renderMetricReference(MetricPhrase metricPhrase) {
+            return metricPhrase.metric().name().toLowerCase(Locale.ROOT)
+                    + "("
+                    + (metricPhrase.countAll() ? "*" : metricPhrase.field())
+                    + ")";
         }
     }
 
@@ -691,5 +796,8 @@ public final class NaturalQueryParser {
         private static PaginationValue parameter(String value) {
             return new PaginationValue(null, value);
         }
+    }
+
+    private record MetricPhrase(Metric metric, boolean countAll, String field) {
     }
 }

@@ -1,12 +1,15 @@
 package laughing.man.commits.natural;
 
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -62,6 +65,37 @@ public class NaturalQueryParserTest {
         QueryAst ast = NaturalQueryParser.parse("show all where department starts with Eng");
         assertEquals(Clauses.MATCHES, ast.filters().get(0).clause());
         assertEquals("^\\QEng\\E.*", ast.filters().get(0).value());
+    }
+
+    @Test
+    public void shouldParseGroupedAggregateQueryWithHavingAndAggregateOrder() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show department, count of employees as total, sum of salary as total salary "
+                        + "where active is true group by department having total is at least 2 "
+                        + "sort by sum of salary descending limit 5"
+        );
+
+        assertEquals(3, ast.select().fields().size());
+        assertEquals("department", ast.select().fields().get(0).field());
+        assertTrue(ast.select().fields().get(1).metricField());
+        assertEquals(Metric.COUNT, ast.select().fields().get(1).metric());
+        assertTrue(ast.select().fields().get(1).countAll());
+        assertEquals("total", ast.select().fields().get(1).outputName());
+        assertTrue(ast.select().fields().get(2).metricField());
+        assertEquals(Metric.SUM, ast.select().fields().get(2).metric());
+        assertEquals("salary", ast.select().fields().get(2).field());
+        assertEquals("totalSalary", ast.select().fields().get(2).outputName());
+
+        assertEquals(List.of("department"), ast.groupByFields());
+        assertEquals(1, ast.havingFilters().size());
+        assertEquals("total", ast.havingFilters().get(0).field());
+        assertEquals(Clauses.BIGGER_EQUAL, ast.havingFilters().get(0).clause());
+        assertEquals(2, ast.havingFilters().get(0).value());
+
+        assertEquals(1, ast.orders().size());
+        assertEquals("sum(salary)", ast.orders().get(0).field());
+        assertEquals(Sort.DESC, ast.orders().get(0).sort());
+        assertEquals(Integer.valueOf(5), ast.limit());
     }
 
     @Test

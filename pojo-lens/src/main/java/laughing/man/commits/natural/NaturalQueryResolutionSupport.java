@@ -9,10 +9,14 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -24,18 +28,19 @@ final class NaturalQueryResolutionSupport {
     }
 
     static ResolvedNaturalQuery resolve(NaturalQueryParseResult parseResult,
-                                        Set<String> allowedFields,
+                                        Set<String> sourceFields,
                                         NaturalVocabulary vocabulary) {
         Objects.requireNonNull(parseResult, "parseResult must not be null");
-        Objects.requireNonNull(allowedFields, "allowedFields must not be null");
+        Objects.requireNonNull(sourceFields, "sourceFields must not be null");
         Objects.requireNonNull(vocabulary, "vocabulary must not be null");
 
+        Set<String> exactReferences = collectExactReferences(parseResult.ast());
         LinkedHashMap<String, String> resolvedByNaturalField = new LinkedHashMap<>();
         LinkedHashMap<String, String> resolvedByOriginalPhrase = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : parseResult.sourceFieldPhrases().entrySet()) {
             String originalPhrase = entry.getKey();
             String naturalField = entry.getValue();
-            String resolvedField = resolveField(originalPhrase, naturalField, allowedFields, vocabulary);
+            String resolvedField = resolveField(originalPhrase, naturalField, sourceFields, exactReferences, vocabulary);
             String existing = resolvedByNaturalField.putIfAbsent(naturalField, resolvedField);
             if (existing != null && !existing.equals(resolvedField)) {
                 throw new IllegalArgumentException(
@@ -56,14 +61,15 @@ final class NaturalQueryResolutionSupport {
 
     private static String resolveField(String originalPhrase,
                                        String naturalField,
-                                       Set<String> allowedFields,
+                                       Set<String> sourceFields,
+                                       Set<String> exactReferences,
                                        NaturalVocabulary vocabulary) {
-        if (allowedFields.contains(naturalField)) {
+        if (sourceFields.contains(naturalField) || exactReferences.contains(naturalField)) {
             return naturalField;
         }
         List<String> aliasTargets = NaturalVocabularySupport.filterAllowedTargets(
                 vocabulary.resolveAliasTargets(naturalField),
-                allowedFields
+                sourceFields
         );
         if (aliasTargets.size() == 1) {
             return aliasTargets.get(0);
@@ -74,9 +80,11 @@ final class NaturalQueryResolutionSupport {
                             + new TreeSet<>(aliasTargets)
             );
         }
+        TreeSet<String> allowed = new TreeSet<>(sourceFields);
+        allowed.addAll(exactReferences);
         throw new IllegalArgumentException(
                 "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
-                        + new TreeSet<>(allowedFields)
+                        + allowed
         );
     }
 
@@ -117,12 +125,14 @@ final class NaturalQueryResolutionSupport {
         }
         ArrayList<SelectFieldAst> fields = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
-            String resolvedField = field.metricField()
-                    || field.timeBucketField()
-                    || field.computedField()
-                    || field.windowField()
-                    ? field.field()
-                    : resolvedByNaturalField.getOrDefault(field.field(), field.field());
+            String resolvedField;
+            if (field.metricField()) {
+                resolvedField = field.countAll() ? field.field() : rewriteReference(field.field(), resolvedByNaturalField);
+            } else if (field.timeBucketField() || field.computedField() || field.windowField()) {
+                resolvedField = field.field();
+            } else {
+                resolvedField = rewriteReference(field.field(), resolvedByNaturalField);
+            }
             fields.add(new SelectFieldAst(
                     resolvedField,
                     field.alias(),
@@ -146,7 +156,7 @@ final class NaturalQueryResolutionSupport {
         }
         ArrayList<String> rewritten = new ArrayList<>(groups.size());
         for (String group : groups) {
-            rewritten.add(resolvedByNaturalField.getOrDefault(group, group));
+            rewritten.add(rewriteReference(group, resolvedByNaturalField));
         }
         return List.copyOf(rewritten);
     }
@@ -158,7 +168,7 @@ final class NaturalQueryResolutionSupport {
         ArrayList<FilterAst> rewritten = new ArrayList<>(filters.size());
         for (FilterAst filter : filters) {
             rewritten.add(new FilterAst(
-                    resolvedByNaturalField.getOrDefault(filter.field(), filter.field()),
+                    rewriteReference(filter.field(), resolvedByNaturalField),
                     filter.clause(),
                     filter.value(),
                     filter.separator()
@@ -175,7 +185,7 @@ final class NaturalQueryResolutionSupport {
         if (expression instanceof FilterPredicateAst predicateAst) {
             FilterAst filter = predicateAst.filter();
             return new FilterPredicateAst(new FilterAst(
-                    resolvedByNaturalField.getOrDefault(filter.field(), filter.field()),
+                    rewriteReference(filter.field(), resolvedByNaturalField),
                     filter.clause(),
                     filter.value(),
                     filter.separator()
@@ -196,11 +206,43 @@ final class NaturalQueryResolutionSupport {
         ArrayList<OrderAst> rewritten = new ArrayList<>(orders.size());
         for (OrderAst order : orders) {
             rewritten.add(new OrderAst(
-                    resolvedByNaturalField.getOrDefault(order.field(), order.field()),
+                    rewriteReference(order.field(), resolvedByNaturalField),
                     order.sort()
             ));
         }
         return List.copyOf(rewritten);
+    }
+
+    private static Set<String> collectExactReferences(QueryAst ast) {
+        LinkedHashSet<String> references = new LinkedHashSet<>();
+        SelectAst select = ast.select();
+        if (select == null || select.wildcard()) {
+            return references;
+        }
+        for (SelectFieldAst field : select.fields()) {
+            if (field.aliased()
+                    || field.metricField()
+                    || field.timeBucketField()
+                    || field.windowField()
+                    || field.computedField()) {
+                references.add(field.outputName());
+            }
+        }
+        return references;
+    }
+
+    private static String rewriteReference(String reference, Map<String, String> resolvedByNaturalField) {
+        ParsedAggregateExpression aggregateExpression = AggregateExpressionSupport.parse(reference);
+        if (aggregateExpression == null) {
+            return resolvedByNaturalField.getOrDefault(reference, reference);
+        }
+        if (aggregateExpression.countAll()) {
+            return "count(*)";
+        }
+        return aggregateExpression.metric().name().toLowerCase(Locale.ROOT)
+                + "("
+                + resolvedByNaturalField.getOrDefault(aggregateExpression.field(), aggregateExpression.field())
+                + ")";
     }
 
     static final class ResolvedNaturalQuery {

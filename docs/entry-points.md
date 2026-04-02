@@ -25,7 +25,8 @@ entry surface.
 - Use `PojoLensCore` when the query shape is owned by application code and you
   are composing it through fluent builder calls.
 - Use `PojoLensNatural` when the query should stay text-driven but the author
-  should not have to learn SQL-like clause syntax.
+  should not have to learn SQL-like clause syntax, including grouped aggregate
+  phrases such as `count of ...`, `group by`, and `having`.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped

@@ -31,6 +31,12 @@ final class NaturalQueryRenderer {
         if (ast.whereExpression() != null) {
             clauses.add("where " + renderExpression(ast.whereExpression()));
         }
+        if (!ast.groupByFields().isEmpty()) {
+            clauses.add("group by " + String.join(", ", ast.groupByFields()));
+        }
+        if (ast.havingExpression() != null) {
+            clauses.add("having " + renderExpression(ast.havingExpression()));
+        }
         if (!ast.orders().isEmpty()) {
             clauses.add("order by " + renderOrderBy(ast.orders()));
         }
@@ -49,7 +55,15 @@ final class NaturalQueryRenderer {
         }
         ArrayList<String> parts = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
-            String rendered = field.field();
+            String rendered;
+            if (field.metricField()) {
+                rendered = field.metric().name().toLowerCase(Locale.ROOT)
+                        + "("
+                        + (field.countAll() ? "*" : field.field())
+                        + ")";
+            } else {
+                rendered = field.field();
+            }
             if (field.alias() != null) {
                 rendered += " as " + field.alias();
             }

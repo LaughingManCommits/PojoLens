@@ -7,6 +7,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -71,6 +72,18 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void shouldExecuteGroupedNaturalAggregateQueryWithHavingAndSort() {
+        List<DepartmentCount> rows = PojoLensNatural
+                .parse("show department, count of employees as total "
+                        + "where active is true group by department having total is at least 2 sort by total descending")
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldResolveAliasesForExecutionAndExplain() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -92,6 +105,38 @@ public class NaturalQueryContractTest {
         );
         assertEquals(
                 "select name, salary where department = 'Engineering' order by salary desc limit 2",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveGroupedAggregatesForExecutionAndExplain() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay")
+                .field("department", "team")
+                .build());
+
+        NaturalQuery query = runtime.natural().parse(
+                "show team as dept, sum of annual pay as total payroll, count of employees as headcount "
+                        + "where active is true group by team having total payroll is at least 200000 "
+                        + "sort by total payroll descending"
+        );
+
+        List<DepartmentPayrollRow> rows = query.filter(sampleEmployees(), DepartmentPayrollRow.class);
+        assertEquals(1, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals(250000L, rows.get(0).totalPayroll);
+        assertEquals(2L, rows.get(0).headcount);
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), DepartmentPayrollRow.class);
+        assertEquals(
+                Map.of("annual pay", "salary", "team", "department"),
+                explain.get("resolvedNaturalFields")
+        );
+        assertEquals(
+                "select department as dept, sum(salary) as totalPayroll, count(*) as headcount "
+                        + "where active = true group by department having totalPayroll >= 200000 order by totalPayroll desc",
                 explain.get("resolvedEquivalentSqlLike")
         );
     }
@@ -136,5 +181,14 @@ public class NaturalQueryContractTest {
         );
 
         assertTrue(error.getMessage().contains("Unknown natural field term 'bonus'"));
+    }
+
+    public static class DepartmentPayrollRow {
+        public String dept;
+        public long totalPayroll;
+        public long headcount;
+
+        public DepartmentPayrollRow() {
+        }
     }
 }

@@ -287,7 +287,8 @@ public final class NaturalQuery {
         }
         LinkedHashMap<String, String> filtered = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : resolvedByOriginalPhrase.entrySet()) {
-            if (!entry.getKey().equals(entry.getValue())) {
+            String normalizedOriginal = NaturalVocabularySupport.normalizeNaturalFieldToken(entry.getKey());
+            if (!normalizedOriginal.equals(entry.getValue())) {
                 filtered.put(entry.getKey(), entry.getValue());
             }
         }

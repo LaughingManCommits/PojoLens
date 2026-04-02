@@ -9,6 +9,7 @@ import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -87,5 +88,18 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void naturalQueryShouldSupportGroupedAggregatesFromPublicApi() {
+        List<DepartmentCount> rows = PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "where active is true group by department having total is at least 2 sort by total descending"
+                )
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
     }
 }

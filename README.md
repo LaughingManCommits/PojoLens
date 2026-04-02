@@ -149,6 +149,17 @@ List<Employee> rows = PojoLensNatural
     .filter(source, Employee.class);
 ```
 
+### Grouped plain-English query
+
+```java
+List<DepartmentHeadcount> rows = PojoLensNatural
+    .parse("show department, count of employees as headcount "
+        + "where active is true "
+        + "group by department having headcount is at least 2 "
+        + "sort by headcount descending")
+    .filter(source, DepartmentHeadcount.class);
+```
+
 ### Chart payload in one call
 
 ```java
@@ -171,7 +182,7 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ### Core query engine
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- Controlled plain-English querying for guided non-SQL text authoring (`show ... where ... sort by ... limit ...`)
+- Controlled plain-English querying for guided non-SQL text authoring (`show ... where ... group by ... having ... sort by ... limit ...`)
 - First-class keyset/cursor pagination primitives with token support
 - Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
 - Optional in-memory index hints for repeated fluent equality filters
