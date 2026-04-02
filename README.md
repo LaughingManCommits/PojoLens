@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
 
 > Note: This project is fully AI-built and is maintained as an experiment.
 
@@ -255,20 +255,6 @@ The explicit stable-surface contract and deprecation policy are documented in
 PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
 PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
-```
-
-Runtime-scoped natural vocabulary:
-
-```java
-PojoLensRuntime runtime = new PojoLensRuntime();
-runtime.setNaturalVocabulary(NaturalVocabulary.builder()
-    .field("salary", "annual pay", "pay")
-    .field("department", "team")
-    .build());
-
-List<Employee> rows = runtime.natural()
-    .parse("show employees where team is Engineering sort by annual pay descending limit 10")
-    .filter(source, Employee.class);
 ```
 
 Preset intent:

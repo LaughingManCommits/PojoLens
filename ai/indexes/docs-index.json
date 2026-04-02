@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-02T16:04:08.443444+02:00",
+  "generatedAt": "2026-04-02T16:37:51.358184+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -222,8 +222,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 232,
-      "byteCount": 7159,
+      "lineCount": 234,
+      "byteCount": 7307,
       "coldSearchEligible": true
     },
     {
@@ -366,8 +366,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 85,
-      "byteCount": 2460,
+      "lineCount": 87,
+      "byteCount": 2534,
       "coldSearchEligible": true
     },
     {
@@ -375,8 +375,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 353,
-      "byteCount": 12060,
+      "lineCount": 355,
+      "byteCount": 12145,
       "coldSearchEligible": true
     },
     {
@@ -402,8 +402,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 335,
-      "byteCount": 13893,
+      "lineCount": 321,
+      "byteCount": 13502,
       "coldSearchEligible": true
     },
     {

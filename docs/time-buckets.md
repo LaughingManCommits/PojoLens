@@ -58,6 +58,8 @@ Notes:
 - the natural bucket phrase lowers to the same `TimeBucketPreset` path used by fluent and SQL-like queries
 - bucket outputs should use `as <alias>`
 - grouped natural queries must include the bucket alias in `group by`
+- timezone defaults to `UTC`
+- week buckets default to `MONDAY`
 
 ## Chart Presets
 
@@ -75,7 +77,7 @@ ChartQueryPreset<WeeklyHeadcount> preset = ChartQueryPresets
 
 ## Explain Output
 
-Fluent and SQL-like `explain()` payloads include time bucket entries in:
+Fluent, natural, and SQL-like `explain()` payloads include time bucket entries in:
 
 `<alias>:<field>:<bucket>:<zoneId>:<weekStart>`
 

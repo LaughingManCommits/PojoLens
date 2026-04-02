@@ -70,18 +70,20 @@ Wrapper choice:
 
 Recommended defaults:
 - start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
+- start from `PojoLensNatural.parse(...)` for guided non-SQL chart flows when the query text already carries `as <type> chart`
 - start from `PojoLensSql.parse(...)` for SQL-like chart flows
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
 - for multi-source SQL-like chart execution, start with `JoinBindings` and
   promote to `DatasetBundle` when the same snapshot is reused
 
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `NaturalQuery.chart(List<?>, Class<T>)`
+- `NaturalQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `ChartJsAdapter.toPayload(ChartData)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
-- `SqlLikeQuery.chart(List<?>, Map<String,List<?>>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
 - `ChartQueryPresets.categoryCounts(...)`
 - `ChartQueryPresets.categoryTotals(...)`

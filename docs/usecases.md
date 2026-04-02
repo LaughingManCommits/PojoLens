@@ -9,6 +9,7 @@ For new code, keep one default path per job:
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
+- natural query guide: [docs/natural.md](natural.md)
 - reusable wrappers: [docs/reusable-wrappers.md](reusable-wrappers.md)
 - optional advanced surface: [docs/advanced-features.md](advanced-features.md)
 
@@ -341,6 +342,7 @@ Outcome:
 ## 8. Next Reads
 
 - [docs/entry-points.md](entry-points.md)
+- [docs/natural.md](natural.md)
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
 - [docs/advanced-features.md](advanced-features.md)
 - [docs/charts.md](charts.md)

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-02T16:04:08.443444+02:00",
+  "generatedAt": "2026-04-02T16:37:51.358184+02:00",
   "git": {
-    "headCommit": "08a544f7d29e3544cad94da401f3fd9c82903b61",
+    "headCommit": "140d52a3350d21c146eb156995dd2ba5a58e7cb8",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "fbcc1cbd9bfdcd9340532b981a434bbb516f051bbcffc02342043d366027c5a3",
+  "inputsHash": "a0caddbc8e22d81aae90e74cb07a4efd4f173f131652521baf416c7efd52cb73",
   "hotContext": {
     "files": [
       {
@@ -135,13 +135,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "fd7105af170db4d055c2098f1149c75d712d70f00ff13de2820f56019b463b2c",
+        "inputHash": "df771b51e74e99497e3b81a291cea376df804848fcbae63af938d909c799c785",
         "inputFiles": 48
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "ab9476318d17a8c0e4605b235ded09e6246e3361a2e9f5b0a8b361a9ee9602d6",
+        "inputHash": "b6c84b8074e7fed26e07e204b88a1b9d8ed5d8d9fe6c436dfdc67750064b55ad",
         "inputFiles": 361
       },
       {
@@ -169,8 +169,8 @@
       "ftsEnabled": true,
       "documents": 49,
       "sections": 499,
-      "updatedFiles": 1,
-      "reusedFiles": 48,
+      "updatedFiles": 3,
+      "reusedFiles": 46,
       "removedFiles": 0,
       "mode": "incremental"
     }
