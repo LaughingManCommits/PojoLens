@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding explicit natural-query `from ... join ... on ...` phrasing, join-aware runtime resolution, and aligned README/natural/entry-point/use-case docs.
 - `2026-04-01`: `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE-CSV.md` to scope CSV support as a bounded adapter into the existing engine rather than a dataframe pivot.
 - `2026-04-01`: `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE.md` to explore a controlled plain-English query surface beside fluent and SQL-like.
 - `2026-04-01`: orchestration cost-control validation passed with `py -3 -m py_compile scripts/claude-orchestrator.py`, `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`, `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/sql-like-scatter-followup.json --json`, `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`, and `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/sql-like-scatter-followup.json --dry-run --task analyze-benchmark-slice --json`; dry-runs now expose per-task `model`/`model_profile`, `prompt_chars`, `prompt_estimated_tokens`, top-level `usageTotals`, and minimal task-local worker prompts.

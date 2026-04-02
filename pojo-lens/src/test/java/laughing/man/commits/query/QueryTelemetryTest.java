@@ -8,7 +8,9 @@ import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -159,6 +163,32 @@ public class QueryTelemetryTest {
                 events.stream().map(QueryTelemetryEvent::stage).toList());
         assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
         assertEquals(2, chart.getLabels().size());
+    }
+
+    @Test
+    public void runtimeNaturalJoinExecutionShouldEmitNaturalTelemetryStages() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+        runtime.setTelemetryListener(events::add);
+
+        List<Company> rows = runtime.natural()
+                .parse("from companies as company join employees as employee "
+                        + "on company id equals employee company id "
+                        + "show company where employee title is Engineer")
+                .filter(
+                        sampleCompanies(),
+                        JoinBindings.of("employees", sampleCompanyEmployees()),
+                        Company.class
+                );
+
+        assertEquals(List.of(
+                        QueryTelemetryStage.PARSE,
+                        QueryTelemetryStage.BIND,
+                        QueryTelemetryStage.FILTER
+                ),
+                events.stream().map(QueryTelemetryEvent::stage).toList());
+        assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
     }
 
     public static class SalaryAliasRow {

@@ -1,12 +1,15 @@
 package laughing.man.commits.publicapi;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalQuery;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlParams;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -16,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -126,5 +131,28 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
 
         assertEquals(3, rows.size());
         assertEquals("2025-01", rows.get(0).period);
+    }
+
+    @Test
+    public void naturalQueryShouldSupportJoinBindingsAndDatasetBundlesFromPublicApi() {
+        NaturalQuery query = PojoLensNatural.parse(
+                "from companies as company join employees as employee "
+                        + "on company id equals employee company id "
+                        + "show company where employee title is Engineer"
+        );
+
+        List<Company> rows = query.filter(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees()),
+                Company.class
+        );
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+        List<Company> typedRows = query.bindTyped(bundle, Company.class).filter();
+        assertEquals(List.of("Acme"), typedRows.stream().map(row -> row.name).toList());
     }
 }

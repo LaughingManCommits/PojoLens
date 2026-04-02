@@ -130,19 +130,26 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "params", Map.class);
         requirePublicMethod(NaturalQuery.class, "params", SqlParams.class);
         requirePublicMethod(NaturalQuery.class, "bindTyped", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "bindTyped", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "bindTyped", List.class, Class.class, JoinBindings.class);
         requirePublicMethod(NaturalQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "filter", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "filter", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "iterator", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "stream", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "stream", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "stream", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "chart", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, Class.class, ChartSpec.class);
+        requirePublicMethod(NaturalQuery.class, "chart", DatasetBundle.class, Class.class, ChartSpec.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(NaturalQuery.class, "schema", Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "explain", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "sort");
 

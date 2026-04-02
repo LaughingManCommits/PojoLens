@@ -2,6 +2,7 @@ package laughing.man.commits.natural;
 
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
@@ -118,6 +119,29 @@ public class NaturalQueryParserTest {
         assertTrue(ast.select().fields().get(1).metricField());
         assertEquals(Metric.SUM, ast.select().fields().get(1).metric());
         assertEquals("period", ast.orders().get(0).field());
+        assertEquals(Sort.ASC, ast.orders().get(0).sort());
+    }
+
+    @Test
+    public void shouldParseJoinQueryWithExplicitSourceLabels() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "from companies as company join employees as employee "
+                        + "on company id equals employee company id "
+                        + "show company name as company name where employee title is Engineer "
+                        + "sort by company name ascending"
+        );
+
+        assertEquals("companies", ast.select().sourceName());
+        assertEquals(1, ast.joins().size());
+        assertEquals(Join.INNER_JOIN, ast.joins().get(0).joinType());
+        assertEquals("employees", ast.joins().get(0).childSource());
+        assertEquals("companies.id", ast.joins().get(0).parentField());
+        assertEquals("employees.companyId", ast.joins().get(0).childField());
+
+        assertEquals("companies.name", ast.select().fields().get(0).field());
+        assertEquals("companyName", ast.select().fields().get(0).outputName());
+        assertEquals("employees.title", ast.filters().get(0).field());
+        assertEquals("companies.name", ast.orders().get(0).field());
         assertEquals(Sort.ASC, ast.orders().get(0).sort());
     }
 

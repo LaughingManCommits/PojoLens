@@ -2,6 +2,8 @@
 
 ## Supported Grammar
 
+- optional leading source clause: `from <source> [as <label>]`
+- explicit joins: `join|left join|right join|inner join <source> [as <label>] on <lhs> equals <rhs>`
 - `show` with explicit fields, aliases via `as`, aggregate phrases, and time-bucket phrases
 - `where`
 - `group by`
@@ -39,11 +41,16 @@ Supported time-bucket phrase:
 - optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
+Join notes:
+- source labels are explicit: `from companies as company join employees as employee ...`
+- source-qualified field phrases use the source label or source name prefix: `company id`, `employee title`
+- join conditions use `equals` and stay deterministic: `on company id equals employee company id`
+
 Current non-goals:
 - free-form conversational language
 - fuzzy guessing
 - implicit business semantics such as `top performers` or `recent hires`
-- join/window/qualify phrasing
+- window/qualify phrasing
 
 ## Execution Model
 
@@ -72,6 +79,32 @@ List<Employee> rows = runtime.natural()
 ```
 
 Natural queries lower into the same shared engine used by fluent and SQL-like execution.
+
+## Joins and Multi-source Queries
+
+Joined natural queries stay explicit and use the same `JoinBindings` / `DatasetBundle` model as SQL-like execution.
+
+Example joined query:
+
+```java
+DatasetBundle bundle = DatasetBundle.of(
+    companies,
+    JoinBindings.of("employees", employees));
+
+List<Company> rows = PojoLensNatural
+    .parse("from companies as company join employees as employee "
+        + "on company id equals employee company id "
+        + "show company where employee title is Engineer")
+    .filter(bundle, Company.class);
+```
+
+Join guidance:
+
+- bind named secondary sources with `JoinBindings`
+- promote repeated multi-source snapshots to `DatasetBundle`
+- use source labels when a joined field needs to stay explicit
+- unqualified joined fields are still allowed when the underlying joined field name is unique
+- when the joined shape becomes deeply select-heavy or window-heavy, prefer [docs/sql-like.md](sql-like.md)
 
 ## Vocabulary Contract
 
@@ -172,6 +205,7 @@ Natural `explain()` adds plain-English-specific metadata on top of the shared ex
 - `equivalentSqlLike`
 - `resolvedNaturalFields` when runtime vocabulary resolution is involved
 - `resolvedEquivalentSqlLike` for execution-context explains
+- shared `joinSourceBindings` when the query uses explicit joins
 - `naturalChartType` / `resolvedNaturalChartSpec` when a chart phrase is present
 
 Example:
@@ -186,7 +220,7 @@ Map<String, Object> explain = PojoLensNatural
 ## Current Limitations
 
 - the language is controlled text, not free-form natural language
-- joins, window functions, and `qualify` do not have natural phrasing yet
+- window functions and `qualify` do not have natural phrasing yet
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
 - `schema(...)` remains structural and does not perform runtime vocabulary resolution
 - inferred chart mapping requires explicit non-wildcard `show` outputs
@@ -201,6 +235,8 @@ Common validation/runtime failures:
   `Unknown natural field term '<term>' in natural query. Allowed fields: [...]`
 - ambiguous natural term:
   `Ambiguous natural field term '<term>' in natural query. Candidates: [...]`
+- missing join source binding:
+  `Missing JOIN source binding for '<source>'`
 - missing chart phrase for no-spec chart execution:
   `Natural query does not declare a chart phrase; add 'as <type> chart' or pass ChartSpec explicitly`
 - invalid inferred chart shape:

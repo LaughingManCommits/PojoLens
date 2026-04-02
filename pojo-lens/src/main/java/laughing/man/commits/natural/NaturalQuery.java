@@ -139,7 +139,7 @@ public final class NaturalQuery {
                                               Class<T> projectionClass,
                                               JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, joinBindings.asMap(), projectionClass);
         return new DefaultNaturalBoundQuery<>(
                 resolvedExecution.delegate().bindTyped(pojos, projectionClass, joinBindings),
                 resolvedExecution.resolved().ast(),
@@ -148,53 +148,56 @@ public final class NaturalQuery {
     }
 
     public <T> List<T> filter(List<?> pojos, Class<T> projectionClass) {
-        return resolvedDelegate(pojos, projectionClass).filter(pojos, projectionClass);
+        return resolvedDelegate(pojos, Map.of(), projectionClass).filter(pojos, projectionClass);
     }
 
     public <T> List<T> filter(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).filter(datasetBundle, projectionClass);
+        return resolvedDelegate(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass)
+                .filter(datasetBundle, projectionClass);
     }
 
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return resolvedDelegate(pojos, projectionClass).filter(pojos, joinBindings, projectionClass);
+        return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass).filter(pojos, joinBindings, projectionClass);
     }
 
     public <T> Iterator<T> iterator(List<?> pojos, Class<T> projectionClass) {
-        return resolvedDelegate(pojos, projectionClass).iterator(pojos, projectionClass);
+        return resolvedDelegate(pojos, Map.of(), projectionClass).iterator(pojos, projectionClass);
     }
 
     public <T> Iterator<T> iterator(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).iterator(datasetBundle, projectionClass);
+        return resolvedDelegate(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass)
+                .iterator(datasetBundle, projectionClass);
     }
 
     public <T> Iterator<T> iterator(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return resolvedDelegate(pojos, projectionClass).iterator(pojos, joinBindings, projectionClass);
+        return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass).iterator(pojos, joinBindings, projectionClass);
     }
 
     public <T> Stream<T> stream(List<?> pojos, Class<T> projectionClass) {
-        return resolvedDelegate(pojos, projectionClass).stream(pojos, projectionClass);
+        return resolvedDelegate(pojos, Map.of(), projectionClass).stream(pojos, projectionClass);
     }
 
     public <T> Stream<T> stream(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).stream(datasetBundle, projectionClass);
+        return resolvedDelegate(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass)
+                .stream(datasetBundle, projectionClass);
     }
 
     public <T> Stream<T> stream(List<?> pojos, JoinBindings joinBindings, Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return resolvedDelegate(pojos, projectionClass).stream(pojos, joinBindings, projectionClass);
+        return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass).stream(pojos, joinBindings, projectionClass);
     }
 
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
-        return resolvedDelegate(pojos, projectionClass).chart(pojos, projectionClass, spec);
+        return resolvedDelegate(pojos, Map.of(), projectionClass).chart(pojos, projectionClass, spec);
     }
 
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass) {
-        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, Map.of(), projectionClass);
         return resolvedExecution.delegate().chart(
                 pojos,
                 projectionClass,
@@ -204,7 +207,8 @@ public final class NaturalQuery {
 
     public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass, ChartSpec spec) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).chart(datasetBundle, projectionClass, spec);
+        return resolvedDelegate(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass)
+                .chart(datasetBundle, projectionClass, spec);
     }
 
     public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass) {
@@ -217,14 +221,14 @@ public final class NaturalQuery {
                                Class<T> projectionClass,
                                ChartSpec spec) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return resolvedDelegate(pojos, projectionClass).chart(pojos, joinBindings, projectionClass, spec);
+        return resolvedDelegate(pojos, joinBindings.asMap(), projectionClass).chart(pojos, joinBindings, projectionClass, spec);
     }
 
     public <T> ChartData chart(List<?> pojos,
                                JoinBindings joinBindings,
                                Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, joinBindings.asMap(), projectionClass);
         return resolvedExecution.delegate().chart(
                 pojos,
                 joinBindings,
@@ -246,7 +250,7 @@ public final class NaturalQuery {
     }
 
     public <T> Map<String, Object> explain(List<?> pojos, Class<T> projectionClass) {
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, Map.of(), projectionClass);
         return addExplainMetadata(
                 createDelegate(resolved.ast()).explain(pojos, projectionClass),
                 resolved
@@ -255,7 +259,8 @@ public final class NaturalQuery {
 
     public <T> Map<String, Object> explain(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(datasetBundle.primaryRows(), projectionClass);
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved =
+                resolve(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass);
         return addExplainMetadata(
                 createDelegate(resolved.ast()).explain(datasetBundle, projectionClass),
                 resolved
@@ -266,7 +271,7 @@ public final class NaturalQuery {
                                            JoinBindings joinBindings,
                                            Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, joinBindings.asMap(), projectionClass);
         return addExplainMetadata(
                 createDelegate(resolved.ast()).explain(pojos, joinBindings, projectionClass),
                 resolved
@@ -277,24 +282,60 @@ public final class NaturalQuery {
         return updatedState == state ? this : new NaturalQuery(source, equivalentSqlLike, updatedState);
     }
 
-    private SqlLikeQuery resolvedDelegate(List<?> pojos, Class<?> projectionClass) {
-        return resolvedExecution(pojos, projectionClass).delegate();
+    private SqlLikeQuery resolvedDelegate(List<?> pojos,
+                                          Map<String, List<?>> joinSources,
+                                          Class<?> projectionClass) {
+        return resolvedExecution(pojos, joinSources, projectionClass).delegate();
     }
 
-    private ResolvedExecution resolvedExecution(List<?> pojos, Class<?> projectionClass) {
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+    private ResolvedExecution resolvedExecution(List<?> pojos,
+                                                Map<String, List<?>> joinSources,
+                                                Class<?> projectionClass) {
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, joinSources, projectionClass);
         return new ResolvedExecution(resolved, createDelegate(resolved.ast()));
     }
 
-    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolve(List<?> pojos, Class<?> projectionClass) {
+    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolve(List<?> pojos,
+                                                                      Map<String, List<?>> joinSources,
+                                                                      Class<?> projectionClass) {
+        Map<String, List<?>> effectiveJoinSources = joinSources == null ? Map.of() : joinSources;
+        if (state.ast().hasJoins() && hasUnboundJoinSources(effectiveJoinSources)) {
+            return NaturalQueryResolutionSupport.passthrough(state.ast(), equivalentSqlLike);
+        }
         Class<?> sourceClass = SqlLikeExecutionSupport.inferSourceClass(pojos, projectionClass);
         Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
         allowedFields.addAll(state.computedFieldRegistry().names());
+        String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
+        if (rootSourceName != null) {
+            addQualifiedFields(allowedFields, rootSourceName, sourceClass);
+        }
+        for (Map.Entry<String, List<?>> entry : effectiveJoinSources.entrySet()) {
+            Class<?> joinSourceClass = SqlLikeExecutionSupport.inferSourceClass(entry.getValue(), projectionClass);
+            addQualifiedFields(allowedFields, entry.getKey(), joinSourceClass);
+        }
         return NaturalQueryResolutionSupport.resolve(
                 new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
                 allowedFields,
                 state.vocabulary()
         );
+    }
+
+    private boolean hasUnboundJoinSources(Map<String, List<?>> joinSources) {
+        for (var join : state.ast().joins()) {
+            if (!joinSources.containsKey(join.childSource())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void addQualifiedFields(Set<String> allowedFields,
+                                           String sourceName,
+                                           Class<?> sourceClass) {
+        for (String fieldName : ReflectionUtil.collectQueryableFieldNames(sourceClass)) {
+            allowedFields.add(fieldName);
+            allowedFields.add(sourceName + "." + fieldName);
+        }
     }
 
     private SqlLikeQuery createDelegate(QueryAst ast) {

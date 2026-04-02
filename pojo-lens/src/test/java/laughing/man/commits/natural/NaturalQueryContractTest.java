@@ -1,10 +1,14 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -15,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -246,6 +252,98 @@ public class NaturalQueryContractTest {
         );
 
         assertTrue(error.getMessage().contains("Unknown natural field term 'bonus'"));
+    }
+
+    @Test
+    public void shouldExecuteNaturalJoinQueryWithJoinBindingsAndExplain() {
+        NaturalQuery query = PojoLensNatural.parse(
+                "from companies as company join employees as employee "
+                        + "on company id equals employee company id "
+                        + "show company where employee title is Engineer"
+        );
+
+        List<Company> rows = query.filter(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees()),
+                Company.class
+        );
+
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = query.explain(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees()),
+                Company.class
+        );
+        assertEquals(Map.of("employees", "bound"), explain.get("joinSourceBindings"));
+        assertEquals(
+                Map.of(
+                        "company id", "companies.id",
+                        "employee company id", "employees.companyId",
+                        "employee title", "employees.title"
+                ),
+                explain.get("resolvedNaturalFields")
+        );
+        assertEquals(
+                "select * from companies join employees on companies.id = employees.companyId where employees.title = 'Engineer'",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveQualifiedJoinAliases() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("companyId", "employer id")
+                .field("title", "job title")
+                .build());
+
+        NaturalQuery query = runtime.natural().parse(
+                "from companies as company join employees as employee "
+                        + "on company id equals employee employer id "
+                        + "show company where employee job title is Engineer"
+        );
+
+        List<Company> rows = query.filter(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees()),
+                Company.class
+        );
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = query.explain(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees()),
+                Company.class
+        );
+        assertEquals(
+                Map.of(
+                        "company id", "companies.id",
+                        "employee employer id", "employees.companyId",
+                        "employee job title", "employees.title"
+                ),
+                explain.get("resolvedNaturalFields")
+        );
+    }
+
+    @Test
+    public void naturalJoinQueryShouldSupportDatasetBundleExecution() {
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        List<Company> rows = PojoLensNatural.parse(
+                        "from companies as company join employees as employee "
+                                + "on company id equals employee company id "
+                                + "show company where employee title is Engineer"
+                )
+                .bindTyped(bundle, Company.class)
+                .filter();
+
+        assertEquals(List.of("Acme"), rows.stream()
+                .map(row -> row.name)
+                .toList());
     }
 
     public static class DepartmentPayrollRow {

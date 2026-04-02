@@ -1,9 +1,12 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -12,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -89,6 +94,22 @@ public class NaturalDocsExamplesTest {
                 .filter(sampleEmployees(), EmployeeSummary.class);
 
         assertEquals(List.of("Alice", "Cara"), rows.stream().map(row -> row.employeeName).toList());
+    }
+
+    @Test
+    public void docsRecipeNaturalJoinQueryShouldWork() {
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        List<Company> rows = PojoLensNatural
+                .parse("from companies as company join employees as employee "
+                        + "on company id equals employee company id "
+                        + "show company where employee title is Engineer")
+                .filter(bundle, Company.class);
+
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
     }
 
     public static class PeriodPayrollRow {

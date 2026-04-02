@@ -4,6 +4,7 @@ import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
+import laughing.man.commits.sqllike.ast.JoinAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
@@ -59,11 +60,19 @@ final class NaturalQueryResolutionSupport {
         );
     }
 
+    static ResolvedNaturalQuery passthrough(QueryAst ast, String equivalentSqlLike) {
+        return new ResolvedNaturalQuery(ast, Map.of(), equivalentSqlLike);
+    }
+
     private static String resolveField(String originalPhrase,
                                        String naturalField,
                                        Set<String> sourceFields,
                                        Set<String> exactReferences,
                                        NaturalVocabulary vocabulary) {
+        int qualifierIndex = naturalField.indexOf('.');
+        if (qualifierIndex > 0 && qualifierIndex + 1 < naturalField.length()) {
+            return resolveQualifiedField(originalPhrase, naturalField, qualifierIndex, sourceFields, exactReferences, vocabulary);
+        }
         if (sourceFields.contains(naturalField) || exactReferences.contains(naturalField)) {
             return naturalField;
         }
@@ -88,11 +97,48 @@ final class NaturalQueryResolutionSupport {
         );
     }
 
+    private static String resolveQualifiedField(String originalPhrase,
+                                                String naturalField,
+                                                int qualifierIndex,
+                                                Set<String> sourceFields,
+                                                Set<String> exactReferences,
+                                                NaturalVocabulary vocabulary) {
+        if (sourceFields.contains(naturalField) || exactReferences.contains(naturalField)) {
+            return naturalField;
+        }
+        String qualifier = naturalField.substring(0, qualifierIndex);
+        String localField = naturalField.substring(qualifierIndex + 1);
+        List<String> aliasTargets = vocabulary.resolveAliasTargets(localField);
+        ArrayList<String> qualifiedTargets = new ArrayList<>(aliasTargets.size());
+        for (String aliasTarget : aliasTargets) {
+            String candidate = qualifier + "." + aliasTarget;
+            if (sourceFields.contains(candidate)) {
+                qualifiedTargets.add(candidate);
+            }
+        }
+        if (qualifiedTargets.size() == 1) {
+            return qualifiedTargets.get(0);
+        }
+        if (qualifiedTargets.size() > 1) {
+            throw new IllegalArgumentException(
+                    "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
+                            + new TreeSet<>(qualifiedTargets)
+            );
+        }
+        TreeSet<String> allowed = new TreeSet<>(sourceFields);
+        allowed.addAll(exactReferences);
+        throw new IllegalArgumentException(
+                "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
+                        + allowed
+        );
+    }
+
     private static QueryAst rewrite(QueryAst ast, Map<String, String> resolvedByNaturalField) {
         if (resolvedByNaturalField.isEmpty()) {
             return ast;
         }
         SelectAst select = rewriteSelect(ast.select(), resolvedByNaturalField);
+        List<JoinAst> joins = rewriteJoins(ast.joins(), resolvedByNaturalField);
         List<String> groups = rewriteGroups(ast.groupByFields(), resolvedByNaturalField);
         List<FilterAst> filters = rewriteFilters(ast.filters(), resolvedByNaturalField);
         FilterExpressionAst whereExpression = rewriteExpression(ast.whereExpression(), resolvedByNaturalField);
@@ -103,7 +149,7 @@ final class NaturalQueryResolutionSupport {
         List<OrderAst> orders = rewriteOrders(ast.orders(), resolvedByNaturalField);
         return new QueryAst(
                 select,
-                ast.joins(),
+                joins,
                 filters,
                 whereExpression,
                 groups,
@@ -150,6 +196,22 @@ final class NaturalQueryResolutionSupport {
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());
+    }
+
+    private static List<JoinAst> rewriteJoins(List<JoinAst> joins, Map<String, String> resolvedByNaturalField) {
+        if (joins.isEmpty()) {
+            return joins;
+        }
+        ArrayList<JoinAst> rewritten = new ArrayList<>(joins.size());
+        for (JoinAst join : joins) {
+            rewritten.add(new JoinAst(
+                    join.joinType(),
+                    join.childSource(),
+                    rewriteReference(join.parentField(), resolvedByNaturalField),
+                    rewriteReference(join.childField(), resolvedByNaturalField)
+            ));
+        }
+        return List.copyOf(rewritten);
     }
 
     private static List<String> rewriteGroups(List<String> groups, Map<String, String> resolvedByNaturalField) {

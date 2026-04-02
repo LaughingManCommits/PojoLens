@@ -2,6 +2,7 @@ package laughing.man.commits.natural.parser;
 
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
@@ -10,6 +11,7 @@ import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
+import laughing.man.commits.sqllike.ast.JoinAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -62,6 +64,7 @@ public final class NaturalQueryParser {
         private final String input;
         private final List<Token> tokens;
         private final LinkedHashMap<String, String> sourceFieldPhrases = new LinkedHashMap<>();
+        private final LinkedHashMap<String, String> sourceNameByAlias = new LinkedHashMap<>();
         private int index;
 
         private Parser(String input) {
@@ -70,8 +73,14 @@ public final class NaturalQueryParser {
         }
 
         private NaturalQueryParseResult parseQuery() {
+            String rootSource = null;
+            List<JoinAst> joins = List.of();
+            if (matchWord("from")) {
+                rootSource = parseSourceDefinition("FROM");
+                joins = parseJoins(rootSource);
+            }
             expectWord("show");
-            SelectAst select = parseSelect();
+            SelectAst select = parseSelect(rootSource);
             FilterExpressionAst whereExpression = null;
             List<FilterAst> filters = List.of();
             List<String> groupByFields = List.of();
@@ -120,7 +129,7 @@ public final class NaturalQueryParser {
             return new NaturalQueryParseResult(
                     new QueryAst(
                             select,
-                            List.of(),
+                            joins,
                             filters,
                             whereExpression,
                             groupByFields,
@@ -139,7 +148,7 @@ public final class NaturalQueryParser {
             );
         }
 
-        private SelectAst parseSelect() {
+        private SelectAst parseSelect(String sourceName) {
             List<List<Token>> items = new ArrayList<>();
             items.add(readClauseItem("SHOW"));
             while (match(TokenType.COMMA)) {
@@ -149,7 +158,7 @@ public final class NaturalQueryParser {
                 throw error("SHOW requires 'all' or one or more projected fields", peek().position);
             }
             if (items.size() == 1 && isWildcardItem(items.get(0))) {
-                return new SelectAst(true, List.of(), null);
+                return new SelectAst(true, List.of(), sourceName);
             }
 
             ArrayList<SelectFieldAst> fields = new ArrayList<>(items.size());
@@ -162,7 +171,7 @@ public final class NaturalQueryParser {
                 }
                 fields.add(parseSelectField(item));
             }
-            return new SelectAst(false, fields, null);
+            return new SelectAst(false, fields, sourceName);
         }
 
         private SelectFieldAst parseSelectField(List<Token> itemTokens) {
@@ -192,8 +201,14 @@ public final class NaturalQueryParser {
                         false
                 );
             }
-            rememberSourceFieldPhrase(fieldTokens);
-            return new SelectFieldAst(normalizeFieldReference(fieldTokens), alias, null, false, (TimeBucketPreset) null, false);
+            return new SelectFieldAst(
+                    normalizeTrackedReference(fieldTokens),
+                    alias,
+                    null,
+                    false,
+                    (TimeBucketPreset) null,
+                    false
+            );
         }
 
         private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences, String clauseName) {
@@ -258,8 +273,7 @@ public final class NaturalQueryParser {
             if (itemTokens.isEmpty()) {
                 throw error("GROUP BY item must not be blank", peek().position);
             }
-            rememberSourceFieldPhrase(itemTokens);
-            return normalizeFieldReference(itemTokens);
+            return normalizeTrackedReference(itemTokens);
         }
 
         private List<OrderAst> parseSortBy() {
@@ -375,7 +389,8 @@ public final class NaturalQueryParser {
                 return true;
             }
             return token.type == TokenType.RAW
-                    && WILDCARD_TERMS.contains(token.text.toLowerCase(Locale.ROOT));
+                    && (WILDCARD_TERMS.contains(token.text.toLowerCase(Locale.ROOT))
+                    || resolveKnownSourceAlias(token.text) != null);
         }
 
         private boolean isBooleanBoundary(Token token) {
@@ -397,6 +412,96 @@ public final class NaturalQueryParser {
                 return true;
             }
             return isChartBoundary(tokenIndex);
+        }
+
+        private List<JoinAst> parseJoins(String rootSource) {
+            ArrayList<JoinAst> joins = new ArrayList<>();
+            ArrayList<String> availableSources = new ArrayList<>();
+            availableSources.add(rootSource);
+            while (peekJoinStart()) {
+                joins.add(parseJoin(availableSources));
+            }
+            return List.copyOf(joins);
+        }
+
+        private JoinAst parseJoin(List<String> availableSources) {
+            Join joinType = parseJoinType();
+            String childSource = parseSourceDefinition("JOIN");
+            for (String availableSource : availableSources) {
+                if (availableSource.equalsIgnoreCase(childSource)) {
+                    throw error("JOIN source '" + childSource + "' is already used", peek().position);
+                }
+            }
+            expectWord("on");
+            JoinReference left = parseJoinReference();
+            expectWord("equals");
+            JoinReference right = parseJoinReference();
+            ResolvedJoinFields resolved = resolveJoinFields(availableSources, childSource, left, right);
+            availableSources.add(childSource);
+            return new JoinAst(joinType, childSource, resolved.parentField(), resolved.childField());
+        }
+
+        private Join parseJoinType() {
+            if (matchWord("left")) {
+                expectWord("join");
+                return Join.LEFT_JOIN;
+            }
+            if (matchWord("right")) {
+                expectWord("join");
+                return Join.RIGHT_JOIN;
+            }
+            if (matchWord("inner")) {
+                expectWord("join");
+                return Join.INNER_JOIN;
+            }
+            expectWord("join");
+            return Join.INNER_JOIN;
+        }
+
+        private String parseSourceDefinition(String clauseName) {
+            Token sourceToken = peek();
+            if (sourceToken.type != TokenType.RAW) {
+                throw error("Expected source name after " + clauseName, sourceToken.position);
+            }
+            String sourceName = sourceToken.text;
+            next();
+            registerSourceAlias(sourceName, sourceName);
+            if (matchWord("as")) {
+                Token labelToken = peek();
+                if (labelToken.type != TokenType.RAW) {
+                    throw error("Expected source label after AS in " + clauseName, labelToken.position);
+                }
+                registerSourceAlias(sourceName, labelToken.text);
+                next();
+            }
+            return sourceName;
+        }
+
+        private void registerSourceAlias(String sourceName, String alias) {
+            String normalizedAlias = sourceAliasKey(alias);
+            String existing = sourceNameByAlias.get(normalizedAlias);
+            if (existing != null && !existing.equalsIgnoreCase(sourceName)) {
+                throw error("Source label '" + alias + "' is already used for '" + existing + "'", peek().position);
+            }
+            sourceNameByAlias.put(normalizedAlias, sourceName);
+        }
+
+        private String resolveKnownSourceAlias(String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            return sourceNameByAlias.get(sourceAliasKey(value));
+        }
+
+        private String sourceAliasKey(String value) {
+            return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        }
+
+        private boolean peekJoinStart() {
+            return isWord(peek(), "join")
+                    || isWord(peek(), "left")
+                    || isWord(peek(), "right")
+                    || isWord(peek(), "inner");
         }
 
         private boolean peekSortBy() {
@@ -444,13 +549,12 @@ public final class NaturalQueryParser {
             return List.copyOf(tokens.subList(startInclusive, endExclusive));
         }
 
-        private void rememberSourceFieldPhrase(List<Token> fieldTokens) {
+        private void rememberSourceFieldPhrase(List<Token> fieldTokens, String normalizedReference) {
             if (fieldTokens == null || fieldTokens.isEmpty()) {
                 return;
             }
             String original = joinTokens(fieldTokens);
-            String normalized = normalizeFieldReference(fieldTokens);
-            sourceFieldPhrases.putIfAbsent(original, normalized);
+            sourceFieldPhrases.putIfAbsent(original, normalizedReference);
         }
 
         private boolean matchesWords(int startIndex, String[] expected) {
@@ -510,8 +614,7 @@ public final class NaturalQueryParser {
             if (metricPhrase != null) {
                 return renderMetricReference(metricPhrase);
             }
-            rememberSourceFieldPhrase(fieldTokens);
-            return normalizeFieldReference(fieldTokens);
+            return normalizeTrackedReference(fieldTokens);
         }
 
         private MetricPhrase tryParseMetricPhrase(List<Token> tokens, String clauseName) {
@@ -536,8 +639,7 @@ public final class NaturalQueryParser {
             if (isWildcardItem(fieldTokens)) {
                 throw error(metric.name() + " of wildcard terms is not supported in " + clauseName, fieldTokens.get(0).position);
             }
-            rememberSourceFieldPhrase(fieldTokens);
-            return new MetricPhrase(metric, false, normalizeFieldReference(fieldTokens));
+            return new MetricPhrase(metric, false, normalizeTrackedReference(fieldTokens));
         }
 
         private TimeBucketPhrase tryParseTimeBucketPhrase(List<Token> tokens, String clauseName) {
@@ -556,7 +658,6 @@ public final class NaturalQueryParser {
             }
 
             List<Token> fieldTokens = tokens.subList(1, byIndex);
-            rememberSourceFieldPhrase(fieldTokens);
 
             int cursor = byIndex + 1;
             Token bucketToken = tokens.get(cursor++);
@@ -599,12 +700,129 @@ public final class NaturalQueryParser {
 
             try {
                 return new TimeBucketPhrase(
-                        normalizeFieldReference(fieldTokens),
+                        normalizeTrackedReference(fieldTokens),
                         TimeBucketPreset.parse(bucketToken.text, zoneValue, weekStartValue)
                 );
             } catch (IllegalArgumentException ex) {
                 throw error(ex.getMessage(), bucketToken.position);
             }
+        }
+
+        private JoinReference parseJoinReference() {
+            List<Token> referenceTokens = readJoinReferenceTokens();
+            if (referenceTokens.isEmpty()) {
+                throw error("Expected field reference in JOIN clause", peek().position);
+            }
+            QualifiedReference qualified = tryParseQualifiedReference(referenceTokens);
+            if (qualified != null) {
+                rememberSourceFieldPhrase(referenceTokens, qualified.reference());
+                return new JoinReference(qualified.reference(), qualified.sourceName());
+            }
+            String normalized = normalizeFieldReference(referenceTokens);
+            rememberSourceFieldPhrase(referenceTokens, normalized);
+            return new JoinReference(normalized, null);
+        }
+
+        private List<Token> readJoinReferenceTokens() {
+            ArrayList<Token> reference = new ArrayList<>();
+            while (true) {
+                Token token = peek();
+                if (token.isEof()
+                        || isWord(token, "equals")
+                        || isWord(token, "show")
+                        || peekJoinStart()) {
+                    break;
+                }
+                if (token.type == TokenType.LEFT_PAREN || token.type == TokenType.RIGHT_PAREN || token.type == TokenType.COMMA) {
+                    throw error("Unsupported token '" + token.text + "' in JOIN clause", token.position);
+                }
+                reference.add(next());
+            }
+            return List.copyOf(reference);
+        }
+
+        private ResolvedJoinFields resolveJoinFields(List<String> availableSources,
+                                                     String childSource,
+                                                     JoinReference left,
+                                                     JoinReference right) {
+            boolean leftIsChild = matchesSource(left.sourceName(), childSource);
+            boolean rightIsChild = matchesSource(right.sourceName(), childSource);
+            boolean leftIsParent = matchesAnySource(left.sourceName(), availableSources);
+            boolean rightIsParent = matchesAnySource(right.sourceName(), availableSources);
+
+            if (leftIsChild && rightIsChild) {
+                throw error("JOIN ON fields must reference the existing plan and the new child source", peek().position);
+            }
+            if (leftIsChild) {
+                return new ResolvedJoinFields(right.reference(), left.reference());
+            }
+            if (rightIsChild) {
+                return new ResolvedJoinFields(left.reference(), right.reference());
+            }
+            if (leftIsParent && !rightIsParent) {
+                return new ResolvedJoinFields(left.reference(), right.reference());
+            }
+            if (rightIsParent && !leftIsParent) {
+                return new ResolvedJoinFields(right.reference(), left.reference());
+            }
+            return new ResolvedJoinFields(left.reference(), right.reference());
+        }
+
+        private boolean matchesSource(String sourceName, String expected) {
+            return sourceName != null && expected.equalsIgnoreCase(sourceName);
+        }
+
+        private boolean matchesAnySource(String sourceName, List<String> availableSources) {
+            if (sourceName == null) {
+                return false;
+            }
+            for (String availableSource : availableSources) {
+                if (availableSource.equalsIgnoreCase(sourceName)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private String normalizeTrackedReference(List<Token> fieldTokens) {
+            QualifiedReference qualified = tryParseQualifiedReference(fieldTokens);
+            String normalized = qualified != null
+                    ? qualified.reference()
+                    : normalizeFieldReference(fieldTokens);
+            rememberSourceFieldPhrase(fieldTokens, normalized);
+            return normalized;
+        }
+
+        private QualifiedReference tryParseQualifiedReference(List<Token> fieldTokens) {
+            if (fieldTokens == null || fieldTokens.isEmpty()) {
+                return null;
+            }
+            if (fieldTokens.size() == 1 && fieldTokens.get(0).type == TokenType.RAW) {
+                String raw = fieldTokens.get(0).text;
+                int separator = raw.indexOf('.');
+                if (separator > 0 && separator + 1 < raw.length()) {
+                    String sourceAlias = raw.substring(0, separator);
+                    String sourceName = resolveKnownSourceAlias(sourceAlias);
+                    if (sourceName == null) {
+                        return null;
+                    }
+                    return new QualifiedReference(
+                            sourceName,
+                            sourceName + "." + NaturalVocabularySupport.normalizeNaturalFieldToken(raw.substring(separator + 1))
+                    );
+                }
+            }
+            if (fieldTokens.get(0).type != TokenType.RAW || fieldTokens.size() < 2) {
+                return null;
+            }
+            String sourceName = resolveKnownSourceAlias(fieldTokens.get(0).text);
+            if (sourceName == null) {
+                return null;
+            }
+            return new QualifiedReference(
+                    sourceName,
+                    sourceName + "." + normalizeFieldReference(fieldTokens.subList(1, fieldTokens.size()))
+            );
         }
 
         private Metric metricFromWord(Token token) {
@@ -932,5 +1150,14 @@ public final class NaturalQueryParser {
     }
 
     private record TimeBucketPhrase(String field, TimeBucketPreset preset) {
+    }
+
+    private record JoinReference(String reference, String sourceName) {
+    }
+
+    private record QualifiedReference(String sourceName, String reference) {
+    }
+
+    private record ResolvedJoinFields(String parentField, String childField) {
     }
 }

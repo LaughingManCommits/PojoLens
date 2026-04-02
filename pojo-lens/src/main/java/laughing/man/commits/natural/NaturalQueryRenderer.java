@@ -1,11 +1,13 @@
 package laughing.man.commits.natural;
 
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
+import laughing.man.commits.sqllike.ast.JoinAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -27,6 +29,12 @@ final class NaturalQueryRenderer {
         SelectAst select = ast.select();
         if (select != null) {
             clauses.add(renderSelect(select));
+        }
+        if (select != null && select.sourceName() != null) {
+            clauses.add("from " + select.sourceName());
+        }
+        if (!ast.joins().isEmpty()) {
+            clauses.add(renderJoins(ast.joins()));
         }
         if (ast.whereExpression() != null) {
             clauses.add("where " + renderExpression(ast.whereExpression()));
@@ -72,6 +80,29 @@ final class NaturalQueryRenderer {
             parts.add(rendered);
         }
         return "select " + String.join(", ", parts);
+    }
+
+    private static String renderJoins(List<JoinAst> joins) {
+        ArrayList<String> rendered = new ArrayList<>(joins.size());
+        for (JoinAst join : joins) {
+            rendered.add(renderJoin(join));
+        }
+        return String.join(" ", rendered);
+    }
+
+    private static String renderJoin(JoinAst join) {
+        String joinPrefix = switch (join.joinType()) {
+            case LEFT_JOIN -> "left join";
+            case RIGHT_JOIN -> "right join";
+            case INNER_JOIN -> "join";
+        };
+        return joinPrefix
+                + " "
+                + join.childSource()
+                + " on "
+                + join.parentField()
+                + " = "
+                + join.childField();
     }
 
     private static String renderExpression(FilterExpressionAst expression) {

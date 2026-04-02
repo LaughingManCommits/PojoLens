@@ -96,7 +96,7 @@ For new code, prefer one default path per job:
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
 | A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTable`                 | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
-| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md)                               |
+| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/natural.md](docs/natural.md), [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md) |
 
 ## Product Shape
 
@@ -162,6 +162,20 @@ List<DepartmentHeadcount> rows = PojoLensNatural
     .filter(source, DepartmentHeadcount.class);
 ```
 
+### Joined plain-English query
+
+```java
+DatasetBundle bundle = DatasetBundle.of(
+    companies,
+    JoinBindings.of("employees", employees));
+
+List<Company> rows = PojoLensNatural
+    .parse("from companies as company join employees as employee "
+        + "on company id equals employee company id "
+        + "show company where employee title is Engineer")
+    .filter(bundle, Company.class);
+```
+
 ### Chart payload in one call
 
 ```java
@@ -184,7 +198,7 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ### Core query engine
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- Controlled plain-English querying for guided non-SQL text authoring (`show ... where ... group by ... having ... sort by ... limit ...`)
+- Controlled plain-English querying for guided non-SQL text authoring (`show ...`, explicit `from ... join ... on ...`, `where ... group by ... having ... sort by ... limit ...`)
 - Natural time-bucket phrases and terminal chart phrases (`bucket hire date by month as period`, `as bar chart`)
 - First-class keyset/cursor pagination primitives with token support
 - Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
