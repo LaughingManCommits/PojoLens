@@ -14,6 +14,7 @@ import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowRowNumberProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -189,6 +190,29 @@ public class QueryTelemetryTest {
                 events.stream().map(QueryTelemetryEvent::stage).toList());
         assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
         assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void runtimeNaturalWindowQualifyExecutionShouldEmitNaturalTelemetryStages() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+        runtime.setTelemetryListener(events::add);
+
+        List<WindowRowNumberProjection> rows = runtime.natural()
+                .parse("show department as dept, name, salary, "
+                        + "row number by department ordered by salary descending then id ascending as rn "
+                        + "where active is true qualify rn is at most 1 sort by dept ascending")
+                .filter(sampleEmployees(), WindowRowNumberProjection.class);
+
+        assertEquals(List.of(
+                        QueryTelemetryStage.PARSE,
+                        QueryTelemetryStage.BIND,
+                        QueryTelemetryStage.FILTER,
+                        QueryTelemetryStage.ORDER
+                ),
+                events.stream().map(QueryTelemetryEvent::stage).toList());
+        assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
+        assertEquals(List.of("Cara", "Bob"), rows.stream().map(row -> row.name).toList());
     }
 
     public static class SalaryAliasRow {

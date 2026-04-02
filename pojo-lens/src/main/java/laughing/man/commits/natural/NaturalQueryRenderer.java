@@ -45,6 +45,9 @@ final class NaturalQueryRenderer {
         if (ast.havingExpression() != null) {
             clauses.add("having " + renderExpression(ast.havingExpression()));
         }
+        if (ast.qualifyExpression() != null) {
+            clauses.add("qualify " + renderExpression(ast.qualifyExpression()));
+        }
         if (!ast.orders().isEmpty()) {
             clauses.add("order by " + renderOrderBy(ast.orders()));
         }
@@ -71,6 +74,14 @@ final class NaturalQueryRenderer {
                         + ")";
             } else if (field.timeBucketField()) {
                 rendered = "bucket(" + field.field() + "," + field.timeBucketPreset().sqlArgumentList() + ")";
+            } else if (field.windowField()) {
+                rendered = NaturalWindowSupport.renderWindowExpression(
+                        field.windowFunction(),
+                        field.windowValueField(),
+                        field.windowCountAll(),
+                        field.windowPartitionFields(),
+                        field.windowOrderFields()
+                );
             } else {
                 rendered = field.field();
             }

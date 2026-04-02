@@ -14,6 +14,7 @@ import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowRowNumberProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -154,5 +155,20 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         );
         List<Company> typedRows = query.bindTyped(bundle, Company.class).filter();
         assertEquals(List.of("Acme"), typedRows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void naturalQueryShouldSupportWindowQualifyAndBoundExecutionFromPublicApi() {
+        List<WindowRowNumberProjection> rows = PojoLensNatural.parse(
+                        "show department as dept, name, salary, "
+                                + "row number by department ordered by salary descending then id ascending as rn "
+                                + "where active is true qualify rn is at most 1 sort by dept ascending"
+                )
+                .bindTyped(sampleEmployees(), WindowRowNumberProjection.class)
+                .filter();
+
+        assertEquals(2, rows.size());
+        assertEquals(List.of("Cara", "Bob"), rows.stream().map(row -> row.name).toList());
+        assertEquals(List.of(1L, 1L), rows.stream().map(row -> row.rn).toList());
     }
 }

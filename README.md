@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping.
 
 > Note: This project is fully AI-built and is maintained as an experiment.
 
@@ -198,8 +198,8 @@ StatsTable<DepartmentPayrollRow> table = StatsViewPresets
 ### Core query engine
 
 - Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- Controlled plain-English querying for guided non-SQL text authoring (`show ...`, explicit `from ... join ... on ...`, `where ... group by ... having ... sort by ... limit ...`)
-- Natural time-bucket phrases and terminal chart phrases (`bucket hire date by month as period`, `as bar chart`)
+- Controlled plain-English querying for guided non-SQL text authoring (`show ...`, explicit `from ... join ... on ...`, `where ... group by ... having ... qualify ... sort by ... limit ...`)
+- Natural time-bucket phrases, deterministic window phrases, and terminal chart phrases (`bucket hire date by month as period`, `row number by department ordered by salary descending as rn`, `as bar chart`)
 - First-class keyset/cursor pagination primitives with token support
 - Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
 - Optional in-memory index hints for repeated fluent equality filters

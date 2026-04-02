@@ -172,11 +172,39 @@ final class NaturalQueryResolutionSupport {
         ArrayList<SelectFieldAst> fields = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
             String resolvedField;
+            String resolvedWindowValueField = field.windowValueField();
+            boolean resolvedWindowCountAll = field.windowCountAll();
+            List<String> resolvedWindowPartitions = field.windowPartitionFields();
+            List<OrderAst> resolvedWindowOrders = field.windowOrderFields();
             if (field.metricField()) {
                 resolvedField = field.countAll() ? field.field() : rewriteReference(field.field(), resolvedByNaturalField);
             } else if (field.timeBucketField()) {
                 resolvedField = resolvedByNaturalField.getOrDefault(field.field(), field.field());
-            } else if (field.computedField() || field.windowField()) {
+            } else if (field.windowField()) {
+                ArrayList<String> rewrittenPartitions = new ArrayList<>(field.windowPartitionFields().size());
+                for (String partitionField : field.windowPartitionFields()) {
+                    rewrittenPartitions.add(rewriteReference(partitionField, resolvedByNaturalField));
+                }
+                ArrayList<OrderAst> rewrittenOrders = new ArrayList<>(field.windowOrderFields().size());
+                for (OrderAst order : field.windowOrderFields()) {
+                    rewrittenOrders.add(new OrderAst(
+                            rewriteReference(order.field(), resolvedByNaturalField),
+                            order.sort()
+                    ));
+                }
+                if (field.windowValueField() != null && !field.windowCountAll()) {
+                    resolvedWindowValueField = rewriteReference(field.windowValueField(), resolvedByNaturalField);
+                }
+                resolvedWindowPartitions = List.copyOf(rewrittenPartitions);
+                resolvedWindowOrders = List.copyOf(rewrittenOrders);
+                resolvedField = NaturalWindowSupport.renderWindowExpression(
+                        field.windowFunction(),
+                        resolvedWindowValueField,
+                        resolvedWindowCountAll,
+                        resolvedWindowPartitions,
+                        resolvedWindowOrders
+                );
+            } else if (field.computedField()) {
                 resolvedField = field.field();
             } else {
                 resolvedField = rewriteReference(field.field(), resolvedByNaturalField);
@@ -189,10 +217,10 @@ final class NaturalQueryResolutionSupport {
                     field.timeBucketPreset(),
                     field.computedField(),
                     field.windowFunction(),
-                    field.windowPartitionFields(),
-                    field.windowOrderFields(),
-                    field.windowValueField(),
-                    field.windowCountAll()
+                    resolvedWindowPartitions,
+                    resolvedWindowOrders,
+                    resolvedWindowValueField,
+                    resolvedWindowCountAll
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());

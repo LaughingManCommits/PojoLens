@@ -6,6 +6,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.natural.NaturalWindowSupport;
 import laughing.man.commits.natural.NaturalVocabularySupport;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -86,6 +87,8 @@ public final class NaturalQueryParser {
             List<String> groupByFields = List.of();
             FilterExpressionAst havingExpression = null;
             List<FilterAst> havingFilters = List.of();
+            FilterExpressionAst qualifyExpression = null;
+            List<FilterAst> qualifyFilters = List.of();
             List<OrderAst> orders = List.of();
             Integer limit = null;
             String limitParameter = null;
@@ -104,6 +107,10 @@ public final class NaturalQueryParser {
             if (matchWord("having")) {
                 havingExpression = parseBooleanExpression(true, "HAVING");
                 havingFilters = flatten(havingExpression);
+            }
+            if (matchWord("qualify")) {
+                qualifyExpression = parseBooleanExpression(false, "QUALIFY");
+                qualifyFilters = flatten(qualifyExpression);
             }
             if (peekSortBy()) {
                 next();
@@ -135,8 +142,8 @@ public final class NaturalQueryParser {
                             groupByFields,
                             havingFilters,
                             havingExpression,
-                            List.of(),
-                            null,
+                            qualifyFilters,
+                            qualifyExpression,
                             orders,
                             limit,
                             limitParameter,
@@ -179,6 +186,31 @@ public final class NaturalQueryParser {
             List<Token> fieldTokens = asIndex < 0 ? itemTokens : itemTokens.subList(0, asIndex);
             List<Token> aliasTokens = asIndex < 0 ? List.of() : itemTokens.subList(asIndex + 1, itemTokens.size());
             String alias = aliasTokens.isEmpty() ? null : normalizeAlias(aliasTokens);
+            WindowPhrase windowPhrase = tryParseWindowPhrase(fieldTokens, "SHOW");
+            if (windowPhrase != null) {
+                if (alias == null) {
+                    throw error("Window SELECT expressions require AS alias", fieldTokens.get(0).position);
+                }
+                return new SelectFieldAst(
+                        NaturalWindowSupport.renderWindowExpression(
+                                windowPhrase.function(),
+                                windowPhrase.valueField(),
+                                windowPhrase.countAll(),
+                                windowPhrase.partitionFields(),
+                                windowPhrase.orderFields()
+                        ),
+                        alias,
+                        null,
+                        false,
+                        (TimeBucketPreset) null,
+                        false,
+                        windowPhrase.function(),
+                        windowPhrase.partitionFields(),
+                        windowPhrase.orderFields(),
+                        windowPhrase.valueField(),
+                        windowPhrase.countAll()
+                );
+            }
             MetricPhrase metricPhrase = tryParseMetricPhrase(fieldTokens, "SHOW");
             if (metricPhrase != null) {
                 return new SelectFieldAst(
@@ -402,7 +434,11 @@ public final class NaturalQueryParser {
             if (token.isEof()) {
                 return true;
             }
-            if (isWord(token, "where") || isWord(token, "having") || isWord(token, "limit") || isWord(token, "offset")) {
+            if (isWord(token, "where")
+                    || isWord(token, "having")
+                    || isWord(token, "qualify")
+                    || isWord(token, "limit")
+                    || isWord(token, "offset")) {
                 return true;
             }
             if (isWord(token, "group") && isWord(tokenAt(tokenIndex + 1), "by")) {
@@ -706,6 +742,151 @@ public final class NaturalQueryParser {
             } catch (IllegalArgumentException ex) {
                 throw error(ex.getMessage(), bucketToken.position);
             }
+        }
+
+        private WindowPhrase tryParseWindowPhrase(List<Token> tokens, String clauseName) {
+            if (tokens == null || tokens.isEmpty()) {
+                return null;
+            }
+            WindowFunctionStart functionStart = parseWindowFunctionStart(tokens, clauseName);
+            if (functionStart == null) {
+                return null;
+            }
+
+            int cursor = functionStart.nextIndex();
+            String valueField = functionStart.valueField();
+            boolean countAll = functionStart.countAll();
+            List<String> partitionFields = List.of();
+            if (cursor < tokens.size() && isWord(tokens.get(cursor), "by")) {
+                int partitionStart = ++cursor;
+                while (cursor < tokens.size()
+                        && !(isWord(tokens.get(cursor), "ordered")
+                        && cursor + 1 < tokens.size()
+                        && isWord(tokens.get(cursor + 1), "by"))) {
+                    cursor++;
+                }
+                if (partitionStart == cursor) {
+                    throw error("Expected partition field after 'by' in " + clauseName, tokens.get(partitionStart - 1).position);
+                }
+                partitionFields = List.of(normalizeTrackedReference(tokens.subList(partitionStart, cursor)));
+            }
+
+            if (!(cursor < tokens.size()
+                    && isWord(tokens.get(cursor), "ordered")
+                    && cursor + 1 < tokens.size()
+                    && isWord(tokens.get(cursor + 1), "by"))) {
+                throw error("Window SELECT expressions require 'ordered by' clause", tokens.get(tokens.size() - 1).position);
+            }
+            cursor += 2;
+            if (cursor >= tokens.size()) {
+                throw error("Expected field after 'ordered by' in " + clauseName, tokens.get(tokens.size() - 1).position);
+            }
+            List<OrderAst> orderFields = parseWindowOrderFields(tokens.subList(cursor, tokens.size()), clauseName);
+            return new WindowPhrase(
+                    functionStart.function(),
+                    valueField,
+                    countAll,
+                    partitionFields,
+                    orderFields
+            );
+        }
+
+        private WindowFunctionStart parseWindowFunctionStart(List<Token> tokens, String clauseName) {
+            if (matchesWords(tokens, 0, "row", "number")) {
+                return new WindowFunctionStart("ROW_NUMBER", null, false, 2);
+            }
+            if (matchesWords(tokens, 0, "dense", "rank")) {
+                return new WindowFunctionStart("DENSE_RANK", null, false, 2);
+            }
+            if (isWord(tokens.get(0), "rank")) {
+                return new WindowFunctionStart("RANK", null, false, 1);
+            }
+            if (!isWord(tokens.get(0), "running")) {
+                return null;
+            }
+            if (tokens.size() == 1) {
+                throw error("Expected running window function after 'running' in " + clauseName, tokens.get(0).position);
+            }
+            Metric metric = metricFromWord(tokens.get(1));
+            if (metric == null) {
+                throw error("Unsupported running window function '" + tokens.get(1).text + "'", tokens.get(1).position);
+            }
+            int cursor = 2;
+            if (cursor < tokens.size() && isWord(tokens.get(cursor), "of")) {
+                cursor++;
+            }
+            if (cursor >= tokens.size()) {
+                throw error("Expected field after running window function in " + clauseName, tokens.get(tokens.size() - 1).position);
+            }
+            int valueStart = cursor;
+            while (cursor < tokens.size()
+                    && !isWord(tokens.get(cursor), "by")
+                    && !(isWord(tokens.get(cursor), "ordered")
+                    && cursor + 1 < tokens.size()
+                    && isWord(tokens.get(cursor + 1), "by"))) {
+                cursor++;
+            }
+            List<Token> valueTokens = tokens.subList(valueStart, cursor);
+            if (valueTokens.isEmpty()) {
+                throw error("Expected field after running window function in " + clauseName, tokens.get(valueStart).position);
+            }
+            if (metric == Metric.COUNT && isWildcardItem(valueTokens)) {
+                return new WindowFunctionStart("COUNT", null, true, cursor);
+            }
+            if (isWildcardItem(valueTokens)) {
+                throw error(metric.name() + " running window does not support wildcard terms", valueTokens.get(0).position);
+            }
+            return new WindowFunctionStart(
+                    metric.name(),
+                    normalizeTrackedReference(valueTokens),
+                    false,
+                    cursor
+            );
+        }
+
+        private List<OrderAst> parseWindowOrderFields(List<Token> tokens, String clauseName) {
+            ArrayList<OrderAst> orders = new ArrayList<>();
+            int cursor = 0;
+            while (cursor < tokens.size()) {
+                int nextSeparator = cursor;
+                while (nextSeparator < tokens.size() && !isWord(tokens.get(nextSeparator), "then")) {
+                    nextSeparator++;
+                }
+                List<Token> orderTokens = tokens.subList(cursor, nextSeparator);
+                orders.add(parseWindowOrderItem(orderTokens, clauseName));
+                cursor = nextSeparator + 1;
+            }
+            return List.copyOf(orders);
+        }
+
+        private OrderAst parseWindowOrderItem(List<Token> itemTokens, String clauseName) {
+            if (itemTokens.isEmpty()) {
+                throw error("Expected field in window 'ordered by' clause", peek().position);
+            }
+            Sort sort = Sort.ASC;
+            List<Token> fieldTokens = itemTokens;
+            if (endsWithWord(itemTokens, "ascending") || endsWithWord(itemTokens, "asc")) {
+                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
+            } else if (endsWithWord(itemTokens, "descending") || endsWithWord(itemTokens, "desc")) {
+                sort = Sort.DESC;
+                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
+            }
+            if (fieldTokens.isEmpty()) {
+                throw error("Expected field in window 'ordered by' clause", itemTokens.get(0).position);
+            }
+            return new OrderAst(normalizeTrackedReference(fieldTokens), sort);
+        }
+
+        private boolean matchesWords(List<Token> tokens, int startIndex, String... expected) {
+            if (tokens.size() < startIndex + expected.length) {
+                return false;
+            }
+            for (int i = 0; i < expected.length; i++) {
+                if (!isWord(tokens.get(startIndex + i), expected[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private JoinReference parseJoinReference() {
@@ -1150,6 +1331,19 @@ public final class NaturalQueryParser {
     }
 
     private record TimeBucketPhrase(String field, TimeBucketPreset preset) {
+    }
+
+    private record WindowPhrase(String function,
+                                String valueField,
+                                boolean countAll,
+                                List<String> partitionFields,
+                                List<OrderAst> orderFields) {
+    }
+
+    private record WindowFunctionStart(String function,
+                                       String valueField,
+                                       boolean countAll,
+                                       int nextIndex) {
     }
 
     private record JoinReference(String reference, String sourceName) {

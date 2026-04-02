@@ -4,17 +4,18 @@
 
 - optional leading source clause: `from <source> [as <label>]`
 - explicit joins: `join|left join|right join|inner join <source> [as <label>] on <lhs> equals <rhs>`
-- `show` with explicit fields, aliases via `as`, aggregate phrases, and time-bucket phrases
+- `show` with explicit fields, aliases via `as`, aggregate phrases, time-bucket phrases, and deterministic window phrases
 - `where`
 - `group by`
 - `having`
+- `qualify`
 - `sort by`
 - `limit`
 - `offset`
 - terminal chart phrases: `as bar chart`, `as line chart`, `as area chart`, `as pie chart`, `as scatter chart`
 - named parameters like `:minSalary`
 
-Supported operator phrases in `where` and `having`:
+Supported operator phrases in `where`, `having`, and `qualify`:
 - `is`
 - `is not`
 - `is at least` / `at least`
@@ -41,6 +42,12 @@ Supported time-bucket phrase:
 - optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
+Supported window phrases:
+- `row number [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `dense rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `running count|sum|average|minimum|maximum of <field|employees> [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+
 Join notes:
 - source labels are explicit: `from companies as company join employees as employee ...`
 - source-qualified field phrases use the source label or source name prefix: `company id`, `employee title`
@@ -50,7 +57,7 @@ Current non-goals:
 - free-form conversational language
 - fuzzy guessing
 - implicit business semantics such as `top performers` or `recent hires`
-- window/qualify phrasing
+- direct frame control or inline window expressions in `qualify`
 
 ## Execution Model
 
@@ -158,6 +165,27 @@ Time-bucket notes:
 - timezone defaults to `UTC`
 - week buckets default to `MONDAY`
 
+## Windows and Qualify
+
+Natural window phrasing stays narrow and deterministic.
+
+Example top-per-department query:
+
+```java
+List<DepartmentTopRow> rows = PojoLensNatural
+    .parse("show department as dept, name, salary, "
+        + "row number by department ordered by salary descending then id ascending as rn "
+        + "where active is true qualify rn is at most 1 sort by dept ascending")
+    .filter(source, DepartmentTopRow.class);
+```
+
+Window notes:
+
+- window outputs require `as <alias>`
+- `qualify` currently filters on window output aliases, not inline window expressions
+- running aggregate windows lower to `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- grouped queries and `qualify` stay separate; use [docs/sql-like.md](sql-like.md) when you need more exact analytic control
+
 ## Chart Phrase Contract
 
 Natural chart phrases configure chart type only. Field mapping stays deterministic from the `show` outputs.
@@ -220,7 +248,8 @@ Map<String, Object> explain = PojoLensNatural
 ## Current Limitations
 
 - the language is controlled text, not free-form natural language
-- window functions and `qualify` do not have natural phrasing yet
+- window phrasing is intentionally narrow: one optional partition field, explicit `ordered by`, and a fixed running frame for aggregate windows
+- `qualify` currently accepts window output aliases only, not inline window expressions
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
 - `schema(...)` remains structural and does not perform runtime vocabulary resolution
 - inferred chart mapping requires explicit non-wildcard `show` outputs

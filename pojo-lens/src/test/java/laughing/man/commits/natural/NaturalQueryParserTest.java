@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -143,6 +144,52 @@ public class NaturalQueryParserTest {
         assertEquals("employees.title", ast.filters().get(0).field());
         assertEquals("companies.name", ast.orders().get(0).field());
         assertEquals(Sort.ASC, ast.orders().get(0).sort());
+    }
+
+    @Test
+    public void shouldParseWindowPhraseAndQualifyClause() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show department as dept, name, salary, "
+                        + "row number by department ordered by salary descending then id ascending as rn "
+                        + "where active is true qualify rn is at most 1 sort by dept ascending"
+        );
+
+        assertEquals(4, ast.select().fields().size());
+        assertTrue(ast.select().fields().get(3).windowField());
+        assertEquals("ROW_NUMBER", ast.select().fields().get(3).windowFunction());
+        assertEquals(List.of("department"), ast.select().fields().get(3).windowPartitionFields());
+        assertEquals(2, ast.select().fields().get(3).windowOrderFields().size());
+        assertEquals("salary", ast.select().fields().get(3).windowOrderFields().get(0).field());
+        assertEquals(Sort.DESC, ast.select().fields().get(3).windowOrderFields().get(0).sort());
+        assertEquals("id", ast.select().fields().get(3).windowOrderFields().get(1).field());
+        assertEquals(Sort.ASC, ast.select().fields().get(3).windowOrderFields().get(1).sort());
+
+        assertEquals(1, ast.qualifyFilters().size());
+        assertEquals("rn", ast.qualifyFilters().get(0).field());
+        assertEquals(Clauses.SMALLER_EQUAL, ast.qualifyFilters().get(0).clause());
+        assertEquals(1, ast.qualifyFilters().get(0).value());
+        assertEquals("dept", ast.orders().get(0).field());
+    }
+
+    @Test
+    public void shouldParseRunningWindowAggregatePhrase() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show department, seq, amount, "
+                        + "running sum of amount by department ordered by seq ascending as running sum, "
+                        + "running count of employees by department ordered by seq ascending as running rows"
+        );
+
+        assertEquals(5, ast.select().fields().size());
+        assertTrue(ast.select().fields().get(3).windowField());
+        assertEquals("SUM", ast.select().fields().get(3).windowFunction());
+        assertEquals("amount", ast.select().fields().get(3).windowValueField());
+        assertFalse(ast.select().fields().get(3).windowCountAll());
+        assertEquals("runningSum", ast.select().fields().get(3).outputName());
+
+        assertTrue(ast.select().fields().get(4).windowField());
+        assertEquals("COUNT", ast.select().fields().get(4).windowFunction());
+        assertTrue(ast.select().fields().get(4).windowCountAll());
+        assertEquals("runningRows", ast.select().fields().get(4).outputName());
     }
 
     @Test

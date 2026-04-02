@@ -13,6 +13,8 @@ import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -23,6 +25,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -108,6 +111,56 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void shouldExecuteNaturalWindowQualifyQuery() {
+        List<DepartmentRank> rows = PojoLensNatural
+                .parse("show department, name, salary, "
+                        + "row number by department ordered by salary descending then id ascending as rn "
+                        + "where active is true qualify rn is at most 1 sort by department ascending")
+                .filter(sampleEmployees(), DepartmentRank.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(130000, rows.get(0).salary);
+        assertEquals(1L, rows.get(0).rn);
+        assertEquals("Finance", rows.get(1).department);
+        assertEquals("Bob", rows.get(1).name);
+        assertEquals(90000, rows.get(1).salary);
+        assertEquals(1L, rows.get(1).rn);
+    }
+
+    @Test
+    public void shouldExecuteRunningAggregateWindowPhrases() {
+        List<WindowMetricProjection> rows = PojoLensNatural
+                .parse("show department, seq, amount, "
+                        + "running sum of amount by department ordered by seq ascending as running sum, "
+                        + "running count of amount by department ordered by seq ascending as running count, "
+                        + "running count of employees by department ordered by seq ascending as running count all, "
+                        + "running average of amount by department ordered by seq ascending as running avg "
+                        + "sort by department ascending, seq ascending")
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class);
+
+        assertEquals(6, rows.size());
+        assertEquals("A", rows.get(0).department);
+        assertEquals(10L, rows.get(0).runningSum);
+        assertEquals(1L, rows.get(0).runningCount);
+        assertEquals(1L, rows.get(0).runningCountAll);
+        assertEquals(10D, rows.get(0).runningAvg);
+
+        assertEquals("A", rows.get(1).department);
+        assertEquals(10L, rows.get(1).runningSum);
+        assertEquals(1L, rows.get(1).runningCount);
+        assertEquals(2L, rows.get(1).runningCountAll);
+        assertEquals(10D, rows.get(1).runningAvg);
+
+        assertEquals("A", rows.get(2).department);
+        assertEquals(15L, rows.get(2).runningSum);
+        assertEquals(2L, rows.get(2).runningCount);
+        assertEquals(3L, rows.get(2).runningCountAll);
+        assertEquals(7.5D, rows.get(2).runningAvg);
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldResolveAliasesForExecutionAndExplain() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -179,6 +232,45 @@ public class NaturalQueryContractTest {
 
         assertEquals(List.of("2025-01", "2025-02"), rows.stream().map(row -> row.period).toList());
         assertEquals(List.of(300L, 450L), rows.stream().map(row -> row.payroll).toList());
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveWindowPhrasesAndQualifyAliases() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("department", "team")
+                .field("salary", "annual pay")
+                .field("id", "employee id")
+                .build());
+
+        NaturalQuery query = runtime.natural().parse(
+                "show team as dept, name, annual pay as pay, "
+                        + "row number by team ordered by annual pay descending then employee id ascending as top rank "
+                        + "where active is true qualify top rank is at most 1 sort by dept ascending"
+        );
+
+        List<NaturalWindowAliasRow> rows = query.filter(sampleEmployees(), NaturalWindowAliasRow.class);
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).dept);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(130000, rows.get(0).pay);
+        assertEquals(1L, rows.get(0).topRank);
+        assertEquals("Finance", rows.get(1).dept);
+        assertEquals("Bob", rows.get(1).name);
+        assertEquals(90000, rows.get(1).pay);
+        assertEquals(1L, rows.get(1).topRank);
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), NaturalWindowAliasRow.class);
+        assertEquals(
+                Map.of("team", "department", "annual pay", "salary", "employee id", "id"),
+                explain.get("resolvedNaturalFields")
+        );
+        assertEquals(
+                "select department as dept, name, salary as pay, "
+                        + "ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC, id ASC) as topRank "
+                        + "where active = true qualify topRank <= 1 order by dept asc",
+                explain.get("resolvedEquivalentSqlLike")
+        );
     }
 
     @Test
@@ -360,6 +452,16 @@ public class NaturalQueryContractTest {
         public long payroll;
 
         public PeriodPayrollRow() {
+        }
+    }
+
+    public static class NaturalWindowAliasRow {
+        public String dept;
+        public String name;
+        public int pay;
+        public long topRank;
+
+        public NaturalWindowAliasRow() {
         }
     }
 
