@@ -137,6 +137,30 @@ public class QueryTelemetryTest {
         assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
     }
 
+    @Test
+    public void runtimeNaturalChartPhraseShouldEmitChartTelemetryStages() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+        runtime.setTelemetryListener(events::add);
+
+        ChartData chart = runtime.natural()
+                .parse("show department, count of employees as total "
+                        + "where active is true group by department sort by total descending as bar chart")
+                .chart(sampleEmployees(), DepartmentCountRow.class);
+
+        assertEquals(List.of(
+                        QueryTelemetryStage.PARSE,
+                        QueryTelemetryStage.BIND,
+                        QueryTelemetryStage.FILTER,
+                        QueryTelemetryStage.AGGREGATE,
+                        QueryTelemetryStage.ORDER,
+                        QueryTelemetryStage.CHART
+                ),
+                events.stream().map(QueryTelemetryEvent::stage).toList());
+        assertTrue(events.stream().allMatch(event -> "natural".equals(event.queryType())));
+        assertEquals(2, chart.getLabels().size());
+    }
+
     public static class SalaryAliasRow {
         public String name;
         public int pay;

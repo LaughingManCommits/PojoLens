@@ -10,12 +10,14 @@ import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -76,6 +78,17 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
     }
 
     @Test
+    public void naturalQueryShouldSupportChartPhraseInferenceFromPublicApi() {
+        var chart = PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "where active is true group by department sort by total descending as bar chart"
+                )
+                .chart(sampleEmployees(), DepartmentCount.class);
+        assertEquals(ChartType.BAR, chart.getType());
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldBeUsableFromPublicApi() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -101,5 +114,17 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         assertEquals(1, rows.size());
         assertEquals("Engineering", rows.get(0).department);
         assertEquals(2L, rows.get(0).total);
+    }
+
+    @Test
+    public void naturalQueryShouldSupportTimeBucketPhrasesFromPublicApi() {
+        List<DepartmentPeriodAgg> rows = PojoLensNatural.parse(
+                        "show department, bucket hire date by month as period, count of employees as total "
+                                + "group by department, period sort by period ascending"
+                )
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(3, rows.size());
+        assertEquals("2025-01", rows.get(0).period);
     }
 }

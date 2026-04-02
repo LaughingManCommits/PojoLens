@@ -104,6 +104,7 @@ The default first-read story stays centered on the core engine:
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
   - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`

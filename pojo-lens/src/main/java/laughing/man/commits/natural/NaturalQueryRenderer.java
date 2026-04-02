@@ -61,6 +61,8 @@ final class NaturalQueryRenderer {
                         + "("
                         + (field.countAll() ? "*" : field.field())
                         + ")";
+            } else if (field.timeBucketField()) {
+                rendered = "bucket(" + field.field() + "," + field.timeBucketPreset().sqlArgumentList() + ")";
             } else {
                 rendered = field.field();
             }

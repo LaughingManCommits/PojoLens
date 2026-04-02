@@ -128,7 +128,9 @@ final class NaturalQueryResolutionSupport {
             String resolvedField;
             if (field.metricField()) {
                 resolvedField = field.countAll() ? field.field() : rewriteReference(field.field(), resolvedByNaturalField);
-            } else if (field.timeBucketField() || field.computedField() || field.windowField()) {
+            } else if (field.timeBucketField()) {
+                resolvedField = resolvedByNaturalField.getOrDefault(field.field(), field.field());
+            } else if (field.computedField() || field.windowField()) {
                 resolvedField = field.field();
             } else {
                 resolvedField = rewriteReference(field.field(), resolvedByNaturalField);

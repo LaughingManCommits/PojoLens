@@ -1,5 +1,6 @@
 package laughing.man.commits.natural.parser;
 
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.sqllike.ast.QueryAst;
 
 import java.util.Collections;
@@ -14,12 +15,16 @@ public final class NaturalQueryParseResult {
 
     private final QueryAst ast;
     private final Map<String, String> sourceFieldPhrases;
+    private final ChartType chartType;
 
-    public NaturalQueryParseResult(QueryAst ast, Map<String, String> sourceFieldPhrases) {
+    public NaturalQueryParseResult(QueryAst ast,
+                                   Map<String, String> sourceFieldPhrases,
+                                   ChartType chartType) {
         this.ast = Objects.requireNonNull(ast, "ast must not be null");
         this.sourceFieldPhrases = Collections.unmodifiableMap(new LinkedHashMap<>(
                 sourceFieldPhrases == null ? Map.of() : sourceFieldPhrases
         ));
+        this.chartType = chartType;
     }
 
     public QueryAst ast() {
@@ -28,5 +33,9 @@ public final class NaturalQueryParseResult {
 
     public Map<String, String> sourceFieldPhrases() {
         return sourceFieldPhrases;
+    }
+
+    public ChartType chartType() {
+        return chartType;
     }
 }

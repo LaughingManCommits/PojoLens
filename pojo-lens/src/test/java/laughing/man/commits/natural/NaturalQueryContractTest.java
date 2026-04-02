@@ -8,12 +8,15 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,6 +87,21 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void shouldExecuteNaturalTimeBucketAggregation() {
+        List<DepartmentPeriodAgg> rows = PojoLensNatural
+                .parse("show department, bucket hire date by month as period, count of employees as total, "
+                        + "sum of salary as payroll group by department, period sort by payroll descending")
+                .filter(sampleRows(), DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01|2|300",
+                        "Engineering|2025-02|1|150",
+                        "Finance|2025-02|1|300"
+                ),
+                normalizeDepartmentPeriodAgg(rows));
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldResolveAliasesForExecutionAndExplain() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -142,6 +160,53 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void runtimeNaturalVocabularyShouldResolveTimeBucketFieldPhrases() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("hireDate", "start date")
+                .build());
+
+        List<PeriodPayrollRow> rows = runtime.natural()
+                .parse("show bucket start date by month as period, sum of salary as payroll "
+                        + "group by period sort by period ascending")
+                .filter(sampleRows(), PeriodPayrollRow.class);
+
+        assertEquals(List.of("2025-01", "2025-02"), rows.stream().map(row -> row.period).toList());
+        assertEquals(List.of(300L, 450L), rows.stream().map(row -> row.payroll).toList());
+    }
+
+    @Test
+    public void chartPhraseShouldInferChartSpecForExecutionAndExplain() {
+        NaturalQuery query = PojoLensNatural
+                .parse("show department, count of employees as total "
+                        + "where active is true group by department sort by total descending as bar chart");
+
+        ChartData chart = query.chart(sampleEmployees(), DepartmentCount.class);
+        assertEquals(ChartType.BAR, chart.getType());
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+        assertEquals(List.of(2d, 1d), chart.getDatasets().get(0).getValues());
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), DepartmentCount.class);
+        assertEquals("BAR", explain.get("naturalChartType"));
+        assertEquals(
+                Map.of("type", "BAR", "xField", "department", "yField", "total"),
+                explain.get("resolvedNaturalChartSpec")
+        );
+    }
+
+    @Test
+    public void boundNaturalChartShouldUseInferredChartSpec() {
+        ChartData chart = PojoLensNatural
+                .parse("show department, count of employees as total "
+                        + "where active is true group by department sort by total descending as bar chart")
+                .bindTyped(sampleEmployees(), DepartmentCount.class)
+                .chart();
+
+        assertEquals(ChartType.BAR, chart.getType());
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+    }
+
+    @Test
     public void exactFieldMatchShouldWinOverVocabularyAlias() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -190,5 +255,20 @@ public class NaturalQueryContractTest {
 
         public DepartmentPayrollRow() {
         }
+    }
+
+    public static class PeriodPayrollRow {
+        public String period;
+        public long payroll;
+
+        public PeriodPayrollRow() {
+        }
+    }
+
+    private static List<String> normalizeDepartmentPeriodAgg(List<DepartmentPeriodAgg> rows) {
+        return rows.stream()
+                .map(row -> row.department + "|" + row.period + "|" + row.total + "|" + row.payroll)
+                .sorted()
+                .collect(Collectors.toList());
     }
 }

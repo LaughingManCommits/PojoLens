@@ -4,6 +4,7 @@
 
 - `README.md`
 - `docs/entry-points.md`
+- `docs/natural.md`
 - `docs/reusable-wrappers.md`
 - `docs/usecases.md`
 - `docs/sql-like.md`

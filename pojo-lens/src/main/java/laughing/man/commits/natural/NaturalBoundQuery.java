@@ -20,5 +20,7 @@ public interface NaturalBoundQuery<T> {
 
     Stream<T> stream();
 
+    ChartData chart();
+
     ChartData chart(ChartSpec spec);
 }

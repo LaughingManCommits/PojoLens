@@ -9,7 +9,7 @@ entry surface.
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
 | Service-owned fluent query | `PojoLensCore.newQueryBuilder(rows)` | Makes the fluent path explicit and keeps new code on the core engine surface. |
-| Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine. |
+| Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
@@ -26,7 +26,8 @@ entry surface.
   are composing it through fluent builder calls.
 - Use `PojoLensNatural` when the query should stay text-driven but the author
   should not have to learn SQL-like clause syntax, including grouped aggregate
-  phrases such as `count of ...`, `group by`, and `having`.
+  phrases such as `count of ...`, `group by`, `having`, time-bucket phrases,
+  and terminal chart phrases.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped

@@ -3,6 +3,7 @@ package laughing.man.commits.natural;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
@@ -138,8 +139,11 @@ public final class NaturalQuery {
                                               Class<T> projectionClass,
                                               JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
         return new DefaultNaturalBoundQuery<>(
-                resolvedDelegate(pojos, projectionClass).bindTyped(pojos, projectionClass, joinBindings)
+                resolvedExecution.delegate().bindTyped(pojos, projectionClass, joinBindings),
+                resolvedExecution.resolved().ast(),
+                state.chartType()
         );
     }
 
@@ -189,9 +193,23 @@ public final class NaturalQuery {
         return resolvedDelegate(pojos, projectionClass).chart(pojos, projectionClass, spec);
     }
 
+    public <T> ChartData chart(List<?> pojos, Class<T> projectionClass) {
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
+        return resolvedExecution.delegate().chart(
+                pojos,
+                projectionClass,
+                NaturalChartSupport.inferChartSpec(resolvedExecution.resolved().ast(), state.chartType())
+        );
+    }
+
     public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass, ChartSpec spec) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
         return resolvedDelegate(datasetBundle.primaryRows(), projectionClass).chart(datasetBundle, projectionClass, spec);
+    }
+
+    public <T> ChartData chart(DatasetBundle datasetBundle, Class<T> projectionClass) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return chart(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
     }
 
     public <T> ChartData chart(List<?> pojos,
@@ -200,6 +218,19 @@ public final class NaturalQuery {
                                ChartSpec spec) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         return resolvedDelegate(pojos, projectionClass).chart(pojos, joinBindings, projectionClass, spec);
+    }
+
+    public <T> ChartData chart(List<?> pojos,
+                               JoinBindings joinBindings,
+                               Class<T> projectionClass) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, projectionClass);
+        return resolvedExecution.delegate().chart(
+                pojos,
+                joinBindings,
+                projectionClass,
+                NaturalChartSupport.inferChartSpec(resolvedExecution.resolved().ast(), state.chartType())
+        );
     }
 
     public Sort sort() {
@@ -247,7 +278,12 @@ public final class NaturalQuery {
     }
 
     private SqlLikeQuery resolvedDelegate(List<?> pojos, Class<?> projectionClass) {
-        return createDelegate(resolve(pojos, projectionClass).ast());
+        return resolvedExecution(pojos, projectionClass).delegate();
+    }
+
+    private ResolvedExecution resolvedExecution(List<?> pojos, Class<?> projectionClass) {
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, projectionClass);
+        return new ResolvedExecution(resolved, createDelegate(resolved.ast()));
     }
 
     private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolve(List<?> pojos, Class<?> projectionClass) {
@@ -255,7 +291,7 @@ public final class NaturalQuery {
         Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
         allowedFields.addAll(state.computedFieldRegistry().names());
         return NaturalQueryResolutionSupport.resolve(
-                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases()),
+                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
                 allowedFields,
                 state.vocabulary()
         );
@@ -274,6 +310,20 @@ public final class NaturalQuery {
                                                    NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved) {
         LinkedHashMap<String, Object> updated = new LinkedHashMap<>(explain);
         updated.put("equivalentSqlLike", equivalentSqlLike);
+        if (state.chartType() != null) {
+            updated.put("naturalChartType", state.chartType().name());
+            try {
+                updated.put(
+                        resolved == null ? "naturalChartSpec" : "resolvedNaturalChartSpec",
+                        NaturalChartSupport.describeInferredChart(
+                                resolved == null ? state.ast() : resolved.ast(),
+                                state.chartType()
+                        )
+                );
+            } catch (IllegalArgumentException ex) {
+                updated.put("naturalChartInferenceError", ex.getMessage());
+            }
+        }
         if (resolved != null) {
             updated.put("resolvedNaturalFields", explainableResolutionMappings(resolved.resolvedByOriginalPhrase()));
             updated.put("resolvedEquivalentSqlLike", resolved.equivalentSqlLike());
@@ -302,7 +352,8 @@ public final class NaturalQuery {
                               QueryTelemetryListener telemetryListener,
                               ComputedFieldRegistry computedFieldRegistry,
                               FilterExecutionPlanCacheStore executionPlanCache,
-                              NaturalVocabulary vocabulary) {
+                              NaturalVocabulary vocabulary,
+                              ChartType chartType) {
 
         private QueryState {
             Objects.requireNonNull(ast, "ast must not be null");
@@ -323,7 +374,8 @@ public final class NaturalQuery {
                     null,
                     ComputedFieldRegistry.empty(),
                     DefaultFilterExecutionPlanCacheSupport.defaultStore(),
-                    NaturalVocabulary.empty()
+                    NaturalVocabulary.empty(),
+                    parseResult.chartType()
             );
         }
 
@@ -336,7 +388,8 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -349,7 +402,8 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -362,7 +416,8 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -375,7 +430,8 @@ public final class NaturalQuery {
                     listener,
                     computedFieldRegistry,
                     executionPlanCache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -388,7 +444,8 @@ public final class NaturalQuery {
                     telemetryListener,
                     registry,
                     executionPlanCache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -401,7 +458,8 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     cache,
-                    vocabulary
+                    vocabulary,
+                    chartType
             );
         }
 
@@ -414,16 +472,27 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
-                    updatedVocabulary
+                    updatedVocabulary,
+                    chartType
             );
         }
     }
 
+    private record ResolvedExecution(NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved,
+                                     SqlLikeQuery delegate) {
+    }
+
     private static final class DefaultNaturalBoundQuery<T> implements NaturalBoundQuery<T> {
         private final laughing.man.commits.sqllike.SqlLikeBoundQuery<T> delegate;
+        private final QueryAst resolvedAst;
+        private final ChartType chartType;
 
-        private DefaultNaturalBoundQuery(laughing.man.commits.sqllike.SqlLikeBoundQuery<T> delegate) {
+        private DefaultNaturalBoundQuery(laughing.man.commits.sqllike.SqlLikeBoundQuery<T> delegate,
+                                         QueryAst resolvedAst,
+                                         ChartType chartType) {
             this.delegate = delegate;
+            this.resolvedAst = resolvedAst;
+            this.chartType = chartType;
         }
 
         @Override
@@ -439,6 +508,11 @@ public final class NaturalQuery {
         @Override
         public Stream<T> stream() {
             return delegate.stream();
+        }
+
+        @Override
+        public ChartData chart() {
+            return delegate.chart(NaturalChartSupport.inferChartSpec(resolvedAst, chartType));
         }
 
         @Override

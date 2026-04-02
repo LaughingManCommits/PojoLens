@@ -40,6 +40,25 @@ Notes:
 - week start is optional; default is `MONDAY`
 - week start is valid only for `WEEK` buckets
 
+## Natural
+
+Supported forms:
+- `bucket hire date by month as period`
+- `bucket hire date by month in Europe/Amsterdam as period`
+- `bucket hire date by week in Europe/Amsterdam starting sunday as period`
+
+```java
+List<WeeklyHeadcount> rows = PojoLensNatural
+    .parse("show bucket hire date by week in Europe/Amsterdam starting sunday as period, "
+        + "count of employees as headcount group by period sort by period ascending")
+    .filter(source, WeeklyHeadcount.class);
+```
+
+Notes:
+- the natural bucket phrase lowers to the same `TimeBucketPreset` path used by fluent and SQL-like queries
+- bucket outputs should use `as <alias>`
+- grouped natural queries must include the bucket alias in `group by`
+
 ## Chart Presets
 
 ```java

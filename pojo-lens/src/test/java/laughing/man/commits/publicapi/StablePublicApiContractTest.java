@@ -137,7 +137,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "stream", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "stream", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "chart", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, Class.class, ChartSpec.class);
+        requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(NaturalQuery.class, "schema", Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, Class.class);
@@ -147,6 +149,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalBoundQuery.class, "filter");
         requirePublicMethod(NaturalBoundQuery.class, "iterator");
         requirePublicMethod(NaturalBoundQuery.class, "stream");
+        requirePublicMethod(NaturalBoundQuery.class, "chart");
         requirePublicMethod(NaturalBoundQuery.class, "chart", ChartSpec.class);
 
         requirePublicStaticMethod(NaturalVocabulary.class, "empty");

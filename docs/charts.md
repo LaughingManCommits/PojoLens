@@ -117,6 +117,15 @@ ChartData chart = PojoLensSql
     .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
 ```
 
+Natural chart phrase with inferred mapping:
+
+```java
+ChartData chart = PojoLensNatural
+    .parse("show department, count of employees as total "
+        + "where active is true group by department sort by total descending as bar chart")
+    .chart(source, DepartmentCount.class);
+```
+
 Preset-driven chart:
 
 ```java
@@ -209,6 +218,14 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
+Natural chart inference contract:
+
+- chart phrases set chart type only
+- 2 `show` outputs infer `xField`, `yField`
+- 3 `show` outputs infer `xField`, `seriesField`, `yField`
+- `pie` charts require exactly 2 outputs
+- explicit `ChartSpec` still overrides inference when you want a different mapping
 
 
 

@@ -1,0 +1,209 @@
+# Natural Query Guide
+
+## Supported Grammar
+
+- `show` with explicit fields, aliases via `as`, aggregate phrases, and time-bucket phrases
+- `where`
+- `group by`
+- `having`
+- `sort by`
+- `limit`
+- `offset`
+- terminal chart phrases: `as bar chart`, `as line chart`, `as area chart`, `as pie chart`, `as scatter chart`
+- named parameters like `:minSalary`
+
+Supported operator phrases in `where` and `having`:
+- `is`
+- `is not`
+- `is at least` / `at least`
+- `is at most` / `at most`
+- `is more than` / `more than`
+- `is less than` / `less than`
+- `is above` / `above`
+- `is below` / `below`
+- `is before` / `before`
+- `is after` / `after`
+- `contains`
+- `starts with`
+- `ends with`
+
+Supported aggregate phrases:
+- `count of`
+- `sum of`
+- `average of` / `avg`
+- `minimum of` / `min`
+- `maximum of` / `max`
+
+Supported time-bucket phrase:
+- `bucket <date field> by day|week|month|quarter|year as <alias>`
+- optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
+- optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
+
+Current non-goals:
+- free-form conversational language
+- fuzzy guessing
+- implicit business semantics such as `top performers` or `recent hires`
+- join/window/qualify phrasing
+
+## Execution Model
+
+Use `PojoLensNatural.parse(...)` for direct deterministic parsing:
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where department is :dept and salary is at least :minSalary "
+        + "sort by salary descending limit 10")
+    .params(Map.of("dept", "Engineering", "minSalary", 120000))
+    .filter(source, Employee.class);
+```
+
+Use `PojoLensRuntime.natural()` when vocabulary, telemetry, lint mode, strict typing, caches, or computed fields should be runtime-scoped:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+    .field("salary", "annual pay", "pay")
+    .field("department", "team")
+    .build());
+
+List<Employee> rows = runtime.natural()
+    .parse("show employees where team is Engineering and active is true sort by annual pay descending limit 10")
+    .filter(source, Employee.class);
+```
+
+Natural queries lower into the same shared engine used by fluent and SQL-like execution.
+
+## Vocabulary Contract
+
+`NaturalVocabulary` is runtime-scoped and explicit:
+
+- exact field matches win before alias lookup
+- alias resolution is deterministic
+- ambiguous aliases fail with candidate fields
+- unknown terms fail with the allowed-field set
+- direct `PojoLensNatural.parse(...)` remains vocabulary-free; runtime-owned vocabulary applies through `PojoLensRuntime.natural()`
+
+Registration shape:
+
+```java
+NaturalVocabulary vocabulary = NaturalVocabulary.builder()
+    .field("salary", "annual pay", "pay")
+    .field("hireDate", "hire date", "start date")
+    .field("active", "active", "currently employed")
+    .build();
+```
+
+## Grouping and Time Buckets
+
+Grouped natural queries use the same grouped validation discipline as SQL-like queries.
+
+Example grouped aggregate:
+
+```java
+List<DepartmentHeadcountRow> rows = PojoLensNatural
+    .parse("show department, count of employees as headcount "
+        + "where active is true "
+        + "group by department having headcount is at least 2 "
+        + "sort by headcount descending")
+    .filter(source, DepartmentHeadcountRow.class);
+```
+
+Example time bucket:
+
+```java
+List<PeriodPayrollRow> rows = PojoLensNatural
+    .parse("show bucket hire date by month as period, sum of salary as payroll "
+        + "group by period sort by period ascending")
+    .filter(source, PeriodPayrollRow.class);
+```
+
+Time-bucket notes:
+
+- the bucket source field must be a `java.util.Date`
+- bucket outputs should use `as <alias>`
+- grouped queries must include the bucket alias in `group by`
+- timezone defaults to `UTC`
+- week buckets default to `MONDAY`
+
+## Chart Phrase Contract
+
+Natural chart phrases configure chart type only. Field mapping stays deterministic from the `show` outputs.
+
+Supported call shapes:
+
+- parsed chart phrase + inferred chart spec:
+
+```java
+ChartData chart = PojoLensNatural
+    .parse("show department, count of employees as total "
+        + "where active is true group by department sort by total descending as bar chart")
+    .chart(source, DepartmentCount.class);
+```
+
+- parsed chart phrase + bind-first execution:
+
+```java
+ChartData chart = PojoLensNatural
+    .parse("show department, count of employees as total "
+        + "where active is true group by department sort by total descending as bar chart")
+    .bindTyped(source, DepartmentCount.class)
+    .chart();
+```
+
+- explicit `ChartSpec` still overrides inference when you want a different mapping:
+
+```java
+ChartData chart = PojoLensNatural
+    .parse("show name, salary where active is true sort by salary descending limit 10")
+    .chart(source, Employee.class, ChartSpec.of(ChartType.BAR, "name", "salary"));
+```
+
+Inference rules:
+
+- 2 outputs: first output -> `xField`, second output -> `yField`
+- 3 outputs: first output -> `xField`, second output -> `seriesField`, third output -> `yField`
+- `pie` charts require exactly 2 outputs
+- wildcard `show employees` does not support inferred chart mapping
+
+## Explain Output
+
+Natural `explain()` adds plain-English-specific metadata on top of the shared explain payload:
+
+- `equivalentSqlLike`
+- `resolvedNaturalFields` when runtime vocabulary resolution is involved
+- `resolvedEquivalentSqlLike` for execution-context explains
+- `naturalChartType` / `resolvedNaturalChartSpec` when a chart phrase is present
+
+Example:
+
+```java
+Map<String, Object> explain = PojoLensNatural
+    .parse("show department, count of employees as total "
+        + "where active is true group by department sort by total descending as bar chart")
+    .explain(source, DepartmentCount.class);
+```
+
+## Current Limitations
+
+- the language is controlled text, not free-form natural language
+- joins, window functions, and `qualify` do not have natural phrasing yet
+- direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
+- `schema(...)` remains structural and does not perform runtime vocabulary resolution
+- inferred chart mapping requires explicit non-wildcard `show` outputs
+
+## Error Reference
+
+Parser errors use deterministic location text:
+- `Natural query parse error: ... at line <n>, column <n>`
+
+Common validation/runtime failures:
+- unknown natural term:
+  `Unknown natural field term '<term>' in natural query. Allowed fields: [...]`
+- ambiguous natural term:
+  `Ambiguous natural field term '<term>' in natural query. Candidates: [...]`
+- missing chart phrase for no-spec chart execution:
+  `Natural query does not declare a chart phrase; add 'as <type> chart' or pass ChartSpec explicitly`
+- invalid inferred chart shape:
+  `Natural chart inference requires exactly 2 SHOW outputs (x,y) or 3 SHOW outputs (x,series,y)`
+
+When a phrase becomes too advanced or too exact for the natural surface, prefer [docs/sql-like.md](sql-like.md) or fluent queries.

@@ -1,5 +1,6 @@
 package laughing.man.commits.natural.parser;
 
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
@@ -81,6 +82,7 @@ public final class NaturalQueryParser {
             String limitParameter = null;
             Integer offset = null;
             String offsetParameter = null;
+            ChartType chartType = null;
 
             if (matchWord("where")) {
                 whereExpression = parseBooleanExpression(false, "WHERE");
@@ -109,6 +111,9 @@ public final class NaturalQueryParser {
                 offset = parsed.literal();
                 offsetParameter = parsed.parameterName();
             }
+            if (matchWord("as")) {
+                chartType = parseChartPhrase();
+            }
             if (!peek().isEof()) {
                 throw error("Unexpected token '" + peek().text + "'", peek().position);
             }
@@ -129,7 +134,8 @@ public final class NaturalQueryParser {
                             offset,
                             offsetParameter
                     ),
-                    sourceFieldPhrases
+                    sourceFieldPhrases,
+                    chartType
             );
         }
 
@@ -172,6 +178,17 @@ public final class NaturalQueryParser {
                         metricPhrase.metric(),
                         metricPhrase.countAll(),
                         (TimeBucketPreset) null,
+                        false
+                );
+            }
+            TimeBucketPhrase timeBucketPhrase = tryParseTimeBucketPhrase(fieldTokens, "SHOW");
+            if (timeBucketPhrase != null) {
+                return new SelectFieldAst(
+                        timeBucketPhrase.field(),
+                        alias,
+                        null,
+                        false,
+                        timeBucketPhrase.preset(),
                         false
                 );
             }
@@ -376,7 +393,10 @@ public final class NaturalQueryParser {
             if (isWord(token, "group") && isWord(tokenAt(tokenIndex + 1), "by")) {
                 return true;
             }
-            return isWord(token, "sort") && isWord(tokenAt(tokenIndex + 1), "by");
+            if (isWord(token, "sort") && isWord(tokenAt(tokenIndex + 1), "by")) {
+                return true;
+            }
+            return isChartBoundary(tokenIndex);
         }
 
         private boolean peekSortBy() {
@@ -460,6 +480,26 @@ public final class NaturalQueryParser {
             );
         }
 
+        private ChartType parseChartPhrase() {
+            Token typeToken = peek();
+            if (typeToken.type != TokenType.RAW) {
+                throw error("Expected chart type after 'as'", typeToken.position);
+            }
+            ChartType chartType = chartTypeFromWord(typeToken.text);
+            if (chartType == null) {
+                throw error("Unsupported natural chart type '" + typeToken.text + "'", typeToken.position);
+            }
+            next();
+            expectWord("chart");
+            return chartType;
+        }
+
+        private boolean isChartBoundary(int tokenIndex) {
+            return isWord(tokenAt(tokenIndex), "as")
+                    && chartTypeFromWord(tokenAt(tokenIndex + 1).text) != null
+                    && isWord(tokenAt(tokenIndex + 2), "chart");
+        }
+
         private String parseReference(List<Token> fieldTokens,
                                       boolean allowAggregateReferences,
                                       String clauseName) {
@@ -498,6 +538,73 @@ public final class NaturalQueryParser {
             }
             rememberSourceFieldPhrase(fieldTokens);
             return new MetricPhrase(metric, false, normalizeFieldReference(fieldTokens));
+        }
+
+        private TimeBucketPhrase tryParseTimeBucketPhrase(List<Token> tokens, String clauseName) {
+            if (tokens == null || tokens.isEmpty() || !isWord(tokens.get(0), "bucket")) {
+                return null;
+            }
+            int byIndex = indexOfWord(tokens, "by");
+            if (byIndex < 0) {
+                throw error("Expected 'by' in time-bucket phrase in " + clauseName, tokens.get(0).position);
+            }
+            if (byIndex == 1) {
+                throw error("Expected field after 'bucket' in " + clauseName, tokens.get(0).position);
+            }
+            if (byIndex + 1 >= tokens.size()) {
+                throw error("Expected bucket granularity after 'by' in " + clauseName, tokens.get(byIndex).position);
+            }
+
+            List<Token> fieldTokens = tokens.subList(1, byIndex);
+            rememberSourceFieldPhrase(fieldTokens);
+
+            int cursor = byIndex + 1;
+            Token bucketToken = tokens.get(cursor++);
+            if (bucketToken.type != TokenType.RAW) {
+                throw error("Expected bucket granularity after 'by' in " + clauseName, bucketToken.position);
+            }
+
+            String zoneValue = null;
+            String weekStartValue = null;
+            if (cursor < tokens.size() && isWord(tokens.get(cursor), "in")) {
+                int zoneStart = ++cursor;
+                while (cursor < tokens.size()
+                        && !isWord(tokens.get(cursor), "starting")
+                        && !(isWord(tokens.get(cursor), "week") && cursor + 1 < tokens.size()
+                        && isWord(tokens.get(cursor + 1), "starting"))) {
+                    cursor++;
+                }
+                if (zoneStart == cursor) {
+                    throw error("Expected time zone after 'in' in " + clauseName, tokens.get(zoneStart - 1).position);
+                }
+                zoneValue = joinTokens(tokens.subList(zoneStart, cursor));
+            }
+
+            if (cursor < tokens.size()) {
+                if (isWord(tokens.get(cursor), "week")
+                        && cursor + 1 < tokens.size()
+                        && isWord(tokens.get(cursor + 1), "starting")) {
+                    cursor += 2;
+                } else if (isWord(tokens.get(cursor), "starting")) {
+                    cursor++;
+                } else {
+                    throw error("Unexpected token '" + tokens.get(cursor).text + "' in time-bucket phrase", tokens.get(cursor).position);
+                }
+                if (cursor >= tokens.size()) {
+                    throw error("Expected week-start value in " + clauseName, tokens.get(tokens.size() - 1).position);
+                }
+                weekStartValue = joinTokens(tokens.subList(cursor, tokens.size()));
+                cursor = tokens.size();
+            }
+
+            try {
+                return new TimeBucketPhrase(
+                        normalizeFieldReference(fieldTokens),
+                        TimeBucketPreset.parse(bucketToken.text, zoneValue, weekStartValue)
+                );
+            } catch (IllegalArgumentException ex) {
+                throw error(ex.getMessage(), bucketToken.position);
+            }
         }
 
         private Metric metricFromWord(Token token) {
@@ -559,12 +666,35 @@ public final class NaturalQueryParser {
         return -1;
     }
 
+    private static int indexOfWord(List<Token> tokens, String value) {
+        for (int i = 0; i < tokens.size(); i++) {
+            if (isWord(tokens.get(i), value)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static boolean endsWithWord(List<Token> tokens, String value) {
         return !tokens.isEmpty() && isWord(tokens.get(tokens.size() - 1), value);
     }
 
     private static boolean isWord(Token token, String expected) {
         return token.type == TokenType.RAW && token.text.equalsIgnoreCase(expected);
+    }
+
+    private static ChartType chartTypeFromWord(String value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value.toLowerCase(Locale.ROOT)) {
+            case "bar" -> ChartType.BAR;
+            case "line" -> ChartType.LINE;
+            case "area" -> ChartType.AREA;
+            case "pie" -> ChartType.PIE;
+            case "scatter" -> ChartType.SCATTER;
+            default -> null;
+        };
     }
 
     private static String normalizeFieldReference(List<Token> tokens) {
@@ -799,5 +929,8 @@ public final class NaturalQueryParser {
     }
 
     private record MetricPhrase(Metric metric, boolean countAll, String field) {
+    }
+
+    private record TimeBucketPhrase(String field, TimeBucketPreset preset) {
     }
 }

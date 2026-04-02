@@ -1,9 +1,11 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -96,6 +98,27 @@ public class NaturalQueryParserTest {
         assertEquals("sum(salary)", ast.orders().get(0).field());
         assertEquals(Sort.DESC, ast.orders().get(0).sort());
         assertEquals(Integer.valueOf(5), ast.limit());
+    }
+
+    @Test
+    public void shouldParseTimeBucketPhraseAndTerminalChartPhrase() {
+        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(
+                "show bucket hire date by week in Europe/Amsterdam starting sunday as period, "
+                        + "sum of salary as payroll group by period sort by period ascending as line chart"
+        );
+
+        QueryAst ast = parseResult.ast();
+        assertEquals(ChartType.LINE, parseResult.chartType());
+        assertEquals(2, ast.select().fields().size());
+        assertTrue(ast.select().fields().get(0).timeBucketField());
+        assertEquals("hireDate", ast.select().fields().get(0).field());
+        assertEquals("period", ast.select().fields().get(0).outputName());
+        assertEquals("Europe/Amsterdam", ast.select().fields().get(0).timeBucketPreset().zoneId().getId());
+        assertEquals("SUNDAY", ast.select().fields().get(0).timeBucketPreset().weekStart().name());
+        assertTrue(ast.select().fields().get(1).metricField());
+        assertEquals(Metric.SUM, ast.select().fields().get(1).metric());
+        assertEquals("period", ast.orders().get(0).field());
+        assertEquals(Sort.ASC, ast.orders().get(0).sort());
     }
 
     @Test

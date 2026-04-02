@@ -35,7 +35,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Surface | Family | Positioning | Primary contracts | Current classification | Primary docs |
 | --- | --- | --- | --- | --- | --- |
 | Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
-| Plain-English querying | `Core query engine` | First-class guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md` |
+| Plain-English querying | `Core query engine` | First-class guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
 | SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |

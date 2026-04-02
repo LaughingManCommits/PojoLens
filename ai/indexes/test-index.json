@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-02T13:45:21.284595+02:00",
+  "generatedAt": "2026-04-02T15:55:34.777040+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 108,
-    "testClasses": 108
+    "testJavaFiles": 109,
+    "testClasses": 109
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 97
+      "testJavaFiles": 98
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -78,6 +78,7 @@
       "category": "docs-examples",
       "files": [
         "pojo-lens/src/test/java/laughing/man/commits/StatsDocsExamplesTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalDocsExamplesTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeDocsExamplesTest.java"
       ]
     },
