@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE-LIMITATIONS.md` to turn the current documented engine limits into a concrete remediation/options spike.
 - `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after rebalancing `README.md` quick start to one short example per query style and moving broader examples back to the docs guides.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding `NaturalTemplate`, runtime `natural().template(...)`, plain-worded computed-field coverage, and the aligned natural/public-surface docs.
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding deterministic natural window phrases (`row number`, `rank`, `dense rank`, running aggregates), alias-based `qualify`, execution/public-API/telemetry coverage, and aligned README/natural/entry-point/use-case docs.

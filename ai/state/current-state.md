@@ -14,11 +14,12 @@
 - `2026-04-01`: scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` isolated reflection-heavy SQL-like chart mapping.
 - `2026-04-01`: Claude orchestration now defaults to repo-local `.claude-orchestrator/`.
 - `2026-04-02`: `PojoLensNatural` and `PojoLensRuntime.natural()` now cover vocabulary, grouped aggregates, time buckets/chart phrases, explicit joins, and deterministic windows plus alias-based `qualify`.
-- `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, explain adds resolved field/sql-like metadata, and `docs/natural.md` remains the canonical guide.
+- `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, and explain adds resolved field/sql-like metadata.
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural window/`qualify` slice and doc refresh.
-- `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding, and runtime-scoped computed fields are documented and covered in plain wording.
+- `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding and plain-worded runtime computed fields.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
-- `2026-04-03`: `README.md` quick start is rebalanced around one short example each for fluent, SQL-like, and natural queries; broader recipes now route to the docs guides.
+- `2026-04-03`: `README.md` quick start is rebalanced around one short example each for fluent, SQL-like, and natural; broader recipes now route to docs.
+- `2026-04-03`: root `SPIKE-LIMITATIONS.md` maps current engine limits into remediation options and recommends time-type broadening plus grouped/aggregate subquery widening first.
 
 ## Release
 
@@ -37,6 +38,7 @@
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - Next natural-query slice should probably be reusable natural preset/report-style wrappers now that computed-field phrasing and templates are in place.
-- Keep README onboarding balanced across query styles and push deep recipes into the dedicated docs guides.
+- Keep README onboarding balanced across query styles and push deep recipes into docs.
+- If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate single-column subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.
 - After AI memory edits, rerun `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.

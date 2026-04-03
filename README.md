@@ -248,12 +248,12 @@ Preset intent:
 
 ## Current Limitations
 
-- SQL-like subqueries are currently limited to `WHERE <field> IN (select <oneField> ...)`.
-- Aggregate/grouped/joined subquery plans are not supported.
-- SQL-like aggregate `ORDER BY` must reference grouped fields or aggregate outputs.
-- SQL-like aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- Time bucket source fields must be `java.util.Date`.
-- Builders are mutable and not safe for concurrent mutation; use `copyOnBuild(true)` for reusable templates.
+- SQL-like subqueries currently support only `WHERE <field> IN (select <oneSimpleField> ...)`.
+- Subqueries do not yet support aggregate, grouped, or joined subquery plans.
+- In aggregate SQL-like queries, `ORDER BY` must reference a `GROUP BY` field or an aggregate output alias/name.
+- SQL-like aggregate windows currently support only the running frame `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- Time-bucket input fields must be `java.util.Date` values.
+- Fluent query builders are mutable and not safe for concurrent mutation; keep `copyOnBuild(true)` enabled (the default) when reusing a builder configuration across executions or threads.
 
 ## Documentation Map
 

@@ -15,15 +15,16 @@
 
 - `PojoLensRuntime` owns natural vocabulary; `NaturalVocabulary.builder().field(actualField, aliases...)` is the alias-registration contract.
 - Natural resolution is late-bound against source fields plus computed-field names; exact matches beat aliases and ambiguity stays deterministic.
-- Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate` schemas.
+- Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate`.
 - Natural joins reuse `JoinBindings` / `DatasetBundle` and support optional source labels.
-- Natural chart phrases drive deterministic no-spec `chart(...)` / bound `chart()` inference from `show` outputs.
-- Natural explain adds resolved field/sql-like metadata and chart metadata; joined explains carry `joinSourceBindings`.
-- Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
-- `docs/natural.md` is the canonical natural-query guide, aligned with README and entry-point/use-case docs.
-- `README.md` quick start should stay balanced across fluent, SQL-like, and natural surfaces.
+- Natural chart phrases drive deterministic no-spec `chart(...)` / bound `chart()` inference.
+- Natural explain adds resolved field/sql-like metadata and chart metadata.
+- Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
+- `docs/natural.md` is the canonical natural-query guide.
+- `README.md` quick start should stay balanced across fluent, SQL-like, and natural.
+- `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; it recommends time-bucket input broadening first, then grouped/aggregate subquery widening.
 - Next natural-query slice is likely reusable natural preset/report wrappers.
-- Latest SQL-like scatter profile still points at reflection-heavy chart mapping.
+- Latest SQL-like scatter profile points at reflection-heavy chart mapping.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.
 
 ## Validate
@@ -37,6 +38,7 @@
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
+- limitation spike: `SPIKE-LIMITATIONS.md`
 - release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
 - natural-query code/tests: `pojo-lens/src/main/java/laughing/man/commits/natural/`, `pojo-lens/src/main/java/laughing/man/commits/natural/parser/`, `pojo-lens/src/test/java/laughing/man/commits/natural/`
 - runtime/public-API coverage: `pojo-lens/src/test/java/laughing/man/commits/publicapi/`
