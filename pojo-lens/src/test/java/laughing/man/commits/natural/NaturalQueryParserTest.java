@@ -65,6 +65,19 @@ public class NaturalQueryParserTest {
     }
 
     @Test
+    public void shouldTreatBoundedFillerWordsAsOptionalNoOps() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show me the employees where the hire date is before :cutoff sort by the hire date ascending"
+        );
+
+        assertTrue(ast.select().wildcard());
+        assertEquals("hireDate", ast.filters().get(0).field());
+        assertEquals(Clauses.SMALLER, ast.filters().get(0).clause());
+        assertEquals("hireDate", ast.orders().get(0).field());
+        assertEquals(Sort.ASC, ast.orders().get(0).sort());
+    }
+
+    @Test
     public void shouldTranslateStartsWithToRegexMatch() {
         QueryAst ast = NaturalQueryParser.parse("show all where department starts with Eng");
         assertEquals(Clauses.MATCHES, ast.filters().get(0).clause());
@@ -144,6 +157,24 @@ public class NaturalQueryParserTest {
         assertEquals("employees.title", ast.filters().get(0).field());
         assertEquals("companies.name", ast.orders().get(0).field());
         assertEquals(Sort.ASC, ast.orders().get(0).sort());
+    }
+
+    @Test
+    public void shouldParseJoinQueryWithOptionalArticlesAroundSourcesAndReferences() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "from the companies as company join the employees as employee "
+                        + "on the company id equals the employee company id "
+                        + "show the company name as company name where the employee title is Engineer "
+                        + "sort by the company name ascending"
+        );
+
+        assertEquals("companies", ast.select().sourceName());
+        assertEquals(1, ast.joins().size());
+        assertEquals("companies.id", ast.joins().get(0).parentField());
+        assertEquals("employees.companyId", ast.joins().get(0).childField());
+        assertEquals("companies.name", ast.select().fields().get(0).field());
+        assertEquals("employees.title", ast.filters().get(0).field());
+        assertEquals("companies.name", ast.orders().get(0).field());
     }
 
     @Test

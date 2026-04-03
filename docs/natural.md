@@ -14,6 +14,16 @@
 - `offset`
 - terminal chart phrases: `as bar chart`, `as line chart`, `as area chart`, `as pie chart`, `as scatter chart`
 - named parameters like `:minSalary`
+- optional filler words in bounded positions only:
+  - `show me ...`
+  - leading `the`, `a`, or `an` before source/field references such as
+    `show the employees`, `where the department is ...`, or
+    `from the companies join the employees ...`
+
+Filler-word notes:
+- these words are optional sugar, not required syntax
+- they are ignored only in those bounded grammar slots
+- they are not stripped globally from aliases, parameter names, or values
 
 Supported operator phrases in `where`, `having`, and `qualify`:
 - `is`

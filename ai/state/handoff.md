@@ -16,12 +16,13 @@
 - `PojoLensRuntime` owns natural vocabulary; `NaturalVocabulary.builder().field(actualField, aliases...)` is the alias-registration contract.
 - Natural resolution is late-bound against source fields plus computed-field names; exact matches beat aliases and ambiguity stays deterministic.
 - Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate`.
-- Natural joins reuse `JoinBindings` / `DatasetBundle` and support optional source labels.
-- Natural explain adds resolved field/sql-like metadata and chart metadata.
-- Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
+- Natural joins reuse `JoinBindings` / `DatasetBundle` with source labels.
+- Natural explain adds resolved field/sql-like and chart metadata.
+- Natural grammar now tolerates bounded filler words: `show me` plus leading `the`/`a`/`an` on source/field refs.
+- Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary/computed fields apply through `PojoLensRuntime.natural()`.
 - `docs/natural.md` is the canonical natural-query guide.
 - `SPIKE.md` is complete on planned scope; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.
-- `SPIKE-AI-MULTI-AGENT.md` is the root orchestration-hardening spike; start with one small live `copy`-mode proof run.
+- Start `SPIKE-AI-MULTI-AGENT.md` with one small live `copy`-mode proof run.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; it recommends time-bucket input broadening first, then grouped/aggregate subquery widening.
 - Latest SQL-like scatter profile points at reflection-heavy chart mapping.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.

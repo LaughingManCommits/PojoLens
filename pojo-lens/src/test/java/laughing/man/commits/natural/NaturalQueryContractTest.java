@@ -43,6 +43,22 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void fillerWordsShouldRemainOptionalForExecutionAndExplain() {
+        NaturalQuery query = PojoLensNatural.parse(
+                "show me the employees where the active is true sort by the salary descending limit 2"
+        );
+
+        List<Employee> rows = query.filter(sampleEmployees(), Employee.class);
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), Employee.class);
+        assertEquals(
+                "select * where active = true order by salary desc limit 2",
+                explain.get("equivalentSqlLike")
+        );
+    }
+
+    @Test
     public void shouldExecuteAliasedProjectionWithParameters() {
         List<EmployeeSummary> rows = PojoLensNatural
                 .parse("show name as employee name, salary as annual salary "

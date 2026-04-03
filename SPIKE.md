@@ -25,7 +25,7 @@ natural language and not as a remote AI feature.
 
 ## Status
 
-As of `2026-04-03`, this spike is mostly implemented.
+As of `2026-04-03`, this spike is implemented on planned scope.
 
 Done:
 
@@ -37,6 +37,7 @@ Done:
 - deterministic windows plus alias-based `qualify`
 - reusable natural templates with declared parameter schema
 - runtime-scoped computed fields in plain wording
+- bounded optional filler-word tolerance such as `show me` and leading articles before source/field references
 - reusable natural preset/report wrappers through `ReportDefinition.natural(...)`
 - canonical natural-query docs in `docs/natural.md`
 
@@ -482,6 +483,7 @@ That means:
 - reject ambiguous phrases rather than guessing
 - keep named parameters identical to SQL-like
 - make vocabulary explicit and runtime-configurable
+- keep filler words bounded and optional rather than globally stripping stopwords
 - keep SQL-like as the escape hatch for advanced text queries
 - add parity tests against fluent and SQL-like for each supported shape
 

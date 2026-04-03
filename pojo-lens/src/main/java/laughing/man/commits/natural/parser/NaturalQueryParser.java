@@ -42,6 +42,11 @@ public final class NaturalQueryParser {
             "results",
             "employees"
     );
+    private static final Set<String> OPTIONAL_REFERENCE_FILLERS = Set.of(
+            "the",
+            "a",
+            "an"
+    );
 
     private NaturalQueryParser() {
     }
@@ -81,6 +86,7 @@ public final class NaturalQueryParser {
                 joins = parseJoins(rootSource);
             }
             expectWord("show");
+            matchWord("me");
             SelectAst select = parseSelect(rootSource);
             FilterExpressionAst whereExpression = null;
             List<FilterAst> filters = List.of();
@@ -413,10 +419,11 @@ public final class NaturalQueryParser {
         }
 
         private boolean isWildcardItem(List<Token> itemTokens) {
-            if (itemTokens.size() != 1) {
+            List<Token> normalizedTokens = stripLeadingReferenceFillers(itemTokens);
+            if (normalizedTokens.size() != 1) {
                 return false;
             }
-            Token token = itemTokens.get(0);
+            Token token = normalizedTokens.get(0);
             if (token.type == TokenType.STAR) {
                 return true;
             }
@@ -495,6 +502,7 @@ public final class NaturalQueryParser {
         }
 
         private String parseSourceDefinition(String clauseName) {
+            skipOptionalReferenceFillers();
             Token sourceToken = peek();
             if (sourceToken.type != TokenType.RAW) {
                 throw error("Expected source name after " + clauseName, sourceToken.position);
@@ -511,6 +519,12 @@ public final class NaturalQueryParser {
                 next();
             }
             return sourceName;
+        }
+
+        private void skipOptionalReferenceFillers() {
+            while (isOptionalReferenceFiller(peek())) {
+                next();
+            }
         }
 
         private void registerSourceAlias(String sourceName, String alias) {
@@ -966,20 +980,22 @@ public final class NaturalQueryParser {
         }
 
         private String normalizeTrackedReference(List<Token> fieldTokens) {
-            QualifiedReference qualified = tryParseQualifiedReference(fieldTokens);
+            List<Token> normalizedTokens = stripLeadingReferenceFillers(fieldTokens);
+            QualifiedReference qualified = tryParseQualifiedReference(normalizedTokens);
             String normalized = qualified != null
                     ? qualified.reference()
-                    : normalizeFieldReference(fieldTokens);
+                    : normalizeFieldReference(normalizedTokens);
             rememberSourceFieldPhrase(fieldTokens, normalized);
             return normalized;
         }
 
         private QualifiedReference tryParseQualifiedReference(List<Token> fieldTokens) {
-            if (fieldTokens == null || fieldTokens.isEmpty()) {
+            List<Token> normalizedTokens = stripLeadingReferenceFillers(fieldTokens);
+            if (normalizedTokens.isEmpty()) {
                 return null;
             }
-            if (fieldTokens.size() == 1 && fieldTokens.get(0).type == TokenType.RAW) {
-                String raw = fieldTokens.get(0).text;
+            if (normalizedTokens.size() == 1 && normalizedTokens.get(0).type == TokenType.RAW) {
+                String raw = normalizedTokens.get(0).text;
                 int separator = raw.indexOf('.');
                 if (separator > 0 && separator + 1 < raw.length()) {
                     String sourceAlias = raw.substring(0, separator);
@@ -993,16 +1009,16 @@ public final class NaturalQueryParser {
                     );
                 }
             }
-            if (fieldTokens.get(0).type != TokenType.RAW || fieldTokens.size() < 2) {
+            if (normalizedTokens.get(0).type != TokenType.RAW || normalizedTokens.size() < 2) {
                 return null;
             }
-            String sourceName = resolveKnownSourceAlias(fieldTokens.get(0).text);
+            String sourceName = resolveKnownSourceAlias(normalizedTokens.get(0).text);
             if (sourceName == null) {
                 return null;
             }
             return new QualifiedReference(
                     sourceName,
-                    sourceName + "." + normalizeFieldReference(fieldTokens.subList(1, fieldTokens.size()))
+                    sourceName + "." + normalizeFieldReference(normalizedTokens.subList(1, normalizedTokens.size()))
             );
         }
 
@@ -1078,6 +1094,11 @@ public final class NaturalQueryParser {
         return !tokens.isEmpty() && isWord(tokens.get(tokens.size() - 1), value);
     }
 
+    private static boolean isOptionalReferenceFiller(Token token) {
+        return token.type == TokenType.RAW
+                && OPTIONAL_REFERENCE_FILLERS.contains(token.text.toLowerCase(Locale.ROOT));
+    }
+
     private static boolean isWord(Token token, String expected) {
         return token.type == TokenType.RAW && token.text.equalsIgnoreCase(expected);
     }
@@ -1097,10 +1118,11 @@ public final class NaturalQueryParser {
     }
 
     private static String normalizeFieldReference(List<Token> tokens) {
-        if (tokens == null || tokens.isEmpty()) {
+        List<Token> normalizedTokens = stripLeadingReferenceFillers(tokens);
+        if (normalizedTokens.isEmpty()) {
             throw new IllegalArgumentException("Field reference must not be blank");
         }
-        return NaturalVocabularySupport.normalizeNaturalFieldToken(joinTokens(tokens));
+        return NaturalVocabularySupport.normalizeNaturalFieldToken(joinTokens(normalizedTokens));
     }
 
     private static String normalizeAlias(List<Token> tokens) {
@@ -1141,6 +1163,17 @@ public final class NaturalQueryParser {
             return operator.transform(raw);
         }
         return operator.transform(joinTokens(tokens));
+    }
+
+    private static List<Token> stripLeadingReferenceFillers(List<Token> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return List.of();
+        }
+        int start = 0;
+        while (start < tokens.size() && isOptionalReferenceFiller(tokens.get(start))) {
+            start++;
+        }
+        return start == 0 ? tokens : List.copyOf(tokens.subList(start, tokens.size()));
     }
 
     private static Number tryParseNumber(String raw) {
