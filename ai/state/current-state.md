@@ -15,11 +15,10 @@
 - `2026-04-01`: Claude orchestration now defaults to repo-local `.claude-orchestrator/`.
 - `2026-04-02`: `PojoLensNatural` and `PojoLensRuntime.natural()` now cover vocabulary, grouped aggregates, time buckets/chart phrases, explicit joins, and deterministic windows plus alias-based `qualify`.
 - `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, and explain adds resolved field/sql-like metadata.
-- `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural window/`qualify` slice and doc refresh.
 - `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding and plain-worded runtime computed fields.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
-- `2026-04-03`: `README.md` quick start is rebalanced around one short example each for fluent, SQL-like, and natural; broader recipes now route to docs.
 - `2026-04-03`: root `SPIKE-LIMITATIONS.md` maps current engine limits into remediation options and recommends time-type broadening plus grouped/aggregate subquery widening first.
+- `2026-04-03`: root `SPIKE-AI-MULTI-AGENT.md` now scopes local orchestrator hardening: live-run proof first, then sparse copy safety, coordinator workflow, and regression tests.
 
 ## Release
 

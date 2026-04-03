@@ -1,0 +1,322 @@
+# SPIKE: Local AI Multi-Agent Orchestration
+
+## Question
+
+What is still missing from the repo-local Claude multi-agent setup, and what do
+we still need before treating it as a reliable local workflow instead of a
+useful but still-partially-proven MVP?
+
+## Thesis
+
+The repo already has a real local orchestration surface.
+
+This is not a blank-slate idea anymore:
+
+- there is a tracked control plane under `ai/orchestrator/`
+- there is a runnable coordinator in `scripts/claude-orchestrator.py`
+- there are validated dry-run examples for sequential and parallel task plans
+
+The missing work is mostly not "invent multi-agent orchestration."
+
+The missing work is:
+
+- prove the live path end to end
+- tighten safety around parallel edits and protected paths
+- give the coordinator a stronger review, retry, and cleanup workflow
+- add regression coverage so the contract stays stable
+
+## Current Status
+
+As of `2026-04-03`, the local orchestration slice is real but still not fully
+hardened.
+
+Implemented and documented:
+
+- tracked orchestration guide in `ai/orchestrator/README.md`
+- portable orchestration contract in `ai/orchestrator/SYSTEM-SPEC.md`
+- tracked worker catalog in `ai/orchestrator/agents.json`
+- tracked sequential and parallel task-plan examples in
+  `ai/orchestrator/tasks/*.json`
+- `validate`, `plan`, and `run` commands in `scripts/claude-orchestrator.py`
+- task-plan schema validation, topological batching, and selected-task runs
+- repo-local runtime root under `.claude-orchestrator/`
+- per-task prompts, command captures, worker result records, stdout/stderr
+  artifacts, and run manifests
+- model-profile routing, task-local tool allowlists, timeout settings, and
+  per-task budget passthrough
+
+Already validated:
+
+- tracked plan validation
+- dry-run manifest generation
+- parallel dry-run batching
+- prompt-size estimation and usage aggregation wiring
+
+Still explicitly unverified:
+
+- live non-interactive `claude -p` worker execution end to end
+
+## Verified Current Strengths
+
+The current orchestrator already solves several important problems well:
+
+- tracked control-plane files stay separate from transient runtime artifacts
+- copy mode ignores `.claude-orchestrator/`, so overlapping runs do not recurse
+  on their own runtime output
+- worktree mode is guarded behind a clean-repo check
+- task prompts include dependency summaries, task-local file hints, constraints,
+  and validation hints
+- `--continue-on-error` and dependency blocking already produce explicit task
+  records instead of silent skips
+- run manifests already aggregate prompt estimates and Claude usage when the CLI
+  returns it
+
+That means the repo already has a sound MVP shape for local bounded worker DAGs.
+
+## What Is Missing
+
+### 1. Live End-to-End Execution Proof
+
+The main missing proof is still a real non-dry-run worker execution.
+
+Current state:
+
+- hot memory still marks live non-interactive worker execution as unverified
+- warm validations only prove `validate` and `run --dry-run`
+
+What is needed:
+
+- one intentionally small live run against docs-only or orchestration-only files
+- confirmation that planner or worker JSON output is accepted as expected
+- confirmation that stdout/stderr capture, usage capture, blocked/failed status
+  handling, and manifest writing all behave correctly under real CLI output
+
+Recommended first proof:
+
+- run `example-review.json` or another doc-only plan live in `copy` mode
+- review the generated artifacts manually
+- record the exact validation command and observed artifact shape in AI memory
+
+### 2. Real Sparse Copy Workspaces
+
+The docs describe copy-mode hydration as if workers only receive explicit file
+hints.
+
+The current implementation does not fully do that:
+
+- `prepare_workspace(...)` first copies nearly the whole repo, minus ignored
+  trees
+- `hydrate_copy_workspace(...)` then adds explicit file hints on top
+
+That means copy mode is still broader than the docs imply.
+
+Why this matters:
+
+- workers inherit more repo context than intended
+- copy cost is higher than necessary
+- prompt minimization and workspace minimization are not aligned
+
+What is needed:
+
+- a true sparse copy mode that copies only allowed tracked files plus explicit
+  task/shared hints
+- a clear rule for whether directory hints are supported or file-only hints are
+  the contract
+- docs updated to match the real behavior
+
+### 3. Parallel File-Scope Safety Checks
+
+The docs correctly say parallel workers should not edit materially overlapping
+files.
+
+The current scheduler does not enforce that rule.
+It trusts the task author.
+
+Current gap:
+
+- ready tasks are batched by dependency readiness and sorted id order
+- there is no overlap detection on declared file hints before parallel launch
+
+What is needed:
+
+- conservative overlap detection on normalized task file scopes
+- blocking or serializing tasks whose scopes overlap
+- an explicit override only when the coordinator intentionally accepts the risk
+
+### 4. Protected-Path Enforcement Beyond Prompt Wording
+
+Worker prompts instruct agents not to edit `TODO.md`, `ai/state/*`,
+`ai/log/*`, or `ai/indexes/*`.
+
+Today that is mostly a prompt contract, not an enforced coordinator check.
+
+What is missing:
+
+- post-run comparison between touched files and protected paths
+- a hard failure or warning when a worker reports or produces forbidden edits
+- stronger safeguards for `workspaceMode="repo"` runs
+
+This matters even in isolated workspaces because the coordinator still needs a
+clear machine-checkable rule before applying any worker changes back.
+
+### 5. Coordinator Review and Apply Workflow
+
+The current runtime captures prompts, command files, worker results, stdout,
+stderr, manifest metadata, and workspace paths.
+
+What it does not provide yet:
+
+- a built-in diff summary
+- patch export
+- apply or cherry-pick helpers
+- a structured review command for comparing worker edits before adoption
+
+Current state is therefore:
+
+- worker execution exists
+- coordinator review is still manual and procedural
+
+What is needed:
+
+- a small coordinator-side review/apply workflow
+- at minimum, a diff summary command over a run or task workspace
+- ideally, explicit "review", "export-patch", and "apply" or "promote" helpers
+
+### 6. Resume, Retry, and Cleanup Operations
+
+Each run gets a unique runtime directory and workspace tree, which is good for
+isolation.
+
+What is missing:
+
+- resume a partially completed run
+- retry only failed or blocked tasks in the same run context
+- prune or clean old runtime artifacts
+- remove detached worktrees after worktree-mode runs
+
+Without this, the coordinator can execute runs but has weak lifecycle
+management.
+
+### 7. Structured Final Validation Support
+
+Workers can report `validationCommands`, but the orchestrator does not execute
+them or summarize final validation state.
+
+That leaves the coordinator with manual follow-through.
+
+What is needed:
+
+- a coordinator-side validation step that can run or at least consolidate the
+  reported commands
+- a manifest section that distinguishes "worker suggested validation" from
+  "coordinator actually ran validation"
+
+### 8. Automated Regression Coverage
+
+There is currently no dedicated automated test suite for the orchestrator.
+
+What is missing:
+
+- parser and schema tests for agents and task plans
+- batching tests for dependency ordering and `--task` selection
+- failure-path tests for blocked, failed, and malformed JSON worker output
+- workspace-prep tests for copy, worktree, and protected runtime-root behavior
+- manifest and usage aggregation tests
+
+This matters because the orchestration surface is now large enough that docs and
+dry-runs alone are not strong regression protection.
+
+## What We Still Need First
+
+The best next slice is not "add more agents."
+
+The best next slice is:
+
+1. prove one live end-to-end `copy` run
+2. tighten safety around sparse copies, overlap detection, and protected paths
+3. add a minimal coordinator review or diff workflow
+4. add focused regression tests around the Python coordinator
+
+That sequence raises trust faster than adding more planner cleverness or more
+sample task plans.
+
+## Recommended Work Order
+
+### Phase 1: Proof
+
+Deliver:
+
+- one small live worker run
+- documented observed artifact layout
+- exact validated command recorded in AI memory
+
+Success bar:
+
+- live `claude -p` execution is no longer an explicitly unverified path
+
+### Phase 2: Safety
+
+Deliver:
+
+- true sparse copy mode
+- parallel overlap detection
+- protected-path audit on worker outputs and workspace diffs
+
+Success bar:
+
+- the coordinator can reject unsafe multi-agent plans before or after worker
+  execution
+
+### Phase 3: Coordinator Ergonomics
+
+Deliver:
+
+- review or diff helper
+- retry failed tasks
+- cleanup or prune runtime artifacts
+- explicit worktree removal
+
+Success bar:
+
+- coordinator workflow is practical across more than one run
+
+### Phase 4: Regression Harness
+
+Deliver:
+
+- Python-side unit or integration tests for plan loading, batching, workspace
+  prep, manifest generation, and failure handling
+
+Success bar:
+
+- future orchestrator changes no longer rely mainly on manual dry-run checking
+
+## Non-Goals
+
+This spike should not turn the repo into:
+
+- a cloud orchestration service
+- a distributed agent runtime
+- a fully autonomous merge bot
+- a long-lived agent-memory platform separate from the tracked repo memory
+- an unrestricted multi-repo automation system
+
+The target remains:
+
+- a bounded local coordinator for low-coupling repo tasks
+
+## Bottom Line
+
+The repo already has a credible local multi-agent control plane.
+
+What it does not have yet is full operational confidence.
+
+The right next move is to harden and prove the current design:
+
+- live-run proof first
+- then workspace and parallel safety
+- then coordinator ergonomics
+- then regression coverage
+
+That keeps the orchestration surface useful, inspectable, and aligned with the
+repo's existing local-first workflow.

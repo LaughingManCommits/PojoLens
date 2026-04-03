@@ -17,11 +17,10 @@
 - Natural resolution is late-bound against source fields plus computed-field names; exact matches beat aliases and ambiguity stays deterministic.
 - Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate`.
 - Natural joins reuse `JoinBindings` / `DatasetBundle` and support optional source labels.
-- Natural chart phrases drive deterministic no-spec `chart(...)` / bound `chart()` inference.
 - Natural explain adds resolved field/sql-like metadata and chart metadata.
 - Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
 - `docs/natural.md` is the canonical natural-query guide.
-- `README.md` quick start should stay balanced across fluent, SQL-like, and natural.
+- `SPIKE-AI-MULTI-AGENT.md` is the root orchestration-hardening spike; start with one small live `copy`-mode proof run.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; it recommends time-bucket input broadening first, then grouped/aggregate subquery widening.
 - Next natural-query slice is likely reusable natural preset/report wrappers.
 - Latest SQL-like scatter profile points at reflection-heavy chart mapping.
@@ -39,9 +38,8 @@
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
 - limitation spike: `SPIKE-LIMITATIONS.md`
+- AI orchestration spike: `SPIKE-AI-MULTI-AGENT.md`, `ai/orchestrator/README.md`, `ai/orchestrator/SYSTEM-SPEC.md`, `scripts/claude-orchestrator.py`
 - release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
 - natural-query code/tests: `pojo-lens/src/main/java/laughing/man/commits/natural/`, `pojo-lens/src/main/java/laughing/man/commits/natural/parser/`, `pojo-lens/src/test/java/laughing/man/commits/natural/`
 - runtime/public-API coverage: `pojo-lens/src/test/java/laughing/man/commits/publicapi/`
-- natural telemetry coverage: `pojo-lens/src/test/java/laughing/man/commits/query/QueryTelemetryTest.java`
 - natural docs/examples guide: `docs/natural.md`, `pojo-lens/src/test/java/laughing/man/commits/natural/NaturalDocsExamplesTest.java`
-- latest SQL-like scatter profile: `target/benchmarks/2026-04-01-sqllike-profile/`
