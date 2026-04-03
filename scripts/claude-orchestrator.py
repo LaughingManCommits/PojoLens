@@ -983,12 +983,12 @@ def claude_command(
     if permission_mode:
         command.extend(["--permission-mode", permission_mode])
     if allowed_tools:
-        command.extend(["--allowed-tools", *allowed_tools])
+        command.extend(["--allowed-tools", ",".join(allowed_tools)])
     if disallowed_tools:
-        command.extend(["--disallowed-tools", *disallowed_tools])
+        command.extend(["--disallowed-tools", ",".join(disallowed_tools)])
     if max_budget_usd is not None:
         command.extend(["--max-budget-usd", f"{max_budget_usd:.2f}"])
-    command.append(prompt)
+    command.extend(["--", prompt])
     return command
 
 

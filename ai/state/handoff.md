@@ -13,22 +13,16 @@
 
 ## Facts
 
-- `PojoLensRuntime` owns natural vocabulary; `NaturalVocabulary.builder().field(actualField, aliases...)` is the alias-registration contract.
-- Natural resolution is late-bound against source fields plus computed-field names; exact matches beat aliases and ambiguity stays deterministic.
-- Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate`.
-- Natural grammar now tolerates bounded sugar plus aliases: `show me`, articles, `containing`/`starting with`/`ending with`, connector lead-ins (`who|that|which is|are`), `ordered by`, `grouped by`, comparison phrases like `equal to`, and `as a|an <chart> chart`.
-- Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary/computed fields apply through `PojoLensRuntime.natural()`.
+- `PojoLensRuntime` owns natural vocabulary; direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free.
+- Natural queries now support grouped aggregates, charts/time buckets, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded aliases; resolution stays deterministic.
 - `docs/natural.md` is the canonical natural-query guide.
-- The planned natural-query spike scope is complete; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.
-- Start `SPIKE-AI-MULTI-AGENT.md` with a live `copy`-mode proof run.
+- Live `example-review.json` now proves the orchestrator end to end in `copy` mode after fixing `claude_command(...)` so variadic tool flags cannot consume the prompt.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
-- Latest SQL-like scatter profile points at reflection-heavy chart mapping.
-- Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.
+- Claude orchestration uses repo-local `.claude-orchestrator/`; next on the spike is prompt-budget/output-discipline hardening, then sparse-copy and overlap/path safety.
 
 ## Validate
 
 - After code changes: `mvn -q test`
-- Natural template/computed-field slice last validated with `mvn -q -pl pojo-lens test`
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
 - For release-path changes: `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`

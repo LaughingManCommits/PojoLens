@@ -51,10 +51,10 @@ Already validated:
 - dry-run manifest generation
 - parallel dry-run batching
 - prompt-size estimation and usage aggregation wiring
-
-Still explicitly unverified:
-
-- live non-interactive `claude -p` worker execution end to end
+- live `example-review.json` `copy`-mode run after fixing the CLI command
+  builder so variadic tool flags cannot consume the prompt argument
+- real worker JSON capture, stdout/stderr capture, blocked-dependency handling,
+  usage aggregation, and workspace artifact generation
 
 ## Verified Current Strengths
 
@@ -72,6 +72,12 @@ The current orchestrator already solves several important problems well:
   returns it
 
 That means the repo already has a sound MVP shape for local bounded worker DAGs.
+
+The live proof also added one important concrete lesson:
+
+- the coordinator needs regression coverage around Claude CLI argument
+  construction, because real `claude -p` behavior exposed a bug that dry-runs
+  could not catch
 
 ## What External Token-Efficiency Guidance Changes
 
@@ -110,27 +116,31 @@ Recommended interpretation for this repo:
 
 ## What Is Missing
 
-### 1. Live End-to-End Execution Proof
+### 1. Live End-to-End Execution Proof `(Done)`
 
-The main missing proof is still a real non-dry-run worker execution.
+Completed proof:
 
-Current state:
+- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`
+- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --json`
 
-- hot memory still marks live non-interactive worker execution as unverified
-- warm validations only prove `validate` and `run --dry-run`
+Observed result:
 
-What is needed:
+- the live `copy`-mode run completed two `simple` workers successfully
+- the coordinator captured worker JSON, stdout/stderr, per-task usage, usage
+  totals, task workspaces, command files, prompt files, and result files
+- the first live attempt exposed a real CLI integration bug: variadic
+  `--allowed-tools` handling consumed the prompt argument, which dry-runs did
+  not reveal
+- fixing `claude_command(...)` to compact tool lists and terminate options with
+  `--` resolved the issue
 
-- one intentionally small live run against docs-only or orchestration-only files
-- confirmation that planner or worker JSON output is accepted as expected
-- confirmation that stdout/stderr capture, usage capture, blocked/failed status
-  handling, and manifest writing all behave correctly under real CLI output
+What this changed:
 
-Recommended first proof:
-
-- run `example-review.json` or another doc-only plan live in `copy` mode
-- review the generated artifacts manually
-- record the exact validation command and observed artifact shape in AI memory
+- live non-interactive `claude -p` execution is now proven
+- Phase 1 is no longer the top unknown
+- prompt economy and regression coverage moved up because the successful run
+  still showed large cache-read/input context and very verbose outputs for small
+  doc-only tasks
 
 ### 2. Real Sparse Copy Workspaces
 
@@ -300,18 +310,17 @@ The best next slice is not "add more agents."
 
 The best next slice is:
 
-1. prove one live end-to-end `copy` run
-2. add prompt-budget and output-discipline hardening
-3. tighten safety around sparse copies, overlap detection, and protected paths
-4. add a minimal coordinator review or diff workflow
-5. add focused regression tests around the Python coordinator
+1. add prompt-budget and output-discipline hardening
+2. tighten safety around sparse copies, overlap detection, and protected paths
+3. add a minimal coordinator review or diff workflow
+4. add focused regression tests around the Python coordinator
 
 That sequence raises trust faster than adding more planner cleverness or more
 sample task plans.
 
 ## Recommended Work Order
 
-### Phase 1: Proof
+### Phase 1: Proof `(Done)`
 
 Deliver:
 
@@ -397,8 +406,8 @@ What it does not have yet is full operational confidence.
 
 The right next move is to harden and prove the current design:
 
-- live-run proof first
-- then workspace and parallel safety
+- live-run proof is now done
+- next: prompt economy, workspace safety, and review ergonomics
 - then coordinator ergonomics
 - then regression coverage
 

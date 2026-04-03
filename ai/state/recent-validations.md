@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-03`: `py -3 -m py_compile scripts/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`, `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`, `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`, `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --json`, and `scripts/check-doc-consistency.ps1` passed after fixing `claude_command(...)` so variadic tool flags no longer consume the prompt and proving a live `copy`-mode orchestrator run end to end.
 - `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after refining `SPIKE-AI-MULTI-AGENT.md` with prompt-economy and output-discipline work inspired by `claude-token-efficient`, including the conclusion that large recurring instruction overlays are likely a poor default for fresh per-worker sessions.
 - `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after restructuring `docs/natural.md` into canonical grammar, accepted aliases, and non-goals so the guide teaches the simplest coherent natural surface first.
 - `2026-04-03`: `mvn -q -pl pojo-lens "-Dtest=NaturalDocsExamplesTest" test` and `scripts/check-doc-consistency.ps1` passed after rebalancing `docs/natural.md` toward the shortest canonical examples and keeping the richer alias-heavy phrasing in a separate showcase example.
