@@ -1,6 +1,7 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.DatasetBundle;
@@ -104,6 +105,17 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 StatsRow.class
         );
         assertEquals(2, sqlReport.rows(sampleEmployees()).size());
+
+        ReportDefinition<StatsRow> naturalReport = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "group by department sort by department ascending"
+                ),
+                StatsRow.class
+        );
+        assertEquals(2, naturalReport.rows(sampleEmployees()).size());
+        assertEquals("show department, count of employees as total group by department sort by department ascending",
+                naturalReport.source());
 
         ReportDefinition<StatsRow> fluentReport = ReportDefinition.fluent(
                 StatsRow.class,

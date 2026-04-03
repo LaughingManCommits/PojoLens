@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.table.TabularSchema;
@@ -79,6 +80,33 @@ public class ReportDefinitionTest {
     }
 
     @Test
+    public void naturalReportDefinitionShouldBeReusableAcrossSnapshots() {
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "where active is true group by department sort by department ascending"
+                ),
+                DepartmentCountRow.class,
+                ChartSpec.of(ChartType.BAR, "department", "total")
+        );
+
+        List<DepartmentCountRow> rows = report.rows(sampleEmployees());
+        List<DepartmentCountRow> subsetRows = report.rows(List.of(
+                new Employee(10, "X", "Support", 50000, null, true),
+                new Employee(11, "Y", "Support", 51000, null, true)
+        ));
+        ChartData chart = report.chart(sampleEmployees());
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
+        assertEquals(1, subsetRows.size());
+        assertEquals("Support", subsetRows.get(0).department);
+        assertEquals(2L, subsetRows.get(0).total);
+        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
+    }
+
+    @Test
     public void reportDefinitionWithoutChartSpecShouldRejectChartExecution() {
         ReportDefinition<Employee> report = ReportDefinition.sql(
                 PojoLensSql.parse("where active = true order by salary desc"),
@@ -106,6 +134,47 @@ public class ReportDefinitionTest {
 
         assertEquals(1, rows.size());
         assertEquals(1, rows.get(0).id);
+    }
+
+    @Test
+    public void naturalReportDefinitionShouldSupportJoinBindings() {
+        List<Company> companies = sampleCompanies();
+        List<CompanyEmployee> employees = sampleCompanyEmployees();
+        ReportDefinition<Company> report = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "from companies as company join employees as employee "
+                                + "on company id equals employee company id "
+                                + "show company where employee title is Engineer"
+                ),
+                Company.class
+        );
+
+        List<Company> rows = report.rows(companies, JoinBindings.of("employees", employees));
+
+        assertEquals(1, rows.size());
+        assertEquals(1, rows.get(0).id);
+    }
+
+    @Test
+    public void naturalReportDefinitionShouldSupportRuntimeVocabularyWhenProjectionAliasesAreExplicit() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("department", "team")
+                .build());
+
+        ReportDefinition<DepartmentCountRow> report = ReportDefinition.natural(
+                runtime.natural().parse(
+                        "show team as department, count of employees as total "
+                                + "where active is true group by team sort by department ascending"
+                ),
+                DepartmentCountRow.class
+        );
+
+        List<DepartmentCountRow> rows = report.rows(sampleEmployees());
+
+        assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
+        assertEquals(List.of(2L, 1L), rows.stream().map(row -> row.total).toList());
+        assertEquals(List.of("department", "total"), report.schema().names());
     }
 
     @Test

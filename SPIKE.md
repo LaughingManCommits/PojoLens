@@ -37,11 +37,8 @@ Done:
 - deterministic windows plus alias-based `qualify`
 - reusable natural templates with declared parameter schema
 - runtime-scoped computed fields in plain wording
+- reusable natural preset/report wrappers through `ReportDefinition.natural(...)`
 - canonical natural-query docs in `docs/natural.md`
-
-Remaining:
-
-- reusable natural presets
 
 ## What This Is
 
@@ -392,7 +389,7 @@ Example:
 
 - `from companies join employees on company id equals employee company id show company name where employee title is Engineer`
 
-### Phase 4: Advanced Analytics `(Partially Done)`
+### Phase 4: Advanced Analytics `(Done)`
 
 Support:
 
@@ -400,7 +397,7 @@ Support:
 - [x] `qualify`
 - [x] computed fields in plain wording
 - [x] reusable templates
-- [ ] reusable presets
+- [x] reusable presets
 
 This is likely where complexity rises sharply.
 

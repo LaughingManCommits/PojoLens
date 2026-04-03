@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding `ReportDefinition.natural(...)`, natural report-wrapper coverage, and the aligned natural/report/entry-point/spike docs to complete the planned `SPIKE.md` scope.
 - `2026-04-03`: `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`, `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`, and `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE-AI-MULTI-AGENT.md` to scope the remaining local multi-agent/orchestrator hardening work.
 - `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE-LIMITATIONS.md` to turn the current documented engine limits into a concrete remediation/options spike.
 - `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after rebalancing `README.md` quick start to one short example per query style and moving broader examples back to the docs guides.

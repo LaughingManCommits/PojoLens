@@ -9,6 +9,7 @@ import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chartjs.ChartJsAdapter;
 import laughing.man.commits.chartjs.ChartJsPayload;
+import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -23,9 +24,10 @@ import java.util.function.UnaryOperator;
  * General reusable row-query contract for repeated execution over different
  * in-memory dataset snapshots.
  *
- * <p>Specialized workflow helpers such as {@code ChartQueryPreset} and
- * {@code StatsViewPreset} can bridge into this abstraction when a more general
- * reusable contract is needed.
+ * <p>SQL-like, fluent, and natural queries can all be promoted into this
+ * abstraction. Specialized workflow helpers such as {@code ChartQueryPreset}
+ * and {@code StatsViewPreset} can bridge into it when a more general reusable
+ * contract is needed.
  *
  * @param <T> projection row type
  */
@@ -67,6 +69,23 @@ public final class ReportDefinition<T> {
 
     public static <T> ReportDefinition<T> sql(SqlLikeQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
         return sql(query, projectionClass).withChartSpec(chartSpec);
+    }
+
+    public static <T> ReportDefinition<T> natural(NaturalQuery query, Class<T> projectionClass) {
+        Objects.requireNonNull(query, "query must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return new ReportDefinition<>(
+                query.source(),
+                projectionClass,
+                null,
+                query.schema(projectionClass),
+                (sourceRows, joinBindings) -> query.filter(sourceRows, joinBindings, projectionClass),
+                true
+        );
+    }
+
+    public static <T> ReportDefinition<T> natural(NaturalQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
+        return natural(query, projectionClass).withChartSpec(chartSpec);
     }
 
     public static <T> ReportDefinition<T> fluent(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {

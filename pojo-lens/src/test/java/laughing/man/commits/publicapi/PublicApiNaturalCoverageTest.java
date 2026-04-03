@@ -9,6 +9,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.natural.NaturalTemplate;
+import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -126,6 +127,22 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
         assertThrows(IllegalArgumentException.class, () -> template.bind(Map.of("dept", "Engineering")));
+    }
+
+    @Test
+    public void naturalQueryShouldPromoteToReportDefinitionFromPublicApi() {
+        ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "where active is true group by department sort by department ascending"
+                ),
+                DepartmentCount.class,
+                ChartSpec.of(ChartType.BAR, "department", "total")
+        );
+
+        List<DepartmentCount> rows = report.rows(sampleEmployees());
+        assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
+        assertEquals(ChartType.BAR, report.chart(sampleEmployees()).getType());
     }
 
     @Test

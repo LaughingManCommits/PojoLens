@@ -18,7 +18,7 @@ Core execution model:
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
-| Reusable business query contract | `ReportDefinition.sql(...)` or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
+| Reusable business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
 | One-off named secondary sources | `JoinBindings.of(...)` or `JoinBindings.builder()` | Makes multi-source SQL-like execution explicit and typed. |
 | Reused multi-source snapshot | `DatasetBundle.of(primaryRows, joinBindings)` | Packages primary rows plus named secondary sources for repeated execution. |
 | Snapshot diffing | `SnapshotComparison.builder(currentRows, previousRows)` | Keeps snapshot comparison on its own workflow type. |
@@ -42,7 +42,8 @@ Core execution model:
 - Use `PojoLensChart` when you already have rows and only need deterministic
   chart payload mapping.
 - Use `ReportDefinition` when the reusable contract is the query itself, not
-  just one chart/table view of it.
+  just one chart/table view of it, including when that contract starts from a
+  parsed natural query.
 - Use `JoinBindings` for ad-hoc named secondary sources and
   `DatasetBundle` once the same multi-source snapshot will be reused.
 
@@ -80,6 +81,7 @@ types instead of on a facade:
 
 - `SqlLikeCursor.builder()` / `SqlLikeCursor.fromToken(...)`
 - `ReportDefinition.sql(...)`
+- `ReportDefinition.natural(...)`
 - `ReportDefinition.fluent(...)`
 - `DatasetBundle.of(...)`
 - `SnapshotComparison.builder(...)`

@@ -99,6 +99,25 @@ List<Employee> rows = template
     .filter(source, Employee.class);
 ```
 
+Use `ReportDefinition.natural(...)` when that parsed natural query should become
+a reusable row/chart contract across multiple dataset snapshots:
+
+```java
+ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
+    PojoLensNatural.parse(
+        "show department, count of employees as total "
+            + "where active is true group by department sort by department ascending"),
+    DepartmentCount.class,
+    ChartSpec.of(ChartType.BAR, "department", "total"));
+
+List<DepartmentCount> rows = report.rows(snapshotA);
+ChartData chart = report.chart(snapshotB);
+```
+
+If runtime vocabulary or computed fields should apply, parse through
+`runtime.natural()` first and then wrap that `NaturalQuery` in
+`ReportDefinition.natural(...)`.
+
 Natural queries lower into the same shared engine used by fluent and SQL-like execution.
 
 ## Joins and Multi-source Queries

@@ -20,9 +20,9 @@
 - Natural explain adds resolved field/sql-like metadata and chart metadata.
 - Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
 - `docs/natural.md` is the canonical natural-query guide.
+- `SPIKE.md` is complete on planned scope; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.
 - `SPIKE-AI-MULTI-AGENT.md` is the root orchestration-hardening spike; start with one small live `copy`-mode proof run.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; it recommends time-bucket input broadening first, then grouped/aggregate subquery widening.
-- Next natural-query slice is likely reusable natural preset/report wrappers.
 - Latest SQL-like scatter profile points at reflection-heavy chart mapping.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.
 

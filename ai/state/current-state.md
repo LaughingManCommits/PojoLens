@@ -17,8 +17,9 @@
 - `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, and explain adds resolved field/sql-like metadata.
 - `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding and plain-worded runtime computed fields.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
+- `2026-04-03`: `ReportDefinition.natural(...)` now promotes natural queries into reusable wrappers; `SPIKE.md` Phase 4 is complete on planned scope.
 - `2026-04-03`: root `SPIKE-LIMITATIONS.md` maps current engine limits into remediation options and recommends time-type broadening plus grouped/aggregate subquery widening first.
-- `2026-04-03`: root `SPIKE-AI-MULTI-AGENT.md` now scopes local orchestrator hardening: live-run proof first, then sparse copy safety, coordinator workflow, and regression tests.
+- `2026-04-03`: root `SPIKE-AI-MULTI-AGENT.md` now scopes local orchestrator hardening: live-run proof, sparse copy safety, coordinator workflow, and regression tests.
 
 ## Release
 
@@ -28,7 +29,7 @@
 
 - Central publish status is still not reconfirmed after key propagation.
 - SQL-like scatter still allocates more than fluent.
-- Natural-query surface is still narrower than SQL-like: reusable preset wrappers are not in place, `qualify` is alias-only, running windows use a fixed frame, and joined authoring remains explicit.
+- Natural-query surface is still narrower than SQL-like: `qualify` is alias-only, running windows use a fixed frame, and joined authoring remains explicit.
 - Natural `schema(...)` is still structural, not vocabulary-resolved.
 - Natural execution still rebuilds a resolved `SqlLikeQuery` per execution/explain call.
 - Live non-interactive Claude worker execution is still unverified.
@@ -36,7 +37,7 @@
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
-- Next natural-query slice should probably be reusable natural preset/report-style wrappers now that computed-field phrasing and templates are in place.
+- If natural follow-up resumes outside `SPIKE.md`, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
 - Keep README onboarding balanced across query styles and push deep recipes into docs.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate single-column subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.

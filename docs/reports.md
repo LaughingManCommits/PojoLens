@@ -1,11 +1,14 @@
 # Report Definitions
 
-`ReportDefinition<T>` captures a reusable query + projection contract for repeated execution against different in-memory dataset snapshots.
+`ReportDefinition<T>` captures a reusable query + projection contract for
+repeated execution against different in-memory dataset snapshots.
 
 It also exposes deterministic table metadata through `schema()`.
 It is the general reusable wrapper in PojoLens and the default reusable-query
 contract for docs and new code.
-`ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and table-first wrappers that can bridge back to it.
+SQL-like, natural, and fluent queries can all promote into it.
+`ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and
+table-first wrappers that can bridge back to it.
 
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -29,6 +32,39 @@ List<DepartmentCount> rows = report.rows(snapshotA);
 ChartData chart = report.chart(snapshotB);
 TabularSchema schema = report.schema();
 ```
+
+## Natural Report Definition
+
+```java
+ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
+    PojoLensNatural.parse(
+        "show department, count of employees as total "
+            + "where active is true group by department sort by department ascending"),
+    DepartmentCount.class,
+    ChartSpec.of(ChartType.BAR, "department", "total"));
+
+List<DepartmentCount> rows = report.rows(snapshotA);
+ChartData chart = report.chart(snapshotB);
+```
+
+If runtime vocabulary or computed fields should apply, parse the query through
+`runtime.natural()` first and then wrap that `NaturalQuery`:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+    .field("department", "team")
+    .build());
+
+ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
+    runtime.natural().parse(
+        "show team as department, count of employees as total "
+            + "where active is true group by team sort by department ascending"),
+    DepartmentCount.class);
+```
+
+Natural report definitions support `JoinBindings` / `DatasetBundle` the same
+way SQL-like report definitions do.
 
 For SQL-like definitions, `JoinBindings` is the default one-off multi-source
 execution input:
@@ -84,6 +120,9 @@ ReportDefinition<DepartmentAdjustedPayroll> report = ReportDefinition.sql(
 Chart mapping is optional.
 
 If the report definition was created without a `ChartSpec`, `chart(...)` will throw.
+This stays true for natural report definitions even when the source natural
+query text contains `as <type> chart`; reusable report contracts keep chart
+mapping explicit.
 
 You can attach one later:
 

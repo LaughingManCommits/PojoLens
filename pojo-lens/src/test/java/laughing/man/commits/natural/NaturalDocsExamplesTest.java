@@ -4,8 +4,10 @@ import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
+import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -145,6 +147,25 @@ public class NaturalDocsExamplesTest {
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
         assertEquals(List.of(143000.0, 132000.0), rows.stream().map(row -> row.adjustedSalary).toList());
+    }
+
+    @Test
+    public void docsRecipeNaturalReportDefinitionShouldWork() {
+        ReportDefinition<DepartmentCount> report = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "where active is true group by department sort by department ascending"
+                ),
+                DepartmentCount.class,
+                ChartSpec.of(ChartType.BAR, "department", "total")
+        );
+
+        List<DepartmentCount> rows = report.rows(sampleEmployees());
+        ChartData chart = report.chart(sampleEmployees());
+
+        assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
+        assertEquals(List.of(2L, 1L), rows.stream().map(row -> row.total).toList());
+        assertEquals(ChartType.BAR, chart.getType());
     }
 
     public static class PeriodPayrollRow {

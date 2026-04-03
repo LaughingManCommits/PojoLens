@@ -5,7 +5,8 @@ They all reuse the same in-memory query engine; the difference is the default ou
 
 ## Abstraction Ladder
 
-- `ReportDefinition<T>`: the general reusable row-query contract
+- `ReportDefinition<T>`: the general reusable row-query contract for fluent,
+  SQL-like, or natural queries
 - `ChartQueryPreset<T>`: chart-first SQL-like convenience wrapper
 - `StatsViewPreset<T>`: table-first SQL-like convenience wrapper
 
@@ -18,14 +19,14 @@ Use the specialized presets only when the wrapper itself should encode a chart-f
 
 | Wrapper | Query source | Rows | Chart | Totals/table payload | Schema | Join/bundle reuse | Bridge | Best fit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ReportDefinition<T>` | Fluent or SQL-like | Yes | Optional via `ChartSpec` | No built-in totals payload | Yes | Yes for SQL-like reports; fluent reports are rows-only and do not accept per-call join sources | `withChartSpec(...)` adds chart mapping | Reusable business query contract shared across requests, jobs, or multiple consumers |
+| `ReportDefinition<T>` | Fluent, SQL-like, or natural | Yes | Optional via `ChartSpec` | No built-in totals payload | Yes | Yes for SQL-like and natural reports; fluent reports are rows-only and do not accept per-call join sources | `withChartSpec(...)` adds chart mapping | Reusable business query contract shared across requests, jobs, or multiple consumers |
 | `ChartQueryPreset<T>` | SQL-like preset factory | Yes | Yes, always | No | Yes | Yes | `reportDefinition()` promotes to the general reusable report contract and keeps the chart spec | Reusable chart-first flows built from the preset families in `ChartQueryPresets` |
 | `StatsViewPreset<T>` | SQL-like preset factory | Yes | No built-in chart output | Yes via `totals(...)` and `StatsTable<T>` | Yes | Yes | `reportDefinition()` promotes the row query only; totals remain on `StatsViewPreset` / `StatsTable` | Reusable summary, grouped table, or leaderboard flows where totals/schema are part of the contract |
 
 ## Decision Rules
 
 - Use `ReportDefinition<T>` when the reusable thing is the query itself.
-- Use `ReportDefinition<T>` when the query may be fluent today, or may grow into multiple consumers later.
+- Use `ReportDefinition<T>` when the query may be natural, fluent, or SQL-like today, or may grow into multiple consumers later.
 - Use `ChartQueryPreset<T>` when the reusable thing is primarily a chart shape and one of the preset factories already expresses it well.
 - Use `StatsViewPreset<T>` when the reusable thing is primarily a table payload with optional totals and deterministic schema.
 - If a specialized preset starts accumulating more generic reuse needs, convert it to `ReportDefinition<T>` and keep the specialized preset only where the chart/table-first API still adds value.
@@ -41,7 +42,8 @@ Use the specialized presets only when the wrapper itself should encode a chart-f
 Documentation-noise overlap:
 - all three wrappers expose `rows(...)`
 - all three expose `schema()`
-- all three support dataset-bundle and join-binding execution for SQL-like-backed flows
+- `ReportDefinition<T>` supports dataset-bundle and join-binding execution for SQL-like and natural flows
+- the specialized wrappers support dataset-bundle and join-binding execution for their SQL-like-backed flows
 
 Those overlaps are expected because the wrappers share one execution engine and one snapshot-reuse model.
 
