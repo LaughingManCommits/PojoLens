@@ -1,5 +1,9 @@
 # Recent Validations
 
+- `2026-04-03`: `scripts/check-doc-consistency.ps1` passed after restructuring `docs/natural.md` into canonical grammar, accepted aliases, and non-goals so the guide teaches the simplest coherent natural surface first.
+- `2026-04-03`: `mvn -q -pl pojo-lens "-Dtest=NaturalDocsExamplesTest" test` and `scripts/check-doc-consistency.ps1` passed after rebalancing `docs/natural.md` toward the shortest canonical examples and keeping the richer alias-heavy phrasing in a separate showcase example.
+- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding bounded natural connector/clause/comparison aliases (`who is|are` / `that is|are` / `which is|are`, top-level `ordered by`, `grouped by`, `as a|an <chart> chart`, and explicit comparison phrases) and aligning `SPIKE.md` plus `docs/natural.md`.
+- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after refreshing `docs/natural.md` examples to showcase the new bounded grammar sugar and syncing `NaturalDocsExamplesTest`.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding bounded natural operator-inflection aliases (`containing`, `starting with`, `ending with`) and aligning `SPIKE.md` plus `docs/natural.md`.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding bounded optional natural filler-word tolerance (`show me`, leading articles before source/field references) and aligning `SPIKE.md` plus `docs/natural.md`.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding `ReportDefinition.natural(...)`, natural report-wrapper coverage, and the aligned natural/report/entry-point/spike docs to complete the planned `SPIKE.md` scope.

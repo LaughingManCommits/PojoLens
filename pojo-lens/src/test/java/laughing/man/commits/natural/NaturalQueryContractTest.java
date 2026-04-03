@@ -59,6 +59,31 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void connectorLeadInsAndComparisonAliasesShouldExecuteDeterministically() {
+        NaturalQuery query = PojoLensNatural.parse(
+                "show employees who are active and salary greater than or equal to 120000 "
+                        + "ordered by salary in descending order limit 2"
+        );
+
+        List<Employee> rows = query.filter(sampleEmployees(), Employee.class);
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), Employee.class);
+        assertEquals(
+                "select * where (active = true and salary >= 120000) order by salary desc limit 2",
+                explain.get("equivalentSqlLike")
+        );
+    }
+
+    @Test
+    public void connectorLeadInsShouldSupportNegatedBooleanShorthand() {
+        List<Employee> rows = PojoLensNatural.parse("show employees who are not active ordered by salary in ascending order")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Dan"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
     public void inflectedOperatorAliasesShouldExecuteDeterministically() {
         List<Employee> rows = PojoLensNatural.parse(
                         "show employees where department containing ine "
@@ -366,7 +391,7 @@ public class NaturalQueryContractTest {
     public void chartPhraseShouldInferChartSpecForExecutionAndExplain() {
         NaturalQuery query = PojoLensNatural
                 .parse("show department, count of employees as total "
-                        + "where active is true group by department sort by total descending as bar chart");
+                        + "where active equals true grouped by department ordered by total in descending order as a bar chart");
 
         ChartData chart = query.chart(sampleEmployees(), DepartmentCount.class);
         assertEquals(ChartType.BAR, chart.getType());
@@ -385,7 +410,7 @@ public class NaturalQueryContractTest {
     public void boundNaturalChartShouldUseInferredChartSpec() {
         ChartData chart = PojoLensNatural
                 .parse("show department, count of employees as total "
-                        + "where active is true group by department sort by total descending as bar chart")
+                        + "where active equals true grouped by department ordered by total in descending order as a bar chart")
                 .bindTyped(sampleEmployees(), DepartmentCount.class)
                 .chart();
 

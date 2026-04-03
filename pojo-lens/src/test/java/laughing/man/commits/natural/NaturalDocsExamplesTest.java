@@ -47,7 +47,8 @@ public class NaturalDocsExamplesTest {
                 .build());
 
         List<Employee> rows = runtime.natural()
-                .parse("show employees where team is Engineering and active is true sort by annual pay descending limit 10")
+                .parse("show employees where team is Engineering and active is true "
+                        + "sort by annual pay descending limit 10")
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
@@ -108,9 +109,9 @@ public class NaturalDocsExamplesTest {
         );
 
         List<Company> rows = PojoLensNatural
-                .parse("from companies as company join employees as employee "
-                        + "on company id equals employee company id "
-                        + "show company where employee title is Engineer")
+                .parse("from the companies as company join the employees as employee "
+                        + "on the company id equals the employee company id "
+                        + "show the company where the employee title is Engineer")
                 .filter(bundle, Company.class);
 
         assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
@@ -138,7 +139,7 @@ public class NaturalDocsExamplesTest {
 
         List<ComputedSalaryRow> rows = runtime.natural()
                 .template(
-                        "show name, adjusted salary "
+                        "show me name, adjusted salary "
                                 + "where adjusted salary is at least :minSalary sort by adjusted salary descending",
                         "minSalary"
                 )
@@ -166,6 +167,17 @@ public class NaturalDocsExamplesTest {
         assertEquals(List.of("Engineering", "Finance"), rows.stream().map(row -> row.department).toList());
         assertEquals(List.of(2L, 1L), rows.stream().map(row -> row.total).toList());
         assertEquals(ChartType.BAR, chart.getType());
+    }
+
+    @Test
+    public void docsRecipeNaturalOperatorAliasesShouldWork() {
+        List<Employee> rows = PojoLensNatural
+                .parse("show me the employees who are active and the department containing ine "
+                        + "and the salary greater than or equal to 120000 "
+                        + "ordered by the salary in descending order")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
     }
 
     public static class PeriodPayrollRow {

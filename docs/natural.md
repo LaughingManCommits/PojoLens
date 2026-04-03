@@ -1,6 +1,6 @@
 # Natural Query Guide
 
-## Supported Grammar
+## Canonical Grammar
 
 - optional leading source clause: `from <source> [as <label>]`
 - explicit joins: `join|left join|right join|inner join <source> [as <label>] on <lhs> equals <rhs>`
@@ -14,18 +14,8 @@
 - `offset`
 - terminal chart phrases: `as bar chart`, `as line chart`, `as area chart`, `as pie chart`, `as scatter chart`
 - named parameters like `:minSalary`
-- optional filler words in bounded positions only:
-  - `show me ...`
-  - leading `the`, `a`, or `an` before source/field references such as
-    `show the employees`, `where the department is ...`, or
-    `from the companies join the employees ...`
 
-Filler-word notes:
-- these words are optional sugar, not required syntax
-- they are ignored only in those bounded grammar slots
-- they are not stripped globally from aliases, parameter names, or values
-
-Supported operator phrases in `where`, `having`, and `qualify`:
+Canonical operator phrases in `where`, `having`, and `qualify`:
 - `is`
 - `is not`
 - `is at least` / `at least`
@@ -36,23 +26,23 @@ Supported operator phrases in `where`, `having`, and `qualify`:
 - `is below` / `below`
 - `is before` / `before`
 - `is after` / `after`
-- `contains` / `containing`
-- `starts with` / `starting with`
-- `ends with` / `ending with`
+- `contains`
+- `starts with`
+- `ends with`
 
-Supported aggregate phrases:
+Canonical aggregate phrases:
 - `count of`
 - `sum of`
 - `average of` / `avg`
 - `minimum of` / `min`
 - `maximum of` / `max`
 
-Supported time-bucket phrase:
+Canonical time-bucket phrase:
 - `bucket <date field> by day|week|month|quarter|year as <alias>`
 - optional timezone: `bucket <date field> by month in Europe/Amsterdam as <alias>`
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
-Supported window phrases:
+Canonical window phrases:
 - `row number [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
 - `dense rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
@@ -63,7 +53,51 @@ Join notes:
 - source-qualified field phrases use the source label or source name prefix: `company id`, `employee title`
 - join conditions use `equals` and stay deterministic: `on company id equals employee company id`
 
-Current non-goals:
+Guide note:
+- the main examples below prefer the shortest canonical phrasing
+- a reader should be able to learn the surface from this section alone
+
+## Accepted Aliases
+
+These are supported, but they are secondary to the canonical grammar above.
+
+Clause aliases:
+- `grouped by`
+- top-level `ordered by`
+- `as a|an <type> chart`
+
+Bounded filler words:
+- `show me ...`
+- leading `the`, `a`, or `an` before source/field references such as
+  `show the employees`, `where the department is ...`, or
+  `from the companies join the employees ...`
+- bounded filter lead-ins after `show`: `who is|are`, `that is|are`, `which is|are`
+
+Comparison aliases:
+- `equals`
+- `is equal to` / `equal to`
+- `is not equal to` / `not equal to`
+- `is greater than` / `greater than`
+- `is greater than or equal to` / `greater than or equal to`
+- `is less than or equal to` / `less than or equal to`
+
+Operator inflection aliases:
+- `containing`
+- `starting with`
+- `ending with`
+
+Sort-direction aliases:
+- `in ascending order`
+- `in descending order`
+
+Alias notes:
+- aliases are optional sugar, not required syntax
+- they normalize to the canonical grammar
+- they are ignored only in bounded grammar slots, not stripped globally
+- connector lead-ins lower to `where`; a bare field after them means boolean `true`, and `not <field>` means boolean `false`
+
+## Non-goals
+
 - free-form conversational language
 - fuzzy guessing
 - implicit business semantics such as `top performers` or `recent hires`
@@ -91,7 +125,8 @@ runtime.setNaturalVocabulary(NaturalVocabulary.builder()
     .build());
 
 List<Employee> rows = runtime.natural()
-    .parse("show employees where team is Engineering and active is true sort by annual pay descending limit 10")
+    .parse("show employees where team is Engineering and active is true "
+        + "sort by annual pay descending limit 10")
     .filter(source, Employee.class);
 ```
 
@@ -269,6 +304,16 @@ ChartData chart = PojoLensNatural
     .parse("show department, count of employees as total "
         + "where active is true group by department sort by total descending as bar chart")
     .chart(source, DepartmentCount.class);
+```
+
+Alias-heavy example:
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show me the employees who are active and the department containing ine "
+        + "and the salary greater than or equal to 120000 "
+        + "ordered by the salary in descending order")
+    .filter(source, Employee.class);
 ```
 
 Use bound execution when you want to bind rows plus projection once, then choose the terminal operation:

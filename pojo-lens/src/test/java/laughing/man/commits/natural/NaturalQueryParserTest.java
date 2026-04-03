@@ -78,6 +78,26 @@ public class NaturalQueryParserTest {
     }
 
     @Test
+    public void shouldTreatConnectorLeadInsAsBoundedWhereAliases() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show employees who are active and salary greater than or equal to 120000 "
+                        + "ordered by salary in descending order limit 2"
+        );
+
+        assertTrue(ast.select().wildcard());
+        assertEquals(2, ast.filters().size());
+        assertEquals("active", ast.filters().get(0).field());
+        assertEquals(Clauses.EQUAL, ast.filters().get(0).clause());
+        assertEquals(true, ast.filters().get(0).value());
+        assertEquals("salary", ast.filters().get(1).field());
+        assertEquals(Clauses.BIGGER_EQUAL, ast.filters().get(1).clause());
+        assertEquals(120000, ast.filters().get(1).value());
+        assertEquals("salary", ast.orders().get(0).field());
+        assertEquals(Sort.DESC, ast.orders().get(0).sort());
+        assertEquals(Integer.valueOf(2), ast.limit());
+    }
+
+    @Test
     public void shouldTranslateStartsWithToRegexMatch() {
         QueryAst ast = NaturalQueryParser.parse("show all where department starts with Eng");
         assertEquals(Clauses.MATCHES, ast.filters().get(0).clause());
@@ -102,6 +122,25 @@ public class NaturalQueryParserTest {
         assertEquals("name", ast.filters().get(2).field());
         assertEquals(Clauses.MATCHES, ast.filters().get(2).clause());
         assertEquals(".*\\Qe\\E$", ast.filters().get(2).value());
+    }
+
+    @Test
+    public void shouldTranslateComparisonAliasesAndClauseAliases() {
+        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(
+                "show department, count of employees as total "
+                        + "where active equals true grouped by department having total greater than or equal to 2 "
+                        + "ordered by total in descending order as a bar chart"
+        );
+
+        QueryAst ast = parseResult.ast();
+        assertEquals(ChartType.BAR, parseResult.chartType());
+        assertEquals(Clauses.EQUAL, ast.filters().get(0).clause());
+        assertEquals(true, ast.filters().get(0).value());
+        assertEquals(List.of("department"), ast.groupByFields());
+        assertEquals(Clauses.BIGGER_EQUAL, ast.havingFilters().get(0).clause());
+        assertEquals(2, ast.havingFilters().get(0).value());
+        assertEquals("total", ast.orders().get(0).field());
+        assertEquals(Sort.DESC, ast.orders().get(0).sort());
     }
 
     @Test

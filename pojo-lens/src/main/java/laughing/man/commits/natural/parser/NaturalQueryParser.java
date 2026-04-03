@@ -47,6 +47,10 @@ public final class NaturalQueryParser {
             "a",
             "an"
     );
+    private static final Set<String> OPTIONAL_CHART_ARTICLES = Set.of(
+            "a",
+            "an"
+    );
 
     private NaturalQueryParser() {
     }
@@ -102,25 +106,25 @@ public final class NaturalQueryParser {
             String offsetParameter = null;
             ChartType chartType = null;
 
-            if (matchWord("where")) {
-                whereExpression = parseBooleanExpression(false, "WHERE");
+            Boolean allowBooleanShorthand = tryMatchWhereLeadIn();
+            if (allowBooleanShorthand != null) {
+                whereExpression = parseBooleanExpression(false, "WHERE", allowBooleanShorthand);
                 filters = flatten(whereExpression);
             }
-            if (matchWord("group")) {
-                expectWord("by");
+            if (peekGroupBy()) {
+                consumeGroupByClause();
                 groupByFields = parseGroupBy();
             }
             if (matchWord("having")) {
-                havingExpression = parseBooleanExpression(true, "HAVING");
+                havingExpression = parseBooleanExpression(true, "HAVING", false);
                 havingFilters = flatten(havingExpression);
             }
             if (matchWord("qualify")) {
-                qualifyExpression = parseBooleanExpression(false, "QUALIFY");
+                qualifyExpression = parseBooleanExpression(false, "QUALIFY", false);
                 qualifyFilters = flatten(qualifyExpression);
             }
             if (peekSortBy()) {
-                next();
-                expectWord("by");
+                consumeSortByClause();
                 orders = parseSortBy();
             }
             if (matchWord("limit")) {
@@ -250,36 +254,59 @@ public final class NaturalQueryParser {
         }
 
         private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences, String clauseName) {
-            FilterExpressionAst expression = parseOrExpression(allowAggregateReferences, clauseName);
+            return parseBooleanExpression(allowAggregateReferences, clauseName, false);
+        }
+
+        private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences,
+                                                           String clauseName,
+                                                           boolean allowBooleanShorthand) {
+            FilterExpressionAst expression = parseOrExpression(allowAggregateReferences, clauseName, allowBooleanShorthand);
             if (expression == null) {
                 throw error(clauseName + " requires at least one predicate", peek().position);
             }
             return expression;
         }
 
-        private FilterExpressionAst parseOrExpression(boolean allowAggregateReferences, String clauseName) {
-            FilterExpressionAst left = parseAndExpression(allowAggregateReferences, clauseName);
+        private FilterExpressionAst parseOrExpression(boolean allowAggregateReferences,
+                                                      String clauseName,
+                                                      boolean allowBooleanShorthand) {
+            FilterExpressionAst left = parseAndExpression(allowAggregateReferences, clauseName, allowBooleanShorthand);
             while (matchWord("or")) {
-                left = new FilterBinaryAst(left, parseAndExpression(allowAggregateReferences, clauseName), Separator.OR);
+                left = new FilterBinaryAst(
+                        left,
+                        parseAndExpression(allowAggregateReferences, clauseName, allowBooleanShorthand),
+                        Separator.OR
+                );
             }
             return left;
         }
 
-        private FilterExpressionAst parseAndExpression(boolean allowAggregateReferences, String clauseName) {
-            FilterExpressionAst left = parsePredicate(allowAggregateReferences, clauseName);
+        private FilterExpressionAst parseAndExpression(boolean allowAggregateReferences,
+                                                       String clauseName,
+                                                       boolean allowBooleanShorthand) {
+            FilterExpressionAst left = parsePredicate(allowAggregateReferences, clauseName, allowBooleanShorthand);
             while (matchWord("and")) {
-                left = new FilterBinaryAst(left, parsePredicate(allowAggregateReferences, clauseName), Separator.AND);
+                left = new FilterBinaryAst(
+                        left,
+                        parsePredicate(allowAggregateReferences, clauseName, allowBooleanShorthand),
+                        Separator.AND
+                );
             }
             return left;
         }
 
-        private FilterExpressionAst parsePredicate(boolean allowAggregateReferences, String clauseName) {
+        private FilterExpressionAst parsePredicate(boolean allowAggregateReferences,
+                                                  String clauseName,
+                                                  boolean allowBooleanShorthand) {
             if (peek().type == TokenType.LEFT_PAREN || peek().type == TokenType.RIGHT_PAREN) {
                 throw error("Parentheses are not supported in MVP natural queries", peek().position);
             }
 
             OperatorMatch operator = findOperator();
             if (operator == null) {
+                if (allowBooleanShorthand) {
+                    return parseBooleanFieldShorthand(allowAggregateReferences, clauseName);
+                }
                 throw error("Expected a supported operator phrase in " + clauseName, peek().position);
             }
 
@@ -296,6 +323,23 @@ public final class NaturalQueryParser {
             }
             Object value = parseValue(valueTokens, operator.operator());
             return new FilterPredicateAst(new FilterAst(field, operator.operator().clause, value, null));
+        }
+
+        private FilterExpressionAst parseBooleanFieldShorthand(boolean allowAggregateReferences, String clauseName) {
+            List<Token> fieldTokens = readBooleanShorthandFieldTokens();
+            if (fieldTokens.isEmpty()) {
+                throw error("Expected field before operator", peek().position);
+            }
+            boolean negated = false;
+            if (isWord(fieldTokens.get(0), "not")) {
+                negated = true;
+                fieldTokens = fieldTokens.subList(1, fieldTokens.size());
+            }
+            if (fieldTokens.isEmpty()) {
+                throw error("Expected field after 'not' in " + clauseName, peek().position);
+            }
+            String field = parseReference(fieldTokens, allowAggregateReferences, clauseName);
+            return new FilterPredicateAst(new FilterAst(field, Clauses.EQUAL, !negated, null));
         }
 
         private List<String> parseGroupBy() {
@@ -327,15 +371,9 @@ public final class NaturalQueryParser {
             if (itemTokens.isEmpty()) {
                 throw error("SORT BY item must not be blank", peek().position);
             }
-            Sort sort = Sort.ASC;
-            List<Token> fieldTokens = itemTokens;
-            if (endsWithWord(itemTokens, "ascending") || endsWithWord(itemTokens, "asc")) {
-                sort = Sort.ASC;
-                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
-            } else if (endsWithWord(itemTokens, "descending") || endsWithWord(itemTokens, "desc")) {
-                sort = Sort.DESC;
-                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
-            }
+            SortOrderTokens parsed = splitTrailingSortDirection(itemTokens);
+            Sort sort = parsed.sort();
+            List<Token> fieldTokens = parsed.fieldTokens();
             if (fieldTokens.isEmpty()) {
                 throw error("SORT BY field must not be blank", peek().position);
             }
@@ -389,7 +427,9 @@ public final class NaturalQueryParser {
             ArrayList<Token> item = new ArrayList<>();
             while (true) {
                 Token token = peek();
-                if (token.isEof() || token.type == TokenType.COMMA || isClauseBoundary(index)) {
+                if (token.isEof()
+                        || token.type == TokenType.COMMA
+                        || isReadClauseBoundary(clauseName, item, index)) {
                     break;
                 }
                 if (token.type == TokenType.LEFT_PAREN || token.type == TokenType.RIGHT_PAREN) {
@@ -401,6 +441,19 @@ public final class NaturalQueryParser {
                 throw error(clauseName + " item must not be blank", peek().position);
             }
             return List.copyOf(item);
+        }
+
+        private boolean isReadClauseBoundary(String clauseName, List<Token> currentItem, int tokenIndex) {
+            if ("SHOW".equals(clauseName) && peekFilterConnectorLeadIn(tokenIndex)) {
+                return true;
+            }
+            if ("SHOW".equals(clauseName)
+                    && isWord(tokenAt(tokenIndex), "ordered")
+                    && peekSortBy(tokenIndex)
+                    && looksLikeWindowItem(currentItem)) {
+                return false;
+            }
+            return isClauseBoundary(tokenIndex);
         }
 
         private List<Token> readValueTokens() {
@@ -416,6 +469,18 @@ public final class NaturalQueryParser {
                 value.add(next());
             }
             return List.copyOf(value);
+        }
+
+        private List<Token> readBooleanShorthandFieldTokens() {
+            ArrayList<Token> field = new ArrayList<>();
+            while (true) {
+                Token token = peek();
+                if (token.isEof() || isBooleanBoundary(token) || isClauseBoundary(index) || token.type == TokenType.COMMA) {
+                    break;
+                }
+                field.add(next());
+            }
+            return List.copyOf(field);
         }
 
         private boolean isWildcardItem(List<Token> itemTokens) {
@@ -451,7 +516,10 @@ public final class NaturalQueryParser {
             if (isWord(token, "group") && isWord(tokenAt(tokenIndex + 1), "by")) {
                 return true;
             }
-            if (isWord(token, "sort") && isWord(tokenAt(tokenIndex + 1), "by")) {
+            if (isWord(token, "grouped") && isWord(tokenAt(tokenIndex + 1), "by")) {
+                return true;
+            }
+            if (peekSortBy(tokenIndex)) {
                 return true;
             }
             return isChartBoundary(tokenIndex);
@@ -555,7 +623,53 @@ public final class NaturalQueryParser {
         }
 
         private boolean peekSortBy() {
-            return isWord(peek(), "sort") && isWord(tokenAt(index + 1), "by");
+            return peekSortBy(index);
+        }
+
+        private boolean peekSortBy(int startIndex) {
+            return (isWord(tokenAt(startIndex), "sort") || isWord(tokenAt(startIndex), "ordered"))
+                    && isWord(tokenAt(startIndex + 1), "by");
+        }
+
+        private boolean peekFilterConnectorLeadIn(int startIndex) {
+            return isFilterConnectorWord(tokenAt(startIndex)) && isFilterConnectorVerb(tokenAt(startIndex + 1));
+        }
+
+        private boolean peekGroupBy() {
+            return peekGroupBy(index);
+        }
+
+        private boolean peekGroupBy(int startIndex) {
+            return (isWord(tokenAt(startIndex), "group") || isWord(tokenAt(startIndex), "grouped"))
+                    && isWord(tokenAt(startIndex + 1), "by");
+        }
+
+        private void consumeSortByClause() {
+            if (matchWord("sort") || matchWord("ordered")) {
+                expectWord("by");
+                return;
+            }
+            throw error("Expected 'sort by' or 'ordered by'", peek().position);
+        }
+
+        private void consumeGroupByClause() {
+            if (matchWord("group") || matchWord("grouped")) {
+                expectWord("by");
+                return;
+            }
+            throw error("Expected 'group by' or 'grouped by'", peek().position);
+        }
+
+        private Boolean tryMatchWhereLeadIn() {
+            if (matchWord("where")) {
+                return Boolean.FALSE;
+            }
+            if (peekFilterConnectorLeadIn(index)) {
+                next();
+                next();
+                return Boolean.TRUE;
+            }
+            return null;
         }
 
         private boolean matchWord(String expected) {
@@ -635,6 +749,7 @@ public final class NaturalQueryParser {
         }
 
         private ChartType parseChartPhrase() {
+            skipOptionalChartArticle();
             Token typeToken = peek();
             if (typeToken.type != TokenType.RAW) {
                 throw error("Expected chart type after 'as'", typeToken.position);
@@ -649,9 +764,15 @@ public final class NaturalQueryParser {
         }
 
         private boolean isChartBoundary(int tokenIndex) {
-            return isWord(tokenAt(tokenIndex), "as")
-                    && chartTypeFromWord(tokenAt(tokenIndex + 1).text) != null
-                    && isWord(tokenAt(tokenIndex + 2), "chart");
+            if (!isWord(tokenAt(tokenIndex), "as")) {
+                return false;
+            }
+            int typeIndex = tokenIndex + 1;
+            if (isOptionalChartArticle(tokenAt(typeIndex))) {
+                typeIndex++;
+            }
+            return chartTypeFromWord(tokenAt(typeIndex).text) != null
+                    && isWord(tokenAt(typeIndex + 1), "chart");
         }
 
         private String parseReference(List<Token> fieldTokens,
@@ -877,18 +998,19 @@ public final class NaturalQueryParser {
             if (itemTokens.isEmpty()) {
                 throw error("Expected field in window 'ordered by' clause", peek().position);
             }
-            Sort sort = Sort.ASC;
-            List<Token> fieldTokens = itemTokens;
-            if (endsWithWord(itemTokens, "ascending") || endsWithWord(itemTokens, "asc")) {
-                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
-            } else if (endsWithWord(itemTokens, "descending") || endsWithWord(itemTokens, "desc")) {
-                sort = Sort.DESC;
-                fieldTokens = itemTokens.subList(0, itemTokens.size() - 1);
-            }
+            SortOrderTokens parsed = splitTrailingSortDirection(itemTokens);
+            Sort sort = parsed.sort();
+            List<Token> fieldTokens = parsed.fieldTokens();
             if (fieldTokens.isEmpty()) {
                 throw error("Expected field in window 'ordered by' clause", itemTokens.get(0).position);
             }
             return new OrderAst(normalizeTrackedReference(fieldTokens), sort);
+        }
+
+        private void skipOptionalChartArticle() {
+            if (isOptionalChartArticle(peek())) {
+                next();
+            }
         }
 
         private boolean matchesWords(List<Token> tokens, int startIndex, String... expected) {
@@ -901,6 +1023,16 @@ public final class NaturalQueryParser {
                 }
             }
             return true;
+        }
+
+        private boolean looksLikeWindowItem(List<Token> tokens) {
+            if (tokens == null || tokens.isEmpty()) {
+                return false;
+            }
+            return matchesWords(tokens, 0, "row", "number")
+                    || matchesWords(tokens, 0, "dense", "rank")
+                    || isWord(tokens.get(0), "rank")
+                    || isWord(tokens.get(0), "running");
         }
 
         private JoinReference parseJoinReference() {
@@ -1094,9 +1226,51 @@ public final class NaturalQueryParser {
         return !tokens.isEmpty() && isWord(tokens.get(tokens.size() - 1), value);
     }
 
+    private static boolean endsWithWords(List<Token> tokens, String... values) {
+        if (tokens.size() < values.length) {
+            return false;
+        }
+        int start = tokens.size() - values.length;
+        for (int i = 0; i < values.length; i++) {
+            if (!isWord(tokens.get(start + i), values[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean isOptionalReferenceFiller(Token token) {
         return token.type == TokenType.RAW
                 && OPTIONAL_REFERENCE_FILLERS.contains(token.text.toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean isOptionalChartArticle(Token token) {
+        return token.type == TokenType.RAW
+                && OPTIONAL_CHART_ARTICLES.contains(token.text.toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean isFilterConnectorWord(Token token) {
+        return isWord(token, "who") || isWord(token, "that") || isWord(token, "which");
+    }
+
+    private static boolean isFilterConnectorVerb(Token token) {
+        return isWord(token, "are") || isWord(token, "is");
+    }
+
+    private static SortOrderTokens splitTrailingSortDirection(List<Token> itemTokens) {
+        if (endsWithWord(itemTokens, "ascending") || endsWithWord(itemTokens, "asc")) {
+            return new SortOrderTokens(itemTokens.subList(0, itemTokens.size() - 1), Sort.ASC);
+        }
+        if (endsWithWord(itemTokens, "descending") || endsWithWord(itemTokens, "desc")) {
+            return new SortOrderTokens(itemTokens.subList(0, itemTokens.size() - 1), Sort.DESC);
+        }
+        if (endsWithWords(itemTokens, "in", "ascending", "order")) {
+            return new SortOrderTokens(itemTokens.subList(0, itemTokens.size() - 3), Sort.ASC);
+        }
+        if (endsWithWords(itemTokens, "in", "descending", "order")) {
+            return new SortOrderTokens(itemTokens.subList(0, itemTokens.size() - 3), Sort.DESC);
+        }
+        return new SortOrderTokens(itemTokens, Sort.ASC);
     }
 
     private static boolean isWord(Token token, String expected) {
@@ -1295,10 +1469,23 @@ public final class NaturalQueryParser {
     private record OperatorMatch(Operator operator, int startIndex, int endIndex) {
     }
 
+    private record SortOrderTokens(List<Token> fieldTokens, Sort sort) {
+    }
+
     private enum Operator {
+        IS_NOT_EQUAL_TO(new String[]{"is", "not", "equal", "to"}, Clauses.NOT_EQUAL),
+        NOT_EQUAL_TO(new String[]{"not", "equal", "to"}, Clauses.NOT_EQUAL),
+        IS_GREATER_THAN_OR_EQUAL_TO(new String[]{"is", "greater", "than", "or", "equal", "to"}, Clauses.BIGGER_EQUAL),
+        GREATER_THAN_OR_EQUAL_TO(new String[]{"greater", "than", "or", "equal", "to"}, Clauses.BIGGER_EQUAL),
+        IS_LESS_THAN_OR_EQUAL_TO(new String[]{"is", "less", "than", "or", "equal", "to"}, Clauses.SMALLER_EQUAL),
+        LESS_THAN_OR_EQUAL_TO(new String[]{"less", "than", "or", "equal", "to"}, Clauses.SMALLER_EQUAL),
+        IS_EQUAL_TO(new String[]{"is", "equal", "to"}, Clauses.EQUAL),
+        EQUAL_TO(new String[]{"equal", "to"}, Clauses.EQUAL),
         IS_NOT(new String[]{"is", "not"}, Clauses.NOT_EQUAL),
+        EQUALS(new String[]{"equals"}, Clauses.EQUAL),
         IS_AT_LEAST(new String[]{"is", "at", "least"}, Clauses.BIGGER_EQUAL),
         IS_AT_MOST(new String[]{"is", "at", "most"}, Clauses.SMALLER_EQUAL),
+        IS_GREATER_THAN(new String[]{"is", "greater", "than"}, Clauses.BIGGER),
         IS_MORE_THAN(new String[]{"is", "more", "than"}, Clauses.BIGGER),
         IS_LESS_THAN(new String[]{"is", "less", "than"}, Clauses.SMALLER),
         IS_ABOVE(new String[]{"is", "above"}, Clauses.BIGGER),
@@ -1329,6 +1516,7 @@ public final class NaturalQueryParser {
                 return toRegex(value, false, true);
             }
         },
+        GREATER_THAN(new String[]{"greater", "than"}, Clauses.BIGGER),
         AT_LEAST(new String[]{"at", "least"}, Clauses.BIGGER_EQUAL),
         AT_MOST(new String[]{"at", "most"}, Clauses.SMALLER_EQUAL),
         MORE_THAN(new String[]{"more", "than"}, Clauses.BIGGER),

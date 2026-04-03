@@ -39,6 +39,7 @@ Done:
 - runtime-scoped computed fields in plain wording
 - bounded optional filler-word tolerance such as `show me` and leading articles before source/field references
 - bounded operator inflection aliases such as `containing`, `starting with`, and `ending with`
+- bounded clause/phrase aliases such as `grouped by`, top-level `ordered by`, `as a|an <chart> chart`, connector lead-ins like `who are`, and explicit comparison aliases like `equal to` / `greater than or equal to`
 - reusable natural preset/report wrappers through `ReportDefinition.natural(...)`
 - canonical natural-query docs in `docs/natural.md`
 
@@ -152,8 +153,10 @@ Recommended clause words:
 - `show`
 - `where`
 - `group by`
+- `grouped by`
 - `having`
 - `sort by`
+- `ordered by`
 - `limit`
 - `offset`
 - `join`
@@ -164,10 +167,15 @@ Recommended clause words:
 Recommended operator phrases:
 
 - `is`
+- `equals`
+- `equal to`
 - `is not`
 - `at least`
+- `greater than`
+- `greater than or equal to`
 - `more than`
 - `less than`
+- `less than or equal to`
 - `between`
 - `contains`
 - `starts with`
@@ -485,6 +493,7 @@ That means:
 - keep named parameters identical to SQL-like
 - make vocabulary explicit and runtime-configurable
 - keep filler words bounded and optional rather than globally stripping stopwords
+- keep connector-style filter lead-ins bounded and deterministic rather than adding conversational pronouns or free-form coreference
 - keep SQL-like as the escape hatch for advanced text queries
 - add parity tests against fluent and SQL-like for each supported shape
 

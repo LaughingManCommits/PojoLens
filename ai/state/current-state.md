@@ -16,10 +16,10 @@
 - `2026-04-02`: `PojoLensNatural` and `PojoLensRuntime.natural()` now cover vocabulary, grouped aggregates, time buckets/chart phrases, explicit joins, and deterministic windows plus alias-based `qualify`.
 - `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, and explain adds resolved field/sql-like metadata.
 - `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding and plain-worded runtime computed fields.
-- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
-- `2026-04-03`: `ReportDefinition.natural(...)` plus natural sugar (`show me`, articles, `containing`/`starting with`/`ending with`) closes `SPIKE.md`.
-- `2026-04-03`: root `SPIKE-LIMITATIONS.md` maps current engine limits into remediation options and recommends time-type broadening plus grouped/aggregate subquery widening first.
-- `2026-04-03`: root `SPIKE-AI-MULTI-AGENT.md` now scopes local orchestrator hardening: live-run proof, sparse copy safety, coordinator workflow, and regression tests.
+- `2026-04-03`: `ReportDefinition.natural(...)` plus bounded natural sugar (`show me`, articles, `containing`/`starting with`/`ending with`) closes `SPIKE.md`.
+- `2026-04-03`: natural grammar now also accepts bounded connector/clause/comparison aliases: `who|that|which is|are`, top-level `ordered by`, `grouped by`, `as a|an <chart> chart`, and phrases like `equal to` / `greater than or equal to`.
+- `2026-04-03`: `SPIKE-LIMITATIONS.md` recommends time-type broadening first, then grouped/aggregate single-column subquery widening.
+- `2026-04-03`: `SPIKE-AI-MULTI-AGENT.md` scopes live-run proof, sparse copy safety, coordinator workflow, and regression tests.
 
 ## Release
 
