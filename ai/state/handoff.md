@@ -18,7 +18,7 @@
 - Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate`.
 - Natural joins reuse `JoinBindings` / `DatasetBundle` with source labels.
 - Natural explain adds resolved field/sql-like and chart metadata.
-- Natural grammar now tolerates bounded filler words: `show me` plus leading `the`/`a`/`an` on source/field refs.
+- Natural grammar now tolerates bounded sugar: `show me`, articles, and `containing`/`starting with`/`ending with`.
 - Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary/computed fields apply through `PojoLensRuntime.natural()`.
 - `docs/natural.md` is the canonical natural-query guide.
 - `SPIKE.md` is complete on planned scope; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.

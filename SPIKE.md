@@ -38,6 +38,7 @@ Done:
 - reusable natural templates with declared parameter schema
 - runtime-scoped computed fields in plain wording
 - bounded optional filler-word tolerance such as `show me` and leading articles before source/field references
+- bounded operator inflection aliases such as `containing`, `starting with`, and `ending with`
 - reusable natural preset/report wrappers through `ReportDefinition.natural(...)`
 - canonical natural-query docs in `docs/natural.md`
 

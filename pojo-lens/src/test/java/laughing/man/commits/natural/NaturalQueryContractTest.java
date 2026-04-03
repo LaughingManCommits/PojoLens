@@ -59,6 +59,27 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void inflectedOperatorAliasesShouldExecuteDeterministically() {
+        List<Employee> rows = PojoLensNatural.parse(
+                        "show employees where department containing ine "
+                                + "and name starting with A and name ending with e"
+                )
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Alice"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = PojoLensNatural.parse(
+                        "show employees where department containing ine "
+                                + "and name starting with A and name ending with e"
+                )
+                .explain(sampleEmployees(), Employee.class);
+        assertEquals(
+                "select * where ((department contains 'ine' and name matches '^\\QA\\E.*') and name matches '.*\\Qe\\E$')",
+                explain.get("equivalentSqlLike")
+        );
+    }
+
+    @Test
     public void shouldExecuteAliasedProjectionWithParameters() {
         List<EmployeeSummary> rows = PojoLensNatural
                 .parse("show name as employee name, salary as annual salary "

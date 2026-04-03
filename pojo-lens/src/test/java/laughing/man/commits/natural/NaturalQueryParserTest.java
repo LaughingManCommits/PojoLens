@@ -85,6 +85,26 @@ public class NaturalQueryParserTest {
     }
 
     @Test
+    public void shouldTranslateInflectedOperatorAliasesToExistingPredicates() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show all where department containing ine and name starting with A and name ending with e"
+        );
+
+        assertEquals(3, ast.filters().size());
+        assertEquals("department", ast.filters().get(0).field());
+        assertEquals(Clauses.CONTAINS, ast.filters().get(0).clause());
+        assertEquals("ine", ast.filters().get(0).value());
+
+        assertEquals("name", ast.filters().get(1).field());
+        assertEquals(Clauses.MATCHES, ast.filters().get(1).clause());
+        assertEquals("^\\QA\\E.*", ast.filters().get(1).value());
+
+        assertEquals("name", ast.filters().get(2).field());
+        assertEquals(Clauses.MATCHES, ast.filters().get(2).clause());
+        assertEquals(".*\\Qe\\E$", ast.filters().get(2).value());
+    }
+
+    @Test
     public void shouldParseGroupedAggregateQueryWithHavingAndAggregateOrder() {
         QueryAst ast = NaturalQueryParser.parse(
                 "show department, count of employees as total, sum of salary as total salary "

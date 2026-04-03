@@ -17,7 +17,7 @@
 - `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, and explain adds resolved field/sql-like metadata.
 - `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding and plain-worded runtime computed fields.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
-- `2026-04-03`: `ReportDefinition.natural(...)` plus bounded filler-word tolerance (`show me`, leading articles) completes `SPIKE.md` on planned scope.
+- `2026-04-03`: `ReportDefinition.natural(...)` plus natural sugar (`show me`, articles, `containing`/`starting with`/`ending with`) closes `SPIKE.md`.
 - `2026-04-03`: root `SPIKE-LIMITATIONS.md` maps current engine limits into remediation options and recommends time-type broadening plus grouped/aggregate subquery widening first.
 - `2026-04-03`: root `SPIKE-AI-MULTI-AGENT.md` now scopes local orchestrator hardening: live-run proof, sparse copy safety, coordinator workflow, and regression tests.
 

@@ -1305,10 +1305,22 @@ public final class NaturalQueryParser {
         IS_BELOW(new String[]{"is", "below"}, Clauses.SMALLER),
         IS_BEFORE(new String[]{"is", "before"}, Clauses.SMALLER),
         IS_AFTER(new String[]{"is", "after"}, Clauses.BIGGER),
+        STARTING_WITH(new String[]{"starting", "with"}, Clauses.MATCHES) {
+            @Override
+            Object transform(Object value) {
+                return toRegex(value, true, false);
+            }
+        },
         STARTS_WITH(new String[]{"starts", "with"}, Clauses.MATCHES) {
             @Override
             Object transform(Object value) {
                 return toRegex(value, true, false);
+            }
+        },
+        ENDING_WITH(new String[]{"ending", "with"}, Clauses.MATCHES) {
+            @Override
+            Object transform(Object value) {
+                return toRegex(value, false, true);
             }
         },
         ENDS_WITH(new String[]{"ends", "with"}, Clauses.MATCHES) {
@@ -1325,6 +1337,7 @@ public final class NaturalQueryParser {
         BELOW(new String[]{"below"}, Clauses.SMALLER),
         BEFORE(new String[]{"before"}, Clauses.SMALLER),
         AFTER(new String[]{"after"}, Clauses.BIGGER),
+        CONTAINING(new String[]{"containing"}, Clauses.CONTAINS),
         CONTAINS(new String[]{"contains"}, Clauses.CONTAINS),
         IS(new String[]{"is"}, Clauses.EQUAL);
 

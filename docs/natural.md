@@ -36,9 +36,9 @@ Supported operator phrases in `where`, `having`, and `qualify`:
 - `is below` / `below`
 - `is before` / `before`
 - `is after` / `after`
-- `contains`
-- `starts with`
-- `ends with`
+- `contains` / `containing`
+- `starts with` / `starting with`
+- `ends with` / `ending with`
 
 Supported aggregate phrases:
 - `count of`
