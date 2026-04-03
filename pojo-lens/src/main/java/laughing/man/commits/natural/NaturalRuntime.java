@@ -41,4 +41,8 @@ public final class NaturalRuntime {
         );
         return query;
     }
+
+    public NaturalTemplate template(String source, String... expectedParams) {
+        return NaturalTemplate.of(parse(source), expectedParams);
+    }
 }

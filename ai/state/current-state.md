@@ -16,6 +16,8 @@
 - `2026-04-02`: `PojoLensNatural` and `PojoLensRuntime.natural()` now cover vocabulary, grouped aggregates, time buckets/chart phrases, explicit joins, and deterministic windows plus alias-based `qualify`.
 - `2026-04-02`: natural resolution stays deterministic: exact matches beat aliases, explain adds resolved field/sql-like metadata, and `docs/natural.md` remains the canonical guide.
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural window/`qualify` slice and doc refresh.
+- `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding, and runtime-scoped computed fields are documented and covered in plain wording.
+- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
 
 ## Release
 
@@ -25,7 +27,7 @@
 
 - Central publish status is still not reconfirmed after key propagation.
 - SQL-like scatter still allocates more than fluent.
-- Natural-query surface is still narrower than SQL-like: `qualify` is alias-only, running windows use a fixed frame, and joined authoring remains explicit.
+- Natural-query surface is still narrower than SQL-like: reusable preset wrappers are not in place, `qualify` is alias-only, running windows use a fixed frame, and joined authoring remains explicit.
 - Natural `schema(...)` is still structural, not vocabulary-resolved.
 - Natural execution still rebuilds a resolved `SqlLikeQuery` per execution/explain call.
 - Live non-interactive Claude worker execution is still unverified.
@@ -33,6 +35,6 @@
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
-- Next natural-query slice should probably be computed-field phrasing and/or reusable natural templates now that joins, windows, and `qualify` are in place.
+- Next natural-query slice should probably be reusable natural preset/report-style wrappers now that computed-field phrasing and templates are in place.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.
 - After AI memory edits, rerun `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.

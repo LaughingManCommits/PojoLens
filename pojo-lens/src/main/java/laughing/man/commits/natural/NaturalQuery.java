@@ -64,6 +64,10 @@ public final class NaturalQuery {
         return equivalentSqlLike;
     }
 
+    QueryAst ast() {
+        return state.ast();
+    }
+
     public NaturalQuery params(Map<String, ?> parameters) {
         return withState(state.withAst(SqlLikeParameterSupport.bind(state.ast(), parameters)));
     }

@@ -5,8 +5,10 @@ import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalQuery;
+import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -24,6 +26,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -110,6 +113,42 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
     }
 
     @Test
+    public void naturalTemplateShouldSupportPublicApiBindingAndSchemaValidation() {
+        NaturalTemplate template = PojoLensNatural.template(
+                "show employees where department is :dept and salary is at least :minSalary sort by salary descending",
+                "dept",
+                "minSalary"
+        );
+
+        List<Employee> rows = template
+                .bind(SqlParams.builder().put("dept", "Engineering").put("minSalary", 120000).build())
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+        assertThrows(IllegalArgumentException.class, () -> template.bind(Map.of("dept", "Engineering")));
+    }
+
+    @Test
+    public void runtimeNaturalTemplateShouldCarryComputedFieldRegistryFromPublicApi() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setComputedFieldRegistry(ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build());
+
+        List<ComputedSalaryRow> rows = runtime.natural()
+                .template(
+                        "show name, adjusted salary "
+                                + "where adjusted salary is at least :minSalary sort by adjusted salary descending",
+                        "minSalary"
+                )
+                .bind(Map.of("minSalary", 130000.0))
+                .filter(sampleEmployees(), ComputedSalaryRow.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+        assertEquals(List.of(143000.0, 132000.0), rows.stream().map(row -> row.adjustedSalary).toList());
+    }
+
+    @Test
     public void naturalQueryShouldSupportGroupedAggregatesFromPublicApi() {
         List<DepartmentCount> rows = PojoLensNatural.parse(
                         "show department, count of employees as total "
@@ -170,5 +209,13 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         assertEquals(2, rows.size());
         assertEquals(List.of("Cara", "Bob"), rows.stream().map(row -> row.name).toList());
         assertEquals(List.of(1L, 1L), rows.stream().map(row -> row.rn).toList());
+    }
+
+    public static class ComputedSalaryRow {
+        public String name;
+        public double adjustedSalary;
+
+        public ComputedSalaryRow() {
+        }
     }
 }

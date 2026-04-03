@@ -52,6 +52,7 @@ The default first-read story stays centered on the core engine:
 
 - `PojoLensCore.newQueryBuilder(List<?>)`
 - `PojoLensNatural.parse(String)`
+- `PojoLensNatural.template(String, String...)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
@@ -101,11 +102,15 @@ The default first-read story stays centered on the core engine:
 
 ### Plain-English Contracts
 
+- `NaturalRuntime`:
+  - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
   - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `NaturalTemplate`:
+  - `of`, `bind`, `source`, `expectedParams`
 - `NaturalBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`
 

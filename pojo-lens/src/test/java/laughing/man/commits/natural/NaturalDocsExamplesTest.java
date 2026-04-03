@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -126,6 +127,26 @@ public class NaturalDocsExamplesTest {
         assertEquals(List.of(1L, 1L), rows.stream().map(row -> row.rn).toList());
     }
 
+    @Test
+    public void docsRecipeNaturalTemplateWithComputedFieldShouldWork() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setComputedFieldRegistry(ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build());
+
+        List<ComputedSalaryRow> rows = runtime.natural()
+                .template(
+                        "show name, adjusted salary "
+                                + "where adjusted salary is at least :minSalary sort by adjusted salary descending",
+                        "minSalary"
+                )
+                .bind(Map.of("minSalary", 130000.0))
+                .filter(sampleEmployees(), ComputedSalaryRow.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+        assertEquals(List.of(143000.0, 132000.0), rows.stream().map(row -> row.adjustedSalary).toList());
+    }
+
     public static class PeriodPayrollRow {
         public String period;
         public long payroll;
@@ -139,6 +160,14 @@ public class NaturalDocsExamplesTest {
         public long headcount;
 
         public DepartmentHeadcountRow() {
+        }
+    }
+
+    public static class ComputedSalaryRow {
+        public String name;
+        public double adjustedSalary;
+
+        public ComputedSalaryRow() {
         }
     }
 }

@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding `NaturalTemplate`, runtime `natural().template(...)`, plain-worded computed-field coverage, and the aligned natural/public-surface docs.
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding deterministic natural window phrases (`row number`, `rank`, `dense rank`, running aggregates), alias-based `qualify`, execution/public-API/telemetry coverage, and aligned README/natural/entry-point/use-case docs.
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after adding explicit natural-query `from ... join ... on ...` phrasing, join-aware runtime resolution, and aligned README/natural/entry-point/use-case docs.
 - `2026-04-01`: `scripts/check-doc-consistency.ps1` passed after adding root `SPIKE-CSV.md` to scope CSV support as a bounded adapter into the existing engine rather than a dataframe pivot.

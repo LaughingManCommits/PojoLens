@@ -85,6 +85,20 @@ List<Employee> rows = runtime.natural()
     .filter(source, Employee.class);
 ```
 
+Use `PojoLensNatural.template(...)` or `runtime.natural().template(...)` when the same natural query should be rebound against a declared parameter schema:
+
+```java
+NaturalTemplate template = PojoLensNatural.template(
+    "show employees where department is :dept and salary is at least :minSalary "
+        + "sort by salary descending",
+    "dept",
+    "minSalary");
+
+List<Employee> rows = template
+    .bind(Map.of("dept", "Engineering", "minSalary", 120000))
+    .filter(source, Employee.class);
+```
+
 Natural queries lower into the same shared engine used by fluent and SQL-like execution.
 
 ## Joins and Multi-source Queries
@@ -131,6 +145,35 @@ NaturalVocabulary vocabulary = NaturalVocabulary.builder()
     .field("hireDate", "hire date", "start date")
     .field("active", "active", "currently employed")
     .build();
+```
+
+## Templates and Computed Fields
+
+Natural templates keep the same parameter-schema discipline as SQL-like templates:
+
+- expected parameter names must exactly match the natural query placeholders
+- missing or unknown bound parameters fail deterministically
+- use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply
+
+Computed-field phrasing is runtime-scoped and reuses the existing `ComputedFieldRegistry`.
+Author the computed field by its registered name or the same spaced wording the normalizer would derive from it, such as `adjusted salary` -> `adjustedSalary`.
+
+Example:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setComputedFieldRegistry(ComputedFieldRegistry.builder()
+    .add("adjustedSalary", "salary * 1.1", Double.class)
+    .build());
+
+List<AdjustedSalaryRow> rows = runtime.natural()
+    .template(
+        "show name, adjusted salary "
+            + "where adjusted salary is at least :minSalary "
+            + "sort by adjusted salary descending",
+        "minSalary")
+    .bind(Map.of("minSalary", 130000.0))
+    .filter(source, AdjustedSalaryRow.class);
 ```
 
 ## Grouping and Time Buckets
@@ -255,6 +298,7 @@ Map<String, Object> explain = PojoLensNatural
 - window phrasing is intentionally narrow: one optional partition field, explicit `ordered by`, and a fixed running frame for aggregate windows
 - `qualify` currently accepts window output aliases only, not inline window expressions
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
+- direct `PojoLensNatural.template(...)` does not apply runtime vocabulary or runtime-scoped computed fields
 - `schema(...)` remains structural and does not perform runtime vocabulary resolution
 - inferred chart mapping requires explicit non-wildcard `show` outputs
 

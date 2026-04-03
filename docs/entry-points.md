@@ -13,6 +13,7 @@ Core execution model:
 | --- | --- | --- |
 | Service-owned fluent query | `PojoLensCore.newQueryBuilder(rows)` | Makes the fluent path explicit and keeps new code on the core engine surface. |
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
+| Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
@@ -32,6 +33,8 @@ Core execution model:
   phrases such as `count of ...`, `group by`, `having`, deterministic window
   phrases with `qualify`, explicit `from ... join ... on ...` wording,
   time-bucket phrases, and terminal chart phrases.
+- Use `PojoLensNatural.template(...)` when that guided-text query is reused
+  with a fixed named-parameter schema.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped

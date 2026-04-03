@@ -6,6 +6,7 @@ import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
@@ -235,6 +236,57 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void runtimeNaturalTemplateShouldValidateSchemaAndBindParameters() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        NaturalTemplate template = runtime.natural().template(
+                "show name as employee name, salary as annual salary "
+                        + "where department is :dept and salary is at least :minSalary sort by salary ascending",
+                "dept",
+                "minSalary"
+        );
+
+        List<EmployeeSummary> rows = template
+                .bind(Map.of("dept", "Engineering", "minSalary", 120000))
+                .filter(sampleEmployees(), EmployeeSummary.class);
+
+        assertEquals(List.of("Alice", "Cara"), rows.stream().map(row -> row.employeeName).toList());
+        assertEquals(
+                List.of(120000, 130000),
+                rows.stream().map(row -> row.annualSalary).toList()
+        );
+        assertThrows(IllegalArgumentException.class, () -> template.bind(Map.of("dept", "Engineering")));
+        assertThrows(IllegalArgumentException.class,
+                () -> template.bind(Map.of("dept", "Engineering", "minSalary", 120000, "extra", true)));
+    }
+
+    @Test
+    public void runtimeNaturalComputedFieldsShouldWorkWithPlainWordingAndExplain() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setComputedFieldRegistry(ComputedFieldRegistry.builder()
+                .add("adjustedSalary", "salary * 1.1", Double.class)
+                .build());
+
+        NaturalQuery query = runtime.natural().template(
+                        "show name, adjusted salary "
+                                + "where adjusted salary is at least :minSalary sort by adjusted salary descending",
+                        "minSalary"
+                )
+                .bind(Map.of("minSalary", 130000.0));
+
+        List<ComputedNaturalSalaryRow> rows = query.filter(sampleEmployees(), ComputedNaturalSalaryRow.class);
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+        assertEquals(143000.0, rows.get(0).adjustedSalary, 0.0001);
+        assertEquals(132000.0, rows.get(1).adjustedSalary, 0.0001);
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), ComputedNaturalSalaryRow.class);
+        assertTrue(((List<?>) explain.get("computedFields")).toString().contains("adjustedSalary:salary * 1.1:Double"));
+        assertEquals(
+                "select name, adjustedSalary where adjustedSalary >= :minSalary order by adjustedSalary desc",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldResolveWindowPhrasesAndQualifyAliases() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -452,6 +504,14 @@ public class NaturalQueryContractTest {
         public long payroll;
 
         public PeriodPayrollRow() {
+        }
+    }
+
+    public static class ComputedNaturalSalaryRow {
+        public String name;
+        public double adjustedSalary;
+
+        public ComputedNaturalSalaryRow() {
         }
     }
 

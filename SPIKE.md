@@ -25,7 +25,7 @@ natural language and not as a remote AI feature.
 
 ## Status
 
-As of `2026-04-02`, this spike is mostly implemented.
+As of `2026-04-03`, this spike is mostly implemented.
 
 Done:
 
@@ -35,12 +35,13 @@ Done:
 - grouped aggregates, time buckets, and chart phrases
 - explicit joins with `JoinBindings` / `DatasetBundle`
 - deterministic windows plus alias-based `qualify`
+- reusable natural templates with declared parameter schema
+- runtime-scoped computed fields in plain wording
 - canonical natural-query docs in `docs/natural.md`
 
 Remaining:
 
-- computed fields in plain wording
-- reusable natural templates and presets
+- reusable natural presets
 
 ## What This Is
 
@@ -397,8 +398,9 @@ Support:
 
 - [x] window functions
 - [x] `qualify`
-- [ ] computed fields in plain wording
-- [ ] reusable templates and presets
+- [x] computed fields in plain wording
+- [x] reusable templates
+- [ ] reusable presets
 
 This is likely where complexity rises sharply.
 

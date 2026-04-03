@@ -18,6 +18,8 @@ import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
+import laughing.man.commits.natural.NaturalRuntime;
+import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
@@ -44,6 +46,7 @@ public class StablePublicApiContractTest {
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
         requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
         requirePublicStaticMethod(PojoLensNatural.class, "parse", String.class);
+        requirePublicStaticMethod(PojoLensNatural.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
@@ -124,6 +127,9 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableNaturalContractsShouldRemainAvailable() throws Exception {
+        requirePublicMethod(NaturalRuntime.class, "parse", String.class);
+        requirePublicMethod(NaturalRuntime.class, "template", String.class, String[].class);
+
         requirePublicStaticMethod(NaturalQuery.class, "of", String.class);
         requirePublicMethod(NaturalQuery.class, "source");
         requirePublicMethod(NaturalQuery.class, "equivalentSqlLike");
@@ -158,6 +164,12 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalBoundQuery.class, "stream");
         requirePublicMethod(NaturalBoundQuery.class, "chart");
         requirePublicMethod(NaturalBoundQuery.class, "chart", ChartSpec.class);
+
+        requirePublicStaticMethod(NaturalTemplate.class, "of", String.class, String[].class);
+        requirePublicMethod(NaturalTemplate.class, "bind", Map.class);
+        requirePublicMethod(NaturalTemplate.class, "bind", SqlParams.class);
+        requirePublicMethod(NaturalTemplate.class, "source");
+        requirePublicMethod(NaturalTemplate.class, "expectedParams");
 
         requirePublicStaticMethod(NaturalVocabulary.class, "empty");
         requirePublicStaticMethod(NaturalVocabulary.class, "builder");
@@ -215,6 +227,16 @@ public class StablePublicApiContractTest {
                 .bind(SqlParams.builder().put("dept", "Engineering").put("active", true).build())
                 .filter(sampleEmployees(), Employee.class);
         assertEquals(2, rows.size());
+
+        List<Employee> naturalRows = runtime.natural()
+                .template(
+                        "show employees where department is :dept and active is :active sort by salary descending",
+                        "dept",
+                        "active"
+                )
+                .bind(SqlParams.builder().put("dept", "Engineering").put("active", true).build())
+                .filter(sampleEmployees(), Employee.class);
+        assertEquals(List.of("Cara", "Alice"), naturalRows.stream().map(row -> row.name).toList());
 
         SqlLikeCursor cursor = SqlLikeCursor.builder().put("salary", 120000).put("id", 1).build();
         String token = cursor.toToken();
