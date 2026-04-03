@@ -18,6 +18,7 @@
 - `2026-04-02`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural window/`qualify` slice and doc refresh.
 - `2026-04-03`: `PojoLensNatural.template(...)` and `NaturalRuntime.template(...)` now add reusable natural parameter-schema binding, and runtime-scoped computed fields are documented and covered in plain wording.
 - `2026-04-03`: `mvn -q -pl pojo-lens test` and `scripts/check-doc-consistency.ps1` passed after the natural template/computed-field slice and surface-doc updates.
+- `2026-04-03`: `README.md` quick start is rebalanced around one short example each for fluent, SQL-like, and natural queries; broader recipes now route to the docs guides.
 
 ## Release
 
@@ -36,5 +37,6 @@
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - Next natural-query slice should probably be reusable natural preset/report-style wrappers now that computed-field phrasing and templates are in place.
+- Keep README onboarding balanced across query styles and push deep recipes into the dedicated docs guides.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.
 - After AI memory edits, rerun `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.

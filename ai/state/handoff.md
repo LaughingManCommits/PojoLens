@@ -15,14 +15,15 @@
 
 - `PojoLensRuntime` owns natural vocabulary; `NaturalVocabulary.builder().field(actualField, aliases...)` is the alias-registration contract.
 - Natural resolution is late-bound against source fields plus computed-field names; exact matches beat aliases and ambiguity stays deterministic.
-- Natural queries now support grouped aggregates, time buckets/chart phrases, explicit `from ... join ... on ...`, deterministic windows, alias-based `qualify`, and reusable `NaturalTemplate` schemas.
-- Natural joins reuse `JoinBindings` / `DatasetBundle` and support optional source labels via `from <source> as <label>`.
+- Natural queries now support grouped aggregates, chart/time-bucket phrases, explicit joins, deterministic windows, alias-based `qualify`, and `NaturalTemplate` schemas.
+- Natural joins reuse `JoinBindings` / `DatasetBundle` and support optional source labels.
 - Natural chart phrases drive deterministic no-spec `chart(...)` / bound `chart()` inference from `show` outputs.
-- Natural explain adds resolved field/sql-like metadata plus chart metadata; joined explains also carry `joinSourceBindings`.
+- Natural explain adds resolved field/sql-like metadata and chart metadata; joined explains carry `joinSourceBindings`.
 - Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary and computed fields apply through `PojoLensRuntime.natural()`.
-- `docs/natural.md` is the canonical natural-query guide, now aligned with README/entry-point/use-case docs and join/window examples/tests.
+- `docs/natural.md` is the canonical natural-query guide, aligned with README and entry-point/use-case docs.
+- `README.md` quick start should stay balanced across fluent, SQL-like, and natural surfaces.
 - Next natural-query slice is likely reusable natural preset/report wrappers.
-- Latest SQL-like scatter profile still points at reflection-heavy chart mapping in `target/benchmarks/2026-04-01-sqllike-profile/`.
+- Latest SQL-like scatter profile still points at reflection-heavy chart mapping.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.
 
 ## Validate

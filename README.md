@@ -61,8 +61,8 @@ Runnable example project:
 - Query existing domain classes directly (no ORM model rewrite).
 - Choose query style per use case:
   - fluent API for type-safe Java composition
-  - controlled plain-English queries for guided non-SQL text authoring
   - SQL-like strings for dynamic/user-authored queries
+  - controlled plain-English queries for guided non-SQL text authoring
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
@@ -122,6 +122,9 @@ Advanced/optional follow-on guide:
 
 ## Quick Start
 
+Three short examples, one per query style.
+Broader recipes for joins, grouping, windows, templates, charts, and presets live in the docs linked below.
+
 ### Fluent query
 
 ```java
@@ -154,47 +157,11 @@ List<Employee> rows = PojoLensNatural
     .filter(source, Employee.class);
 ```
 
-### Grouped plain-English query
-
-```java
-List<DepartmentHeadcount> rows = PojoLensNatural
-    .parse("show department, count of employees as headcount "
-        + "where active is true "
-        + "group by department having headcount is at least 2 "
-        + "sort by headcount descending")
-    .filter(source, DepartmentHeadcount.class);
-```
-
-### Joined plain-English query
-
-```java
-DatasetBundle bundle = DatasetBundle.of(
-    companies,
-    JoinBindings.of("employees", employees));
-
-List<Company> rows = PojoLensNatural
-    .parse("from companies as company join employees as employee "
-        + "on company id equals employee company id "
-        + "show company where employee title is Engineer")
-    .filter(bundle, Company.class);
-```
-
-### Chart payload in one call
-
-```java
-ChartData chart = PojoLensSql
-    .parse("select department, count(*) as total "
-        + "group by department order by total desc")
-    .chart(source, DepartmentCount.class, ChartSpec.of(ChartType.BAR, "department", "total"));
-```
-
-### Predefined stats table in one call
-
-```java
-StatsTable<DepartmentPayrollRow> table = StatsViewPresets
-    .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
-    .table(source);
-```
+More examples:
+- Fluent and scenario selection: [docs/usecases.md](docs/usecases.md)
+- SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
+- Natural queries, joins, windows, and templates: [docs/natural.md](docs/natural.md)
+- Charts, reports, and presets: [docs/charts.md](docs/charts.md), [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
 
 ## Capability Snapshot
 
