@@ -73,6 +73,41 @@ The current orchestrator already solves several important problems well:
 
 That means the repo already has a sound MVP shape for local bounded worker DAGs.
 
+## What External Token-Efficiency Guidance Changes
+
+The `claude-token-efficient` guidance is useful here, but only in a narrow way.
+
+What transfers well:
+
+- recurring instruction text should stay tiny because it costs input tokens on
+  every worker call
+- pipeline-facing workers should prefer machine-readable output with minimal
+  narration
+- prompt-level guidance is useful for output discipline, but it does not
+  replace mechanical safety gates
+
+What does not transfer directly:
+
+- a large repo-wide `CLAUDE.md` overlay for all orchestrator workers
+
+Why not:
+
+- this coordinator currently launches fresh `claude -p` sessions per planner or
+  worker call
+- the external repo explicitly notes that persistent instruction files are most
+  worthwhile when output volume is high enough to offset recurring input
+  overhead, and that fresh-session pipelines dilute that benefit
+
+Recommended interpretation for this repo:
+
+- keep planner and worker prompt scaffolding very small
+- keep role-specific behavior rules in compact tracked prompt snippets or agent
+  metadata, not a growing monolithic instruction layer
+- add prompt-budget and output-discipline checks to the coordinator itself
+- keep structured JSON output as the non-negotiable contract for planner and
+  worker calls
+- treat this as complementary to safety hardening, not a substitute for it
+
 ## What Is Missing
 
 ### 1. Live End-to-End Execution Proof
@@ -226,6 +261,39 @@ What is missing:
 This matters because the orchestration surface is now large enough that docs and
 dry-runs alone are not strong regression protection.
 
+### 9. Prompt Economy and Output Discipline
+
+The current orchestrator estimates prompt size, but it does not yet treat token
+economy as a first-class contract.
+
+Current gap:
+
+- planner and worker prompts still inline a broad coordinator frame on every
+  invocation
+- there is no section-level prompt accounting for shared summary, file hints,
+  dependency summaries, constraints, and validation hints
+- there are no hard or soft prompt-size ceilings per task beyond manual review
+- `agents.json` has role prompts, but no explicit ultra-lean pipeline profile
+  such as "JSON only, no narration, no guessing, minimum viable output"
+- dependency summaries and validation hints can keep growing without a
+  coordinator-side compaction strategy
+
+What is needed:
+
+- compact role-specific output-discipline rules for planner, analyst,
+  implementer, and reviewer workers
+- section-level prompt accounting in run manifests so prompt growth is visible
+- soft or hard prompt budgets with truncation, summarization, or failure when a
+  task exceeds its intended envelope
+- dependency-summary compaction and validation-hint dedupe or truncation
+- stronger worker-result guidance for unknown values: use `null` or explicit
+  unknown markers instead of guessing
+- a deliberate decision on whether any repo-level `CLAUDE.md` should apply to
+  orchestrator work at all; default recommendation is no unless measurement
+  proves a net benefit for fresh worker sessions
+
+This is mostly a coordinator-design problem, not a new prompt-writing exercise.
+
 ## What We Still Need First
 
 The best next slice is not "add more agents."
@@ -233,9 +301,10 @@ The best next slice is not "add more agents."
 The best next slice is:
 
 1. prove one live end-to-end `copy` run
-2. tighten safety around sparse copies, overlap detection, and protected paths
-3. add a minimal coordinator review or diff workflow
-4. add focused regression tests around the Python coordinator
+2. add prompt-budget and output-discipline hardening
+3. tighten safety around sparse copies, overlap detection, and protected paths
+4. add a minimal coordinator review or diff workflow
+5. add focused regression tests around the Python coordinator
 
 That sequence raises trust faster than adding more planner cleverness or more
 sample task plans.
@@ -254,7 +323,22 @@ Success bar:
 
 - live `claude -p` execution is no longer an explicitly unverified path
 
-### Phase 2: Safety
+### Phase 2: Prompt Economy
+
+Deliver:
+
+- compact role-specific prompt rules
+- section-level prompt accounting in manifests
+- soft or hard prompt-size budgets
+- dependency-summary and validation-hint compaction
+- explicit "JSON only, minimum viable output, do not guess" worker discipline
+
+Success bar:
+
+- prompt size and worker output shape are intentionally bounded instead of
+  drifting with each task-plan revision
+
+### Phase 3: Safety
 
 Deliver:
 
@@ -267,7 +351,7 @@ Success bar:
 - the coordinator can reject unsafe multi-agent plans before or after worker
   execution
 
-### Phase 3: Coordinator Ergonomics
+### Phase 4: Coordinator Ergonomics
 
 Deliver:
 
@@ -280,7 +364,7 @@ Success bar:
 
 - coordinator workflow is practical across more than one run
 
-### Phase 4: Regression Harness
+### Phase 5: Regression Harness
 
 Deliver:
 

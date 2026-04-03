@@ -19,8 +19,8 @@
 - Natural grammar now tolerates bounded sugar plus aliases: `show me`, articles, `containing`/`starting with`/`ending with`, connector lead-ins (`who|that|which is|are`), `ordered by`, `grouped by`, comparison phrases like `equal to`, and `as a|an <chart> chart`.
 - Direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free; runtime-owned vocabulary/computed fields apply through `PojoLensRuntime.natural()`.
 - `docs/natural.md` is the canonical natural-query guide.
-- `SPIKE.md` is complete on planned scope; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.
-- Start `SPIKE-AI-MULTI-AGENT.md` with one small live `copy`-mode proof run.
+- The planned natural-query spike scope is complete; reusable natural report wrappers now exist through `ReportDefinition.natural(...)`.
+- Start `SPIKE-AI-MULTI-AGENT.md` with a live `copy`-mode proof run.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
 - Latest SQL-like scatter profile points at reflection-heavy chart mapping.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; live `claude -p` execution is still unverified.
