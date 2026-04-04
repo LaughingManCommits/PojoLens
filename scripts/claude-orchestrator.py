@@ -410,6 +410,58 @@ def parse_args() -> argparse.Namespace:
         help="Emit the run summary as JSON.",
     )
 
+    retry_parser = subparsers.add_parser(
+        "retry",
+        help="Retry failed or blocked tasks from a previous run manifest.",
+    )
+    retry_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    retry_parser.add_argument(
+        "--agents",
+        default="",
+        help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
+    )
+    retry_parser.add_argument(
+        "--claude-bin",
+        default=DEFAULT_CLAUDE_BIN,
+        help="Claude CLI executable to invoke.",
+    )
+    retry_parser.add_argument(
+        "--runtime-root",
+        default="",
+        help="Override runtime root for the retry run. Defaults to the original run manifest runtimeRoot.",
+    )
+    retry_parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=2,
+        help="Maximum number of ready tasks to run concurrently.",
+    )
+    retry_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict retry to one or more task ids. Defaults to failed or blocked tasks.",
+    )
+    retry_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue running independent tasks after a worker fails or reports blocked.",
+    )
+    retry_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Create the retry run manifest and task requests without invoking Claude.",
+    )
+    retry_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the retry run summary as JSON.",
+    )
+
     review_parser = subparsers.add_parser(
         "review",
         help="Summarize worker workspace diffs for a completed run.",
@@ -493,6 +545,20 @@ def parse_args() -> argparse.Namespace:
         "--json",
         action="store_true",
         help="Emit the promotion summary as JSON.",
+    )
+
+    cleanup_parser = subparsers.add_parser(
+        "cleanup",
+        help="Remove runtime artifacts for a completed or abandoned run.",
+    )
+    cleanup_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    cleanup_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the cleanup summary as JSON.",
     )
 
     return parser.parse_args()
@@ -1101,6 +1167,28 @@ def load_run_manifest(run_ref: str) -> tuple[Path, dict[str, Any]]:
     if not isinstance(tasks, dict):
         raise OrchestratorError(f"{manifest_path}: expected object 'tasks'")
     return manifest_path, payload
+
+
+def manifest_required_path(manifest: dict[str, Any], key: str, *, location: str) -> Path:
+    value = str(manifest.get(key, "")).strip()
+    if not value:
+        raise OrchestratorError(f"{location}: run manifest is missing '{key}'")
+    return Path(value).resolve()
+
+
+def manifest_run_dir(manifest_path: Path, manifest: dict[str, Any]) -> Path:
+    value = str(manifest.get("runDir", "")).strip()
+    return Path(value).resolve() if value else manifest_path.parent.resolve()
+
+
+def manifest_workspaces_dir(manifest: dict[str, Any], *, run_dir: Path) -> Path:
+    value = str(manifest.get("workspacesDir", "")).strip()
+    if value:
+        return Path(value).resolve()
+    run_id = str(manifest.get("runId", "")).strip()
+    if not run_id:
+        raise OrchestratorError("Run manifest is missing 'workspacesDir' and 'runId'")
+    return (run_dir.parent.parent / "workspaces" / run_id).resolve()
 
 
 def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
@@ -2511,10 +2599,14 @@ def manifest_payload(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
+    retry_of_run_id: str | None = None,
+    requested_task_ids: list[str] | None = None,
+    retried_task_ids: list[str] | None = None,
+    seeded_task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     usage_totals = aggregate_usage(records)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
-    return {
+    payload = {
         "runId": run_id,
         "generatedAt": iso_now(),
         "dryRun": dry_run,
@@ -2533,6 +2625,12 @@ def manifest_payload(
         "usageTotals": usage_totals,
         "tasks": {task_id: asdict(record) for task_id, record in sorted(records.items())},
     }
+    if retry_of_run_id:
+        payload["retryOfRunId"] = retry_of_run_id
+        payload["requestedTaskIds"] = list(requested_task_ids or [])
+        payload["retriedTaskIds"] = list(retried_task_ids or [])
+        payload["seededTaskIds"] = list(seeded_task_ids or [])
+    return payload
 
 
 def write_manifest(
@@ -2547,6 +2645,10 @@ def write_manifest(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
+    retry_of_run_id: str | None = None,
+    requested_task_ids: list[str] | None = None,
+    retried_task_ids: list[str] | None = None,
+    seeded_task_ids: list[str] | None = None,
 ) -> None:
     write_json(
         run_dir / "manifest.json",
@@ -2561,28 +2663,15 @@ def write_manifest(
             plan,
             records,
             dry_run=dry_run,
+            retry_of_run_id=retry_of_run_id,
+            requested_task_ids=requested_task_ids,
+            retried_task_ids=retried_task_ids,
+            seeded_task_ids=seeded_task_ids,
         ),
     )
 
 
-def run_plan(args: argparse.Namespace) -> dict[str, Any]:
-    agents_path = Path(args.agents).resolve()
-    plan_path = Path(args.task_plan).resolve()
-    agents = load_agents(agents_path)
-    plan = selected_plan(load_task_plan(plan_path, agents), args.selected_tasks)
-    topological_batches(plan.tasks)
-    if not args.dry_run:
-        ensure_claude_available(args.claude_bin)
-
-    run_id = (
-        f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-        f"-{slugify(plan.name)}-{uuid4().hex[:8]}"
-    )
-    runtime_root = Path(args.runtime_root).resolve()
-    run_dir = runtime_root / "runs" / run_id
-    workspaces_dir = runtime_root / "workspaces" / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    workspaces_dir.mkdir(parents=True, exist_ok=True)
+def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
     write_json(
         run_dir / "selected-plan.json",
         {
@@ -2618,9 +2707,42 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         },
     )
 
+
+def run_loaded_plan(
+    plan_path: Path,
+    agents_path: Path,
+    agents: dict[str, AgentDefinition],
+    plan: TaskPlan,
+    *,
+    claude_bin: str,
+    runtime_root: Path,
+    max_parallel: int,
+    continue_on_error: bool,
+    dry_run: bool,
+    initial_records: dict[str, TaskRunRecord] | None = None,
+    retry_of_run_id: str | None = None,
+    requested_task_ids: list[str] | None = None,
+    retried_task_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    topological_batches(plan.tasks)
+    if not dry_run:
+        ensure_claude_available(claude_bin)
+
+    run_id = (
+        f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f"-{slugify(plan.name)}-{uuid4().hex[:8]}"
+    )
+    runtime_root = runtime_root.resolve()
+    run_dir = runtime_root / "runs" / run_id
+    workspaces_dir = runtime_root / "workspaces" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    workspaces_dir.mkdir(parents=True, exist_ok=True)
+    write_selected_plan_snapshot(run_dir, plan)
+
+    seeded_task_ids = sorted(initial_records or {})
     agents_json = agent_payload_for_claude(agents)
-    records: dict[str, TaskRunRecord] = {}
-    pending = {task.id: task for task in plan.tasks}
+    records: dict[str, TaskRunRecord] = dict(initial_records or {})
+    pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
 
     while pending:
@@ -2652,7 +2774,11 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 workspaces_dir,
                 plan,
                 records,
-                dry_run=args.dry_run,
+                dry_run=dry_run,
+                retry_of_run_id=retry_of_run_id,
+                requested_task_ids=requested_task_ids,
+                retried_task_ids=retried_task_ids,
+                seeded_task_ids=seeded_task_ids,
             )
             continue
 
@@ -2681,9 +2807,9 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
             plan,
             ready,
             agents,
-            max_parallel=max(args.max_parallel, 1),
+            max_parallel=max(max_parallel, 1),
         )
-        with ThreadPoolExecutor(max_workers=max(1, min(args.max_parallel, len(batch)))) as executor:
+        with ThreadPoolExecutor(max_workers=max(1, min(max_parallel, len(batch)))) as executor:
             future_map = {
                 executor.submit(
                     execute_task,
@@ -2694,9 +2820,9 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                     agents,
                     task,
                     records,
-                    claude_bin=args.claude_bin,
+                    claude_bin=claude_bin,
                     agents_json=agents_json,
-                    dry_run=args.dry_run,
+                    dry_run=dry_run,
                 ): task
                 for task in batch
             }
@@ -2714,9 +2840,13 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                     workspaces_dir,
                     plan,
                     records,
-                    dry_run=args.dry_run,
+                    dry_run=dry_run,
+                    retry_of_run_id=retry_of_run_id,
+                    requested_task_ids=requested_task_ids,
+                    retried_task_ids=retried_task_ids,
+                    seeded_task_ids=seeded_task_ids,
                 )
-                if not args.continue_on_error and records[task.id].status not in {"completed", "planned"}:
+                if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
                     fail_fast_triggered = True
 
     write_manifest(
@@ -2729,23 +2859,172 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         workspaces_dir,
         plan,
         records,
-        dry_run=args.dry_run,
+        dry_run=dry_run,
+        retry_of_run_id=retry_of_run_id,
+        requested_task_ids=requested_task_ids,
+        retried_task_ids=retried_task_ids,
+        seeded_task_ids=seeded_task_ids,
     )
     status_counts: dict[str, int] = {}
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
     usage_totals = aggregate_usage(records)
-    return {
+    payload = {
         "runId": run_id,
         "plan": plan.name,
         "goal": plan.goal,
-        "dryRun": args.dry_run,
+        "dryRun": dry_run,
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
+    }
+    if retry_of_run_id:
+        payload["retryOfRunId"] = retry_of_run_id
+        payload["requestedTaskIds"] = list(requested_task_ids or [])
+        payload["retriedTaskIds"] = list(retried_task_ids or [])
+        payload["seededTaskIds"] = seeded_task_ids
+    return payload
+
+
+def run_plan(args: argparse.Namespace) -> dict[str, Any]:
+    agents_path = Path(args.agents).resolve()
+    plan_path = Path(args.task_plan).resolve()
+    agents = load_agents(agents_path)
+    plan = selected_plan(load_task_plan(plan_path, agents), args.selected_tasks)
+    return run_loaded_plan(
+        plan_path,
+        agents_path,
+        agents,
+        plan,
+        claude_bin=args.claude_bin,
+        runtime_root=Path(args.runtime_root).resolve(),
+        max_parallel=args.max_parallel,
+        continue_on_error=args.continue_on_error,
+        dry_run=args.dry_run,
+    )
+
+
+def retry_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    previous_records = {record.id: record for record in selected_run_records(manifest, [])}
+    requested_task_ids = list(args.selected_tasks)
+    if not requested_task_ids:
+        requested_task_ids = [
+            task_id
+            for task_id, record in sorted(previous_records.items())
+            if record.status in {"failed", "blocked"}
+        ]
+    if not requested_task_ids:
+        raise OrchestratorError(
+            "Run manifest contains no failed or blocked tasks to retry; use --task to pick tasks explicitly"
+        )
+
+    plan_path = manifest_required_path(manifest, "planPath", location=str(manifest_path))
+    agents_path = (
+        Path(args.agents).resolve()
+        if args.agents
+        else manifest_required_path(manifest, "agentsPath", location=str(manifest_path))
+    )
+    runtime_root = (
+        Path(args.runtime_root).resolve()
+        if args.runtime_root
+        else manifest_required_path(manifest, "runtimeRoot", location=str(manifest_path))
+    )
+    if not plan_path.exists():
+        raise OrchestratorError(f"Retry source plan '{plan_path}' does not exist")
+    if not agents_path.exists():
+        raise OrchestratorError(f"Retry source agents file '{agents_path}' does not exist")
+
+    agents = load_agents(agents_path)
+    retry_plan = selected_plan(load_task_plan(plan_path, agents), requested_task_ids)
+    requested_set = set(requested_task_ids)
+    initial_records: dict[str, TaskRunRecord] = {}
+    retried_task_ids: list[str] = []
+    for task in retry_plan.tasks:
+        prior_record = previous_records.get(task.id)
+        if task.id in requested_set:
+            retried_task_ids.append(task.id)
+        elif prior_record is not None and prior_record.status == "completed":
+            initial_records[task.id] = prior_record
+        else:
+            retried_task_ids.append(task.id)
+    if not retried_task_ids:
+        raise OrchestratorError("Nothing to retry; all selected tasks are already completed")
+
+    payload = run_loaded_plan(
+        plan_path,
+        agents_path,
+        agents,
+        retry_plan,
+        claude_bin=args.claude_bin,
+        runtime_root=runtime_root,
+        max_parallel=args.max_parallel,
+        continue_on_error=args.continue_on_error,
+        dry_run=args.dry_run,
+        initial_records=initial_records,
+        retry_of_run_id=str(manifest.get("runId", "")),
+        requested_task_ids=requested_task_ids,
+        retried_task_ids=retried_task_ids,
+    )
+    payload["sourceManifestPath"] = str(manifest_path)
+    return payload
+
+
+def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    run_dir = manifest_run_dir(manifest_path, manifest)
+    workspaces_dir = manifest_workspaces_dir(manifest, run_dir=run_dir)
+    records = selected_run_records(manifest, [])
+    removed_worktrees: list[str] = []
+    missing_worktrees_skipped: list[str] = []
+    for workspace_path in dedupe_strings(
+        [record.workspace_path for record in records if record.workspace_mode == "worktree" and record.workspace_path]
+    ):
+        workspace = Path(workspace_path).resolve()
+        if not workspace.exists():
+            missing_worktrees_skipped.append(str(workspace))
+            continue
+        completed = subprocess.run(
+            ["git", "worktree", "remove", "--force", str(workspace)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise OrchestratorError(
+                f"Failed to remove detached worktree '{workspace}': "
+                f"{completed.stderr.strip() or completed.stdout.strip()}"
+            )
+        removed_worktrees.append(str(workspace))
+    if removed_worktrees:
+        completed = subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise OrchestratorError(
+                f"Failed to prune worktree metadata: {completed.stderr.strip() or completed.stdout.strip()}"
+            )
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    if workspaces_dir.exists():
+        shutil.rmtree(workspaces_dir)
+    return {
+        "runId": manifest.get("runId"),
+        "manifestPath": str(manifest_path),
+        "runDir": str(run_dir),
+        "workspacesDir": str(workspaces_dir),
+        "removedRunDir": not run_dir.exists(),
+        "removedWorkspacesDir": not workspaces_dir.exists(),
+        "removedWorktrees": removed_worktrees,
+        "missingWorktreesSkipped": missing_worktrees_skipped,
     }
 
 
@@ -2792,6 +3071,9 @@ def main() -> int:
         if args.command == "run":
             print_payload(run_plan(args), as_json=args.json)
             return 0
+        if args.command == "retry":
+            print_payload(retry_run(args), as_json=args.json)
+            return 0
         if args.command == "review":
             print_payload(review_run(args), as_json=args.json)
             return 0
@@ -2800,6 +3082,9 @@ def main() -> int:
             return 0
         if args.command == "promote":
             print_payload(promote_run(args), as_json=args.json)
+            return 0
+        if args.command == "cleanup":
+            print_payload(cleanup_run(args), as_json=args.json)
             return 0
         raise OrchestratorError(f"Unknown command '{args.command}'")
     except OrchestratorError as exc:

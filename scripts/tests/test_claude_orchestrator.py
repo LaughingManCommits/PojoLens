@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import pathlib
 import sys
 import tempfile
@@ -725,6 +726,451 @@ class PromptBudgetTest(unittest.TestCase):
                     )
             finally:
                 orchestrator.ROOT = old_root
+
+    def test_retry_run_seeds_completed_dependency_and_replans_failed_task(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "previous-run"
+            workspaces_dir = runtime_root / "workspaces" / "previous-run"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            }
+                        },
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "retry-plan",
+                        "goal": "Retry failed tasks.",
+                        "sharedContext": {
+                            "summary": "Retry test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect-a",
+                                "title": "Inspect A",
+                                "agent": "analyst",
+                                "prompt": "Inspect A.",
+                            },
+                            {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "prompt": "Retry B.",
+                                "dependsOn": ["inspect-a"],
+                            },
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "previous-run",
+                        "planPath": str(plan_path),
+                        "agentsPath": str(agents_path),
+                        "runtimeRoot": str(runtime_root),
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "inspect-a": {
+                                "id": "inspect-a",
+                                "title": "Inspect A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Completed A.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "inspect-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "retry-b": {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "status": "failed",
+                                "summary": "B failed.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "retry-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 1,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.retry_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        agents="",
+                        claude_bin="claude",
+                        runtime_root="",
+                        max_parallel=2,
+                        selected_tasks=[],
+                        continue_on_error=False,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("previous-run", payload["retryOfRunId"])
+        self.assertEqual(["retry-b"], payload["requestedTaskIds"])
+        self.assertEqual(["retry-b"], payload["retriedTaskIds"])
+        self.assertEqual(["inspect-a"], payload["seededTaskIds"])
+        self.assertEqual({"completed": 1, "planned": 1}, payload["statusCounts"])
+
+    def test_retry_run_retries_unfinished_dependency_when_selected_task_depends_on_it(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "previous-run"
+            workspaces_dir = runtime_root / "workspaces" / "previous-run"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            }
+                        },
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "retry-plan",
+                        "goal": "Retry failed tasks.",
+                        "sharedContext": {
+                            "summary": "Retry test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect-a",
+                                "title": "Inspect A",
+                                "agent": "analyst",
+                                "prompt": "Inspect A.",
+                            },
+                            {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "prompt": "Retry B.",
+                                "dependsOn": ["inspect-a"],
+                            },
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "previous-run",
+                        "planPath": str(plan_path),
+                        "agentsPath": str(agents_path),
+                        "runtimeRoot": str(runtime_root),
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "inspect-a": {
+                                "id": "inspect-a",
+                                "title": "Inspect A",
+                                "agent": "analyst",
+                                "status": "failed",
+                                "summary": "A failed.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "inspect-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 1,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "retry-b": {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "status": "blocked",
+                                "summary": "B blocked.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "retry-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": None,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.retry_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        agents="",
+                        claude_bin="claude",
+                        runtime_root="",
+                        max_parallel=2,
+                        selected_tasks=["retry-b"],
+                        continue_on_error=False,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(["retry-b"], payload["requestedTaskIds"])
+        self.assertEqual(["inspect-a", "retry-b"], payload["retriedTaskIds"])
+        self.assertEqual([], payload["seededTaskIds"])
+        self.assertEqual({"planned": 2}, payload["statusCounts"])
+
+    def test_cleanup_run_removes_run_and_workspace_directories(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "cleanup-run"
+            workspaces_dir = runtime_root / "workspaces" / "cleanup-run"
+            workspace_path = workspaces_dir / "task-a"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspace_path.mkdir(parents=True)
+            (run_dir / "manifest.json").write_text("{}", encoding="utf-8")
+            (workspace_path / "foo.txt").write_text("temp\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "cleanup-run",
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_path),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.cleanup_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("cleanup-run", payload["runId"])
+        self.assertTrue(payload["removedRunDir"])
+        self.assertTrue(payload["removedWorkspacesDir"])
+        self.assertEqual([], payload["removedWorktrees"])
+        self.assertFalse(run_dir.exists())
+        self.assertFalse(workspaces_dir.exists())
 
 
 if __name__ == "__main__":

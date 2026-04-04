@@ -231,7 +231,7 @@ Now in place:
 
 What it does not provide yet:
 
-- retry or cleanup helpers around the adoption workflow
+- selective cherry-pick helpers around the adoption workflow
 - richer cherry-pick or partial-merge helpers beyond task-level or whole-file
   promotion
 
@@ -243,7 +243,7 @@ Current state is therefore:
 
 What is needed:
 
-- lifecycle support around retries and cleanup
+- broader coordinator-side adoption refinements
 - broader regression coverage so the promotion rules stay stable
 
 ### 6. Resume, Retry, and Cleanup Operations
@@ -251,15 +251,24 @@ What is needed:
 Each run gets a unique runtime directory and workspace tree, which is good for
 isolation.
 
-What is missing:
+As of `2026-04-04`, this is partially implemented.
+
+Now in place:
+
+- a `retry` command that starts a new run from a prior manifest, defaults to
+  failed or blocked tasks, and reuses already-completed dependencies
+- a `cleanup` command that removes run directories, workspace directories, and
+  detached worktrees created for that run
+
+What is still missing:
 
 - resume a partially completed run
-- retry only failed or blocked tasks in the same run context
-- prune or clean old runtime artifacts
-- remove detached worktrees after worktree-mode runs
+- retry in the exact same run context
+- age-based pruning across many runs
+- richer selective cleanup flows
 
-Without this, the coordinator can execute runs but has weak lifecycle
-management.
+The coordinator now has basic lifecycle tooling, but not full run-resume or
+fleet-style pruning.
 
 ### 7. Structured Final Validation Support
 
