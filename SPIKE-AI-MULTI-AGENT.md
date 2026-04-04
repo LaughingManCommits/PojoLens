@@ -275,14 +275,19 @@ fleet-style pruning.
 Workers can report `validationCommands`, but the orchestrator does not execute
 them or summarize final validation state.
 
-That leaves the coordinator with manual follow-through.
+As of `2026-04-04`, this is partially implemented.
 
-What is needed:
+Now in place:
 
-- a coordinator-side validation step that can run or at least consolidate the
-  reported commands
-- a manifest section that distinguishes "worker suggested validation" from
-  "coordinator actually ran validation"
+- a `validate-run` command that dedupes worker-suggested validation commands
+- optional coordinator-side execution of those commands from repo root
+- a manifest section that distinguishes worker-suggested validation from
+  coordinator-run validation results
+
+What is still needed:
+
+- tighter policies on when validation should refuse to run against failed tasks
+- richer validation presets or policy controls beyond raw shell commands
 
 ### 8. Automated Regression Coverage
 

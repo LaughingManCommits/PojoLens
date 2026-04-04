@@ -1172,6 +1172,209 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertFalse(run_dir.exists())
         self.assertFalse(workspaces_dir.exists())
 
+    def test_validate_run_dedupes_worker_suggested_commands_in_dry_run(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-1",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done A.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": ["cmd-one", "cmd-two"],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "task-b": {
+                                "id": "task-b",
+                                "title": "Task B",
+                                "agent": "reviewer",
+                                "status": "completed",
+                                "summary": "Done B.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": ["cmd-two", "cmd-three"],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=True,
+                    )
+                )
+                updated_manifest = orchestrator.read_json(manifest_path)
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("validate-run-1", payload["runId"])
+        self.assertEqual(["cmd-one", "cmd-two", "cmd-three"], payload["suggestedCommands"])
+        self.assertEqual(3, payload["commandCount"])
+        self.assertEqual({"planned": 3}, payload["statusCounts"])
+        self.assertTrue(payload["allPassed"])
+        self.assertIn("coordinatorValidation", updated_manifest)
+        self.assertEqual(
+            ["cmd-one", "cmd-two", "cmd-three"],
+            updated_manifest["coordinatorValidation"]["suggestedCommands"],
+        )
+
+    def test_validate_run_executes_commands_and_stops_after_failure(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            success_cmd = f"\"{sys.executable}\" -c \"print('ok')\""
+            fail_cmd = f"\"{sys.executable}\" -c \"import sys; print('bad'); sys.exit(2)\""
+            skipped_cmd = f"\"{sys.executable}\" -c \"print('skip-me')\""
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-2",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [success_cmd, fail_cmd, skipped_cmd],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=False,
+                    )
+                )
+                updated_manifest = orchestrator.read_json(manifest_path)
+                first_stdout_exists = pathlib.Path(payload["commands"][0]["stdoutPath"]).exists()
+                second_stderr_exists = pathlib.Path(payload["commands"][1]["stderrPath"]).exists()
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual({"completed": 1, "failed": 1, "skipped": 1}, payload["statusCounts"])
+        self.assertFalse(payload["allPassed"])
+        self.assertEqual("completed", payload["commands"][0]["status"])
+        self.assertEqual("failed", payload["commands"][1]["status"])
+        self.assertEqual("skipped", payload["commands"][2]["status"])
+        self.assertTrue(first_stdout_exists)
+        self.assertTrue(second_stderr_exists)
+        self.assertIsNone(payload["commands"][2]["stdoutPath"])
+        self.assertIn("coordinatorValidation", updated_manifest)
+        self.assertEqual(
+            {"completed": 1, "failed": 1, "skipped": 1},
+            updated_manifest["coordinatorValidation"]["statusCounts"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

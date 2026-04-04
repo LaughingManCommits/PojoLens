@@ -561,6 +561,43 @@ def parse_args() -> argparse.Namespace:
         help="Emit the cleanup summary as JSON.",
     )
 
+    validate_run_parser = subparsers.add_parser(
+        "validate-run",
+        help="Consolidate or execute worker-suggested validation commands for a run.",
+    )
+    validate_run_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    validate_run_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict validation aggregation to one or more task ids. Repeatable.",
+    )
+    validate_run_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue running remaining validation commands after a failure.",
+    )
+    validate_run_parser.add_argument(
+        "--timeout-sec",
+        type=int,
+        default=DEFAULT_TASK_TIMEOUT_SEC,
+        help="Timeout in seconds for each validation command.",
+    )
+    validate_run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Summarize validation commands without executing them.",
+    )
+    validate_run_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the validation summary as JSON.",
+    )
+
     return parser.parse_args()
 
 
@@ -1189,6 +1226,13 @@ def manifest_workspaces_dir(manifest: dict[str, Any], *, run_dir: Path) -> Path:
     if not run_id:
         raise OrchestratorError("Run manifest is missing 'workspacesDir' and 'runId'")
     return (run_dir.parent.parent / "workspaces" / run_id).resolve()
+
+
+def count_statuses(values: list[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return counts
 
 
 def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
@@ -3028,6 +3072,146 @@ def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def collect_validation_commands(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    task_payloads: list[dict[str, Any]] = []
+    command_owners: dict[str, list[str]] = {}
+    command_order: list[str] = []
+    for record in records:
+        commands = dedupe_strings(record.validation_commands)
+        task_payloads.append(
+            {
+                "id": record.id,
+                "status": record.status,
+                "summary": record.summary,
+                "validationCommands": commands,
+            }
+        )
+        for command in commands:
+            owners = command_owners.setdefault(command, [])
+            owners.append(record.id)
+            if command not in command_order:
+                command_order.append(command)
+    command_payloads = [
+        {
+            "command": command,
+            "taskIds": command_owners[command],
+        }
+        for command in command_order
+    ]
+    return task_payloads, command_payloads
+
+
+def run_shell_command_text(command_text: str, *, cwd: Path, timeout_sec: int) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command_text,
+            cwd=cwd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_sec,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise OrchestratorError(
+            f"Validation command timed out after {timeout_sec} seconds: {command_text}"
+        ) from exc
+
+
+def write_coordinator_validation_summary(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    validation_dir = manifest_path.parent / "validation"
+    summary_path = validation_dir / "summary.json"
+    write_json(summary_path, summary)
+    updated_manifest = dict(manifest)
+    updated_manifest["coordinatorValidation"] = {
+        **summary,
+        "summaryPath": str(summary_path),
+    }
+    write_json(manifest_path, updated_manifest)
+    return updated_manifest
+
+
+def validate_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    run_dir = manifest_run_dir(manifest_path, manifest)
+    records = selected_run_records(manifest, args.selected_tasks)
+    task_payloads, commands = collect_validation_commands(records)
+    validation_dir = run_dir / "validation"
+    command_results: list[dict[str, Any]] = []
+    stop_after_failure = False
+    for index, command_payload in enumerate(commands, start=1):
+        command_text = str(command_payload["command"])
+        result_payload: dict[str, Any] = {
+            "index": index,
+            "command": command_text,
+            "taskIds": list(command_payload["taskIds"]),
+            "status": "planned" if args.dry_run else "completed",
+            "returnCode": None,
+            "stdoutPath": None,
+            "stderrPath": None,
+        }
+        if stop_after_failure:
+            result_payload["status"] = "skipped"
+            command_results.append(result_payload)
+            continue
+        if args.dry_run:
+            command_results.append(result_payload)
+            continue
+        command_dir = validation_dir / f"{index:02d}-{slugify(command_text[:48])}"
+        stdout_path = command_dir / "stdout.txt"
+        stderr_path = command_dir / "stderr.txt"
+        command_path = command_dir / "command.txt"
+        write_text(command_path, command_text + "\n")
+        try:
+            completed = run_shell_command_text(
+                command_text,
+                cwd=ROOT,
+                timeout_sec=max(args.timeout_sec, 1),
+            )
+            write_text(stdout_path, completed.stdout)
+            write_text(stderr_path, completed.stderr)
+            result_payload["returnCode"] = completed.returncode
+            result_payload["stdoutPath"] = str(stdout_path)
+            result_payload["stderrPath"] = str(stderr_path)
+            if completed.returncode != 0:
+                result_payload["status"] = "failed"
+                if not args.continue_on_error:
+                    stop_after_failure = True
+            command_results.append(result_payload)
+        except OrchestratorError as exc:
+            write_text(stderr_path, str(exc) + "\n")
+            result_payload["status"] = "failed"
+            result_payload["returnCode"] = None
+            result_payload["stdoutPath"] = str(stdout_path) if stdout_path.exists() else None
+            result_payload["stderrPath"] = str(stderr_path)
+            command_results.append(result_payload)
+            if not args.continue_on_error:
+                stop_after_failure = True
+    summary = {
+        "generatedAt": iso_now(),
+        "runId": manifest.get("runId"),
+        "manifestPath": str(manifest_path),
+        "repoRoot": str(ROOT),
+        "dryRun": args.dry_run,
+        "selectedTaskIds": [record.id for record in records],
+        "taskCount": len(task_payloads),
+        "tasks": task_payloads,
+        "commandCount": len(command_results),
+        "suggestedCommands": [payload["command"] for payload in commands],
+        "commands": command_results,
+        "statusCounts": count_statuses([str(payload["status"]) for payload in command_results]),
+        "allPassed": all(payload["status"] in {"planned", "completed"} for payload in command_results),
+    }
+    write_coordinator_validation_summary(manifest_path, manifest, summary)
+    return summary
+
+
 def validate_command(args: argparse.Namespace) -> dict[str, Any]:
     agents_path = Path(args.agents).resolve()
     agents = load_agents(agents_path)
@@ -3085,6 +3269,9 @@ def main() -> int:
             return 0
         if args.command == "cleanup":
             print_payload(cleanup_run(args), as_json=args.json)
+            return 0
+        if args.command == "validate-run":
+            print_payload(validate_run(args), as_json=args.json)
             return 0
         raise OrchestratorError(f"Unknown command '{args.command}'")
     except OrchestratorError as exc:

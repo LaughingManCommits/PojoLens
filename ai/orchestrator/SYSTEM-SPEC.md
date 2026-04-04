@@ -89,6 +89,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 - The coordinator should support bounded lifecycle helpers for retrying failed or blocked tasks from a prior manifest and cleaning run-scoped artifacts, including detached worktrees.
+- The coordinator should support a run-validation surface that consolidates worker-suggested validation commands, can execute them from repo root, and records actual coordinator validation outcomes separately in the run manifest.
 
 ## Worker Protection Rules
 
@@ -99,6 +100,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
+- Worker `validationCommands` remain suggestions; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.
 
 ## Bootstrap Procedure For Another Repo
 
