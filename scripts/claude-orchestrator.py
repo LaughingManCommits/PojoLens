@@ -469,6 +469,32 @@ def parse_args() -> argparse.Namespace:
         help="Emit the export summary as JSON.",
     )
 
+    promote_parser = subparsers.add_parser(
+        "promote",
+        help="Apply reviewed worker workspace changes back into the live repo.",
+    )
+    promote_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    promote_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict promotion to one or more task ids. Repeatable.",
+    )
+    promote_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Summarize promotable changes without applying them.",
+    )
+    promote_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the promotion summary as JSON.",
+    )
+
     return parser.parse_args()
 
 
@@ -503,6 +529,24 @@ def write_json(path: Path, payload: object) -> None:
 
 def read_bytes(path: Path) -> bytes:
     return path.read_bytes()
+
+
+def normalize_relative_path(path_value: str, *, location: str) -> str:
+    candidate = Path(path_value)
+    if candidate.is_absolute():
+        raise OrchestratorError(f"{location}: absolute paths are not allowed: {path_value}")
+    parts: list[str] = []
+    for part in candidate.parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            raise OrchestratorError(
+                f"{location}: parent-directory traversal is not allowed: {path_value}"
+            )
+        parts.append(part)
+    if not parts:
+        raise OrchestratorError(f"{location}: expected non-empty relative path")
+    return Path(*parts).as_posix()
 
 
 def require_string(payload: dict[str, Any], key: str, *, location: str) -> str:
@@ -906,6 +950,15 @@ def path_is_relative_to(path: Path, parent: Path) -> bool:
         return False
 
 
+def resolve_relative_path(root: Path, relative_path: str, *, location: str) -> tuple[str, Path]:
+    normalized = normalize_relative_path(relative_path, location=location)
+    root_resolved = root.resolve()
+    candidate = (root / normalized).resolve()
+    if not path_is_relative_to(candidate, root_resolved):
+        raise OrchestratorError(f"{location}: path escapes root '{root_resolved}'")
+    return normalized, candidate
+
+
 def hydrate_copy_workspace(workspace_path: Path, file_hints: list[str]) -> None:
     copied: set[Path] = set()
     workspace_path.mkdir(parents=True, exist_ok=True)
@@ -997,7 +1050,7 @@ def summarize_paths(paths: list[str], *, limit: int = 4) -> str:
 def protected_path_violations(paths: list[str]) -> list[str]:
     violations = []
     for path in paths:
-        normalized = Path(path).as_posix().strip("/")
+        normalized = normalize_relative_path(path, location=f"changed path '{path}'")
         if normalized in PROTECTED_PATH_EXACT or normalized.startswith(PROTECTED_PATH_PREFIXES):
             violations.append(normalized)
     return dedupe_strings(violations)
@@ -1035,7 +1088,7 @@ def resolve_manifest_path(run_ref: str) -> Path:
     if not candidate.exists():
         raise OrchestratorError(f"Run manifest '{candidate}' does not exist")
     if candidate.name != "manifest.json":
-        raise OrchestratorError("Review/export expects a run directory or manifest.json path")
+        raise OrchestratorError("Review/export/promote expects a run directory or manifest.json path")
     return candidate
 
 
@@ -1156,7 +1209,11 @@ def diff_file_against_workspace(
     *,
     context_lines: int,
 ) -> tuple[dict[str, Any], str | None]:
-    normalized = Path(relative_path).as_posix().strip("/")
+    normalized, repo_file = resolve_relative_path(
+        ROOT,
+        relative_path,
+        location=f"{record.id}: review path",
+    )
     summary: dict[str, Any] = {
         "path": normalized,
         "status": "unchanged",
@@ -1169,9 +1226,18 @@ def diff_file_against_workspace(
         summary["status"] = "unsupported"
         summary["reason"] = "repo-mode runs do not preserve an isolated review baseline"
         return summary, None
+    if not record.workspace_path:
+        raise OrchestratorError(f"{record.id}: workspace path missing for reviewable task output")
     workspace_root = Path(record.workspace_path)
-    workspace_file = workspace_root / normalized
-    repo_file = ROOT / normalized
+    if not workspace_root.exists():
+        raise OrchestratorError(
+            f"{record.id}: workspace path '{workspace_root}' does not exist for review/export"
+        )
+    _, workspace_file = resolve_relative_path(
+        workspace_root,
+        normalized,
+        location=f"{record.id}: workspace review path",
+    )
     repo_exists = repo_file.exists()
     workspace_exists = workspace_file.exists()
     if not repo_exists and not workspace_exists:
@@ -1324,6 +1390,144 @@ def export_patch(args: argparse.Namespace) -> dict[str, Any]:
         "filesChanged": changed_files,
         "binaryFilesSkipped": dedupe_strings(binary_files),
         "patchBytes": output_path.stat().st_size if output_path.exists() else 0,
+    }
+
+
+def format_issue_block(header: str, issues: list[str]) -> str:
+    visible = dedupe_strings(issues)
+    return header if not visible else f"{header}:\n- " + "\n- ".join(visible)
+
+
+def task_promotion_operations(record: TaskRunRecord) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    review_payload, _ = task_review_summary(record, context_lines=0)
+    unsupported_paths: list[str] = []
+    operations: list[dict[str, Any]] = []
+    for file_payload in review_payload["files"]:
+        status = str(file_payload.get("status", ""))
+        if status == "unsupported":
+            unsupported_paths.append(str(file_payload.get("path", "")))
+            continue
+        if status not in {"added", "modified", "deleted"}:
+            continue
+        operations.append(
+            {
+                "taskId": record.id,
+                "path": str(file_payload["path"]),
+                "action": status,
+                "isBinary": bool(file_payload.get("isBinary", False)),
+            }
+        )
+    return (
+        {
+            "id": record.id,
+            "title": record.title,
+            "agent": record.agent,
+            "status": record.status,
+            "summary": record.summary,
+            "workspaceMode": record.workspace_mode,
+            "workspacePath": record.workspace_path,
+            "protectedPathViolations": record.protected_path_violations,
+            "filesPromotable": len(operations),
+            "unsupportedFiles": unsupported_paths,
+            "operations": operations,
+        },
+        operations,
+    )
+
+
+def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
+    issues: list[str] = []
+    task_payloads: list[dict[str, Any]] = []
+    all_operations: list[dict[str, Any]] = []
+    owners_by_path: dict[str, str] = {}
+    counts = {"added": 0, "modified": 0, "deleted": 0}
+    for record in records:
+        task_payload, operations = task_promotion_operations(record)
+        task_payloads.append(task_payload)
+        if record.protected_path_violations:
+            issues.append(
+                f"{record.id}: protected-path violations must be reviewed manually: "
+                f"{summarize_paths(record.protected_path_violations)}"
+            )
+        if task_payload["unsupportedFiles"]:
+            issues.append(
+                f"{record.id}: workspaceMode='{record.workspace_mode}' cannot be promoted for "
+                f"{summarize_paths(task_payload['unsupportedFiles'])}"
+            )
+        if operations and record.status != "completed":
+            issues.append(f"{record.id}: only completed tasks can be promoted, found status '{record.status}'")
+        if operations and record.workspace_mode not in {"copy", "worktree"}:
+            issues.append(
+                f"{record.id}: workspaceMode='{record.workspace_mode}' is not promotable; use copy or worktree"
+            )
+        for operation in operations:
+            owner = owners_by_path.get(operation["path"])
+            if owner is not None and owner != record.id:
+                issues.append(
+                    f"{record.id}: '{operation['path']}' is also changed by task '{owner}'"
+                )
+            else:
+                owners_by_path[operation["path"]] = record.id
+            counts[str(operation["action"])] += 1
+            all_operations.append(operation)
+    if issues:
+        raise OrchestratorError(format_issue_block("Promotion blocked", issues))
+    return task_payloads, all_operations, counts
+
+
+def apply_promotion_operation(record: TaskRunRecord, operation: dict[str, Any]) -> None:
+    normalized, repo_file = resolve_relative_path(
+        ROOT,
+        str(operation["path"]),
+        location=f"{record.id}: promote path",
+    )
+    action = str(operation["action"])
+    if action == "deleted":
+        if repo_file.exists():
+            repo_file.unlink()
+        return
+    if not record.workspace_path:
+        raise OrchestratorError(f"{record.id}: workspace path missing for promotion")
+    workspace_root = Path(record.workspace_path)
+    if not workspace_root.exists():
+        raise OrchestratorError(
+            f"{record.id}: workspace path '{workspace_root}' does not exist for promotion"
+        )
+    _, workspace_file = resolve_relative_path(
+        workspace_root,
+        normalized,
+        location=f"{record.id}: promote workspace path",
+    )
+    if not workspace_file.exists() or not workspace_file.is_file():
+        raise OrchestratorError(
+            f"{record.id}: expected workspace file '{normalized}' for promotion"
+        )
+    repo_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(workspace_file, repo_file)
+
+
+def promote_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    records = selected_run_records(manifest, args.selected_tasks)
+    task_payloads, operations, counts = plan_promotion(records)
+    promotable_task_ids = [payload["id"] for payload in task_payloads if payload["filesPromotable"]]
+    if not args.dry_run:
+        records_by_id = {record.id: record for record in records}
+        for operation in operations:
+            apply_promotion_operation(records_by_id[str(operation["taskId"])], operation)
+    return {
+        "runId": manifest.get("runId"),
+        "manifestPath": str(manifest_path),
+        "repoRoot": str(ROOT),
+        "dryRun": args.dry_run,
+        "taskCount": len(task_payloads),
+        "taskIds": [record.id for record in records],
+        "promotableTaskIds": promotable_task_ids,
+        "promotedTaskIds": [] if args.dry_run else promotable_task_ids,
+        "filesPromotable": len(operations),
+        "filesPromoted": 0 if args.dry_run else len(operations),
+        "operationCounts": counts,
+        "tasks": task_payloads,
     }
 
 
@@ -2593,6 +2797,9 @@ def main() -> int:
             return 0
         if args.command == "export-patch":
             print_payload(export_patch(args), as_json=args.json)
+            return 0
+        if args.command == "promote":
+            print_payload(promote_run(args), as_json=args.json)
             return 0
         raise OrchestratorError(f"Unknown command '{args.command}'")
     except OrchestratorError as exc:

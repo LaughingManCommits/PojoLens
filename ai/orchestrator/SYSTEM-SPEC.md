@@ -87,7 +87,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Copy-mode workspace creation must ignore `.claude-orchestrator/` so live runtime artifacts are not copied back into worker sandboxes.
 - Each run id must be unique so overlapping orchestrator invocations do not collide on manifests or workspaces.
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
-- The coordinator should expose a review surface that summarizes workspace diffs and can export unified patches for copy/worktree runs.
+- The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 
 ## Worker Protection Rules
 
@@ -96,6 +96,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces and concrete file scopes.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
+- Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 
 ## Bootstrap Procedure For Another Repo
 

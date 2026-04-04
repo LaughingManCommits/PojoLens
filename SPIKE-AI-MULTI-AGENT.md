@@ -211,8 +211,6 @@ Current gap:
 
 - the protected-path policy is still limited to `TODO.md`, `ai/state/*`,
   `ai/log/*`, and `ai/indexes/*`
-- the coordinator still lacks a first-class review/apply flow that consumes
-  these audit results directly
 
 ### 5. Coordinator Review and Apply Workflow
 
@@ -227,22 +225,26 @@ Now in place:
   workspaces
 - an `export-patch` command that writes unified diff patches for copy/worktree
   runs
+- a `promote` command that applies reviewed copy/worktree changes back into the
+  repo when protected-path audits are clean and changed-file ownership is
+  unambiguous
 
 What it does not provide yet:
 
-- apply or cherry-pick helpers
-- a structured promotion flow that consumes protected-path and diff-audit
-  results directly
+- retry or cleanup helpers around the adoption workflow
+- richer cherry-pick or partial-merge helpers beyond task-level or whole-file
+  promotion
 
 Current state is therefore:
 
-- worker execution and basic review/export now exist
-- coordinator adoption back into the main repo is still manual and procedural
+- worker execution, review/export, and conservative promotion now exist
+- coordinator adoption back into the main repo is no longer fully manual for
+  isolated clean tasks
 
 What is needed:
 
-- explicit apply or promote helpers
-- a safer coordinator-side adoption workflow over reviewed patches
+- lifecycle support around retries and cleanup
+- broader regression coverage so the promotion rules stay stable
 
 ### 6. Resume, Retry, and Cleanup Operations
 
