@@ -273,31 +273,36 @@ dry-runs alone are not strong regression protection.
 
 ### 9. Prompt Economy and Output Discipline
 
-The current orchestrator estimates prompt size, but it does not yet treat token
-economy as a first-class contract.
+As of `2026-04-04`, prompt economy is partially implemented.
+
+Now in place:
+
+- compact role-specific output-discipline prompts in `agents.json`
+- section-level prompt accounting for planner and worker prompts
+- optional hard prompt ceilings via `maxPromptEstimatedTokens` and
+  `maxPromptChars`
+- coordinator-side prompt-budget failure before live Claude execution
+- compacted dependency summaries and bounded prompt-facing list sections
 
 Current gap:
 
-- planner and worker prompts still inline a broad coordinator frame on every
-  invocation
-- there is no section-level prompt accounting for shared summary, file hints,
-  dependency summaries, constraints, and validation hints
-- there are no hard or soft prompt-size ceilings per task beyond manual review
-- `agents.json` has role prompts, but no explicit ultra-lean pipeline profile
-  such as "JSON only, no narration, no guessing, minimum viable output"
-- dependency summaries and validation hints can keep growing without a
-  coordinator-side compaction strategy
+- planner and worker prompts still repeat some shared coordinator framing on
+  every invocation
+- default prompt budgets are now present, but they still need live tuning based
+  on real task mixes
+- prompt compaction is currently generic list or summary truncation, not
+  section-specific summarization
+- worker-result guidance still relies on prompt wording rather than a richer
+  schema for explicit unknown values
 
 What is needed:
 
-- compact role-specific output-discipline rules for planner, analyst,
-  implementer, and reviewer workers
-- section-level prompt accounting in run manifests so prompt growth is visible
-- soft or hard prompt budgets with truncation, summarization, or failure when a
-  task exceeds its intended envelope
-- dependency-summary compaction and validation-hint dedupe or truncation
-- stronger worker-result guidance for unknown values: use `null` or explicit
-  unknown markers instead of guessing
+- measure and tune the default prompt ceilings against a few real multi-task
+  runs
+- decide whether some prompt sections need smarter summarization than simple
+  truncation
+- strengthen worker-result guidance for unknown values: use `null` or explicit
+  unknown markers instead of guessing where the schema permits it
 - a deliberate decision on whether any repo-level `CLAUDE.md` should apply to
   orchestrator work at all; default recommendation is no unless measurement
   proves a net benefit for fresh worker sessions
@@ -310,10 +315,11 @@ The best next slice is not "add more agents."
 
 The best next slice is:
 
-1. add prompt-budget and output-discipline hardening
-2. tighten safety around sparse copies, overlap detection, and protected paths
-3. add a minimal coordinator review or diff workflow
-4. add focused regression tests around the Python coordinator
+1. tighten safety around sparse copies, overlap detection, and protected paths
+2. add a minimal coordinator review or diff workflow
+3. add focused regression tests around the Python coordinator
+4. tune prompt budgets against a few real multi-task runs if live evidence
+   shows drift
 
 That sequence raises trust faster than adding more planner cleverness or more
 sample task plans.
@@ -346,6 +352,11 @@ Success bar:
 
 - prompt size and worker output shape are intentionally bounded instead of
   drifting with each task-plan revision
+
+Status:
+
+- partially done as of `2026-04-04`; next follow-up is budget tuning rather
+  than missing core plumbing
 
 ### Phase 3: Safety
 

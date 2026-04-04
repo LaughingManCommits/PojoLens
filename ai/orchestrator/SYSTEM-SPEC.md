@@ -68,7 +68,9 @@ This file defines the portable contract for recreating the repository's AI memor
 - Prompt context should default to `contextMode = minimal`:
   - include the shared summary
   - include only task-local file hints unless fuller shared context is explicitly required
-  - include task-local validation hints by default
+- include task-local validation hints by default
+- The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
+- Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
 - Copy-mode workspace hydration should copy only explicit file hints, skip directories, and skip oversized files so workers do not inherit large generated trees by accident.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Model selection should support both explicit `model` strings and profile-based routing:

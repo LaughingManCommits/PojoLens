@@ -36,6 +36,9 @@ MODEL_PROFILE_TO_MODEL = {
 }
 MODEL_TO_PROFILE = {value: key for key, value in MODEL_PROFILE_TO_MODEL.items()}
 MAX_HYDRATED_FILE_BYTES = 512 * 1024
+DEFAULT_PROMPT_SECTION_ITEM_LIMIT = 8
+DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
+DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
 COPY_IGNORE_NAMES = {
     ".git",
     ".claude",
@@ -119,6 +122,8 @@ PLAN_RESULT_SCHEMA = {
                     "permissionMode": {"type": "string"},
                     "timeoutSec": {"type": "integer", "minimum": 1},
                     "maxBudgetUsd": {"type": "number", "exclusiveMinimum": 0},
+                    "maxPromptChars": {"type": "integer", "minimum": 1},
+                    "maxPromptEstimatedTokens": {"type": "integer", "minimum": 1},
                     "allowedTools": {"type": "array", "items": {"type": "string"}},
                     "disallowedTools": {"type": "array", "items": {"type": "string"}},
                 },
@@ -149,6 +154,8 @@ class AgentDefinition:
     context_mode: str = DEFAULT_CONTEXT_MODE
     timeout_sec: int = DEFAULT_TASK_TIMEOUT_SEC
     max_budget_usd: float | None = None
+    max_prompt_chars: int | None = None
+    max_prompt_estimated_tokens: int | None = None
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
 
@@ -179,6 +186,8 @@ class TaskDefinition:
     context_mode: str | None = None
     timeout_sec: int | None = None
     max_budget_usd: float | None = None
+    max_prompt_chars: int | None = None
+    max_prompt_estimated_tokens: int | None = None
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
 
@@ -190,6 +199,41 @@ class TaskPlan:
     goal: str
     shared_context: SharedContext
     tasks: list[TaskDefinition]
+
+
+@dataclass(frozen=True)
+class PromptSectionMetric:
+    name: str
+    heading: str
+    chars: int
+    estimated_tokens: int
+    item_count: int
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class PromptBudgetResult:
+    max_chars: int | None
+    max_estimated_tokens: int | None
+    exceeded: bool
+    violations: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PromptSection:
+    name: str
+    heading: str
+    body: str
+    item_count: int = 0
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class PromptRenderResult:
+    text: str
+    sections: list[PromptSectionMetric]
+    chars: int
+    estimated_tokens: int
 
 
 @dataclass
@@ -211,6 +255,8 @@ class TaskRunRecord:
     model_profile: str | None
     prompt_chars: int
     prompt_estimated_tokens: int
+    prompt_sections: list[PromptSectionMetric]
+    prompt_budget: PromptBudgetResult
     usage: dict[str, Any] | None
     return_code: int | None
     prompt_path: str
@@ -502,6 +548,10 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             or DEFAULT_CONTEXT_MODE,
             timeout_sec=require_optional_int(definition, "timeoutSec", location=location) or DEFAULT_TASK_TIMEOUT_SEC,
             max_budget_usd=require_optional_float(definition, "maxBudgetUsd", location=location),
+            max_prompt_chars=require_optional_int(definition, "maxPromptChars", location=location),
+            max_prompt_estimated_tokens=require_optional_int(
+                definition, "maxPromptEstimatedTokens", location=location
+            ),
             allowed_tools=require_string_list(definition, "allowedTools", location=location),
             disallowed_tools=require_string_list(definition, "disallowedTools", location=location),
         )
@@ -574,6 +624,10 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             ),
             timeout_sec=require_optional_int(task_payload, "timeoutSec", location=location),
             max_budget_usd=require_optional_float(task_payload, "maxBudgetUsd", location=location),
+            max_prompt_chars=require_optional_int(task_payload, "maxPromptChars", location=location),
+            max_prompt_estimated_tokens=require_optional_int(
+                task_payload, "maxPromptEstimatedTokens", location=location
+            ),
             allowed_tools=require_string_list(task_payload, "allowedTools", location=location),
             disallowed_tools=require_string_list(task_payload, "disallowedTools", location=location),
         )
@@ -768,54 +822,96 @@ def planner_prompt(
     constraints: list[str],
     validation: list[str],
     agents: dict[str, AgentDefinition],
-) -> str:
-    agent_catalog = "\n".join(
-        f"- `{agent.name}`: {agent.description}"
-        for agent in agents.values()
-        if agent.name != PLANNER_TASK_ID
+) -> PromptRenderResult:
+    agent_catalog, agent_count, agent_catalog_truncated = format_bullet_list(
+        [
+            f"`{agent.name}`: {agent.description}"
+            for agent in agents.values()
+            if agent.name != PLANNER_TASK_ID
+        ],
+        empty_line="- none supplied",
+        max_chars=DEFAULT_PROMPT_ITEM_CHAR_LIMIT,
     )
-    file_lines = "\n".join(f"- `{item}`" for item in files) or "- none supplied"
-    constraint_lines = "\n".join(f"- {item}" for item in constraints) or "- keep tasks bounded and concrete"
-    validation_lines = "\n".join(f"- `{item}`" for item in validation) or "- none supplied"
-    return textwrap.dedent(
-        f"""\
-        Plan a bounded Claude worker DAG for this repository.
-
-        Goal:
-        {goal}
-
-        Plan name:
-        {name}
-
-        Available worker agents:
-        {agent_catalog}
-
-        File hints:
-        {file_lines}
-
-        Constraints:
-        {constraint_lines}
-
-        Validation hints:
-        {validation_lines}
-
-        Requirements:
-        - Return JSON only, matching the provided schema.
-        - Create 1 to 6 tasks.
-        - Use `workspaceMode="copy"` for most tasks.
-        - Use `workspaceMode="worktree"` only when a task clearly benefits from isolated git metadata.
-        - Avoid `workspaceMode="repo"` unless direct in-place execution is essential.
-        - Use `contextMode="minimal"` unless a task truly needs the full shared file and validation context.
-        - Pick `modelProfile` deliberately to control cost:
-          - `simple` -> `claude-haiku-4-5` for quick summaries, classification, or narrow lookups
-          - `balanced` -> `claude-sonnet-4-6` for most coding, analysis, and implementation tasks
-          - `complex` -> `claude-opus-4-6` for architecture or deeply nuanced multi-step reasoning
-        - Keep file lists repo-relative and concrete.
-        - Minimize per-task context; only include the files and validations each worker actually needs.
-        - Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.
-        - Put cross-task setup in `sharedContext`.
-        - Use `dependsOn` only when one task genuinely needs another task's output.
-        """
+    file_lines, file_count, files_truncated = format_bullet_list(
+        files,
+        empty_line="- none supplied",
+        code_format=True,
+    )
+    constraint_lines, constraint_count, constraints_truncated = format_bullet_list(
+        constraints,
+        empty_line="- keep tasks bounded and concrete",
+    )
+    validation_lines, validation_count, validation_truncated = format_bullet_list(
+        validation,
+        empty_line="- none supplied",
+        code_format=True,
+    )
+    requirement_lines, requirement_count, requirements_truncated = format_bullet_list(
+        [
+            "Return schema-valid JSON only. No narration or markdown fences.",
+            "Create 1 to 6 tasks.",
+            'Use `workspaceMode="copy"` for most tasks.',
+            'Use `workspaceMode="worktree"` only when isolated git metadata matters.',
+            'Avoid `workspaceMode="repo"` unless direct in-place execution is essential.',
+            'Use `contextMode="minimal"` unless a task really needs the full shared context.',
+            '`modelProfile="simple"` fits quick summaries, classification, or narrow lookups.',
+            '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
+            '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
+            "Keep file lists repo-relative and concrete.",
+            "Minimize per-task context and validation hints.",
+            "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
+            "Put cross-task setup in `sharedContext`.",
+            "Use `dependsOn` only when one task genuinely needs another task's output.",
+            "Omit speculative tasks when evidence is insufficient.",
+        ],
+        empty_line="- none",
+        max_items=16,
+    )
+    return render_prompt(
+        [
+            PromptSection(
+                name="planner_role",
+                heading="Planner role",
+                body="Plan a bounded Claude worker DAG for this repository.",
+            ),
+            PromptSection(name="goal", heading="Goal", body=goal),
+            PromptSection(name="plan_name", heading="Plan name", body=name),
+            PromptSection(
+                name="available_agents",
+                heading="Available worker agents",
+                body=agent_catalog,
+                item_count=agent_count,
+                truncated=agent_catalog_truncated,
+            ),
+            PromptSection(
+                name="file_hints",
+                heading="File hints",
+                body=file_lines,
+                item_count=file_count,
+                truncated=files_truncated,
+            ),
+            PromptSection(
+                name="constraints",
+                heading="Constraints",
+                body=constraint_lines,
+                item_count=constraint_count,
+                truncated=constraints_truncated,
+            ),
+            PromptSection(
+                name="validation_hints",
+                heading="Validation hints",
+                body=validation_lines,
+                item_count=validation_count,
+                truncated=validation_truncated,
+            ),
+            PromptSection(
+                name="requirements",
+                heading="Requirements",
+                body=requirement_lines,
+                item_count=requirement_count,
+                truncated=requirements_truncated,
+            ),
+        ]
     )
 
 
@@ -832,6 +928,110 @@ def dedupe_strings(values: list[str]) -> list[str]:
 
 def estimate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
+
+
+def compact_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def truncate_text(text: str, max_chars: int | None) -> tuple[str, bool]:
+    compacted = compact_text(text)
+    if max_chars is None or len(compacted) <= max_chars:
+        return compacted, False
+    if max_chars <= 3:
+        return compacted[:max_chars], True
+    return compacted[: max_chars - 3].rstrip() + "...", True
+
+
+def format_bullet_list(
+    values: list[str],
+    *,
+    empty_line: str,
+    code_format: bool = False,
+    max_items: int = DEFAULT_PROMPT_SECTION_ITEM_LIMIT,
+    max_chars: int | None = DEFAULT_PROMPT_ITEM_CHAR_LIMIT,
+) -> tuple[str, int, bool]:
+    if not values:
+        return empty_line, 0, False
+    truncated = False
+    visible_values = values[:max_items] if max_items > 0 else values
+    lines: list[str] = []
+    for value in visible_values:
+        item_text, item_truncated = truncate_text(value, max_chars)
+        if code_format:
+            item_text = f"`{item_text}`"
+        lines.append(f"- {item_text}")
+        truncated = truncated or item_truncated
+    hidden_count = len(values) - len(visible_values)
+    if hidden_count > 0:
+        lines.append(f"- ... ({hidden_count} more omitted)")
+        truncated = True
+    return "\n".join(lines), len(values), truncated
+
+
+def render_prompt(sections: list[PromptSection]) -> PromptRenderResult:
+    rendered_sections: list[str] = []
+    metrics: list[PromptSectionMetric] = []
+    for section in sections:
+        rendered = f"{section.heading}:\n{section.body}"
+        rendered_sections.append(rendered)
+        metrics.append(
+            PromptSectionMetric(
+                name=section.name,
+                heading=section.heading,
+                chars=len(rendered),
+                estimated_tokens=estimate_tokens(rendered),
+                item_count=section.item_count,
+                truncated=section.truncated,
+            )
+        )
+    prompt = "\n\n".join(rendered_sections)
+    return PromptRenderResult(
+        text=prompt,
+        sections=metrics,
+        chars=len(prompt),
+        estimated_tokens=estimate_tokens(prompt),
+    )
+
+
+def evaluate_prompt_budget(
+    *,
+    prompt_chars: int,
+    prompt_estimated_tokens: int,
+    max_chars: int | None,
+    max_estimated_tokens: int | None,
+) -> PromptBudgetResult:
+    violations: list[str] = []
+    if max_chars is not None and prompt_chars > max_chars:
+        violations.append(f"prompt_chars={prompt_chars} exceeds maxPromptChars={max_chars}")
+    if max_estimated_tokens is not None and prompt_estimated_tokens > max_estimated_tokens:
+        violations.append(
+            "prompt_estimated_tokens="
+            f"{prompt_estimated_tokens} exceeds maxPromptEstimatedTokens={max_estimated_tokens}"
+        )
+    return PromptBudgetResult(
+        max_chars=max_chars,
+        max_estimated_tokens=max_estimated_tokens,
+        exceeded=bool(violations),
+        violations=violations,
+    )
+
+
+def prompt_budget_failure_summary(result: PromptBudgetResult) -> str:
+    details = "; ".join(result.violations) if result.violations else "configured budget violation"
+    return f"Prompt budget exceeded: {details}"
+
+
+def resolved_max_prompt_chars(task: TaskDefinition | None, agent: AgentDefinition) -> int | None:
+    if task is not None and task.max_prompt_chars is not None:
+        return task.max_prompt_chars
+    return agent.max_prompt_chars
+
+
+def resolved_max_prompt_estimated_tokens(task: TaskDefinition | None, agent: AgentDefinition) -> int | None:
+    if task is not None and task.max_prompt_estimated_tokens is not None:
+        return task.max_prompt_estimated_tokens
+    return agent.max_prompt_estimated_tokens
 
 
 def effective_context_mode(task: TaskDefinition, agent: AgentDefinition) -> str:
@@ -861,8 +1061,10 @@ def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) 
     lines = []
     for dependency_id in task.depends_on:
         record = records[dependency_id]
-        lines.append(f"- `{dependency_id}` ({record.status}): {record.summary}")
-    return "\n".join(lines)
+        summary, _ = truncate_text(record.summary, DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT)
+        lines.append(f"`{dependency_id}` ({record.status}): {summary}")
+    rendered, _, _ = format_bullet_list(lines, empty_line="- none", max_chars=None)
+    return rendered
 
 
 def worker_prompt(
@@ -872,7 +1074,7 @@ def worker_prompt(
     workspace_mode: str,
     workspace_path: Path,
     dependency_text: str,
-) -> str:
+) -> PromptRenderResult:
     task_root = ROOT if workspace_mode == "repo" else workspace_path
     context_mode = effective_context_mode(task, agent)
     relevant_files = dedupe_strings(task.files or plan.shared_context.files)
@@ -882,62 +1084,99 @@ def worker_prompt(
         if context_mode == "minimal"
         else dedupe_strings(plan.shared_context.validation + task.validation)
     )
-    file_lines = "\n".join(f"- `{item}`" for item in relevant_files) or "- none"
-    constraint_lines = "\n".join(f"- {item}" for item in constraints) or "- none"
-    validation_lines = "\n".join(f"- `{item}`" for item in validation_hints) or "- none"
     workspace_rule = {
-        "copy": (
-            "You are running in an isolated filesystem copy of the repo that includes the current working tree state. "
-            "Edits are allowed inside this copy only."
-        ),
-        "repo": (
-            "You are running directly in the live repo root. Treat this as high-risk and avoid incidental edits."
-        ),
-        "worktree": (
-            "You are running in an isolated detached git worktree rooted at HEAD. Uncommitted root-repo changes are not present."
-        ),
+        "copy": "Isolated filesystem copy of the current working tree. Edit only inside this copy.",
+        "repo": "Live repo root. Treat this as high-risk and avoid incidental edits.",
+        "worktree": "Detached git worktree rooted at HEAD. Root-repo uncommitted changes are not present.",
     }[workspace_mode]
-    return textwrap.dedent(
-        f"""\
-        Task repo root: {task_root}
-        Source repo root: {ROOT}
-        Task workspace: {workspace_path}
-        Workspace mode: {workspace_mode}
-        Context mode: {context_mode}
-        {workspace_rule}
-        Use the task repo root for file and shell access. In copy/worktree mode, do not access files through the source repo root.
-
-        Coordinator goal:
-        {plan.goal}
-
-        Shared context summary:
-        {plan.shared_context.summary}
-
-        Task id/title:
-        {task.id} / {task.title}
-
-        Task objective:
-        {task.prompt}
-
-        Relevant file hints:
-        {file_lines}
-
-        Constraints:
-        {constraint_lines}
-
-        Dependency outputs:
-        {dependency_text}
-
-        Validation hints:
-        {validation_lines}
-
-        Worker rules:
-        - Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.
-        - Do not edit TODO.md, ai/state/*, ai/log/*, or ai/indexes/*.
-        - Keep changes tightly scoped to the task.
-        - Return JSON only, matching the provided schema.
-        - If blocked, explain the blocker concretely and list the next coordinator action.
-        """
+    file_lines, file_count, files_truncated = format_bullet_list(
+        relevant_files,
+        empty_line="- none",
+        code_format=True,
+    )
+    constraint_lines, constraint_count, constraints_truncated = format_bullet_list(
+        constraints,
+        empty_line="- none",
+    )
+    validation_lines, validation_count, validation_truncated = format_bullet_list(
+        validation_hints,
+        empty_line="- none",
+        code_format=True,
+    )
+    worker_rules, rule_count, rules_truncated = format_bullet_list(
+        [
+            "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
+            "Use the task repo root for file and shell access. In copy/worktree mode, do not access files through the source repo root.",
+            "Return schema-valid JSON only. No narration or markdown fences.",
+            "Keep summaries and notes terse. Leave arrays empty when there is nothing to add.",
+            "State uncertainty explicitly instead of guessing.",
+            "Do not claim edits or validation you did not actually perform.",
+            "Do not edit TODO.md, ai/state/*, ai/log/*, or ai/indexes/*.",
+            "Keep changes tightly scoped to the task.",
+            "If blocked, explain the blocker concretely and list the next coordinator action.",
+        ],
+        empty_line="- none",
+        max_items=12,
+    )
+    return render_prompt(
+        [
+            PromptSection(
+                name="execution_context",
+                heading="Execution context",
+                body=textwrap.dedent(
+                    f"""\
+                    Task repo root: {task_root}
+                    Source repo root: {ROOT}
+                    Task workspace: {workspace_path}
+                    Workspace mode: {workspace_mode}
+                    Context mode: {context_mode}
+                    Workspace contract: {workspace_rule}
+                    """
+                ).strip(),
+            ),
+            PromptSection(name="coordinator_goal", heading="Coordinator goal", body=plan.goal),
+            PromptSection(
+                name="shared_summary",
+                heading="Shared context summary",
+                body=plan.shared_context.summary,
+            ),
+            PromptSection(name="task_identity", heading="Task id/title", body=f"{task.id} / {task.title}"),
+            PromptSection(name="task_objective", heading="Task objective", body=task.prompt),
+            PromptSection(
+                name="file_hints",
+                heading="Relevant file hints",
+                body=file_lines,
+                item_count=file_count,
+                truncated=files_truncated,
+            ),
+            PromptSection(
+                name="constraints",
+                heading="Constraints",
+                body=constraint_lines,
+                item_count=constraint_count,
+                truncated=constraints_truncated,
+            ),
+            PromptSection(
+                name="dependency_outputs",
+                heading="Dependency outputs",
+                body=dependency_text,
+                item_count=len(task.depends_on),
+            ),
+            PromptSection(
+                name="validation_hints",
+                heading="Validation hints",
+                body=validation_lines,
+                item_count=validation_count,
+                truncated=validation_truncated,
+            ),
+            PromptSection(
+                name="worker_rules",
+                heading="Worker rules",
+                body=worker_rules,
+                item_count=rule_count,
+                truncated=rules_truncated,
+            ),
+        ]
     )
 
 
@@ -1148,7 +1387,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         raise OrchestratorError(f"Unknown planner agent '{args.planner_agent}'")
     if not args.dry_run:
         ensure_claude_available(args.claude_bin)
-    prompt = planner_prompt(
+    prompt_render = planner_prompt(
         args.goal,
         args.name,
         args.files,
@@ -1157,6 +1396,12 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         agents,
     )
     agent = agents[args.planner_agent]
+    prompt_budget = evaluate_prompt_budget(
+        prompt_chars=prompt_render.chars,
+        prompt_estimated_tokens=prompt_render.estimated_tokens,
+        max_chars=agent.max_prompt_chars,
+        max_estimated_tokens=agent.max_prompt_estimated_tokens,
+    )
     planner_model = agent.model or (MODEL_PROFILE_TO_MODEL[agent.model_profile] if agent.model_profile else None)
     agents_json = agent_payload_for_claude(agents)
     output_path = planner_output_path(args.name, args.out)
@@ -1164,7 +1409,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         args.claude_bin,
         agents_json,
         args.planner_agent,
-        prompt,
+        prompt_render.text,
         plan_output_schema_json(),
         model=planner_model,
         effort=agent.effort,
@@ -1178,13 +1423,20 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         "goal": args.goal,
         "outputPath": str(output_path),
         "command": command,
-        "prompt": prompt,
+        "prompt": prompt_render.text,
         "model": planner_model,
         "modelProfile": agent.model_profile,
-        "promptChars": len(prompt),
-        "promptEstimatedTokens": estimate_tokens(prompt),
+        "promptChars": prompt_render.chars,
+        "promptEstimatedTokens": prompt_render.estimated_tokens,
+        "promptSections": [asdict(section) for section in prompt_render.sections],
+        "promptBudget": asdict(prompt_budget),
         "dryRun": args.dry_run,
     }
+    if prompt_budget.exceeded:
+        request_payload["status"] = "prompt-budget-exceeded"
+        if args.dry_run:
+            return request_payload
+        raise OrchestratorError(prompt_budget_failure_summary(prompt_budget))
     if args.dry_run:
         return request_payload
 
@@ -1235,6 +1487,13 @@ def blocked_record(
         model_profile=resolved_model_profile(task, agent),
         prompt_chars=0,
         prompt_estimated_tokens=0,
+        prompt_sections=[],
+        prompt_budget=PromptBudgetResult(
+            max_chars=resolved_max_prompt_chars(task, agent),
+            max_estimated_tokens=resolved_max_prompt_estimated_tokens(task, agent),
+            exceeded=False,
+            violations=[],
+        ),
         usage=None,
         return_code=None,
         prompt_path="",
@@ -1268,7 +1527,7 @@ def execute_task(
     prepared_workspace = ROOT if workspace_mode == "repo" else workspace_path
     if not dry_run:
         prepared_workspace = prepare_workspace(plan, task, workspace_mode, workspace_path, runtime_root)
-    prompt = worker_prompt(
+    prompt_render = worker_prompt(
         plan,
         task,
         agent,
@@ -1276,8 +1535,15 @@ def execute_task(
         prepared_workspace,
         dependency_summary(dependency_records, task),
     )
-    prompt_chars = len(prompt)
-    prompt_estimated_tokens = estimate_tokens(prompt)
+    prompt = prompt_render.text
+    prompt_chars = prompt_render.chars
+    prompt_estimated_tokens = prompt_render.estimated_tokens
+    prompt_budget = evaluate_prompt_budget(
+        prompt_chars=prompt_chars,
+        prompt_estimated_tokens=prompt_estimated_tokens,
+        max_chars=resolved_max_prompt_chars(task, agent),
+        max_estimated_tokens=resolved_max_prompt_estimated_tokens(task, agent),
+    )
     command = claude_command(
         claude_bin,
         agents_json,
@@ -1298,6 +1564,37 @@ def execute_task(
 
     started_at = iso_now()
     result_path = task_dir / "result.json"
+    if prompt_budget.exceeded:
+        record = TaskRunRecord(
+            id=task.id,
+            title=task.title,
+            agent=task.agent,
+            status="failed",
+            summary=prompt_budget_failure_summary(prompt_budget),
+            workspace_mode=workspace_mode,
+            workspace_path=str(prepared_workspace),
+            started_at=started_at,
+            finished_at=iso_now(),
+            files_touched=[],
+            validation_commands=[],
+            follow_ups=["Reduce the task prompt scope, dependency summary, or validation hints."],
+            notes=[],
+            model=model_name,
+            model_profile=model_profile,
+            prompt_chars=prompt_chars,
+            prompt_estimated_tokens=prompt_estimated_tokens,
+            prompt_sections=prompt_render.sections,
+            prompt_budget=prompt_budget,
+            usage=None,
+            return_code=None,
+            prompt_path=str(prompt_path),
+            command_path=str(command_path),
+            stdout_path=None,
+            stderr_path=None,
+            result_path=None,
+        )
+        write_json(result_path, asdict(record))
+        return record
     if dry_run:
         record = TaskRunRecord(
             id=task.id,
@@ -1317,6 +1614,8 @@ def execute_task(
             model_profile=model_profile,
             prompt_chars=prompt_chars,
             prompt_estimated_tokens=prompt_estimated_tokens,
+            prompt_sections=prompt_render.sections,
+            prompt_budget=prompt_budget,
             usage=None,
             return_code=None,
             prompt_path=str(prompt_path),
@@ -1367,6 +1666,8 @@ def execute_task(
                 model_profile=model_profile,
                 prompt_chars=prompt_chars,
                 prompt_estimated_tokens=prompt_estimated_tokens,
+                prompt_sections=prompt_render.sections,
+                prompt_budget=prompt_budget,
                 usage=usage,
                 return_code=return_code,
                 prompt_path=str(prompt_path),
@@ -1400,6 +1701,8 @@ def execute_task(
             model_profile=model_profile,
             prompt_chars=prompt_chars,
             prompt_estimated_tokens=prompt_estimated_tokens,
+            prompt_sections=prompt_render.sections,
+            prompt_budget=prompt_budget,
             usage=usage,
             return_code=return_code,
             prompt_path=str(prompt_path),
@@ -1430,6 +1733,8 @@ def execute_task(
             model_profile=model_profile,
             prompt_chars=prompt_chars,
             prompt_estimated_tokens=prompt_estimated_tokens,
+            prompt_sections=prompt_render.sections,
+            prompt_budget=prompt_budget,
             usage=usage,
             return_code=return_code,
             prompt_path=str(prompt_path),
@@ -1546,6 +1851,8 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                     "permissionMode": task.permission_mode,
                     "timeoutSec": task.timeout_sec,
                     "maxBudgetUsd": task.max_budget_usd,
+                    "maxPromptChars": task.max_prompt_chars,
+                    "maxPromptEstimatedTokens": task.max_prompt_estimated_tokens,
                     "allowedTools": task.allowed_tools,
                     "disallowedTools": task.disallowed_tools,
                 }

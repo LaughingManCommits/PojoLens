@@ -32,7 +32,7 @@ scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" 
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
-- dry-run task records include `prompt_chars` and `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
+- dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 
 Workspace modes:
 - `copy`: isolated filesystem copy of the current repo state; safe default
@@ -43,10 +43,13 @@ Context discipline:
 - worker prompts default to `contextMode = minimal`
 - minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
 - full shared file and validation context is opt-in via `contextMode = full`
+- dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration only pulls explicit file hints, skips directories, and skips files above `512 KB`
 
 Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
+- task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
+- agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 
