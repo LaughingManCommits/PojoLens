@@ -44,6 +44,15 @@ DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
 DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT = 2
 DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT = 120
+WORKER_STATUSES = {"completed", "blocked", "failed"}
+DEFAULT_VALIDATE_RUN_STATUSES = ("completed",)
+MAX_WORKER_SUMMARY_CHARS = 360
+MAX_WORKER_NOTES = 5
+MAX_WORKER_NOTE_CHARS = 220
+MAX_WORKER_FOLLOW_UPS = 3
+MAX_WORKER_FOLLOW_UP_CHARS = 180
+MAX_WORKER_VALIDATION_COMMANDS = 2
+MAX_WORKER_VALIDATION_COMMAND_CHARS = 320
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
 SPARSE_COPY_BASE_FILES = ("AGENTS.md", "ai/AGENTS.md")
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
@@ -578,6 +587,14 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         help="Restrict validation aggregation to one or more task ids. Repeatable.",
+    )
+    validate_run_parser.add_argument(
+        "--include-status",
+        dest="include_statuses",
+        action="append",
+        choices=sorted(WORKER_STATUSES | {"planned"}),
+        default=[],
+        help="Include validation commands from tasks with this status. Defaults to completed only. Repeatable.",
     )
     validate_run_parser.add_argument(
         "--continue-on-error",
@@ -1953,6 +1970,42 @@ def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) 
     return rendered
 
 
+def truncate_command_text(text: str, max_chars: int) -> tuple[str, bool]:
+    stripped = text.strip()
+    if len(stripped) <= max_chars:
+        return stripped, False
+    if max_chars <= 3:
+        return stripped[:max_chars], True
+    return stripped[: max_chars - 3].rstrip() + "...", True
+
+
+def normalize_worker_text_list(
+    payload: Any,
+    *,
+    key: str,
+    max_items: int,
+    max_chars: int,
+    compact: bool,
+) -> list[str]:
+    if not isinstance(payload, list):
+        raise OrchestratorError(f"Claude JSON output field '{key}' must be an array")
+    normalized: list[str] = []
+    for item in payload:
+        if not isinstance(item, str):
+            raise OrchestratorError(f"Claude JSON output field '{key}' must contain only strings")
+        text = item.strip()
+        if not text:
+            continue
+        if compact:
+            text, _ = truncate_text(text, max_chars)
+        else:
+            text, _ = truncate_command_text(text, max_chars)
+        normalized.append(text)
+        if len(normalized) >= max_items:
+            break
+    return dedupe_strings(normalized)
+
+
 def worker_prompt(
     plan: TaskPlan,
     task: TaskDefinition,
@@ -2145,14 +2198,62 @@ def coerce_worker_result(payload: Any) -> dict[str, Any]:
         "followUps",
         "notes",
     }
-    if isinstance(payload, dict) and required.issubset(payload):
-        return payload
-    if isinstance(payload, dict):
+    if isinstance(payload, dict) and not required.issubset(payload):
         for key in ("result", "data", "response", "structured_output"):
             nested = payload.get(key)
             if isinstance(nested, dict) and required.issubset(nested):
-                return nested
-    raise OrchestratorError("Claude JSON output did not match the expected worker schema")
+                payload = nested
+                break
+        else:
+            raise OrchestratorError("Claude JSON output did not match the expected worker schema")
+    if not isinstance(payload, dict):
+        raise OrchestratorError("Claude JSON output did not match the expected worker schema")
+    status = payload.get("status")
+    if not isinstance(status, str) or status not in WORKER_STATUSES:
+        raise OrchestratorError(
+            f"Claude JSON output field 'status' must be one of {sorted(WORKER_STATUSES)}"
+        )
+    summary_value = payload.get("summary")
+    if not isinstance(summary_value, str) or not summary_value.strip():
+        raise OrchestratorError("Claude JSON output field 'summary' must be a non-empty string")
+    summary, _ = truncate_text(summary_value, MAX_WORKER_SUMMARY_CHARS)
+    files_touched = payload.get("filesTouched")
+    if not isinstance(files_touched, list):
+        raise OrchestratorError("Claude JSON output field 'filesTouched' must be an array")
+    normalized_files_touched: list[str] = []
+    for item in files_touched:
+        if not isinstance(item, str):
+            raise OrchestratorError("Claude JSON output field 'filesTouched' must contain only strings")
+        text = item.strip()
+        if not text:
+            continue
+        normalized_files_touched.append(normalize_relative_path(text, location="worker result filesTouched"))
+    return {
+        "status": status,
+        "summary": summary,
+        "filesTouched": dedupe_strings(normalized_files_touched),
+        "validationCommands": normalize_worker_text_list(
+            payload.get("validationCommands"),
+            key="validationCommands",
+            max_items=MAX_WORKER_VALIDATION_COMMANDS,
+            max_chars=MAX_WORKER_VALIDATION_COMMAND_CHARS,
+            compact=False,
+        ),
+        "followUps": normalize_worker_text_list(
+            payload.get("followUps"),
+            key="followUps",
+            max_items=MAX_WORKER_FOLLOW_UPS,
+            max_chars=MAX_WORKER_FOLLOW_UP_CHARS,
+            compact=True,
+        ),
+        "notes": normalize_worker_text_list(
+            payload.get("notes"),
+            key="notes",
+            max_items=MAX_WORKER_NOTES,
+            max_chars=MAX_WORKER_NOTE_CHARS,
+            compact=True,
+        ),
+    }
 
 
 def extract_usage(payload: Any) -> dict[str, Any] | None:
@@ -3103,20 +3204,33 @@ def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def collect_validation_commands(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def collect_validation_commands(
+    records: list[TaskRunRecord],
+    *,
+    included_statuses: set[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     task_payloads: list[dict[str, Any]] = []
     command_owners: dict[str, list[str]] = {}
     command_order: list[str] = []
     for record in records:
         commands = dedupe_strings(record.validation_commands)
+        included = record.status in included_statuses
         task_payloads.append(
             {
                 "id": record.id,
                 "status": record.status,
                 "summary": record.summary,
                 "validationCommands": commands,
+                "includedForValidation": included,
+                "excludedReason": (
+                    None
+                    if included
+                    else f"status '{record.status}' is excluded by the current validation policy"
+                ),
             }
         )
+        if not included:
+            continue
         for command in commands:
             owners = command_owners.setdefault(command, [])
             owners.append(record.id)
@@ -3172,7 +3286,14 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     run_dir = manifest_run_dir(manifest_path, manifest)
     records = selected_run_records(manifest, args.selected_tasks)
-    task_payloads, commands = collect_validation_commands(records)
+    included_statuses = {
+        str(status)
+        for status in (getattr(args, "include_statuses", None) or list(DEFAULT_VALIDATE_RUN_STATUSES))
+    }
+    task_payloads, commands = collect_validation_commands(
+        records,
+        included_statuses=included_statuses,
+    )
     validation_dir = run_dir / "validation"
     command_results: list[dict[str, Any]] = []
     stop_after_failure = False
@@ -3231,8 +3352,11 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         "repoRoot": str(ROOT),
         "dryRun": args.dry_run,
         "selectedTaskIds": [record.id for record in records],
+        "includedStatuses": sorted(included_statuses),
         "taskCount": len(task_payloads),
         "tasks": task_payloads,
+        "includedTaskIds": [payload["id"] for payload in task_payloads if payload["includedForValidation"]],
+        "excludedTaskIds": [payload["id"] for payload in task_payloads if not payload["includedForValidation"]],
         "commandCount": len(command_results),
         "suggestedCommands": [payload["command"] for payload in commands],
         "commands": command_results,

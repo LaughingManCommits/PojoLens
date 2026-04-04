@@ -304,6 +304,57 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("... (1 more notes omitted)", summary)
         self.assertNotIn("next:", summary)
 
+    def test_coerce_worker_result_compacts_verbose_fields(self):
+        orchestrator = self.orchestrator
+        payload = {
+            "status": "completed",
+            "summary": "Summary " * 80,
+            "filesTouched": ["src/main/App.java", "src/main/App.java"],
+            "validationCommands": [
+                "python -m pytest -q",
+                "mvn -q test",
+                "scripts/unused-third-command.ps1",
+            ],
+            "followUps": [
+                "First follow-up item.",
+                "Second follow-up item.",
+                "Third follow-up item.",
+                "Fourth follow-up item should be dropped.",
+            ],
+            "notes": [
+                "Note one.",
+                "Note two.",
+                "Note three.",
+                "Note four.",
+                "Note five.",
+                "Note six should be dropped.",
+            ],
+        }
+
+        result = orchestrator.coerce_worker_result(payload)
+
+        self.assertEqual("completed", result["status"])
+        self.assertLessEqual(len(result["summary"]), orchestrator.MAX_WORKER_SUMMARY_CHARS)
+        self.assertEqual(["src/main/App.java"], result["filesTouched"])
+        self.assertEqual(2, len(result["validationCommands"]))
+        self.assertEqual(3, len(result["followUps"]))
+        self.assertEqual(5, len(result["notes"]))
+
+    def test_coerce_worker_result_rejects_invalid_status(self):
+        orchestrator = self.orchestrator
+
+        with self.assertRaisesRegex(orchestrator.OrchestratorError, "field 'status' must be one of"):
+            orchestrator.coerce_worker_result(
+                {
+                    "status": "planned",
+                    "summary": "bad status",
+                    "filesTouched": [],
+                    "validationCommands": [],
+                    "followUps": [],
+                    "notes": [],
+                }
+            )
+
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
         implementer = orchestrator.AgentDefinition(
@@ -1674,6 +1725,7 @@ class PromptBudgetTest(unittest.TestCase):
                     SimpleNamespace(
                         run_ref=str(run_dir),
                         selected_tasks=[],
+                        include_statuses=[],
                         continue_on_error=False,
                         timeout_sec=60,
                         dry_run=True,
@@ -1757,6 +1809,7 @@ class PromptBudgetTest(unittest.TestCase):
                     SimpleNamespace(
                         run_ref=str(run_dir),
                         selected_tasks=[],
+                        include_statuses=[],
                         continue_on_error=False,
                         timeout_sec=60,
                         dry_run=False,
@@ -1781,6 +1834,119 @@ class PromptBudgetTest(unittest.TestCase):
             {"completed": 1, "failed": 1, "skipped": 1},
             updated_manifest["coordinatorValidation"]["statusCounts"],
         )
+
+    def test_validate_run_excludes_blocked_tasks_by_default(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-3",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-completed": {
+                                "id": "task-completed",
+                                "title": "Task Completed",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": ["cmd-one"],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "task-blocked": {
+                                "id": "task-blocked",
+                                "title": "Task Blocked",
+                                "agent": "reviewer",
+                                "status": "blocked",
+                                "summary": "Blocked.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": ["cmd-two"],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": None,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(["completed"], payload["includedStatuses"])
+        self.assertEqual(["task-completed"], payload["includedTaskIds"])
+        self.assertEqual(["task-blocked"], payload["excludedTaskIds"])
+        self.assertEqual(["cmd-one"], payload["suggestedCommands"])
+        self.assertEqual(1, payload["commandCount"])
+        blocked_task = next(task for task in payload["tasks"] if task["id"] == "task-blocked")
+        self.assertFalse(blocked_task["includedForValidation"])
+        self.assertIn("excluded by the current validation policy", blocked_task["excludedReason"])
 
 
 if __name__ == "__main__":

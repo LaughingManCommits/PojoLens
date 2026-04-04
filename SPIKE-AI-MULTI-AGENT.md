@@ -280,14 +280,17 @@ As of `2026-04-04`, this is partially implemented.
 Now in place:
 
 - a `validate-run` command that dedupes worker-suggested validation commands
+- default validation policy now excludes non-completed tasks unless the
+  coordinator explicitly opts into other statuses
 - optional coordinator-side execution of those commands from repo root
 - a manifest section that distinguishes worker-suggested validation from
   coordinator-run validation results
 
 What is still needed:
 
-- tighter policies on when validation should refuse to run against failed tasks
 - richer validation presets or policy controls beyond raw shell commands
+- stronger command-quality or safety rules than "worker suggested a shell
+  string"
 
 ### 8. Automated Regression Coverage
 
@@ -335,8 +338,9 @@ Current gap:
   size itself is not the main cost driver on these tracked plans
 - prompt compaction is currently generic list or summary truncation, not
   section-specific summarization
-- worker-result guidance still relies on prompt wording rather than a richer
-  schema for explicit unknown values
+- worker-result guidance is no longer prompt-only: the coordinator now compacts
+  and validates worker JSON, but the schema still has no explicit unknown/null
+  contract for partially known answers
 - live runs also showed that downstream reviewers need a richer bounded
   dependency handoff than a one-line summary, and that output verbosity can
   still dominate cost even when prompt budgets are healthy
