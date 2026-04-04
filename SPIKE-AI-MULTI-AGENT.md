@@ -219,23 +219,30 @@ Current gap:
 The current runtime captures prompts, command files, worker results, stdout,
 stderr, manifest metadata, and workspace paths.
 
+As of `2026-04-04`, this is partially implemented.
+
+Now in place:
+
+- a `review` command that summarizes per-task file diffs from worker
+  workspaces
+- an `export-patch` command that writes unified diff patches for copy/worktree
+  runs
+
 What it does not provide yet:
 
-- a built-in diff summary
-- patch export
 - apply or cherry-pick helpers
-- a structured review command for comparing worker edits before adoption
+- a structured promotion flow that consumes protected-path and diff-audit
+  results directly
 
 Current state is therefore:
 
-- worker execution exists
-- coordinator review is still manual and procedural
+- worker execution and basic review/export now exist
+- coordinator adoption back into the main repo is still manual and procedural
 
 What is needed:
 
-- a small coordinator-side review/apply workflow
-- at minimum, a diff summary command over a run or task workspace
-- ideally, explicit "review", "export-patch", and "apply" or "promote" helpers
+- explicit apply or promote helpers
+- a safer coordinator-side adoption workflow over reviewed patches
 
 ### 6. Resume, Retry, and Cleanup Operations
 

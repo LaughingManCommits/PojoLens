@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import re
@@ -409,6 +410,65 @@ def parse_args() -> argparse.Namespace:
         help="Emit the run summary as JSON.",
     )
 
+    review_parser = subparsers.add_parser(
+        "review",
+        help="Summarize worker workspace diffs for a completed run.",
+    )
+    review_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    review_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict review to one or more task ids. Repeatable.",
+    )
+    review_parser.add_argument(
+        "--context-lines",
+        type=int,
+        default=3,
+        help="Context lines to use when generating per-file patch previews.",
+    )
+    review_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the review summary as JSON.",
+    )
+
+    export_patch_parser = subparsers.add_parser(
+        "export-patch",
+        help="Export a unified diff patch from worker workspace changes.",
+    )
+    export_patch_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    export_patch_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict patch export to one or more task ids. Repeatable.",
+    )
+    export_patch_parser.add_argument(
+        "--context-lines",
+        type=int,
+        default=3,
+        help="Context lines to use in the exported unified diff.",
+    )
+    export_patch_parser.add_argument(
+        "--out",
+        default="",
+        help="Destination patch path. Defaults under the run directory review/ subfolder.",
+    )
+    export_patch_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the export summary as JSON.",
+    )
+
     return parser.parse_args()
 
 
@@ -439,6 +499,10 @@ def write_text(path: Path, text: str | None) -> None:
 
 def write_json(path: Path, payload: object) -> None:
     write_text(path, json.dumps(payload, indent=2) + "\n")
+
+
+def read_bytes(path: Path) -> bytes:
+    return path.read_bytes()
 
 
 def require_string(payload: dict[str, Any], key: str, *, location: str) -> str:
@@ -962,6 +1026,305 @@ def apply_workspace_audit(
         if follow_up not in record.follow_ups:
             record.follow_ups.insert(0, follow_up)
     return record
+
+
+def resolve_manifest_path(run_ref: str) -> Path:
+    candidate = Path(run_ref).resolve()
+    if candidate.is_dir():
+        candidate = candidate / "manifest.json"
+    if not candidate.exists():
+        raise OrchestratorError(f"Run manifest '{candidate}' does not exist")
+    if candidate.name != "manifest.json":
+        raise OrchestratorError("Review/export expects a run directory or manifest.json path")
+    return candidate
+
+
+def load_run_manifest(run_ref: str) -> tuple[Path, dict[str, Any]]:
+    manifest_path = resolve_manifest_path(run_ref)
+    payload = read_json(manifest_path)
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{manifest_path}: expected JSON object")
+    tasks = payload.get("tasks")
+    if not isinstance(tasks, dict):
+        raise OrchestratorError(f"{manifest_path}: expected object 'tasks'")
+    return manifest_path, payload
+
+
+def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{location}: expected task record object")
+    return TaskRunRecord(
+        id=str(payload.get("id", "")),
+        title=str(payload.get("title", "")),
+        agent=str(payload.get("agent", "")),
+        status=str(payload.get("status", "")),
+        summary=str(payload.get("summary", "")),
+        workspace_mode=str(payload.get("workspace_mode", "")),
+        workspace_path=str(payload.get("workspace_path", "")),
+        started_at=str(payload.get("started_at", "")),
+        finished_at=str(payload.get("finished_at", "")),
+        files_touched=[str(item) for item in payload.get("files_touched", []) or []],
+        actual_files_touched=[str(item) for item in payload.get("actual_files_touched", []) or []],
+        protected_path_violations=[
+            str(item) for item in payload.get("protected_path_violations", []) or []
+        ],
+        validation_commands=[str(item) for item in payload.get("validation_commands", []) or []],
+        follow_ups=[str(item) for item in payload.get("follow_ups", []) or []],
+        notes=[str(item) for item in payload.get("notes", []) or []],
+        model=str(payload["model"]) if payload.get("model") is not None else None,
+        model_profile=str(payload["model_profile"]) if payload.get("model_profile") is not None else None,
+        prompt_chars=int(payload.get("prompt_chars", 0) or 0),
+        prompt_estimated_tokens=int(payload.get("prompt_estimated_tokens", 0) or 0),
+        prompt_sections=[
+            PromptSectionMetric(
+                name=str(section.get("name", "")),
+                heading=str(section.get("heading", "")),
+                chars=int(section.get("chars", 0) or 0),
+                estimated_tokens=int(section.get("estimated_tokens", 0) or 0),
+                item_count=int(section.get("item_count", 0) or 0),
+                truncated=bool(section.get("truncated", False)),
+            )
+            for section in payload.get("prompt_sections", []) or []
+            if isinstance(section, dict)
+        ],
+        prompt_budget=PromptBudgetResult(
+            max_chars=(
+                int(payload.get("prompt_budget", {}).get("max_chars"))
+                if isinstance(payload.get("prompt_budget"), dict)
+                and payload.get("prompt_budget", {}).get("max_chars") is not None
+                else None
+            ),
+            max_estimated_tokens=(
+                int(payload.get("prompt_budget", {}).get("max_estimated_tokens"))
+                if isinstance(payload.get("prompt_budget"), dict)
+                and payload.get("prompt_budget", {}).get("max_estimated_tokens") is not None
+                else None
+            ),
+            exceeded=bool(
+                payload.get("prompt_budget", {}).get("exceeded", False)
+                if isinstance(payload.get("prompt_budget"), dict)
+                else False
+            ),
+            violations=[
+                str(item)
+                for item in (
+                    payload.get("prompt_budget", {}).get("violations", [])
+                    if isinstance(payload.get("prompt_budget"), dict)
+                    else []
+                )
+            ],
+        ),
+        usage=payload.get("usage") if isinstance(payload.get("usage"), dict) else None,
+        return_code=int(payload["return_code"]) if payload.get("return_code") is not None else None,
+        prompt_path=str(payload.get("prompt_path", "")),
+        command_path=str(payload.get("command_path", "")),
+        stdout_path=str(payload["stdout_path"]) if payload.get("stdout_path") is not None else None,
+        stderr_path=str(payload["stderr_path"]) if payload.get("stderr_path") is not None else None,
+        result_path=str(payload["result_path"]) if payload.get("result_path") is not None else None,
+    )
+
+
+def selected_run_records(
+    manifest: dict[str, Any],
+    selected_ids: list[str],
+) -> list[TaskRunRecord]:
+    raw_tasks = manifest.get("tasks", {})
+    if not isinstance(raw_tasks, dict):
+        raise OrchestratorError("Manifest does not contain task records")
+    selected = set(selected_ids)
+    records = []
+    for task_id in sorted(raw_tasks):
+        if selected and task_id not in selected:
+            continue
+        records.append(coerce_task_run_record(raw_tasks[task_id], location=f"manifest:tasks[{task_id}]"))
+    missing = sorted(selected.difference(record.id for record in records))
+    if missing:
+        raise OrchestratorError(f"Unknown task ids in run manifest: {missing}")
+    return records
+
+
+def decode_text_or_none(content: bytes) -> str | None:
+    try:
+        return content.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def diff_file_against_workspace(
+    record: TaskRunRecord,
+    relative_path: str,
+    *,
+    context_lines: int,
+) -> tuple[dict[str, Any], str | None]:
+    normalized = Path(relative_path).as_posix().strip("/")
+    summary: dict[str, Any] = {
+        "path": normalized,
+        "status": "unchanged",
+        "isBinary": False,
+        "addedLines": 0,
+        "removedLines": 0,
+        "patchable": False,
+    }
+    if record.workspace_mode == "repo":
+        summary["status"] = "unsupported"
+        summary["reason"] = "repo-mode runs do not preserve an isolated review baseline"
+        return summary, None
+    workspace_root = Path(record.workspace_path)
+    workspace_file = workspace_root / normalized
+    repo_file = ROOT / normalized
+    repo_exists = repo_file.exists()
+    workspace_exists = workspace_file.exists()
+    if not repo_exists and not workspace_exists:
+        summary["status"] = "missing"
+        return summary, None
+    repo_bytes = read_bytes(repo_file) if repo_exists else b""
+    workspace_bytes = read_bytes(workspace_file) if workspace_exists else b""
+    if repo_exists and workspace_exists and repo_bytes == workspace_bytes:
+        return summary, None
+    if not repo_exists and workspace_exists:
+        summary["status"] = "added"
+    elif repo_exists and not workspace_exists:
+        summary["status"] = "deleted"
+    else:
+        summary["status"] = "modified"
+    repo_text = decode_text_or_none(repo_bytes) if repo_exists else ""
+    workspace_text = decode_text_or_none(workspace_bytes) if workspace_exists else ""
+    if (repo_exists and repo_text is None) or (workspace_exists and workspace_text is None):
+        summary["isBinary"] = True
+        return summary, None
+    diff_lines = list(
+        difflib.unified_diff(
+            repo_text.splitlines(),
+            workspace_text.splitlines(),
+            fromfile=f"a/{normalized}",
+            tofile=f"b/{normalized}",
+            n=max(context_lines, 0),
+            lineterm="",
+        )
+    )
+    added_lines = 0
+    removed_lines = 0
+    for line in diff_lines:
+        if line.startswith(("+++", "---", "@@")):
+            continue
+        if line.startswith("+"):
+            added_lines += 1
+        elif line.startswith("-"):
+            removed_lines += 1
+    summary["addedLines"] = added_lines
+    summary["removedLines"] = removed_lines
+    summary["patchable"] = True
+    return summary, ("\n".join(diff_lines) + "\n") if diff_lines else None
+
+
+def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[dict[str, Any], list[str]]:
+    reviewed_paths = dedupe_strings(record.actual_files_touched or record.files_touched)
+    file_summaries: list[dict[str, Any]] = []
+    patch_chunks: list[str] = []
+    changed_files = 0
+    binary_files = 0
+    added_lines = 0
+    removed_lines = 0
+    for relative_path in reviewed_paths:
+        summary, patch_text = diff_file_against_workspace(
+            record,
+            relative_path,
+            context_lines=context_lines,
+        )
+        if summary["status"] not in {"unchanged", "missing"}:
+            changed_files += 1
+        if summary.get("isBinary"):
+            binary_files += 1
+        added_lines += int(summary.get("addedLines", 0) or 0)
+        removed_lines += int(summary.get("removedLines", 0) or 0)
+        file_summaries.append(summary)
+        if patch_text:
+            patch_chunks.append(patch_text)
+    return (
+        {
+            "id": record.id,
+            "title": record.title,
+            "agent": record.agent,
+            "status": record.status,
+            "summary": record.summary,
+            "workspaceMode": record.workspace_mode,
+            "workspacePath": record.workspace_path,
+            "protectedPathViolations": record.protected_path_violations,
+            "filesReported": record.files_touched,
+            "filesObserved": record.actual_files_touched,
+            "diffStats": {
+                "filesReviewed": len(reviewed_paths),
+                "filesChanged": changed_files,
+                "binaryFiles": binary_files,
+                "addedLines": added_lines,
+                "removedLines": removed_lines,
+            },
+            "files": file_summaries,
+        },
+        patch_chunks,
+    )
+
+
+def default_patch_output_path(manifest_path: Path, task_ids: list[str]) -> Path:
+    review_dir = manifest_path.parent / "review"
+    if not task_ids:
+        filename = "combined.patch"
+    elif len(task_ids) == 1:
+        filename = f"{slugify(task_ids[0])}.patch"
+    else:
+        filename = f"selected-{slugify('-'.join(task_ids))}.patch"
+    return review_dir / filename
+
+
+def review_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    records = selected_run_records(manifest, args.selected_tasks)
+    task_payloads = []
+    for record in records:
+        review_payload, _ = task_review_summary(record, context_lines=args.context_lines)
+        task_payloads.append(review_payload)
+    return {
+        "runId": manifest.get("runId"),
+        "manifestPath": str(manifest_path),
+        "runDir": str(manifest_path.parent),
+        "taskCount": len(task_payloads),
+        "tasks": task_payloads,
+    }
+
+
+def export_patch(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    records = selected_run_records(manifest, args.selected_tasks)
+    patch_chunks: list[str] = []
+    exported_task_ids: list[str] = []
+    binary_files: list[str] = []
+    changed_files = 0
+    for record in records:
+        review_payload, task_patches = task_review_summary(record, context_lines=args.context_lines)
+        if any(file_payload.get("isBinary") for file_payload in review_payload["files"]):
+            binary_files.extend(
+                file_payload["path"]
+                for file_payload in review_payload["files"]
+                if file_payload.get("isBinary")
+            )
+        if review_payload["diffStats"]["filesChanged"]:
+            exported_task_ids.append(record.id)
+        changed_files += int(review_payload["diffStats"]["filesChanged"])
+        patch_chunks.extend(task_patches)
+    output_path = Path(args.out).resolve() if args.out else default_patch_output_path(
+        manifest_path,
+        exported_task_ids or [record.id for record in records],
+    )
+    write_text(output_path, "".join(patch_chunks))
+    return {
+        "runId": manifest.get("runId"),
+        "manifestPath": str(manifest_path),
+        "patchPath": str(output_path),
+        "taskIds": exported_task_ids or [record.id for record in records],
+        "filesChanged": changed_files,
+        "binaryFilesSkipped": dedupe_strings(binary_files),
+        "patchBytes": output_path.stat().st_size if output_path.exists() else 0,
+    }
 
 
 def planner_output_path(name: str, explicit_path: str) -> Path:
@@ -2224,6 +2587,12 @@ def main() -> int:
             return 0
         if args.command == "run":
             print_payload(run_plan(args), as_json=args.json)
+            return 0
+        if args.command == "review":
+            print_payload(review_run(args), as_json=args.json)
+            return 0
+        if args.command == "export-patch":
+            print_payload(export_patch(args), as_json=args.json)
             return 0
         raise OrchestratorError(f"Unknown command '{args.command}'")
     except OrchestratorError as exc:

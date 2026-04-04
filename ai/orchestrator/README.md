@@ -26,6 +26,8 @@ Primary commands:
 scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
+scripts/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
 ```
 
@@ -70,6 +72,7 @@ Concurrency:
 Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
+- `review` summarizes per-task file diffs from worker workspaces; `export-patch` writes unified diffs for copy/worktree runs
 - the coordinator owns memory updates, final summaries, and merge decisions
 - prefer `copy` mode unless a task clearly needs git metadata
 - review worker outputs before applying or cherry-picking edits back into the main repo

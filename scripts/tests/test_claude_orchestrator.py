@@ -383,6 +383,157 @@ class PromptBudgetTest(unittest.TestCase):
             copied_files,
         )
 
+    def test_review_run_reports_diff_summary(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            run_dir.mkdir()
+            (repo_root / "foo.txt").write_text("old\nline\n", encoding="utf-8")
+            (workspace_root / "foo.txt").write_text("new\nline\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "run-1",
+                        "tasks": {
+                            "edit-foo": {
+                                "id": "edit-foo",
+                                "title": "Edit foo",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed foo.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_root),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": ["foo.txt"],
+                                "actual_files_touched": ["foo.txt"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.review_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        context_lines=3,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("run-1", payload["runId"])
+        self.assertEqual(1, payload["taskCount"])
+        self.assertEqual(1, payload["tasks"][0]["diffStats"]["filesChanged"])
+        self.assertEqual("modified", payload["tasks"][0]["files"][0]["status"])
+
+    def test_export_patch_writes_patch_file(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            run_dir.mkdir()
+            (repo_root / "foo.txt").write_text("old\nline\n", encoding="utf-8")
+            (workspace_root / "foo.txt").write_text("new\nline\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "run-2",
+                        "tasks": {
+                            "edit-foo": {
+                                "id": "edit-foo",
+                                "title": "Edit foo",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed foo.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_root),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": ["foo.txt"],
+                                "actual_files_touched": ["foo.txt"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                output = temp_path / "review.patch"
+                payload = orchestrator.export_patch(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        context_lines=3,
+                        out=str(output),
+                    )
+                )
+                patch_text = output.read_text(encoding="utf-8")
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("run-2", payload["runId"])
+        self.assertTrue(patch_text.startswith("--- a/foo.txt"))
+        self.assertIn("+new", patch_text)
+        self.assertEqual(1, payload["filesChanged"])
+
 
 if __name__ == "__main__":
     unittest.main()
