@@ -48,6 +48,7 @@ Workspace modes:
 Context discipline:
 - worker prompts default to `contextMode = minimal`
 - minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
+- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, so downstream workers do not need to inspect prior task artifacts directly
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies explicit file hints, skips directory hints, and skips files above `512 KB`
@@ -58,6 +59,7 @@ Token and cost visibility:
 - agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
+- live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and `validationCommands` more aggressively
 
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
@@ -75,6 +77,7 @@ Concurrency:
 
 Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
+- workers in `copy` or `worktree` mode should treat prompt dependency outputs as the only upstream handoff and should not inspect other task workspaces or prior run artifacts directly
 - task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - `validate-run` dedupes worker-suggested `validation_commands`, can execute them from repo root, and records coordinator-run results separately from worker suggestions in the run manifest

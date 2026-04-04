@@ -330,17 +330,21 @@ Current gap:
 
 - planner and worker prompts still repeat some shared coordinator framing on
   every invocation
-- default prompt budgets are now present, but they still need live tuning based
-  on real task mixes
+- live `example-review.json` and `example-parallel.json` runs now show prompt
+  estimates staying comfortably within the current ceilings, so prompt text
+  size itself is not the main cost driver on these tracked plans
 - prompt compaction is currently generic list or summary truncation, not
   section-specific summarization
 - worker-result guidance still relies on prompt wording rather than a richer
   schema for explicit unknown values
+- live runs also showed that downstream reviewers need a richer bounded
+  dependency handoff than a one-line summary, and that output verbosity can
+  still dominate cost even when prompt budgets are healthy
 
 What is needed:
 
-- measure and tune the default prompt ceilings against a few real multi-task
-  runs
+- keep validating the current ceilings against broader plans and only lower or
+  raise them if later task mixes show real drift
 - decide whether some prompt sections need smarter summarization than simple
   truncation
 - strengthen worker-result guidance for unknown values: use `null` or explicit
@@ -360,8 +364,7 @@ The best next slice is:
 1. tighten safety around sparse copies, overlap detection, and protected paths
 2. add a minimal coordinator review or diff workflow
 3. add focused regression tests around the Python coordinator
-4. tune prompt budgets against a few real multi-task runs if live evidence
-   shows drift
+4. tighten validation policy and worker-result discipline based on live runs
 
 That sequence raises trust faster than adding more planner cleverness or more
 sample task plans.
@@ -460,7 +463,8 @@ What it does not have yet is full operational confidence.
 The right next move is to harden and prove the current design:
 
 - live-run proof is now done
-- next: live prompt-budget tuning and validation-policy refinement
+- live prompt-budget tuning is now grounded by tracked sample runs
+- next: validation-policy refinement and tighter worker-result discipline
 - regression coverage is now real, but it should keep growing around newly found
   failure modes
 

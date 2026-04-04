@@ -248,6 +248,62 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("...", summary)
         self.assertIn("inspect", summary)
 
+    def test_dependency_summary_includes_key_notes_from_dependencies(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="review",
+            title="Review",
+            agent="reviewer",
+            prompt="Review the dependency output.",
+            depends_on=["inspect"],
+        )
+        dependency_record = orchestrator.TaskRunRecord(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            status="completed",
+            summary="Inspected the coordinator rules.",
+            workspace_mode="copy",
+            workspace_path="workspace",
+            started_at="2026-04-04T00:00:00+00:00",
+            finished_at="2026-04-04T00:00:01+00:00",
+            files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
+            validation_commands=[],
+            follow_ups=["Open one follow-up issue."],
+            notes=[
+                "Rule one is protected-path enforcement.",
+                "Rule two is copy mode by default.",
+                "Rule three is coordinator-owned review.",
+            ],
+            model="claude-haiku-4-5",
+            model_profile="simple",
+            prompt_chars=0,
+            prompt_estimated_tokens=0,
+            prompt_sections=[],
+            prompt_budget=orchestrator.PromptBudgetResult(
+                max_chars=None,
+                max_estimated_tokens=None,
+                exceeded=False,
+                violations=[],
+            ),
+            usage=None,
+            return_code=None,
+            prompt_path="",
+            command_path="",
+            stdout_path=None,
+            stderr_path=None,
+            result_path=None,
+        )
+
+        summary = orchestrator.dependency_summary({"inspect": dependency_record}, task)
+
+        self.assertIn("key notes:", summary)
+        self.assertIn("Rule one is protected-path enforcement.", summary)
+        self.assertIn("... (1 more notes omitted)", summary)
+        self.assertNotIn("next:", summary)
+
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
         implementer = orchestrator.AgentDefinition(
@@ -431,6 +487,21 @@ class PromptBudgetTest(unittest.TestCase):
             ["AGENTS.md", "ai/AGENTS.md", "docs/guide.md", "nested/hinted.txt", "notes.txt"],
             copied_files,
         )
+
+    def test_snapshot_workspace_files_hashes_files_and_ignores_internal_dirs(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            workspace = pathlib.Path(tempdir)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "main.txt").write_text("main\n", encoding="utf-8")
+            (workspace / "__pycache__").mkdir()
+            (workspace / "__pycache__" / "ignored.pyc").write_bytes(b"cache")
+
+            snapshots = orchestrator.snapshot_workspace_files(workspace)
+            expected_hash = orchestrator.file_sha256(workspace / "src" / "main.txt")
+
+        self.assertEqual(["src/main.txt"], sorted(snapshots))
+        self.assertEqual(expected_hash, snapshots["src/main.txt"])
 
     def test_execute_task_fails_when_worker_stdout_is_not_json(self):
         orchestrator = self.orchestrator

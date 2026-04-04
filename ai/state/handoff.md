@@ -16,9 +16,9 @@
 - `PojoLensRuntime` owns natural vocabulary; direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free.
 - Natural queries now support grouped aggregates, charts/time buckets, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded aliases; resolution stays deterministic.
 - `docs/natural.md` is the canonical natural-query guide.
-- Live `example-review.json` now proves the orchestrator end to end in `copy` mode after fixing `claude_command(...)` so variadic tool flags cannot consume the prompt.
+- Live `example-review.json` and `example-parallel.json` now complete end to end in `copy` mode; the latest tuning added bounded dependency handoff plus stricter worker output caps after a live reviewer-blocking issue.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
-- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt sections/budgets, sparse-copy workspaces, overlapping-scope serialization, protected-path audits, `review`, `export-patch`, conservative `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are now in place, with regression coverage for malformed worker output plus fail-fast/dependency-blocking paths; the next spike slice is live prompt-budget tuning plus deeper validation-policy refinement.
+- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt sections/budgets, sparse-copy workspaces, overlapping-scope serialization, protected-path audits, `review`, `export-patch`, conservative `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are now in place, with regression coverage for malformed worker output plus fail-fast/dependency-blocking paths; live tracked runs stay within the current prompt ceilings, and the next spike slice is validation-policy refinement plus tighter worker-result discipline.
 
 ## Validate
 

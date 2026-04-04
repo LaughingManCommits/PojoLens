@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -41,6 +42,8 @@ MAX_HYDRATED_FILE_BYTES = 512 * 1024
 DEFAULT_PROMPT_SECTION_ITEM_LIMIT = 8
 DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
+DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT = 2
+DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT = 120
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
 SPARSE_COPY_BASE_FILES = ("AGENTS.md", "ai/AGENTS.md")
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
@@ -632,6 +635,10 @@ def write_json(path: Path, payload: object) -> None:
 
 def read_bytes(path: Path) -> bytes:
     return path.read_bytes()
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(read_bytes(path)).hexdigest()
 
 
 def normalize_relative_path(path_value: str, *, location: str) -> str:
@@ -1910,14 +1917,38 @@ def resolved_model(task: TaskDefinition, agent: AgentDefinition) -> str | None:
     return None
 
 
+def dependency_handoff(record: TaskRunRecord) -> str:
+    summary, _ = truncate_text(record.summary, DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT)
+    parts = [f"`{record.id}` ({record.status}): {summary}"]
+    notes = dedupe_strings(record.notes)
+    if notes:
+        visible_notes: list[str] = []
+        for note in notes[:DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT]:
+            note_text, _ = truncate_text(note, DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT)
+            visible_notes.append(note_text)
+        hidden_note_count = len(notes) - len(visible_notes)
+        if hidden_note_count > 0:
+            visible_notes.append(f"... ({hidden_note_count} more notes omitted)")
+        parts.append("key notes: " + " ; ".join(visible_notes))
+    follow_ups = dedupe_strings(record.follow_ups)
+    if follow_ups and not notes:
+        visible_follow_ups: list[str] = []
+        for follow_up in follow_ups[:1]:
+            follow_up_text, _ = truncate_text(follow_up, DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT)
+            visible_follow_ups.append(follow_up_text)
+        hidden_follow_up_count = len(follow_ups) - len(visible_follow_ups)
+        if hidden_follow_up_count > 0:
+            visible_follow_ups.append(f"... ({hidden_follow_up_count} more follow-ups omitted)")
+        parts.append("next: " + " ; ".join(visible_follow_ups))
+    return " | ".join(parts)
+
+
 def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) -> str:
     if not task.depends_on:
         return "- none"
     lines = []
     for dependency_id in task.depends_on:
-        record = records[dependency_id]
-        summary, _ = truncate_text(record.summary, DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT)
-        lines.append(f"`{dependency_id}` ({record.status}): {summary}")
+        lines.append(dependency_handoff(records[dependency_id]))
     rendered, _, _ = format_bullet_list(lines, empty_line="- none", max_chars=None)
     return rendered
 
@@ -1961,14 +1992,14 @@ def worker_prompt(
     worker_rules, rule_count, rules_truncated = format_bullet_list(
         [
             "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
-            "Use the task repo root for file and shell access. In copy/worktree mode, do not access files through the source repo root.",
-            "Return schema-valid JSON only. No narration or markdown fences.",
-            "Keep summaries and notes terse. Leave arrays empty when there is nothing to add.",
-            "State uncertainty explicitly instead of guessing.",
+            "Use only the task repo root and explicit file hints. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
+            "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
+            "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` to <=2.",
+            "Leave arrays empty when there is nothing important to add. Skip low-value detail.",
+            "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
             "Do not edit TODO.md, ai/state/*, ai/log/*, or ai/indexes/*.",
-            "Keep changes tightly scoped to the task.",
-            "If blocked, explain the blocker concretely and list the next coordinator action.",
+            "Keep changes and coordinator asks tightly scoped to the task.",
         ],
         empty_line="- none",
         max_items=12,
