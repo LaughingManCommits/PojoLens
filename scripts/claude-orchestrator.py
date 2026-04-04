@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -39,6 +40,20 @@ MAX_HYDRATED_FILE_BYTES = 512 * 1024
 DEFAULT_PROMPT_SECTION_ITEM_LIMIT = 8
 DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
+WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
+WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
+    ".git",
+    ".claude",
+    ".claude-orchestrator",
+    ".idea",
+    ".mvn",
+    ".vs",
+    "__pycache__",
+    "node_modules",
+    "target",
+}
+PROTECTED_PATH_EXACT = {"TODO.md"}
+PROTECTED_PATH_PREFIXES = ("ai/state/", "ai/log/", "ai/indexes/")
 COPY_IGNORE_NAMES = {
     ".git",
     ".claude",
@@ -248,6 +263,8 @@ class TaskRunRecord:
     started_at: str
     finished_at: str
     files_touched: list[str]
+    actual_files_touched: list[str]
+    protected_path_violations: list[str]
     validation_commands: list[str]
     follow_ups: list[str]
     notes: list[str]
@@ -691,6 +708,110 @@ def selected_plan(plan: TaskPlan, selected_ids: list[str]) -> TaskPlan:
     )
 
 
+def effective_allowed_tools(task: TaskDefinition, agent: AgentDefinition) -> list[str]:
+    allowed = list(task.allowed_tools or agent.allowed_tools)
+    if not allowed:
+        return []
+    denied = set(task.disallowed_tools or agent.disallowed_tools)
+    return [tool for tool in allowed if tool not in denied]
+
+
+def task_may_write(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition) -> bool:
+    if effective_workspace_mode(task, agent) == "repo":
+        return True
+    return any(tool in WRITE_CAPABLE_TOOLS for tool in effective_allowed_tools(task, agent))
+
+
+def effective_task_scopes(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition) -> list[str]:
+    if effective_workspace_mode(task, agent) == "repo":
+        return ["."]
+    scopes = []
+    for item in dedupe_strings(task.files or plan.shared_context.files):
+        relative = Path(item)
+        if relative.is_absolute():
+            continue
+        normalized = relative.as_posix().strip("/")
+        if not normalized or normalized == ".":
+            return ["."]
+        scopes.append(normalized)
+    return scopes or ["."]
+
+
+def overlapping_scope_entries(left: list[str], right: list[str]) -> list[str]:
+    overlaps: list[str] = []
+    for left_item in left:
+        for right_item in right:
+            if (
+                left_item == "."
+                or right_item == "."
+                or left_item == right_item
+                or left_item.startswith(f"{right_item}/")
+                or right_item.startswith(f"{left_item}/")
+            ):
+                overlaps.extend([left_item, right_item])
+    return dedupe_strings(overlaps)
+
+
+def detect_parallel_scope_conflicts(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> list[dict[str, Any]]:
+    conflicts: list[dict[str, Any]] = []
+    for batch_index, batch in enumerate(topological_batches(plan.tasks), start=1):
+        for left_index, left_task in enumerate(batch):
+            left_agent = agents[left_task.agent]
+            if not task_may_write(plan, left_task, left_agent):
+                continue
+            left_scopes = effective_task_scopes(plan, left_task, left_agent)
+            for right_task in batch[left_index + 1 :]:
+                right_agent = agents[right_task.agent]
+                if not task_may_write(plan, right_task, right_agent):
+                    continue
+                overlaps = overlapping_scope_entries(
+                    left_scopes,
+                    effective_task_scopes(plan, right_task, right_agent),
+                )
+                if not overlaps:
+                    continue
+                conflicts.append(
+                    {
+                        "batch": batch_index,
+                        "taskIds": [left_task.id, right_task.id],
+                        "overlappingScopes": overlaps,
+                    }
+                )
+    return conflicts
+
+
+def select_parallel_ready_batch(
+    plan: TaskPlan,
+    ready: list[TaskDefinition],
+    agents: dict[str, AgentDefinition],
+    *,
+    max_parallel: int,
+) -> list[TaskDefinition]:
+    ordered = sorted(ready, key=lambda task: task.id)
+    selected: list[TaskDefinition] = []
+    for candidate in ordered:
+        if len(selected) >= max_parallel:
+            break
+        candidate_agent = agents[candidate.agent]
+        if not task_may_write(plan, candidate, candidate_agent):
+            selected.append(candidate)
+            continue
+        candidate_scopes = effective_task_scopes(plan, candidate, candidate_agent)
+        if any(
+            task_may_write(plan, chosen, agents[chosen.agent])
+            and overlapping_scope_entries(
+                candidate_scopes,
+                effective_task_scopes(plan, chosen, agents[chosen.agent]),
+            )
+            for chosen in selected
+        ):
+            continue
+        selected.append(candidate)
+    if selected:
+        return selected
+    return ordered[:1]
+
+
 def agent_payload_for_claude(agents: dict[str, AgentDefinition]) -> str:
     payload = {
         name: {
@@ -806,6 +927,74 @@ def prepare_workspace(
             )
         return workspace_path
     raise OrchestratorError(f"{task.id}: unsupported workspace mode '{workspace_mode}'")
+
+
+def snapshot_workspace_files(workspace_root: Path) -> dict[str, str]:
+    if not workspace_root.exists():
+        return {}
+    snapshots: dict[str, str] = {}
+    for current_root, dir_names, file_names in os.walk(workspace_root, topdown=True):
+        dir_names[:] = sorted(
+            name for name in dir_names if name not in WORKSPACE_AUDIT_IGNORE_DIR_NAMES
+        )
+        current_path = Path(current_root)
+        for file_name in sorted(file_names):
+            file_path = current_path / file_name
+            snapshots[file_path.relative_to(workspace_root).as_posix()] = file_sha256(file_path)
+    return snapshots
+
+
+def diff_workspace_snapshots(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    changed = []
+    for relative_path in sorted(set(before) | set(after)):
+        if before.get(relative_path) != after.get(relative_path):
+            changed.append(relative_path)
+    return changed
+
+
+def summarize_paths(paths: list[str], *, limit: int = 4) -> str:
+    visible = paths[:limit]
+    if not visible:
+        return "none"
+    summary = ", ".join(visible)
+    hidden = len(paths) - len(visible)
+    if hidden > 0:
+        summary += f", ... ({hidden} more)"
+    return summary
+
+
+def protected_path_violations(paths: list[str]) -> list[str]:
+    violations = []
+    for path in paths:
+        normalized = Path(path).as_posix().strip("/")
+        if normalized in PROTECTED_PATH_EXACT or normalized.startswith(PROTECTED_PATH_PREFIXES):
+            violations.append(normalized)
+    return dedupe_strings(violations)
+
+
+def apply_workspace_audit(
+    record: TaskRunRecord,
+    *,
+    reported_files: list[str],
+    actual_files: list[str],
+) -> TaskRunRecord:
+    record.actual_files_touched = list(actual_files)
+    record.files_touched = dedupe_strings(actual_files + reported_files)
+    actual_only = [path for path in actual_files if path not in reported_files]
+    if actual_only:
+        record.notes.append(
+            "Workspace diff found files not reported by the worker: "
+            f"{summarize_paths(actual_only)}"
+        )
+    violations = protected_path_violations(record.files_touched)
+    record.protected_path_violations = violations
+    if violations:
+        record.status = "failed"
+        record.summary = f"Protected-path violation: {summarize_paths(violations)}. Original outcome: {record.summary}"
+        follow_up = "Inspect and discard or manually review forbidden workspace edits before promotion."
+        if follow_up not in record.follow_ups:
+            record.follow_ups.insert(0, follow_up)
+    return record
 
 
 def planner_output_path(name: str, explicit_path: str) -> Path:
@@ -1480,6 +1669,8 @@ def blocked_record(
         started_at=now,
         finished_at=now,
         files_touched=[],
+        actual_files_touched=[],
+        protected_path_violations=[],
         validation_commands=[],
         follow_ups=[reason],
         notes=[],
@@ -1576,6 +1767,8 @@ def execute_task(
             started_at=started_at,
             finished_at=iso_now(),
             files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
             validation_commands=[],
             follow_ups=["Reduce the task prompt scope, dependency summary, or validation hints."],
             notes=[],
@@ -1607,6 +1800,8 @@ def execute_task(
             started_at=started_at,
             finished_at=iso_now(),
             files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
             validation_commands=[],
             follow_ups=[],
             notes=[],
@@ -1632,6 +1827,8 @@ def execute_task(
     worker_result_path = task_dir / "worker-result.json"
     return_code: int | None = None
     usage: dict[str, Any] | None = None
+    workspace_snapshot_before = snapshot_workspace_files(prepared_workspace)
+    actual_changed_files: list[str] = []
     try:
         completed = run_subprocess(
             command,
@@ -1641,6 +1838,10 @@ def execute_task(
         return_code = completed.returncode
         write_text(stdout_path, completed.stdout)
         write_text(stderr_path, completed.stderr)
+        actual_changed_files = diff_workspace_snapshots(
+            workspace_snapshot_before,
+            snapshot_workspace_files(prepared_workspace),
+        )
         raw_payload: Any | None = None
         try:
             raw_payload = extract_json_payload(completed.stdout)
@@ -1659,6 +1860,8 @@ def execute_task(
                 started_at=started_at,
                 finished_at=iso_now(),
                 files_touched=[],
+                actual_files_touched=[],
+                protected_path_violations=[],
                 validation_commands=[],
                 follow_ups=["Inspect stderr/stdout artifacts for details."],
                 notes=[],
@@ -1676,6 +1879,7 @@ def execute_task(
                 stderr_path=str(stderr_path),
                 result_path=None,
             )
+            apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
             write_json(result_path, asdict(record))
             return record
 
@@ -1694,6 +1898,8 @@ def execute_task(
             started_at=started_at,
             finished_at=iso_now(),
             files_touched=[str(item) for item in payload["filesTouched"]],
+            actual_files_touched=[],
+            protected_path_violations=[],
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
             notes=[str(item) for item in payload["notes"]],
@@ -1711,10 +1917,19 @@ def execute_task(
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
         )
+        apply_workspace_audit(
+            record,
+            reported_files=[str(item) for item in payload["filesTouched"]],
+            actual_files=actual_changed_files,
+        )
         write_json(result_path, asdict(record))
         return record
     except OrchestratorError as exc:
         write_text(stderr_path, str(exc))
+        actual_changed_files = diff_workspace_snapshots(
+            workspace_snapshot_before,
+            snapshot_workspace_files(prepared_workspace),
+        )
         record = TaskRunRecord(
             id=task.id,
             title=task.title,
@@ -1726,6 +1941,8 @@ def execute_task(
             started_at=started_at,
             finished_at=iso_now(),
             files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
             validation_commands=[],
             follow_ups=["Retry after fixing the worker failure."],
             notes=[],
@@ -1743,6 +1960,7 @@ def execute_task(
             stderr_path=str(stderr_path),
             result_path=None,
         )
+        apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
         write_json(result_path, asdict(record))
         return record
 
@@ -1751,6 +1969,7 @@ def manifest_payload(
     run_id: str,
     plan_path: Path,
     agents_path: Path,
+    agents: dict[str, AgentDefinition],
     runtime_root: Path,
     run_dir: Path,
     workspaces_dir: Path,
@@ -1760,6 +1979,7 @@ def manifest_payload(
     dry_run: bool,
 ) -> dict[str, Any]:
     usage_totals = aggregate_usage(records)
+    parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
     return {
         "runId": run_id,
         "generatedAt": iso_now(),
@@ -1774,6 +1994,7 @@ def manifest_payload(
             "name": plan.name,
             "goal": plan.goal,
             "taskIds": [task.id for task in plan.tasks],
+            "parallelConflicts": parallel_conflicts,
         },
         "usageTotals": usage_totals,
         "tasks": {task_id: asdict(record) for task_id, record in sorted(records.items())},
@@ -1784,6 +2005,7 @@ def write_manifest(
     run_id: str,
     plan_path: Path,
     agents_path: Path,
+    agents: dict[str, AgentDefinition],
     runtime_root: Path,
     run_dir: Path,
     workspaces_dir: Path,
@@ -1798,6 +2020,7 @@ def write_manifest(
             run_id,
             plan_path,
             agents_path,
+            agents,
             runtime_root,
             run_dir,
             workspaces_dir,
@@ -1889,6 +2112,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                 run_id,
                 plan_path,
                 agents_path,
+                agents,
                 runtime_root,
                 run_dir,
                 workspaces_dir,
@@ -1919,7 +2143,12 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
             unresolved = ", ".join(sorted(pending))
             raise OrchestratorError(f"No schedulable tasks remain; unresolved tasks: {unresolved}")
 
-        batch = sorted(ready, key=lambda task: task.id)[: max(args.max_parallel, 1)]
+        batch = select_parallel_ready_batch(
+            plan,
+            ready,
+            agents,
+            max_parallel=max(args.max_parallel, 1),
+        )
         with ThreadPoolExecutor(max_workers=max(1, min(args.max_parallel, len(batch)))) as executor:
             future_map = {
                 executor.submit(
@@ -1945,6 +2174,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
                     run_id,
                     plan_path,
                     agents_path,
+                    agents,
                     runtime_root,
                     run_dir,
                     workspaces_dir,
@@ -1959,6 +2189,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         run_id,
         plan_path,
         agents_path,
+        agents,
         runtime_root,
         run_dir,
         workspaces_dir,
@@ -2002,6 +2233,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                 "taskCount": len(plan.tasks),
                 "taskIds": [task.id for task in plan.tasks],
                 "batches": [[task.id for task in batch] for batch in topological_batches(plan.tasks)],
+                "parallelConflicts": detect_parallel_scope_conflicts(plan, agents),
             }
         )
     return payload

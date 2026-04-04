@@ -63,11 +63,13 @@ Model selection:
 Concurrency:
 - ready tasks run in batches up to `--max-parallel`
 - each run gets a unique `run-id`, run manifest, and per-task workspace under `.claude-orchestrator/`
-- only schedule parallel workers when their declared file scopes do not materially overlap
+- validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
+- overlapping write-capable tasks are serialized conservatively by declared file scope even when they are dependency-ready together
 - `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks
 
 Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
+- task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
 - the coordinator owns memory updates, final summaries, and merge decisions
 - prefer `copy` mode unless a task clearly needs git metadata
 - review worker outputs before applying or cherry-picking edits back into the main repo

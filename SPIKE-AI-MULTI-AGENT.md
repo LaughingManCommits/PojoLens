@@ -174,18 +174,25 @@ What is needed:
 The docs correctly say parallel workers should not edit materially overlapping
 files.
 
-The current scheduler does not enforce that rule.
-It trusts the task author.
+As of `2026-04-04`, this is partially implemented.
+
+Now in place:
+
+- validate output and run manifests expose `parallelConflicts` for overlapping
+  write-capable task scopes
+- the run scheduler now serializes dependency-ready write-capable tasks when
+  their declared scopes overlap conservatively
 
 Current gap:
 
-- ready tasks are batched by dependency readiness and sorted id order
-- there is no overlap detection on declared file hints before parallel launch
+- overlap detection still relies on declared file scopes, not actual semantic
+  edit intent
+- there is no explicit plan-level override yet for intentionally overlapping
+  parallel work
 
 What is needed:
 
-- conservative overlap detection on normalized task file scopes
-- blocking or serializing tasks whose scopes overlap
+- continue tuning the conservative overlap rules as more live plans exist
 - an explicit override only when the coordinator intentionally accepts the risk
 
 ### 4. Protected-Path Enforcement Beyond Prompt Wording
@@ -193,16 +200,21 @@ What is needed:
 Worker prompts instruct agents not to edit `TODO.md`, `ai/state/*`,
 `ai/log/*`, or `ai/indexes/*`.
 
-Today that is mostly a prompt contract, not an enforced coordinator check.
+As of `2026-04-04`, this is also partially implemented.
 
-What is missing:
+Now in place:
 
-- post-run comparison between touched files and protected paths
-- a hard failure or warning when a worker reports or produces forbidden edits
-- stronger safeguards for `workspaceMode="repo"` runs
+- post-run comparison between workspace diffs and worker-reported touched files
+- task records now expose actual changed files plus protected-path violations
+- tasks now fail when they report or produce forbidden edits, including in
+  `workspaceMode="repo"` runs
 
-This matters even in isolated workspaces because the coordinator still needs a
-clear machine-checkable rule before applying any worker changes back.
+Current gap:
+
+- the protected-path policy is still limited to `TODO.md`, `ai/state/*`,
+  `ai/log/*`, and `ai/indexes/*`
+- the coordinator still lacks a first-class review/apply flow that consumes
+  these audit results directly
 
 ### 5. Coordinator Review and Apply Workflow
 

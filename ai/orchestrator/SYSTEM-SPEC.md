@@ -83,6 +83,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator may run ready tasks concurrently up to `--max-parallel`.
 - Parallel safety depends on isolated workspaces plus low-coupling task boundaries.
 - Workers that need to edit the same files must not be scheduled in parallel.
+- The coordinator should detect overlapping declared write scopes conservatively and serialize conflicting ready tasks.
 - Copy-mode workspace creation must ignore `.claude-orchestrator/` so live runtime artifacts are not copied back into worker sandboxes.
 - Each run id must be unique so overlapping orchestrator invocations do not collide on manifests or workspaces.
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
@@ -93,6 +94,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers must not edit `ai/state/*`, `ai/log/*`, or `ai/indexes/*`.
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces and concrete file scopes.
+- The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
 
 ## Bootstrap Procedure For Another Repo
 

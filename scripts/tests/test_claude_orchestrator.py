@@ -169,6 +169,8 @@ class PromptBudgetTest(unittest.TestCase):
             started_at="2026-04-04T00:00:00+00:00",
             finished_at="2026-04-04T00:00:01+00:00",
             files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
             validation_commands=[],
             follow_ups=[],
             notes=[],
@@ -196,6 +198,128 @@ class PromptBudgetTest(unittest.TestCase):
 
         self.assertIn("...", summary)
         self.assertIn("inspect", summary)
+
+    def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
+        orchestrator = self.orchestrator
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="impl",
+            prompt="Return JSON only.",
+            model_profile="balanced",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit", "Write"],
+            disallowed_tools=[],
+        )
+        reviewer = orchestrator.AgentDefinition(
+            name="reviewer",
+            description="review",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task_a = orchestrator.TaskDefinition(
+            id="edit-alpha",
+            title="Edit alpha",
+            agent="implementer",
+            prompt="Edit alpha.",
+            files=["src/alpha/FileA.java"],
+        )
+        task_b = orchestrator.TaskDefinition(
+            id="edit-alpha-child",
+            title="Edit alpha child",
+            agent="implementer",
+            prompt="Edit alpha child.",
+            files=["src/alpha"],
+        )
+        task_c = orchestrator.TaskDefinition(
+            id="review-docs",
+            title="Review docs",
+            agent="reviewer",
+            prompt="Review docs.",
+            files=["README.md"],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="parallel-safety",
+            goal="Serialize overlapping write tasks.",
+            shared_context=orchestrator.SharedContext(
+                summary="Parallel safety test.",
+                constraints=[],
+                files=[],
+                validation=[],
+            ),
+            tasks=[task_a, task_b, task_c],
+        )
+
+        batch = orchestrator.select_parallel_ready_batch(
+            plan,
+            [task_a, task_b, task_c],
+            {"implementer": implementer, "reviewer": reviewer},
+            max_parallel=2,
+        )
+
+        batch_ids = {task.id for task in batch}
+        self.assertIn("review-docs", batch_ids)
+        self.assertEqual(2, len(batch_ids))
+        self.assertFalse({"edit-alpha", "edit-alpha-child"}.issubset(batch_ids))
+
+    def test_apply_workspace_audit_marks_protected_path_violation(self):
+        orchestrator = self.orchestrator
+        record = orchestrator.TaskRunRecord(
+            id="edit-docs",
+            title="Edit docs",
+            agent="implementer",
+            status="completed",
+            summary="Completed safely.",
+            workspace_mode="copy",
+            workspace_path="workspace",
+            started_at="2026-04-04T00:00:00+00:00",
+            finished_at="2026-04-04T00:00:01+00:00",
+            files_touched=[],
+            actual_files_touched=[],
+            protected_path_violations=[],
+            validation_commands=[],
+            follow_ups=[],
+            notes=[],
+            model="claude-sonnet-4-6",
+            model_profile="balanced",
+            prompt_chars=10,
+            prompt_estimated_tokens=3,
+            prompt_sections=[],
+            prompt_budget=orchestrator.PromptBudgetResult(
+                max_chars=None,
+                max_estimated_tokens=None,
+                exceeded=False,
+                violations=[],
+            ),
+            usage=None,
+            return_code=0,
+            prompt_path="prompt.txt",
+            command_path="command.json",
+            stdout_path=None,
+            stderr_path=None,
+            result_path="result.json",
+        )
+
+        audited = orchestrator.apply_workspace_audit(
+            record,
+            reported_files=["ai/state/current-state.md"],
+            actual_files=[],
+        )
+
+        self.assertEqual("failed", audited.status)
+        self.assertIn("ai/state/current-state.md", audited.protected_path_violations)
+        self.assertIn("Protected-path violation", audited.summary)
 
 
 if __name__ == "__main__":
