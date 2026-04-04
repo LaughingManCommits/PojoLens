@@ -355,6 +355,24 @@ class PromptBudgetTest(unittest.TestCase):
                 }
             )
 
+    def test_validation_command_policy_rejects_shell_composition(self):
+        orchestrator = self.orchestrator
+
+        policy = orchestrator.validation_command_policy(
+            "grep -n 'foo' ai/orchestrator/README.md | grep bar"
+        )
+
+        self.assertFalse(policy["accepted"])
+        self.assertIn("shell composition", policy["reason"])
+
+    def test_validation_command_policy_accepts_repo_script(self):
+        orchestrator = self.orchestrator
+
+        policy = orchestrator.validation_command_policy("scripts/refresh-ai-memory.ps1 -Check")
+
+        self.assertTrue(policy["accepted"])
+        self.assertEqual("scripts/refresh-ai-memory.ps1", policy["entrypoint"])
+
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
         implementer = orchestrator.AgentDefinition(
@@ -1640,6 +1658,9 @@ class PromptBudgetTest(unittest.TestCase):
             repo_root.mkdir()
             run_dir.mkdir()
             manifest_path = run_dir / "manifest.json"
+            cmd_one = f"\"{sys.executable}\" -c \"print('one')\""
+            cmd_two = f"\"{sys.executable}\" -c \"print('two')\""
+            cmd_three = f"\"{sys.executable}\" -c \"print('three')\""
             orchestrator.ROOT = repo_root
             try:
                 orchestrator.write_json(
@@ -1661,7 +1682,7 @@ class PromptBudgetTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["cmd-one", "cmd-two"],
+                                "validation_commands": [cmd_one, cmd_two],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -1696,7 +1717,7 @@ class PromptBudgetTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["cmd-two", "cmd-three"],
+                                "validation_commands": [cmd_two, cmd_three],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -1726,6 +1747,7 @@ class PromptBudgetTest(unittest.TestCase):
                         run_ref=str(run_dir),
                         selected_tasks=[],
                         include_statuses=[],
+                        allow_unsafe_commands=False,
                         continue_on_error=False,
                         timeout_sec=60,
                         dry_run=True,
@@ -1736,13 +1758,15 @@ class PromptBudgetTest(unittest.TestCase):
                 orchestrator.ROOT = old_root
 
         self.assertEqual("validate-run-1", payload["runId"])
-        self.assertEqual(["cmd-one", "cmd-two", "cmd-three"], payload["suggestedCommands"])
+        self.assertEqual([cmd_one, cmd_two, cmd_three], payload["suggestedCommands"])
         self.assertEqual(3, payload["commandCount"])
         self.assertEqual({"planned": 3}, payload["statusCounts"])
         self.assertTrue(payload["allPassed"])
+        self.assertEqual(3, payload["acceptedCommandCount"])
+        self.assertEqual(0, payload["rejectedCommandCount"])
         self.assertIn("coordinatorValidation", updated_manifest)
         self.assertEqual(
-            ["cmd-one", "cmd-two", "cmd-three"],
+            [cmd_one, cmd_two, cmd_three],
             updated_manifest["coordinatorValidation"]["suggestedCommands"],
         )
 
@@ -1810,6 +1834,7 @@ class PromptBudgetTest(unittest.TestCase):
                         run_ref=str(run_dir),
                         selected_tasks=[],
                         include_statuses=[],
+                        allow_unsafe_commands=False,
                         continue_on_error=False,
                         timeout_sec=60,
                         dry_run=False,
@@ -1866,7 +1891,7 @@ class PromptBudgetTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["cmd-one"],
+                                "validation_commands": ["scripts/refresh-ai-memory.ps1 -Check"],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -1901,7 +1926,7 @@ class PromptBudgetTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["cmd-two"],
+                                "validation_commands": ["py -3 -m py_compile scripts/claude-orchestrator.py"],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -1931,6 +1956,7 @@ class PromptBudgetTest(unittest.TestCase):
                         run_ref=str(run_dir),
                         selected_tasks=[],
                         include_statuses=[],
+                        allow_unsafe_commands=False,
                         continue_on_error=False,
                         timeout_sec=60,
                         dry_run=True,
@@ -1942,11 +1968,92 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual(["completed"], payload["includedStatuses"])
         self.assertEqual(["task-completed"], payload["includedTaskIds"])
         self.assertEqual(["task-blocked"], payload["excludedTaskIds"])
-        self.assertEqual(["cmd-one"], payload["suggestedCommands"])
+        self.assertEqual(["scripts/refresh-ai-memory.ps1 -Check"], payload["suggestedCommands"])
         self.assertEqual(1, payload["commandCount"])
         blocked_task = next(task for task in payload["tasks"] if task["id"] == "task-blocked")
         self.assertFalse(blocked_task["includedForValidation"])
         self.assertIn("excluded by the current validation policy", blocked_task["excludedReason"])
+
+    def test_validate_run_rejects_unsafe_commands_by_default(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            safe_cmd = "scripts/refresh-ai-memory.ps1 -Check"
+            unsafe_cmd = "grep -n 'workers must not' ai/orchestrator/README.md | grep state"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-4",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [safe_cmd, unsafe_cmd],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        allow_unsafe_commands=False,
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(2, payload["commandCount"])
+        self.assertEqual(1, payload["acceptedCommandCount"])
+        self.assertEqual(1, payload["rejectedCommandCount"])
+        self.assertEqual({"planned": 1, "rejected": 1}, payload["statusCounts"])
+        self.assertFalse(payload["allPassed"])
+        rejected = next(command for command in payload["commands"] if command["status"] == "rejected")
+        self.assertFalse(rejected["policyAccepted"])
+        self.assertIn("shell composition", rejected["policyReason"])
 
 
 if __name__ == "__main__":

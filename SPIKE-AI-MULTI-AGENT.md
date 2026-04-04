@@ -282,6 +282,8 @@ Now in place:
 - a `validate-run` command that dedupes worker-suggested validation commands
 - default validation policy now excludes non-completed tasks unless the
   coordinator explicitly opts into other statuses
+- command-quality policy now rejects shell-composed or unknown-entrypoint
+  validation commands by default unless the coordinator explicitly overrides it
 - optional coordinator-side execution of those commands from repo root
 - a manifest section that distinguishes worker-suggested validation from
   coordinator-run validation results
@@ -289,8 +291,8 @@ Now in place:
 What is still needed:
 
 - richer validation presets or policy controls beyond raw shell commands
-- stronger command-quality or safety rules than "worker suggested a shell
-  string"
+- possibly move from free-form command strings to structured validation intents
+  for stronger portability and safety
 
 ### 8. Automated Regression Coverage
 

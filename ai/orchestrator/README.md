@@ -31,6 +31,7 @@ scripts/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
 scripts/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
 scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
 ```
@@ -81,6 +82,7 @@ Coordinator rules:
 - task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - `validate-run` dedupes worker-suggested `validation_commands`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute them from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
+- `validate-run` also enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
 - worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationCommands` are capped, and malformed status or list fields fail the task
 - `review` summarizes per-task file diffs from worker workspaces; `export-patch` writes unified diffs for copy/worktree runs; `promote` applies reviewed copy/worktree changes back into the repo
 - `promote` refuses protected-path violations, repo-mode records, path traversal, and ambiguous multi-task ownership of the same changed file

@@ -91,7 +91,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 - The coordinator should support bounded lifecycle helpers for retrying failed or blocked tasks from a prior manifest and cleaning run-scoped artifacts, including detached worktrees.
-- The coordinator should support a run-validation surface that consolidates worker-suggested validation commands, defaults to completed-task commands unless the coordinator explicitly broadens the policy, can execute them from repo root, and records actual coordinator validation outcomes separately in the run manifest.
+- The coordinator should support a run-validation surface that consolidates worker-suggested validation commands, defaults to completed-task commands unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted commands from repo root, and records actual coordinator validation outcomes separately in the run manifest.
 
 ## Worker Protection Rules
 
@@ -101,6 +101,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Planner output should prefer `copy` workspaces and concrete file scopes.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
 - The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays, compact oversized summaries, and cap `notes`, `followUps`, and `validationCommands` to a few high-signal items before writing task records.
+- Worker `validationCommands` should prefer direct repo-local script invocations or approved tool commands; shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
 - Worker `validationCommands` remain suggestions; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.

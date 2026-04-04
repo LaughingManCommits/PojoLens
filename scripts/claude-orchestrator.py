@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -53,6 +54,25 @@ MAX_WORKER_FOLLOW_UPS = 3
 MAX_WORKER_FOLLOW_UP_CHARS = 180
 MAX_WORKER_VALIDATION_COMMANDS = 2
 MAX_WORKER_VALIDATION_COMMAND_CHARS = 320
+VALIDATION_ALLOWED_EXECUTABLES = {
+    "git",
+    "java",
+    "mvn",
+    "mvnw",
+    "mvnw.cmd",
+    "node",
+    "npm",
+    "pnpm",
+    "pwsh",
+    "py",
+    "pytest",
+    "python",
+    "python3",
+    "yarn",
+}
+VALIDATION_ALLOWED_RELATIVE_PREFIXES = ("scripts/",)
+VALIDATION_ALLOWED_SCRIPT_SUFFIXES = {".bat", ".cmd", ".ps1", ".py", ".sh"}
+VALIDATION_SHELL_OPERATOR_TOKENS = {"&", "&&", "|", "||", ";", "<", ">", ">>"}
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
 SPARSE_COPY_BASE_FILES = ("AGENTS.md", "ai/AGENTS.md")
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
@@ -595,6 +615,11 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(WORKER_STATUSES | {"planned"}),
         default=[],
         help="Include validation commands from tasks with this status. Defaults to completed only. Repeatable.",
+    )
+    validate_run_parser.add_argument(
+        "--allow-unsafe-commands",
+        action="store_true",
+        help="Execute worker-suggested validation commands even when they fail the coordinator quality policy.",
     )
     validate_run_parser.add_argument(
         "--continue-on-error",
@@ -1979,6 +2004,35 @@ def truncate_command_text(text: str, max_chars: int) -> tuple[str, bool]:
     return stripped[: max_chars - 3].rstrip() + "...", True
 
 
+def strip_optional_quotes(token: str) -> str:
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in {"'", '"'}:
+        return token[1:-1]
+    return token
+
+
+def contains_unquoted_shell_operator(text: str) -> bool:
+    in_single = False
+    in_double = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "'" and not in_double:
+            in_single = not in_single
+            index += 1
+            continue
+        if char == '"' and not in_single:
+            in_double = not in_double
+            index += 1
+            continue
+        if not in_single and not in_double:
+            if text.startswith(("&&", "||", ">>"), index):
+                return True
+            if char in {"|", "&", ";", "<", ">"}:
+                return True
+        index += 1
+    return False
+
+
 def normalize_worker_text_list(
     payload: Any,
     *,
@@ -2004,6 +2058,87 @@ def normalize_worker_text_list(
         if len(normalized) >= max_items:
             break
     return dedupe_strings(normalized)
+
+
+def validation_command_policy(command_text: str) -> dict[str, Any]:
+    stripped = command_text.strip()
+    if not stripped:
+        return {
+            "accepted": False,
+            "reason": "empty command",
+            "entrypoint": None,
+        }
+    if "\n" in stripped or "\r" in stripped:
+        return {
+            "accepted": False,
+            "reason": "multi-line commands are not allowed",
+            "entrypoint": None,
+        }
+    if contains_unquoted_shell_operator(stripped):
+        return {
+            "accepted": False,
+            "reason": "shell composition is not allowed; use a direct tool or script invocation",
+            "entrypoint": None,
+        }
+    try:
+        tokens = shlex.split(stripped, posix=False)
+    except ValueError as exc:
+        return {
+            "accepted": False,
+            "reason": f"unable to parse command text: {exc}",
+            "entrypoint": None,
+        }
+    if not tokens:
+        return {
+            "accepted": False,
+            "reason": "empty command",
+            "entrypoint": None,
+        }
+    cleaned_tokens = [strip_optional_quotes(token) for token in tokens]
+    entrypoint = cleaned_tokens[0]
+    entry_path = Path(entrypoint)
+    if entry_path.is_absolute():
+        suffix = entry_path.suffix.lower()
+        if suffix == ".exe" or entry_path.name.lower() in VALIDATION_ALLOWED_EXECUTABLES:
+            return {
+                "accepted": True,
+                "reason": None,
+                "entrypoint": entrypoint,
+            }
+        return {
+            "accepted": False,
+            "reason": "absolute entrypoint is not an approved executable",
+            "entrypoint": entrypoint,
+        }
+    lowered_entrypoint = entrypoint.lower()
+    if lowered_entrypoint in VALIDATION_ALLOWED_EXECUTABLES:
+        return {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": entrypoint,
+        }
+    try:
+        normalized = normalize_relative_path(entrypoint, location="validation command entrypoint")
+    except OrchestratorError as exc:
+        return {
+            "accepted": False,
+            "reason": str(exc),
+            "entrypoint": entrypoint,
+        }
+    suffix = Path(normalized).suffix.lower()
+    if suffix in VALIDATION_ALLOWED_SCRIPT_SUFFIXES and (
+        normalized in {"mvnw", "mvnw.cmd"} or normalized.startswith(VALIDATION_ALLOWED_RELATIVE_PREFIXES)
+    ):
+        return {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": normalized,
+        }
+    return {
+        "accepted": False,
+        "reason": "entrypoint is not an approved repo-local script or executable",
+        "entrypoint": normalized,
+    }
 
 
 def worker_prompt(
@@ -2049,6 +2184,7 @@ def worker_prompt(
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` to <=2.",
             "Leave arrays empty when there is nothing important to add. Skip low-value detail.",
+            "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
             "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
             "Do not edit TODO.md, ai/state/*, ai/log/*, or ai/indexes/*.",
@@ -3240,6 +3376,7 @@ def collect_validation_commands(
         {
             "command": command,
             "taskIds": command_owners[command],
+            "policy": validation_command_policy(command),
         }
         for command in command_order
     ]
@@ -3299,15 +3436,29 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     stop_after_failure = False
     for index, command_payload in enumerate(commands, start=1):
         command_text = str(command_payload["command"])
+        policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": None,
+        }
+        policy_accepted = bool(policy.get("accepted", False))
         result_payload: dict[str, Any] = {
             "index": index,
             "command": command_text,
             "taskIds": list(command_payload["taskIds"]),
+            "policyAccepted": policy_accepted,
+            "policyReason": policy.get("reason"),
+            "policyOverride": bool(args.allow_unsafe_commands and not policy_accepted),
+            "entrypoint": policy.get("entrypoint"),
             "status": "planned" if args.dry_run else "completed",
             "returnCode": None,
             "stdoutPath": None,
             "stderrPath": None,
         }
+        if not policy_accepted and not args.allow_unsafe_commands:
+            result_payload["status"] = "rejected"
+            command_results.append(result_payload)
+            continue
         if stop_after_failure:
             result_payload["status"] = "skipped"
             command_results.append(result_payload)
@@ -3358,6 +3509,9 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         "includedTaskIds": [payload["id"] for payload in task_payloads if payload["includedForValidation"]],
         "excludedTaskIds": [payload["id"] for payload in task_payloads if not payload["includedForValidation"]],
         "commandCount": len(command_results),
+        "acceptedCommandCount": sum(1 for payload in command_results if payload.get("policyAccepted")),
+        "rejectedCommandCount": sum(1 for payload in command_results if payload["status"] == "rejected"),
+        "allowUnsafeCommands": bool(args.allow_unsafe_commands),
         "suggestedCommands": [payload["command"] for payload in commands],
         "commands": command_results,
         "statusCounts": count_statuses([str(payload["status"]) for payload in command_results]),
