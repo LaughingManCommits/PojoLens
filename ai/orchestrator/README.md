@@ -35,7 +35,7 @@ Dry runs:
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 
 Workspace modes:
-- `copy`: isolated filesystem copy of the current repo state; safe default
+- `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit file hints; safe default
 - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
 - `repo`: live repo root; high-risk and opt-in only
 
@@ -44,7 +44,7 @@ Context discipline:
 - minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
-- copy-mode workspace hydration only pulls explicit file hints, skips directories, and skips files above `512 KB`
+- copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies explicit file hints, skips directory hints, and skips files above `512 KB`
 
 Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it

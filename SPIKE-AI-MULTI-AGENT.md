@@ -144,30 +144,28 @@ What this changed:
 
 ### 2. Real Sparse Copy Workspaces
 
-The docs describe copy-mode hydration as if workers only receive explicit file
-hints.
+As of `2026-04-04`, this is mostly implemented.
 
-The current implementation does not fully do that:
+Now in place:
 
-- `prepare_workspace(...)` first copies nearly the whole repo, minus ignored
-  trees
-- `hydrate_copy_workspace(...)` then adds explicit file hints on top
-
-That means copy mode is still broader than the docs imply.
+- `prepare_workspace(...)` no longer copies the whole repo for `copy` mode
+- sparse workspaces are seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit
+  task/shared file hints only
+- directory hints are not hydrated
+- oversized files above the configured cap are skipped
 
 Why this matters:
 
-- workers inherit more repo context than intended
-- copy cost is higher than necessary
-- prompt minimization and workspace minimization are not aligned
+- workers inherit less accidental repo context
+- copy cost now aligns better with prompt minimization
+- the runtime contract is now closer to what the docs promised
 
 What is needed:
 
-- a true sparse copy mode that copies only allowed tracked files plus explicit
-  task/shared hints
-- a clear rule for whether directory hints are supported or file-only hints are
-  the contract
-- docs updated to match the real behavior
+- live task-plan experience to confirm whether the small fixed base seed is
+  sufficient in practice
+- continued pressure on planner/task authors to keep file hints concrete for
+  copy workspaces
 
 ### 3. Parallel File-Scope Safety Checks
 

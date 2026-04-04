@@ -62,7 +62,7 @@ This file defines the portable contract for recreating the repository's AI memor
   - optional `modelProfile` to trade off speed, cost, and depth
   - workspace mode overrides when needed
 - Supported workspace modes are:
-  - `copy`: isolated filesystem copy of the current working tree; default
+  - `copy`: isolated sparse filesystem copy seeded from repo instructions plus explicit file hints; default
   - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
   - `repo`: live repo root; explicit high-risk exception only
 - Prompt context should default to `contextMode = minimal`:
@@ -71,7 +71,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - include task-local validation hints by default
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
-- Copy-mode workspace hydration should copy only explicit file hints, skip directories, and skip oversized files so workers do not inherit large generated trees by accident.
+- Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy only explicit file hints, skip directory hints, and skip oversized files so workers do not inherit large generated trees by accident.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`

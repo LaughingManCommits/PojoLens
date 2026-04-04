@@ -41,6 +41,7 @@ DEFAULT_PROMPT_SECTION_ITEM_LIMIT = 8
 DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
+SPARSE_COPY_BASE_FILES = ("AGENTS.md", "ai/AGENTS.md")
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
     ".git",
     ".claude",
@@ -54,18 +55,6 @@ WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
 }
 PROTECTED_PATH_EXACT = {"TODO.md"}
 PROTECTED_PATH_PREFIXES = ("ai/state/", "ai/log/", "ai/indexes/")
-COPY_IGNORE_NAMES = {
-    ".git",
-    ".claude",
-    ".claude-orchestrator",
-    ".idea",
-    ".mvn",
-    ".vs",
-    "__pycache__",
-    "node_modules",
-    "target",
-}
-
 WORKER_RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -853,27 +842,10 @@ def path_is_relative_to(path: Path, parent: Path) -> bool:
         return False
 
 
-def repo_copy_ignore(directory: str, names: list[str], runtime_root: Path) -> set[str]:
-    current_dir = Path(directory).resolve()
-    resolved_runtime_root = runtime_root.resolve()
-    indexes_dir = (ROOT / "ai" / "indexes").resolve()
-    ignored = set()
-    for name in names:
-        candidate = (current_dir / name).resolve()
-        if name in COPY_IGNORE_NAMES:
-            ignored.add(name)
-        elif current_dir == indexes_dir and (
-            name.endswith(".db") or name.endswith(".sqlite") or name.endswith(".sqlite3")
-        ):
-            ignored.add(name)
-        elif path_is_relative_to(resolved_runtime_root, candidate):
-            ignored.add(name)
-    return ignored
-
-
 def hydrate_copy_workspace(workspace_path: Path, file_hints: list[str]) -> None:
     copied: set[Path] = set()
-    for hint in file_hints:
+    workspace_path.mkdir(parents=True, exist_ok=True)
+    for hint in dedupe_strings(list(SPARSE_COPY_BASE_FILES) + file_hints):
         relative = Path(hint)
         if relative.is_absolute():
             continue
@@ -905,11 +877,6 @@ def prepare_workspace(
         shutil.rmtree(workspace_path)
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     if workspace_mode == "copy":
-        shutil.copytree(
-            ROOT,
-            workspace_path,
-            ignore=lambda directory, names: repo_copy_ignore(directory, names, runtime_root),
-        )
         hydrate_copy_workspace(workspace_path, plan.shared_context.files + task.files)
         return workspace_path
     if workspace_mode == "worktree":
@@ -1046,7 +1013,7 @@ def planner_prompt(
             '`modelProfile="simple"` fits quick summaries, classification, or narrow lookups.',
             '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
             '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
-            "Keep file lists repo-relative and concrete.",
+            "Keep file lists repo-relative, concrete, and file-based for copy workspaces.",
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
             "Put cross-task setup in `sharedContext`.",
@@ -1274,7 +1241,7 @@ def worker_prompt(
         else dedupe_strings(plan.shared_context.validation + task.validation)
     )
     workspace_rule = {
-        "copy": "Isolated filesystem copy of the current working tree. Edit only inside this copy.",
+        "copy": "Isolated sparse filesystem copy seeded from AGENTS files plus explicit file hints from the current working tree. Edit only inside this copy.",
         "repo": "Live repo root. Treat this as high-risk and avoid incidental edits.",
         "worktree": "Detached git worktree rooted at HEAD. Root-repo uncommitted changes are not present.",
     }[workspace_mode]

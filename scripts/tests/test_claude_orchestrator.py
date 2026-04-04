@@ -321,6 +321,68 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("ai/state/current-state.md", audited.protected_path_violations)
         self.assertIn("Protected-path violation", audited.summary)
 
+    def test_prepare_workspace_copy_is_sparse(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            (repo_root / "ai").mkdir(parents=True)
+            (repo_root / "docs").mkdir(parents=True)
+            (repo_root / "nested").mkdir(parents=True)
+            (repo_root / "AGENTS.md").write_text("root guidance\n", encoding="utf-8")
+            (repo_root / "ai" / "AGENTS.md").write_text("ai guidance\n", encoding="utf-8")
+            (repo_root / "docs" / "guide.md").write_text("guide\n", encoding="utf-8")
+            (repo_root / "notes.txt").write_text("notes\n", encoding="utf-8")
+            (repo_root / "nested" / "hinted.txt").write_text("hinted\n", encoding="utf-8")
+            (repo_root / "nested" / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+            (repo_root / "large.bin").write_bytes(
+                b"x" * (orchestrator.MAX_HYDRATED_FILE_BYTES + 1)
+            )
+            orchestrator.ROOT = repo_root
+            try:
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="sparse-copy",
+                    goal="Hydrate only hinted files.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Sparse workspace test.",
+                        constraints=[],
+                        files=["docs/guide.md", "nested", "large.bin"],
+                        validation=[],
+                    ),
+                    tasks=[],
+                )
+                task = orchestrator.TaskDefinition(
+                    id="copy-task",
+                    title="Copy task",
+                    agent="analyst",
+                    prompt="Inspect sparse workspace.",
+                    files=["notes.txt", "nested/hinted.txt"],
+                    workspace_mode="copy",
+                )
+
+                workspace = orchestrator.prepare_workspace(
+                    plan,
+                    task,
+                    "copy",
+                    temp_path / "workspace",
+                    temp_path / "runtime",
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+            copied_files = sorted(
+                str(path.relative_to(workspace)).replace("\\", "/")
+                for path in workspace.rglob("*")
+                if path.is_file()
+            )
+
+        self.assertEqual(
+            ["AGENTS.md", "ai/AGENTS.md", "docs/guide.md", "nested/hinted.txt", "notes.txt"],
+            copied_files,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

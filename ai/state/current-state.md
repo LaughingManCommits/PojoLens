@@ -13,7 +13,7 @@
 
 - `2026-04-01`: scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` isolated reflection-heavy SQL-like chart mapping.
 - `2026-04-01`: Claude orchestration now defaults to repo-local `.claude-orchestrator/`.
-- `2026-04-04`: Claude orchestration now records prompt sections, enforces prompt budgets, serializes overlapping write scopes, audits workspace diffs against protected paths, and uses leaner JSON-only role prompts.
+- `2026-04-04`: Claude orchestration now records prompt sections, enforces prompt budgets, uses true sparse-copy workspaces, serializes overlapping write scopes, audits workspace diffs against protected paths, and uses leaner JSON-only role prompts.
 - `2026-04-03`: the natural-query surface now covers vocabulary, grouped aggregates, time buckets/charts, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded grammar aliases; `docs/natural.md` is the canonical guide.
 - `2026-04-03`: live `example-review.json` orchestration proof now succeeds in `copy` mode after fixing `claude_command(...)` so variadic tool flags cannot consume the prompt; worker JSON, usage totals, and runtime artifacts are captured end to end.
 - `2026-04-03`: `SPIKE-LIMITATIONS.md` recommends time-type broadening first, then grouped/aggregate subquery widening.
@@ -30,14 +30,13 @@
 - Natural `schema(...)` is still structural, not vocabulary-resolved.
 - Natural execution still rebuilds a resolved `SqlLikeQuery` per execution/explain call.
 - Claude prompt budgets are only dry-run validated so far; live multi-task runs still need budget tuning before the limits should be treated as fully calibrated.
-- Copy mode still is not a true sparse-copy workspace.
 
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - If natural follow-up resumes, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
 - Keep README onboarding balanced across query styles and push deep recipes into docs.
-- For the AI orchestration spike, move next to true sparse-copy workspaces, then coordinator review/apply helpers and broader Python regression coverage.
+- For the AI orchestration spike, move next to coordinator review/apply helpers, then broader Python regression coverage and live prompt-budget tuning.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.
 - After AI memory edits, rerun `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
