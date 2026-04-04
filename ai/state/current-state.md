@@ -12,7 +12,7 @@
 ## Verified
 
 - `2026-04-01`: scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` isolated reflection-heavy SQL-like chart mapping.
-- `2026-04-04`: Claude orchestration now records prompt sections, enforces prompt budgets, uses true sparse-copy workspaces, serializes overlapping write scopes, audits workspace diffs against protected paths, exposes `review`, exports unified patches, can conservatively `promote` isolated worker changes back into the repo, supports manifest-driven `retry`, run-scoped `cleanup`, and `validate-run` with persisted validation results.
+- `2026-04-04`: Claude orchestration now records prompt sections, enforces prompt budgets, uses true sparse-copy workspaces, serializes overlapping write scopes, audits workspace diffs against protected paths, exposes `review`, exports unified patches, can `promote` isolated worker changes back into the repo, supports `retry`/`cleanup`/`validate-run`, and now has regression coverage for malformed worker output plus fail-fast and dependency-blocking paths.
 - `2026-04-03`: the natural-query surface now covers vocabulary, grouped aggregates, time buckets/charts, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded grammar aliases; `docs/natural.md` is the canonical guide.
 - `2026-04-03`: live `example-review.json` orchestration proof now succeeds in `copy` mode after fixing `claude_command(...)` so variadic tool flags cannot consume the prompt; worker JSON, usage totals, and runtime artifacts are captured end to end.
 
@@ -35,6 +35,6 @@
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - If natural follow-up resumes, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
 - Keep README onboarding balanced across query styles and push deep recipes into docs.
-- For the AI orchestration spike, move next to broader failure-path regression coverage plus live prompt-budget tuning on real runs.
+- For the AI orchestration spike, move next to live prompt-budget tuning on real runs plus validation-policy refinement.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.

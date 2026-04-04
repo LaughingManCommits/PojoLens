@@ -18,7 +18,7 @@
 - `docs/natural.md` is the canonical natural-query guide.
 - Live `example-review.json` now proves the orchestrator end to end in `copy` mode after fixing `claude_command(...)` so variadic tool flags cannot consume the prompt.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
-- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt sections/budgets, sparse-copy workspaces, overlapping-scope serialization, protected-path audits, `review`, `export-patch`, conservative `promote`, manifest-driven `retry`, run-scoped `cleanup`, and coordinator-side `validate-run` are now in place, and the next spike slice is broader failure-path regression coverage plus live prompt-budget tuning.
+- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt sections/budgets, sparse-copy workspaces, overlapping-scope serialization, protected-path audits, `review`, `export-patch`, conservative `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are now in place, with regression coverage for malformed worker output plus fail-fast/dependency-blocking paths; the next spike slice is live prompt-budget tuning plus deeper validation-policy refinement.
 
 ## Validate
 

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,53 @@ def load_orchestrator_module():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def make_task_run_record(
+    orchestrator,
+    task,
+    *,
+    status,
+    summary,
+    agent_name=None,
+    workspace_mode="copy",
+    workspace_path="",
+):
+    return orchestrator.TaskRunRecord(
+        id=task.id,
+        title=task.title,
+        agent=agent_name or task.agent,
+        status=status,
+        summary=summary,
+        workspace_mode=workspace_mode,
+        workspace_path=workspace_path,
+        started_at="2026-04-04T00:00:00+00:00",
+        finished_at="2026-04-04T00:00:01+00:00",
+        files_touched=[],
+        actual_files_touched=[],
+        protected_path_violations=[],
+        validation_commands=[],
+        follow_ups=[],
+        notes=[],
+        model="claude-haiku-4-5",
+        model_profile="simple",
+        prompt_chars=1,
+        prompt_estimated_tokens=1,
+        prompt_sections=[],
+        prompt_budget=orchestrator.PromptBudgetResult(
+            max_chars=None,
+            max_estimated_tokens=None,
+            exceeded=False,
+            violations=[],
+        ),
+        usage=None,
+        return_code=0 if status == "completed" else 1,
+        prompt_path="",
+        command_path="",
+        stdout_path=None,
+        stderr_path=None,
+        result_path=None,
+    )
 
 
 class ClaudeCommandTest(unittest.TestCase):
@@ -383,6 +431,294 @@ class PromptBudgetTest(unittest.TestCase):
             ["AGENTS.md", "ai/AGENTS.md", "docs/guide.md", "nested/hinted.txt", "notes.txt"],
             copied_files,
         )
+
+    def test_execute_task_fails_when_worker_stdout_is_not_json(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_subprocess = orchestrator.run_subprocess
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            runtime_root = temp_path / "runtime"
+            workspaces_dir = temp_path / "workspaces"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            runtime_root.mkdir()
+            workspaces_dir.mkdir()
+            orchestrator.ROOT = repo_root
+            orchestrator.run_subprocess = (
+                lambda command, *, cwd, timeout_sec: subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "worker narration only",
+                    "",
+                )
+            )
+            try:
+                agent = orchestrator.AgentDefinition(
+                    name="analyst",
+                    description="analysis",
+                    prompt="Return JSON only.",
+                    model_profile="simple",
+                    effort="high",
+                    permission_mode="dontAsk",
+                    workspace_mode="repo",
+                    context_mode="minimal",
+                    timeout_sec=30,
+                    allowed_tools=["Read"],
+                    disallowed_tools=[],
+                )
+                task = orchestrator.TaskDefinition(
+                    id="inspect-json",
+                    title="Inspect JSON",
+                    agent="analyst",
+                    prompt="Inspect worker JSON output.",
+                    workspace_mode="repo",
+                )
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="worker-json-failure",
+                    goal="Fail malformed worker output cleanly.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Worker JSON failure test.",
+                        constraints=[],
+                        files=[],
+                        validation=[],
+                    ),
+                    tasks=[task],
+                )
+
+                record = orchestrator.execute_task(
+                    run_dir,
+                    runtime_root,
+                    workspaces_dir,
+                    plan,
+                    {"analyst": agent},
+                    task,
+                    {},
+                    claude_bin="claude",
+                    agents_json="{}",
+                    dry_run=False,
+                )
+                stdout_text = pathlib.Path(record.stdout_path).read_text(encoding="utf-8")
+                stderr_text = pathlib.Path(record.stderr_path).read_text(encoding="utf-8")
+            finally:
+                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("failed", record.status)
+        self.assertIn("standalone JSON payload", record.summary)
+        self.assertEqual("worker narration only", stdout_text)
+        self.assertIn("standalone JSON payload", stderr_text)
+        self.assertIsNone(record.result_path)
+
+    def test_run_loaded_plan_fail_fast_blocks_remaining_ready_tasks(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_fail = orchestrator.TaskDefinition(
+                id="a-fail",
+                title="A fails",
+                agent="analyst",
+                prompt="Fail.",
+            )
+            task_ready = orchestrator.TaskDefinition(
+                id="c-ready",
+                title="C ready",
+                agent="analyst",
+                prompt="Would have run next.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="fail-fast",
+                goal="Stop scheduling after the first failure.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Fail-fast test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task_fail, task_ready],
+            )
+            executed_task_ids: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+            ):
+                executed_task_ids.append(task.id)
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="failed",
+                    summary="Worker failed.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        tasks_by_id = {task["id"]: task for task in payload["tasks"]}
+        self.assertEqual(["a-fail"], executed_task_ids)
+        self.assertEqual({"failed": 1, "blocked": 1}, payload["statusCounts"])
+        self.assertEqual("blocked", tasks_by_id["c-ready"]["status"])
+        self.assertIn(
+            "Coordinator stopped scheduling new tasks after a worker failure.",
+            tasks_by_id["c-ready"]["summary"],
+        )
+
+    def test_run_loaded_plan_blocks_dependents_after_failed_dependency(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_fail = orchestrator.TaskDefinition(
+                id="a-fail",
+                title="A fails",
+                agent="analyst",
+                prompt="Fail.",
+            )
+            task_blocked = orchestrator.TaskDefinition(
+                id="b-needs-a",
+                title="B needs A",
+                agent="analyst",
+                prompt="Wait for A.",
+                depends_on=["a-fail"],
+            )
+            task_independent = orchestrator.TaskDefinition(
+                id="c-independent",
+                title="C independent",
+                agent="analyst",
+                prompt="Can still run.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="dependency-blocking",
+                goal="Block dependents while letting independent tasks continue.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Dependency blocking test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task_fail, task_blocked, task_independent],
+            )
+            executed_task_ids: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+            ):
+                executed_task_ids.append(task.id)
+                status = "failed" if task.id == "a-fail" else "completed"
+                summary = "Upstream failed." if task.id == "a-fail" else "Independent task completed."
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status=status,
+                    summary=summary,
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=2,
+                    continue_on_error=True,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        tasks_by_id = {task["id"]: task for task in payload["tasks"]}
+        self.assertEqual({"a-fail", "c-independent"}, set(executed_task_ids))
+        self.assertEqual({"failed": 1, "blocked": 1, "completed": 1}, payload["statusCounts"])
+        self.assertEqual("blocked", tasks_by_id["b-needs-a"]["status"])
+        self.assertIn("Dependency failed or was blocked.", tasks_by_id["b-needs-a"]["summary"])
+        self.assertEqual("completed", tasks_by_id["c-independent"]["status"])
 
     def test_review_run_reports_diff_summary(self):
         orchestrator = self.orchestrator

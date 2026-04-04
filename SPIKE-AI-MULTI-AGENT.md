@@ -291,15 +291,24 @@ What is still needed:
 
 ### 8. Automated Regression Coverage
 
-There is currently no dedicated automated test suite for the orchestrator.
+As of `2026-04-04`, this is partially implemented.
 
-What is missing:
+Now in place:
 
-- parser and schema tests for agents and task plans
-- batching tests for dependency ordering and `--task` selection
-- failure-path tests for blocked, failed, and malformed JSON worker output
-- workspace-prep tests for copy, worktree, and protected runtime-root behavior
-- manifest and usage aggregation tests
+- Python-side regression tests for CLI command shaping and prompt-budget
+  enforcement
+- scheduler safety tests for overlapping write scopes, fail-fast behavior, and
+  dependency blocking
+- worker failure-path coverage for malformed JSON output
+- workspace-prep coverage for sparse copy mode and protected-path auditing
+- review/export/promote/retry/cleanup/validate-run coverage for the coordinator
+  lifecycle
+
+What is still missing:
+
+- broader negative parser/schema coverage for invalid agents and task plans
+- more worktree-mode and cleanup error-path coverage
+- live CLI integration regression beyond the current focused proof
 
 This matters because the orchestration surface is now large enough that docs and
 dry-runs alone are not strong regression protection.
@@ -451,9 +460,9 @@ What it does not have yet is full operational confidence.
 The right next move is to harden and prove the current design:
 
 - live-run proof is now done
-- next: prompt economy, workspace safety, and review ergonomics
-- then coordinator ergonomics
-- then regression coverage
+- next: live prompt-budget tuning and validation-policy refinement
+- regression coverage is now real, but it should keep growing around newly found
+  failure modes
 
 That keeps the orchestration surface useful, inspectable, and aligned with the
 repo's existing local-first workflow.
