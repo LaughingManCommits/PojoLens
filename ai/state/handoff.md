@@ -19,9 +19,9 @@
 - Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode after bounded dependency handoff and stricter worker output caps.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, overlap serialization, protected-path audits, `review`, `export-patch`, `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are in place.
-- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, normalizes safe raw commands onto argv, preserves unknown-vs-empty worker lists, shows live interactive `stderr` progress, and has `validate-run --intents-only` plus legacy-command accounting.
-- Worker validation mode now resolves CLI override -> task -> agent -> `compat`; manifests surface `mixed`, `workerValidationModeOverride`, and per-task modes when needed.
-- Next orchestrator spike: choose task-level vs agent-level `workerValidationMode`, then decide whether to widen intent kinds or remove raw `validationCommands`.
+- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, normalizes safe raw commands onto argv, preserves unknown-vs-empty worker lists, and has live `stderr` progress plus `validate-run --intents-only`.
+- `analyst` and `reviewer` now default to `workerValidationMode = intents-only`; `validate --json` and run/manifests surface mode sources plus per-task mode maps.
+- Next orchestrator spike: decide whether `implementer` should also default to intent-only validation, then whether to widen intent kinds or remove raw `validationCommands`.
 
 ## Validate
 

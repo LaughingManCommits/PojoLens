@@ -254,6 +254,131 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertFalse(payload["promptBudget"]["exceeded"])
         self.assertGreater(len(payload["promptSections"]), 0)
 
+
+class ValidateCommandTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.orchestrator = load_orchestrator_module()
+
+    def test_validate_command_reports_effective_worker_validation_sources(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "planning",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "effort": "high",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "analyst": {
+                                "description": "analysis",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "effort": "high",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "workerValidationMode": "intents-only",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "implementer": {
+                                "description": "implementation",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "effort": "high",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "validate-worker-validation",
+                        "goal": "Inspect effective validation-mode sources.",
+                        "sharedContext": {
+                            "summary": "Validation summary test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect guidance.",
+                            },
+                            {
+                                "id": "implement",
+                                "title": "Implement",
+                                "agent": "implementer",
+                                "prompt": "Implement change.",
+                                "workerValidationMode": "compat",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = orchestrator.validate_command(
+                SimpleNamespace(
+                    agents=str(agents_path),
+                    task_plan=str(plan_path),
+                )
+            )
+
+        self.assertEqual(
+            {"analyst": "intents-only", "implementer": None, "planner": None},
+            payload["agentWorkerValidationModes"],
+        )
+        self.assertEqual(
+            {"inspect": "intents-only", "implement": "compat"},
+            payload["taskWorkerValidationModes"],
+        )
+        self.assertEqual(
+            {"inspect": "agent", "implement": "task"},
+            payload["taskWorkerValidationModeSources"],
+        )
+        self.assertEqual(
+            [
+                {
+                    "id": "inspect",
+                    "agent": "analyst",
+                    "workerValidationMode": "intents-only",
+                    "workerValidationModeSource": "agent",
+                },
+                {
+                    "id": "implement",
+                    "agent": "implementer",
+                    "workerValidationMode": "compat",
+                    "workerValidationModeSource": "task",
+                },
+            ],
+            payload["tasks"],
+        )
+
     def test_dependency_summary_truncates_long_dependency_output(self):
         orchestrator = self.orchestrator
         task = orchestrator.TaskDefinition(
@@ -1343,6 +1468,11 @@ class PromptBudgetTest(unittest.TestCase):
                     agents[task.agent],
                     run_override=worker_validation_mode,
                 )
+                record.worker_validation_mode_source = orchestrator.resolved_worker_validation_mode_source(
+                    task,
+                    agents[task.agent],
+                    run_override=worker_validation_mode,
+                )
                 return record
 
             orchestrator.execute_task = fake_execute_task
@@ -1367,6 +1497,14 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual(
             {"inspect-a": "intents-only", "review-b": "compat"},
             payload["taskWorkerValidationModes"],
+        )
+        self.assertEqual(
+            {"inspect-a": "agent", "review-b": "task"},
+            payload["taskWorkerValidationModeSources"],
+        )
+        self.assertEqual(
+            ["agent", "task"],
+            [task["worker_validation_mode_source"] for task in payload["tasks"]],
         )
 
     def test_run_loaded_plan_worker_validation_override_beats_tracked_modes(self):
@@ -1442,6 +1580,11 @@ class PromptBudgetTest(unittest.TestCase):
                     agents[task.agent],
                     run_override=worker_validation_mode,
                 )
+                record.worker_validation_mode_source = orchestrator.resolved_worker_validation_mode_source(
+                    task,
+                    agents[task.agent],
+                    run_override=worker_validation_mode,
+                )
                 return record
 
             orchestrator.execute_task = fake_execute_task
@@ -1465,6 +1608,8 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual("compat", payload["workerValidationMode"])
         self.assertEqual("compat", payload["workerValidationModeOverride"])
         self.assertEqual({"inspect-a": "compat"}, payload["taskWorkerValidationModes"])
+        self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
+        self.assertEqual("override", payload["tasks"][0]["worker_validation_mode_source"])
 
     def test_review_run_reports_diff_summary(self):
         orchestrator = self.orchestrator

@@ -42,6 +42,7 @@ Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
+- `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 
 Workspace modes:
 - `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit file hints; safe default
@@ -66,6 +67,7 @@ Token and cost visibility:
 - worker results now distinguish known-empty from unknown list fields, and may also emit structured `validationIntents`; use `[]` for known-empty `filesTouched` / `validationCommands` / `followUps` / `notes`, use `null` only when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
 - worker prompts now treat raw `validationCommands` as a deprecated compatibility fallback; prefer structured `validationIntents` whenever the suggestion is a direct repo-script or tool invocation
 - `run` and `retry` now treat `--worker-validation-mode` as an explicit override; tracked agent/task `workerValidationMode` settings can drive the same enforcement with no CLI flag
+- the tracked `analyst` and `reviewer` agents now default to `workerValidationMode = intents-only`; the tracked sample plans inherit that agent default and reserve task-level `workerValidationMode` for exceptions
 - live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
 
 Model selection:
@@ -88,13 +90,14 @@ Coordinator rules:
 - task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; otherwise the effective mode resolves again from tracked task/agent settings, with legacy manifest fallback for older runs
-- task plans may now declare `workerValidationMode` per task, and agent definitions may also declare a default; precedence is CLI override, then task, then agent, then `compat`
-- the tracked `example-review.json` and `example-parallel.json` samples now set `workerValidationMode = intents-only` directly, so dry-run JSON shows intent-only enforcement without a CLI override
+- task plans may declare `workerValidationMode` per task, and agent definitions may declare role-wide defaults; precedence is CLI override, then task, then agent, then `compat`
+- prefer agent defaults when a role should usually enforce the same policy across many tasks; use task-level `workerValidationMode` only for targeted deviations
+- the tracked `example-review.json` and `example-parallel.json` samples now inherit intent-only enforcement from the `analyst` and `reviewer` agent defaults instead of repeating the same task-level setting
 - `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
 - structured `validation_intents` currently support `repo-script` and `tool` kinds, render back to command text for review output, and execute without shell wrapping
 - accepted raw `validation_commands` are still preserved verbatim for review output, but the coordinator now normalizes direct tool/repo-script shapes into an argv intent internally so they can run without `shell=True`; raw command strings are now explicitly a compatibility path
 - `validate-run --intents-only` rejects raw legacy `validation_commands` even when they normalize cleanly, accepts only worker-emitted structured intents, and reports which tasks still suggested legacy raw commands so migration is visible in the summary
-- run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, and `taskWorkerValidationModes` so live worker-validation policy is explicit in runtime artifacts
+- run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, `taskWorkerValidationModes`, and `taskWorkerValidationModeSources`; task records also carry `worker_validation_mode_source`
 - when tracked task or agent modes differ inside the same run, run payloads surface `workerValidationMode = "mixed"` instead of collapsing the run to a misleading single mode
 - `validate-run` still enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
 - worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationCommands` are capped, malformed status or list fields fail the task, structured `validationIntents` are normalized, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`

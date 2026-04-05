@@ -303,14 +303,20 @@ Now in place:
   can now opt into intent-only enforcement without relying on a CLI flag;
   runtime payloads surface `mixed` plus per-task modes when a run is not
   uniform, and the runtime flag is now just an explicit override
+- agent-level `workerValidationMode = intents-only` defaults for the tracked
+  `analyst` and `reviewer` roles, with the sample task plans inheriting those
+  defaults instead of repeating per-task settings
+- `validate --json` plus run/manifests now surface each task's effective
+  worker-validation source (`override`, `task`, `agent`, or `default`) so the
+  authoring pattern is inspectable
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
 
 What is still needed:
 
-- decide whether task-level vs agent-level `workerValidationMode` should be
-  the normal authoring pattern now that both are supported
+- decide whether the `implementer` role should also default to
+  `workerValidationMode = intents-only` or stay `compat` for now
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
 - decide whether raw `validationCommands` should remain in the worker schema at
