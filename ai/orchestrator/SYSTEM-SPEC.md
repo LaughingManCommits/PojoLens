@@ -74,8 +74,9 @@ This file defines the portable contract for recreating the repository's AI memor
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
 - Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy only explicit file hints, skip directory hints, and skip oversized files so workers do not inherit large generated trees by accident.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
-- Worker prompts should keep structured output bounded: `summary` should stay short, and `notes`, `followUps`, and `validationCommands` should stay capped to a few high-signal items.
+- Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and validation suggestions should stay capped whether they are emitted as raw `validationCommands` or structured `validationIntents`.
 - Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty, and `null` only when those values are genuinely unknown or unverified.
+- Worker results may also emit structured `validationIntents`; the initial supported intent kinds are `repo-script` and `tool`, and the coordinator should preserve them separately from legacy raw command strings.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
@@ -92,7 +93,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 - The coordinator should support bounded lifecycle helpers for retrying failed or blocked tasks from a prior manifest and cleaning run-scoped artifacts, including detached worktrees.
-- The coordinator should support a run-validation surface that consolidates worker-suggested validation commands, defaults to completed-task commands unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted commands from repo root, and records actual coordinator validation outcomes separately in the run manifest.
+- The coordinator should support a run-validation surface that consolidates worker-suggested validation commands or structured validation intents, defaults to completed-task suggestions unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted suggestions from repo root, and records actual coordinator validation outcomes separately in the run manifest.
 
 ## Worker Protection Rules
 
@@ -101,8 +102,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces and concrete file scopes.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
-- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and `validationCommands` to a few high-signal items, and preserve explicit unknown list fields in task records before writing manifests.
-- Worker `validationCommands` should prefer direct repo-local script invocations or approved tool commands; shell composition should be treated as low-quality and rejected by default at coordinator validation time.
+- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and validation suggestions to a few high-signal items, preserve explicit unknown list fields in task records before writing manifests, and normalize structured `validationIntents` into a safe manifest form.
+- Worker validation suggestions should prefer structured `validationIntents` for direct repo-local script invocations or approved tool commands; legacy raw `validationCommands` remain valid fallback suggestions, but shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
 - Worker `validationCommands` remain suggestions; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.

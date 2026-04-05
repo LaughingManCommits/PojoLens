@@ -54,6 +54,9 @@ MAX_WORKER_FOLLOW_UPS = 3
 MAX_WORKER_FOLLOW_UP_CHARS = 180
 MAX_WORKER_VALIDATION_COMMANDS = 2
 MAX_WORKER_VALIDATION_COMMAND_CHARS = 320
+MAX_WORKER_VALIDATION_INTENTS = 2
+MAX_WORKER_VALIDATION_INTENT_ARG_CHARS = 180
+VALIDATION_INTENT_KINDS = {"repo-script", "tool"}
 VALIDATION_ALLOWED_EXECUTABLES = {
     "git",
     "java",
@@ -103,6 +106,19 @@ WORKER_RESULT_SCHEMA = {
         },
         "summary": {"type": "string"},
         "filesTouched": {"type": ["array", "null"], "items": {"type": "string"}},
+        "validationIntents": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": sorted(VALIDATION_INTENT_KINDS)},
+                    "entrypoint": {"type": "string"},
+                    "args": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["kind", "entrypoint"],
+                "additionalProperties": False,
+            },
+        },
         "validationCommands": {"type": ["array", "null"], "items": {"type": "string"}},
         "followUps": {"type": ["array", "null"], "items": {"type": "string"}},
         "notes": {"type": ["array", "null"], "items": {"type": "string"}},
@@ -279,6 +295,13 @@ class PromptRenderResult:
     estimated_tokens: int
 
 
+@dataclass(frozen=True)
+class ValidationIntent:
+    kind: str
+    entrypoint: str
+    args: list[str] = field(default_factory=list)
+
+
 @dataclass
 class TaskRunRecord:
     id: str
@@ -309,6 +332,7 @@ class TaskRunRecord:
     stdout_path: str | None
     stderr_path: str | None
     result_path: str | None
+    validation_intents: list[ValidationIntent] = field(default_factory=list)
     unknown_fields: list[str] = field(default_factory=list)
 
 
@@ -1368,6 +1392,10 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         stdout_path=str(payload["stdout_path"]) if payload.get("stdout_path") is not None else None,
         stderr_path=str(payload["stderr_path"]) if payload.get("stderr_path") is not None else None,
         result_path=str(payload["result_path"]) if payload.get("result_path") is not None else None,
+        validation_intents=[
+            coerce_validation_intent_payload(item, location=f"{location}:validation_intents")
+            for item in payload.get("validation_intents", []) or []
+        ],
         unknown_fields=normalized_worker_unknown_fields(payload.get("unknown_fields")),
     )
 
@@ -2107,6 +2135,137 @@ def worker_field_unknown(record: TaskRunRecord, field_name: str) -> bool:
     return field_name in record.unknown_fields
 
 
+def coerce_validation_intent_payload(payload: Any, *, location: str) -> ValidationIntent:
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{location}: expected validation intent object")
+    extra_keys = sorted(set(payload) - {"kind", "entrypoint", "args"})
+    if extra_keys:
+        raise OrchestratorError(f"{location}: unsupported validation intent fields {extra_keys}")
+    kind = payload.get("kind")
+    if not isinstance(kind, str) or kind not in VALIDATION_INTENT_KINDS:
+        raise OrchestratorError(
+            f"{location}: field 'kind' must be one of {sorted(VALIDATION_INTENT_KINDS)}"
+        )
+    entrypoint_value = payload.get("entrypoint")
+    if not isinstance(entrypoint_value, str) or not entrypoint_value.strip():
+        raise OrchestratorError(f"{location}: field 'entrypoint' must be a non-empty string")
+    cleaned_entrypoint = strip_optional_quotes(entrypoint_value.strip())
+    if kind == "repo-script":
+        cleaned_entrypoint = normalize_relative_path(
+            cleaned_entrypoint,
+            location=f"{location}:entrypoint",
+        )
+    args_payload = payload.get("args", [])
+    if args_payload is None:
+        args_payload = []
+    if not isinstance(args_payload, list):
+        raise OrchestratorError(f"{location}: field 'args' must be an array when supplied")
+    args: list[str] = []
+    for index, item in enumerate(args_payload, start=1):
+        if not isinstance(item, str):
+            raise OrchestratorError(f"{location}: field 'args[{index}]' must be a string")
+        text = strip_optional_quotes(item.strip())
+        if not text:
+            continue
+        text, _ = truncate_text(text, MAX_WORKER_VALIDATION_INTENT_ARG_CHARS)
+        args.append(text)
+    return ValidationIntent(kind=kind, entrypoint=cleaned_entrypoint, args=args)
+
+
+def normalize_worker_validation_intents(payload: Any) -> list[ValidationIntent]:
+    if payload is None:
+        return []
+    if not isinstance(payload, list):
+        raise OrchestratorError("Claude JSON output field 'validationIntents' must be an array")
+    intents: list[ValidationIntent] = []
+    seen: set[tuple[str, str, tuple[str, ...]]] = set()
+    for index, item in enumerate(payload, start=1):
+        intent = coerce_validation_intent_payload(
+            item,
+            location=f"Claude JSON output field 'validationIntents[{index}]'",
+        )
+        key = (intent.kind, intent.entrypoint, tuple(intent.args))
+        if key in seen:
+            continue
+        seen.add(key)
+        intents.append(intent)
+        if len(intents) >= MAX_WORKER_VALIDATION_INTENTS:
+            break
+    return intents
+
+
+def validation_intent_policy(intent: ValidationIntent) -> dict[str, Any]:
+    if intent.kind == "repo-script":
+        suffix = Path(intent.entrypoint).suffix.lower()
+        if suffix in VALIDATION_ALLOWED_SCRIPT_SUFFIXES and (
+            intent.entrypoint in {"mvnw", "mvnw.cmd"} or intent.entrypoint.startswith(VALIDATION_ALLOWED_RELATIVE_PREFIXES)
+        ):
+            return {
+                "accepted": True,
+                "reason": None,
+                "entrypoint": intent.entrypoint,
+            }
+        return {
+            "accepted": False,
+            "reason": "repo-script intents must point at an approved repo-local script or wrapper",
+            "entrypoint": intent.entrypoint,
+        }
+    entrypoint = intent.entrypoint
+    entry_path = Path(entrypoint)
+    if entry_path.is_absolute():
+        suffix = entry_path.suffix.lower()
+        if suffix == ".exe" or entry_path.name.lower() in VALIDATION_ALLOWED_EXECUTABLES:
+            return {
+                "accepted": True,
+                "reason": None,
+                "entrypoint": entrypoint,
+            }
+        return {
+            "accepted": False,
+            "reason": "absolute tool entrypoint is not an approved executable",
+            "entrypoint": entrypoint,
+        }
+    lowered_entrypoint = entrypoint.lower()
+    if lowered_entrypoint in VALIDATION_ALLOWED_EXECUTABLES:
+        return {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": entrypoint,
+        }
+    return {
+        "accepted": False,
+        "reason": "tool intent entrypoint is not an approved executable",
+        "entrypoint": entrypoint,
+    }
+
+
+def render_command_tokens(tokens: list[str]) -> str:
+    if os.name == "nt":
+        return subprocess.list2cmdline(tokens)
+    return shlex.join(tokens)
+
+
+def validation_intent_command_text(intent: ValidationIntent) -> str:
+    return render_command_tokens([intent.entrypoint, *intent.args])
+
+
+def validation_intent_execution_tokens(intent: ValidationIntent) -> list[str]:
+    if intent.kind == "tool":
+        return [intent.entrypoint, *intent.args]
+    absolute_path = str((ROOT / intent.entrypoint).resolve())
+    suffix = Path(intent.entrypoint).suffix.lower()
+    if suffix == ".ps1":
+        powershell_bin = shutil.which("pwsh") or shutil.which("powershell") or "powershell"
+        return [powershell_bin, "-File", absolute_path, *intent.args]
+    if suffix == ".py":
+        return [sys.executable, absolute_path, *intent.args]
+    if suffix in {".cmd", ".bat"}:
+        return ["cmd.exe", "/c", absolute_path, *intent.args]
+    if suffix == ".sh":
+        return ["bash", absolute_path, *intent.args]
+    return [absolute_path, *intent.args]
+
+
 def validation_command_policy(command_text: str) -> dict[str, Any]:
     stripped = command_text.strip()
     if not stripped:
@@ -2229,8 +2388,9 @@ def worker_prompt(
             "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
             "Use only the task repo root and explicit file hints. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
-            "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` to <=2.",
+            "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` or `validationIntents` to <=2 high-signal suggestions.",
             "Use `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty. Use `null` for those fields only when the value is genuinely unknown or unverified.",
+            "Prefer structured `validationIntents` for direct repo-script or tool invocations; use `validationCommands` only when you cannot express the suggestion with a supported intent shape.",
             "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
             "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
@@ -2431,10 +2591,12 @@ def coerce_worker_result(payload: Any) -> dict[str, Any]:
     )
     if not notes_known:
         unknown_fields.append("notes")
+    validation_intents = normalize_worker_validation_intents(payload.get("validationIntents"))
     return {
         "status": status,
         "summary": summary,
         "filesTouched": normalized_files_touched,
+        "validationIntents": [asdict(intent) for intent in validation_intents],
         "validationCommands": validation_commands,
         "followUps": follow_ups,
         "notes": notes,
@@ -2884,6 +3046,13 @@ def execute_task(
             files_touched=[str(item) for item in payload["filesTouched"]],
             actual_files_touched=[],
             protected_path_violations=[],
+            validation_intents=[
+                coerce_validation_intent_payload(
+                    item,
+                    location=f"worker result {task.id}:validationIntents",
+                )
+                for item in payload.get("validationIntents", [])
+            ],
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
             notes=[str(item) for item in payload["notes"]],
@@ -3397,10 +3566,13 @@ def collect_validation_commands(
     included_statuses: set[str],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     task_payloads: list[dict[str, Any]] = []
-    command_owners: dict[str, list[str]] = {}
-    command_order: list[str] = []
+    suggestions_by_command: dict[str, dict[str, Any]] = {}
+    suggestion_order: list[str] = []
     for record in records:
         commands = dedupe_strings(record.validation_commands)
+        rendered_intents = dedupe_strings(
+            [validation_intent_command_text(intent) for intent in record.validation_intents]
+        )
         included = record.status in included_statuses
         task_payloads.append(
             {
@@ -3408,6 +3580,8 @@ def collect_validation_commands(
                 "status": record.status,
                 "summary": record.summary,
                 "unknownFields": record.unknown_fields,
+                "validationIntents": [asdict(intent) for intent in record.validation_intents],
+                "renderedValidationIntents": rendered_intents,
                 "validationCommands": commands,
                 "validationCommandsKnown": not worker_field_unknown(record, "validationCommands"),
                 "includedForValidation": included,
@@ -3420,19 +3594,38 @@ def collect_validation_commands(
         )
         if not included:
             continue
+        for intent in record.validation_intents:
+            command_text = validation_intent_command_text(intent)
+            payload = suggestions_by_command.get(command_text)
+            if payload is None:
+                payload = {
+                    "sourceKind": "intent",
+                    "command": command_text,
+                    "taskIds": [],
+                    "policy": validation_intent_policy(intent),
+                    "intent": asdict(intent),
+                }
+                suggestions_by_command[command_text] = payload
+                suggestion_order.append(command_text)
+            payload["taskIds"].append(record.id)
         for command in commands:
-            owners = command_owners.setdefault(command, [])
-            owners.append(record.id)
-            if command not in command_order:
-                command_order.append(command)
-    command_payloads = [
-        {
-            "command": command,
-            "taskIds": command_owners[command],
-            "policy": validation_command_policy(command),
-        }
-        for command in command_order
-    ]
+            payload = suggestions_by_command.get(command)
+            if payload is None:
+                payload = {
+                    "sourceKind": "command",
+                    "command": command,
+                    "taskIds": [],
+                    "policy": validation_command_policy(command),
+                    "intent": None,
+                }
+                suggestions_by_command[command] = payload
+                suggestion_order.append(command)
+            payload["taskIds"].append(record.id)
+    command_payloads = []
+    for command_text in suggestion_order:
+        payload = suggestions_by_command[command_text]
+        payload["taskIds"] = dedupe_strings([str(task_id) for task_id in payload["taskIds"]])
+        command_payloads.append(payload)
     return task_payloads, command_payloads
 
 
@@ -3452,6 +3645,30 @@ def run_shell_command_text(command_text: str, *, cwd: Path, timeout_sec: int) ->
     except subprocess.TimeoutExpired as exc:
         raise OrchestratorError(
             f"Validation command timed out after {timeout_sec} seconds: {command_text}"
+        ) from exc
+
+
+def run_validation_intent(
+    intent: ValidationIntent,
+    *,
+    cwd: Path,
+    timeout_sec: int,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            validation_intent_execution_tokens(intent),
+            cwd=cwd,
+            shell=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_sec,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise OrchestratorError(
+            f"Validation intent timed out after {timeout_sec} seconds: {validation_intent_command_text(intent)}"
         ) from exc
 
 
@@ -3489,6 +3706,8 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     stop_after_failure = False
     for index, command_payload in enumerate(commands, start=1):
         command_text = str(command_payload["command"])
+        source_kind = str(command_payload.get("sourceKind", "command"))
+        intent_payload = command_payload.get("intent")
         policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
             "accepted": True,
             "reason": None,
@@ -3497,8 +3716,10 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         policy_accepted = bool(policy.get("accepted", False))
         result_payload: dict[str, Any] = {
             "index": index,
+            "sourceKind": source_kind,
             "command": command_text,
             "taskIds": list(command_payload["taskIds"]),
+            "intent": intent_payload if isinstance(intent_payload, dict) else None,
             "policyAccepted": policy_accepted,
             "policyReason": policy.get("reason"),
             "policyOverride": bool(args.allow_unsafe_commands and not policy_accepted),
@@ -3524,12 +3745,21 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         stderr_path = command_dir / "stderr.txt"
         command_path = command_dir / "command.txt"
         write_text(command_path, command_text + "\n")
+        if isinstance(intent_payload, dict):
+            write_json(command_dir / "intent.json", intent_payload)
         try:
-            completed = run_shell_command_text(
-                command_text,
-                cwd=ROOT,
-                timeout_sec=max(args.timeout_sec, 1),
-            )
+            if source_kind == "intent" and isinstance(intent_payload, dict):
+                completed = run_validation_intent(
+                    coerce_validation_intent_payload(intent_payload, location=f"validate-run:{index}:intent"),
+                    cwd=ROOT,
+                    timeout_sec=max(args.timeout_sec, 1),
+                )
+            else:
+                completed = run_shell_command_text(
+                    command_text,
+                    cwd=ROOT,
+                    timeout_sec=max(args.timeout_sec, 1),
+                )
             write_text(stdout_path, completed.stdout)
             write_text(stderr_path, completed.stderr)
             result_payload["returnCode"] = completed.returncode
@@ -3566,6 +3796,9 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         "rejectedCommandCount": sum(1 for payload in command_results if payload["status"] == "rejected"),
         "allowUnsafeCommands": bool(args.allow_unsafe_commands),
         "suggestedCommands": [payload["command"] for payload in commands],
+        "suggestedValidationIntents": [
+            payload["intent"] for payload in commands if isinstance(payload.get("intent"), dict)
+        ],
         "commands": command_results,
         "statusCounts": count_statuses([str(payload["status"]) for payload in command_results]),
         "allPassed": all(payload["status"] in {"planned", "completed"} for payload in command_results),

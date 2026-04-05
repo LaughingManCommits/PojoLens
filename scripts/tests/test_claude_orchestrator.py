@@ -389,6 +389,34 @@ class PromptBudgetTest(unittest.TestCase):
             result["unknownFields"],
         )
 
+    def test_coerce_worker_result_accepts_structured_validation_intents(self):
+        orchestrator = self.orchestrator
+        payload = {
+            "status": "completed",
+            "summary": "Validation suggestions are structured.",
+            "filesTouched": [],
+            "validationIntents": [
+                {
+                    "kind": "repo-script",
+                    "entrypoint": "scripts/check-doc-consistency.ps1",
+                },
+                {
+                    "kind": "tool",
+                    "entrypoint": "mvn",
+                    "args": ["-q", "test"],
+                },
+            ],
+            "validationCommands": [],
+            "followUps": [],
+            "notes": [],
+        }
+
+        result = orchestrator.coerce_worker_result(payload)
+
+        self.assertEqual(2, len(result["validationIntents"]))
+        self.assertEqual("repo-script", result["validationIntents"][0]["kind"])
+        self.assertEqual("mvn", result["validationIntents"][1]["entrypoint"])
+
     def test_coerce_worker_result_rejects_invalid_status(self):
         orchestrator = self.orchestrator
 
@@ -422,6 +450,34 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertTrue(policy["accepted"])
         self.assertEqual("scripts/refresh-ai-memory.ps1", policy["entrypoint"])
 
+    def test_validation_intent_policy_accepts_repo_script(self):
+        orchestrator = self.orchestrator
+
+        policy = orchestrator.validation_intent_policy(
+            orchestrator.ValidationIntent(
+                kind="repo-script",
+                entrypoint="scripts/check-doc-consistency.ps1",
+                args=[],
+            )
+        )
+
+        self.assertTrue(policy["accepted"])
+        self.assertEqual("scripts/check-doc-consistency.ps1", policy["entrypoint"])
+
+    def test_validation_intent_policy_rejects_unknown_tool(self):
+        orchestrator = self.orchestrator
+
+        policy = orchestrator.validation_intent_policy(
+            orchestrator.ValidationIntent(
+                kind="tool",
+                entrypoint="unknown-tool",
+                args=["--flag"],
+            )
+        )
+
+        self.assertFalse(policy["accepted"])
+        self.assertIn("not an approved executable", policy["reason"])
+
     def test_collect_validation_commands_marks_unknown_validation_commands(self):
         orchestrator = self.orchestrator
         task = orchestrator.TaskDefinition(
@@ -447,6 +503,42 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual([], task_payloads[0]["validationCommands"])
         self.assertFalse(task_payloads[0]["validationCommandsKnown"])
         self.assertEqual(["validationCommands"], task_payloads[0]["unknownFields"])
+
+    def test_collect_validation_commands_prefers_structured_intents_for_duplicates(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+        )
+        record = make_task_run_record(
+            orchestrator,
+            task,
+            status="completed",
+            summary="Inspection produced one structured validation suggestion.",
+        )
+        record.validation_intents = [
+            orchestrator.ValidationIntent(
+                kind="repo-script",
+                entrypoint="scripts/check-doc-consistency.ps1",
+                args=[],
+            )
+        ]
+        record.validation_commands = ["scripts/check-doc-consistency.ps1"]
+
+        task_payloads, command_payloads = orchestrator.collect_validation_commands(
+            [record],
+            included_statuses={"completed"},
+        )
+
+        self.assertEqual(
+            ["scripts/check-doc-consistency.ps1"],
+            task_payloads[0]["renderedValidationIntents"],
+        )
+        self.assertEqual(1, len(command_payloads))
+        self.assertEqual("intent", command_payloads[0]["sourceKind"])
+        self.assertEqual(["inspect"], command_payloads[0]["taskIds"])
 
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
@@ -2129,6 +2221,90 @@ class PromptBudgetTest(unittest.TestCase):
         rejected = next(command for command in payload["commands"] if command["status"] == "rejected")
         self.assertFalse(rejected["policyAccepted"])
         self.assertIn("shell composition", rejected["policyReason"])
+
+    def test_validate_run_executes_structured_validation_intent(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-5",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-05T00:00:00+00:00",
+                                "finished_at": "2026-04-05T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_intents": [
+                                    {
+                                        "kind": "tool",
+                                        "entrypoint": "py",
+                                        "args": ["-3", "-c", "print('ok-from-intent')"],
+                                    }
+                                ],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        allow_unsafe_commands=False,
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=False,
+                    )
+                )
+                stdout_exists = pathlib.Path(payload["commands"][0]["stdoutPath"]).exists()
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(1, payload["commandCount"])
+        self.assertEqual("intent", payload["commands"][0]["sourceKind"])
+        self.assertEqual("completed", payload["commands"][0]["status"])
+        self.assertEqual(1, len(payload["suggestedValidationIntents"]))
+        self.assertTrue(stdout_exists)
 
 
 if __name__ == "__main__":

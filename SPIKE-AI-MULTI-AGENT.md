@@ -272,10 +272,10 @@ fleet-style pruning.
 
 ### 7. Structured Final Validation Support
 
-Workers can report `validationCommands`, but the orchestrator does not execute
-them or summarize final validation state.
+Workers can report validation suggestions, and the coordinator now has both raw
+command and structured-intent paths.
 
-As of `2026-04-04`, this is partially implemented.
+As of `2026-04-05`, this is partially implemented.
 
 Now in place:
 
@@ -287,12 +287,16 @@ Now in place:
 - optional coordinator-side execution of those commands from repo root
 - a manifest section that distinguishes worker-suggested validation from
   coordinator-run validation results
+- structured `validationIntents` for `repo-script` and `tool` suggestions,
+  which render to command text for review output but execute via safe argv
+  handling instead of shell parsing
 
 What is still needed:
 
-- richer validation presets or policy controls beyond raw shell commands
-- possibly move from free-form command strings to structured validation intents
-  for stronger portability and safety
+- decide whether to broaden the intent vocabulary beyond `repo-script` and
+  `tool`
+- decide whether raw `validationCommands` should remain long-term fallback only
+  or eventually become a compatibility path
 
 ### 8. Automated Regression Coverage
 
@@ -357,8 +361,8 @@ What is needed:
   truncation
 - decide whether any additional worker-result fields beyond the current list
   fields need explicit unknown semantics
-- structured validation intents beyond raw shell commands remain the next
-  likely ergonomics and safety upgrade
+- decide whether the current `repo-script` / `tool` validation-intent surface
+  is enough or needs broader presets
 - a deliberate decision on whether any repo-level `CLAUDE.md` should apply to
   orchestrator work at all; default recommendation is no unless measurement
   proves a net benefit for fresh worker sessions
@@ -474,7 +478,8 @@ The right next move is to harden and prove the current design:
 
 - live-run proof is now done
 - live prompt-budget tuning is now grounded by tracked sample runs
-- next: structured validation intents plus any further result-schema refinement
+- next: widen validation-intent coverage if needed, plus any further
+  result-schema refinement
 - regression coverage is now real, but it should keep growing around newly found
   failure modes
 
