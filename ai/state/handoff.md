@@ -19,8 +19,8 @@
 - Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode; bounded dependency handoff plus stricter worker output caps fixed the last reviewer-blocking issue.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, overlap serialization, protected-path audits, `review`, `export-patch`, `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are in place.
-- Validation defaults to completed-task suggestions, supports `repo-script` / `tool` intents, normalizes safe raw commands onto argv, rejects unsafe raw commands by default, preserves unknown-vs-empty worker list semantics, and emits live interactive-`stderr` slop-status progress during planner/worker/validation waits.
-- Next orchestrator spike: decide whether raw validation commands should stay more than compat-only.
+- Validation defaults to completed-task suggestions, supports `repo-script` / `tool` intents, normalizes safe raw commands onto argv, rejects unsafe raw commands by default, preserves unknown-vs-empty worker list semantics, emits live interactive-`stderr` progress during planner/worker/validation waits, and now has `validate-run --intents-only` plus legacy counts for compatibility-only raw `validationCommands`.
+- Next orchestrator spike: decide whether raw `validationCommands` should remain in the worker schema at all, or whether the next effort should widen intent kinds beyond `repo-script` / `tool`.
 
 ## Validate
 

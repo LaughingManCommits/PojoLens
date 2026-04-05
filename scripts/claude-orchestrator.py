@@ -666,6 +666,11 @@ def parse_args() -> argparse.Namespace:
         help="Execute worker-suggested validation commands even when they fail the coordinator quality policy.",
     )
     validate_run_parser.add_argument(
+        "--intents-only",
+        action="store_true",
+        help="Reject raw legacy validationCommands and accept only worker-emitted structured validationIntents.",
+    )
+    validate_run_parser.add_argument(
         "--continue-on-error",
         action="store_true",
         help="Continue running remaining validation commands after a failure.",
@@ -2428,7 +2433,7 @@ def worker_prompt(
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` or `validationIntents` to <=2 high-signal suggestions.",
             "Use `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty. Use `null` for those fields only when the value is genuinely unknown or unverified.",
-            "Prefer structured `validationIntents` for direct repo-script or tool invocations; use `validationCommands` only when you cannot express the suggestion with a supported intent shape.",
+            "Prefer structured `validationIntents` for direct repo-script or tool invocations; treat raw `validationCommands` as a deprecated compatibility fallback and use them only when you cannot express the suggestion with a supported intent shape.",
             "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
             "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
@@ -3723,6 +3728,8 @@ def collect_validation_commands(
                 "renderedValidationIntents": rendered_intents,
                 "validationCommands": commands,
                 "validationCommandsKnown": not worker_field_unknown(record, "validationCommands"),
+                "legacyValidationCommandCount": len(commands),
+                "legacyValidationCommandsPresent": bool(commands),
                 "includedForValidation": included,
                 "excludedReason": (
                     None
@@ -3743,6 +3750,7 @@ def collect_validation_commands(
                     "taskIds": [],
                     "policy": validation_intent_policy(intent),
                     "intent": asdict(intent),
+                    "compatibilityOnly": False,
                 }
                 suggestions_by_command[command_text] = payload
                 suggestion_order.append(command_text)
@@ -3757,6 +3765,7 @@ def collect_validation_commands(
                     "taskIds": [],
                     "policy": policy,
                     "intent": None,
+                    "compatibilityOnly": True,
                     "normalizedIntent": (
                         policy.get("intent") if isinstance(policy.get("intent"), dict) else None
                     ),
@@ -3830,6 +3839,7 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     run_dir = manifest_run_dir(manifest_path, manifest)
     records = selected_run_records(manifest, args.selected_tasks)
+    intents_only = bool(getattr(args, "intents_only", False))
     included_statuses = {
         str(status)
         for status in (getattr(args, "include_statuses", None) or list(DEFAULT_VALIDATE_RUN_STATUSES))
@@ -3851,12 +3861,24 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             if isinstance(intent_payload, dict)
             else normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
         )
-        policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
+        quality_policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
             "accepted": True,
             "reason": None,
             "entrypoint": None,
         }
+        policy = dict(quality_policy)
+        intents_only_rejected = source_kind == "command" and intents_only
+        if intents_only_rejected:
+            policy = {
+                "accepted": False,
+                "reason": (
+                    "raw validationCommands are compatibility-only under --intents-only; "
+                    "emit structured validationIntents instead"
+                ),
+                "entrypoint": quality_policy.get("entrypoint"),
+            }
         policy_accepted = bool(policy.get("accepted", False))
+        policy_override = bool(args.allow_unsafe_commands and not policy_accepted and not intents_only_rejected)
         result_payload: dict[str, Any] = {
             "index": index,
             "sourceKind": source_kind,
@@ -3866,17 +3888,21 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             "normalizedIntent": (
                 normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
             ),
+            "compatibilityOnly": bool(command_payload.get("compatibilityOnly", source_kind == "command")),
+            "intentsOnlyRejected": intents_only_rejected,
             "executionKind": "argv" if execution_intent_payload is not None else "shell",
+            "qualityPolicyAccepted": bool(quality_policy.get("accepted", False)),
+            "qualityPolicyReason": quality_policy.get("reason"),
             "policyAccepted": policy_accepted,
             "policyReason": policy.get("reason"),
-            "policyOverride": bool(args.allow_unsafe_commands and not policy_accepted),
+            "policyOverride": policy_override,
             "entrypoint": policy.get("entrypoint"),
             "status": "planned" if args.dry_run else "completed",
             "returnCode": None,
             "stdoutPath": None,
             "stderrPath": None,
         }
-        if not policy_accepted and not args.allow_unsafe_commands:
+        if not policy_accepted and not policy_override:
             result_payload["status"] = "rejected"
             command_results.append(result_payload)
             continue
@@ -3937,15 +3963,35 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         "manifestPath": str(manifest_path),
         "repoRoot": str(ROOT),
         "dryRun": args.dry_run,
+        "intentsOnly": intents_only,
         "selectedTaskIds": [record.id for record in records],
         "includedStatuses": sorted(included_statuses),
         "taskCount": len(task_payloads),
         "tasks": task_payloads,
         "includedTaskIds": [payload["id"] for payload in task_payloads if payload["includedForValidation"]],
         "excludedTaskIds": [payload["id"] for payload in task_payloads if not payload["includedForValidation"]],
+        "legacyValidationCommandCount": sum(
+            int(payload.get("legacyValidationCommandCount", 0) or 0) for payload in task_payloads
+        ),
+        "includedLegacyValidationCommandCount": sum(
+            int(payload.get("legacyValidationCommandCount", 0) or 0)
+            for payload in task_payloads
+            if payload["includedForValidation"]
+        ),
+        "legacyValidationCommandTaskIds": [
+            payload["id"] for payload in task_payloads if payload.get("legacyValidationCommandsPresent")
+        ],
+        "includedLegacyValidationCommandTaskIds": [
+            payload["id"]
+            for payload in task_payloads
+            if payload["includedForValidation"] and payload.get("legacyValidationCommandsPresent")
+        ],
         "commandCount": len(command_results),
         "acceptedCommandCount": sum(1 for payload in command_results if payload.get("policyAccepted")),
         "rejectedCommandCount": sum(1 for payload in command_results if payload["status"] == "rejected"),
+        "intentsOnlyRejectedCommandCount": sum(
+            1 for payload in command_results if payload.get("intentsOnlyRejected")
+        ),
         "allowUnsafeCommands": bool(args.allow_unsafe_commands),
         "suggestedCommands": [payload["command"] for payload in commands],
         "suggestedValidationIntents": [

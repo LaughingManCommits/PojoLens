@@ -293,6 +293,9 @@ Now in place:
 - accepted legacy raw validation commands now reuse that same argv-safe path
   when the coordinator can normalize them into a direct tool or repo-script
   invocation
+- `validate-run --intents-only`, which rejects legacy raw
+  `validationCommands` even when they normalize cleanly and reports which
+  tasks still emit those compatibility-only suggestions
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
@@ -301,8 +304,8 @@ What is still needed:
 
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
-- decide whether raw `validationCommands` should remain long-term fallback only
-  or eventually become a compatibility path
+- decide whether raw `validationCommands` should remain in the worker schema at
+  all now that the coordinator has an explicit compatibility-only mode
 
 ### 8. Automated Regression Coverage
 
