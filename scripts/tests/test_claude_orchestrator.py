@@ -301,6 +301,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "effort": "high",
                                 "workspaceMode": "copy",
                                 "contextMode": "minimal",
+                                "workerValidationMode": "intents-only",
                                 "permissionMode": "dontAsk",
                                 "allowedTools": ["Read"],
                                 "timeoutSec": 30,
@@ -350,7 +351,7 @@ class ValidateCommandTest(unittest.TestCase):
             )
 
         self.assertEqual(
-            {"analyst": "intents-only", "implementer": None, "planner": None},
+            {"analyst": "intents-only", "implementer": "intents-only", "planner": None},
             payload["agentWorkerValidationModes"],
         )
         self.assertEqual(

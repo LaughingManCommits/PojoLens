@@ -81,7 +81,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker prompts should treat raw `validationCommands` as a deprecated compatibility fallback and prefer structured `validationIntents` whenever a suggestion fits the supported intent shapes.
 - The coordinator may also expose a run-time worker validation mode override, including an `intents-only` setting that tightens worker prompts and rejects non-empty raw `validationCommands` in worker JSON before task records are accepted.
 - Agent and task definitions may also carry `workerValidationMode`; precedence should be explicit CLI override first, then task definition, then agent definition, then the default `compat` mode.
-- When many tasks share the same worker-validation policy for a role, prefer agent-level defaults and reserve task-level `workerValidationMode` for exceptions.
+- When many tasks share the same worker-validation policy for a role, prefer agent-level defaults and reserve task-level `workerValidationMode = compat` for exceptions.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`

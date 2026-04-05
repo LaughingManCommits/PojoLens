@@ -67,7 +67,7 @@ Token and cost visibility:
 - worker results now distinguish known-empty from unknown list fields, and may also emit structured `validationIntents`; use `[]` for known-empty `filesTouched` / `validationCommands` / `followUps` / `notes`, use `null` only when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
 - worker prompts now treat raw `validationCommands` as a deprecated compatibility fallback; prefer structured `validationIntents` whenever the suggestion is a direct repo-script or tool invocation
 - `run` and `retry` now treat `--worker-validation-mode` as an explicit override; tracked agent/task `workerValidationMode` settings can drive the same enforcement with no CLI flag
-- the tracked `analyst` and `reviewer` agents now default to `workerValidationMode = intents-only`; the tracked sample plans inherit that agent default and reserve task-level `workerValidationMode` for exceptions
+- the tracked `analyst`, `implementer`, and `reviewer` agents now default to `workerValidationMode = intents-only`; the tracked sample plans inherit agent defaults and reserve task-level `workerValidationMode = compat` for exceptions
 - live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
 
 Model selection:
@@ -91,7 +91,7 @@ Coordinator rules:
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; otherwise the effective mode resolves again from tracked task/agent settings, with legacy manifest fallback for older runs
 - task plans may declare `workerValidationMode` per task, and agent definitions may declare role-wide defaults; precedence is CLI override, then task, then agent, then `compat`
-- prefer agent defaults when a role should usually enforce the same policy across many tasks; use task-level `workerValidationMode` only for targeted deviations
+- prefer agent defaults when a role should usually enforce the same policy across many tasks; use task-level `workerValidationMode = compat` only for targeted deviations
 - the tracked `example-review.json` and `example-parallel.json` samples now inherit intent-only enforcement from the `analyst` and `reviewer` agent defaults instead of repeating the same task-level setting
 - `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
 - structured `validation_intents` currently support `repo-script` and `tool` kinds, render back to command text for review output, and execute without shell wrapping

@@ -304,8 +304,8 @@ Now in place:
   runtime payloads surface `mixed` plus per-task modes when a run is not
   uniform, and the runtime flag is now just an explicit override
 - agent-level `workerValidationMode = intents-only` defaults for the tracked
-  `analyst` and `reviewer` roles, with the sample task plans inheriting those
-  defaults instead of repeating per-task settings
+  `analyst`, `implementer`, and `reviewer` roles, with the sample task plans
+  inheriting those defaults instead of repeating per-task settings
 - `validate --json` plus run/manifests now surface each task's effective
   worker-validation source (`override`, `task`, `agent`, or `default`) so the
   authoring pattern is inspectable
@@ -315,8 +315,6 @@ Now in place:
 
 What is still needed:
 
-- decide whether the `implementer` role should also default to
-  `workerValidationMode = intents-only` or stay `compat` for now
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
 - decide whether raw `validationCommands` should remain in the worker schema at

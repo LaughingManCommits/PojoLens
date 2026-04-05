@@ -33,6 +33,7 @@
       "effort": "high",
       "workspaceMode": "copy",
       "contextMode": "minimal",
+      "workerValidationMode": "intents-only",
       "permissionMode": "dontAsk",
       "maxPromptEstimatedTokens": 2200,
       "allowedTools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "MultiEdit"],
