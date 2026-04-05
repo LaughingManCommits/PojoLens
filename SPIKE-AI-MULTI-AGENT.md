@@ -296,12 +296,17 @@ Now in place:
 - `validate-run --intents-only`, which rejects legacy raw
   `validationCommands` even when they normalize cleanly and reports which
   tasks still emit those compatibility-only suggestions
+- `run` / `retry --worker-validation-mode intents-only`, which tightens worker
+  prompts, rejects non-empty raw `validationCommands` in worker JSON before a
+  task record is accepted, and records the effective mode in runtime payloads
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
 
 What is still needed:
 
+- decide whether worker validation mode should stay a run-time flag or move
+  into tracked task/agent definitions
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
 - decide whether raw `validationCommands` should remain in the worker schema at

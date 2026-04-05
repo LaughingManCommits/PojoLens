@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-05T13:41:45.113092+02:00",
+  "generatedAt": "2026-04-05T14:32:50.376592+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -132,8 +132,8 @@
       "category": "ai-orchestrator",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 99,
-      "byteCount": 9444,
+      "lineCount": 103,
+      "byteCount": 10060,
       "coldSearchEligible": true
     },
     {
@@ -141,8 +141,8 @@
       "category": "ai-orchestrator",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 143,
-      "byteCount": 11647,
+      "lineCount": 146,
+      "byteCount": 12144,
       "coldSearchEligible": true
     },
     {
@@ -160,7 +160,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 39,
-      "byteCount": 2716,
+      "byteCount": 2844,
       "coldSearchEligible": true
     },
     {
@@ -169,7 +169,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 40,
-      "byteCount": 3052,
+      "byteCount": 3015,
       "coldSearchEligible": true
     },
     {
@@ -177,8 +177,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 77,
-      "byteCount": 28797,
+      "lineCount": 78,
+      "byteCount": 29671,
       "coldSearchEligible": true
     },
     {

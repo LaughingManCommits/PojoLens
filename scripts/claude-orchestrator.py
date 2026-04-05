@@ -35,6 +35,8 @@ WORKSPACE_MODES = {"copy", "repo", "worktree"}
 TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CONTEXT_MODES = {"minimal", "full"}
 DEFAULT_CONTEXT_MODE = "minimal"
+WORKER_VALIDATION_MODES = {"compat", "intents-only"}
+DEFAULT_WORKER_VALIDATION_MODE = "compat"
 MODEL_PROFILE_TO_MODEL = {
     "simple": "claude-haiku-4-5",
     "balanced": "claude-sonnet-4-6",
@@ -476,6 +478,12 @@ def parse_args() -> argparse.Namespace:
         help="Continue running independent tasks after a worker fails or reports blocked.",
     )
     run_parser.add_argument(
+        "--worker-validation-mode",
+        choices=sorted(WORKER_VALIDATION_MODES),
+        default=DEFAULT_WORKER_VALIDATION_MODE,
+        help="Worker validation suggestion policy. Use 'intents-only' to reject raw validationCommands from workers.",
+    )
+    run_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Create the run manifest and task requests without invoking Claude.",
@@ -526,6 +534,12 @@ def parse_args() -> argparse.Namespace:
         "--continue-on-error",
         action="store_true",
         help="Continue running independent tasks after a worker fails or reports blocked.",
+    )
+    retry_parser.add_argument(
+        "--worker-validation-mode",
+        choices=sorted(WORKER_VALIDATION_MODES),
+        default="",
+        help="Override worker validation suggestion policy for the retry run. Defaults to the source run mode or 'compat'.",
     )
     retry_parser.add_argument(
         "--dry-run",
@@ -1119,6 +1133,15 @@ def agent_payload_for_claude(agents: dict[str, AgentDefinition]) -> str:
         for name, agent in agents.items()
     }
     return json.dumps(payload, separators=(",", ":"))
+
+
+def normalize_worker_validation_mode(mode: str | None, *, location: str) -> str:
+    normalized = (mode or DEFAULT_WORKER_VALIDATION_MODE).strip().lower()
+    if normalized not in WORKER_VALIDATION_MODES:
+        raise OrchestratorError(
+            f"{location}: worker validation mode must be one of {sorted(WORKER_VALIDATION_MODES)}"
+        )
+    return normalized
 
 
 def ensure_claude_available(claude_bin: str) -> None:
@@ -2397,9 +2420,14 @@ def worker_prompt(
     workspace_mode: str,
     workspace_path: Path,
     dependency_text: str,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
 ) -> PromptRenderResult:
     task_root = ROOT if workspace_mode == "repo" else workspace_path
     context_mode = effective_context_mode(task, agent)
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location=f"task '{task.id}' worker validation mode",
+    )
     relevant_files = dedupe_strings(task.files or plan.shared_context.files)
     constraints = dedupe_strings(plan.shared_context.constraints + task.constraints)
     validation_hints = (
@@ -2433,7 +2461,14 @@ def worker_prompt(
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` or `validationIntents` to <=2 high-signal suggestions.",
             "Use `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty. Use `null` for those fields only when the value is genuinely unknown or unverified.",
-            "Prefer structured `validationIntents` for direct repo-script or tool invocations; treat raw `validationCommands` as a deprecated compatibility fallback and use them only when you cannot express the suggestion with a supported intent shape.",
+            (
+                "Emit structured `validationIntents` only for validation suggestions in this run. "
+                "Keep `validationCommands` as `[]` when known-empty or `null` only when genuinely unknown; "
+                "do not return legacy raw `validationCommands` items."
+                if worker_validation_mode == "intents-only"
+                else "Prefer structured `validationIntents` for direct repo-script or tool invocations; "
+                "treat raw `validationCommands` as a deprecated compatibility fallback and use them only when you cannot express the suggestion with a supported intent shape."
+            ),
             "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
             "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
@@ -2575,7 +2610,15 @@ def extract_json_payload(text: str) -> Any:
     raise OrchestratorError("Claude output did not contain a standalone JSON payload")
 
 
-def coerce_worker_result(payload: Any) -> dict[str, Any]:
+def coerce_worker_result(
+    payload: Any,
+    *,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+) -> dict[str, Any]:
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location="Claude JSON output",
+    )
     required = {
         "status",
         "summary",
@@ -2614,6 +2657,10 @@ def coerce_worker_result(payload: Any) -> dict[str, Any]:
         max_chars=MAX_WORKER_VALIDATION_COMMAND_CHARS,
         compact=False,
     )
+    if worker_validation_mode == "intents-only" and validation_commands:
+        raise OrchestratorError(
+            "Claude JSON output must not include raw validationCommands items when worker validation mode is 'intents-only'"
+        )
     if not validation_commands_known:
         unknown_fields.append("validationCommands")
     follow_ups, follow_ups_known = normalize_worker_text_list(
@@ -2996,8 +3043,13 @@ def execute_task(
     claude_bin: str,
     agents_json: str,
     dry_run: bool,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
 ) -> TaskRunRecord:
     agent = agents[task.agent]
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location=f"task '{task.id}' worker validation mode",
+    )
     model_name = resolved_model(task, agent)
     model_profile = resolved_model_profile(task, agent)
     workspace_mode = effective_workspace_mode(task, agent)
@@ -3014,6 +3066,7 @@ def execute_task(
         workspace_mode,
         prepared_workspace,
         dependency_summary(dependency_records, task),
+        worker_validation_mode=worker_validation_mode,
     )
     prompt = prompt_render.text
     prompt_chars = prompt_render.chars
@@ -3175,7 +3228,10 @@ def execute_task(
 
         if raw_payload is None:
             raise OrchestratorError("Claude output did not contain a standalone JSON payload")
-        payload = coerce_worker_result(raw_payload)
+        payload = coerce_worker_result(
+            raw_payload,
+            worker_validation_mode=worker_validation_mode,
+        )
         write_json(worker_result_path, payload)
         record = TaskRunRecord(
             id=task.id,
@@ -3275,17 +3331,23 @@ def manifest_payload(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location="manifest worker validation mode",
+    )
     usage_totals = aggregate_usage(records)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
     payload = {
         "runId": run_id,
         "generatedAt": iso_now(),
         "dryRun": dry_run,
+        "workerValidationMode": worker_validation_mode,
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
         "agentsPath": str(agents_path),
@@ -3321,6 +3383,7 @@ def write_manifest(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
@@ -3339,6 +3402,7 @@ def write_manifest(
             plan,
             records,
             dry_run=dry_run,
+            worker_validation_mode=worker_validation_mode,
             retry_of_run_id=retry_of_run_id,
             requested_task_ids=requested_task_ids,
             retried_task_ids=retried_task_ids,
@@ -3395,11 +3459,16 @@ def run_loaded_plan(
     max_parallel: int,
     continue_on_error: bool,
     dry_run: bool,
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
     initial_records: dict[str, TaskRunRecord] | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location="run worker validation mode",
+    )
     topological_batches(plan.tasks)
     if not dry_run:
         ensure_claude_available(claude_bin)
@@ -3451,6 +3520,7 @@ def run_loaded_plan(
                 plan,
                 records,
                 dry_run=dry_run,
+                worker_validation_mode=worker_validation_mode,
                 retry_of_run_id=retry_of_run_id,
                 requested_task_ids=requested_task_ids,
                 retried_task_ids=retried_task_ids,
@@ -3499,6 +3569,7 @@ def run_loaded_plan(
                     claude_bin=claude_bin,
                     agents_json=agents_json,
                     dry_run=dry_run,
+                    worker_validation_mode=worker_validation_mode,
                 ): task
                 for task in batch
             }
@@ -3517,6 +3588,7 @@ def run_loaded_plan(
                     plan,
                     records,
                     dry_run=dry_run,
+                    worker_validation_mode=worker_validation_mode,
                     retry_of_run_id=retry_of_run_id,
                     requested_task_ids=requested_task_ids,
                     retried_task_ids=retried_task_ids,
@@ -3536,6 +3608,7 @@ def run_loaded_plan(
         plan,
         records,
         dry_run=dry_run,
+        worker_validation_mode=worker_validation_mode,
         retry_of_run_id=retry_of_run_id,
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
@@ -3550,6 +3623,7 @@ def run_loaded_plan(
         "plan": plan.name,
         "goal": plan.goal,
         "dryRun": dry_run,
+        "workerValidationMode": worker_validation_mode,
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
@@ -3580,6 +3654,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         max_parallel=args.max_parallel,
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
+        worker_validation_mode=args.worker_validation_mode,
     )
 
 
@@ -3640,6 +3715,11 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
         max_parallel=args.max_parallel,
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
+        worker_validation_mode=normalize_worker_validation_mode(
+            getattr(args, "worker_validation_mode", "")
+            or str(manifest.get("workerValidationMode", DEFAULT_WORKER_VALIDATION_MODE)),
+            location=f"retry source '{manifest_path}' worker validation mode",
+        ),
         initial_records=initial_records,
         retry_of_run_id=str(manifest.get("runId", "")),
         requested_task_ids=requested_task_ids,

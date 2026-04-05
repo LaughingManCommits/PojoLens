@@ -387,6 +387,53 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("key notes: unknown", summary)
         self.assertIn("next: unknown", summary)
 
+    def test_worker_prompt_intents_only_forbids_raw_validation_commands(self):
+        orchestrator = self.orchestrator
+        agent = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="intent-only-worker-prompt",
+            goal="Keep validation suggestions intent-only.",
+            shared_context=orchestrator.SharedContext(
+                summary="Prompt test.",
+                constraints=[],
+                files=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        rendered = orchestrator.worker_prompt(
+            plan,
+            task,
+            agent,
+            "copy",
+            pathlib.Path("C:/tmp/workspace"),
+            "- none",
+            worker_validation_mode="intents-only",
+        )
+
+        self.assertIn("Emit structured `validationIntents` only", rendered.text)
+        self.assertIn("Keep `validationCommands` as `[]`", rendered.text)
+
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
         payload = {
@@ -906,6 +953,95 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("standalone JSON payload", stderr_text)
         self.assertIsNone(record.result_path)
 
+    def test_execute_task_fails_when_intents_only_worker_returns_raw_validation_commands(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_subprocess = orchestrator.run_subprocess
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            runtime_root = temp_path / "runtime"
+            workspaces_dir = temp_path / "workspaces"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            runtime_root.mkdir()
+            workspaces_dir.mkdir()
+            orchestrator.ROOT = repo_root
+            orchestrator.run_subprocess = (
+                lambda command, *, cwd, timeout_sec, progress_action=None: subprocess.CompletedProcess(
+                    command,
+                    0,
+                    json.dumps(
+                        {
+                            "status": "completed",
+                            "summary": "Worker returned a legacy command.",
+                            "filesTouched": [],
+                            "validationIntents": [],
+                            "validationCommands": ["scripts/check-doc-consistency.ps1"],
+                            "followUps": [],
+                            "notes": [],
+                        }
+                    ),
+                    "",
+                )
+            )
+            try:
+                agent = orchestrator.AgentDefinition(
+                    name="analyst",
+                    description="analysis",
+                    prompt="Return JSON only.",
+                    model_profile="simple",
+                    effort="high",
+                    permission_mode="dontAsk",
+                    workspace_mode="repo",
+                    context_mode="minimal",
+                    timeout_sec=30,
+                    allowed_tools=["Read"],
+                    disallowed_tools=[],
+                )
+                task = orchestrator.TaskDefinition(
+                    id="inspect-json",
+                    title="Inspect JSON",
+                    agent="analyst",
+                    prompt="Inspect worker JSON output.",
+                    workspace_mode="repo",
+                )
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="worker-intents-only-failure",
+                    goal="Fail raw validationCommands under intents-only mode.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Worker intent-only failure test.",
+                        constraints=[],
+                        files=[],
+                        validation=[],
+                    ),
+                    tasks=[task],
+                )
+
+                record = orchestrator.execute_task(
+                    run_dir,
+                    runtime_root,
+                    workspaces_dir,
+                    plan,
+                    {"analyst": agent},
+                    task,
+                    {},
+                    claude_bin="claude",
+                    agents_json="{}",
+                    dry_run=False,
+                    worker_validation_mode="intents-only",
+                )
+                stderr_text = pathlib.Path(record.stderr_path).read_text(encoding="utf-8")
+            finally:
+                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("failed", record.status)
+        self.assertIn("must not include raw validationCommands", record.summary)
+        self.assertIn("must not include raw validationCommands", stderr_text)
+
     def test_run_loaded_plan_fail_fast_blocks_remaining_ready_tasks(self):
         orchestrator = self.orchestrator
         old_ensure_claude_available = orchestrator.ensure_claude_available
@@ -969,6 +1105,7 @@ class PromptBudgetTest(unittest.TestCase):
                 claude_bin,
                 agents_json,
                 dry_run,
+                worker_validation_mode="compat",
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -1076,6 +1213,7 @@ class PromptBudgetTest(unittest.TestCase):
                 claude_bin,
                 agents_json,
                 dry_run,
+                worker_validation_mode="compat",
             ):
                 executed_task_ids.append(task.id)
                 status = "failed" if task.id == "a-fail" else "completed"
@@ -1628,6 +1766,7 @@ class PromptBudgetTest(unittest.TestCase):
                         max_parallel=2,
                         selected_tasks=[],
                         continue_on_error=False,
+                        worker_validation_mode="",
                         dry_run=True,
                     )
                 )
@@ -1639,6 +1778,192 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual(["retry-b"], payload["retriedTaskIds"])
         self.assertEqual(["inspect-a"], payload["seededTaskIds"])
         self.assertEqual({"completed": 1, "planned": 1}, payload["statusCounts"])
+
+    def test_retry_run_inherits_worker_validation_mode_from_manifest(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_loaded_plan = orchestrator.run_loaded_plan
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "previous-run"
+            workspaces_dir = runtime_root / "workspaces" / "previous-run"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "retry-plan",
+                        "goal": "Retry failed tasks.",
+                        "sharedContext": {
+                            "summary": "Retry test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "prompt": "Retry B.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            captured: dict[str, object] = {}
+
+            def fake_run_loaded_plan(
+                plan_path_arg,
+                agents_path_arg,
+                agents,
+                plan,
+                *,
+                claude_bin,
+                runtime_root,
+                max_parallel,
+                continue_on_error,
+                dry_run,
+                worker_validation_mode="compat",
+                initial_records=None,
+                retry_of_run_id=None,
+                requested_task_ids=None,
+                retried_task_ids=None,
+            ):
+                captured["worker_validation_mode"] = worker_validation_mode
+                return {
+                    "runId": "retry-run",
+                    "plan": plan.name,
+                    "goal": plan.goal,
+                    "dryRun": dry_run,
+                    "workerValidationMode": worker_validation_mode,
+                    "runtimeRoot": str(runtime_root),
+                    "runDir": str(runtime_root / "runs" / "retry-run"),
+                    "workspacesDir": str(runtime_root / "workspaces" / "retry-run"),
+                    "statusCounts": {"planned": 1},
+                    "usageTotals": {
+                        "tasksWithUsage": 0,
+                        "promptEstimatedTokens": 0,
+                        "inputTokens": 0,
+                        "outputTokens": 0,
+                        "cacheReadInputTokens": 0,
+                        "cacheCreationInputTokens": 0,
+                        "totalCostUsd": 0.0,
+                        "perModel": {},
+                    },
+                    "tasks": [],
+                    "requestedTaskIds": list(requested_task_ids or []),
+                    "retriedTaskIds": list(retried_task_ids or []),
+                    "seededTaskIds": sorted(initial_records or {}),
+                }
+
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "previous-run",
+                        "planPath": str(plan_path),
+                        "agentsPath": str(agents_path),
+                        "runtimeRoot": str(runtime_root),
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "workerValidationMode": "intents-only",
+                        "tasks": {
+                            "retry-b": {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "status": "failed",
+                                "summary": "B failed.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "retry-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 1,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                orchestrator.run_loaded_plan = fake_run_loaded_plan
+                payload = orchestrator.retry_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        agents="",
+                        claude_bin="claude",
+                        runtime_root="",
+                        max_parallel=2,
+                        selected_tasks=[],
+                        continue_on_error=False,
+                        worker_validation_mode="",
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.run_loaded_plan = old_run_loaded_plan
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("intents-only", captured["worker_validation_mode"])
+        self.assertEqual("intents-only", payload["workerValidationMode"])
 
     def test_retry_run_retries_unfinished_dependency_when_selected_task_depends_on_it(self):
         orchestrator = self.orchestrator
@@ -1812,6 +2137,7 @@ class PromptBudgetTest(unittest.TestCase):
                         max_parallel=2,
                         selected_tasks=["retry-b"],
                         continue_on_error=False,
+                        worker_validation_mode="",
                         dry_run=True,
                     )
                 )
