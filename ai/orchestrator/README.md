@@ -43,6 +43,8 @@ Dry runs:
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
+- `validate --json` and run/manifests now also surface `compatWorkerValidationTaskIds` plus a count so deprecated compat-mode tasks stay visible while the remaining migration work is burned down
+- `validate`, `run`, and `retry` now also accept `--require-intents-only-workers` to fail fast when any effective task mode still resolves to `compat`, which turns compat-task visibility into an enforceable CI gate for tracked plans
 
 Workspace modes:
 - `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit file hints; safe default
@@ -93,12 +95,15 @@ Coordinator rules:
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; otherwise the effective mode resolves again from tracked task/agent settings, with legacy manifest fallback for older runs
 - task plans may declare `workerValidationMode` per task, and agent definitions may declare role-wide defaults; precedence is CLI override, then task, then agent, then `compat`
 - prefer agent defaults when a role should usually enforce the same policy across many tasks; use task-level `workerValidationMode = compat` only for targeted deviations
+- planner guidance now treats `workerValidationMode = compat` as a legacy exception path rather than a normal authoring choice
 - the tracked `example-review.json` and `example-parallel.json` samples now inherit intent-only enforcement from the `analyst` and `reviewer` agent defaults instead of repeating the same task-level setting
 - `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
 - structured `validation_intents` currently support `repo-script` and `tool` kinds, render back to command text for review output, and execute without shell wrapping
 - accepted raw `validation_commands` are still preserved verbatim for review output, but the coordinator now normalizes direct tool/repo-script shapes into an argv intent internally so they can run without `shell=True`; raw command strings are now explicitly a compatibility path
 - `validate-run --intents-only` rejects raw legacy `validation_commands` even when they normalize cleanly, accepts only worker-emitted structured intents, and reports which tasks still suggested legacy raw commands so migration is visible in the summary
 - run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, `taskWorkerValidationModes`, and `taskWorkerValidationModeSources`; task records also carry `worker_validation_mode_source`
+- those runtime payloads also include `compatWorkerValidationTaskIds` and `compatWorkerValidationTaskCount` so deprecated compat-mode usage is easy to spot in review or CI
+- when tracked plans are expected to stay zero-compat, use `validate` or `run` with `--require-intents-only-workers` to fail immediately instead of treating compat-task ids/counts as review-only warnings
 - when tracked task or agent modes differ inside the same run, run payloads surface `workerValidationMode = "mixed"` instead of collapsing the run to a misleading single mode
 - `validate-run` still enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
 - worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationCommands` are capped, malformed status or list fields fail the task, structured `validationIntents` are normalized, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`

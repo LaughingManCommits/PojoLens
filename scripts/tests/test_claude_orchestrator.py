@@ -253,6 +253,7 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("promptBudget", payload)
         self.assertFalse(payload["promptBudget"]["exceeded"])
         self.assertGreater(len(payload["promptSections"]), 0)
+        self.assertIn('Avoid `workerValidationMode="compat"`', payload["prompt"])
 
 
 class ValidateCommandTest(unittest.TestCase):
@@ -362,6 +363,8 @@ class ValidateCommandTest(unittest.TestCase):
             {"inspect": "agent", "implement": "task"},
             payload["taskWorkerValidationModeSources"],
         )
+        self.assertEqual(["implement"], payload["compatWorkerValidationTaskIds"])
+        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
         self.assertEqual(
             [
                 {
@@ -379,6 +382,79 @@ class ValidateCommandTest(unittest.TestCase):
             ],
             payload["tasks"],
         )
+
+    def test_validate_command_rejects_compat_tasks_when_intents_only_required(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "reject-compat",
+                        "goal": "Reject compat workers.",
+                        "sharedContext": {
+                            "summary": "Compat rejection test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect guidance.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "requires intents-only workers; compat workerValidationMode remains effective for: inspect",
+            ):
+                orchestrator.validate_command(
+                    SimpleNamespace(
+                        agents=str(agents_path),
+                        task_plan=str(plan_path),
+                        require_intents_only_workers=True,
+                    )
+                )
 
     def test_dependency_summary_truncates_long_dependency_output(self):
         orchestrator = self.orchestrator
@@ -1516,6 +1592,8 @@ class ValidateCommandTest(unittest.TestCase):
             {"inspect-a": "agent", "review-b": "task"},
             payload["taskWorkerValidationModeSources"],
         )
+        self.assertEqual(["review-b"], payload["compatWorkerValidationTaskIds"])
+        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
         self.assertEqual(
             ["agent", "task"],
             [task["worker_validation_mode_source"] for task in payload["tasks"]],
@@ -1622,8 +1700,69 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("compat", payload["workerValidationMode"])
         self.assertEqual("compat", payload["workerValidationModeOverride"])
         self.assertEqual({"inspect-a": "compat"}, payload["taskWorkerValidationModes"])
+        self.assertEqual(["inspect-a"], payload["compatWorkerValidationTaskIds"])
+        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
         self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
         self.assertEqual("override", payload["tasks"][0]["worker_validation_mode_source"])
+
+    def test_run_loaded_plan_rejects_compat_tasks_when_intents_only_required(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="reject-compat-run",
+                goal="Reject compat workers before execution.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Compat rejection test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "requires intents-only workers; compat workerValidationMode remains effective for: inspect-a",
+            ):
+                orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                    require_intents_only_workers=True,
+                )
 
     def test_review_run_reports_diff_summary(self):
         orchestrator = self.orchestrator
@@ -2236,12 +2375,14 @@ class ValidateCommandTest(unittest.TestCase):
                 continue_on_error,
                 dry_run,
                 worker_validation_mode="compat",
+                require_intents_only_workers=False,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
                 retried_task_ids=None,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
+                captured["require_intents_only_workers"] = require_intents_only_workers
                 return {
                     "runId": "retry-run",
                     "plan": plan.name,
@@ -2338,6 +2479,192 @@ class ValidateCommandTest(unittest.TestCase):
 
         self.assertEqual("intents-only", captured["worker_validation_mode"])
         self.assertEqual("intents-only", payload["workerValidationMode"])
+
+    def test_retry_run_forwards_require_intents_only_workers(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_loaded_plan = orchestrator.run_loaded_plan
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "previous-run"
+            workspaces_dir = runtime_root / "workspaces" / "previous-run"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "retry-plan",
+                        "goal": "Retry failed tasks.",
+                        "sharedContext": {
+                            "summary": "Retry test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "prompt": "Retry B.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            captured: dict[str, object] = {}
+
+            def fake_run_loaded_plan(
+                plan_path_arg,
+                agents_path_arg,
+                agents,
+                plan,
+                *,
+                claude_bin,
+                runtime_root,
+                max_parallel,
+                continue_on_error,
+                dry_run,
+                worker_validation_mode="compat",
+                require_intents_only_workers=False,
+                initial_records=None,
+                retry_of_run_id=None,
+                requested_task_ids=None,
+                retried_task_ids=None,
+            ):
+                captured["require_intents_only_workers"] = require_intents_only_workers
+                return {
+                    "runId": "retry-run",
+                    "plan": plan.name,
+                    "goal": plan.goal,
+                    "dryRun": dry_run,
+                    "workerValidationMode": worker_validation_mode,
+                    "runtimeRoot": str(runtime_root),
+                    "runDir": str(runtime_root / "runs" / "retry-run"),
+                    "workspacesDir": str(runtime_root / "workspaces" / "retry-run"),
+                    "statusCounts": {"planned": 1},
+                    "usageTotals": {
+                        "tasksWithUsage": 0,
+                        "promptEstimatedTokens": 0,
+                        "inputTokens": 0,
+                        "outputTokens": 0,
+                        "cacheReadInputTokens": 0,
+                        "cacheCreationInputTokens": 0,
+                        "totalCostUsd": 0.0,
+                        "perModel": {},
+                    },
+                    "tasks": [],
+                    "requestedTaskIds": list(requested_task_ids or []),
+                    "retriedTaskIds": list(retried_task_ids or []),
+                    "seededTaskIds": sorted(initial_records or {}),
+                }
+
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "previous-run",
+                        "planPath": str(plan_path),
+                        "agentsPath": str(agents_path),
+                        "runtimeRoot": str(runtime_root),
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "retry-b": {
+                                "id": "retry-b",
+                                "title": "Retry B",
+                                "agent": "analyst",
+                                "status": "failed",
+                                "summary": "B failed.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspaces_dir / "retry-b"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 1,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                orchestrator.run_loaded_plan = fake_run_loaded_plan
+                orchestrator.retry_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        agents="",
+                        claude_bin="claude",
+                        runtime_root="",
+                        max_parallel=2,
+                        selected_tasks=[],
+                        continue_on_error=False,
+                        worker_validation_mode="",
+                        require_intents_only_workers=True,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.run_loaded_plan = old_run_loaded_plan
+                orchestrator.ROOT = old_root
+
+        self.assertTrue(captured["require_intents_only_workers"])
 
     def test_retry_run_retries_unfinished_dependency_when_selected_task_depends_on_it(self):
         orchestrator = self.orchestrator

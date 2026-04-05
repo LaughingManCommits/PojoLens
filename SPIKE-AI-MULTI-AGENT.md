@@ -312,6 +312,13 @@ Now in place:
 - `intents-only` worker runs now use a stricter JSON schema that limits
   `validationCommands` to `[]` or `null`, so raw legacy command items are
   rejected before the coordinator's post-parse guard
+- `validate --json` plus run/manifests now also surface explicit compat-task
+  ids/counts, and planner guidance treats `workerValidationMode = compat` as a
+  legacy exception path instead of a normal authoring choice
+- `validate`, `run`, and `retry` now also accept
+  `--require-intents-only-workers`, which fails fast when any effective task
+  mode still resolves to `compat` and makes zero-compat tracked plans
+  enforceable instead of merely inspectable
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
@@ -322,7 +329,8 @@ What is still needed:
   `tool`
 - decide whether raw `validationCommands` should remain in the compat worker
   schema at all now that `intents-only` workers reject them at the schema
-  boundary
+  boundary, compat-task reporting makes the remaining legacy usage obvious,
+  and strict zero-compat gates can now reject it before execution
 
 ### 8. Automated Regression Coverage
 

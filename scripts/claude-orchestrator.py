@@ -388,6 +388,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to the tracked agents JSON file.",
     )
     validate_parser.add_argument(
+        "--require-intents-only-workers",
+        action="store_true",
+        help="Fail validation when any task still resolves to workerValidationMode='compat'.",
+    )
+    validate_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the validation summary as JSON.",
@@ -500,6 +505,11 @@ def parse_args() -> argparse.Namespace:
         help="Override worker validation suggestion policy. Defaults to task or agent definitions, then 'compat'.",
     )
     run_parser.add_argument(
+        "--require-intents-only-workers",
+        action="store_true",
+        help="Fail the run before execution when any task still resolves to workerValidationMode='compat'.",
+    )
+    run_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Create the run manifest and task requests without invoking Claude.",
@@ -556,6 +566,11 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(WORKER_VALIDATION_MODES),
         default="",
         help="Override worker validation suggestion policy for the retry run. Defaults to the source run mode or 'compat'.",
+    )
+    retry_parser.add_argument(
+        "--require-intents-only-workers",
+        action="store_true",
+        help="Fail the retry before execution when any task still resolves to workerValidationMode='compat'.",
     )
     retry_parser.add_argument(
         "--dry-run",
@@ -1269,6 +1284,28 @@ def effective_plan_worker_validation_mode_sources(
         task.id: resolve_worker_validation_mode(task, agents[task.agent], run_override=run_override).source
         for task in plan.tasks
     }
+
+
+def compat_worker_validation_task_ids(task_worker_validation_modes: dict[str, str]) -> list[str]:
+    return sorted(
+        task_id
+        for task_id, mode in task_worker_validation_modes.items()
+        if mode == "compat"
+    )
+
+
+def ensure_no_compat_worker_validation_tasks(
+    task_worker_validation_modes: dict[str, str],
+    *,
+    location: str,
+) -> list[str]:
+    compat_task_ids = compat_worker_validation_task_ids(task_worker_validation_modes)
+    if compat_task_ids:
+        raise OrchestratorError(
+            f"{location} requires intents-only workers; compat workerValidationMode remains effective for: "
+            + ", ".join(compat_task_ids)
+        )
+    return compat_task_ids
 
 
 def summarized_worker_validation_mode(modes: list[str]) -> str:
@@ -1993,6 +2030,7 @@ def planner_prompt(
             '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
             '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
             '`workerValidationMode="intents-only"` fits tasks that should forbid raw `validationCommands` and require structured `validationIntents` only.',
+            'Avoid `workerValidationMode="compat"` unless a task has a concrete legacy-validation need that cannot be expressed with the current structured intent shapes.',
             "Keep file lists repo-relative, concrete, and file-based for copy workspaces.",
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
@@ -3530,6 +3568,7 @@ def manifest_payload(
         agents,
         run_override=worker_validation_override,
     )
+    compat_task_ids = compat_worker_validation_task_ids(task_worker_validation_modes)
     task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(
         plan,
         agents,
@@ -3546,6 +3585,8 @@ def manifest_payload(
         ),
         "workerValidationModeOverride": worker_validation_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
+        "compatWorkerValidationTaskIds": compat_task_ids,
+        "compatWorkerValidationTaskCount": len(compat_task_ids),
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
@@ -3660,6 +3701,7 @@ def run_loaded_plan(
     continue_on_error: bool,
     dry_run: bool,
     worker_validation_mode: str | None = None,
+    require_intents_only_workers: bool = False,
     initial_records: dict[str, TaskRunRecord] | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
@@ -3677,6 +3719,14 @@ def run_loaded_plan(
         plan,
         agents,
         run_override=worker_validation_override,
+    )
+    compat_task_ids = (
+        ensure_no_compat_worker_validation_tasks(
+            task_worker_validation_modes,
+            location=f"run plan '{plan.name}'",
+        )
+        if require_intents_only_workers
+        else compat_worker_validation_task_ids(task_worker_validation_modes)
     )
     task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(
         plan,
@@ -3844,6 +3894,8 @@ def run_loaded_plan(
         ),
         "workerValidationModeOverride": worker_validation_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
+        "compatWorkerValidationTaskIds": compat_task_ids,
+        "compatWorkerValidationTaskCount": len(compat_task_ids),
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
@@ -3876,6 +3928,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
         worker_validation_mode=args.worker_validation_mode,
+        require_intents_only_workers=bool(getattr(args, "require_intents_only_workers", False)),
     )
 
 
@@ -3949,6 +4002,7 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
             if (getattr(args, "worker_validation_mode", "") or manifest_worker_validation_override)
             else None
         ),
+        require_intents_only_workers=bool(getattr(args, "require_intents_only_workers", False)),
         initial_records=initial_records,
         retry_of_run_id=str(manifest.get("runId", "")),
         requested_task_ids=requested_task_ids,
@@ -4329,6 +4383,14 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
         plan_path = Path(args.task_plan).resolve()
         plan = load_task_plan(plan_path, agents)
         task_worker_validation_modes = effective_plan_worker_validation_modes(plan, agents)
+        compat_task_ids = (
+            ensure_no_compat_worker_validation_tasks(
+                task_worker_validation_modes,
+                location=f"task plan '{plan.name}'",
+            )
+            if bool(getattr(args, "require_intents_only_workers", False))
+            else compat_worker_validation_task_ids(task_worker_validation_modes)
+        )
         task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(plan, agents)
         payload.update(
             {
@@ -4337,6 +4399,8 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                 "taskCount": len(plan.tasks),
                 "taskIds": [task.id for task in plan.tasks],
                 "taskWorkerValidationModes": task_worker_validation_modes,
+                "compatWorkerValidationTaskIds": compat_task_ids,
+                "compatWorkerValidationTaskCount": len(compat_task_ids),
                 "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
                 "tasks": [
                     {

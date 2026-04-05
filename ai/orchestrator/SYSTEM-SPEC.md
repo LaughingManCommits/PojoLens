@@ -83,6 +83,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Agent and task definitions may also carry `workerValidationMode`; precedence should be explicit CLI override first, then task definition, then agent definition, then the default `compat` mode.
 - When many tasks share the same worker-validation policy for a role, prefer agent-level defaults and reserve task-level `workerValidationMode = compat` for exceptions.
 - For `intents-only` workers, the JSON schema handed to Claude should also disallow non-empty `validationCommands` so raw legacy command items fail at the schema boundary before coordinator parsing.
+- Validation and runtime summary surfaces should make any remaining effective `compat` tasks explicit, including task ids/counts, so deprecated authoring is easy to locate and remove.
+- Validate, run, and retry entrypoints may also expose a strict intents-only gate that fails fast when any effective `compat` tasks remain, so zero-compat tracked plans can be enforced before the raw-command path is removed entirely.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
@@ -135,9 +137,9 @@ This file defines the portable contract for recreating the repository's AI memor
 ## Minimum Validation Checklist
 
 - `python -m py_compile scripts/claude-orchestrator.py scripts/refresh-ai-memory.py scripts/query-ai-memory.py`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`
+- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --require-intents-only-workers`
+- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --require-intents-only-workers`
+- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --require-intents-only-workers`
 - `scripts/refresh-ai-memory.ps1`
 - `scripts/refresh-ai-memory.ps1 -Check`
 
