@@ -646,6 +646,19 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("repo-script", result["validationIntents"][0]["kind"])
         self.assertEqual("mvn", result["validationIntents"][1]["entrypoint"])
 
+    def test_task_output_schema_json_tightens_validation_commands_in_intents_only_mode(self):
+        orchestrator = self.orchestrator
+
+        compat_schema = json.loads(orchestrator.task_output_schema_json("compat"))
+        intents_only_schema = json.loads(orchestrator.task_output_schema_json("intents-only"))
+
+        self.assertNotIn("maxItems", compat_schema["properties"]["validationCommands"])
+        self.assertEqual(0, intents_only_schema["properties"]["validationCommands"]["maxItems"])
+        self.assertEqual(
+            ["array", "null"],
+            intents_only_schema["properties"]["validationCommands"]["type"],
+        )
+
     def test_coerce_worker_result_rejects_invalid_status(self):
         orchestrator = self.orchestrator
 

@@ -309,6 +309,9 @@ Now in place:
 - `validate --json` plus run/manifests now surface each task's effective
   worker-validation source (`override`, `task`, `agent`, or `default`) so the
   authoring pattern is inspectable
+- `intents-only` worker runs now use a stricter JSON schema that limits
+  `validationCommands` to `[]` or `null`, so raw legacy command items are
+  rejected before the coordinator's post-parse guard
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
@@ -317,8 +320,9 @@ What is still needed:
 
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
-- decide whether raw `validationCommands` should remain in the worker schema at
-  all now that the coordinator has an explicit compatibility-only mode
+- decide whether raw `validationCommands` should remain in the compat worker
+  schema at all now that `intents-only` workers reject them at the schema
+  boundary
 
 ### 8. Automated Regression Coverage
 

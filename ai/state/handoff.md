@@ -16,12 +16,13 @@
 - `PojoLensRuntime` owns natural vocabulary; direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free.
 - Natural queries now support grouped aggregates, charts/time buckets, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded aliases.
 - `docs/natural.md` is the canonical natural-query guide.
-- Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode after bounded dependency handoff and stricter worker output caps.
+- Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
-- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, overlap serialization, protected-path audits, `review`, `export-patch`, `promote`, `retry`, `cleanup`, and coordinator-side `validate-run` are in place.
-- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, normalizes safe raw commands onto argv, preserves unknown-vs-empty worker lists, and has live `stderr` progress plus `validate-run --intents-only`.
+- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, protected-path audits, review/export/promote/retry/cleanup, and `validate-run` are in place.
+- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, preserves unknown-vs-empty worker lists, and has live `stderr` progress plus `validate-run --intents-only`.
 - `analyst`, `implementer`, and `reviewer` now default to `workerValidationMode = intents-only`; `validate --json` and run/manifests surface mode sources plus per-task mode maps.
-- Next orchestrator spike: decide whether to widen intent kinds or remove raw `validationCommands`, with task-level `compat` kept only as the exception path.
+- `intents-only` workers now also get a stricter JSON schema that allows `validationCommands` only as `[]` or `null`, so raw command items are blocked before coordinator parsing.
+- Next orchestrator spike: decide whether to widen intent kinds or remove raw `validationCommands` from the remaining compat schema, with task-level `compat` kept only as the exception path.
 
 ## Validate
 

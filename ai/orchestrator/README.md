@@ -68,6 +68,7 @@ Token and cost visibility:
 - worker prompts now treat raw `validationCommands` as a deprecated compatibility fallback; prefer structured `validationIntents` whenever the suggestion is a direct repo-script or tool invocation
 - `run` and `retry` now treat `--worker-validation-mode` as an explicit override; tracked agent/task `workerValidationMode` settings can drive the same enforcement with no CLI flag
 - the tracked `analyst`, `implementer`, and `reviewer` agents now default to `workerValidationMode = intents-only`; the tracked sample plans inherit agent defaults and reserve task-level `workerValidationMode = compat` for exceptions
+- `intents-only` runs now hand Claude a stricter worker JSON schema that allows `validationCommands` only as `[]` or `null`, so raw legacy command items are blocked at the schema boundary as well as during coordinator parsing
 - live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
 
 Model selection:

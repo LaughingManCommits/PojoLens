@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import difflib
 import hashlib
 import json
@@ -2684,8 +2685,23 @@ def worker_prompt(
     )
 
 
-def task_output_schema_json() -> str:
-    return json.dumps(WORKER_RESULT_SCHEMA, separators=(",", ":"))
+def worker_result_schema(worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE) -> dict[str, Any]:
+    worker_validation_mode = normalize_worker_validation_mode(
+        worker_validation_mode,
+        location="worker result schema",
+    )
+    schema = copy.deepcopy(WORKER_RESULT_SCHEMA)
+    if worker_validation_mode == "intents-only":
+        schema["properties"]["validationCommands"] = {
+            "type": ["array", "null"],
+            "items": {"type": "string"},
+            "maxItems": 0,
+        }
+    return schema
+
+
+def task_output_schema_json(worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE) -> str:
+    return json.dumps(worker_result_schema(worker_validation_mode), separators=(",", ":"))
 
 
 def plan_output_schema_json() -> str:
@@ -3236,7 +3252,7 @@ def execute_task(
         agents_json,
         task.agent,
         prompt,
-        task_output_schema_json(),
+        task_output_schema_json(effective_validation_mode),
         model=model_name,
         effort=task.effort or agent.effort,
         permission_mode=task.permission_mode or agent.permission_mode,

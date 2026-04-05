@@ -82,6 +82,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator may also expose a run-time worker validation mode override, including an `intents-only` setting that tightens worker prompts and rejects non-empty raw `validationCommands` in worker JSON before task records are accepted.
 - Agent and task definitions may also carry `workerValidationMode`; precedence should be explicit CLI override first, then task definition, then agent definition, then the default `compat` mode.
 - When many tasks share the same worker-validation policy for a role, prefer agent-level defaults and reserve task-level `workerValidationMode = compat` for exceptions.
+- For `intents-only` workers, the JSON schema handed to Claude should also disallow non-empty `validationCommands` so raw legacy command items fail at the schema boundary before coordinator parsing.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
