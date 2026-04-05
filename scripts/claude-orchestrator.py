@@ -88,6 +88,12 @@ WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
 }
 PROTECTED_PATH_EXACT = {"TODO.md"}
 PROTECTED_PATH_PREFIXES = ("ai/state/", "ai/log/", "ai/indexes/")
+WORKER_UNKNOWNABLE_FIELDS = (
+    "filesTouched",
+    "validationCommands",
+    "followUps",
+    "notes",
+)
 WORKER_RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -96,10 +102,10 @@ WORKER_RESULT_SCHEMA = {
             "enum": ["completed", "blocked", "failed"],
         },
         "summary": {"type": "string"},
-        "filesTouched": {"type": "array", "items": {"type": "string"}},
-        "validationCommands": {"type": "array", "items": {"type": "string"}},
-        "followUps": {"type": "array", "items": {"type": "string"}},
-        "notes": {"type": "array", "items": {"type": "string"}},
+        "filesTouched": {"type": ["array", "null"], "items": {"type": "string"}},
+        "validationCommands": {"type": ["array", "null"], "items": {"type": "string"}},
+        "followUps": {"type": ["array", "null"], "items": {"type": "string"}},
+        "notes": {"type": ["array", "null"], "items": {"type": "string"}},
     },
     "required": [
         "status",
@@ -303,6 +309,7 @@ class TaskRunRecord:
     stdout_path: str | None
     stderr_path: str | None
     result_path: str | None
+    unknown_fields: list[str] = field(default_factory=list)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1218,10 +1225,16 @@ def apply_workspace_audit(
     record.files_touched = dedupe_strings(actual_files + reported_files)
     actual_only = [path for path in actual_files if path not in reported_files]
     if actual_only:
-        record.notes.append(
-            "Workspace diff found files not reported by the worker: "
-            f"{summarize_paths(actual_only)}"
-        )
+        if worker_field_unknown(record, "filesTouched"):
+            record.notes.append(
+                "Workspace diff resolved worker-unknown `filesTouched`: "
+                f"{summarize_paths(actual_only)}"
+            )
+        else:
+            record.notes.append(
+                "Workspace diff found files not reported by the worker: "
+                f"{summarize_paths(actual_only)}"
+            )
     violations = protected_path_violations(record.files_touched)
     record.protected_path_violations = violations
     if violations:
@@ -1355,6 +1368,7 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         stdout_path=str(payload["stdout_path"]) if payload.get("stdout_path") is not None else None,
         stderr_path=str(payload["stderr_path"]) if payload.get("stderr_path") is not None else None,
         result_path=str(payload["result_path"]) if payload.get("result_path") is not None else None,
+        unknown_fields=normalized_worker_unknown_fields(payload.get("unknown_fields")),
     )
 
 
@@ -1497,6 +1511,7 @@ def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[d
             "workspaceMode": record.workspace_mode,
             "workspacePath": record.workspace_path,
             "protectedPathViolations": record.protected_path_violations,
+            "unknownFields": record.unknown_fields,
             "filesReported": record.files_touched,
             "filesObserved": record.actual_files_touched,
             "diffStats": {
@@ -1972,6 +1987,8 @@ def dependency_handoff(record: TaskRunRecord) -> str:
         if hidden_note_count > 0:
             visible_notes.append(f"... ({hidden_note_count} more notes omitted)")
         parts.append("key notes: " + " ; ".join(visible_notes))
+    elif worker_field_unknown(record, "notes"):
+        parts.append("key notes: unknown")
     follow_ups = dedupe_strings(record.follow_ups)
     if follow_ups and not notes:
         visible_follow_ups: list[str] = []
@@ -1982,6 +1999,8 @@ def dependency_handoff(record: TaskRunRecord) -> str:
         if hidden_follow_up_count > 0:
             visible_follow_ups.append(f"... ({hidden_follow_up_count} more follow-ups omitted)")
         parts.append("next: " + " ; ".join(visible_follow_ups))
+    elif worker_field_unknown(record, "followUps"):
+        parts.append("next: unknown")
     return " | ".join(parts)
 
 
@@ -2040,9 +2059,11 @@ def normalize_worker_text_list(
     max_items: int,
     max_chars: int,
     compact: bool,
-) -> list[str]:
+) -> tuple[list[str], bool]:
+    if payload is None:
+        return [], False
     if not isinstance(payload, list):
-        raise OrchestratorError(f"Claude JSON output field '{key}' must be an array")
+        raise OrchestratorError(f"Claude JSON output field '{key}' must be an array or null")
     normalized: list[str] = []
     for item in payload:
         if not isinstance(item, str):
@@ -2057,7 +2078,33 @@ def normalize_worker_text_list(
         normalized.append(text)
         if len(normalized) >= max_items:
             break
-    return dedupe_strings(normalized)
+    return dedupe_strings(normalized), True
+
+
+def normalize_worker_files_touched(payload: Any) -> tuple[list[str], bool]:
+    if payload is None:
+        return [], False
+    if not isinstance(payload, list):
+        raise OrchestratorError("Claude JSON output field 'filesTouched' must be an array or null")
+    normalized: list[str] = []
+    for item in payload:
+        if not isinstance(item, str):
+            raise OrchestratorError("Claude JSON output field 'filesTouched' must contain only strings")
+        text = item.strip()
+        if not text:
+            continue
+        normalized.append(normalize_relative_path(text, location="worker result filesTouched"))
+    return dedupe_strings(normalized), True
+
+
+def normalized_worker_unknown_fields(payload: Any) -> list[str]:
+    if not isinstance(payload, list):
+        return []
+    return [field_name for field_name in WORKER_UNKNOWNABLE_FIELDS if field_name in payload]
+
+
+def worker_field_unknown(record: TaskRunRecord, field_name: str) -> bool:
+    return field_name in record.unknown_fields
 
 
 def validation_command_policy(command_text: str) -> dict[str, Any]:
@@ -2183,7 +2230,7 @@ def worker_prompt(
             "Use only the task repo root and explicit file hints. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationCommands` to <=2.",
-            "Leave arrays empty when there is nothing important to add. Skip low-value detail.",
+            "Use `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty. Use `null` for those fields only when the value is genuinely unknown or unverified.",
             "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
             "State uncertainty or blockers explicitly instead of guessing.",
             "Do not claim edits or validation you did not actually perform.",
@@ -2353,42 +2400,45 @@ def coerce_worker_result(payload: Any) -> dict[str, Any]:
     if not isinstance(summary_value, str) or not summary_value.strip():
         raise OrchestratorError("Claude JSON output field 'summary' must be a non-empty string")
     summary, _ = truncate_text(summary_value, MAX_WORKER_SUMMARY_CHARS)
-    files_touched = payload.get("filesTouched")
-    if not isinstance(files_touched, list):
-        raise OrchestratorError("Claude JSON output field 'filesTouched' must be an array")
-    normalized_files_touched: list[str] = []
-    for item in files_touched:
-        if not isinstance(item, str):
-            raise OrchestratorError("Claude JSON output field 'filesTouched' must contain only strings")
-        text = item.strip()
-        if not text:
-            continue
-        normalized_files_touched.append(normalize_relative_path(text, location="worker result filesTouched"))
+    unknown_fields: list[str] = []
+    normalized_files_touched, files_touched_known = normalize_worker_files_touched(payload.get("filesTouched"))
+    if not files_touched_known:
+        unknown_fields.append("filesTouched")
+    validation_commands, validation_commands_known = normalize_worker_text_list(
+        payload.get("validationCommands"),
+        key="validationCommands",
+        max_items=MAX_WORKER_VALIDATION_COMMANDS,
+        max_chars=MAX_WORKER_VALIDATION_COMMAND_CHARS,
+        compact=False,
+    )
+    if not validation_commands_known:
+        unknown_fields.append("validationCommands")
+    follow_ups, follow_ups_known = normalize_worker_text_list(
+        payload.get("followUps"),
+        key="followUps",
+        max_items=MAX_WORKER_FOLLOW_UPS,
+        max_chars=MAX_WORKER_FOLLOW_UP_CHARS,
+        compact=True,
+    )
+    if not follow_ups_known:
+        unknown_fields.append("followUps")
+    notes, notes_known = normalize_worker_text_list(
+        payload.get("notes"),
+        key="notes",
+        max_items=MAX_WORKER_NOTES,
+        max_chars=MAX_WORKER_NOTE_CHARS,
+        compact=True,
+    )
+    if not notes_known:
+        unknown_fields.append("notes")
     return {
         "status": status,
         "summary": summary,
-        "filesTouched": dedupe_strings(normalized_files_touched),
-        "validationCommands": normalize_worker_text_list(
-            payload.get("validationCommands"),
-            key="validationCommands",
-            max_items=MAX_WORKER_VALIDATION_COMMANDS,
-            max_chars=MAX_WORKER_VALIDATION_COMMAND_CHARS,
-            compact=False,
-        ),
-        "followUps": normalize_worker_text_list(
-            payload.get("followUps"),
-            key="followUps",
-            max_items=MAX_WORKER_FOLLOW_UPS,
-            max_chars=MAX_WORKER_FOLLOW_UP_CHARS,
-            compact=True,
-        ),
-        "notes": normalize_worker_text_list(
-            payload.get("notes"),
-            key="notes",
-            max_items=MAX_WORKER_NOTES,
-            max_chars=MAX_WORKER_NOTE_CHARS,
-            compact=True,
-        ),
+        "filesTouched": normalized_files_touched,
+        "validationCommands": validation_commands,
+        "followUps": follow_ups,
+        "notes": notes,
+        "unknownFields": unknown_fields,
     }
 
 
@@ -2850,6 +2900,7 @@ def execute_task(
             stdout_path=str(stdout_path),
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
+            unknown_fields=[str(item) for item in payload.get("unknownFields", [])],
         )
         apply_workspace_audit(
             record,
@@ -3356,7 +3407,9 @@ def collect_validation_commands(
                 "id": record.id,
                 "status": record.status,
                 "summary": record.summary,
+                "unknownFields": record.unknown_fields,
                 "validationCommands": commands,
+                "validationCommandsKnown": not worker_field_unknown(record, "validationCommands"),
                 "includedForValidation": included,
                 "excludedReason": (
                     None

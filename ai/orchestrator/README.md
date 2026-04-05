@@ -49,7 +49,7 @@ Workspace modes:
 Context discipline:
 - worker prompts default to `contextMode = minimal`
 - minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
-- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, so downstream workers do not need to inspect prior task artifacts directly
+- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, or explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not need to inspect prior task artifacts directly
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies explicit file hints, skips directory hints, and skips files above `512 KB`
@@ -61,6 +61,7 @@ Token and cost visibility:
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and `validationCommands` more aggressively
+- worker results now distinguish known-empty from unknown list fields: use `[]` for known-empty `filesTouched` / `validationCommands` / `followUps` / `notes`, use `null` only when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
 
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
@@ -83,7 +84,7 @@ Coordinator rules:
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - `validate-run` dedupes worker-suggested `validation_commands`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute them from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
 - `validate-run` also enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
-- worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationCommands` are capped, and malformed status or list fields fail the task
+- worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationCommands` are capped, malformed status or list fields fail the task, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`
 - `review` summarizes per-task file diffs from worker workspaces; `export-patch` writes unified diffs for copy/worktree runs; `promote` applies reviewed copy/worktree changes back into the repo
 - `promote` refuses protected-path violations, repo-mode records, path traversal, and ambiguous multi-task ownership of the same changed file
 - `cleanup` removes run artifacts and deletes detached worktrees created for that run

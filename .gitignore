@@ -19,3 +19,5 @@ examples/**/target/
 ai/indexes/*.db
 ai/indexes/*.sqlite
 ai/indexes/*.sqlite3
+
+*.pyc

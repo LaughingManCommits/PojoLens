@@ -69,12 +69,13 @@ This file defines the portable contract for recreating the repository's AI memor
   - include the shared summary
   - include only task-local file hints unless fuller shared context is explicitly required
 - include task-local validation hints by default
-- dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed so downstream workers do not depend on reading prior task artifacts directly
+- dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
 - Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy only explicit file hints, skip directory hints, and skip oversized files so workers do not inherit large generated trees by accident.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Worker prompts should keep structured output bounded: `summary` should stay short, and `notes`, `followUps`, and `validationCommands` should stay capped to a few high-signal items.
+- Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty, and `null` only when those values are genuinely unknown or unverified.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
@@ -100,7 +101,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces and concrete file scopes.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
-- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays, compact oversized summaries, and cap `notes`, `followUps`, and `validationCommands` to a few high-signal items before writing task records.
+- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and `validationCommands` to a few high-signal items, and preserve explicit unknown list fields in task records before writing manifests.
 - Worker `validationCommands` should prefer direct repo-local script invocations or approved tool commands; shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.

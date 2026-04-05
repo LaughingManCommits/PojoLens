@@ -341,8 +341,10 @@ Current gap:
 - prompt compaction is currently generic list or summary truncation, not
   section-specific summarization
 - worker-result guidance is no longer prompt-only: the coordinator now compacts
-  and validates worker JSON, but the schema still has no explicit unknown/null
-  contract for partially known answers
+  and validates worker JSON, the worker schema now allows `null` for
+  `filesTouched` / `validationCommands` / `followUps` / `notes` when those
+  list fields are genuinely unknown, and manifests preserve that distinction
+  from `[]` via explicit unknown-field metadata
 - live runs also showed that downstream reviewers need a richer bounded
   dependency handoff than a one-line summary, and that output verbosity can
   still dominate cost even when prompt budgets are healthy
@@ -353,8 +355,10 @@ What is needed:
   raise them if later task mixes show real drift
 - decide whether some prompt sections need smarter summarization than simple
   truncation
-- strengthen worker-result guidance for unknown values: use `null` or explicit
-  unknown markers instead of guessing where the schema permits it
+- decide whether any additional worker-result fields beyond the current list
+  fields need explicit unknown semantics
+- structured validation intents beyond raw shell commands remain the next
+  likely ergonomics and safety upgrade
 - a deliberate decision on whether any repo-level `CLAUDE.md` should apply to
   orchestrator work at all; default recommendation is no unless measurement
   proves a net benefit for fresh worker sessions
@@ -470,7 +474,7 @@ The right next move is to harden and prove the current design:
 
 - live-run proof is now done
 - live prompt-budget tuning is now grounded by tracked sample runs
-- next: validation-policy refinement and tighter worker-result discipline
+- next: structured validation intents plus any further result-schema refinement
 - regression coverage is now real, but it should keep growing around newly found
   failure modes
 

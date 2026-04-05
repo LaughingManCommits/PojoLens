@@ -27,13 +27,13 @@
 - Natural `schema(...)` is still structural, not vocabulary-resolved.
 - Natural execution still rebuilds a resolved `SqlLikeQuery` per execution/explain call.
 - Claude live sample runs now stay within the current prompt ceilings, but cost is still driven more by worker exploration and verbose structured output than by prompt text alone.
-- Claude lifecycle ergonomics now cover review/export/promote/retry/cleanup/validate-run, validation defaults to completed-task commands only, and unsafe validation commands are rejected by default, but explicit unknown-result semantics still need work.
+- Claude orchestration now covers review/export/promote/retry/cleanup/validate-run, validation defaults to completed-task commands only, unsafe validation commands are rejected by default, and worker-result list fields preserve unknown-vs-empty semantics in manifests and handoff.
 
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - If natural follow-up resumes, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
 - Keep README onboarding balanced across query styles and push deep recipes into docs.
-- For the AI orchestration spike, move next to explicit unknown-result semantics, then consider structured validation intents beyond raw shell commands.
+- For the AI orchestration spike, move next to structured validation intents beyond raw shell commands, then consider whether any additional worker-result fields need explicit unknown semantics.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.

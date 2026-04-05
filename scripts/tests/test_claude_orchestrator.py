@@ -304,6 +304,33 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("... (1 more notes omitted)", summary)
         self.assertNotIn("next:", summary)
 
+    def test_dependency_summary_marks_unknown_notes_and_follow_ups(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="review",
+            title="Review",
+            agent="reviewer",
+            prompt="Review the dependency output.",
+            depends_on=["inspect"],
+        )
+        dependency_record = make_task_run_record(
+            orchestrator,
+            orchestrator.TaskDefinition(
+                id="inspect",
+                title="Inspect",
+                agent="analyst",
+                prompt="Inspect the coordinator.",
+            ),
+            status="blocked",
+            summary="Could not finish inspection because the worker lost tool access.",
+        )
+        dependency_record.unknown_fields = ["notes", "followUps"]
+
+        summary = orchestrator.dependency_summary({"inspect": dependency_record}, task)
+
+        self.assertIn("key notes: unknown", summary)
+        self.assertIn("next: unknown", summary)
+
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
         payload = {
@@ -340,6 +367,28 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual(3, len(result["followUps"]))
         self.assertEqual(5, len(result["notes"]))
 
+    def test_coerce_worker_result_preserves_unknown_null_fields(self):
+        orchestrator = self.orchestrator
+        payload = {
+            "status": "blocked",
+            "summary": "A tool failure left some fields unknown.",
+            "filesTouched": None,
+            "validationCommands": None,
+            "followUps": ["Retry after the tool comes back."],
+            "notes": None,
+        }
+
+        result = orchestrator.coerce_worker_result(payload)
+
+        self.assertEqual([], result["filesTouched"])
+        self.assertEqual([], result["validationCommands"])
+        self.assertEqual(["Retry after the tool comes back."], result["followUps"])
+        self.assertEqual([], result["notes"])
+        self.assertEqual(
+            ["filesTouched", "validationCommands", "notes"],
+            result["unknownFields"],
+        )
+
     def test_coerce_worker_result_rejects_invalid_status(self):
         orchestrator = self.orchestrator
 
@@ -372,6 +421,32 @@ class PromptBudgetTest(unittest.TestCase):
 
         self.assertTrue(policy["accepted"])
         self.assertEqual("scripts/refresh-ai-memory.ps1", policy["entrypoint"])
+
+    def test_collect_validation_commands_marks_unknown_validation_commands(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+        )
+        record = make_task_run_record(
+            orchestrator,
+            task,
+            status="completed",
+            summary="Inspection finished with partial data.",
+        )
+        record.unknown_fields = ["validationCommands"]
+
+        task_payloads, command_payloads = orchestrator.collect_validation_commands(
+            [record],
+            included_statuses={"completed"},
+        )
+
+        self.assertEqual([], command_payloads)
+        self.assertEqual([], task_payloads[0]["validationCommands"])
+        self.assertFalse(task_payloads[0]["validationCommandsKnown"])
+        self.assertEqual(["validationCommands"], task_payloads[0]["unknownFields"])
 
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
