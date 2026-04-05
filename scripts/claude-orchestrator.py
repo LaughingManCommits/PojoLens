@@ -12,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -97,6 +99,9 @@ WORKER_UNKNOWNABLE_FIELDS = (
     "followUps",
     "notes",
 )
+SLOP_PROGRESS_DOTS = (".", "..", "...")
+SLOP_PROGRESS_INTERVAL_SEC = 1.0
+SLOP_LOG_LOCK = threading.Lock()
 WORKER_RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -300,6 +305,14 @@ class ValidationIntent:
     kind: str
     entrypoint: str
     args: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SlopLogAction:
+    actor: str
+    phase: str
+    phrase: str
+    reason: str
 
 
 @dataclass
@@ -1176,6 +1189,9 @@ def prepare_workspace(
     if workspace_path.exists():
         shutil.rmtree(workspace_path)
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
+    action = workspace_prep_action(task, workspace_mode)
+    if action is not None:
+        emit_slop_log(action)
     if workspace_mode == "copy":
         hydrate_copy_workspace(workspace_path, plan.shared_context.files + task.files)
         return workspace_path
@@ -2702,6 +2718,60 @@ def aggregate_usage(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
     return totals
 
 
+def slop_log_action(actor: str, phase: str, phrase: str, reason: str) -> SlopLogAction:
+    normalized_phase = phase.strip().upper()
+    if not normalized_phase:
+        raise OrchestratorError("Slop log phase must not be empty")
+    return SlopLogAction(
+        actor=actor.strip().upper() or "AGENT",
+        phase=normalized_phase,
+        phrase=phrase.strip(),
+        reason=reason.strip(),
+    )
+
+
+def emit_slop_log(action: SlopLogAction, *, frame: int | None = None) -> None:
+    if not getattr(sys.stderr, "isatty", lambda: False)():
+        return
+    dots = ""
+    if frame is not None:
+        dots = f" {SLOP_PROGRESS_DOTS[frame % len(SLOP_PROGRESS_DOTS)]}"
+    reason = f" ({action.reason})" if action.reason else ""
+    with SLOP_LOG_LOCK:
+        print(
+            f"[{action.actor}][{action.phase}] {action.phrase}{dots}{reason}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+def planner_wait_action(agent_name: str) -> SlopLogAction:
+    return slop_log_action("planner", "PROCESS", "Slopchurning", f"waiting for {agent_name}")
+
+
+def task_wait_action(task: TaskDefinition) -> SlopLogAction:
+    return slop_log_action(task.id, "FLOW", "Slopsloshing", f"waiting for {task.agent}")
+
+
+def workspace_prep_action(task: TaskDefinition, workspace_mode: str) -> SlopLogAction | None:
+    if workspace_mode == "copy":
+        return slop_log_action(task.id, "INGEST", "Slurping up slop", "hydrating copy workspace")
+    if workspace_mode == "worktree":
+        return slop_log_action(task.id, "INGEST", "Slophoovering", "creating detached worktree")
+    return None
+
+
+def validation_wait_action(command_text: str, source_kind: str) -> SlopLogAction:
+    summarized = textwrap.shorten(" ".join(command_text.split()), width=88, placeholder="...")
+    if source_kind == "intent":
+        reason = f"running validation intent {summarized}"
+        phrase = "Slopcessing"
+    else:
+        reason = f"running validation command {summarized}"
+        phrase = "Slopcrunching"
+    return slop_log_action("validate-run", "PROCESS", phrase, reason)
+
+
 def coerce_plan_result(payload: Any) -> dict[str, Any]:
     required = {"version", "name", "goal", "sharedContext", "tasks"}
     if isinstance(payload, dict) and required.issubset(payload):
@@ -2714,27 +2784,68 @@ def coerce_plan_result(payload: Any) -> dict[str, Any]:
     raise OrchestratorError("Claude JSON output did not match the expected plan schema")
 
 
+def run_process(
+    command: list[str] | str,
+    *,
+    cwd: Path,
+    timeout_sec: int,
+    shell: bool,
+    progress_action: SlopLogAction | None = None,
+    timeout_error: str,
+) -> subprocess.CompletedProcess[str]:
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        shell=shell,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    frame = 0
+    if progress_action is not None:
+        emit_slop_log(progress_action, frame=frame)
+    deadline = time.monotonic() + timeout_sec
+    stdout = ""
+    stderr = ""
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, timeout_sec)
+            try:
+                stdout, stderr = process.communicate(
+                    timeout=min(SLOP_PROGRESS_INTERVAL_SEC, remaining)
+                )
+                break
+            except subprocess.TimeoutExpired:
+                if progress_action is None:
+                    continue
+                frame += 1
+                emit_slop_log(progress_action, frame=frame)
+        return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        stdout, stderr = process.communicate()
+        raise OrchestratorError(timeout_error) from exc
+
+
 def run_subprocess(
     command: list[str],
     *,
     cwd: Path,
     timeout_sec: int,
+    progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            command,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_sec,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise OrchestratorError(
-            f"Claude timed out after {timeout_sec} seconds"
-        ) from exc
+    return run_process(
+        command,
+        cwd=cwd,
+        timeout_sec=timeout_sec,
+        shell=False,
+        progress_action=progress_action,
+        timeout_error=f"Claude timed out after {timeout_sec} seconds",
+    )
 
 
 def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
@@ -2797,7 +2908,12 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
     if args.dry_run:
         return request_payload
 
-    completed = run_subprocess(command, cwd=ROOT, timeout_sec=agent.timeout_sec)
+    completed = run_subprocess(
+        command,
+        cwd=ROOT,
+        timeout_sec=agent.timeout_sec,
+        progress_action=planner_wait_action(args.planner_agent),
+    )
     if completed.returncode != 0:
         raise OrchestratorError(
             f"Planner failed with exit code {completed.returncode}: "
@@ -3002,6 +3118,7 @@ def execute_task(
             command,
             cwd=prepared_workspace,
             timeout_sec=task.timeout_sec or agent.timeout_sec,
+            progress_action=task_wait_action(task),
         )
         return_code = completed.returncode
         write_text(stdout_path, completed.stdout)
@@ -3655,23 +3772,21 @@ def collect_validation_commands(
     return task_payloads, command_payloads
 
 
-def run_shell_command_text(command_text: str, *, cwd: Path, timeout_sec: int) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            command_text,
-            cwd=cwd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_sec,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise OrchestratorError(
-            f"Validation command timed out after {timeout_sec} seconds: {command_text}"
-        ) from exc
+def run_shell_command_text(
+    command_text: str,
+    *,
+    cwd: Path,
+    timeout_sec: int,
+    progress_action: SlopLogAction | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return run_process(
+        command_text,
+        cwd=cwd,
+        timeout_sec=timeout_sec,
+        shell=True,
+        progress_action=progress_action,
+        timeout_error=f"Validation command timed out after {timeout_sec} seconds: {command_text}",
+    )
 
 
 def run_validation_intent(
@@ -3679,23 +3794,19 @@ def run_validation_intent(
     *,
     cwd: Path,
     timeout_sec: int,
+    progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            validation_intent_execution_tokens(intent),
-            cwd=cwd,
-            shell=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_sec,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise OrchestratorError(
-            f"Validation intent timed out after {timeout_sec} seconds: {validation_intent_command_text(intent)}"
-        ) from exc
+    return run_process(
+        validation_intent_execution_tokens(intent),
+        cwd=cwd,
+        timeout_sec=timeout_sec,
+        shell=False,
+        progress_action=progress_action,
+        timeout_error=(
+            "Validation intent timed out after "
+            f"{timeout_sec} seconds: {validation_intent_command_text(intent)}"
+        ),
+    )
 
 
 def write_coordinator_validation_summary(
@@ -3792,12 +3903,14 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
                     ),
                     cwd=ROOT,
                     timeout_sec=max(args.timeout_sec, 1),
+                    progress_action=validation_wait_action(command_text, "intent"),
                 )
             else:
                 completed = run_shell_command_text(
                     command_text,
                     cwd=ROOT,
                     timeout_sec=max(args.timeout_sec, 1),
+                    progress_action=validation_wait_action(command_text, "command"),
                 )
             write_text(stdout_path, completed.stdout)
             write_text(stderr_path, completed.stderr)

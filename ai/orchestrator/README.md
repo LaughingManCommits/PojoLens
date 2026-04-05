@@ -62,6 +62,7 @@ Token and cost visibility:
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
 - worker results now distinguish known-empty from unknown list fields, and may also emit structured `validationIntents`; use `[]` for known-empty `filesTouched` / `validationCommands` / `followUps` / `notes`, use `null` only when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
+- live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
 
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`

@@ -293,6 +293,9 @@ Now in place:
 - accepted legacy raw validation commands now reuse that same argv-safe path
   when the coordinator can normalize them into a direct tool or repo-script
   invocation
+- live planner, worker, and `validate-run` waits now emit phase-tagged
+  slop-status lines on interactive `stderr` so operators can see in-flight
+  work without breaking `stdout` JSON consumers
 
 What is still needed:
 

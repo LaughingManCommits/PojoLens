@@ -1,4 +1,6 @@
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
 import subprocess
@@ -112,6 +114,60 @@ class ClaudeCommandTest(unittest.TestCase):
         self.assertEqual("Edit,Write", command[denied_index + 1])
         self.assertIn("--max-budget-usd", command)
         self.assertEqual(["--", "review prompt"], command[-2:])
+
+
+class SlopLoggingTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.orchestrator = load_orchestrator_module()
+
+    def test_run_subprocess_emits_slop_progress_to_stderr(self):
+        orchestrator = self.orchestrator
+        stderr_buffer = io.StringIO()
+        stderr_buffer.isatty = lambda: True
+        original_interval = orchestrator.SLOP_PROGRESS_INTERVAL_SEC
+        orchestrator.SLOP_PROGRESS_INTERVAL_SEC = 0.05
+        try:
+            with contextlib.redirect_stderr(stderr_buffer):
+                completed = orchestrator.run_subprocess(
+                    [
+                        sys.executable,
+                        "-c",
+                        "import time; time.sleep(0.12); print('ok-from-worker')",
+                    ],
+                    cwd=pathlib.Path(__file__).resolve().parents[2],
+                    timeout_sec=2,
+                    progress_action=orchestrator.task_wait_action(
+                        orchestrator.TaskDefinition(
+                            id="worker-one",
+                            title="Worker One",
+                            agent="analyst",
+                            prompt="Wait briefly.",
+                        )
+                    ),
+                )
+        finally:
+            orchestrator.SLOP_PROGRESS_INTERVAL_SEC = original_interval
+
+        self.assertEqual(0, completed.returncode)
+        self.assertIn("ok-from-worker", completed.stdout)
+        stderr_text = stderr_buffer.getvalue()
+        self.assertIn("[WORKER-ONE][FLOW] Slopsloshing .", stderr_text)
+        self.assertIn("[WORKER-ONE][FLOW] Slopsloshing ..", stderr_text)
+        self.assertIn("(waiting for analyst)", stderr_text)
+
+    def test_validation_wait_action_shortens_long_commands(self):
+        orchestrator = self.orchestrator
+        action = orchestrator.validation_wait_action(
+            "python -c \"print('alpha'); print('beta'); print('gamma'); print('delta'); print('epsilon')\"",
+            "command",
+        )
+
+        self.assertEqual("VALIDATE-RUN", action.actor)
+        self.assertEqual("PROCESS", action.phase)
+        self.assertEqual("Slopcrunching", action.phrase)
+        self.assertIn("running validation command", action.reason)
+        self.assertIn("...", action.reason)
 
 
 class PromptBudgetTest(unittest.TestCase):
@@ -782,7 +838,7 @@ class PromptBudgetTest(unittest.TestCase):
             workspaces_dir.mkdir()
             orchestrator.ROOT = repo_root
             orchestrator.run_subprocess = (
-                lambda command, *, cwd, timeout_sec: subprocess.CompletedProcess(
+                lambda command, *, cwd, timeout_sec, progress_action=None: subprocess.CompletedProcess(
                     command,
                     0,
                     "worker narration only",
