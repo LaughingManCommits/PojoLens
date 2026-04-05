@@ -449,6 +449,7 @@ class PromptBudgetTest(unittest.TestCase):
 
         self.assertTrue(policy["accepted"])
         self.assertEqual("scripts/refresh-ai-memory.ps1", policy["entrypoint"])
+        self.assertEqual("repo-script", policy["intent"]["kind"])
 
     def test_validation_intent_policy_accepts_repo_script(self):
         orchestrator = self.orchestrator
@@ -503,6 +504,32 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual([], task_payloads[0]["validationCommands"])
         self.assertFalse(task_payloads[0]["validationCommandsKnown"])
         self.assertEqual(["validationCommands"], task_payloads[0]["unknownFields"])
+
+    def test_collect_validation_commands_normalizes_safe_raw_command(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+        )
+        record = make_task_run_record(
+            orchestrator,
+            task,
+            status="completed",
+            summary="Inspection finished with one direct validation command.",
+        )
+        record.validation_commands = ["scripts/check-doc-consistency.ps1"]
+
+        _, command_payloads = orchestrator.collect_validation_commands(
+            [record],
+            included_statuses={"completed"},
+        )
+
+        self.assertEqual(1, len(command_payloads))
+        self.assertEqual("command", command_payloads[0]["sourceKind"])
+        self.assertIsNone(command_payloads[0]["intent"])
+        self.assertEqual("repo-script", command_payloads[0]["normalizedIntent"]["kind"])
 
     def test_collect_validation_commands_prefers_structured_intents_for_duplicates(self):
         orchestrator = self.orchestrator
@@ -2016,6 +2043,8 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertEqual({"completed": 1, "failed": 1, "skipped": 1}, payload["statusCounts"])
         self.assertFalse(payload["allPassed"])
         self.assertEqual("completed", payload["commands"][0]["status"])
+        self.assertEqual("argv", payload["commands"][0]["executionKind"])
+        self.assertEqual("tool", payload["commands"][0]["normalizedIntent"]["kind"])
         self.assertEqual("failed", payload["commands"][1]["status"])
         self.assertEqual("skipped", payload["commands"][2]["status"])
         self.assertTrue(first_stdout_exists)

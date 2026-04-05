@@ -290,6 +290,9 @@ Now in place:
 - structured `validationIntents` for `repo-script` and `tool` suggestions,
   which render to command text for review output but execute via safe argv
   handling instead of shell parsing
+- accepted legacy raw validation commands now reuse that same argv-safe path
+  when the coordinator can normalize them into a direct tool or repo-script
+  invocation
 
 What is still needed:
 
@@ -478,8 +481,8 @@ The right next move is to harden and prove the current design:
 
 - live-run proof is now done
 - live prompt-budget tuning is now grounded by tracked sample runs
-- next: widen validation-intent coverage if needed, plus any further
-  result-schema refinement
+- next: decide whether raw validation commands should eventually downgrade to a
+  compatibility-only path, plus any further result-schema refinement
 - regression coverage is now real, but it should keep growing around newly found
   failure modes
 

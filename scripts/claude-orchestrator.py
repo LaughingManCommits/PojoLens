@@ -2135,6 +2135,99 @@ def worker_field_unknown(record: TaskRunRecord, field_name: str) -> bool:
     return field_name in record.unknown_fields
 
 
+def analyze_validation_command(command_text: str) -> dict[str, Any]:
+    stripped = command_text.strip()
+    if not stripped:
+        return {
+            "accepted": False,
+            "reason": "empty command",
+            "entrypoint": None,
+            "intent": None,
+        }
+    if "\n" in stripped or "\r" in stripped:
+        return {
+            "accepted": False,
+            "reason": "multi-line commands are not allowed",
+            "entrypoint": None,
+            "intent": None,
+        }
+    if contains_unquoted_shell_operator(stripped):
+        return {
+            "accepted": False,
+            "reason": "shell composition is not allowed; use a direct tool or script invocation",
+            "entrypoint": None,
+            "intent": None,
+        }
+    try:
+        tokens = shlex.split(stripped, posix=False)
+    except ValueError as exc:
+        return {
+            "accepted": False,
+            "reason": f"unable to parse command text: {exc}",
+            "entrypoint": None,
+            "intent": None,
+        }
+    if not tokens:
+        return {
+            "accepted": False,
+            "reason": "empty command",
+            "entrypoint": None,
+            "intent": None,
+        }
+    cleaned_tokens = [strip_optional_quotes(token) for token in tokens]
+    entrypoint = cleaned_tokens[0]
+    args = [token for token in cleaned_tokens[1:] if token]
+    entry_path = Path(entrypoint)
+    if entry_path.is_absolute():
+        suffix = entry_path.suffix.lower()
+        if suffix == ".exe" or entry_path.name.lower() in VALIDATION_ALLOWED_EXECUTABLES:
+            return {
+                "accepted": True,
+                "reason": None,
+                "entrypoint": entrypoint,
+                "intent": asdict(ValidationIntent(kind="tool", entrypoint=entrypoint, args=args)),
+            }
+        return {
+            "accepted": False,
+            "reason": "absolute entrypoint is not an approved executable",
+            "entrypoint": entrypoint,
+            "intent": None,
+        }
+    lowered_entrypoint = entrypoint.lower()
+    if lowered_entrypoint in VALIDATION_ALLOWED_EXECUTABLES:
+        return {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": entrypoint,
+            "intent": asdict(ValidationIntent(kind="tool", entrypoint=entrypoint, args=args)),
+        }
+    try:
+        normalized = normalize_relative_path(entrypoint, location="validation command entrypoint")
+    except OrchestratorError as exc:
+        return {
+            "accepted": False,
+            "reason": str(exc),
+            "entrypoint": entrypoint,
+            "intent": None,
+        }
+    suffix = Path(normalized).suffix.lower()
+    if suffix in VALIDATION_ALLOWED_SCRIPT_SUFFIXES and (
+        normalized in {"mvnw", "mvnw.cmd"} or normalized.startswith(VALIDATION_ALLOWED_RELATIVE_PREFIXES)
+    ):
+        return {
+            "accepted": True,
+            "reason": None,
+            "entrypoint": normalized,
+            "intent": asdict(ValidationIntent(kind="repo-script", entrypoint=normalized, args=args)),
+        }
+    return {
+        "accepted": False,
+        "reason": "entrypoint is not an approved repo script or executable",
+        "entrypoint": entrypoint,
+        "intent": None,
+    }
+
+
 def coerce_validation_intent_payload(payload: Any, *, location: str) -> ValidationIntent:
     if not isinstance(payload, dict):
         raise OrchestratorError(f"{location}: expected validation intent object")
@@ -2267,83 +2360,12 @@ def validation_intent_execution_tokens(intent: ValidationIntent) -> list[str]:
 
 
 def validation_command_policy(command_text: str) -> dict[str, Any]:
-    stripped = command_text.strip()
-    if not stripped:
-        return {
-            "accepted": False,
-            "reason": "empty command",
-            "entrypoint": None,
-        }
-    if "\n" in stripped or "\r" in stripped:
-        return {
-            "accepted": False,
-            "reason": "multi-line commands are not allowed",
-            "entrypoint": None,
-        }
-    if contains_unquoted_shell_operator(stripped):
-        return {
-            "accepted": False,
-            "reason": "shell composition is not allowed; use a direct tool or script invocation",
-            "entrypoint": None,
-        }
-    try:
-        tokens = shlex.split(stripped, posix=False)
-    except ValueError as exc:
-        return {
-            "accepted": False,
-            "reason": f"unable to parse command text: {exc}",
-            "entrypoint": None,
-        }
-    if not tokens:
-        return {
-            "accepted": False,
-            "reason": "empty command",
-            "entrypoint": None,
-        }
-    cleaned_tokens = [strip_optional_quotes(token) for token in tokens]
-    entrypoint = cleaned_tokens[0]
-    entry_path = Path(entrypoint)
-    if entry_path.is_absolute():
-        suffix = entry_path.suffix.lower()
-        if suffix == ".exe" or entry_path.name.lower() in VALIDATION_ALLOWED_EXECUTABLES:
-            return {
-                "accepted": True,
-                "reason": None,
-                "entrypoint": entrypoint,
-            }
-        return {
-            "accepted": False,
-            "reason": "absolute entrypoint is not an approved executable",
-            "entrypoint": entrypoint,
-        }
-    lowered_entrypoint = entrypoint.lower()
-    if lowered_entrypoint in VALIDATION_ALLOWED_EXECUTABLES:
-        return {
-            "accepted": True,
-            "reason": None,
-            "entrypoint": entrypoint,
-        }
-    try:
-        normalized = normalize_relative_path(entrypoint, location="validation command entrypoint")
-    except OrchestratorError as exc:
-        return {
-            "accepted": False,
-            "reason": str(exc),
-            "entrypoint": entrypoint,
-        }
-    suffix = Path(normalized).suffix.lower()
-    if suffix in VALIDATION_ALLOWED_SCRIPT_SUFFIXES and (
-        normalized in {"mvnw", "mvnw.cmd"} or normalized.startswith(VALIDATION_ALLOWED_RELATIVE_PREFIXES)
-    ):
-        return {
-            "accepted": True,
-            "reason": None,
-            "entrypoint": normalized,
-        }
+    analysis = analyze_validation_command(command_text)
     return {
-        "accepted": False,
-        "reason": "entrypoint is not an approved repo-local script or executable",
-        "entrypoint": normalized,
+        "accepted": bool(analysis.get("accepted", False)),
+        "reason": analysis.get("reason"),
+        "entrypoint": analysis.get("entrypoint"),
+        "intent": analysis.get("intent"),
     }
 
 
@@ -3609,14 +3631,18 @@ def collect_validation_commands(
                 suggestion_order.append(command_text)
             payload["taskIds"].append(record.id)
         for command in commands:
+            policy = validation_command_policy(command)
             payload = suggestions_by_command.get(command)
             if payload is None:
                 payload = {
                     "sourceKind": "command",
                     "command": command,
                     "taskIds": [],
-                    "policy": validation_command_policy(command),
+                    "policy": policy,
                     "intent": None,
+                    "normalizedIntent": (
+                        policy.get("intent") if isinstance(policy.get("intent"), dict) else None
+                    ),
                 }
                 suggestions_by_command[command] = payload
                 suggestion_order.append(command)
@@ -3708,6 +3734,12 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         command_text = str(command_payload["command"])
         source_kind = str(command_payload.get("sourceKind", "command"))
         intent_payload = command_payload.get("intent")
+        normalized_intent_payload = command_payload.get("normalizedIntent")
+        execution_intent_payload = (
+            intent_payload
+            if isinstance(intent_payload, dict)
+            else normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
+        )
         policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
             "accepted": True,
             "reason": None,
@@ -3720,6 +3752,10 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             "command": command_text,
             "taskIds": list(command_payload["taskIds"]),
             "intent": intent_payload if isinstance(intent_payload, dict) else None,
+            "normalizedIntent": (
+                normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
+            ),
+            "executionKind": "argv" if execution_intent_payload is not None else "shell",
             "policyAccepted": policy_accepted,
             "policyReason": policy.get("reason"),
             "policyOverride": bool(args.allow_unsafe_commands and not policy_accepted),
@@ -3745,12 +3781,15 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         stderr_path = command_dir / "stderr.txt"
         command_path = command_dir / "command.txt"
         write_text(command_path, command_text + "\n")
-        if isinstance(intent_payload, dict):
-            write_json(command_dir / "intent.json", intent_payload)
+        if execution_intent_payload is not None:
+            write_json(command_dir / "intent.json", execution_intent_payload)
         try:
-            if source_kind == "intent" and isinstance(intent_payload, dict):
+            if execution_intent_payload is not None:
                 completed = run_validation_intent(
-                    coerce_validation_intent_payload(intent_payload, location=f"validate-run:{index}:intent"),
+                    coerce_validation_intent_payload(
+                        execution_intent_payload,
+                        location=f"validate-run:{index}:intent",
+                    ),
                     cwd=ROOT,
                     timeout_sec=max(args.timeout_sec, 1),
                 )
