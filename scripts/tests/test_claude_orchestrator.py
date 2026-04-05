@@ -1251,6 +1251,221 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("Dependency failed or was blocked.", tasks_by_id["b-needs-a"]["summary"])
         self.assertEqual("completed", tasks_by_id["c-independent"]["status"])
 
+    def test_run_loaded_plan_uses_tracked_worker_validation_modes(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                worker_validation_mode="intents-only",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            reviewer = orchestrator.AgentDefinition(
+                name="reviewer",
+                description="review",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_a = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            task_b = orchestrator.TaskDefinition(
+                id="review-b",
+                title="Review B",
+                agent="reviewer",
+                prompt="Review B.",
+                worker_validation_mode="compat",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="tracked-worker-validation-mode",
+                goal="Use tracked validation modes.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Tracked mode test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task_a, task_b],
+            )
+            seen_modes: dict[str, str] = {}
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                seen_modes[task.id] = str(worker_validation_mode)
+                record = make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+                record.worker_validation_mode = orchestrator.resolved_worker_validation_mode(
+                    task,
+                    agents[task.agent],
+                    run_override=worker_validation_mode,
+                )
+                return record
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst, "reviewer": reviewer},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=2,
+                    continue_on_error=False,
+                    dry_run=True,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+        self.assertEqual({"inspect-a": "None", "review-b": "None"}, seen_modes)
+        self.assertEqual("mixed", payload["workerValidationMode"])
+        self.assertIsNone(payload["workerValidationModeOverride"])
+        self.assertEqual(
+            {"inspect-a": "intents-only", "review-b": "compat"},
+            payload["taskWorkerValidationModes"],
+        )
+
+    def test_run_loaded_plan_worker_validation_override_beats_tracked_modes(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                worker_validation_mode="intents-only",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+                worker_validation_mode="intents-only",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="override-worker-validation-mode",
+                goal="Override tracked validation modes.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Override mode test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+            seen_modes: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                seen_modes.append(str(worker_validation_mode))
+                record = make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+                record.worker_validation_mode = orchestrator.resolved_worker_validation_mode(
+                    task,
+                    agents[task.agent],
+                    run_override=worker_validation_mode,
+                )
+                return record
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                    worker_validation_mode="compat",
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+        self.assertEqual(["compat"], seen_modes)
+        self.assertEqual("compat", payload["workerValidationMode"])
+        self.assertEqual("compat", payload["workerValidationModeOverride"])
+        self.assertEqual({"inspect-a": "compat"}, payload["taskWorkerValidationModes"])
+
     def test_review_run_reports_diff_summary(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT

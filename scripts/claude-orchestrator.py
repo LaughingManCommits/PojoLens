@@ -184,6 +184,10 @@ PLAN_RESULT_SCHEMA = {
                         "type": "string",
                         "enum": sorted(CONTEXT_MODES),
                     },
+                    "workerValidationMode": {
+                        "type": "string",
+                        "enum": sorted(WORKER_VALIDATION_MODES),
+                    },
                     "effort": {"type": "string"},
                     "permissionMode": {"type": "string"},
                     "timeoutSec": {"type": "integer", "minimum": 1},
@@ -218,6 +222,7 @@ class AgentDefinition:
     permission_mode: str | None = None
     workspace_mode: str = "copy"
     context_mode: str = DEFAULT_CONTEXT_MODE
+    worker_validation_mode: str | None = None
     timeout_sec: int = DEFAULT_TASK_TIMEOUT_SEC
     max_budget_usd: float | None = None
     max_prompt_chars: int | None = None
@@ -250,6 +255,7 @@ class TaskDefinition:
     effort: str | None = None
     permission_mode: str | None = None
     context_mode: str | None = None
+    worker_validation_mode: str | None = None
     timeout_sec: int | None = None
     max_budget_usd: float | None = None
     max_prompt_chars: int | None = None
@@ -349,6 +355,7 @@ class TaskRunRecord:
     result_path: str | None
     validation_intents: list[ValidationIntent] = field(default_factory=list)
     unknown_fields: list[str] = field(default_factory=list)
+    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE
 
 
 def parse_args() -> argparse.Namespace:
@@ -480,8 +487,8 @@ def parse_args() -> argparse.Namespace:
     run_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
-        default=DEFAULT_WORKER_VALIDATION_MODE,
-        help="Worker validation suggestion policy. Use 'intents-only' to reject raw validationCommands from workers.",
+        default="",
+        help="Override worker validation suggestion policy. Defaults to task or agent definitions, then 'compat'.",
     )
     run_parser.add_argument(
         "--dry-run",
@@ -858,6 +865,11 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             require_optional_string(definition, "workspaceMode", location=location) or "copy",
             location=location,
         )
+        worker_validation_mode = require_optional_string(
+            definition,
+            "workerValidationMode",
+            location=location,
+        )
         agent = AgentDefinition(
             name=name.strip(),
             description=require_string(definition, "description", location=location),
@@ -875,6 +887,12 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
                 location=location,
             )
             or DEFAULT_CONTEXT_MODE,
+            worker_validation_mode=normalize_worker_validation_mode(
+                worker_validation_mode,
+                location=f"{location}:workerValidationMode",
+            )
+            if worker_validation_mode is not None
+            else None,
             timeout_sec=require_optional_int(definition, "timeoutSec", location=location) or DEFAULT_TASK_TIMEOUT_SEC,
             max_budget_usd=require_optional_float(definition, "maxBudgetUsd", location=location),
             max_prompt_chars=require_optional_int(definition, "maxPromptChars", location=location),
@@ -927,6 +945,11 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
         agent_name = require_string(task_payload, "agent", location=location)
         if agent_name not in agents:
             raise OrchestratorError(f"{location}: unknown agent '{agent_name}'")
+        worker_validation_mode = require_optional_string(
+            task_payload,
+            "workerValidationMode",
+            location=location,
+        )
         task = TaskDefinition(
             id=task_id,
             title=require_string(task_payload, "title", location=location),
@@ -951,6 +974,12 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
                 require_optional_string(task_payload, "contextMode", location=location),
                 location=location,
             ),
+            worker_validation_mode=normalize_worker_validation_mode(
+                worker_validation_mode,
+                location=f"{location}:workerValidationMode",
+            )
+            if worker_validation_mode is not None
+            else None,
             timeout_sec=require_optional_int(task_payload, "timeoutSec", location=location),
             max_budget_usd=require_optional_float(task_payload, "maxBudgetUsd", location=location),
             max_prompt_chars=require_optional_int(task_payload, "maxPromptChars", location=location),
@@ -1142,6 +1171,51 @@ def normalize_worker_validation_mode(mode: str | None, *, location: str) -> str:
             f"{location}: worker validation mode must be one of {sorted(WORKER_VALIDATION_MODES)}"
         )
     return normalized
+
+
+def resolved_worker_validation_mode(
+    task: TaskDefinition,
+    agent: AgentDefinition,
+    *,
+    run_override: str | None = None,
+) -> str:
+    if run_override:
+        return normalize_worker_validation_mode(
+            run_override,
+            location=f"task '{task.id}' worker validation mode override",
+        )
+    if task.worker_validation_mode is not None:
+        return normalize_worker_validation_mode(
+            task.worker_validation_mode,
+            location=f"task '{task.id}' workerValidationMode",
+        )
+    if agent.worker_validation_mode is not None:
+        return normalize_worker_validation_mode(
+            agent.worker_validation_mode,
+            location=f"agent '{agent.name}' workerValidationMode",
+        )
+    return DEFAULT_WORKER_VALIDATION_MODE
+
+
+def effective_plan_worker_validation_modes(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+    *,
+    run_override: str | None = None,
+) -> dict[str, str]:
+    return {
+        task.id: resolved_worker_validation_mode(task, agents[task.agent], run_override=run_override)
+        for task in plan.tasks
+    }
+
+
+def summarized_worker_validation_mode(modes: list[str]) -> str:
+    unique = sorted(set(modes))
+    if not unique:
+        return DEFAULT_WORKER_VALIDATION_MODE
+    if len(unique) == 1:
+        return unique[0]
+    return "mixed"
 
 
 def ensure_claude_available(claude_bin: str) -> None:
@@ -1441,6 +1515,10 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
             for item in payload.get("validation_intents", []) or []
         ],
         unknown_fields=normalized_worker_unknown_fields(payload.get("unknown_fields")),
+        worker_validation_mode=normalize_worker_validation_mode(
+            payload.get("worker_validation_mode"),
+            location=f"{location}:worker_validation_mode",
+        ),
     )
 
 
@@ -1848,6 +1926,7 @@ def planner_prompt(
             '`modelProfile="simple"` fits quick summaries, classification, or narrow lookups.',
             '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
             '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
+            '`workerValidationMode="intents-only"` fits tasks that should forbid raw `validationCommands` and require structured `validationIntents` only.',
             "Keep file lists repo-relative, concrete, and file-based for copy workspaces.",
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
@@ -2992,8 +3071,14 @@ def blocked_record(
     workspace_mode: str,
     *,
     reason: str,
+    worker_validation_mode: str | None = None,
 ) -> TaskRunRecord:
     now = iso_now()
+    effective_validation_mode = resolved_worker_validation_mode(
+        task,
+        agent,
+        run_override=worker_validation_mode,
+    )
     return TaskRunRecord(
         id=task.id,
         title=task.title,
@@ -3028,6 +3113,7 @@ def blocked_record(
         stdout_path=None,
         stderr_path=None,
         result_path=None,
+        worker_validation_mode=effective_validation_mode,
     )
 
 
@@ -3043,12 +3129,13 @@ def execute_task(
     claude_bin: str,
     agents_json: str,
     dry_run: bool,
-    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    worker_validation_mode: str | None = None,
 ) -> TaskRunRecord:
     agent = agents[task.agent]
-    worker_validation_mode = normalize_worker_validation_mode(
-        worker_validation_mode,
-        location=f"task '{task.id}' worker validation mode",
+    effective_validation_mode = resolved_worker_validation_mode(
+        task,
+        agent,
+        run_override=worker_validation_mode,
     )
     model_name = resolved_model(task, agent)
     model_profile = resolved_model_profile(task, agent)
@@ -3066,7 +3153,7 @@ def execute_task(
         workspace_mode,
         prepared_workspace,
         dependency_summary(dependency_records, task),
-        worker_validation_mode=worker_validation_mode,
+        worker_validation_mode=effective_validation_mode,
     )
     prompt = prompt_render.text
     prompt_chars = prompt_render.chars
@@ -3127,6 +3214,7 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            worker_validation_mode=effective_validation_mode,
         )
         write_json(result_path, asdict(record))
         return record
@@ -3160,6 +3248,7 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            worker_validation_mode=effective_validation_mode,
         )
         write_json(result_path, asdict(record))
         return record
@@ -3221,6 +3310,7 @@ def execute_task(
                 stdout_path=str(stdout_path),
                 stderr_path=str(stderr_path),
                 result_path=None,
+                worker_validation_mode=effective_validation_mode,
             )
             apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
             write_json(result_path, asdict(record))
@@ -3230,7 +3320,7 @@ def execute_task(
             raise OrchestratorError("Claude output did not contain a standalone JSON payload")
         payload = coerce_worker_result(
             raw_payload,
-            worker_validation_mode=worker_validation_mode,
+            worker_validation_mode=effective_validation_mode,
         )
         write_json(worker_result_path, payload)
         record = TaskRunRecord(
@@ -3270,6 +3360,7 @@ def execute_task(
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
             unknown_fields=[str(item) for item in payload.get("unknownFields", [])],
+            worker_validation_mode=effective_validation_mode,
         )
         apply_workspace_audit(
             record,
@@ -3313,6 +3404,7 @@ def execute_task(
             stdout_path=str(stdout_path) if stdout_path.exists() else None,
             stderr_path=str(stderr_path),
             result_path=None,
+            worker_validation_mode=effective_validation_mode,
         )
         apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
         write_json(result_path, asdict(record))
@@ -3331,15 +3423,24 @@ def manifest_payload(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
-    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    worker_validation_mode: str | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
-    worker_validation_mode = normalize_worker_validation_mode(
-        worker_validation_mode,
-        location="manifest worker validation mode",
+    worker_validation_override = (
+        normalize_worker_validation_mode(
+            worker_validation_mode,
+            location="manifest worker validation mode override",
+        )
+        if worker_validation_mode
+        else None
+    )
+    task_worker_validation_modes = effective_plan_worker_validation_modes(
+        plan,
+        agents,
+        run_override=worker_validation_override,
     )
     usage_totals = aggregate_usage(records)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
@@ -3347,7 +3448,11 @@ def manifest_payload(
         "runId": run_id,
         "generatedAt": iso_now(),
         "dryRun": dry_run,
-        "workerValidationMode": worker_validation_mode,
+        "workerValidationMode": summarized_worker_validation_mode(
+            list(task_worker_validation_modes.values())
+        ),
+        "workerValidationModeOverride": worker_validation_override,
+        "taskWorkerValidationModes": task_worker_validation_modes,
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
         "agentsPath": str(agents_path),
@@ -3383,7 +3488,7 @@ def write_manifest(
     records: dict[str, TaskRunRecord],
     *,
     dry_run: bool,
-    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    worker_validation_mode: str | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
@@ -3433,6 +3538,7 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
                     "model": task.model,
                     "modelProfile": task.model_profile,
                     "contextMode": task.context_mode,
+                    "workerValidationMode": task.worker_validation_mode,
                     "effort": task.effort,
                     "permissionMode": task.permission_mode,
                     "timeoutSec": task.timeout_sec,
@@ -3459,15 +3565,24 @@ def run_loaded_plan(
     max_parallel: int,
     continue_on_error: bool,
     dry_run: bool,
-    worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    worker_validation_mode: str | None = None,
     initial_records: dict[str, TaskRunRecord] | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
-    worker_validation_mode = normalize_worker_validation_mode(
-        worker_validation_mode,
-        location="run worker validation mode",
+    worker_validation_override = (
+        normalize_worker_validation_mode(
+            worker_validation_mode,
+            location="run worker validation mode override",
+        )
+        if worker_validation_mode
+        else None
+    )
+    task_worker_validation_modes = effective_plan_worker_validation_modes(
+        plan,
+        agents,
+        run_override=worker_validation_override,
     )
     topological_batches(plan.tasks)
     if not dry_run:
@@ -3505,6 +3620,7 @@ def run_loaded_plan(
                     agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
                     reason="Dependency failed or was blocked.",
+                    worker_validation_mode=worker_validation_override,
                 )
                 pending.pop(task_id)
                 newly_blocked = True
@@ -3520,7 +3636,7 @@ def run_loaded_plan(
                 plan,
                 records,
                 dry_run=dry_run,
-                worker_validation_mode=worker_validation_mode,
+                worker_validation_mode=worker_validation_override,
                 retry_of_run_id=retry_of_run_id,
                 requested_task_ids=requested_task_ids,
                 retried_task_ids=retried_task_ids,
@@ -3536,6 +3652,7 @@ def run_loaded_plan(
                     agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
                     reason="Coordinator stopped scheduling new tasks after a worker failure.",
+                    worker_validation_mode=worker_validation_override,
                 )
                 pending.pop(task_id)
             break
@@ -3569,7 +3686,7 @@ def run_loaded_plan(
                     claude_bin=claude_bin,
                     agents_json=agents_json,
                     dry_run=dry_run,
-                    worker_validation_mode=worker_validation_mode,
+                    worker_validation_mode=worker_validation_override,
                 ): task
                 for task in batch
             }
@@ -3588,7 +3705,7 @@ def run_loaded_plan(
                     plan,
                     records,
                     dry_run=dry_run,
-                    worker_validation_mode=worker_validation_mode,
+                    worker_validation_mode=worker_validation_override,
                     retry_of_run_id=retry_of_run_id,
                     requested_task_ids=requested_task_ids,
                     retried_task_ids=retried_task_ids,
@@ -3608,7 +3725,7 @@ def run_loaded_plan(
         plan,
         records,
         dry_run=dry_run,
-        worker_validation_mode=worker_validation_mode,
+        worker_validation_mode=worker_validation_override,
         retry_of_run_id=retry_of_run_id,
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
@@ -3623,7 +3740,11 @@ def run_loaded_plan(
         "plan": plan.name,
         "goal": plan.goal,
         "dryRun": dry_run,
-        "workerValidationMode": worker_validation_mode,
+        "workerValidationMode": summarized_worker_validation_mode(
+            list(task_worker_validation_modes.values())
+        ),
+        "workerValidationModeOverride": worker_validation_override,
+        "taskWorkerValidationModes": task_worker_validation_modes,
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
@@ -3705,6 +3826,11 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     if not retried_task_ids:
         raise OrchestratorError("Nothing to retry; all selected tasks are already completed")
 
+    manifest_worker_validation_override = str(manifest.get("workerValidationModeOverride", "")).strip()
+    if not manifest_worker_validation_override:
+        legacy_manifest_mode = str(manifest.get("workerValidationMode", "")).strip()
+        if legacy_manifest_mode in WORKER_VALIDATION_MODES:
+            manifest_worker_validation_override = legacy_manifest_mode
     payload = run_loaded_plan(
         plan_path,
         agents_path,
@@ -3715,10 +3841,13 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
         max_parallel=args.max_parallel,
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
-        worker_validation_mode=normalize_worker_validation_mode(
-            getattr(args, "worker_validation_mode", "")
-            or str(manifest.get("workerValidationMode", DEFAULT_WORKER_VALIDATION_MODE)),
-            location=f"retry source '{manifest_path}' worker validation mode",
+        worker_validation_mode=(
+            normalize_worker_validation_mode(
+                getattr(args, "worker_validation_mode", "") or manifest_worker_validation_override,
+                location=f"retry source '{manifest_path}' worker validation mode",
+            )
+            if (getattr(args, "worker_validation_mode", "") or manifest_worker_validation_override)
+            else None
         ),
         initial_records=initial_records,
         retry_of_run_id=str(manifest.get("runId", "")),

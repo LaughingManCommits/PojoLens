@@ -26,6 +26,7 @@
       "title": "Inspect the AI memory contract",
       "agent": "analyst",
       "modelProfile": "simple",
+      "workerValidationMode": "intents-only",
       "prompt": "Read the agent workflow and AI memory guide. Summarize the hot-context rules and the two most important memory freshness requirements.",
       "files": [
         "AGENTS.md",
@@ -39,6 +40,7 @@
       "title": "Inspect the orchestration runtime contract",
       "agent": "analyst",
       "modelProfile": "simple",
+      "workerValidationMode": "intents-only",
       "prompt": "Read the orchestrator guide and runtime script. Summarize the repo-local runtime layout, workspace modes, and the concurrency safety rules.",
       "files": [
         "ai/orchestrator/README.md",
@@ -52,6 +54,7 @@
       "title": "Review the combined concurrency contract",
       "agent": "reviewer",
       "modelProfile": "simple",
+      "workerValidationMode": "intents-only",
       "prompt": "Review the dependency outputs. Call out any missing concurrency, runtime-root, or portability risk and propose one concrete coordinator follow-up.",
       "dependsOn": [
         "inspect-memory-contract",

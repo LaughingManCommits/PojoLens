@@ -79,7 +79,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty, and `null` only when those values are genuinely unknown or unverified.
 - Worker results may also emit structured `validationIntents`; the initial supported intent kinds are `repo-script` and `tool`, and the coordinator should preserve them separately from legacy raw command strings.
 - Worker prompts should treat raw `validationCommands` as a deprecated compatibility fallback and prefer structured `validationIntents` whenever a suggestion fits the supported intent shapes.
-- The coordinator may also expose a run-time worker validation mode, including an `intents-only` setting that tightens worker prompts and rejects non-empty raw `validationCommands` in worker JSON before task records are accepted.
+- The coordinator may also expose a run-time worker validation mode override, including an `intents-only` setting that tightens worker prompts and rejects non-empty raw `validationCommands` in worker JSON before task records are accepted.
+- Agent and task definitions may also carry `workerValidationMode`; precedence should be explicit CLI override first, then task definition, then agent definition, then the default `compat` mode.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
@@ -97,7 +98,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 - The coordinator should support bounded lifecycle helpers for retrying failed or blocked tasks from a prior manifest and cleaning run-scoped artifacts, including detached worktrees.
 - The coordinator should support a run-validation surface that consolidates worker-suggested validation commands or structured validation intents, defaults to completed-task suggestions unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted suggestions from repo root, may expose an intent-only mode that rejects legacy raw `validationCommands`, and records actual coordinator validation outcomes separately in the run manifest.
-- Retry flows should preserve the source run's worker validation mode unless the coordinator explicitly overrides it for the retry.
+- Retry flows should preserve any explicit source-run worker-validation override when present; otherwise they should resolve the effective mode again from tracked task/agent settings, with legacy manifest fallback only for older runs.
 
 ## Worker Protection Rules
 
@@ -110,7 +111,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker validation suggestions should prefer structured `validationIntents` for direct repo-local script invocations or approved tool commands; legacy raw `validationCommands` remain valid fallback suggestions, but shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - When a legacy raw `validationCommand` already matches a safe direct tool or repo-script shape, the coordinator should preserve the original command text for review while also normalizing it into an argv-safe execution form so accepted legacy commands do not require shell execution.
 - The coordinator should surface which tasks still emit legacy raw `validationCommands` so migration toward structured intents is visible in validation summaries and manifests.
-- Run manifests should record the effective worker validation mode so runtime enforcement choices are visible during review and retry.
+- Run manifests should record the summarized effective worker validation mode, any explicit override, and per-task modes so runtime enforcement choices are visible during review and retry.
+- If effective worker validation modes differ across tasks in one run, runtime payloads should make that explicit rather than collapsing them into a misleading single mode.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
 - Worker `validationCommands` remain suggestions; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.
