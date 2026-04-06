@@ -337,8 +337,8 @@ Now in place:
 
 What is still missing:
 
-- broader negative parser/schema coverage for invalid agents and task plans
-- more worktree-mode and cleanup error-path coverage
+- a live `2026-04-06` `WP8` slice added invalid-agent/task-plan negatives plus
+  worktree-creation and cleanup failure-path coverage in the Python test suite
 - live CLI integration regression beyond the current focused proof
 
 This matters because the orchestration surface is now large enough that docs and
@@ -555,7 +555,7 @@ Completed outcome on `2026-04-06`:
 - explicitly deferred broader promotion ergonomics because the live proof did
   not expose adoption pain beyond reviewer accuracy and validation sequencing
 
-### WP8: Regression Expansion
+### WP8: Regression Expansion `(Done)`
 
 Goal:
 
@@ -577,6 +577,17 @@ Success bar:
 - the open work packages above are covered by targeted regression tests instead
   of ad hoc validation only
 
+Current progress on `2026-04-06`:
+
+- added direct negative tests for missing planner agents, unknown task agents,
+  and dependency cycles during plan loading
+- added worktree-path regression coverage for failed `git worktree add`,
+  failed `git worktree remove`, and failed `git worktree prune`
+- explicitly deferred a default live CLI smoke test because the existing `WP6`
+  live proof already exercises the real Claude path, while an environment- and
+  token-dependent smoke test would add a weaker regression signal than the new
+  deterministic coverage
+
 ## Execution Order
 
 1. `WP4` is complete: raw worker `validationCommands` are removed from the live
@@ -588,8 +599,9 @@ Success bar:
 4. `WP7` is complete: reviewer diff handoff and task-workspace validation now
    cover the concrete `WP6` pain points, and the remaining operational items
    are explicitly deferred.
-5. Execute `WP8` next, then do one final regression
-   sweep after the larger workflow proof.
+5. `WP8` is complete: deterministic regression coverage now covers the newly
+   exercised coordinator surfaces, and the optional live CLI smoke path is
+   explicitly deferred.
 
 ## Non-Goals
 
@@ -616,7 +628,6 @@ The right next move is no longer "more generic hardening."
 The right next move is to execute the concrete open packages in order:
 
 - `WP5` stays deferred unless a later live run exposes a real intent gap
-- `WP8` expand regression coverage around the newly exercised surfaces
 
 That keeps the orchestration surface useful, inspectable, and aligned with the
 repo's existing local-first workflow.

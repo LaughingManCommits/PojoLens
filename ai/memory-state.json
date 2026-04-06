@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-06T16:52:43.791451+02:00",
+  "generatedAt": "2026-04-06T17:35:15.359357+02:00",
   "git": {
-    "headCommit": "eaf8c01f2c028cc9f83c10e24f19b2d9bae516e7",
+    "headCommit": "f88e5867a9264e43ae32c8dab99c83003b9cbf47",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "0e43b589c623076948c0139561d9735a4f7e244a1f225d5da676ed46d0ca45ce",
+  "inputsHash": "ab989b2152f8041548a1e2e6383561ade61eb15dde3ba047fad6cda5164e3628",
   "hotContext": {
     "files": [
       {
@@ -21,8 +21,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 35,
-        "bytes": 2079,
+        "lines": 36,
+        "bytes": 2532,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 38,
-        "bytes": 2381,
+        "lines": 39,
+        "bytes": 2722,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 102,
-    "totalBytes": 6798,
+    "totalLines": 104,
+    "totalBytes": 7592,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -135,13 +135,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "3e07e543661ac7ffde8433b7bd65c65af6a31243e3dc908bb8b0b4b360a190a1",
+        "inputHash": "ceeb154875669e1f9199febd1faf02de231a92fd99d80339b8a41f621bf5ee03",
         "inputFiles": 48
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "09e620a76b765be67dfa951eaddbd5f31e67fe80e21af09966a01ab63469a73e",
+        "inputHash": "3ed41bf8325abcf0911b8ecf804f52207525883b0e376061d7cb75806611e979",
         "inputFiles": 363
       },
       {
@@ -158,7 +158,7 @@
       },
       {
         "path": "ai/indexes/config-index.json",
-        "status": "rebuilt",
+        "status": "reused",
         "inputHash": "4f03690618a794da08ecfec3737e2209c6b211f77c710605751ea1a81a45236e",
         "inputFiles": 19
       }
@@ -169,8 +169,8 @@
       "ftsEnabled": true,
       "documents": 49,
       "sections": 541,
-      "updatedFiles": 5,
-      "reusedFiles": 44,
+      "updatedFiles": 3,
+      "reusedFiles": 46,
       "removedFiles": 0,
       "mode": "incremental"
     }

@@ -454,6 +454,163 @@ class ValidateCommandTest(unittest.TestCase):
                     )
                 )
 
+    def test_load_agents_requires_planner_agent(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            agents_path = pathlib.Path(tempdir) / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "required agent 'planner' is missing",
+            ):
+                orchestrator.load_agents(agents_path)
+
+    def test_load_task_plan_rejects_unknown_agent(self):
+        orchestrator = self.orchestrator
+        planner = orchestrator.AgentDefinition(
+            name="planner",
+            description="Plan",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="Analyze",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            plan_path = pathlib.Path(tempdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "unknown-agent",
+                        "goal": "Reject unknown task agents.",
+                        "sharedContext": {
+                            "summary": "Unknown agent test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "ghost",
+                                "prompt": "Inspect guidance.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "unknown agent 'ghost'",
+            ):
+                orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
+    def test_load_task_plan_rejects_dependency_cycle(self):
+        orchestrator = self.orchestrator
+        planner = orchestrator.AgentDefinition(
+            name="planner",
+            description="Plan",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="Analyze",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            plan_path = pathlib.Path(tempdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "dependency-cycle",
+                        "goal": "Reject dependency cycles.",
+                        "sharedContext": {
+                            "summary": "Cycle test.",
+                            "constraints": [],
+                            "files": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect-a",
+                                "title": "Inspect A",
+                                "agent": "analyst",
+                                "prompt": "Inspect A.",
+                                "dependsOn": ["inspect-b"],
+                            },
+                            {
+                                "id": "inspect-b",
+                                "title": "Inspect B",
+                                "agent": "analyst",
+                                "prompt": "Inspect B.",
+                                "dependsOn": ["inspect-a"],
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "Task plan contains a dependency cycle",
+            ):
+                orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
     def test_dependency_summary_truncates_long_dependency_output(self):
         orchestrator = self.orchestrator
         task = orchestrator.TaskDefinition(
@@ -1124,6 +1281,60 @@ class ValidateCommandTest(unittest.TestCase):
             ["AGENTS.md", "ai/AGENTS.md", "docs/guide.md", "nested/hinted.txt", "notes.txt"],
             copied_files,
         )
+
+    def test_prepare_workspace_worktree_surfaces_git_failure(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_ensure_clean = orchestrator.ensure_clean_for_worktrees
+        old_subprocess_run = orchestrator.subprocess.run
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            workspace_path = runtime_root / "workspaces" / "edit-worktree"
+            repo_root.mkdir()
+            runtime_root.mkdir()
+            orchestrator.ROOT = repo_root
+            task = orchestrator.TaskDefinition(
+                id="edit-worktree",
+                title="Edit worktree",
+                agent="implementer",
+                prompt="Edit from worktree.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="worktree-failure",
+                goal="Surface worktree creation failures.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Worktree failure test.",
+                    constraints=[],
+                    files=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            def fake_run(command, cwd, capture_output, text, check):
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="git add failed")
+
+            orchestrator.ensure_clean_for_worktrees = lambda: None
+            orchestrator.subprocess.run = fake_run
+            try:
+                with self.assertRaisesRegex(
+                    orchestrator.OrchestratorError,
+                    "failed to create worktree: git add failed",
+                ):
+                    orchestrator.prepare_workspace(
+                        plan,
+                        task,
+                        "worktree",
+                        workspace_path,
+                        runtime_root,
+                    )
+            finally:
+                orchestrator.ROOT = old_root
+                orchestrator.ensure_clean_for_worktrees = old_ensure_clean
+                orchestrator.subprocess.run = old_subprocess_run
 
     def test_snapshot_workspace_files_hashes_files_and_ignores_internal_dirs(self):
         orchestrator = self.orchestrator
@@ -2973,6 +3184,170 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual([], payload["removedWorktrees"])
         self.assertFalse(run_dir.exists())
         self.assertFalse(workspaces_dir.exists())
+
+    def test_cleanup_run_raises_when_worktree_remove_fails(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_subprocess_run = orchestrator.subprocess.run
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "cleanup-worktree-remove-fail"
+            workspaces_dir = runtime_root / "workspaces" / "cleanup-worktree-remove-fail"
+            worktree_path = workspaces_dir / "task-a"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            worktree_path.mkdir(parents=True)
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "cleanup-worktree-remove-fail",
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "worktree",
+                                "workspace_path": str(worktree_path),
+                                "started_at": "2026-04-06T00:00:00+00:00",
+                                "finished_at": "2026-04-06T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+
+                def fake_run(command, cwd, capture_output, text, check):
+                    return subprocess.CompletedProcess(command, 1, stdout="", stderr="remove failed")
+
+                orchestrator.subprocess.run = fake_run
+                with self.assertRaisesRegex(
+                    orchestrator.OrchestratorError,
+                    "Failed to remove detached worktree '.*remove failed",
+                ):
+                    orchestrator.cleanup_run(
+                        SimpleNamespace(
+                            run_ref=str(run_dir),
+                        )
+                    )
+            finally:
+                orchestrator.ROOT = old_root
+                orchestrator.subprocess.run = old_subprocess_run
+
+    def test_cleanup_run_raises_when_worktree_prune_fails(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_subprocess_run = orchestrator.subprocess.run
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "cleanup-worktree-prune-fail"
+            workspaces_dir = runtime_root / "workspaces" / "cleanup-worktree-prune-fail"
+            worktree_path = workspaces_dir / "task-a"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            worktree_path.mkdir(parents=True)
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "cleanup-worktree-prune-fail",
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "analyst",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "worktree",
+                                "workspace_path": str(worktree_path),
+                                "started_at": "2026-04-06T00:00:00+00:00",
+                                "finished_at": "2026-04-06T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+
+                def fake_run(command, cwd, capture_output, text, check):
+                    if command[:3] == ["git", "worktree", "remove"]:
+                        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+                    if command[:3] == ["git", "worktree", "prune"]:
+                        return subprocess.CompletedProcess(command, 1, stdout="", stderr="prune failed")
+                    return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+                orchestrator.subprocess.run = fake_run
+                with self.assertRaisesRegex(
+                    orchestrator.OrchestratorError,
+                    "Failed to prune worktree metadata: prune failed",
+                ):
+                    orchestrator.cleanup_run(
+                        SimpleNamespace(
+                            run_ref=str(run_dir),
+                        )
+                    )
+            finally:
+                orchestrator.ROOT = old_root
+                orchestrator.subprocess.run = old_subprocess_run
 
     def test_validate_run_dedupes_worker_suggested_commands_in_dry_run(self):
         orchestrator = self.orchestrator

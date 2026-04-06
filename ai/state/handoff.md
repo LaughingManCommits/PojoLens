@@ -9,7 +9,7 @@
 
 ## Focus
 
-- Pending repo-wide follow-up is AI orchestration `WP8`; release work is complete and out of scope.
+- No active repo-wide orchestrator package is open; release work is complete and `WP5` remains deferred until a later live run exposes a real intent gap.
 
 ## Facts
 
@@ -20,7 +20,8 @@
 - `2026-04-06`: `wp6-live-parser-proof.json` completed and promoted a two-file parser/regression patch into the repo.
 - `WP6` did not justify widening the intent vocabulary: the implementer's `tool` intent was accepted, while the reviewer's bad `repo-script` intents were rejected by policy.
 - `2026-04-06`: `WP7` added reviewer dependency diff previews plus `validate-run --execution-scope task-workspace`, and explicitly deferred overlap overrides, same-run resume, prune helpers, and broader promotion ergonomics.
-- Next orchestrator work is `WP8`: expand regression coverage around the larger coordinator surface and the new `WP7` paths.
+- `2026-04-06`: `WP8` added invalid-agent/task-plan negatives plus worktree add/remove/prune failure-path tests, then explicitly deferred a default live CLI smoke test in favor of the existing `WP6` live proof plus deterministic unit coverage.
+- Reopen orchestrator follow-up only if a later live run exposes a real validation-intent gap (`WP5`) or another operational failure worth promoting into tracked work.
 
 ## Validate
 
