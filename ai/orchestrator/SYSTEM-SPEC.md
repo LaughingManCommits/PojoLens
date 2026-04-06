@@ -75,16 +75,13 @@ This file defines the portable contract for recreating the repository's AI memor
 - Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy only explicit file hints, skip directory hints, and skip oversized files so workers do not inherit large generated trees by accident.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Live planner, worker, and coordinator validation execution should emit progress lines on interactive `stderr` only, with phase-tagged status text, so operators can see in-flight work without contaminating machine-readable `stdout`.
-- Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and validation suggestions should stay capped whether they are emitted as raw `validationCommands` or structured `validationIntents`.
-- Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationCommands`, `followUps`, or `notes` are known-empty, and `null` only when those values are genuinely unknown or unverified.
-- Worker results may also emit structured `validationIntents`; the initial supported intent kinds are `repo-script` and `tool`, and the coordinator should preserve them separately from legacy raw command strings.
-- Worker prompts should treat raw `validationCommands` as a deprecated compatibility fallback and prefer structured `validationIntents` whenever a suggestion fits the supported intent shapes.
-- The coordinator may also expose a run-time worker validation mode override, including an `intents-only` setting that tightens worker prompts and rejects non-empty raw `validationCommands` in worker JSON before task records are accepted.
-- Agent and task definitions may also carry `workerValidationMode`; precedence should be explicit CLI override first, then task definition, then agent definition, then the default `compat` mode.
-- When many tasks share the same worker-validation policy for a role, prefer agent-level defaults and reserve task-level `workerValidationMode = compat` for exceptions.
-- For `intents-only` workers, the JSON schema handed to Claude should also disallow non-empty `validationCommands` so raw legacy command items fail at the schema boundary before coordinator parsing.
-- Validation and runtime summary surfaces should make any remaining effective `compat` tasks explicit, including task ids/counts, so deprecated authoring is easy to locate and remove.
-- Validate, run, and retry entrypoints may also expose a strict intents-only gate that fails fast when any effective `compat` tasks remain, so zero-compat tracked plans can be enforced before the raw-command path is removed entirely.
+- Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and `validationIntents` should stay capped to a few high-signal suggestions.
+- Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty, and `null` only for `filesTouched`, `followUps`, or `notes` when those values are genuinely unknown or unverified.
+- Live worker results should emit structured `validationIntents`; the initial supported intent kinds are `repo-script` and `tool`, and the coordinator should preserve them separately from legacy raw command strings found only in older manifests or review surfaces.
+- Live worker prompts should require structured `validationIntents` only and should reject raw `validationCommands` during worker-result parsing.
+- The coordinator may still expose a run-time worker validation mode override, but the live worker contract accepts only `intents-only`.
+- Agent and task definitions may still carry `workerValidationMode = intents-only`; explicit CLI override still wins over task, then agent, then the default live mode.
+- Live worker JSON schemas handed to Claude should require `validationIntents` and omit `validationCommands` so raw legacy command items fail at the schema boundary before coordinator parsing.
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
@@ -102,7 +99,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
 - The coordinator should support bounded lifecycle helpers for retrying failed or blocked tasks from a prior manifest and cleaning run-scoped artifacts, including detached worktrees.
 - The coordinator should support a run-validation surface that consolidates worker-suggested validation commands or structured validation intents, defaults to completed-task suggestions unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted suggestions from repo root, may expose an intent-only mode that rejects legacy raw `validationCommands`, and records actual coordinator validation outcomes separately in the run manifest.
-- Retry flows should preserve any explicit source-run worker-validation override when present; otherwise they should resolve the effective mode again from tracked task/agent settings, with legacy manifest fallback only for older runs.
+- Retry flows should preserve any explicit source-run worker-validation override when present; otherwise they should resolve the effective mode again from tracked task/agent settings, and they should not replay old manifest-level `compat` fallbacks into live workers.
 
 ## Worker Protection Rules
 
@@ -111,16 +108,14 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces and concrete file scopes.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
-- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and validation suggestions to a few high-signal items, preserve explicit unknown list fields in task records before writing manifests, and normalize structured `validationIntents` into a safe manifest form.
-- Worker validation suggestions should prefer structured `validationIntents` for direct repo-local script invocations or approved tool commands; legacy raw `validationCommands` remain valid fallback suggestions, but shell composition should be treated as low-quality and rejected by default at coordinator validation time.
+- The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and `validationIntents` to a few high-signal items, preserve explicit unknown list fields in task records before writing manifests, and normalize structured `validationIntents` into a safe manifest form.
+- Worker validation suggestions should use structured `validationIntents` for direct repo-local script invocations or approved tool commands in all live worker paths; legacy raw `validationCommands` survive only in old manifests or review-time interpretation, and shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - When a legacy raw `validationCommand` already matches a safe direct tool or repo-script shape, the coordinator should preserve the original command text for review while also normalizing it into an argv-safe execution form so accepted legacy commands do not require shell execution.
-- The coordinator should surface which tasks still emit legacy raw `validationCommands` so migration toward structured intents is visible in validation summaries and manifests.
 - Validation surfaces should expose each task's effective worker validation mode plus its source (`override`, `task`, `agent`, or `default`) so authoring and runtime policy are inspectable.
 - Run manifests should record the summarized effective worker validation mode, any explicit override, per-task modes, and per-task sources so runtime enforcement choices are visible during review and retry.
-- If effective worker validation modes differ across tasks in one run, runtime payloads should make that explicit rather than collapsing them into a misleading single mode.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
-- Worker `validationCommands` remain suggestions; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.
+- Legacy manifest `validationCommands` remain suggestions for review-time validation; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.
 
 ## Bootstrap Procedure For Another Repo
 
@@ -137,9 +132,9 @@ This file defines the portable contract for recreating the repository's AI memor
 ## Minimum Validation Checklist
 
 - `python -m py_compile scripts/claude-orchestrator.py scripts/refresh-ai-memory.py scripts/query-ai-memory.py`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --require-intents-only-workers`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --require-intents-only-workers`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --require-intents-only-workers`
+- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`
+- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json`
+- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`
 - `scripts/refresh-ai-memory.ps1`
 - `scripts/refresh-ai-memory.ps1 -Check`
 

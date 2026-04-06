@@ -253,7 +253,7 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("promptBudget", payload)
         self.assertFalse(payload["promptBudget"]["exceeded"])
         self.assertGreater(len(payload["promptSections"]), 0)
-        self.assertIn('Avoid `workerValidationMode="compat"`', payload["prompt"])
+        self.assertIn("structured-intent-only", payload["prompt"])
 
 
 class ValidateCommandTest(unittest.TestCase):
@@ -336,7 +336,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "title": "Implement",
                                 "agent": "implementer",
                                 "prompt": "Implement change.",
-                                "workerValidationMode": "compat",
+                                "workerValidationMode": "intents-only",
                             },
                         ],
                     }
@@ -356,15 +356,13 @@ class ValidateCommandTest(unittest.TestCase):
             payload["agentWorkerValidationModes"],
         )
         self.assertEqual(
-            {"inspect": "intents-only", "implement": "compat"},
+            {"inspect": "intents-only", "implement": "intents-only"},
             payload["taskWorkerValidationModes"],
         )
         self.assertEqual(
             {"inspect": "agent", "implement": "task"},
             payload["taskWorkerValidationModeSources"],
         )
-        self.assertEqual(["implement"], payload["compatWorkerValidationTaskIds"])
-        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
         self.assertEqual(
             [
                 {
@@ -376,14 +374,14 @@ class ValidateCommandTest(unittest.TestCase):
                 {
                     "id": "implement",
                     "agent": "implementer",
-                    "workerValidationMode": "compat",
+                    "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "task",
                 },
             ],
             payload["tasks"],
         )
 
-    def test_validate_command_rejects_compat_tasks_when_intents_only_required(self):
+    def test_validate_command_rejects_compat_worker_validation_mode(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = pathlib.Path(tempdir)
@@ -437,6 +435,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "title": "Inspect",
                                 "agent": "analyst",
                                 "prompt": "Inspect guidance.",
+                                "workerValidationMode": "compat",
                             }
                         ],
                     }
@@ -446,13 +445,12 @@ class ValidateCommandTest(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 orchestrator.OrchestratorError,
-                "requires intents-only workers; compat workerValidationMode remains effective for: inspect",
+                "workerValidationMode='compat' was removed from the live worker contract",
             ):
                 orchestrator.validate_command(
                     SimpleNamespace(
                         agents=str(agents_path),
                         task_plan=str(plan_path),
-                        require_intents_only_workers=True,
                     )
                 )
 
@@ -634,7 +632,7 @@ class ValidateCommandTest(unittest.TestCase):
         )
 
         self.assertIn("Emit structured `validationIntents` only", rendered.text)
-        self.assertIn("Keep `validationCommands` as `[]`", rendered.text)
+        self.assertIn("Use `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty", rendered.text)
 
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
@@ -642,10 +640,21 @@ class ValidateCommandTest(unittest.TestCase):
             "status": "completed",
             "summary": "Summary " * 80,
             "filesTouched": ["src/main/App.java", "src/main/App.java"],
-            "validationCommands": [
-                "python -m pytest -q",
-                "mvn -q test",
-                "scripts/unused-third-command.ps1",
+            "validationIntents": [
+                {
+                    "kind": "repo-script",
+                    "entrypoint": "scripts/check-doc-consistency.ps1",
+                },
+                {
+                    "kind": "tool",
+                    "entrypoint": "mvn",
+                    "args": ["-q", "test"],
+                },
+                {
+                    "kind": "tool",
+                    "entrypoint": "py",
+                    "args": ["-3", "-m", "unittest"],
+                },
             ],
             "followUps": [
                 "First follow-up item.",
@@ -668,7 +677,8 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("completed", result["status"])
         self.assertLessEqual(len(result["summary"]), orchestrator.MAX_WORKER_SUMMARY_CHARS)
         self.assertEqual(["src/main/App.java"], result["filesTouched"])
-        self.assertEqual(2, len(result["validationCommands"]))
+        self.assertEqual(2, len(result["validationIntents"]))
+        self.assertEqual([], result["validationCommands"])
         self.assertEqual(3, len(result["followUps"]))
         self.assertEqual(5, len(result["notes"]))
 
@@ -678,7 +688,7 @@ class ValidateCommandTest(unittest.TestCase):
             "status": "blocked",
             "summary": "A tool failure left some fields unknown.",
             "filesTouched": None,
-            "validationCommands": None,
+            "validationIntents": [],
             "followUps": ["Retry after the tool comes back."],
             "notes": None,
         }
@@ -690,7 +700,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["Retry after the tool comes back."], result["followUps"])
         self.assertEqual([], result["notes"])
         self.assertEqual(
-            ["filesTouched", "validationCommands", "notes"],
+            ["filesTouched", "notes"],
             result["unknownFields"],
         )
 
@@ -711,7 +721,6 @@ class ValidateCommandTest(unittest.TestCase):
                     "args": ["-q", "test"],
                 },
             ],
-            "validationCommands": [],
             "followUps": [],
             "notes": [],
         }
@@ -722,18 +731,13 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("repo-script", result["validationIntents"][0]["kind"])
         self.assertEqual("mvn", result["validationIntents"][1]["entrypoint"])
 
-    def test_task_output_schema_json_tightens_validation_commands_in_intents_only_mode(self):
+    def test_task_output_schema_json_requires_validation_intents_only(self):
         orchestrator = self.orchestrator
 
-        compat_schema = json.loads(orchestrator.task_output_schema_json("compat"))
-        intents_only_schema = json.loads(orchestrator.task_output_schema_json("intents-only"))
+        schema = json.loads(orchestrator.task_output_schema_json("intents-only"))
 
-        self.assertNotIn("maxItems", compat_schema["properties"]["validationCommands"])
-        self.assertEqual(0, intents_only_schema["properties"]["validationCommands"]["maxItems"])
-        self.assertEqual(
-            ["array", "null"],
-            intents_only_schema["properties"]["validationCommands"]["type"],
-        )
+        self.assertIn("validationIntents", schema["required"])
+        self.assertNotIn("validationCommands", schema["properties"])
 
     def test_coerce_worker_result_rejects_invalid_status(self):
         orchestrator = self.orchestrator
@@ -744,7 +748,7 @@ class ValidateCommandTest(unittest.TestCase):
                     "status": "planned",
                     "summary": "bad status",
                     "filesTouched": [],
-                    "validationCommands": [],
+                    "validationIntents": [],
                     "followUps": [],
                     "notes": [],
                 }
@@ -1320,7 +1324,7 @@ class ValidateCommandTest(unittest.TestCase):
                 claude_bin,
                 agents_json,
                 dry_run,
-                worker_validation_mode="compat",
+                worker_validation_mode=None,
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -1428,7 +1432,7 @@ class ValidateCommandTest(unittest.TestCase):
                 claude_bin,
                 agents_json,
                 dry_run,
-                worker_validation_mode="compat",
+                worker_validation_mode=None,
             ):
                 executed_task_ids.append(task.id)
                 status = "failed" if task.id == "a-fail" else "completed"
@@ -1515,7 +1519,7 @@ class ValidateCommandTest(unittest.TestCase):
                 title="Review B",
                 agent="reviewer",
                 prompt="Review B.",
-                worker_validation_mode="compat",
+                worker_validation_mode="intents-only",
             )
             plan = orchestrator.TaskPlan(
                 version=1,
@@ -1582,18 +1586,16 @@ class ValidateCommandTest(unittest.TestCase):
                 orchestrator.execute_task = old_execute_task
 
         self.assertEqual({"inspect-a": "None", "review-b": "None"}, seen_modes)
-        self.assertEqual("mixed", payload["workerValidationMode"])
+        self.assertEqual("intents-only", payload["workerValidationMode"])
         self.assertIsNone(payload["workerValidationModeOverride"])
         self.assertEqual(
-            {"inspect-a": "intents-only", "review-b": "compat"},
+            {"inspect-a": "intents-only", "review-b": "intents-only"},
             payload["taskWorkerValidationModes"],
         )
         self.assertEqual(
             {"inspect-a": "agent", "review-b": "task"},
             payload["taskWorkerValidationModeSources"],
         )
-        self.assertEqual(["review-b"], payload["compatWorkerValidationTaskIds"])
-        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
         self.assertEqual(
             ["agent", "task"],
             [task["worker_validation_mode_source"] for task in payload["tasks"]],
@@ -1691,21 +1693,19 @@ class ValidateCommandTest(unittest.TestCase):
                     max_parallel=1,
                     continue_on_error=False,
                     dry_run=True,
-                    worker_validation_mode="compat",
+                    worker_validation_mode="intents-only",
                 )
             finally:
                 orchestrator.execute_task = old_execute_task
 
-        self.assertEqual(["compat"], seen_modes)
-        self.assertEqual("compat", payload["workerValidationMode"])
-        self.assertEqual("compat", payload["workerValidationModeOverride"])
-        self.assertEqual({"inspect-a": "compat"}, payload["taskWorkerValidationModes"])
-        self.assertEqual(["inspect-a"], payload["compatWorkerValidationTaskIds"])
-        self.assertEqual(1, payload["compatWorkerValidationTaskCount"])
+        self.assertEqual(["intents-only"], seen_modes)
+        self.assertEqual("intents-only", payload["workerValidationMode"])
+        self.assertEqual("intents-only", payload["workerValidationModeOverride"])
+        self.assertEqual({"inspect-a": "intents-only"}, payload["taskWorkerValidationModes"])
         self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
         self.assertEqual("override", payload["tasks"][0]["worker_validation_mode_source"])
 
-    def test_run_loaded_plan_rejects_compat_tasks_when_intents_only_required(self):
+    def test_run_loaded_plan_rejects_compat_worker_validation_override(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = pathlib.Path(tempdir)
@@ -1749,7 +1749,7 @@ class ValidateCommandTest(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 orchestrator.OrchestratorError,
-                "requires intents-only workers; compat workerValidationMode remains effective for: inspect-a",
+                "workerValidationMode='compat' was removed from the live worker contract",
             ):
                 orchestrator.run_loaded_plan(
                     plan_path,
@@ -1761,7 +1761,7 @@ class ValidateCommandTest(unittest.TestCase):
                     max_parallel=1,
                     continue_on_error=False,
                     dry_run=True,
-                    require_intents_only_workers=True,
+                    worker_validation_mode="compat",
                 )
 
     def test_review_run_reports_diff_summary(self):
@@ -2374,15 +2374,13 @@ class ValidateCommandTest(unittest.TestCase):
                 max_parallel,
                 continue_on_error,
                 dry_run,
-                worker_validation_mode="compat",
-                require_intents_only_workers=False,
+                worker_validation_mode=None,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
                 retried_task_ids=None,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
-                captured["require_intents_only_workers"] = require_intents_only_workers
                 return {
                     "runId": "retry-run",
                     "plan": plan.name,
@@ -2480,7 +2478,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("intents-only", captured["worker_validation_mode"])
         self.assertEqual("intents-only", payload["workerValidationMode"])
 
-    def test_retry_run_forwards_require_intents_only_workers(self):
+    def test_retry_run_drops_legacy_compat_manifest_mode(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
         old_run_loaded_plan = orchestrator.run_loaded_plan
@@ -2562,14 +2560,13 @@ class ValidateCommandTest(unittest.TestCase):
                 max_parallel,
                 continue_on_error,
                 dry_run,
-                worker_validation_mode="compat",
-                require_intents_only_workers=False,
+                worker_validation_mode=None,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
                 retried_task_ids=None,
             ):
-                captured["require_intents_only_workers"] = require_intents_only_workers
+                captured["worker_validation_mode"] = worker_validation_mode
                 return {
                     "runId": "retry-run",
                     "plan": plan.name,
@@ -2606,6 +2603,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "runtimeRoot": str(runtime_root),
                         "runDir": str(run_dir),
                         "workspacesDir": str(workspaces_dir),
+                        "workerValidationMode": "compat",
                         "tasks": {
                             "retry-b": {
                                 "id": "retry-b",
@@ -2656,7 +2654,6 @@ class ValidateCommandTest(unittest.TestCase):
                         selected_tasks=[],
                         continue_on_error=False,
                         worker_validation_mode="",
-                        require_intents_only_workers=True,
                         dry_run=True,
                     )
                 )
@@ -2664,7 +2661,7 @@ class ValidateCommandTest(unittest.TestCase):
                 orchestrator.run_loaded_plan = old_run_loaded_plan
                 orchestrator.ROOT = old_root
 
-        self.assertTrue(captured["require_intents_only_workers"])
+        self.assertIsNone(captured["worker_validation_mode"])
 
     def test_retry_run_retries_unfinished_dependency_when_selected_task_depends_on_it(self):
         orchestrator = self.orchestrator

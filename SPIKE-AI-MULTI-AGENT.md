@@ -296,29 +296,16 @@ Now in place:
 - `validate-run --intents-only`, which rejects legacy raw
   `validationCommands` even when they normalize cleanly and reports which
   tasks still emit those compatibility-only suggestions
-- `run` / `retry --worker-validation-mode intents-only`, which tightens worker
-  prompts, rejects non-empty raw `validationCommands` in worker JSON before a
-  task record is accepted, and records the effective mode in runtime payloads
-- tracked task or agent `workerValidationMode`, so the checked-in task plans
-  can now opt into intent-only enforcement without relying on a CLI flag;
-  runtime payloads surface `mixed` plus per-task modes when a run is not
-  uniform, and the runtime flag is now just an explicit override
-- agent-level `workerValidationMode = intents-only` defaults for the tracked
-  `analyst`, `implementer`, and `reviewer` roles, with the sample task plans
-  inheriting those defaults instead of repeating per-task settings
+- `run` / `retry --worker-validation-mode intents-only`, which records the
+  effective live mode in runtime payloads
 - `validate --json` plus run/manifests now surface each task's effective
   worker-validation source (`override`, `task`, `agent`, or `default`) so the
   authoring pattern is inspectable
-- `intents-only` worker runs now use a stricter JSON schema that limits
-  `validationCommands` to `[]` or `null`, so raw legacy command items are
-  rejected before the coordinator's post-parse guard
-- `validate --json` plus run/manifests now also surface explicit compat-task
-  ids/counts, and planner guidance treats `workerValidationMode = compat` as a
-  legacy exception path instead of a normal authoring choice
-- `validate`, `run`, and `retry` now also accept
-  `--require-intents-only-workers`, which fails fast when any effective task
-  mode still resolves to `compat` and makes zero-compat tracked plans
-  enforceable instead of merely inspectable
+- `2026-04-06`: live worker prompts and schemas now require structured
+  `validationIntents`, live worker parsing rejects non-empty raw
+  `validationCommands` universally, and live agent/task/CLI config no longer
+  accepts `workerValidationMode = compat`; legacy raw commands remain only for
+  older manifests and review-time validation surfaces
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
@@ -327,10 +314,6 @@ What is still needed:
 
 - decide whether to broaden the intent vocabulary beyond `repo-script` and
   `tool`
-- decide whether raw `validationCommands` should remain in the compat worker
-  schema at all now that `intents-only` workers reject them at the schema
-  boundary, compat-task reporting makes the remaining legacy usage obvious,
-  and strict zero-compat gates can now reject it before execution
 
 ### 8. Automated Regression Coverage
 
@@ -380,9 +363,10 @@ Current gap:
   section-specific summarization
 - worker-result guidance is no longer prompt-only: the coordinator now compacts
   and validates worker JSON, the worker schema now allows `null` for
-  `filesTouched` / `validationCommands` / `followUps` / `notes` when those
-  list fields are genuinely unknown, and manifests preserve that distinction
-  from `[]` via explicit unknown-field metadata
+  `filesTouched` / `followUps` / `notes` when those list fields are genuinely
+  unknown, `validationIntents` now use `[]` when no suggestion is present, and
+  manifests preserve that distinction from `[]` via explicit unknown-field
+  metadata
 - live runs also showed that downstream reviewers need a richer bounded
   dependency handoff than a one-line summary, and that output verbosity can
   still dominate cost even when prompt budgets are healthy
@@ -418,7 +402,7 @@ Most early spike phases are already complete:
 The remaining work should now be executed as bounded work packages instead of
 more generic "keep hardening" slices.
 
-### WP4: Remove Raw Worker Validation Commands `(Next)`
+### WP4: Remove Raw Worker Validation Commands `(Done)`
 
 Goal:
 
@@ -536,7 +520,7 @@ Success bar:
 
 ## Execution Order
 
-1. Execute `WP4` first and remove raw worker `validationCommands` from the live
+1. `WP4` is complete: raw worker `validationCommands` are removed from the live
    contract.
 2. Execute `WP6` next and run a non-trivial live workflow proof.
 3. Execute `WP5` only if `WP6` exposes a real unsupported validation-intent
@@ -569,7 +553,6 @@ The right next move is no longer "more generic hardening."
 
 The right next move is to execute the concrete open packages in order:
 
-- `WP4` remove raw worker validation commands from the live contract
 - `WP6` run one non-trivial live workflow proof
 - `WP5` widen intent kinds only if that live proof exposes a real gap
 - `WP7` and `WP8` close the remaining operational and regression tail
