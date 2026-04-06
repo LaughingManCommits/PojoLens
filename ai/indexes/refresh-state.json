@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-06T19:53:56.475793+02:00",
+  "generatedAt": "2026-04-06T20:54:20.350883+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "20dadf6d7687907e9f2a85fd4a9709d4f31c56dc960bb30c733700c186d9c3da",
+      "inputHash": "b0e7a844feaf9efb9c1fe3c320a623fdd9ea48119aacfde7f2a093a4a3e9876f",
       "pathHashes": {
         "AGENTS.md": "785100279166c503d93f4e43ef18ad5c0ec8a5478bcb2270a2973cbe60abfe35",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -23,9 +23,9 @@
         "ai/orchestrator/README.md": "21e056c62435af2c37651dae7dd4ea320ce570c3e46cc42ee2b4312a39417d78",
         "ai/orchestrator/SYSTEM-SPEC.md": "5c355b23e16d707aeebe6bac425e20590374e8472f63ff029ed6f4618f67180d",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "72bd20b71439486eb27e8b5ca3ac71d9ba847af9e76916de6daa578113f9af82",
-        "ai/state/handoff.md": "c6bf2b378ea37ce05456a3c45ed493108bf92150804d0f31667abfc61c00bde4",
-        "ai/state/recent-validations.md": "9b6bd84fb581fa409801dc7e873635aa284c9b3c86e0e93d062d69cdde68518e",
+        "ai/state/current-state.md": "cb0a47a6370cd438c47d104061bc25e5e37ae0f51139b8dba73ee36d7013342a",
+        "ai/state/handoff.md": "0a2942860406e8df06ba978441b71be8765899f02e466fa46b662496111cac6e",
+        "ai/state/recent-validations.md": "bc0567d15eec9a3b398e47ee1acfcb835377e96064555120ae6c80a43f9d2f47",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",
@@ -58,7 +58,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "6ef43762314d15c2f56b00746547bb6504eb5dc3113171a38fac6e53a3de2bc6",
+      "inputHash": "4da354c8f5c943347e29300c9b114c393e3742d4422e088c53960a21b90e2b81",
       "pathHashes": {
         ".github/workflows/ci.yml": "f182571210a25fa92ab8d2f2284ac2255496d12d2a6570d1a71346a1515af194",
         ".github/workflows/release.yml": "f00571c35c1cd32e61d2d33a978507b09bac5f3702f24492eef971eff77f3d7c",
@@ -83,9 +83,9 @@
         "ai/orchestrator/tasks/example-review.json": "29247fee4464cdbc989b56964109d64d307dd4158d6db5206be6049223dca223",
         "ai/orchestrator/tasks/wp6-live-parser-proof.json": "de8c6b0d4541152009cca7c0da263e3df5f49c38c5e60bcc4682f885593c42c2",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "72bd20b71439486eb27e8b5ca3ac71d9ba847af9e76916de6daa578113f9af82",
-        "ai/state/handoff.md": "c6bf2b378ea37ce05456a3c45ed493108bf92150804d0f31667abfc61c00bde4",
-        "ai/state/recent-validations.md": "9b6bd84fb581fa409801dc7e873635aa284c9b3c86e0e93d062d69cdde68518e",
+        "ai/state/current-state.md": "cb0a47a6370cd438c47d104061bc25e5e37ae0f51139b8dba73ee36d7013342a",
+        "ai/state/handoff.md": "0a2942860406e8df06ba978441b71be8765899f02e466fa46b662496111cac6e",
+        "ai/state/recent-validations.md": "bc0567d15eec9a3b398e47ee1acfcb835377e96064555120ae6c80a43f9d2f47",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",

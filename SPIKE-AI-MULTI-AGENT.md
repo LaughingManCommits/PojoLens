@@ -2,632 +2,334 @@
 
 ## Question
 
-What is still missing from the repo-local Claude multi-agent setup, and what do
-we still need before treating it as a reliable local workflow instead of a
-useful but still-partially-proven MVP?
+What still blocks the repo-local Claude orchestrator from being a dependable
+workflow for real multi-step code changes, not just isolated analysis,
+single-implementer patches, and review flows?
 
 ## Thesis
 
-The repo already has a real local orchestration surface.
+The orchestrator is no longer an MVP in the "can it run at all?" sense.
 
-This is not a blank-slate idea anymore:
+That part is already proven:
 
-- there is a tracked control plane under `ai/orchestrator/`
-- there is a runnable coordinator in `scripts/claude-orchestrator.py`
-- there are validated dry-run examples for sequential and parallel task plans
+- tracked control-plane files live under `ai/orchestrator/`
+- the coordinator supports `validate`, `plan`, `run`, `retry`, `review`,
+  `export-patch`, `promote`, `cleanup`, and `validate-run`
+- live worker output is structured-intent-only
+- reviewer dependency handoff includes changed-file and diff previews
+- `validate-run` can execute against repo root or the suggesting task
+  workspace
+- a non-trivial live proof already exercised implementer, reviewer, export,
+  validation, and promotion paths
 
-The missing work is mostly not "invent multi-agent orchestration."
+The remaining problems are more specific.
 
-The missing work is:
+The coordinator is already credible for:
 
-- prove the live path end to end
-- tighten safety around parallel edits and protected paths
-- give the coordinator a stronger review, retry, and cleanup workflow
-- add regression coverage so the contract stays stable
+- bounded analysis or review plans
+- isolated implementer tasks whose changes can be promoted directly
+- pre-promotion validation of a single worker sandbox
 
-## Current Status
+It is still weak for:
 
-As of `2026-04-05`, the local orchestration slice is real and most MVP-hardening
-phases are done.
+- chained implementation DAGs where one implementer must build on another
+- strict task-scope enforcement
+- operator lifecycle beyond "retry in a new run" and "cleanup this run"
+- run-level cost governance
 
-Implemented and documented:
+## Verified Baseline
 
-- tracked orchestration guide in `ai/orchestrator/README.md`
-- portable orchestration contract in `ai/orchestrator/SYSTEM-SPEC.md`
-- tracked worker catalog in `ai/orchestrator/agents.json`
-- tracked sequential and parallel task-plan examples in
-  `ai/orchestrator/tasks/*.json`
-- `validate`, `plan`, and `run` commands in `scripts/claude-orchestrator.py`
-- task-plan schema validation, topological batching, and selected-task runs
-- repo-local runtime root under `.claude-orchestrator/`
-- per-task prompts, command captures, worker result records, stdout/stderr
-  artifacts, and run manifests
-- model-profile routing, task-local tool allowlists, timeout settings, and
-  per-task budget passthrough
+As of `2026-04-06`, the following are real in code and docs:
 
-Already validated:
+- sparse `copy` workspaces seed only `AGENTS.md`, `ai/AGENTS.md`, and explicit
+  file hints
+- overlapping write-capable tasks are serialized conservatively by declared
+  scope
+- worker-reported touched files are audited against actual workspace diffs
+- protected-path edits fail task records and block promotion
+- reviewer tasks see dependency diff previews instead of only one-line
+  summaries
+- promotion is conservative and blocks ambiguous file ownership
+- retry reuses completed dependencies from an earlier manifest
+- cleanup removes run artifacts and detached worktrees
+- recent live proof showed the coordinator can promote a real bounded patch
 
-- tracked plan validation
-- dry-run manifest generation
-- parallel dry-run batching
-- prompt-size estimation and usage aggregation wiring
-- live `example-review.json` `copy`-mode run after fixing the CLI command
-  builder so variadic tool flags cannot consume the prompt argument
-- real worker JSON capture, stdout/stderr capture, blocked-dependency handling,
-  usage aggregation, and workspace artifact generation
+So the spike should not reopen old validation-intent hardening work.
 
-## Verified Current Strengths
+It should focus on the gaps that still limit real multi-step orchestration.
 
-The current orchestrator already solves several important problems well:
+## Re-Investigation Findings
 
-- tracked control-plane files stay separate from transient runtime artifacts
-- copy mode ignores `.claude-orchestrator/`, so overlapping runs do not recurse
-  on their own runtime output
-- worktree mode is guarded behind a clean-repo check
-- task prompts include dependency summaries, task-local file hints, constraints,
-  and validation hints
-- `--continue-on-error` and dependency blocking already produce explicit task
-  records instead of silent skips
-- run manifests already aggregate prompt estimates and Claude usage when the CLI
-  returns it
+### 1. Task Scope Is Still Too Implicit
 
-That means the repo already has a sound MVP shape for local bounded worker DAGs.
+Current behavior:
 
-The live proof also added one important concrete lesson:
-
-- the coordinator needs regression coverage around Claude CLI argument
-  construction, because real `claude -p` behavior exposed a bug that dry-runs
-  could not catch
-
-## What External Token-Efficiency Guidance Changes
-
-The `claude-token-efficient` guidance is useful here, but only in a narrow way.
-
-What transfers well:
-
-- recurring instruction text should stay tiny because it costs input tokens on
-  every worker call
-- pipeline-facing workers should prefer machine-readable output with minimal
-  narration
-- prompt-level guidance is useful for output discipline, but it does not
-  replace mechanical safety gates
-
-What does not transfer directly:
-
-- a large repo-wide `CLAUDE.md` overlay for all orchestrator workers
-
-Why not:
-
-- this coordinator currently launches fresh `claude -p` sessions per planner or
-  worker call
-- the external repo explicitly notes that persistent instruction files are most
-  worthwhile when output volume is high enough to offset recurring input
-  overhead, and that fresh-session pipelines dilute that benefit
-
-Recommended interpretation for this repo:
-
-- keep planner and worker prompt scaffolding very small
-- keep role-specific behavior rules in compact tracked prompt snippets or agent
-  metadata, not a growing monolithic instruction layer
-- add prompt-budget and output-discipline checks to the coordinator itself
-- keep structured JSON output as the non-negotiable contract for planner and
-  worker calls
-- treat this as complementary to safety hardening, not a substitute for it
-
-## What Is Missing
-
-### 1. Live End-to-End Execution Proof `(Done)`
-
-Completed proof:
-
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --json`
-
-Observed result:
-
-- the live `copy`-mode run completed two `simple` workers successfully
-- the coordinator captured worker JSON, stdout/stderr, per-task usage, usage
-  totals, task workspaces, command files, prompt files, and result files
-- the first live attempt exposed a real CLI integration bug: variadic
-  `--allowed-tools` handling consumed the prompt argument, which dry-runs did
-  not reveal
-- fixing `claude_command(...)` to compact tool lists and terminate options with
-  `--` resolved the issue
-
-What this changed:
-
-- live non-interactive `claude -p` execution is now proven
-- Phase 1 is no longer the top unknown
-- prompt economy and regression coverage moved up because the successful run
-  still showed large cache-read/input context and very verbose outputs for small
-  doc-only tasks
-
-### 2. Real Sparse Copy Workspaces
-
-As of `2026-04-04`, this is mostly implemented.
-
-Now in place:
-
-- `prepare_workspace(...)` no longer copies the whole repo for `copy` mode
-- sparse workspaces are seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit
-  task/shared file hints only
-- directory hints are not hydrated
-- oversized files above the configured cap are skipped
+- task `files` are doing too many jobs at once
+- the same field drives prompt hints, sparse-copy hydration, and overlap
+  detection
+- `copy` hydration silently skips directory hints and missing files
+- workspace audit only fails protected-path edits, not out-of-scope edits
 
 Why this matters:
 
-- workers inherit less accidental repo context
-- copy cost now aligns better with prompt minimization
-- the runtime contract is now closer to what the docs promised
+- a plan can look well-scoped on paper while still giving workers ambiguous or
+  incomplete file context
+- a worker can change files outside the intended task scope and still remain
+  promotable if those files are not protected paths
+- overlap detection is based on declared hints, not a stronger write contract
 
-What is needed:
+Conclusion:
 
-- live task-plan experience to confirm whether the small fixed base seed is
-  sufficient in practice
-- continued pressure on planner/task authors to keep file hints concrete for
-  copy workspaces
+- the coordinator still lacks a first-class read-scope vs write-scope contract
 
-### 3. Parallel File-Scope Safety Checks
+### 2. Dependency Handoff Is Still Prompt-Level For Implementers
 
-The docs correctly say parallel workers should not edit materially overlapping
-files.
+Current behavior:
 
-As of `2026-04-04`, this is partially implemented.
+- downstream tasks get dependency summaries in the prompt
+- reviewer tasks additionally get bounded changed-file and diff previews
+- downstream workspaces are still created from `HEAD` plus explicit file hints,
+  not from dependency workspaces or patches
 
-Now in place:
+Why this matters:
 
-- validate output and run manifests expose `parallelConflicts` for overlapping
-  write-capable task scopes
-- the run scheduler now serializes dependency-ready write-capable tasks when
-  their declared scopes overlap conservatively
+- dependent implementer tasks cannot reliably build on upstream code changes in
+  their own sandbox
+- the current design works well for review and low-coupling fan-out, but not
+  for multi-step implementation chains
+- the orchestrator currently proves "review a prior change" better than
+  "continue a prior change"
+
+Conclusion:
+
+- real stacked implementation is still underpowered without dependency-state
+  materialization
+
+### 3. Lifecycle Tooling Stops At Retry-And-Cleanup
+
+Current behavior:
+
+- failed or blocked tasks can be retried into a new run
+- completed dependencies can be reused
+- run-scoped cleanup exists
+
+What is still missing:
+
+- same-run resume after interruption
+- run inventory or status listing across many retained runs
+- age-based prune or retention policy
+
+Why this matters:
+
+- the coordinator is usable for occasional runs, but not yet pleasant to
+  operate as a repeated local tool with accumulating runtime state
+
+### 4. Budget Controls Are Mostly Per-Task And Observational
+
+Current behavior:
+
+- prompt budgets are enforced locally before Claude execution
+- task or agent `maxBudgetUsd` can be passed through to Claude
+- manifests aggregate usage and cost when the CLI returns them
 
 Current gap:
 
-- overlap detection still relies on declared file scopes, not actual semantic
-  edit intent
-- there is no explicit plan-level override yet for intentionally overlapping
-  parallel work
+- there is no run-level budget ceiling or stop condition across batches
+- there is no stronger artifact-volume governance beyond bounded JSON fields
+- the live proof already showed worker exploration and output volume remain the
+  dominant cost drivers
 
-What is needed:
+Why this matters:
 
-- continue tuning the conservative overlap rules as more live plans exist
-- an explicit override only when the coordinator intentionally accepts the risk
+- the orchestrator can report cost after the fact better than it can govern
+  total spend or output volume during a longer run
 
-### 4. Protected-Path Enforcement Beyond Prompt Wording
+### 5. Live Proof Is Still Narrow
 
-Worker prompts instruct agents not to edit `TODO.md`, `ai/state/*`,
-`ai/log/*`, or `ai/indexes/*`.
+Current evidence:
 
-As of `2026-04-04`, this is also partially implemented.
+- one non-trivial live proof exercised implementer, reviewer, validation, and
+  promotion successfully
 
-Now in place:
+What is not yet proven:
 
-- post-run comparison between workspace diffs and worker-reported touched files
-- task records now expose actual changed files plus protected-path violations
-- tasks now fail when they report or produce forbidden edits, including in
-  `workspaceMode="repo"` runs
+- two or more implementers in one real run
+- a dependency chain where downstream work needs upstream code state
+- reopened lifecycle after interruption or retained-run cleanup pressure
 
-Current gap:
+Conclusion:
 
-- the protected-path policy is still limited to `TODO.md`, `ai/state/*`,
-  `ai/log/*`, and `ai/indexes/*`
+- the next live proof should target the current weak spots, not repeat the old
+  parser-proof shape
 
-### 5. Coordinator Review and Apply Workflow
+## Active Work Package Board
 
-The current runtime captures prompts, command files, worker results, stdout,
-stderr, manifest metadata, and workspace paths.
+### WP9: Scope Contract And Enforcement
 
-As of `2026-04-04`, this is partially implemented.
+Goal:
 
-Now in place:
+- make task scope explicit enough that hydration, overlap checks, auditing, and
+  promotion all enforce the same contract
 
-- a `review` command that summarizes per-task file diffs from worker
-  workspaces
-- an `export-patch` command that writes unified diff patches for copy/worktree
-  runs
-- a `promote` command that applies reviewed copy/worktree changes back into the
-  repo when protected-path audits are clean and changed-file ownership is
-  unambiguous
+Scope:
 
-What it does not provide yet:
+- separate read context from write intent instead of overloading `files`
+- validate copy-mode inputs so directory hints and missing files are surfaced
+  explicitly instead of being silently skipped
+- fail or explicitly flag workspace edits outside declared write scope
+- switch overlap detection to the stronger write-scope contract
 
-- selective cherry-pick helpers around the adoption workflow
-- richer cherry-pick or partial-merge helpers beyond task-level or whole-file
+Deliver:
+
+- task plans can distinguish what a worker needs to read from what it is
+  allowed to change
+- out-of-scope edits are visible and block promotion unless the coordinator
+  explicitly accepts them
+
+Success bar:
+
+- no silent scope widening between planning, workspace prep, auditing, and
   promotion
 
-Current state is therefore:
-
-- worker execution, review/export, and conservative promotion now exist
-- coordinator adoption back into the main repo is no longer fully manual for
-  isolated clean tasks
-
-What is needed:
-
-- broader coordinator-side adoption refinements
-- broader regression coverage so the promotion rules stay stable
-
-### 6. Resume, Retry, and Cleanup Operations
-
-Each run gets a unique runtime directory and workspace tree, which is good for
-isolation.
-
-As of `2026-04-04`, this is partially implemented.
-
-Now in place:
-
-- a `retry` command that starts a new run from a prior manifest, defaults to
-  failed or blocked tasks, and reuses already-completed dependencies
-- a `cleanup` command that removes run directories, workspace directories, and
-  detached worktrees created for that run
-
-What is still missing:
-
-- resume a partially completed run
-- retry in the exact same run context
-- age-based pruning across many runs
-- richer selective cleanup flows
-
-The coordinator now has basic lifecycle tooling, but not full run-resume or
-fleet-style pruning.
-
-### 7. Structured Final Validation Support
-
-Workers can report validation suggestions, and the coordinator now has both raw
-command and structured-intent paths.
-
-As of `2026-04-05`, this is partially implemented.
-
-Now in place:
-
-- a `validate-run` command that dedupes worker-suggested validation commands
-- default validation policy now excludes non-completed tasks unless the
-  coordinator explicitly opts into other statuses
-- command-quality policy now rejects shell-composed or unknown-entrypoint
-  validation commands by default unless the coordinator explicitly overrides it
-- optional coordinator-side execution of those commands from repo root or from
-  the suggesting task workspace
-- a manifest section that distinguishes worker-suggested validation from
-  coordinator-run validation results
-- structured `validationIntents` for `repo-script` and `tool` suggestions,
-  which render to command text for review output but execute via safe argv
-  handling instead of shell parsing
-- accepted legacy raw validation commands now reuse that same argv-safe path
-  when the coordinator can normalize them into a direct tool or repo-script
-  invocation
-- `validate-run --intents-only`, which rejects legacy raw
-  `validationCommands` even when they normalize cleanly and reports which
-  tasks still emit those compatibility-only suggestions
-- `run` / `retry --worker-validation-mode intents-only`, which records the
-  effective live mode in runtime payloads
-- `validate --json` plus run/manifests now surface each task's effective
-  worker-validation source (`override`, `task`, `agent`, or `default`) so the
-  authoring pattern is inspectable
-- `2026-04-06`: live worker prompts and schemas now require structured
-  `validationIntents`, live worker parsing rejects non-empty raw
-  `validationCommands` universally, and live agent/task/CLI config no longer
-  accepts `workerValidationMode = compat`; legacy raw commands remain only for
-  older manifests and review-time validation surfaces
-- `2026-04-06`: `validate-run` now supports
-  `--execution-scope task-workspace`, which dedupes by command plus workspace
-  and can validate an unpromoted worker sandbox instead of always using repo
-  root
-- live planner, worker, and `validate-run` waits now emit phase-tagged
-  slop-status lines on interactive `stderr` so operators can see in-flight
-  work without breaking `stdout` JSON consumers
-
-What is still needed:
-
-- decide whether to broaden the intent vocabulary beyond `repo-script` and
-  `tool`
-
-### 8. Automated Regression Coverage
-
-As of `2026-04-04`, this is partially implemented.
-
-Now in place:
-
-- Python-side regression tests for CLI command shaping and prompt-budget
-  enforcement
-- scheduler safety tests for overlapping write scopes, fail-fast behavior, and
-  dependency blocking
-- worker failure-path coverage for malformed JSON output
-- workspace-prep coverage for sparse copy mode and protected-path auditing
-- review/export/promote/retry/cleanup/validate-run coverage for the coordinator
-  lifecycle
-
-What is still missing:
-
-- a live `2026-04-06` `WP8` slice added invalid-agent/task-plan negatives plus
-  worktree-creation and cleanup failure-path coverage in the Python test suite
-- live CLI integration regression beyond the current focused proof
-
-This matters because the orchestration surface is now large enough that docs and
-dry-runs alone are not strong regression protection.
-
-### 9. Prompt Economy and Output Discipline
-
-As of `2026-04-04`, prompt economy is partially implemented.
-
-Now in place:
-
-- compact role-specific output-discipline prompts in `agents.json`
-- section-level prompt accounting for planner and worker prompts
-- optional hard prompt ceilings via `maxPromptEstimatedTokens` and
-  `maxPromptChars`
-- coordinator-side prompt-budget failure before live Claude execution
-- compacted dependency summaries and bounded prompt-facing list sections
-
-Current gap:
-
-- planner and worker prompts still repeat some shared coordinator framing on
-  every invocation
-- live `example-review.json` and `example-parallel.json` runs now show prompt
-  estimates staying comfortably within the current ceilings, so prompt text
-  size itself is not the main cost driver on these tracked plans
-- prompt compaction is currently generic list or summary truncation, not
-  section-specific summarization
-- worker-result guidance is no longer prompt-only: the coordinator now compacts
-  and validates worker JSON, the worker schema now allows `null` for
-  `filesTouched` / `followUps` / `notes` when those list fields are genuinely
-  unknown, `validationIntents` now use `[]` when no suggestion is present, and
-  manifests preserve that distinction from `[]` via explicit unknown-field
-  metadata
-- reviewer dependency handoff now includes bounded changed-file summaries and
-  diff previews from dependency workspaces, which closes the live proof's
-  one-line-summary review gap; output verbosity can still dominate cost even
-  when prompt budgets are healthy
-
-What is needed:
-
-- keep validating the current ceilings against broader plans and only lower or
-  raise them if later task mixes show real drift
-- decide whether some prompt sections need smarter summarization than simple
-  truncation
-- decide whether any additional worker-result fields beyond the current list
-  fields need explicit unknown semantics
-- decide whether the current `repo-script` / `tool` validation-intent surface
-  is enough or needs broader presets
-- a deliberate decision on whether any repo-level `CLAUDE.md` should apply to
-  orchestrator work at all; default recommendation is no unless measurement
-  proves a net benefit for fresh worker sessions
-
-This is mostly a coordinator-design problem, not a new prompt-writing exercise.
-
-## Work Package Board
-
-Most early spike phases are already complete:
-
-- live `claude -p` proof is done
-- prompt budgeting and output discipline are in place
-- sparse-copy safety, overlap serialization, and protected-path auditing are in
-  place
-- review/export/promote/retry/cleanup/validate-run exist
-- validation-policy hardening is in place, including intent-only worker modes,
-  compat-task visibility, and strict zero-compat gates for tracked plans
-
-The remaining work should now be executed as bounded work packages instead of
-more generic "keep hardening" slices.
-
-### WP4: Remove Raw Worker Validation Commands `(Done)`
+### WP10: Dependency State Materialization
 
 Goal:
 
-- remove raw `validationCommands` from the live worker contract
+- make dependent implementer tasks able to work from upstream task state, not
+  only from prompt summaries
 
 Scope:
 
-- stop advertising raw command items in live worker prompts and schemas
-- reject raw worker command items universally in live worker output handling
-- keep only the minimum backward-compatibility needed for older manifests or
-  coordinator review surfaces
+- add an opt-in dependency materialization mode for downstream tasks
+- allow a downstream workspace to receive reviewed dependency changes as an
+  applied layer or equivalent snapshot
+- record which dependency layers were applied so review and retry stay
+  inspectable
+- keep the default conservative path for low-coupling tasks that should remain
+  summary-only
 
 Deliver:
 
-- live worker output is structured-intent-only
-- task-level `compat` is no longer needed for new tracked plans
-- the compatibility story is explicitly narrowed to old data or review-time
-  interpretation only
+- the orchestrator can support a real multi-step implementation chain without
+  forcing early promotion back into the repo
 
 Success bar:
 
-- no live worker path depends on non-empty raw `validationCommands`
-- tracked plans remain zero-compat without relying on review discipline alone
+- a downstream implementer can run, inspect, edit, and validate against
+  upstream task changes inside its own isolated workspace
 
-### WP5: Validate Intent Vocabulary Against Real Usage
+### WP11: Resume, Inventory, And Retention
 
 Goal:
 
-- widen `validationIntents` only if real runs show the current kinds are
-  insufficient
+- make the coordinator manageable across interrupted or repeated local runs
 
 Scope:
 
-- collect unsupported validation suggestions from real worker runs
-- either add one or two concrete intent kinds, or explicitly decide that
-  `repo-script` and `tool` are enough for now
+- add same-run resume from an existing manifest
+- add a run-inventory surface with compact status summaries
+- add age-based prune or retention helpers for old run directories and
+  workspaces
 
 Deliver:
 
-- one documented decision on intent breadth
-- tests and docs only for intent kinds that are justified by real usage
+- operators can see what exists, continue a partially completed run, and prune
+  stale runtime state intentionally
 
 Success bar:
 
-- no hypothetical intent-surface expansion
-- any new intent kind has a concrete motivating example
+- lifecycle ergonomics are no longer limited to "retry into a new run" or
+  "delete one run manually"
 
-### WP6: Non-Trivial Live Workflow Proof `(Done)`
+### WP12: Run-Level Budget And Artifact Governance
 
 Goal:
 
-- prove the coordinator on a plan larger than the doc-only sample flows
+- move from cost visibility to cost control
 
 Scope:
 
-- run a live plan with at least one implementer task and one reviewer or
-  adoption step
-- exercise review/export/validate-run and at least `promote --dry-run` on real
-  artifacts
-- capture operational pain points from a real run instead of inferring them
+- add optional run-level budget ceilings
+- stop or warn before later batches when aggregate spend crosses the configured
+  run budget
+- add stronger controls or summaries for large worker stdout or stderr and
+  oversized result artifacts
+- make the highest-cost tasks obvious in coordinator summaries
 
 Deliver:
 
-- one end-to-end live run beyond `example-review.json`
-- a short list of concrete findings from that run
+- longer runs can be bounded by repo-local policy instead of only by
+  post-hoc inspection
 
 Success bar:
 
-- coordinator ergonomics are proven on a small real change, not just sample
-  inspection tasks
+- the coordinator can enforce a practical spend and artifact discipline across
+  the whole run, not only per worker prompt
 
-Completed proof on `2026-04-06`:
-
-- validated and ran `ai/orchestrator/tasks/wp6-live-parser-proof.json` live
-- exercised `review`, `export-patch`, `validate-run`, `promote --dry-run`, and
-  final `promote`
-- promoted a bounded two-file implementer patch back into the repo:
-  `scripts/claude-orchestrator.py` plus
-  `scripts/tests/test_claude_orchestrator.py`
-
-Concrete findings:
-
-- the coordinator lifecycle worked end to end on a real implementer change, not
-  just doc-summary samples
-- the implementer produced a clean promotable patch, but the reviewer still
-  produced a false-positive bug report against a line that had actually changed;
-  reviewer reliability on changed-file inspection is still an operational risk
-- `validate-run` accepted the implementer's `tool` intent
-  (`py -3 -m unittest discover ...`) and correctly rejected the reviewer's
-  malformed `repo-script` intents (`pytest`, `python -c`), so `WP6` did not
-  justify widening the validation-intent vocabulary for `WP5`
-- `validate-run` still operates from repo root, which means it validates the
-  current repo state rather than an unpromoted worker workspace; the live proof
-  made that sequencing limitation concrete
-- worker output and cache-read volume remained the dominant cost driver even on
-  this bounded plan
-
-`WP7` follow-up on `2026-04-06`:
-
-- reviewer dependency handoff now includes bounded changed-file summaries and
-  diff previews, so reviewer tasks inspect the proposed patch instead of only a
-  one-line dependency summary
-- `validate-run` now supports `--execution-scope task-workspace`, so
-  coordinator validation can run against the suggesting worker sandbox before
-  promotion instead of only against repo root
-
-### WP7: Operational Gap Sweep `(Done)`
+### WP13: Multi-Step Live Workflow Proof
 
 Goal:
 
-- close or explicitly defer the remaining lifecycle and safety gaps
+- prove the reopened scope on the kind of workflow the current design is still
+  weakest at
 
 Scope:
 
-- decide whether intentional parallel-overlap overrides are needed
-- decide whether resume or same-run retry is worth implementing
-- decide whether prune or selective cleanup helpers are needed
-- refine promotion ergonomics only if the live proof exposes concrete pain
+- run a live plan with at least two implementer tasks and one downstream review
+  or validation step
+- exercise whichever new scope or dependency contract lands in `WP9` and
+  `WP10`
+- capture concrete operator findings around resume, budget behavior, and
+  promotion readiness
 
 Deliver:
 
-- each open operational gap is either implemented or explicitly deferred with
-  rationale
+- one real retained run that demonstrates the coordinator on a chained code
+  workflow instead of an isolated patch
 
 Success bar:
 
-- the remaining coordinator gaps are a conscious backlog, not an undefined tail
+- the next live proof validates the reopened packages instead of only proving
+  surfaces that were already known to work
 
-Completed outcome on `2026-04-06`:
+## Recommended Order
 
-- implemented reviewer-facing dependency diff previews to reduce false positives
-  against changed files in isolated review workspaces
-- implemented workspace-aware `validate-run` execution so pre-promotion
-  validation can target the suggesting worker sandbox
-- explicitly deferred intentional parallel-overlap overrides because the
-  current conservative scheduler has not yet blocked a real live plan badly
-  enough to justify a risk-acceptance escape hatch
-- explicitly deferred same-run resume or retry because manifest-driven retry
-  already covers the observed recovery path and no live run has justified the
-  extra coordinator complexity yet
-- explicitly deferred age-based prune and selective cleanup helpers because the
-  current per-run cleanup command is adequate until retained run volume becomes
-  a real operator burden
-- explicitly deferred broader promotion ergonomics because the live proof did
-  not expose adoption pain beyond reviewer accuracy and validation sequencing
-
-### WP8: Regression Expansion `(Done)`
-
-Goal:
-
-- align the regression harness with the actual size of the coordinator surface
-
-Scope:
-
-- invalid agent and task-plan negatives
-- more worktree-mode and cleanup error-path coverage
-- a live CLI smoke path if practical
-
-Deliver:
-
-- focused tests for each newly changed surface
-- fewer coordinator changes rely on manual dry-runs as the primary guard
-
-Success bar:
-
-- the open work packages above are covered by targeted regression tests instead
-  of ad hoc validation only
-
-Current progress on `2026-04-06`:
-
-- added direct negative tests for missing planner agents, unknown task agents,
-  and dependency cycles during plan loading
-- added worktree-path regression coverage for failed `git worktree add`,
-  failed `git worktree remove`, and failed `git worktree prune`
-- explicitly deferred a default live CLI smoke test because the existing `WP6`
-  live proof already exercises the real Claude path, while an environment- and
-  token-dependent smoke test would add a weaker regression signal than the new
-  deterministic coverage
-
-## Execution Order
-
-1. `WP4` is complete: raw worker `validationCommands` are removed from the live
-   contract.
-2. `WP6` is complete: the live parser-proof workflow ran end to end and
-   produced promotable changes plus concrete operational findings.
-3. `WP5` stays unopened for now because `WP6` did not expose a real
-   unsupported validation-intent shape.
-4. `WP7` is complete: reviewer diff handoff and task-workspace validation now
-   cover the concrete `WP6` pain points, and the remaining operational items
-   are explicitly deferred.
-5. `WP8` is complete: deterministic regression coverage now covers the newly
-   exercised coordinator surfaces, and the optional live CLI smoke path is
-   explicitly deferred.
+1. `WP9` first because the current task contract is the main source of hidden
+   ambiguity.
+2. `WP10` second because dependency-state handoff is the biggest functional gap
+   for real multi-step implementation.
+3. `WP13` third because the new contracts should be proven live once they
+   exist.
+4. `WP11` fourth because resume and retention become more important after the
+   coordinator is used for longer real runs.
+5. `WP12` fifth because cost governance should be informed by the stronger live
+   workflow shape, not only by current small proofs.
 
 ## Non-Goals
 
-This spike should not turn the repo into:
+This spike should still not turn the repo into:
 
-- a cloud orchestration service
-- a distributed agent runtime
-- a fully autonomous merge bot
-- a long-lived agent-memory platform separate from the tracked repo memory
-- an unrestricted multi-repo automation system
+- a cloud orchestration platform
+- a general distributed agent runtime
+- an autonomous merge bot
+- a long-lived worker-memory system separate from tracked repo memory
+- an excuse to run tightly coupled edit tasks in parallel
 
 The target remains:
 
-- a bounded local coordinator for low-coupling repo tasks
+- a bounded local coordinator for low-coupling repo work, with explicit
+  support for the small number of dependency chains that are worth modeling
 
 ## Bottom Line
 
-The repo already has a credible local multi-agent control plane.
+The orchestrator does not need another generic hardening pass.
 
-What it does not have yet is full operational confidence.
+It needs a narrower second phase:
 
-The right next move is no longer "more generic hardening."
+- make scope explicit
+- make dependency state portable across isolated workspaces when requested
+- make retained runs easier to operate
+- add run-level budget controls
+- then prove the reopened design on a live multi-step change
 
-The right next move is to execute the concrete open packages in order:
-
-- `WP5` stays deferred unless a later live run exposes a real intent gap
-
-That keeps the orchestration surface useful, inspectable, and aligned with the
-repo's existing local-first workflow.
+That is the right reopening point for the spike.
