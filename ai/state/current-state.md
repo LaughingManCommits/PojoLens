@@ -11,10 +11,9 @@
 
 ## Verified
 
-- `2026-04-06`: Claude orchestration now removes raw worker `validationCommands` from the live contract: live worker prompts/schemas require structured `validationIntents`, live `compat` worker mode is rejected, tracked agent prompts no longer advertise raw-command fallback, and legacy raw commands remain only in older manifests or review-time validation.
-- `2026-04-01`: scatter profiling in `target/benchmarks/2026-04-01-sqllike-profile/` isolated reflection-heavy SQL-like chart mapping.
-- `2026-04-05`: Claude orchestration now has prompt budgets, sparse-copy workspaces, overlap serialization, protected-path audits, review/export/promote/retry/cleanup/validate-run, structured validation intents, unknown-vs-empty worker lists, and slop-status progress.
-- `2026-04-03`: the natural-query surface now covers grouped aggregates, time buckets/charts, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded aliases; `docs/natural.md` is the canonical guide.
+- `2026-04-06`: live `wp6-live-parser-proof.json` ran end to end; review/export/validate-run/promote worked, and the implementer patch was promoted into the repo.
+- `2026-04-06`: live orchestrator workers now require structured `validationIntents`; raw worker `validationCommands` remain only in old manifests or review-time validation.
+- `2026-04-03`: `docs/natural.md` is the canonical natural guide; the surface covers grouped aggregates, charts/time buckets, joins, windows, templates, computed fields, reports, and bounded aliases.
 
 ## Release
 
@@ -23,18 +22,14 @@
 ## Risks
 
 - Central publish status is still not reconfirmed after key propagation.
-- SQL-like scatter still allocates more than fluent.
-- Natural-query surface is still narrower than SQL-like: `qualify` is alias-only, running windows use a fixed frame, and joined authoring remains explicit.
-- Natural `schema(...)` is still structural, not vocabulary-resolved.
-- Natural execution still rebuilds a resolved `SqlLikeQuery` per execution/explain call.
-- Claude live sample runs stay within the current prompt ceilings, but cost is still driven more by worker exploration and verbose structured output than by prompt text alone.
-- Claude orchestration still only supports `repo-script` / `tool` validation intents; `WP6` needs to confirm that surface is enough before `WP5` widens it.
+- Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
+- Claude orchestration reviewers can still produce false positives against changed files.
+- `validate-run` still executes from repo root, so it validates the current repo state rather than an unpromoted worker workspace.
+- Claude orchestration cost is still driven more by worker output and cache reads than by prompt size.
 
 ## Next
 
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
-- If natural follow-up resumes, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
-- Keep README onboarding balanced across query styles and push deep recipes into docs.
-- For the AI orchestration spike, `WP4` is complete; run `WP6` next and open `WP5` only if that live proof exposes a real missing validation-intent shape.
+- For the AI orchestration spike, `WP4` and `WP6` are complete; `WP5` stays unopened, and `WP7` should use the reviewer-accuracy and repo-root validation findings.
+- If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
-- If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.

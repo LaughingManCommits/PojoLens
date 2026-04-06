@@ -13,16 +13,13 @@
 
 ## Facts
 
-- `PojoLensRuntime` owns natural vocabulary; direct `PojoLensNatural.parse(...)` / `template(...)` stay runtime-vocabulary-free.
-- Natural queries now support grouped aggregates, charts/time buckets, joins, windows/`qualify`, templates, computed fields, report wrappers, and bounded aliases.
-- `docs/natural.md` is the canonical natural-query guide.
-- Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode.
-- `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
-- Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, protected-path audits, review/export/promote/retry/cleanup, and `validate-run` are in place.
-- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, and preserves unknown-vs-empty worker lists.
-- `2026-04-06`: live orchestrator workers are now structured-intent-only by default; raw worker `validationCommands` are rejected during live parsing, the live worker schema requires `validationIntents`, and legacy raw commands remain only in older manifests or review-time validation.
-- Retry no longer replays old manifest-level `workerValidationMode = compat`; older manifests still load for review and `validate-run`.
-- Next orchestrator work packages are explicit in `SPIKE-AI-MULTI-AGENT.md`: `WP4` is done, `WP6` is next, and `WP5` only opens if the live workflow proof shows `repo-script` / `tool` is insufficient.
+- `PojoLensRuntime` owns natural vocabulary; `docs/natural.md` is the canonical natural guide.
+- `SPIKE-LIMITATIONS.md` still starts with time-bucket input broadening, then grouped/aggregate subquery widening.
+- Claude orchestration uses repo-local `.claude-orchestrator/`; review/export/promote/retry/cleanup and `validate-run` are live.
+- Live workers are structured-intent-only; raw worker `validationCommands` survive only in old manifests or review-time `validate-run`.
+- `2026-04-06`: `wp6-live-parser-proof.json` completed and promoted a two-file parser/regression patch into the repo.
+- `WP6` did not justify widening the intent vocabulary: the implementer's `tool` intent was accepted, while the reviewer's bad `repo-script` intents were rejected by policy.
+- Next orchestrator work is `WP7`: use the live proof's reviewer-false-positive and repo-root `validate-run` findings.
 
 ## Validate
 

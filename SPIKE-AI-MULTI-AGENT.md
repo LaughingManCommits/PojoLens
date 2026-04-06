@@ -450,7 +450,7 @@ Success bar:
 - no hypothetical intent-surface expansion
 - any new intent kind has a concrete motivating example
 
-### WP6: Non-Trivial Live Workflow Proof
+### WP6: Non-Trivial Live Workflow Proof `(Done)`
 
 Goal:
 
@@ -473,6 +473,32 @@ Success bar:
 
 - coordinator ergonomics are proven on a small real change, not just sample
   inspection tasks
+
+Completed proof on `2026-04-06`:
+
+- validated and ran `ai/orchestrator/tasks/wp6-live-parser-proof.json` live
+- exercised `review`, `export-patch`, `validate-run`, `promote --dry-run`, and
+  final `promote`
+- promoted a bounded two-file implementer patch back into the repo:
+  `scripts/claude-orchestrator.py` plus
+  `scripts/tests/test_claude_orchestrator.py`
+
+Concrete findings:
+
+- the coordinator lifecycle worked end to end on a real implementer change, not
+  just doc-summary samples
+- the implementer produced a clean promotable patch, but the reviewer still
+  produced a false-positive bug report against a line that had actually changed;
+  reviewer reliability on changed-file inspection is still an operational risk
+- `validate-run` accepted the implementer's `tool` intent
+  (`py -3 -m unittest discover ...`) and correctly rejected the reviewer's
+  malformed `repo-script` intents (`pytest`, `python -c`), so `WP6` did not
+  justify widening the validation-intent vocabulary for `WP5`
+- `validate-run` still operates from repo root, which means it validates the
+  current repo state rather than an unpromoted worker workspace; the live proof
+  made that sequencing limitation concrete
+- worker output and cache-read volume remained the dominant cost driver even on
+  this bounded plan
 
 ### WP7: Operational Gap Sweep
 
@@ -522,10 +548,12 @@ Success bar:
 
 1. `WP4` is complete: raw worker `validationCommands` are removed from the live
    contract.
-2. Execute `WP6` next and run a non-trivial live workflow proof.
-3. Execute `WP5` only if `WP6` exposes a real unsupported validation-intent
-   shape; otherwise document that no widening is needed yet.
-4. Execute `WP7` using the concrete pain points from `WP6`, not speculation.
+2. `WP6` is complete: the live parser-proof workflow ran end to end and
+   produced promotable changes plus concrete operational findings.
+3. `WP5` stays unopened for now because `WP6` did not expose a real
+   unsupported validation-intent shape.
+4. Execute `WP7` next using the concrete pain points from `WP6`, not
+   speculation.
 5. Keep `WP8` running in parallel with the above, then do one final regression
    sweep after the larger workflow proof.
 
@@ -553,9 +581,10 @@ The right next move is no longer "more generic hardening."
 
 The right next move is to execute the concrete open packages in order:
 
-- `WP6` run one non-trivial live workflow proof
-- `WP5` widen intent kinds only if that live proof exposes a real gap
-- `WP7` and `WP8` close the remaining operational and regression tail
+- `WP7` use the `WP6` findings to tighten reviewer accuracy and operational
+  adoption flow
+- `WP5` stays deferred unless a later live run exposes a real intent gap
+- `WP8` expand regression coverage around the newly exercised surfaces
 
 That keeps the orchestration surface useful, inspectable, and aligned with the
 repo's existing local-first workflow.

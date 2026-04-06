@@ -3514,5 +3514,93 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertTrue(stdout_exists)
 
 
+    def test_coerce_task_run_record_rejects_compat_worker_validation_mode(self):
+        orchestrator = self.orchestrator
+        payload = {
+            "id": "inspect",
+            "title": "Inspect",
+            "agent": "analyst",
+            "status": "completed",
+            "summary": "Inspection done.",
+            "workspace_mode": "copy",
+            "workspace_path": "",
+            "started_at": "2026-04-04T00:00:00+00:00",
+            "finished_at": "2026-04-04T00:00:01+00:00",
+            "files_touched": [],
+            "actual_files_touched": [],
+            "protected_path_violations": [],
+            "validation_commands": [],
+            "follow_ups": [],
+            "notes": [],
+            "model": "claude-haiku-4-5",
+            "model_profile": "simple",
+            "prompt_chars": 1,
+            "prompt_estimated_tokens": 1,
+            "prompt_sections": [],
+            "prompt_budget": {
+                "max_chars": None,
+                "max_estimated_tokens": None,
+                "exceeded": False,
+                "violations": [],
+            },
+            "usage": None,
+            "return_code": 0,
+            "prompt_path": "",
+            "command_path": "",
+            "stdout_path": None,
+            "stderr_path": None,
+            "result_path": None,
+            "worker_validation_mode": "compat",
+        }
+
+        with self.assertRaisesRegex(
+            orchestrator.OrchestratorError,
+            "workerValidationMode='compat' was removed from the live worker contract",
+        ):
+            orchestrator.coerce_task_run_record(payload, location="test")
+
+    def test_load_agents_rejects_compat_worker_validation_mode(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            agents_path = pathlib.Path(tempdir) / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "workerValidationMode": "compat",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "workerValidationMode='compat' was removed from the live worker contract",
+            ):
+                orchestrator.load_agents(agents_path)
+
+
 if __name__ == "__main__":
     unittest.main()

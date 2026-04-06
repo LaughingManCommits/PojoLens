@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "name": "wp6-live-parser-proof",
+  "goal": "Use the local orchestrator on a small real change that hardens live worker-validation parsing and review the resulting workspace artifacts.",
+  "sharedContext": {
+    "summary": "Run one bounded live workflow beyond the doc-only samples. Focus on the orchestrator's live worker-validation contract and add only parser-level regression coverage that clearly belongs in the existing Python test suite.",
+    "constraints": [
+      "Keep changes tightly scoped to orchestrator tests unless a minimal coordinator code touch is required.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "files": [
+      "AGENTS.md",
+      "ai/AGENTS.md",
+      "scripts/claude-orchestrator.py",
+      "scripts/tests/test_claude_orchestrator.py"
+    ],
+    "validation": [
+      "py -3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+    ]
+  },
+  "tasks": [
+    {
+      "id": "inspect-parser-gap",
+      "title": "Inspect the live parser regression gap",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Read the orchestrator script and Python tests. Confirm the smallest missing parser-level regression around rejecting live `workerValidationMode = compat`, identify the exact test addition to make, and call out any file-scope risk before implementation.",
+      "files": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "add-parser-regression",
+      "title": "Add parser-level worker-validation regression coverage",
+      "agent": "implementer",
+      "modelProfile": "balanced",
+      "prompt": "Implement the smallest coherent regression coverage for the parser-level live worker-validation contract. Prefer adding focused tests in `scripts/tests/test_claude_orchestrator.py` that prove `load_agents(...)` and/or `load_task_plan(...)` reject live `workerValidationMode = compat` before higher-level execution. Keep the change narrow, avoid unrelated cleanup, and if you make a real change include one high-signal structured validation intent for running the affected Python tests.",
+      "dependsOn": [
+        "inspect-parser-gap"
+      ],
+      "files": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "validation": [
+        "py -3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-parser-regression",
+      "title": "Review the parser regression change",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "prompt": "Review the dependency outputs and changed file. Focus on whether the new regression really covers the live parser boundary, whether it overfits implementation details, and whether the suggested validation is sufficient. Call out bugs, regressions, or missing coverage first.",
+      "dependsOn": [
+        "add-parser-regression"
+      ],
+      "files": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

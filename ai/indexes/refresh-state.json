@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-06T09:51:35.506063+02:00",
+  "generatedAt": "2026-04-06T14:12:34.019007+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "57df7267ed074855995e7921d8fb94990b9cc5a8b6468420d51b5a726543e604",
+      "inputHash": "4ffb8abca5a2251b27c935abfde6366bf9781d3570a67c1c1ac9ceba9daadff5",
       "pathHashes": {
         "AGENTS.md": "8b4b1e3c6d0438f5c686943690b9f9186419558340e382606c78eae340e39dac",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -23,9 +23,9 @@
         "ai/orchestrator/README.md": "a7cb61bb039f6ae85fece8151c2ef754d7c423d510b1b7555df6a638a8d490eb",
         "ai/orchestrator/SYSTEM-SPEC.md": "f176ef561e415dde93fb9e9b41c6a2163955df92b0acce9cd7a31480fbd50ed1",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "1f96e96a339d692de265b0d37f272c6e3b059a5890f35190befc397fac4d56fb",
-        "ai/state/handoff.md": "49bc85d6d3a7c30b4e28ce1ce8196c971b35e3110b400a70337383c7abc1931a",
-        "ai/state/recent-validations.md": "f89cf0cc22638cfff80d6cf0b10ff401a18cba5e0713f7ec3e6e21c45012f3d1",
+        "ai/state/current-state.md": "e92b5e68c7f4e208b1c2992800318992da7cd54c85f8f9fc1e60809d2ab561b9",
+        "ai/state/handoff.md": "b31c1188a61910263dcbc5b0a1e788d558f29124caa62fb853b02d5d431a2e6d",
+        "ai/state/recent-validations.md": "98473ddcb06b241d46210499e66a735ea596bd46c1e34021758e63d358d6213e",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",
@@ -58,7 +58,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "51c7c8ddf69c56b41e13b459e7babf01abc761e85dcc37ea505fff6a529d3c67",
+      "inputHash": "9e1bebdfe46ef37700fdfd5079c7e3d2d661e0913dde562c5330a9d37cdcaf76",
       "pathHashes": {
         ".github/workflows/ci.yml": "f182571210a25fa92ab8d2f2284ac2255496d12d2a6570d1a71346a1515af194",
         ".github/workflows/release.yml": "f00571c35c1cd32e61d2d33a978507b09bac5f3702f24492eef971eff77f3d7c",
@@ -81,10 +81,11 @@
         "ai/orchestrator/SYSTEM-SPEC.md": "f176ef561e415dde93fb9e9b41c6a2163955df92b0acce9cd7a31480fbd50ed1",
         "ai/orchestrator/tasks/example-parallel.json": "fcae69891e045c27ded81a526832e4f71b9d56f539a36e80c6eda076041a19b9",
         "ai/orchestrator/tasks/example-review.json": "29247fee4464cdbc989b56964109d64d307dd4158d6db5206be6049223dca223",
+        "ai/orchestrator/tasks/wp6-live-parser-proof.json": "de8c6b0d4541152009cca7c0da263e3df5f49c38c5e60bcc4682f885593c42c2",
         "ai/state/benchmark-state.md": "3cf2cb13e2a937d004473d18deecc295f2cd67e05570fa01435cd8411c9e0241",
-        "ai/state/current-state.md": "1f96e96a339d692de265b0d37f272c6e3b059a5890f35190befc397fac4d56fb",
-        "ai/state/handoff.md": "49bc85d6d3a7c30b4e28ce1ce8196c971b35e3110b400a70337383c7abc1931a",
-        "ai/state/recent-validations.md": "f89cf0cc22638cfff80d6cf0b10ff401a18cba5e0713f7ec3e6e21c45012f3d1",
+        "ai/state/current-state.md": "e92b5e68c7f4e208b1c2992800318992da7cd54c85f8f9fc1e60809d2ab561b9",
+        "ai/state/handoff.md": "b31c1188a61910263dcbc5b0a1e788d558f29124caa62fb853b02d5d431a2e6d",
+        "ai/state/recent-validations.md": "98473ddcb06b241d46210499e66a735ea596bd46c1e34021758e63d358d6213e",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "2ec266efaca90e0cde49cb4f353770d4badbab0339036911b0c939ec6a19cc34",
         "docs/benchmarking.md": "db10cea62d98b2820bb5d9c66ece0cb179f0772fe43734f25789593e28942afd",
@@ -418,7 +419,7 @@
         "scripts/benchmark-ai-memory.ps1": "ef74fe5ac4dd9abeca7b3c1ced18fcaf8061c6d4242d361c2c00c71a9d490c4f",
         "scripts/benchmark-ai-memory.py": "5dca8a7c3b0cd47302b593c33aa8728c5651be2a44d8dd9e8d302e60fed6ea39",
         "scripts/claude-orchestrator.ps1": "826a325ef42a6740338caec0d5648a4be29711b7542b935bf907c12c92915a34",
-        "scripts/claude-orchestrator.py": "d8ca1392506d7305d38338613b58de40d85e83a6ff18d89ede547cf08837770b",
+        "scripts/claude-orchestrator.py": "ab7842ba259d4838e6a2773adba108fdddc0ce13d3a848c6ab3855e5f2fbd8c1",
         "scripts/refresh-ai-memory.ps1": "3ac853f1e5e0e2fd29a2b1fe3d5883610e5c35da9dc1187e31b1c088fda129d9",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
         "TODO.md": "3d7da4ee3a086bc41c7873b2451b9c151678e7eb5e37cd11022fc99da310a413"
@@ -739,13 +740,14 @@
     },
     "config": {
       "outputPath": "ai/indexes/config-index.json",
-      "inputHash": "d52f15f19ae85d1c61e5e06f8a213ad6f163cf10358b071d8e45e1bc4a826a25",
+      "inputHash": "6b20b725c58d7a88d4385477021e73bd1d21c8dc66946c3c670542df418553f1",
       "pathHashes": {
         ".github/workflows/ci.yml": "f182571210a25fa92ab8d2f2284ac2255496d12d2a6570d1a71346a1515af194",
         ".github/workflows/release.yml": "f00571c35c1cd32e61d2d33a978507b09bac5f3702f24492eef971eff77f3d7c",
         "ai/orchestrator/agents.json": "92998f260e96917eb3966b3ee8d7931288583e5091ed79cb3bd3cf0addfacdc0",
         "ai/orchestrator/tasks/example-parallel.json": "fcae69891e045c27ded81a526832e4f71b9d56f539a36e80c6eda076041a19b9",
         "ai/orchestrator/tasks/example-review.json": "29247fee4464cdbc989b56964109d64d307dd4158d6db5206be6049223dca223",
+        "ai/orchestrator/tasks/wp6-live-parser-proof.json": "de8c6b0d4541152009cca7c0da263e3df5f49c38c5e60bcc4682f885593c42c2",
         "pojo-lens/pom.xml": "7957ed731857fb3e517738d3b2ffaa39f6249b572bf324c677b5b5429f353c9d",
         "pojo-lens-benchmarks/pom.xml": "3b06a829b85d153b3829b5b429c023f914ce99870e0177c32823ecb2c9075be9",
         "pojo-lens-spring-boot-autoconfigure/pom.xml": "c155baa7d93a81a84846a416e50c0a728ebe9efc47b60a80575532b39bf7bbdc",
@@ -754,7 +756,7 @@
         "scripts/benchmark-ai-memory.ps1": "ef74fe5ac4dd9abeca7b3c1ced18fcaf8061c6d4242d361c2c00c71a9d490c4f",
         "scripts/benchmark-ai-memory.py": "5dca8a7c3b0cd47302b593c33aa8728c5651be2a44d8dd9e8d302e60fed6ea39",
         "scripts/claude-orchestrator.ps1": "826a325ef42a6740338caec0d5648a4be29711b7542b935bf907c12c92915a34",
-        "scripts/claude-orchestrator.py": "d8ca1392506d7305d38338613b58de40d85e83a6ff18d89ede547cf08837770b",
+        "scripts/claude-orchestrator.py": "ab7842ba259d4838e6a2773adba108fdddc0ce13d3a848c6ab3855e5f2fbd8c1",
         "scripts/query-ai-memory.ps1": "ae425f70163b62e48d76dac68dd5b5d00de6bb744b8e6082cbaa4de7810c2b90",
         "scripts/query-ai-memory.py": "6bf614d78f904c3a73f2122b590d885a27ed73d88222764c0b87176ffa0c7350",
         "scripts/refresh-ai-memory.ps1": "3ac853f1e5e0e2fd29a2b1fe3d5883610e5c35da9dc1187e31b1c088fda129d9",

@@ -1590,7 +1590,6 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         worker_validation_mode=normalize_worker_validation_mode(
             payload.get("worker_validation_mode"),
             location=f"{location}:worker_validation_mode",
-            allow_legacy_compat=True,
         ),
         worker_validation_mode_source=normalize_worker_validation_mode_source(
             payload.get("worker_validation_mode_source"),
