@@ -19,10 +19,10 @@
 - Live `example-review.json` and `example-parallel.json` complete end to end in `copy` mode.
 - `SPIKE-LIMITATIONS.md` is the root decision doc for reducing current limits; start with time-bucket input broadening, then grouped/aggregate subquery widening.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; prompt budgets, sparse-copy workspaces, protected-path audits, review/export/promote/retry/cleanup, and `validate-run` are in place.
-- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, preserves unknown-vs-empty worker lists, and has live `stderr` progress.
-- `analyst`, `implementer`, and `reviewer` now default to `workerValidationMode = intents-only`; validate/run payloads expose mode sources plus compat-task ids/counts, and `--require-intents-only-workers` now fails fast if compat reappears in tracked plans.
+- Validation defaults to completed tasks, supports `repo-script` / `tool` intents, and preserves unknown-vs-empty worker lists.
+- `analyst`, `implementer`, and `reviewer` default to `workerValidationMode = intents-only`; validate/run payloads expose mode sources plus compat-task ids/counts, and `--require-intents-only-workers` fails fast if compat reappears.
 - `intents-only` workers now also get a stricter JSON schema that allows `validationCommands` only as `[]` or `null`, so raw command items are blocked before coordinator parsing.
-- Next orchestrator spike: decide whether to widen intent kinds or remove raw `validationCommands` from the remaining compat schema; task-level `compat` is now only the deprecated exception path.
+- Next orchestrator work packages are explicit in `SPIKE-AI-MULTI-AGENT.md`: `WP4` remove raw worker `validationCommands`, `WP6` run a non-trivial live workflow proof, and only open `WP5` if that proof shows `repo-script` / `tool` is insufficient.
 
 ## Validate
 

@@ -27,8 +27,8 @@ The missing work is:
 
 ## Current Status
 
-As of `2026-04-03`, the local orchestration slice is real but still not fully
-hardened.
+As of `2026-04-05`, the local orchestration slice is real and most MVP-hardening
+phases are done.
 
 Implemented and documented:
 
@@ -403,90 +403,147 @@ What is needed:
 
 This is mostly a coordinator-design problem, not a new prompt-writing exercise.
 
-## What We Still Need First
+## Work Package Board
 
-The best next slice is not "add more agents."
+Most early spike phases are already complete:
 
-The best next slice is:
+- live `claude -p` proof is done
+- prompt budgeting and output discipline are in place
+- sparse-copy safety, overlap serialization, and protected-path auditing are in
+  place
+- review/export/promote/retry/cleanup/validate-run exist
+- validation-policy hardening is in place, including intent-only worker modes,
+  compat-task visibility, and strict zero-compat gates for tracked plans
 
-1. tighten safety around sparse copies, overlap detection, and protected paths
-2. add a minimal coordinator review or diff workflow
-3. add focused regression tests around the Python coordinator
-4. tighten validation policy and worker-result discipline based on live runs
+The remaining work should now be executed as bounded work packages instead of
+more generic "keep hardening" slices.
 
-That sequence raises trust faster than adding more planner cleverness or more
-sample task plans.
+### WP4: Remove Raw Worker Validation Commands `(Next)`
 
-## Recommended Work Order
+Goal:
 
-### Phase 1: Proof `(Done)`
+- remove raw `validationCommands` from the live worker contract
 
-Deliver:
+Scope:
 
-- one small live worker run
-- documented observed artifact layout
-- exact validated command recorded in AI memory
-
-Success bar:
-
-- live `claude -p` execution is no longer an explicitly unverified path
-
-### Phase 2: Prompt Economy
+- stop advertising raw command items in live worker prompts and schemas
+- reject raw worker command items universally in live worker output handling
+- keep only the minimum backward-compatibility needed for older manifests or
+  coordinator review surfaces
 
 Deliver:
 
-- compact role-specific prompt rules
-- section-level prompt accounting in manifests
-- soft or hard prompt-size budgets
-- dependency-summary and validation-hint compaction
-- explicit "JSON only, minimum viable output, do not guess" worker discipline
+- live worker output is structured-intent-only
+- task-level `compat` is no longer needed for new tracked plans
+- the compatibility story is explicitly narrowed to old data or review-time
+  interpretation only
 
 Success bar:
 
-- prompt size and worker output shape are intentionally bounded instead of
-  drifting with each task-plan revision
+- no live worker path depends on non-empty raw `validationCommands`
+- tracked plans remain zero-compat without relying on review discipline alone
 
-Status:
+### WP5: Validate Intent Vocabulary Against Real Usage
 
-- partially done as of `2026-04-04`; next follow-up is budget tuning rather
-  than missing core plumbing
+Goal:
 
-### Phase 3: Safety
+- widen `validationIntents` only if real runs show the current kinds are
+  insufficient
+
+Scope:
+
+- collect unsupported validation suggestions from real worker runs
+- either add one or two concrete intent kinds, or explicitly decide that
+  `repo-script` and `tool` are enough for now
 
 Deliver:
 
-- true sparse copy mode
-- parallel overlap detection
-- protected-path audit on worker outputs and workspace diffs
+- one documented decision on intent breadth
+- tests and docs only for intent kinds that are justified by real usage
 
 Success bar:
 
-- the coordinator can reject unsafe multi-agent plans before or after worker
-  execution
+- no hypothetical intent-surface expansion
+- any new intent kind has a concrete motivating example
 
-### Phase 4: Coordinator Ergonomics
+### WP6: Non-Trivial Live Workflow Proof
+
+Goal:
+
+- prove the coordinator on a plan larger than the doc-only sample flows
+
+Scope:
+
+- run a live plan with at least one implementer task and one reviewer or
+  adoption step
+- exercise review/export/validate-run and at least `promote --dry-run` on real
+  artifacts
+- capture operational pain points from a real run instead of inferring them
 
 Deliver:
 
-- review or diff helper
-- retry failed tasks
-- cleanup or prune runtime artifacts
-- explicit worktree removal
+- one end-to-end live run beyond `example-review.json`
+- a short list of concrete findings from that run
 
 Success bar:
 
-- coordinator workflow is practical across more than one run
+- coordinator ergonomics are proven on a small real change, not just sample
+  inspection tasks
 
-### Phase 5: Regression Harness
+### WP7: Operational Gap Sweep
+
+Goal:
+
+- close or explicitly defer the remaining lifecycle and safety gaps
+
+Scope:
+
+- decide whether intentional parallel-overlap overrides are needed
+- decide whether resume or same-run retry is worth implementing
+- decide whether prune or selective cleanup helpers are needed
+- refine promotion ergonomics only if the live proof exposes concrete pain
 
 Deliver:
 
-- Python-side unit or integration tests for plan loading, batching, workspace
-  prep, manifest generation, and failure handling
+- each open operational gap is either implemented or explicitly deferred with
+  rationale
 
 Success bar:
 
-- future orchestrator changes no longer rely mainly on manual dry-run checking
+- the remaining coordinator gaps are a conscious backlog, not an undefined tail
+
+### WP8: Regression Expansion
+
+Goal:
+
+- align the regression harness with the actual size of the coordinator surface
+
+Scope:
+
+- invalid agent and task-plan negatives
+- more worktree-mode and cleanup error-path coverage
+- a live CLI smoke path if practical
+
+Deliver:
+
+- focused tests for each newly changed surface
+- fewer coordinator changes rely on manual dry-runs as the primary guard
+
+Success bar:
+
+- the open work packages above are covered by targeted regression tests instead
+  of ad hoc validation only
+
+## Execution Order
+
+1. Execute `WP4` first and remove raw worker `validationCommands` from the live
+   contract.
+2. Execute `WP6` next and run a non-trivial live workflow proof.
+3. Execute `WP5` only if `WP6` exposes a real unsupported validation-intent
+   shape; otherwise document that no widening is needed yet.
+4. Execute `WP7` using the concrete pain points from `WP6`, not speculation.
+5. Keep `WP8` running in parallel with the above, then do one final regression
+   sweep after the larger workflow proof.
 
 ## Non-Goals
 
@@ -508,14 +565,14 @@ The repo already has a credible local multi-agent control plane.
 
 What it does not have yet is full operational confidence.
 
-The right next move is to harden and prove the current design:
+The right next move is no longer "more generic hardening."
 
-- live-run proof is now done
-- live prompt-budget tuning is now grounded by tracked sample runs
-- next: decide whether raw validation commands should eventually downgrade to a
-  compatibility-only path, plus any further result-schema refinement
-- regression coverage is now real, but it should keep growing around newly found
-  failure modes
+The right next move is to execute the concrete open packages in order:
+
+- `WP4` remove raw worker validation commands from the live contract
+- `WP6` run one non-trivial live workflow proof
+- `WP5` widen intent kinds only if that live proof exposes a real gap
+- `WP7` and `WP8` close the remaining operational and regression tail
 
 That keeps the orchestration surface useful, inspectable, and aligned with the
 repo's existing local-first workflow.

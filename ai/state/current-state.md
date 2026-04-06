@@ -34,6 +34,6 @@
 - Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
 - If natural follow-up resumes, the adjacent gaps are alias-only `qualify`, fixed running windows, structural `schema(...)`, and per-call resolved-delegate rebuilds.
 - Keep README onboarding balanced across query styles and push deep recipes into docs.
-- For the AI orchestration spike, decide whether to widen intent kinds first or remove raw `validationCommands` from the remaining compat worker schema now that compat-task reporting, intent-only schemas, and strict zero-compat gates keep the legacy surface small and explicit.
+- For the AI orchestration spike, execute the concrete work packages in `SPIKE-AI-MULTI-AGENT.md`: `WP4` remove raw worker `validationCommands` from the live contract, `WP6` run a non-trivial live workflow proof, and touch `WP5` only if that live proof exposes a real missing intent shape.
 - If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
 - If natural-query traffic becomes hot, evaluate caching resolved delegates by execution shape.
