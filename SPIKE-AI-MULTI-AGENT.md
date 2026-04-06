@@ -284,7 +284,8 @@ Now in place:
   coordinator explicitly opts into other statuses
 - command-quality policy now rejects shell-composed or unknown-entrypoint
   validation commands by default unless the coordinator explicitly overrides it
-- optional coordinator-side execution of those commands from repo root
+- optional coordinator-side execution of those commands from repo root or from
+  the suggesting task workspace
 - a manifest section that distinguishes worker-suggested validation from
   coordinator-run validation results
 - structured `validationIntents` for `repo-script` and `tool` suggestions,
@@ -306,6 +307,10 @@ Now in place:
   `validationCommands` universally, and live agent/task/CLI config no longer
   accepts `workerValidationMode = compat`; legacy raw commands remain only for
   older manifests and review-time validation surfaces
+- `2026-04-06`: `validate-run` now supports
+  `--execution-scope task-workspace`, which dedupes by command plus workspace
+  and can validate an unpromoted worker sandbox instead of always using repo
+  root
 - live planner, worker, and `validate-run` waits now emit phase-tagged
   slop-status lines on interactive `stderr` so operators can see in-flight
   work without breaking `stdout` JSON consumers
@@ -367,9 +372,10 @@ Current gap:
   unknown, `validationIntents` now use `[]` when no suggestion is present, and
   manifests preserve that distinction from `[]` via explicit unknown-field
   metadata
-- live runs also showed that downstream reviewers need a richer bounded
-  dependency handoff than a one-line summary, and that output verbosity can
-  still dominate cost even when prompt budgets are healthy
+- reviewer dependency handoff now includes bounded changed-file summaries and
+  diff previews from dependency workspaces, which closes the live proof's
+  one-line-summary review gap; output verbosity can still dominate cost even
+  when prompt budgets are healthy
 
 What is needed:
 
@@ -500,7 +506,16 @@ Concrete findings:
 - worker output and cache-read volume remained the dominant cost driver even on
   this bounded plan
 
-### WP7: Operational Gap Sweep
+`WP7` follow-up on `2026-04-06`:
+
+- reviewer dependency handoff now includes bounded changed-file summaries and
+  diff previews, so reviewer tasks inspect the proposed patch instead of only a
+  one-line dependency summary
+- `validate-run` now supports `--execution-scope task-workspace`, so
+  coordinator validation can run against the suggesting worker sandbox before
+  promotion instead of only against repo root
+
+### WP7: Operational Gap Sweep `(Done)`
 
 Goal:
 
@@ -521,6 +536,24 @@ Deliver:
 Success bar:
 
 - the remaining coordinator gaps are a conscious backlog, not an undefined tail
+
+Completed outcome on `2026-04-06`:
+
+- implemented reviewer-facing dependency diff previews to reduce false positives
+  against changed files in isolated review workspaces
+- implemented workspace-aware `validate-run` execution so pre-promotion
+  validation can target the suggesting worker sandbox
+- explicitly deferred intentional parallel-overlap overrides because the
+  current conservative scheduler has not yet blocked a real live plan badly
+  enough to justify a risk-acceptance escape hatch
+- explicitly deferred same-run resume or retry because manifest-driven retry
+  already covers the observed recovery path and no live run has justified the
+  extra coordinator complexity yet
+- explicitly deferred age-based prune and selective cleanup helpers because the
+  current per-run cleanup command is adequate until retained run volume becomes
+  a real operator burden
+- explicitly deferred broader promotion ergonomics because the live proof did
+  not expose adoption pain beyond reviewer accuracy and validation sequencing
 
 ### WP8: Regression Expansion
 
@@ -552,9 +585,10 @@ Success bar:
    produced promotable changes plus concrete operational findings.
 3. `WP5` stays unopened for now because `WP6` did not expose a real
    unsupported validation-intent shape.
-4. Execute `WP7` next using the concrete pain points from `WP6`, not
-   speculation.
-5. Keep `WP8` running in parallel with the above, then do one final regression
+4. `WP7` is complete: reviewer diff handoff and task-workspace validation now
+   cover the concrete `WP6` pain points, and the remaining operational items
+   are explicitly deferred.
+5. Execute `WP8` next, then do one final regression
    sweep after the larger workflow proof.
 
 ## Non-Goals
@@ -581,8 +615,6 @@ The right next move is no longer "more generic hardening."
 
 The right next move is to execute the concrete open packages in order:
 
-- `WP7` use the `WP6` findings to tighten reviewer accuracy and operational
-  adoption flow
 - `WP5` stays deferred unless a later live run exposes a real intent gap
 - `WP8` expand regression coverage around the newly exercised surfaces
 

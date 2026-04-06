@@ -9,7 +9,7 @@
 
 ## Focus
 
-- Pending repo-wide follow-up is AI orchestration `WP7`; release work is complete and out of scope.
+- Pending repo-wide follow-up is AI orchestration `WP8`; release work is complete and out of scope.
 
 ## Facts
 
@@ -19,7 +19,8 @@
 - Live workers are structured-intent-only; raw worker `validationCommands` survive only in old manifests or review-time `validate-run`.
 - `2026-04-06`: `wp6-live-parser-proof.json` completed and promoted a two-file parser/regression patch into the repo.
 - `WP6` did not justify widening the intent vocabulary: the implementer's `tool` intent was accepted, while the reviewer's bad `repo-script` intents were rejected by policy.
-- Next orchestrator work is `WP7`: use the live proof's reviewer-false-positive and repo-root `validate-run` findings.
+- `2026-04-06`: `WP7` added reviewer dependency diff previews plus `validate-run --execution-scope task-workspace`, and explicitly deferred overlap overrides, same-run resume, prune helpers, and broader promotion ergonomics.
+- Next orchestrator work is `WP8`: expand regression coverage around the larger coordinator surface and the new `WP7` paths.
 
 ## Validate
 

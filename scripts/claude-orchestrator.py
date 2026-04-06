@@ -52,8 +52,12 @@ DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
 DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT = 2
 DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT = 120
+DEFAULT_REVIEW_DEPENDENCY_CONTEXT_LINES = 1
+DEFAULT_REVIEW_DEPENDENCY_PATCH_CHAR_LIMIT = 900
 WORKER_STATUSES = {"completed", "blocked", "failed"}
 DEFAULT_VALIDATE_RUN_STATUSES = ("completed",)
+VALIDATE_RUN_EXECUTION_SCOPES = {"repo", "task-workspace"}
+DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE = "repo"
 MAX_WORKER_SUMMARY_CHARS = 360
 MAX_WORKER_NOTES = 5
 MAX_WORKER_NOTE_CHARS = 220
@@ -688,6 +692,12 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(WORKER_STATUSES | {"planned"}),
         default=[],
         help="Include validation commands from tasks with this status. Defaults to completed only. Repeatable.",
+    )
+    validate_run_parser.add_argument(
+        "--execution-scope",
+        choices=sorted(VALIDATE_RUN_EXECUTION_SCOPES),
+        default=DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+        help="Run validation from repo root (default) or from each suggesting task workspace when available.",
     )
     validate_run_parser.add_argument(
         "--allow-unsafe-commands",
@@ -1753,6 +1763,64 @@ def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[d
     )
 
 
+def dependency_review_context(record: TaskRunRecord) -> list[str]:
+    changed_paths = dedupe_strings(record.actual_files_touched or record.files_touched)
+    if not changed_paths:
+        if worker_field_unknown(record, "filesTouched"):
+            return ["  changed files: unknown"]
+        return []
+    try:
+        review_payload, patch_chunks = task_review_summary(
+            record,
+            context_lines=DEFAULT_REVIEW_DEPENDENCY_CONTEXT_LINES,
+        )
+    except OrchestratorError as exc:
+        reason, _ = truncate_text(str(exc), DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT)
+        return [f"  changed files: unavailable ({reason})"]
+    changed_files = [
+        file_payload
+        for file_payload in review_payload["files"]
+        if str(file_payload.get("status", "")) in {"added", "modified", "deleted"}
+    ]
+    if not changed_files:
+        return []
+    visible_files: list[str] = []
+    for file_payload in changed_files[:DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT]:
+        path = str(file_payload.get("path", ""))
+        status = str(file_payload.get("status", ""))
+        if file_payload.get("isBinary"):
+            visible_files.append(f"`{path}` ({status}, binary)")
+            continue
+        added = int(file_payload.get("addedLines", 0) or 0)
+        removed = int(file_payload.get("removedLines", 0) or 0)
+        visible_files.append(f"`{path}` ({status}, +{added}/-{removed})")
+    hidden_files = len(changed_files) - len(visible_files)
+    if hidden_files > 0:
+        visible_files.append(f"... ({hidden_files} more changed files omitted)")
+    lines = ["  changed files: " + " ; ".join(visible_files)]
+    preview_chunks: list[str] = []
+    preview_chars = 0
+    for patch_chunk in patch_chunks[:DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT]:
+        chunk = patch_chunk.strip()
+        if not chunk:
+            continue
+        remaining_chars = DEFAULT_REVIEW_DEPENDENCY_PATCH_CHAR_LIMIT - preview_chars
+        if remaining_chars <= 0:
+            break
+        preview_text, truncated = truncate_multiline_text(chunk, remaining_chars)
+        if not preview_text:
+            continue
+        preview_chunks.append(preview_text)
+        preview_chars += len(preview_text) + 1
+        if truncated:
+            break
+    if preview_chunks:
+        lines.append("  diff preview:")
+        for preview_line in "\n\n".join(preview_chunks).splitlines():
+            lines.append(f"    {preview_line}")
+    return lines
+
+
 def default_patch_output_path(manifest_path: Path, task_ids: list[str]) -> Path:
     review_dir = manifest_path.parent / "review"
     if not task_ids:
@@ -2089,6 +2157,15 @@ def truncate_text(text: str, max_chars: int | None) -> tuple[str, bool]:
     return compacted[: max_chars - 3].rstrip() + "...", True
 
 
+def truncate_multiline_text(text: str, max_chars: int | None) -> tuple[str, bool]:
+    stripped = text.strip()
+    if max_chars is None or len(stripped) <= max_chars:
+        return stripped, False
+    if max_chars <= 3:
+        return stripped[:max_chars], True
+    return stripped[: max_chars - 3].rstrip() + "...", True
+
+
 def format_bullet_list(
     values: list[str],
     *,
@@ -2234,11 +2311,15 @@ def dependency_handoff(record: TaskRunRecord) -> str:
 def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) -> str:
     if not task.depends_on:
         return "- none"
-    lines = []
+    include_review_context = task.agent == "reviewer"
+    blocks: list[str] = []
     for dependency_id in task.depends_on:
-        lines.append(dependency_handoff(records[dependency_id]))
-    rendered, _, _ = format_bullet_list(lines, empty_line="- none", max_chars=None)
-    return rendered
+        record = records[dependency_id]
+        lines = [f"- {dependency_handoff(record)}"]
+        if include_review_context:
+            lines.extend(dependency_review_context(record))
+        blocks.append("\n".join(lines))
+    return "\n".join(blocks)
 
 
 def truncate_command_text(text: str, max_chars: int) -> tuple[str, bool]:
@@ -4011,11 +4092,13 @@ def collect_validation_commands(
     records: list[TaskRunRecord],
     *,
     included_statuses: set[str],
+    execution_scope: str = DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     task_payloads: list[dict[str, Any]] = []
-    suggestions_by_command: dict[str, dict[str, Any]] = {}
-    suggestion_order: list[str] = []
+    suggestions_by_command: dict[tuple[str, str | None], dict[str, Any]] = {}
+    suggestion_order: list[tuple[str, str | None]] = []
     for record in records:
+        execution_target = validation_execution_target(record, execution_scope=execution_scope)
         commands = dedupe_strings(record.validation_commands)
         rendered_intents = dedupe_strings(
             [validation_intent_command_text(intent) for intent in record.validation_intents]
@@ -4034,6 +4117,12 @@ def collect_validation_commands(
                 "legacyValidationCommandCount": len(commands),
                 "legacyValidationCommandsPresent": bool(commands),
                 "includedForValidation": included,
+                "workspaceMode": record.workspace_mode,
+                "workspacePath": record.workspace_path,
+                "executionScope": execution_scope,
+                "executionCwd": execution_target.get("cwd"),
+                "executionTargetAccepted": bool(execution_target.get("accepted", False)),
+                "executionTargetReason": execution_target.get("reason"),
                 "excludedReason": (
                     None
                     if included
@@ -4045,7 +4134,13 @@ def collect_validation_commands(
             continue
         for intent in record.validation_intents:
             command_text = validation_intent_command_text(intent)
-            payload = suggestions_by_command.get(command_text)
+            aggregate_key = (
+                command_text,
+                str(execution_target.get("cwd") or "")
+                if execution_scope == "task-workspace"
+                else DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+            )
+            payload = suggestions_by_command.get(aggregate_key)
             if payload is None:
                 payload = {
                     "sourceKind": "intent",
@@ -4054,13 +4149,25 @@ def collect_validation_commands(
                     "policy": validation_intent_policy(intent),
                     "intent": asdict(intent),
                     "compatibilityOnly": False,
+                    "executionScope": execution_scope,
+                    "cwd": execution_target.get("cwd"),
+                    "workspaceMode": execution_target.get("workspaceMode"),
+                    "workspacePath": execution_target.get("workspacePath"),
+                    "executionTargetAccepted": bool(execution_target.get("accepted", False)),
+                    "executionTargetReason": execution_target.get("reason"),
                 }
-                suggestions_by_command[command_text] = payload
-                suggestion_order.append(command_text)
+                suggestions_by_command[aggregate_key] = payload
+                suggestion_order.append(aggregate_key)
             payload["taskIds"].append(record.id)
         for command in commands:
             policy = validation_command_policy(command)
-            payload = suggestions_by_command.get(command)
+            aggregate_key = (
+                command,
+                str(execution_target.get("cwd") or "")
+                if execution_scope == "task-workspace"
+                else DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+            )
+            payload = suggestions_by_command.get(aggregate_key)
             if payload is None:
                 payload = {
                     "sourceKind": "command",
@@ -4072,16 +4179,73 @@ def collect_validation_commands(
                     "normalizedIntent": (
                         policy.get("intent") if isinstance(policy.get("intent"), dict) else None
                     ),
+                    "executionScope": execution_scope,
+                    "cwd": execution_target.get("cwd"),
+                    "workspaceMode": execution_target.get("workspaceMode"),
+                    "workspacePath": execution_target.get("workspacePath"),
+                    "executionTargetAccepted": bool(execution_target.get("accepted", False)),
+                    "executionTargetReason": execution_target.get("reason"),
                 }
-                suggestions_by_command[command] = payload
-                suggestion_order.append(command)
+                suggestions_by_command[aggregate_key] = payload
+                suggestion_order.append(aggregate_key)
             payload["taskIds"].append(record.id)
     command_payloads = []
-    for command_text in suggestion_order:
-        payload = suggestions_by_command[command_text]
+    for aggregate_key in suggestion_order:
+        payload = suggestions_by_command[aggregate_key]
         payload["taskIds"] = dedupe_strings([str(task_id) for task_id in payload["taskIds"]])
         command_payloads.append(payload)
     return task_payloads, command_payloads
+
+
+def validation_execution_target(
+    record: TaskRunRecord,
+    *,
+    execution_scope: str,
+) -> dict[str, Any]:
+    if execution_scope not in VALIDATE_RUN_EXECUTION_SCOPES:
+        raise OrchestratorError(
+            f"validate-run: unsupported execution scope '{execution_scope}'"
+        )
+    if execution_scope == "repo":
+        return {
+            "cwd": str(ROOT),
+            "workspaceMode": "repo",
+            "workspacePath": str(ROOT),
+            "accepted": True,
+            "reason": None,
+        }
+    if record.workspace_mode == "repo":
+        return {
+            "cwd": str(ROOT),
+            "workspaceMode": "repo",
+            "workspacePath": str(ROOT),
+            "accepted": True,
+            "reason": None,
+        }
+    if not record.workspace_path:
+        return {
+            "cwd": None,
+            "workspaceMode": record.workspace_mode,
+            "workspacePath": None,
+            "accepted": False,
+            "reason": f"{record.id}: task workspace path is missing",
+        }
+    workspace_root = Path(record.workspace_path).resolve()
+    if not workspace_root.exists():
+        return {
+            "cwd": str(workspace_root),
+            "workspaceMode": record.workspace_mode,
+            "workspacePath": str(workspace_root),
+            "accepted": False,
+            "reason": f"{record.id}: task workspace '{workspace_root}' does not exist",
+        }
+    return {
+        "cwd": str(workspace_root),
+        "workspaceMode": record.workspace_mode,
+        "workspacePath": str(workspace_root),
+        "accepted": True,
+        "reason": None,
+    }
 
 
 def run_shell_command_text(
@@ -4143,6 +4307,10 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     run_dir = manifest_run_dir(manifest_path, manifest)
     records = selected_run_records(manifest, args.selected_tasks)
     intents_only = bool(getattr(args, "intents_only", False))
+    execution_scope = str(
+        getattr(args, "execution_scope", DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE)
+        or DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE
+    )
     included_statuses = {
         str(status)
         for status in (getattr(args, "include_statuses", None) or list(DEFAULT_VALIDATE_RUN_STATUSES))
@@ -4150,6 +4318,7 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     task_payloads, commands = collect_validation_commands(
         records,
         included_statuses=included_statuses,
+        execution_scope=execution_scope,
     )
     validation_dir = run_dir / "validation"
     command_results: list[dict[str, Any]] = []
@@ -4164,6 +4333,9 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             if isinstance(intent_payload, dict)
             else normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
         )
+        execution_cwd = command_payload.get("cwd")
+        execution_target_accepted = bool(command_payload.get("executionTargetAccepted", False))
+        execution_target_reason = command_payload.get("executionTargetReason")
         quality_policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
             "accepted": True,
             "reason": None,
@@ -4192,6 +4364,12 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
                 normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
             ),
             "compatibilityOnly": bool(command_payload.get("compatibilityOnly", source_kind == "command")),
+            "executionScope": execution_scope,
+            "cwd": execution_cwd,
+            "workspaceMode": command_payload.get("workspaceMode"),
+            "workspacePath": command_payload.get("workspacePath"),
+            "executionTargetAccepted": execution_target_accepted,
+            "executionTargetReason": execution_target_reason,
             "intentsOnlyRejected": intents_only_rejected,
             "executionKind": "argv" if execution_intent_payload is not None else "shell",
             "qualityPolicyAccepted": bool(quality_policy.get("accepted", False)),
@@ -4205,6 +4383,10 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             "stdoutPath": None,
             "stderrPath": None,
         }
+        if not execution_target_accepted:
+            result_payload["status"] = "rejected"
+            command_results.append(result_payload)
+            continue
         if not policy_accepted and not policy_override:
             result_payload["status"] = "rejected"
             command_results.append(result_payload)
@@ -4223,6 +4405,7 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         write_text(command_path, command_text + "\n")
         if execution_intent_payload is not None:
             write_json(command_dir / "intent.json", execution_intent_payload)
+        command_cwd = Path(str(execution_cwd)).resolve()
         try:
             if execution_intent_payload is not None:
                 completed = run_validation_intent(
@@ -4230,14 +4413,14 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
                         execution_intent_payload,
                         location=f"validate-run:{index}:intent",
                     ),
-                    cwd=ROOT,
+                    cwd=command_cwd,
                     timeout_sec=max(args.timeout_sec, 1),
                     progress_action=validation_wait_action(command_text, "intent"),
                 )
             else:
                 completed = run_shell_command_text(
                     command_text,
-                    cwd=ROOT,
+                    cwd=command_cwd,
                     timeout_sec=max(args.timeout_sec, 1),
                     progress_action=validation_wait_action(command_text, "command"),
                 )
@@ -4265,6 +4448,7 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
         "repoRoot": str(ROOT),
+        "executionScope": execution_scope,
         "dryRun": args.dry_run,
         "intentsOnly": intents_only,
         "selectedTaskIds": [record.id for record in records],
@@ -4290,7 +4474,11 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
             if payload["includedForValidation"] and payload.get("legacyValidationCommandsPresent")
         ],
         "commandCount": len(command_results),
-        "acceptedCommandCount": sum(1 for payload in command_results if payload.get("policyAccepted")),
+        "acceptedCommandCount": sum(
+            1
+            for payload in command_results
+            if payload.get("policyAccepted") and payload.get("executionTargetAccepted")
+        ),
         "rejectedCommandCount": sum(1 for payload in command_results if payload["status"] == "rejected"),
         "intentsOnlyRejectedCommandCount": sum(
             1 for payload in command_results if payload.get("intentsOnlyRejected")

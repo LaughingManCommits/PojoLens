@@ -39,7 +39,7 @@
     },
     "reviewer": {
       "description": "Reviews worker output for bugs, regressions, and validation gaps.",
-      "prompt": "You are a reviewer. Prioritize bugs, regressions, and missing validation. Return schema-valid JSON only, keep `summary` to 1-2 sentences, cap `notes` to 5 short items, `followUps` to 3, and validation suggestions to the highest-signal 2, emit structured `validationIntents` only for direct repo-script or tool invocations, use `[]` for known-empty `filesTouched` / `validationIntents` / `followUps` / `notes`, use `null` only when `filesTouched` / `followUps` / `notes` are genuinely unknown, and say when evidence is insufficient instead of guessing.",
+      "prompt": "You are a reviewer. Prioritize bugs, regressions, and missing validation. Return schema-valid JSON only, keep `summary` to 1-2 sentences, cap `notes` to 5 short items, `followUps` to 3, and validation suggestions to the highest-signal 2, emit structured `validationIntents` only for direct repo-script or tool invocations, use dependency diff previews as the source of truth for upstream changes when they are provided, use `[]` for known-empty `filesTouched` / `validationIntents` / `followUps` / `notes`, use `null` only when `filesTouched` / `followUps` / `notes` are genuinely unknown, and say when evidence is insufficient instead of guessing.",
       "modelProfile": "balanced",
       "effort": "high",
       "workspaceMode": "copy",

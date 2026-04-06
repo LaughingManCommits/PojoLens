@@ -587,6 +587,55 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertIn("key notes: unknown", summary)
         self.assertIn("next: unknown", summary)
 
+    def test_dependency_summary_for_reviewer_includes_diff_preview(self):
+        orchestrator = self.orchestrator
+        reviewer_task = orchestrator.TaskDefinition(
+            id="review",
+            title="Review",
+            agent="reviewer",
+            prompt="Review the dependency output.",
+            depends_on=["implement"],
+        )
+        implementer_task = orchestrator.TaskDefinition(
+            id="implement",
+            title="Implement",
+            agent="implementer",
+            prompt="Make a small change.",
+        )
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            (repo_root / "foo.txt").write_text("old\nline\n", encoding="utf-8")
+            (workspace_root / "foo.txt").write_text("new\nline\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                dependency_record = make_task_run_record(
+                    orchestrator,
+                    implementer_task,
+                    status="completed",
+                    summary="Updated foo.",
+                    workspace_mode="copy",
+                    workspace_path=str(workspace_root),
+                )
+                dependency_record.files_touched = ["foo.txt"]
+                dependency_record.actual_files_touched = ["foo.txt"]
+                summary = orchestrator.dependency_summary(
+                    {"implement": dependency_record},
+                    reviewer_task,
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertIn("changed files:", summary)
+        self.assertIn("`foo.txt` (modified, +1/-1)", summary)
+        self.assertIn("diff preview:", summary)
+        self.assertIn("-old", summary)
+        self.assertIn("+new", summary)
+
     def test_worker_prompt_intents_only_forbids_raw_validation_commands(self):
         orchestrator = self.orchestrator
         agent = orchestrator.AgentDefinition(
@@ -3512,6 +3561,217 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("completed", payload["commands"][0]["status"])
         self.assertEqual(1, len(payload["suggestedValidationIntents"]))
         self.assertTrue(stdout_exists)
+
+    def test_validate_run_task_workspace_scope_keeps_same_command_per_workspace(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            workspace_a = temp_path / "workspace-a"
+            workspace_b = temp_path / "workspace-b"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            workspace_a.mkdir()
+            workspace_b.mkdir()
+            command = f"\"{sys.executable}\" -c \"print('same-command')\""
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-workspace-dedupe",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Done A.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_a),
+                                "started_at": "2026-04-06T00:00:00+00:00",
+                                "finished_at": "2026-04-06T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [command],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "task-b": {
+                                "id": "task-b",
+                                "title": "Task B",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Done B.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_b),
+                                "started_at": "2026-04-06T00:00:00+00:00",
+                                "finished_at": "2026-04-06T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_commands": [command],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        execution_scope="task-workspace",
+                        allow_unsafe_commands=False,
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("task-workspace", payload["executionScope"])
+        self.assertEqual(2, payload["commandCount"])
+        self.assertEqual({"planned": 2}, payload["statusCounts"])
+        self.assertEqual(
+            [str(workspace_a.resolve()), str(workspace_b.resolve())],
+            [command_payload["cwd"] for command_payload in payload["commands"]],
+        )
+        self.assertEqual([["task-a"], ["task-b"]], [command_payload["taskIds"] for command_payload in payload["commands"]])
+
+    def test_validate_run_task_workspace_scope_executes_in_task_workspace(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            workspace_root = temp_path / "workspace-a"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            workspace_root.mkdir()
+            (workspace_root / "marker.txt").write_text("workspace-marker\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-workspace-exec",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Done.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_root),
+                                "started_at": "2026-04-06T00:00:00+00:00",
+                                "finished_at": "2026-04-06T00:00:01+00:00",
+                                "files_touched": [],
+                                "actual_files_touched": [],
+                                "protected_path_violations": [],
+                                "validation_intents": [
+                                    {
+                                        "kind": "tool",
+                                        "entrypoint": sys.executable,
+                                        "args": [
+                                            "-c",
+                                            "from pathlib import Path; print(Path('marker.txt').read_text(encoding='utf-8').strip())",
+                                        ],
+                                    }
+                                ],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        execution_scope="task-workspace",
+                        allow_unsafe_commands=False,
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=False,
+                    )
+                )
+                stdout_text = pathlib.Path(payload["commands"][0]["stdoutPath"]).read_text(encoding="utf-8")
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("task-workspace", payload["executionScope"])
+        self.assertEqual(1, payload["commandCount"])
+        self.assertEqual("completed", payload["commands"][0]["status"])
+        self.assertEqual(str(workspace_root.resolve()), payload["commands"][0]["cwd"])
+        self.assertEqual("workspace-marker", stdout_text.strip())
 
 
     def test_coerce_task_run_record_rejects_compat_worker_validation_mode(self):

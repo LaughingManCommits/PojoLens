@@ -32,6 +32,7 @@ scripts/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --intents-only --dry-run --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
 scripts/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
@@ -52,7 +53,7 @@ Workspace modes:
 Context discipline:
 - worker prompts default to `contextMode = minimal`
 - minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
-- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, or explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not need to inspect prior task artifacts directly
+- dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies explicit file hints, skips directory hints, and skips files above `512 KB`
@@ -92,10 +93,11 @@ Coordinator rules:
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; older manifest-level `compat` fallbacks are not replayed into live workers
 - task plans or agent definitions may still declare `workerValidationMode = intents-only`, but live authoring rejects `workerValidationMode = compat`
-- `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root, and records coordinator-run results separately from worker suggestions in the run manifest
+- `validate-run` accepts both raw `validation_commands` and structured `validation_intents`, defaults to `completed` tasks only unless `--include-status` expands the policy, can execute accepted suggestions from repo root or with `--execution-scope task-workspace` from the suggesting task workspace, and records coordinator-run results separately from worker suggestions in the run manifest
 - structured `validation_intents` currently support `repo-script` and `tool` kinds, render back to command text for review output, and execute without shell wrapping
 - accepted raw `validation_commands` are still preserved verbatim for review output, but the coordinator now normalizes direct tool/repo-script shapes into an argv intent internally so they can run without `shell=True`; raw command strings are now explicitly a compatibility path
 - `validate-run --intents-only` rejects raw legacy `validation_commands` even when they normalize cleanly, accepts only worker-emitted structured intents, and reports which tasks still suggested legacy raw commands so migration is visible in the summary
+- `validate-run --execution-scope task-workspace` dedupes by command plus workspace, so the same validation suggestion can run separately for different worker sandboxes before promotion
 - run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, `taskWorkerValidationModes`, and `taskWorkerValidationModeSources`; task records also carry `worker_validation_mode_source`
 - `validate-run` still enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
 - worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationIntents` are capped, malformed status or list fields fail the task, structured `validationIntents` are normalized, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`
