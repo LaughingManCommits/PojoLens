@@ -9,9 +9,11 @@
 
 - No repo-wide release work is pending.
 - AI orchestration spike hardening packages are complete; `WP5` remains evidence-driven and deferred unless a later live run exposes an unsupported validation intent.
+- Limitation-reduction follow-up has moved from time-bucket input broadening to grouped/aggregate subquery widening.
 
 ## Verified
 
+- `2026-04-06`: time buckets now accept `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime` across fluent and SQL-like execution, and `ReflectionUtil` now exposes those `java.time` fields as queryable schema leaves.
 - `2026-04-06`: orchestration `WP8` expanded regression coverage with invalid-agent/task-plan negatives plus worktree creation and cleanup failure paths, and explicitly deferred a default live CLI smoke test because the existing `WP6` live proof is the stronger real-path guard.
 - `2026-04-06`: orchestration `WP7` implemented reviewer dependency diff previews plus `validate-run --execution-scope task-workspace`, and the spike now explicitly defers overlap-override, same-run resume, prune, and promotion refinements until a later live run justifies them.
 - `2026-04-06`: user confirmed the `2026.03.28.1919` release work is done and should not remain in the active task list.
@@ -33,4 +35,4 @@
 
 - For the AI orchestration spike, `WP4`, `WP6`, `WP7`, and `WP8` are complete; only `WP5` remains deferred pending a later live run that exposes a real unsupported validation-intent shape.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
-- If limitation-reduction work starts, the current spike recommendation is time-bucket input broadening first, then grouped/aggregate subquery widening.
+- If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.

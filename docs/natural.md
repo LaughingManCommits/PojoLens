@@ -266,7 +266,7 @@ List<PeriodPayrollRow> rows = PojoLensNatural
 
 Time-bucket notes:
 
-- the bucket source field must be a `java.util.Date`
+- the bucket source field may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`
 - bucket outputs should use `as <alias>`
 - grouped queries must include the bucket alias in `group by`
 - timezone defaults to `UTC`

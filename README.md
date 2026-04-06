@@ -252,7 +252,6 @@ Preset intent:
 - Subqueries do not yet support aggregate, grouped, or joined subquery plans.
 - In aggregate SQL-like queries, `ORDER BY` must reference a `GROUP BY` field or an aggregate output alias/name.
 - SQL-like aggregate windows currently support only the running frame `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- Time-bucket input fields must be `java.util.Date` values.
 - Fluent query builders are mutable and not safe for concurrent mutation; keep `copyOnBuild(true)` enabled (the default) when reusing a builder configuration across executions or threads.
 
 ## Documentation Map

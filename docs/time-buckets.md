@@ -36,6 +36,9 @@ List<WeeklyHeadcount> rows = PojoLensSql
 ```
 
 Notes:
+- bucket source fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`
+- `LocalDate` and `LocalDateTime` inputs are interpreted in the active bucket preset timezone
+- `Date`, `Instant`, `OffsetDateTime`, and `ZonedDateTime` inputs are normalized into the active bucket preset timezone before bucketing
 - timezone is optional; default is `UTC`
 - week start is optional; default is `MONDAY`
 - week start is valid only for `WEEK` buckets

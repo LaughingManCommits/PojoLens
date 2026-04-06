@@ -5,6 +5,11 @@ import laughing.man.commits.domain.QueryRow;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -180,6 +185,22 @@ class ReflectionUtilTest {
         assertEquals(List.of("id", "address.geo.zipCode"), first.fieldNames());
     }
 
+    @Test
+    void collectQueryableFieldTypesShouldIncludeJavaTimeFields() {
+        Map<String, Class<?>> fieldTypes = ReflectionUtil.collectQueryableFieldTypes(JavaTimeBean.class);
+
+        assertEquals(
+                Map.of(
+                        "instantValue", Instant.class,
+                        "localDateValue", LocalDate.class,
+                        "localDateTimeValue", LocalDateTime.class,
+                        "offsetDateTimeValue", OffsetDateTime.class,
+                        "zonedDateTimeValue", ZonedDateTime.class
+                ),
+                fieldTypes
+        );
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<?, ?> projectionPlanCache() throws Exception {
         Field field = ReflectionUtil.class.getDeclaredField("PROJECTION_WRITE_PLAN_CACHE");
@@ -296,6 +317,14 @@ class ReflectionUtilTest {
 
         ProbeNested() {
         }
+    }
+
+    static final class JavaTimeBean {
+        Instant instantValue;
+        LocalDate localDateValue;
+        LocalDateTime localDateTimeValue;
+        OffsetDateTime offsetDateTimeValue;
+        ZonedDateTime zonedDateTimeValue;
     }
 }
 

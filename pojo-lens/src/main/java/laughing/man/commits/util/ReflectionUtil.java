@@ -10,6 +10,11 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -464,7 +469,12 @@ public final class ReflectionUtil {
                 || wrapped == Byte.class
                 || wrapped == Character.class
                 || wrapped == String.class
-                || wrapped == Date.class;
+                || wrapped == Date.class
+                || wrapped == Instant.class
+                || wrapped == LocalDate.class
+                || wrapped == LocalDateTime.class
+                || wrapped == OffsetDateTime.class
+                || wrapped == ZonedDateTime.class;
     }
 
     private static boolean isPlatformType(Class<?> type) {

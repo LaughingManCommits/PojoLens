@@ -18,10 +18,10 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -166,7 +166,7 @@ public final class SqlLikeValidator {
                 requireKnownField(field.field(), sourceFields, "SELECT");
             }
             if (field.timeBucketField()) {
-                requireDateField(field.field(), sourceFieldTypes);
+                requireTimeBucketField(field.field(), sourceFieldTypes);
                 if (!field.aliased()) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
                             "bucket(dateField,'granularity'[, 'zone'[, 'weekStart']]) requires AS alias");
@@ -458,7 +458,7 @@ public final class SqlLikeValidator {
                 continue;
             }
             if (field.timeBucketField()) {
-                requireDateField(field.field(), sourceFieldTypes);
+                requireTimeBucketField(field.field(), sourceFieldTypes);
                 String bucketOutput = field.outputName();
                 if (!groupBy.contains(bucketOutput)) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
@@ -648,11 +648,11 @@ public final class SqlLikeValidator {
         return map;
     }
 
-    private static void requireDateField(String fieldName, Map<String, Class<?>> fieldTypes) {
+    private static void requireTimeBucketField(String fieldName, Map<String, Class<?>> fieldTypes) {
         Class<?> type = fieldTypes.get(fieldName);
-        if (type == null || !Date.class.isAssignableFrom(type)) {
+        if (type == null || !TimeBucketUtil.supportsTimeBucketType(type)) {
             throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
-                    "Time bucket requires date field '" + fieldName + "'");
+                    "Time bucket requires supported date/time field '" + fieldName + "'");
         }
     }
 

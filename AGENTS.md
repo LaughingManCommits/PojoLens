@@ -31,7 +31,7 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
 | module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
-| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*`                                      | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
+| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*`                                       | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 | AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*`                                | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Routing fallback:

@@ -6,6 +6,8 @@ import laughing.man.commits.time.TimeBucketPreset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.WeekFields;
@@ -15,6 +17,9 @@ import java.util.Date;
  * Shared formatter for deterministic UTC time buckets.
  */
 public final class TimeBucketUtil {
+
+    private static final String SUPPORTED_TIME_BUCKET_TYPES =
+            "java.util.Date, Instant, LocalDate, LocalDateTime, OffsetDateTime, or ZonedDateTime";
 
     private static final int MONTHS_PER_QUARTER = 3;
     private static final int MIN_DAYS_IN_FIRST_WEEK = 4;
@@ -63,47 +68,58 @@ public final class TimeBucketUtil {
         return bucketValue(rawValue, TimeBucketPreset.of(bucket));
     }
 
+    public static boolean supportsTimeBucketType(Class<?> rawType) {
+        if (rawType == null) {
+            return false;
+        }
+        return Date.class.isAssignableFrom(rawType)
+                || Instant.class.isAssignableFrom(rawType)
+                || LocalDate.class.isAssignableFrom(rawType)
+                || LocalDateTime.class.isAssignableFrom(rawType)
+                || OffsetDateTime.class.isAssignableFrom(rawType)
+                || ZonedDateTime.class.isAssignableFrom(rawType);
+    }
+
     public static String bucketValue(Object rawValue, TimeBucketPreset preset) {
         if (rawValue == null) {
             return null;
         }
-        if (!(rawValue instanceof Date)) {
-            throw new IllegalArgumentException("Time bucket requires java.util.Date values");
-        }
         if (preset == null) {
             throw new IllegalArgumentException("preset must not be null");
         }
-        long epochMillis = ((Date) rawValue).getTime();
-        if (ZoneOffset.UTC.equals(preset.zoneId())) {
-            return bucketValueUtc(epochMillis, preset);
-        }
-        ZonedDateTime zonedDateTime = Instant.ofEpochMilli(epochMillis).atZone(preset.zoneId());
-        switch (preset.bucket()) {
-            case DAY:
-                return formatYearMonthDay(
-                        zonedDateTime.getYear(),
-                        zonedDateTime.getMonthValue(),
-                        zonedDateTime.getDayOfMonth()
-                );
-            case WEEK:
-                WeekFields weekFields = WeekFields.of(preset.weekStart(), MIN_DAYS_IN_FIRST_WEEK);
-                int year = zonedDateTime.get(weekFields.weekBasedYear());
-                int week = zonedDateTime.get(weekFields.weekOfWeekBasedYear());
-                return formatYearWeek(year, week);
-            case MONTH:
-                return formatYearMonth(zonedDateTime.getYear(), zonedDateTime.getMonthValue());
-            case QUARTER:
-                int quarter = ((zonedDateTime.getMonthValue() - 1) / MONTHS_PER_QUARTER) + 1;
-                return formatYearQuarter(zonedDateTime.getYear(), quarter);
-            case YEAR:
-                return formatYear(zonedDateTime.getYear());
-            default:
-                throw new IllegalArgumentException("Unsupported time bucket: " + preset.bucket());
-        }
+        return formatBucketDate(normalizeBucketDate(rawValue, preset), preset);
     }
 
-    private static String bucketValueUtc(long epochMillis, TimeBucketPreset preset) {
-        LocalDate date = LocalDate.ofEpochDay(Math.floorDiv(epochMillis, MILLIS_PER_DAY));
+    private static LocalDate normalizeBucketDate(Object rawValue, TimeBucketPreset preset) {
+        if (rawValue instanceof Date date) {
+            return normalizeInstantBucketDate(Instant.ofEpochMilli(date.getTime()), preset);
+        }
+        if (rawValue instanceof Instant instant) {
+            return normalizeInstantBucketDate(instant, preset);
+        }
+        if (rawValue instanceof LocalDate localDate) {
+            return localDate;
+        }
+        if (rawValue instanceof LocalDateTime localDateTime) {
+            return localDateTime.atZone(preset.zoneId()).toLocalDate();
+        }
+        if (rawValue instanceof OffsetDateTime offsetDateTime) {
+            return normalizeInstantBucketDate(offsetDateTime.toInstant(), preset);
+        }
+        if (rawValue instanceof ZonedDateTime zonedDateTime) {
+            return normalizeInstantBucketDate(zonedDateTime.toInstant(), preset);
+        }
+        throw new IllegalArgumentException("Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
+    }
+
+    private static LocalDate normalizeInstantBucketDate(Instant instant, TimeBucketPreset preset) {
+        if (ZoneOffset.UTC.equals(preset.zoneId())) {
+            return LocalDate.ofEpochDay(Math.floorDiv(instant.toEpochMilli(), MILLIS_PER_DAY));
+        }
+        return instant.atZone(preset.zoneId()).toLocalDate();
+    }
+
+    private static String formatBucketDate(LocalDate date, TimeBucketPreset preset) {
         switch (preset.bucket()) {
             case DAY:
                 return formatYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());

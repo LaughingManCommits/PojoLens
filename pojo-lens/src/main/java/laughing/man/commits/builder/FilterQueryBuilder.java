@@ -24,6 +24,7 @@ import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
+import laughing.man.commits.util.TimeBucketUtil;
 import static laughing.man.commits.util.ObjectUtil.castToString;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
@@ -469,7 +470,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         TimeBucketPreset normalizedPreset = requireTimeBucketPreset(preset);
         ensureOutputAliasAvailable(normalizedAlias);
         ensureFieldExists(normalizedDateField);
-        ensureDateField(normalizedDateField);
+        ensureTimeBucketField(normalizedDateField);
         spec.getTimeBuckets().put(normalizedAlias, QueryTimeBucket.of(normalizedDateField, normalizedPreset, normalizedAlias));
         markExecutionPlanShapeChanged();
         addGroup(normalizedAlias);
@@ -1133,13 +1134,13 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
     }
 
-    private void ensureDateField(String fieldName) {
+    private void ensureTimeBucketField(String fieldName) {
         Class<?> fieldType = configuredFieldType(fieldName);
         if (fieldType == null) {
             return;
         }
-        if (!java.util.Date.class.isAssignableFrom(fieldType)) {
-            throw new IllegalArgumentException("Time bucket requires date field: " + fieldName);
+        if (!TimeBucketUtil.supportsTimeBucketType(fieldType)) {
+            throw new IllegalArgumentException("Time bucket requires supported date/time field: " + fieldName);
         }
     }
 

@@ -10,11 +10,13 @@
 ## Focus
 
 - No active repo-wide orchestrator package is open; release work is complete and `WP5` remains deferred until a later live run exposes a real intent gap.
+- If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
 - `PojoLensRuntime` owns natural vocabulary; `docs/natural.md` is the canonical natural guide.
-- `SPIKE-LIMITATIONS.md` still starts with time-bucket input broadening, then grouped/aggregate subquery widening.
+- `2026-04-06`: time buckets now accept `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`; `ReflectionUtil` now treats those `java.time` fields as queryable schema leaves.
+- `SPIKE-LIMITATIONS.md` now effectively advances to grouped/aggregate subquery widening as the next execution slice.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; review/export/promote/retry/cleanup and `validate-run` are live.
 - Live workers are structured-intent-only; raw worker `validationCommands` survive only in old manifests or review-time `validate-run`.
 - `2026-04-06`: `wp6-live-parser-proof.json` completed and promoted a two-file parser/regression patch into the repo.

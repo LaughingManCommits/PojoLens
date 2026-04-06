@@ -140,7 +140,7 @@ Sort limitation:
 - Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
 - `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
-- Time bucket input fields must be `java.util.Date` values.
+- Time bucket input fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
 

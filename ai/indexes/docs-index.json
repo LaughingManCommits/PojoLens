@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-06T17:35:15.359357+02:00",
+  "generatedAt": "2026-04-06T19:53:56.475793+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -7,7 +7,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 84,
-      "byteCount": 5819,
+      "byteCount": 5820,
       "coldSearchEligible": true
     },
     {
@@ -159,8 +159,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 36,
-      "byteCount": 2532,
+      "lineCount": 38,
+      "byteCount": 2897,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +168,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 39,
-      "byteCount": 2722,
+      "lineCount": 41,
+      "byteCount": 3041,
       "coldSearchEligible": true
     },
     {
@@ -177,8 +177,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 89,
-      "byteCount": 40837,
+      "lineCount": 90,
+      "byteCount": 41226,
       "coldSearchEligible": true
     },
     {
@@ -268,7 +268,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 396,
-      "byteCount": 14597,
+      "byteCount": 14673,
       "coldSearchEligible": true
     },
     {
@@ -331,7 +331,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 946,
-      "byteCount": 33021,
+      "byteCount": 33092,
       "coldSearchEligible": true
     },
     {
@@ -366,8 +366,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 87,
-      "byteCount": 2534,
+      "lineCount": 90,
+      "byteCount": 2891,
       "coldSearchEligible": true
     },
     {
@@ -402,8 +402,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 305,
-      "byteCount": 13672,
+      "lineCount": 304,
+      "byteCount": 13612,
       "coldSearchEligible": true
     },
     {
