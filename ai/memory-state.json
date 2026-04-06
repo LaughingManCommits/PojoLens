@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-06T14:12:34.019007+02:00",
+  "generatedAt": "2026-04-06T15:39:36.744336+02:00",
   "git": {
-    "headCommit": "c10a8e09c21927d661039482a32bd3cb3206b47a",
+    "headCommit": "b81a1617cc7fcb03d353e729d3929dd1ca13da31",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "ebf4f7e80556dbf47bff6e2243a598a71e33d9115561783a98efc12359129966",
+  "inputsHash": "167a0ab1c8d37cd5d0eefa670be7d25873690c205e9804d496536415d62ec17e",
   "hotContext": {
     "files": [
       {
@@ -22,7 +22,7 @@
       {
         "path": "ai/state/current-state.md",
         "lines": 35,
-        "bytes": 1975,
+        "bytes": 1926,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 39,
-        "bytes": 2367,
+        "lines": 37,
+        "bytes": 2150,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 103,
-    "totalBytes": 6680,
+    "totalLines": 101,
+    "totalBytes": 6414,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -135,13 +135,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "4ffb8abca5a2251b27c935abfde6366bf9781d3570a67c1c1ac9ceba9daadff5",
+        "inputHash": "2ae57780f7cdea2eb638f802dd2def39ad0a559b3f61cbf9697efd62acab3b65",
         "inputFiles": 48
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "9e1bebdfe46ef37700fdfd5079c7e3d2d661e0913dde562c5330a9d37cdcaf76",
+        "inputHash": "60302c3a503204e80efd9d5aad2c50bce765f99e68181a0e56f8881635275232",
         "inputFiles": 363
       },
       {
@@ -169,8 +169,8 @@
       "ftsEnabled": true,
       "documents": 49,
       "sections": 541,
-      "updatedFiles": 2,
-      "reusedFiles": 47,
+      "updatedFiles": 1,
+      "reusedFiles": 48,
       "removedFiles": 0,
       "mode": "incremental"
     }
