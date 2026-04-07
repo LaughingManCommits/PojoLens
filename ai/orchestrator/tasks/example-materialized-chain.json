@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "name": "example-materialized-chain",
+  "goal": "Demonstrate a sequential implementation chain that opts into reviewed dependency materialization.",
+  "sharedContext": {
+    "summary": "Use this file as a template for a chained local Claude workflow where a downstream implementer continues from reviewed upstream workspace state instead of only a prompt summary.",
+    "constraints": [
+      "Keep work bounded to orchestrator docs and local scripts.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "AGENTS.md",
+      "ai/AGENTS.md",
+      "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
+      "scripts/claude-orchestrator.py"
+    ],
+    "validation": [
+      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "draft-materialization-docs",
+      "title": "Draft dependency-materialization docs",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Read the orchestrator docs and script. Draft a bounded documentation update that explains when dependencyMaterialization=\"apply-reviewed\" is appropriate and what operators should inspect before promotion.",
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
+      ],
+      "writePaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "refine-materialization-docs",
+      "title": "Refine docs from reviewed upstream state",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Continue the same documentation update from the reviewed upstream workspace state. Tighten wording, remove duplication, and keep the materialization contract internally consistent.",
+      "dependsOn": [
+        "draft-materialization-docs"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
+      ],
+      "writePaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md"
+      ],
+      "workspaceMode": "copy",
+      "dependencyMaterialization": "apply-reviewed"
+    },
+    {
+      "id": "review-materialization-chain",
+      "title": "Review the chained doc update",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "prompt": "Review the dependency output. Call out any missing safety rule, inspectability hole, or promotion risk in the chained materialization flow and propose one concrete follow-up.",
+      "dependsOn": [
+        "refine-materialization-docs"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ Primary commands:
 
 ```powershell
 scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json
+scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
@@ -55,9 +56,11 @@ Context discipline:
 - task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
+- downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` only on `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before execution
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
+- when `dependencyMaterialization = "apply-reviewed"` is enabled, reviewed dependency layers are replayed into the downstream `copy` or `worktree` workspace after base hydration; dry-runs stay summary-only but surface the planned mode in the prompt
 
 Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
@@ -91,6 +94,8 @@ Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - workers in `copy` or `worktree` mode should treat prompt dependency outputs as the only upstream handoff and should not inspect other task workspaces or prior run artifacts directly
 - task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations` and `write_scope_violations`; protected-path or out-of-scope edits fail the task record
+- `dependencyMaterialization = "apply-reviewed"` is opt-in, defaults to `summary-only`, is rejected for `workspaceMode = "repo"`, and requires direct dependencies whose effective workspace mode is `copy` or `worktree`
+- task records, review output, promotion summaries, and retry manifests now surface `dependency_materialization_mode` plus `dependency_layers_applied` so chained workspace state stays inspectable
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; older manifest-level `compat` fallbacks are not replayed into live workers
 - task plans or agent definitions may still declare `workerValidationMode = intents-only`, but live authoring rejects `workerValidationMode = compat`
@@ -107,4 +112,5 @@ Coordinator rules:
 - `cleanup` removes run artifacts and deletes detached worktrees created for that run
 - the coordinator owns memory updates, final summaries, and merge decisions
 - prefer `copy` mode unless a task clearly needs git metadata
+- `ai/orchestrator/tasks/example-materialized-chain.json` is the tracked sample for a sequential implementer chain that opts into reviewed dependency materialization
 - review worker outputs before live promotion; use `promote --dry-run` when you want the adoption summary without mutating the repo

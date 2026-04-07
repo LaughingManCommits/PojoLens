@@ -31,6 +31,10 @@ def make_task_run_record(
     agent_name=None,
     workspace_mode="copy",
     workspace_path="",
+    files_touched=None,
+    actual_files_touched=None,
+    dependency_materialization_mode=None,
+    dependency_layers_applied=None,
 ):
     return orchestrator.TaskRunRecord(
         id=task.id,
@@ -42,8 +46,8 @@ def make_task_run_record(
         workspace_path=workspace_path,
         started_at="2026-04-04T00:00:00+00:00",
         finished_at="2026-04-04T00:00:01+00:00",
-        files_touched=[],
-        actual_files_touched=[],
+        files_touched=list(files_touched or []),
+        actual_files_touched=list(actual_files_touched or []),
         protected_path_violations=[],
         write_scope_violations=[],
         validation_commands=[],
@@ -67,6 +71,11 @@ def make_task_run_record(
         stdout_path=None,
         stderr_path=None,
         result_path=None,
+        dependency_materialization_mode=(
+            dependency_materialization_mode
+            or orchestrator.DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
+        ),
+        dependency_layers_applied=list(dependency_layers_applied or []),
     )
 
 
@@ -371,6 +380,7 @@ class ValidateCommandTest(unittest.TestCase):
                     "agent": "analyst",
                     "readPaths": [],
                     "writePaths": [],
+                    "dependencyMaterialization": "summary-only",
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "agent",
                 },
@@ -379,6 +389,7 @@ class ValidateCommandTest(unittest.TestCase):
                     "agent": "implementer",
                     "readPaths": [],
                     "writePaths": [],
+                    "dependencyMaterialization": "summary-only",
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "task",
                 },
@@ -1408,6 +1419,179 @@ class ValidateCommandTest(unittest.TestCase):
             finally:
                 orchestrator.ROOT = old_root
 
+    def test_validate_scope_contract_rejects_apply_reviewed_without_dependencies(self):
+        orchestrator = self.orchestrator
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="impl",
+            prompt="Return JSON only.",
+            model_profile="balanced",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit", "Write"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="implement",
+            title="Implement",
+            agent="implementer",
+            prompt="Implement the change.",
+            write_paths=["README.md"],
+            dependency_materialization="apply-reviewed",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="missing-materialization-dependency",
+            goal="Reject apply-reviewed without dependencies.",
+            shared_context=orchestrator.SharedContext(
+                summary="Materialization validation test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        with self.assertRaisesRegex(
+            orchestrator.OrchestratorError,
+            "dependencyMaterialization='apply-reviewed' requires non-empty dependsOn",
+        ):
+            orchestrator.validate_scope_contract(plan, {"implementer": implementer})
+
+    def test_validate_scope_contract_rejects_apply_reviewed_for_repo_workspace(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="impl",
+            prompt="Return JSON only.",
+            model_profile="balanced",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit", "Write"],
+            disallowed_tools=[],
+        )
+        upstream = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect first.",
+        )
+        downstream = orchestrator.TaskDefinition(
+            id="implement",
+            title="Implement",
+            agent="implementer",
+            prompt="Implement from dependency state.",
+            depends_on=["inspect"],
+            write_paths=["README.md"],
+            workspace_mode="repo",
+            dependency_materialization="apply-reviewed",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="repo-materialization",
+            goal="Reject apply-reviewed in repo mode.",
+            shared_context=orchestrator.SharedContext(
+                summary="Materialization validation test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[upstream, downstream],
+        )
+
+        with self.assertRaisesRegex(
+            orchestrator.OrchestratorError,
+            "dependencyMaterialization='apply-reviewed' is not allowed for workspaceMode='repo'",
+        ):
+            orchestrator.validate_scope_contract(
+                plan,
+                {"analyst": analyst, "implementer": implementer},
+            )
+
+    def test_validate_scope_contract_rejects_apply_reviewed_with_repo_dependency(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="repo",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="impl",
+            prompt="Return JSON only.",
+            model_profile="balanced",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit", "Write"],
+            disallowed_tools=[],
+        )
+        upstream = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect first.",
+        )
+        downstream = orchestrator.TaskDefinition(
+            id="implement",
+            title="Implement",
+            agent="implementer",
+            prompt="Implement from dependency state.",
+            depends_on=["inspect"],
+            write_paths=["README.md"],
+            dependency_materialization="apply-reviewed",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="repo-dependency-materialization",
+            goal="Reject non-reviewable dependency workspaces.",
+            shared_context=orchestrator.SharedContext(
+                summary="Materialization validation test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[upstream, downstream],
+        )
+
+        with self.assertRaisesRegex(
+            orchestrator.OrchestratorError,
+            "dependency 'inspect' resolves to workspaceMode='repo'",
+        ):
+            orchestrator.validate_scope_contract(
+                plan,
+                {"analyst": analyst, "implementer": implementer},
+            )
+
     def test_prepare_workspace_copy_is_sparse(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
@@ -1455,10 +1639,12 @@ class ValidateCommandTest(unittest.TestCase):
                     "copy",
                     temp_path / "workspace",
                     temp_path / "runtime",
+                    {},
                 )
             finally:
                 orchestrator.ROOT = old_root
 
+            workspace = workspace.workspace_path
             copied_files = sorted(
                 str(path.relative_to(workspace)).replace("\\", "/")
                 for path in workspace.rglob("*")
@@ -1518,11 +1704,183 @@ class ValidateCommandTest(unittest.TestCase):
                         "worktree",
                         workspace_path,
                         runtime_root,
+                        {},
                     )
             finally:
                 orchestrator.ROOT = old_root
                 orchestrator.ensure_clean_for_worktrees = old_ensure_clean
                 orchestrator.subprocess.run = old_subprocess_run
+
+    def test_prepare_workspace_copy_materializes_reviewed_dependency_layers(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            upstream_workspace = temp_path / "upstream-workspace"
+            runtime_root = temp_path / "runtime"
+            downstream_workspace = temp_path / "workspace"
+            (repo_root / "ai").mkdir(parents=True)
+            (repo_root / "src").mkdir(parents=True)
+            (upstream_workspace / "src").mkdir(parents=True)
+            (repo_root / "AGENTS.md").write_text("root guidance\n", encoding="utf-8")
+            (repo_root / "ai" / "AGENTS.md").write_text("ai guidance\n", encoding="utf-8")
+            (repo_root / "src" / "feature.txt").write_text("base\n", encoding="utf-8")
+            (upstream_workspace / "src" / "feature.txt").write_text("reviewed\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                upstream = orchestrator.TaskDefinition(
+                    id="edit-upstream",
+                    title="Edit upstream",
+                    agent="implementer",
+                    prompt="Edit the feature.",
+                    write_paths=["src/feature.txt"],
+                    workspace_mode="copy",
+                )
+                downstream = orchestrator.TaskDefinition(
+                    id="edit-downstream",
+                    title="Edit downstream",
+                    agent="implementer",
+                    prompt="Continue from upstream state.",
+                    depends_on=["edit-upstream"],
+                    write_paths=["src/feature.txt"],
+                    workspace_mode="copy",
+                    dependency_materialization="apply-reviewed",
+                )
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="materialize-reviewed-layer",
+                    goal="Layer reviewed dependency state into the downstream workspace.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Materialization workspace prep test.",
+                        constraints=[],
+                        read_paths=[],
+                        validation=[],
+                    ),
+                    tasks=[upstream, downstream],
+                )
+                dependency_record = make_task_run_record(
+                    orchestrator,
+                    upstream,
+                    status="completed",
+                    summary="Edited the feature.",
+                    workspace_path=str(upstream_workspace),
+                    files_touched=["src/feature.txt"],
+                )
+
+                preparation = orchestrator.prepare_workspace(
+                    plan,
+                    downstream,
+                    "copy",
+                    downstream_workspace,
+                    runtime_root,
+                    {"edit-upstream": dependency_record},
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+            layered_text = (preparation.workspace_path / "src" / "feature.txt").read_text(
+                encoding="utf-8"
+            )
+
+        self.assertEqual("reviewed\n", layered_text)
+        self.assertEqual(1, len(preparation.dependency_layers_applied))
+        self.assertEqual("edit-upstream", preparation.dependency_layers_applied[0].task_id)
+        self.assertEqual(
+            ["src/feature.txt"],
+            [operation.path for operation in preparation.dependency_layers_applied[0].operations],
+        )
+
+    def test_prepare_workspace_copy_rejects_ambiguous_dependency_materialization(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            workspace_path = temp_path / "workspace"
+            dep_a_workspace = temp_path / "dep-a"
+            dep_b_workspace = temp_path / "dep-b"
+            (repo_root / "ai").mkdir(parents=True)
+            (repo_root / "src").mkdir(parents=True)
+            (dep_a_workspace / "src").mkdir(parents=True)
+            (dep_b_workspace / "src").mkdir(parents=True)
+            (repo_root / "AGENTS.md").write_text("root guidance\n", encoding="utf-8")
+            (repo_root / "ai" / "AGENTS.md").write_text("ai guidance\n", encoding="utf-8")
+            (repo_root / "src" / "feature.txt").write_text("base\n", encoding="utf-8")
+            (dep_a_workspace / "src" / "feature.txt").write_text("dep a\n", encoding="utf-8")
+            (dep_b_workspace / "src" / "feature.txt").write_text("dep b\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                dep_a = orchestrator.TaskDefinition(
+                    id="edit-a",
+                    title="Edit A",
+                    agent="implementer",
+                    prompt="Edit from branch A.",
+                    write_paths=["src/feature.txt"],
+                    workspace_mode="copy",
+                )
+                dep_b = orchestrator.TaskDefinition(
+                    id="edit-b",
+                    title="Edit B",
+                    agent="implementer",
+                    prompt="Edit from branch B.",
+                    write_paths=["src/feature.txt"],
+                    workspace_mode="copy",
+                )
+                downstream = orchestrator.TaskDefinition(
+                    id="merge-downstream",
+                    title="Merge downstream",
+                    agent="implementer",
+                    prompt="Merge dependency output.",
+                    depends_on=["edit-a", "edit-b"],
+                    write_paths=["src/feature.txt"],
+                    workspace_mode="copy",
+                    dependency_materialization="apply-reviewed",
+                )
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="ambiguous-materialization",
+                    goal="Reject overlapping dependency layers.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Materialization conflict test.",
+                        constraints=[],
+                        read_paths=[],
+                        validation=[],
+                    ),
+                    tasks=[dep_a, dep_b, downstream],
+                )
+                dep_a_record = make_task_run_record(
+                    orchestrator,
+                    dep_a,
+                    status="completed",
+                    summary="Edited feature in A.",
+                    workspace_path=str(dep_a_workspace),
+                    files_touched=["src/feature.txt"],
+                )
+                dep_b_record = make_task_run_record(
+                    orchestrator,
+                    dep_b,
+                    status="completed",
+                    summary="Edited feature in B.",
+                    workspace_path=str(dep_b_workspace),
+                    files_touched=["src/feature.txt"],
+                )
+
+                with self.assertRaisesRegex(
+                    orchestrator.OrchestratorError,
+                    "dependency materialization is ambiguous for 'src/feature.txt'",
+                ):
+                    orchestrator.prepare_workspace(
+                        plan,
+                        downstream,
+                        "copy",
+                        workspace_path,
+                        runtime_root,
+                        {"edit-a": dep_a_record, "edit-b": dep_b_record},
+                    )
+            finally:
+                orchestrator.ROOT = old_root
 
     def test_snapshot_workspace_files_hashes_files_and_ignores_internal_dirs(self):
         orchestrator = self.orchestrator

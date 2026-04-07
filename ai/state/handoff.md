@@ -9,19 +9,19 @@
 
 ## Focus
 
-- The orchestration spike is reopened; `WP9` is complete, so start with `WP10` dependency-state materialization and keep release work closed.
+- The orchestration spike is reopened; `WP10` is complete, so start with `WP13` chained live proof and keep release work closed.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
+- `2026-04-07`: `WP10` is complete; downstream `copy` or `worktree` tasks can opt into `dependencyMaterialization = "apply-reviewed"`, reviewed dependency layers replay into downstream workspaces, and task/manifests/review output now record `dependency_layers_applied`.
+- `2026-04-07`: added tracked sample plan `ai/orchestrator/tasks/example-materialized-chain.json`; the guide/spec now document when to stay summary-only versus when to opt into reviewed dependency materialization.
 - `2026-04-07`: `WP9` is complete; tracked plans now use `readPaths`/`writePaths`, copy-mode scope validation fails missing or directory read inputs, overlapping write tasks serialize by declared `writePaths`, and workspace audit now fails out-of-scope edits.
-- `2026-04-07`: `SPIKE-AI-MULTI-AGENT.md` now records `WP9` complete and keeps `WP10` through `WP13` open.
-- The current coordinator is proven for isolated implementer/review/promotion flows, but it still lacks dependency-state handoff for downstream implementers.
-- `SPIKE-LIMITATIONS.md` now effectively advances to grouped/aggregate subquery widening as the next execution slice.
+- `SPIKE-AI-MULTI-AGENT.md` now records `WP10` complete and moves the next open orchestration slice to `WP13`, then `WP11`, then `WP12`.
+- The current coordinator is proven for isolated implementer/review/promotion flows, but chained implementer proof is still missing.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; review/export/promote/retry/cleanup and `validate-run` are live.
 - Live workers are structured-intent-only; raw worker `validationCommands` survive only in old manifests or review-time `validate-run`.
 - `WP6` proved the live end-to-end path, `WP7` added reviewer diff previews plus task-workspace `validate-run`, and `WP8` added deterministic invalid-plan and worktree failure coverage.
-- Validation-intent widening (`WP5`) still stays deferred unless a later live run exposes a real unsupported intent shape.
 
 ## Validate
 

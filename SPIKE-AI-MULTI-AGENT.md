@@ -207,7 +207,11 @@ Success bar:
 - no silent scope widening between planning, workspace prep, auditing, and
   promotion
 
-### WP10: Dependency State Materialization
+### WP10: Dependency State Materialization (Completed)
+
+Status:
+
+- completed `2026-04-07`
 
 Goal:
 
@@ -310,13 +314,11 @@ Success bar:
 
 ## Recommended Order
 
-1. `WP10` first because dependency-state handoff is now the biggest functional gap
-   for real multi-step implementation.
-2. `WP13` second because the new contracts should be proven live once they
-   exist.
-3. `WP11` third because resume and retention become more important after the
+1. `WP13` first because the new dependency-materialization contract should now
+   be proven in a real chained workflow.
+2. `WP11` second because resume and retention become more important after the
    coordinator is used for longer real runs.
-4. `WP12` fourth because cost governance should be informed by the stronger live
+3. `WP12` third because cost governance should be informed by the stronger live
    workflow shape, not only by current small proofs.
 
 ## Non-Goals

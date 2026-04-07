@@ -36,6 +36,8 @@ WORKSPACE_MODES = {"copy", "repo", "worktree"}
 TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CONTEXT_MODES = {"minimal", "full"}
 DEFAULT_CONTEXT_MODE = "minimal"
+DEPENDENCY_MATERIALIZATION_MODES = {"summary-only", "apply-reviewed"}
+DEFAULT_DEPENDENCY_MATERIALIZATION_MODE = "summary-only"
 WORKER_VALIDATION_MODES = {"intents-only"}
 LEGACY_WORKER_VALIDATION_MODES = {"compat", *WORKER_VALIDATION_MODES}
 DEFAULT_WORKER_VALIDATION_MODE = "intents-only"
@@ -190,6 +192,10 @@ PLAN_RESULT_SCHEMA = {
                         "type": "string",
                         "enum": sorted(CONTEXT_MODES),
                     },
+                    "dependencyMaterialization": {
+                        "type": "string",
+                        "enum": sorted(DEPENDENCY_MATERIALIZATION_MODES),
+                    },
                     "workerValidationMode": {
                         "type": "string",
                         "enum": sorted(WORKER_VALIDATION_MODES),
@@ -266,6 +272,7 @@ class TaskDefinition:
     effort: str | None = None
     permission_mode: str | None = None
     context_mode: str | None = None
+    dependency_materialization: str | None = None
     worker_validation_mode: str | None = None
     timeout_sec: int | None = None
     max_budget_usd: float | None = None
@@ -331,6 +338,21 @@ class ValidationIntent:
 
 
 @dataclass(frozen=True)
+class DependencyLayerOperation:
+    path: str
+    action: str
+    is_binary: bool = False
+
+
+@dataclass(frozen=True)
+class DependencyLayerRecord:
+    task_id: str
+    workspace_mode: str
+    workspace_path: str
+    operations: list[DependencyLayerOperation] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class WorkerValidationModeResolution:
     mode: str
     source: str
@@ -342,6 +364,12 @@ class SlopLogAction:
     phase: str
     phrase: str
     reason: str
+
+
+@dataclass(frozen=True)
+class WorkspacePreparationResult:
+    workspace_path: Path
+    dependency_layers_applied: list[DependencyLayerRecord] = field(default_factory=list)
 
 
 @dataclass
@@ -376,6 +404,8 @@ class TaskRunRecord:
     result_path: str | None
     validation_intents: list[ValidationIntent] = field(default_factory=list)
     unknown_fields: list[str] = field(default_factory=list)
+    dependency_materialization_mode: str = DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
+    dependency_layers_applied: list[DependencyLayerRecord] = field(default_factory=list)
     write_scope_violations: list[str] = field(default_factory=list)
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE
     worker_validation_mode_source: str | None = None
@@ -880,6 +910,21 @@ def ensure_context_mode(value: str | None, *, location: str) -> str | None:
     return value
 
 
+def normalize_dependency_materialization_mode(
+    value: str | None,
+    *,
+    location: str,
+) -> str | None:
+    if value is None:
+        return None
+    if value not in DEPENDENCY_MATERIALIZATION_MODES:
+        raise OrchestratorError(
+            f"{location}: invalid dependencyMaterialization '{value}', expected one of "
+            f"{sorted(DEPENDENCY_MATERIALIZATION_MODES)}"
+        )
+    return value
+
+
 def ensure_model_profile(value: str | None, *, location: str) -> str | None:
     if value is None:
         return None
@@ -1009,6 +1054,11 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             "workerValidationMode",
             location=location,
         )
+        dependency_materialization = require_optional_string(
+            task_payload,
+            "dependencyMaterialization",
+            location=location,
+        )
         task = TaskDefinition(
             id=task_id,
             title=require_string(task_payload, "title", location=location),
@@ -1043,6 +1093,10 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             context_mode=ensure_context_mode(
                 require_optional_string(task_payload, "contextMode", location=location),
                 location=location,
+            ),
+            dependency_materialization=normalize_dependency_materialization_mode(
+                dependency_materialization,
+                location=f"{location}:dependencyMaterialization",
             ),
             worker_validation_mode=normalize_worker_validation_mode(
                 worker_validation_mode,
@@ -1197,11 +1251,31 @@ def validate_task_scope_contract(
     plan: TaskPlan,
     task: TaskDefinition,
     agent: AgentDefinition,
+    *,
+    tasks_by_id: dict[str, TaskDefinition],
+    agents: dict[str, AgentDefinition],
 ) -> list[str]:
     issues: list[str] = []
     if task_may_write(plan, task, agent) and not effective_task_write_scope(task):
         issues.append("write-capable tasks must declare non-empty writePaths")
     workspace_mode = effective_workspace_mode(task, agent)
+    dependency_materialization = effective_dependency_materialization_mode(task)
+    if dependency_materialization == "apply-reviewed":
+        if not task.depends_on:
+            issues.append("dependencyMaterialization='apply-reviewed' requires non-empty dependsOn")
+        if workspace_mode == "repo":
+            issues.append("dependencyMaterialization='apply-reviewed' is not allowed for workspaceMode='repo'")
+        for dependency_id in task.depends_on:
+            dependency = tasks_by_id[dependency_id]
+            dependency_workspace_mode = effective_workspace_mode(
+                dependency,
+                agents[dependency.agent],
+            )
+            if dependency_workspace_mode not in {"copy", "worktree"}:
+                issues.append(
+                    "dependencyMaterialization='apply-reviewed' requires reviewable dependency workspaces; "
+                    f"dependency '{dependency_id}' resolves to workspaceMode='{dependency_workspace_mode}'"
+                )
     if workspace_mode == "copy":
         hydration = analyze_copy_hydration_inputs(plan, task)
         if hydration["missingReadPaths"]:
@@ -1224,8 +1298,15 @@ def validate_task_scope_contract(
 
 def validate_scope_contract(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> None:
     issues: list[str] = []
+    tasks_by_id = {task.id: task for task in plan.tasks}
     for task in plan.tasks:
-        task_issues = validate_task_scope_contract(plan, task, agents[task.agent])
+        task_issues = validate_task_scope_contract(
+            plan,
+            task,
+            agents[task.agent],
+            tasks_by_id=tasks_by_id,
+            agents=agents,
+        )
         for issue in task_issues:
             issues.append(f"{task.id}: {issue}")
     if issues:
@@ -1503,9 +1584,10 @@ def prepare_workspace(
     workspace_mode: str,
     workspace_path: Path,
     runtime_root: Path,
-) -> Path:
+    dependency_records: dict[str, TaskRunRecord],
+) -> WorkspacePreparationResult:
     if workspace_mode == "repo":
-        return ROOT
+        return WorkspacePreparationResult(ROOT, [])
     if workspace_path.exists():
         shutil.rmtree(workspace_path)
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1535,7 +1617,14 @@ def prepare_workspace(
                 format_issue_block(f"{task.id}: invalid copy workspace inputs", hydration_issues)
             )
         hydrate_copy_workspace(workspace_path, hydration["filesToCopy"])
-        return workspace_path
+        return WorkspacePreparationResult(
+            workspace_path,
+            materialize_dependency_layers(
+                task,
+                dependency_records,
+                workspace_root=workspace_path,
+            ),
+        )
     if workspace_mode == "worktree":
         ensure_clean_for_worktrees()
         completed = subprocess.run(
@@ -1549,7 +1638,14 @@ def prepare_workspace(
             raise OrchestratorError(
                 f"{task.id}: failed to create worktree: {completed.stderr.strip() or completed.stdout.strip()}"
             )
-        return workspace_path
+        return WorkspacePreparationResult(
+            workspace_path,
+            materialize_dependency_layers(
+                task,
+                dependency_records,
+                workspace_root=workspace_path,
+            ),
+        )
     raise OrchestratorError(f"{task.id}: unsupported workspace mode '{workspace_mode}'")
 
 
@@ -1782,6 +1878,20 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
             for item in payload.get("validation_intents", []) or []
         ],
         unknown_fields=normalized_worker_unknown_fields(payload.get("unknown_fields")),
+        dependency_materialization_mode=(
+            normalize_dependency_materialization_mode(
+                payload.get("dependency_materialization_mode"),
+                location=f"{location}:dependency_materialization_mode",
+            )
+            or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
+        ),
+        dependency_layers_applied=[
+            coerce_dependency_layer_record_payload(
+                item,
+                location=f"{location}:dependency_layers_applied[{index}]",
+            )
+            for index, item in enumerate(payload.get("dependency_layers_applied", []) or [], start=1)
+        ],
         worker_validation_mode=normalize_worker_validation_mode(
             payload.get("worker_validation_mode"),
             location=f"{location}:worker_validation_mode",
@@ -1931,6 +2041,8 @@ def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[d
             "summary": record.summary,
             "workspaceMode": record.workspace_mode,
             "workspacePath": record.workspace_path,
+            "dependencyMaterializationMode": record.dependency_materialization_mode,
+            "dependencyLayersApplied": [asdict(layer) for layer in record.dependency_layers_applied],
             "protectedPathViolations": record.protected_path_violations,
             "writeScopeViolations": record.write_scope_violations,
             "unknownFields": record.unknown_fields,
@@ -2102,6 +2214,8 @@ def task_promotion_operations(record: TaskRunRecord) -> tuple[dict[str, Any], li
             "summary": record.summary,
             "workspaceMode": record.workspace_mode,
             "workspacePath": record.workspace_path,
+            "dependencyMaterializationMode": record.dependency_materialization_mode,
+            "dependencyLayersApplied": [asdict(layer) for layer in record.dependency_layers_applied],
             "protectedPathViolations": record.protected_path_violations,
             "writeScopeViolations": record.write_scope_violations,
             "filesPromotable": len(operations),
@@ -2110,6 +2224,180 @@ def task_promotion_operations(record: TaskRunRecord) -> tuple[dict[str, Any], li
         },
         operations,
     )
+
+
+def coerce_dependency_layer_operation_payload(
+    payload: Any,
+    *,
+    location: str,
+) -> DependencyLayerOperation:
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{location}: expected dependency layer operation object")
+    action = str(payload.get("action", "")).strip()
+    if action not in {"added", "modified", "deleted"}:
+        raise OrchestratorError(
+            f"{location}: dependency layer action must be one of ['added', 'deleted', 'modified']"
+        )
+    return DependencyLayerOperation(
+        path=normalize_relative_path(str(payload.get("path", "")), location=f"{location}:path"),
+        action=action,
+        is_binary=bool(payload.get("is_binary", payload.get("isBinary", False))),
+    )
+
+
+def coerce_dependency_layer_record_payload(
+    payload: Any,
+    *,
+    location: str,
+) -> DependencyLayerRecord:
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{location}: expected dependency layer record object")
+    task_id = str(payload.get("task_id", payload.get("taskId", ""))).strip()
+    if not task_id:
+        raise OrchestratorError(f"{location}: dependency layer task id is required")
+    workspace_mode = str(payload.get("workspace_mode", payload.get("workspaceMode", ""))).strip()
+    if workspace_mode not in {"copy", "worktree"}:
+        raise OrchestratorError(
+            f"{location}: dependency layer workspace mode must be 'copy' or 'worktree'"
+        )
+    workspace_path = str(payload.get("workspace_path", payload.get("workspacePath", ""))).strip()
+    if not workspace_path:
+        raise OrchestratorError(f"{location}: dependency layer workspace path is required")
+    operations_payload = payload.get("operations", [])
+    if operations_payload is None:
+        operations_payload = []
+    if not isinstance(operations_payload, list):
+        raise OrchestratorError(f"{location}: dependency layer operations must be a list")
+    return DependencyLayerRecord(
+        task_id=task_id,
+        workspace_mode=workspace_mode,
+        workspace_path=workspace_path,
+        operations=[
+            coerce_dependency_layer_operation_payload(
+                item,
+                location=f"{location}:operations[{index}]",
+            )
+            for index, item in enumerate(operations_payload, start=1)
+        ],
+    )
+
+
+def own_dependency_layer(record: TaskRunRecord) -> DependencyLayerRecord | None:
+    _, operations = task_promotion_operations(record)
+    if not operations:
+        return None
+    if record.workspace_mode not in {"copy", "worktree"}:
+        raise OrchestratorError(
+            f"{record.id}: workspaceMode='{record.workspace_mode}' is not materializable"
+        )
+    if not record.workspace_path:
+        raise OrchestratorError(f"{record.id}: workspace path missing for dependency materialization")
+    return DependencyLayerRecord(
+        task_id=record.id,
+        workspace_mode=record.workspace_mode,
+        workspace_path=record.workspace_path,
+        operations=[
+            DependencyLayerOperation(
+                path=str(operation["path"]),
+                action=str(operation["action"]),
+                is_binary=bool(operation.get("isBinary", False)),
+            )
+            for operation in operations
+        ],
+    )
+
+
+def dependency_layers_for_record(record: TaskRunRecord) -> list[DependencyLayerRecord]:
+    layers = list(record.dependency_layers_applied)
+    own_layer = own_dependency_layer(record)
+    if own_layer is not None:
+        layers.append(own_layer)
+    return layers
+
+
+def dependency_layer_conflicts(task: TaskDefinition, records: dict[str, TaskRunRecord]) -> list[str]:
+    owner_by_path: dict[str, str] = {}
+    issues: list[str] = []
+    for dependency_id in task.depends_on:
+        record = records[dependency_id]
+        touched_paths = dedupe_strings(
+            [
+                operation.path
+                for layer in dependency_layers_for_record(record)
+                for operation in layer.operations
+            ]
+        )
+        for path in touched_paths:
+            owner = owner_by_path.get(path)
+            if owner is not None and owner != dependency_id:
+                issues.append(
+                    f"dependency materialization is ambiguous for '{path}' from '{owner}' and '{dependency_id}'"
+                )
+            else:
+                owner_by_path[path] = dependency_id
+    return dedupe_strings(issues)
+
+
+def apply_workspace_operation(
+    source_workspace_path: str,
+    operation: DependencyLayerOperation,
+    *,
+    target_root: Path,
+    location: str,
+) -> None:
+    normalized, target_file = resolve_relative_path(
+        target_root,
+        operation.path,
+        location=f"{location}:target",
+    )
+    if operation.action == "deleted":
+        if target_file.exists():
+            target_file.unlink()
+        return
+    source_root = Path(source_workspace_path).resolve()
+    if not source_root.exists():
+        raise OrchestratorError(f"{location}: source workspace '{source_root}' does not exist")
+    _, source_file = resolve_relative_path(
+        source_root,
+        normalized,
+        location=f"{location}:source",
+    )
+    if not source_file.exists() or not source_file.is_file():
+        raise OrchestratorError(
+            f"{location}: expected materialized source file '{normalized}' in '{source_root}'"
+        )
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_file, target_file)
+
+
+def materialize_dependency_layers(
+    task: TaskDefinition,
+    dependency_records: dict[str, TaskRunRecord],
+    *,
+    workspace_root: Path,
+) -> list[DependencyLayerRecord]:
+    if effective_dependency_materialization_mode(task) != "apply-reviewed":
+        return []
+    conflict_issues = dependency_layer_conflicts(task, dependency_records)
+    if conflict_issues:
+        raise OrchestratorError(format_issue_block(f"{task.id}: dependency materialization blocked", conflict_issues))
+    applied_layers: list[DependencyLayerRecord] = []
+    for dependency_id in task.depends_on:
+        record = dependency_records[dependency_id]
+        if record.status != "completed":
+            raise OrchestratorError(
+                f"{task.id}: dependency '{dependency_id}' must be completed before materialization"
+            )
+        for layer in dependency_layers_for_record(record):
+            for index, operation in enumerate(layer.operations, start=1):
+                apply_workspace_operation(
+                    layer.workspace_path,
+                    operation,
+                    target_root=workspace_root,
+                    location=f"{task.id}:dependency:{layer.task_id}:operation[{index}]",
+                )
+            applied_layers.append(layer)
+    return applied_layers
 
 
 def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
@@ -2158,34 +2446,16 @@ def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], 
 
 
 def apply_promotion_operation(record: TaskRunRecord, operation: dict[str, Any]) -> None:
-    normalized, repo_file = resolve_relative_path(
-        ROOT,
-        str(operation["path"]),
-        location=f"{record.id}: promote path",
+    apply_workspace_operation(
+        str(record.workspace_path),
+        DependencyLayerOperation(
+            path=str(operation["path"]),
+            action=str(operation["action"]),
+            is_binary=bool(operation.get("isBinary", False)),
+        ),
+        target_root=ROOT,
+        location=f"{record.id}: promote",
     )
-    action = str(operation["action"])
-    if action == "deleted":
-        if repo_file.exists():
-            repo_file.unlink()
-        return
-    if not record.workspace_path:
-        raise OrchestratorError(f"{record.id}: workspace path missing for promotion")
-    workspace_root = Path(record.workspace_path)
-    if not workspace_root.exists():
-        raise OrchestratorError(
-            f"{record.id}: workspace path '{workspace_root}' does not exist for promotion"
-        )
-    _, workspace_file = resolve_relative_path(
-        workspace_root,
-        normalized,
-        location=f"{record.id}: promote workspace path",
-    )
-    if not workspace_file.exists() or not workspace_file.is_file():
-        raise OrchestratorError(
-            f"{record.id}: expected workspace file '{normalized}' for promotion"
-        )
-    repo_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(workspace_file, repo_file)
 
 
 def promote_run(args: argparse.Namespace) -> dict[str, Any]:
@@ -2266,6 +2536,7 @@ def planner_prompt(
             "Use `sharedContext.readPaths` for cross-task context, task `readPaths` for task-local context, and task `writePaths` for allowed edits.",
             "Keep `readPaths` repo-relative and concrete. In copy mode they must point at existing files, not directories.",
             "Keep `writePaths` conservative and only as wide as the task needs. Use directory scopes only when multiple sibling edits are intentional.",
+            "Use `dependencyMaterialization=\"apply-reviewed\"` only for downstream tasks that truly need reviewed upstream code state inside their workspace; otherwise leave the default summary-only path.",
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
             "Put cross-task setup in `sharedContext`.",
@@ -2273,7 +2544,7 @@ def planner_prompt(
             "Omit speculative tasks when evidence is insufficient.",
         ],
         empty_line="- none",
-        max_items=16,
+        max_items=18,
     )
     return render_prompt(
         [
@@ -2453,6 +2724,10 @@ def resolved_max_prompt_estimated_tokens(task: TaskDefinition | None, agent: Age
 
 def effective_context_mode(task: TaskDefinition, agent: AgentDefinition) -> str:
     return task.context_mode or agent.context_mode or DEFAULT_CONTEXT_MODE
+
+
+def effective_dependency_materialization_mode(task: TaskDefinition) -> str:
+    return task.dependency_materialization or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
 
 
 def resolved_model_profile(task: TaskDefinition, agent: AgentDefinition) -> str | None:
@@ -2850,10 +3125,19 @@ def worker_prompt(
     workspace_mode: str,
     workspace_path: Path,
     dependency_text: str,
+    *,
+    dependency_materialization_mode: str = DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
+    dependency_layers_applied: list[DependencyLayerRecord] | None = None,
+    dry_run: bool = False,
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
 ) -> PromptRenderResult:
     task_root = ROOT if workspace_mode == "repo" else workspace_path
     context_mode = effective_context_mode(task, agent)
+    dependency_materialization_mode = normalize_dependency_materialization_mode(
+        dependency_materialization_mode,
+        location=f"task '{task.id}' dependency materialization mode",
+    ) or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
+    dependency_layers_applied = list(dependency_layers_applied or [])
     worker_validation_mode = normalize_worker_validation_mode(
         worker_validation_mode,
         location=f"task '{task.id}' worker validation mode",
@@ -2890,12 +3174,34 @@ def worker_prompt(
         empty_line="- none",
         code_format=True,
     )
+    materialization_items = [
+        f"{layer.task_id} ({len(layer.operations)} ops from {layer.workspace_mode})"
+        for layer in dependency_layers_applied
+    ]
+    if dependency_materialization_mode == "summary-only":
+        materialization_lines = "Mode: `summary-only`\nApplied layers: none"
+        materialization_count = 0
+        materialization_truncated = False
+    else:
+        layer_lines, layer_count, layers_truncated = format_bullet_list(
+            materialization_items,
+            empty_line=(
+                "- none applied yet in this dry-run; live execution will materialize reviewed "
+                "dependency state before the worker runs"
+                if dry_run
+                else "- none"
+            ),
+        )
+        materialization_lines = "Mode: `apply-reviewed`\nApplied layers:\n" + layer_lines
+        materialization_count = layer_count
+        materialization_truncated = layers_truncated
     worker_rules, rule_count, rules_truncated = format_bullet_list(
         [
             "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
             "Use only the task repo root plus the declared read context and write scope. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
             "Treat `writePaths` as the allowed edit contract. If the task is read-only, do not make edits.",
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
+            "When dependency layers are materialized into the workspace, treat the task workspace as the source of truth for those upstream changes.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationIntents` to <=2 high-signal suggestions.",
             "Use `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty. Use `null` only for `filesTouched`, `followUps`, or `notes` when the value is genuinely unknown or unverified.",
             "Emit structured `validationIntents` only for validation suggestions in this run. Do not return raw `validationCommands` items.",
@@ -2958,6 +3264,13 @@ def worker_prompt(
                 heading="Dependency outputs",
                 body=dependency_text,
                 item_count=len(task.depends_on),
+            ),
+            PromptSection(
+                name="dependency_materialization",
+                heading="Dependency materialization",
+                body=materialization_lines,
+                item_count=materialization_count,
+                truncated=materialization_truncated,
             ),
             PromptSection(
                 name="validation_hints",
@@ -3443,6 +3756,7 @@ def blocked_record(
         agent,
         run_override=worker_validation_mode,
     )
+    dependency_materialization_mode = effective_dependency_materialization_mode(task)
     return TaskRunRecord(
         id=task.id,
         title=task.title,
@@ -3478,6 +3792,7 @@ def blocked_record(
         stdout_path=None,
         stderr_path=None,
         result_path=None,
+        dependency_materialization_mode=dependency_materialization_mode,
         worker_validation_mode=validation_resolution.mode,
         worker_validation_mode_source=validation_resolution.source,
     )
@@ -3504,6 +3819,7 @@ def execute_task(
         run_override=worker_validation_mode,
     )
     effective_validation_mode = validation_resolution.mode
+    dependency_materialization_mode = effective_dependency_materialization_mode(task)
     model_name = resolved_model(task, agent)
     model_profile = resolved_model_profile(task, agent)
     workspace_mode = effective_workspace_mode(task, agent)
@@ -3512,8 +3828,18 @@ def execute_task(
     task_dir = run_dir / "tasks" / task.id
     task_dir.mkdir(parents=True, exist_ok=True)
     prepared_workspace = ROOT if workspace_mode == "repo" else workspace_path
+    prepared_dependency_layers: list[DependencyLayerRecord] = []
     if not dry_run:
-        prepared_workspace = prepare_workspace(plan, task, workspace_mode, workspace_path, runtime_root)
+        preparation = prepare_workspace(
+            plan,
+            task,
+            workspace_mode,
+            workspace_path,
+            runtime_root,
+            dependency_records,
+        )
+        prepared_workspace = preparation.workspace_path
+        prepared_dependency_layers = preparation.dependency_layers_applied
     prompt_render = worker_prompt(
         plan,
         task,
@@ -3521,6 +3847,9 @@ def execute_task(
         workspace_mode,
         prepared_workspace,
         dependency_summary(dependency_records, task),
+        dependency_materialization_mode=dependency_materialization_mode,
+        dependency_layers_applied=prepared_dependency_layers,
+        dry_run=dry_run,
         worker_validation_mode=effective_validation_mode,
     )
     prompt = prompt_render.text
@@ -3583,6 +3912,8 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            dependency_materialization_mode=dependency_materialization_mode,
+            dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
             worker_validation_mode_source=validation_resolution.source,
         )
@@ -3619,6 +3950,8 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            dependency_materialization_mode=dependency_materialization_mode,
+            dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
             worker_validation_mode_source=validation_resolution.source,
         )
@@ -3683,6 +4016,8 @@ def execute_task(
                 stdout_path=str(stdout_path),
                 stderr_path=str(stderr_path),
                 result_path=None,
+                dependency_materialization_mode=dependency_materialization_mode,
+                dependency_layers_applied=prepared_dependency_layers,
                 worker_validation_mode=effective_validation_mode,
                 worker_validation_mode_source=validation_resolution.source,
             )
@@ -3740,6 +4075,8 @@ def execute_task(
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
             unknown_fields=[str(item) for item in payload.get("unknownFields", [])],
+            dependency_materialization_mode=dependency_materialization_mode,
+            dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
             worker_validation_mode_source=validation_resolution.source,
         )
@@ -3787,6 +4124,8 @@ def execute_task(
             stdout_path=str(stdout_path) if stdout_path.exists() else None,
             stderr_path=str(stderr_path),
             result_path=None,
+            dependency_materialization_mode=dependency_materialization_mode,
+            dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
             worker_validation_mode_source=validation_resolution.source,
         )
@@ -3939,6 +4278,7 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
                     "model": task.model,
                     "modelProfile": task.model_profile,
                     "contextMode": task.context_mode,
+                    "dependencyMaterialization": task.dependency_materialization,
                     "workerValidationMode": task.worker_validation_mode,
                     "effort": task.effort,
                     "permissionMode": task.permission_mode,
@@ -4760,6 +5100,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                         "agent": task.agent,
                         "readPaths": effective_task_read_paths(plan, task),
                         "writePaths": effective_task_write_scope(task),
+                        "dependencyMaterialization": effective_dependency_materialization_mode(task),
                         "workerValidationMode": task_worker_validation_modes[task.id],
                         "workerValidationModeSource": task_worker_validation_mode_sources[task.id],
                     }

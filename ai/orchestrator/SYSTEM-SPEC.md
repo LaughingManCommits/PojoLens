@@ -59,6 +59,7 @@ This file defines the portable contract for recreating the repository's AI memor
   - `sharedContext.readPaths` for cross-task read context
   - task-local `readPaths` for additional read context
   - task-local `writePaths` for allowed edits
+  - optional `dependencyMaterialization` with default `summary-only` and opt-in `apply-reviewed`
   - constraints and validation hints
   - optional `contextMode` to keep worker prompts minimal by default
   - optional `modelProfile` to trade off speed, cost, and depth
@@ -72,10 +73,12 @@ This file defines the portable contract for recreating the repository's AI memor
   - include task-local read context and write scope unless fuller shared context is explicitly required
 - include task-local validation hints by default
 - dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
+- dependency handoff should remain `summary-only` by default; `dependencyMaterialization = apply-reviewed` should be opt-in for downstream `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before they run
 - reviewer-oriented dependency handoff should also include bounded changed-file summaries and diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
 - Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
+- When `dependencyMaterialization = apply-reviewed`, the coordinator should replay reviewed dependency layers into the downstream `copy` or `worktree` workspace after base hydration, reject ambiguous overlaps across direct dependencies, and record which dependency layers were applied.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Live planner, worker, and coordinator validation execution should emit progress lines on interactive `stderr` only, with phase-tagged status text, so operators can see in-flight work without contaminating machine-readable `stdout`.
 - Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and `validationIntents` should stay capped to a few high-signal suggestions.
@@ -112,11 +115,13 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
 - Planner output should prefer `copy` workspaces plus concrete `readPaths` and conservative `writePaths`.
 - The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths or fall outside declared `writePaths`.
+- `dependencyMaterialization = apply-reviewed` should be rejected for `workspaceMode = repo` and should require direct dependencies whose effective workspace mode is `copy` or `worktree`.
 - The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and `validationIntents` to a few high-signal items, preserve explicit unknown list fields in task records before writing manifests, and normalize structured `validationIntents` into a safe manifest form.
 - Worker validation suggestions should use structured `validationIntents` for direct repo-local script invocations or approved tool commands in all live worker paths; legacy raw `validationCommands` survive only in old manifests or review-time interpretation, and shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - When a legacy raw `validationCommand` already matches a safe direct tool or repo-script shape, the coordinator should preserve the original command text for review while also normalizing it into an argv-safe execution form so accepted legacy commands do not require shell execution.
 - Validation surfaces should expose each task's effective worker validation mode plus its source (`override`, `task`, `agent`, or `default`) so authoring and runtime policy are inspectable.
 - Run manifests should record the summarized effective worker validation mode, any explicit override, per-task modes, and per-task sources so runtime enforcement choices are visible during review and retry.
+- Task records, review output, promotion summaries, and retry manifests should surface the effective dependency-materialization mode plus the applied dependency layers so chained workspace state is inspectable.
 - Coordinator-side promotion should refuse `workspaceMode="repo"` task changes, protected-path violations, duplicate changed-file ownership across selected tasks, and path traversal outside the repo root.
 - Coordinator-side retry may reuse completed dependency records from the prior run manifest, but incomplete dependencies must be rerun rather than assumed.
 - Legacy manifest `validationCommands` remain suggestions for review-time validation; coordinator-run validation results should be persisted separately so manifests distinguish suggested validation from actually executed validation.
