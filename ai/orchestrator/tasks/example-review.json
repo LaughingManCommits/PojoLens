@@ -8,7 +8,7 @@
       "Keep work bounded to repository guidance and local scripts.",
       "Do not edit TODO.md or ai/state files."
     ],
-    "files": [
+    "readPaths": [
       "AGENTS.md",
       "ai/AGENTS.md",
       "ai/orchestrator/README.md",
@@ -26,7 +26,7 @@
       "agent": "analyst",
       "modelProfile": "simple",
       "prompt": "Read the orchestration guide and agent workflow docs. Summarize the three most important coordinator rules and note any obvious gaps in the MVP.",
-      "files": [
+      "readPaths": [
         "AGENTS.md",
         "ai/AGENTS.md",
         "ai/orchestrator/README.md",
@@ -43,7 +43,7 @@
       "dependsOn": [
         "inspect-guidance"
       ],
-      "files": [
+      "readPaths": [
         "AGENTS.md",
         "ai/AGENTS.md",
         "ai/orchestrator/README.md",

@@ -8,7 +8,7 @@
       "Keep work bounded to AI memory and orchestration guidance.",
       "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
     ],
-    "files": [
+    "readPaths": [
       "AGENTS.md",
       "ai/AGENTS.md",
       "ai/orchestrator/README.md",
@@ -27,7 +27,7 @@
       "agent": "analyst",
       "modelProfile": "simple",
       "prompt": "Read the agent workflow and AI memory guide. Summarize the hot-context rules and the two most important memory freshness requirements.",
-      "files": [
+      "readPaths": [
         "AGENTS.md",
         "ai/AGENTS.md",
         "ai/orchestrator/SYSTEM-SPEC.md"
@@ -40,7 +40,7 @@
       "agent": "analyst",
       "modelProfile": "simple",
       "prompt": "Read the orchestrator guide and runtime script. Summarize the repo-local runtime layout, workspace modes, and the concurrency safety rules.",
-      "files": [
+      "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
         "scripts/claude-orchestrator.py"
@@ -57,7 +57,7 @@
         "inspect-memory-contract",
         "inspect-runtime-contract"
       ],
-      "files": [
+      "readPaths": [
         "AGENTS.md",
         "ai/AGENTS.md",
         "ai/orchestrator/README.md",

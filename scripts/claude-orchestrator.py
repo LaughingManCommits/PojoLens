@@ -157,10 +157,10 @@ PLAN_RESULT_SCHEMA = {
             "properties": {
                 "summary": {"type": "string"},
                 "constraints": {"type": "array", "items": {"type": "string"}},
-                "files": {"type": "array", "items": {"type": "string"}},
+                "readPaths": {"type": "array", "items": {"type": "string"}},
                 "validation": {"type": "array", "items": {"type": "string"}},
             },
-            "required": ["summary", "constraints", "files", "validation"],
+            "required": ["summary", "constraints", "readPaths", "validation"],
             "additionalProperties": False,
         },
         "tasks": {
@@ -173,7 +173,8 @@ PLAN_RESULT_SCHEMA = {
                     "agent": {"type": "string"},
                     "prompt": {"type": "string"},
                     "dependsOn": {"type": "array", "items": {"type": "string"}},
-                    "files": {"type": "array", "items": {"type": "string"}},
+                    "readPaths": {"type": "array", "items": {"type": "string"}},
+                    "writePaths": {"type": "array", "items": {"type": "string"}},
                     "constraints": {"type": "array", "items": {"type": "string"}},
                     "validation": {"type": "array", "items": {"type": "string"}},
                     "workspaceMode": {
@@ -240,8 +241,12 @@ class AgentDefinition:
 class SharedContext:
     summary: str
     constraints: list[str]
-    files: list[str]
+    read_paths: list[str]
     validation: list[str]
+
+    @property
+    def files(self) -> list[str]:
+        return self.read_paths
 
 
 @dataclass(frozen=True)
@@ -251,7 +256,8 @@ class TaskDefinition:
     agent: str
     prompt: str
     depends_on: list[str] = field(default_factory=list)
-    files: list[str] = field(default_factory=list)
+    read_paths: list[str] = field(default_factory=list)
+    write_paths: list[str] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
     validation: list[str] = field(default_factory=list)
     workspace_mode: str | None = None
@@ -267,6 +273,10 @@ class TaskDefinition:
     max_prompt_estimated_tokens: int | None = None
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
+
+    @property
+    def files(self) -> list[str]:
+        return self.read_paths
 
 
 @dataclass(frozen=True)
@@ -366,6 +376,7 @@ class TaskRunRecord:
     result_path: str | None
     validation_intents: list[ValidationIntent] = field(default_factory=list)
     unknown_fields: list[str] = field(default_factory=list)
+    write_scope_violations: list[str] = field(default_factory=list)
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE
     worker_validation_mode_source: str | None = None
 
@@ -426,7 +437,7 @@ def parse_args() -> argparse.Namespace:
         dest="files",
         action="append",
         default=[],
-        help="Repo-relative file or directory hint to include in planner context. Repeatable.",
+        help="Repo-relative read-context hint to include in planner context. Repeatable.",
     )
     plan_parser.add_argument(
         "--constraint",
@@ -832,6 +843,23 @@ def require_string_list(payload: dict[str, Any], key: str, *, location: str) -> 
     return [item.strip() for item in value]
 
 
+def require_scope_path_list(
+    payload: dict[str, Any],
+    key: str,
+    *,
+    location: str,
+    allow_repo_root: bool = False,
+) -> list[str]:
+    raw_values = require_string_list(payload, key, location=location)
+    normalized: list[str] = []
+    for raw_value in raw_values:
+        if allow_repo_root and raw_value.strip() == ".":
+            normalized.append(".")
+            continue
+        normalized.append(normalize_relative_path(raw_value, location=f"{location}:{key}"))
+    return dedupe_strings(normalized)
+
+
 def ensure_workspace_mode(value: str | None, *, location: str) -> str | None:
     if value is None:
         return None
@@ -936,10 +964,19 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
     shared_context_payload = payload.get("sharedContext", {})
     if not isinstance(shared_context_payload, dict):
         raise OrchestratorError(f"{path}: sharedContext must be an object")
+    if "files" in shared_context_payload:
+        raise OrchestratorError(
+            f"{path}:sharedContext: legacy 'files' was replaced by 'readPaths'"
+        )
     shared_context = SharedContext(
         summary=require_string(shared_context_payload, "summary", location=f"{path}:sharedContext"),
         constraints=require_string_list(shared_context_payload, "constraints", location=f"{path}:sharedContext"),
-        files=require_string_list(shared_context_payload, "files", location=f"{path}:sharedContext"),
+        read_paths=require_scope_path_list(
+            shared_context_payload,
+            "readPaths",
+            location=f"{path}:sharedContext",
+            allow_repo_root=True,
+        ),
         validation=require_string_list(shared_context_payload, "validation", location=f"{path}:sharedContext"),
     )
     raw_tasks = payload.get("tasks")
@@ -963,6 +1000,10 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
         agent_name = require_string(task_payload, "agent", location=location)
         if agent_name not in agents:
             raise OrchestratorError(f"{location}: unknown agent '{agent_name}'")
+        if "files" in task_payload:
+            raise OrchestratorError(
+                f"{location}: legacy 'files' was replaced by 'readPaths' and 'writePaths'"
+            )
         worker_validation_mode = require_optional_string(
             task_payload,
             "workerValidationMode",
@@ -974,7 +1015,18 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             agent=agent_name,
             prompt=require_string(task_payload, "prompt", location=location),
             depends_on=require_string_list(task_payload, "dependsOn", location=location),
-            files=require_string_list(task_payload, "files", location=location),
+            read_paths=require_scope_path_list(
+                task_payload,
+                "readPaths",
+                location=location,
+                allow_repo_root=True,
+            ),
+            write_paths=require_scope_path_list(
+                task_payload,
+                "writePaths",
+                location=location,
+                allow_repo_root=True,
+            ),
             constraints=require_string_list(task_payload, "constraints", location=location),
             validation=require_string_list(task_payload, "validation", location=location),
             workspace_mode=ensure_workspace_mode(
@@ -1081,19 +1133,103 @@ def task_may_write(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition)
     return any(tool in WRITE_CAPABLE_TOOLS for tool in effective_allowed_tools(task, agent))
 
 
-def effective_task_scopes(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition) -> list[str]:
-    if effective_workspace_mode(task, agent) == "repo":
-        return ["."]
-    scopes = []
-    for item in dedupe_strings(task.files or plan.shared_context.files):
-        relative = Path(item)
-        if relative.is_absolute():
+def effective_task_read_paths(plan: TaskPlan, task: TaskDefinition) -> list[str]:
+    return dedupe_strings(plan.shared_context.read_paths + task.read_paths)
+
+
+def effective_task_write_scope(task: TaskDefinition) -> list[str]:
+    return dedupe_strings(task.write_paths)
+
+
+def path_within_scope(path: str, scope: str) -> bool:
+    return scope == "." or path == scope or path.startswith(f"{scope}/")
+
+
+def paths_outside_scope(paths: list[str], declared_scope: list[str]) -> list[str]:
+    if "." in declared_scope:
+        return []
+    outside = []
+    for path in dedupe_strings(paths):
+        normalized = normalize_relative_path(path, location=f"scope audit path '{path}'")
+        if any(path_within_scope(normalized, scope) for scope in declared_scope):
             continue
-        normalized = relative.as_posix().strip("/")
-        if not normalized or normalized == ".":
-            return ["."]
-        scopes.append(normalized)
-    return scopes or ["."]
+        outside.append(normalized)
+    return outside
+
+
+def analyze_copy_hydration_inputs(
+    plan: TaskPlan,
+    task: TaskDefinition,
+) -> dict[str, list[str]]:
+    files_to_copy: list[str] = []
+    missing_read_paths: list[str] = []
+    directory_read_paths: list[str] = []
+    oversized_files: list[str] = []
+    for read_path in effective_task_read_paths(plan, task):
+        _, source = resolve_relative_path(ROOT, read_path, location=f"{task.id}:readPaths")
+        if not source.exists():
+            missing_read_paths.append(read_path)
+            continue
+        if source.is_dir():
+            directory_read_paths.append(read_path)
+            continue
+        if source.stat().st_size > MAX_HYDRATED_FILE_BYTES:
+            oversized_files.append(read_path)
+            continue
+        files_to_copy.append(read_path)
+    for write_path in effective_task_write_scope(task):
+        _, source = resolve_relative_path(ROOT, write_path, location=f"{task.id}:writePaths")
+        if not source.exists() or source.is_dir():
+            continue
+        if source.stat().st_size > MAX_HYDRATED_FILE_BYTES:
+            oversized_files.append(write_path)
+            continue
+        files_to_copy.append(write_path)
+    return {
+        "filesToCopy": dedupe_strings(files_to_copy),
+        "missingReadPaths": dedupe_strings(missing_read_paths),
+        "directoryReadPaths": dedupe_strings(directory_read_paths),
+        "oversizedPaths": dedupe_strings(oversized_files),
+    }
+
+
+def validate_task_scope_contract(
+    plan: TaskPlan,
+    task: TaskDefinition,
+    agent: AgentDefinition,
+) -> list[str]:
+    issues: list[str] = []
+    if task_may_write(plan, task, agent) and not effective_task_write_scope(task):
+        issues.append("write-capable tasks must declare non-empty writePaths")
+    workspace_mode = effective_workspace_mode(task, agent)
+    if workspace_mode == "copy":
+        hydration = analyze_copy_hydration_inputs(plan, task)
+        if hydration["missingReadPaths"]:
+            issues.append(
+                "copy readPaths are missing from the repo: "
+                f"{summarize_paths(hydration['missingReadPaths'])}"
+            )
+        if hydration["directoryReadPaths"]:
+            issues.append(
+                "copy readPaths must be concrete files, not directories: "
+                f"{summarize_paths(hydration['directoryReadPaths'])}"
+            )
+        if hydration["oversizedPaths"]:
+            issues.append(
+                "copy workspace inputs exceed the hydration size limit: "
+                f"{summarize_paths(hydration['oversizedPaths'])}"
+            )
+    return issues
+
+
+def validate_scope_contract(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> None:
+    issues: list[str] = []
+    for task in plan.tasks:
+        task_issues = validate_task_scope_contract(plan, task, agents[task.agent])
+        for issue in task_issues:
+            issues.append(f"{task.id}: {issue}")
+    if issues:
+        raise OrchestratorError(format_issue_block("Task scope validation failed", issues))
 
 
 def overlapping_scope_entries(left: list[str], right: list[str]) -> list[str]:
@@ -1118,14 +1254,14 @@ def detect_parallel_scope_conflicts(plan: TaskPlan, agents: dict[str, AgentDefin
             left_agent = agents[left_task.agent]
             if not task_may_write(plan, left_task, left_agent):
                 continue
-            left_scopes = effective_task_scopes(plan, left_task, left_agent)
+            left_scopes = effective_task_write_scope(left_task)
             for right_task in batch[left_index + 1 :]:
                 right_agent = agents[right_task.agent]
                 if not task_may_write(plan, right_task, right_agent):
                     continue
                 overlaps = overlapping_scope_entries(
                     left_scopes,
-                    effective_task_scopes(plan, right_task, right_agent),
+                    effective_task_write_scope(right_task),
                 )
                 if not overlaps:
                     continue
@@ -1155,12 +1291,12 @@ def select_parallel_ready_batch(
         if not task_may_write(plan, candidate, candidate_agent):
             selected.append(candidate)
             continue
-        candidate_scopes = effective_task_scopes(plan, candidate, candidate_agent)
+        candidate_scopes = effective_task_write_scope(candidate)
         if any(
             task_may_write(plan, chosen, agents[chosen.agent])
             and overlapping_scope_entries(
                 candidate_scopes,
-                effective_task_scopes(plan, chosen, agents[chosen.agent]),
+                effective_task_write_scope(chosen),
             )
             for chosen in selected
         ):
@@ -1339,10 +1475,10 @@ def resolve_relative_path(root: Path, relative_path: str, *, location: str) -> t
     return normalized, candidate
 
 
-def hydrate_copy_workspace(workspace_path: Path, file_hints: list[str]) -> None:
+def hydrate_copy_workspace(workspace_path: Path, file_paths: list[str]) -> None:
     copied: set[Path] = set()
     workspace_path.mkdir(parents=True, exist_ok=True)
-    for hint in dedupe_strings(list(SPARSE_COPY_BASE_FILES) + file_hints):
+    for hint in dedupe_strings(list(SPARSE_COPY_BASE_FILES) + file_paths):
         relative = Path(hint)
         if relative.is_absolute():
             continue
@@ -1377,7 +1513,28 @@ def prepare_workspace(
     if action is not None:
         emit_slop_log(action)
     if workspace_mode == "copy":
-        hydrate_copy_workspace(workspace_path, plan.shared_context.files + task.files)
+        hydration = analyze_copy_hydration_inputs(plan, task)
+        hydration_issues: list[str] = []
+        if hydration["missingReadPaths"]:
+            hydration_issues.append(
+                "copy readPaths are missing from the repo: "
+                f"{summarize_paths(hydration['missingReadPaths'])}"
+            )
+        if hydration["directoryReadPaths"]:
+            hydration_issues.append(
+                "copy readPaths must be concrete files, not directories: "
+                f"{summarize_paths(hydration['directoryReadPaths'])}"
+            )
+        if hydration["oversizedPaths"]:
+            hydration_issues.append(
+                "copy workspace inputs exceed the hydration size limit: "
+                f"{summarize_paths(hydration['oversizedPaths'])}"
+            )
+        if hydration_issues:
+            raise OrchestratorError(
+                format_issue_block(f"{task.id}: invalid copy workspace inputs", hydration_issues)
+            )
+        hydrate_copy_workspace(workspace_path, hydration["filesToCopy"])
         return workspace_path
     if workspace_mode == "worktree":
         ensure_clean_for_worktrees()
@@ -1439,11 +1596,16 @@ def protected_path_violations(paths: list[str]) -> list[str]:
     return dedupe_strings(violations)
 
 
+def write_scope_violations(paths: list[str], declared_scope: list[str]) -> list[str]:
+    return paths_outside_scope(paths, declared_scope)
+
+
 def apply_workspace_audit(
     record: TaskRunRecord,
     *,
     reported_files: list[str],
     actual_files: list[str],
+    declared_write_scope: list[str],
 ) -> TaskRunRecord:
     record.actual_files_touched = list(actual_files)
     record.files_touched = dedupe_strings(actual_files + reported_files)
@@ -1459,14 +1621,34 @@ def apply_workspace_audit(
                 "Workspace diff found files not reported by the worker: "
                 f"{summarize_paths(actual_only)}"
             )
-    violations = protected_path_violations(record.files_touched)
-    record.protected_path_violations = violations
-    if violations:
+    protected_violations = protected_path_violations(record.files_touched)
+    record.protected_path_violations = protected_violations
+    scope_violations = write_scope_violations(actual_files, declared_write_scope)
+    record.write_scope_violations = scope_violations
+    failure_reasons: list[str] = []
+    if protected_violations:
+        failure_reasons.append(
+            "Protected-path violation: "
+            f"{summarize_paths(protected_violations)}"
+        )
+    if scope_violations:
+        failure_reasons.append(
+            "Write-scope violation: "
+            f"{summarize_paths(scope_violations)}"
+        )
+    if failure_reasons:
         record.status = "failed"
-        record.summary = f"Protected-path violation: {summarize_paths(violations)}. Original outcome: {record.summary}"
-        follow_up = "Inspect and discard or manually review forbidden workspace edits before promotion."
-        if follow_up not in record.follow_ups:
-            record.follow_ups.insert(0, follow_up)
+        record.summary = "; ".join(failure_reasons) + f". Original outcome: {record.summary}"
+        follow_ups = [
+            "Inspect and discard or manually review forbidden workspace edits before promotion.",
+            "Inspect and discard or manually review out-of-scope workspace edits before promotion.",
+        ]
+        for follow_up in reversed(follow_ups):
+            if follow_up not in record.follow_ups and (
+                ("forbidden" in follow_up and protected_violations)
+                or ("out-of-scope" in follow_up and scope_violations)
+            ):
+                record.follow_ups.insert(0, follow_up)
     return record
 
 
@@ -1538,6 +1720,9 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         actual_files_touched=[str(item) for item in payload.get("actual_files_touched", []) or []],
         protected_path_violations=[
             str(item) for item in payload.get("protected_path_violations", []) or []
+        ],
+        write_scope_violations=[
+            str(item) for item in payload.get("write_scope_violations", []) or []
         ],
         validation_commands=[str(item) for item in payload.get("validation_commands", []) or []],
         follow_ups=[str(item) for item in payload.get("follow_ups", []) or []],
@@ -1747,6 +1932,7 @@ def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[d
             "workspaceMode": record.workspace_mode,
             "workspacePath": record.workspace_path,
             "protectedPathViolations": record.protected_path_violations,
+            "writeScopeViolations": record.write_scope_violations,
             "unknownFields": record.unknown_fields,
             "filesReported": record.files_touched,
             "filesObserved": record.actual_files_touched,
@@ -1917,6 +2103,7 @@ def task_promotion_operations(record: TaskRunRecord) -> tuple[dict[str, Any], li
             "workspaceMode": record.workspace_mode,
             "workspacePath": record.workspace_path,
             "protectedPathViolations": record.protected_path_violations,
+            "writeScopeViolations": record.write_scope_violations,
             "filesPromotable": len(operations),
             "unsupportedFiles": unsupported_paths,
             "operations": operations,
@@ -1938,6 +2125,11 @@ def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], 
             issues.append(
                 f"{record.id}: protected-path violations must be reviewed manually: "
                 f"{summarize_paths(record.protected_path_violations)}"
+            )
+        if record.write_scope_violations:
+            issues.append(
+                f"{record.id}: write-scope violations must be reviewed manually: "
+                f"{summarize_paths(record.write_scope_violations)}"
             )
         if task_payload["unsupportedFiles"]:
             issues.append(
@@ -2071,7 +2263,9 @@ def planner_prompt(
             '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
             '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
             "Live worker validation suggestions are structured-intent-only; do not plan around raw worker `validationCommands`.",
-            "Keep file lists repo-relative, concrete, and file-based for copy workspaces.",
+            "Use `sharedContext.readPaths` for cross-task context, task `readPaths` for task-local context, and task `writePaths` for allowed edits.",
+            "Keep `readPaths` repo-relative and concrete. In copy mode they must point at existing files, not directories.",
+            "Keep `writePaths` conservative and only as wide as the task needs. Use directory scopes only when multiple sibling edits are intentional.",
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
             "Put cross-task setup in `sharedContext`.",
@@ -2099,7 +2293,7 @@ def planner_prompt(
             ),
             PromptSection(
                 name="file_hints",
-                heading="File hints",
+                heading="Read hints",
                 body=file_lines,
                 item_count=file_count,
                 truncated=files_truncated,
@@ -2664,7 +2858,8 @@ def worker_prompt(
         worker_validation_mode,
         location=f"task '{task.id}' worker validation mode",
     )
-    relevant_files = dedupe_strings(task.files or plan.shared_context.files)
+    read_paths = effective_task_read_paths(plan, task)
+    write_paths = effective_task_write_scope(task)
     constraints = dedupe_strings(plan.shared_context.constraints + task.constraints)
     validation_hints = (
         dedupe_strings(task.validation)
@@ -2672,13 +2867,18 @@ def worker_prompt(
         else dedupe_strings(plan.shared_context.validation + task.validation)
     )
     workspace_rule = {
-        "copy": "Isolated sparse filesystem copy seeded from AGENTS files plus explicit file hints from the current working tree. Edit only inside this copy.",
+        "copy": "Isolated sparse filesystem copy seeded from AGENTS files plus declared read context and existing write-scope files from the current working tree. Edit only inside this copy.",
         "repo": "Live repo root. Treat this as high-risk and avoid incidental edits.",
         "worktree": "Detached git worktree rooted at HEAD. Root-repo uncommitted changes are not present.",
     }[workspace_mode]
-    file_lines, file_count, files_truncated = format_bullet_list(
-        relevant_files,
+    read_path_lines, read_path_count, read_paths_truncated = format_bullet_list(
+        read_paths,
         empty_line="- none",
+        code_format=True,
+    )
+    write_path_lines, write_path_count, write_paths_truncated = format_bullet_list(
+        write_paths,
+        empty_line="- read-only task; do not make edits",
         code_format=True,
     )
     constraint_lines, constraint_count, constraints_truncated = format_bullet_list(
@@ -2693,7 +2893,8 @@ def worker_prompt(
     worker_rules, rule_count, rules_truncated = format_bullet_list(
         [
             "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
-            "Use only the task repo root and explicit file hints. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
+            "Use only the task repo root plus the declared read context and write scope. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
+            "Treat `writePaths` as the allowed edit contract. If the task is read-only, do not make edits.",
             "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationIntents` to <=2 high-signal suggestions.",
             "Use `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty. Use `null` only for `filesTouched`, `followUps`, or `notes` when the value is genuinely unknown or unverified.",
@@ -2732,11 +2933,18 @@ def worker_prompt(
             PromptSection(name="task_identity", heading="Task id/title", body=f"{task.id} / {task.title}"),
             PromptSection(name="task_objective", heading="Task objective", body=task.prompt),
             PromptSection(
-                name="file_hints",
-                heading="Relevant file hints",
-                body=file_lines,
-                item_count=file_count,
-                truncated=files_truncated,
+                name="read_paths",
+                heading="Read context",
+                body=read_path_lines,
+                item_count=read_path_count,
+                truncated=read_paths_truncated,
+            ),
+            PromptSection(
+                name="write_paths",
+                heading="Write scope",
+                body=write_path_lines,
+                item_count=write_path_count,
+                truncated=write_paths_truncated,
             ),
             PromptSection(
                 name="constraints",
@@ -3248,6 +3456,7 @@ def blocked_record(
         files_touched=[],
         actual_files_touched=[],
         protected_path_violations=[],
+        write_scope_violations=[],
         validation_commands=[],
         follow_ups=[reason],
         notes=[],
@@ -3298,6 +3507,7 @@ def execute_task(
     model_name = resolved_model(task, agent)
     model_profile = resolved_model_profile(task, agent)
     workspace_mode = effective_workspace_mode(task, agent)
+    declared_write_scope = effective_task_write_scope(task)
     workspace_path = workspaces_dir / task.id
     task_dir = run_dir / "tasks" / task.id
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -3356,6 +3566,7 @@ def execute_task(
             files_touched=[],
             actual_files_touched=[],
             protected_path_violations=[],
+            write_scope_violations=[],
             validation_commands=[],
             follow_ups=["Reduce the task prompt scope, dependency summary, or validation hints."],
             notes=[],
@@ -3391,6 +3602,7 @@ def execute_task(
             files_touched=[],
             actual_files_touched=[],
             protected_path_violations=[],
+            write_scope_violations=[],
             validation_commands=[],
             follow_ups=[],
             notes=[],
@@ -3454,6 +3666,7 @@ def execute_task(
                 files_touched=[],
                 actual_files_touched=[],
                 protected_path_violations=[],
+                write_scope_violations=[],
                 validation_commands=[],
                 follow_ups=["Inspect stderr/stdout artifacts for details."],
                 notes=[],
@@ -3473,7 +3686,12 @@ def execute_task(
                 worker_validation_mode=effective_validation_mode,
                 worker_validation_mode_source=validation_resolution.source,
             )
-            apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
+            apply_workspace_audit(
+                record,
+                reported_files=[],
+                actual_files=actual_changed_files,
+                declared_write_scope=declared_write_scope,
+            )
             write_json(result_path, asdict(record))
             return record
 
@@ -3497,6 +3715,7 @@ def execute_task(
             files_touched=[str(item) for item in payload["filesTouched"]],
             actual_files_touched=[],
             protected_path_violations=[],
+            write_scope_violations=[],
             validation_intents=[
                 coerce_validation_intent_payload(
                     item,
@@ -3528,6 +3747,7 @@ def execute_task(
             record,
             reported_files=[str(item) for item in payload["filesTouched"]],
             actual_files=actual_changed_files,
+            declared_write_scope=declared_write_scope,
         )
         write_json(result_path, asdict(record))
         return record
@@ -3550,6 +3770,7 @@ def execute_task(
             files_touched=[],
             actual_files_touched=[],
             protected_path_violations=[],
+            write_scope_violations=[],
             validation_commands=[],
             follow_ups=["Retry after fixing the worker failure."],
             notes=[],
@@ -3569,7 +3790,12 @@ def execute_task(
             worker_validation_mode=effective_validation_mode,
             worker_validation_mode_source=validation_resolution.source,
         )
-        apply_workspace_audit(record, reported_files=[], actual_files=actual_changed_files)
+        apply_workspace_audit(
+            record,
+            reported_files=[],
+            actual_files=actual_changed_files,
+            declared_write_scope=declared_write_scope,
+        )
         write_json(result_path, asdict(record))
         return record
 
@@ -3692,7 +3918,12 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
             "version": plan.version,
             "name": plan.name,
             "goal": plan.goal,
-            "sharedContext": asdict(plan.shared_context),
+            "sharedContext": {
+                "summary": plan.shared_context.summary,
+                "constraints": plan.shared_context.constraints,
+                "readPaths": plan.shared_context.read_paths,
+                "validation": plan.shared_context.validation,
+            },
             "tasks": [
                 {
                     "id": task.id,
@@ -3700,7 +3931,8 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
                     "agent": task.agent,
                     "prompt": task.prompt,
                     "dependsOn": task.depends_on,
-                    "files": task.files,
+                    "readPaths": task.read_paths,
+                    "writePaths": task.write_paths,
                     "constraints": task.constraints,
                     "validation": task.validation,
                     "workspaceMode": task.workspace_mode,
@@ -3759,6 +3991,7 @@ def run_loaded_plan(
         run_override=worker_validation_override,
     )
     topological_batches(plan.tasks)
+    validate_scope_contract(plan, agents)
     if not dry_run:
         ensure_claude_available(claude_bin)
 
@@ -4510,6 +4743,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
     if args.task_plan:
         plan_path = Path(args.task_plan).resolve()
         plan = load_task_plan(plan_path, agents)
+        validate_scope_contract(plan, agents)
         task_worker_validation_modes = effective_plan_worker_validation_modes(plan, agents)
         task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(plan, agents)
         payload.update(
@@ -4524,6 +4758,8 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                     {
                         "id": task.id,
                         "agent": task.agent,
+                        "readPaths": effective_task_read_paths(plan, task),
+                        "writePaths": effective_task_write_scope(task),
                         "workerValidationMode": task_worker_validation_modes[task.id],
                         "workerValidationModeSource": task_worker_validation_mode_sources[task.id],
                     }

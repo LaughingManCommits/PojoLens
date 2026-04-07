@@ -45,6 +45,7 @@ def make_task_run_record(
         files_touched=[],
         actual_files_touched=[],
         protected_path_violations=[],
+        write_scope_violations=[],
         validation_commands=[],
         follow_ups=[],
         notes=[],
@@ -196,7 +197,7 @@ class PromptBudgetTest(unittest.TestCase):
             title="Inspect budget",
             agent="analyst",
             prompt="Review the orchestrator guidance and summarize the most important contract details.",
-            files=["AGENTS.md", "ai/orchestrator/README.md"],
+            read_paths=["AGENTS.md", "ai/orchestrator/README.md"],
             validation=["scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"],
         )
         plan = orchestrator.TaskPlan(
@@ -206,7 +207,7 @@ class PromptBudgetTest(unittest.TestCase):
             shared_context=orchestrator.SharedContext(
                 summary="Prompt-budget dry-run validation.",
                 constraints=["Keep the task small."],
-                files=["AGENTS.md"],
+                read_paths=["AGENTS.md"],
                 validation=[],
             ),
             tasks=[task],
@@ -321,7 +322,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Validation summary test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -368,12 +369,16 @@ class ValidateCommandTest(unittest.TestCase):
                 {
                     "id": "inspect",
                     "agent": "analyst",
+                    "readPaths": [],
+                    "writePaths": [],
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "agent",
                 },
                 {
                     "id": "implement",
                     "agent": "implementer",
+                    "readPaths": [],
+                    "writePaths": [],
                     "workerValidationMode": "intents-only",
                     "workerValidationModeSource": "task",
                 },
@@ -426,7 +431,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Compat rejection test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -522,7 +527,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Unknown agent test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -581,7 +586,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Cycle test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -608,6 +613,66 @@ class ValidateCommandTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 orchestrator.OrchestratorError,
                 "Task plan contains a dependency cycle",
+            ):
+                orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
+    def test_load_task_plan_rejects_legacy_files_field(self):
+        orchestrator = self.orchestrator
+        planner = orchestrator.AgentDefinition(
+            name="planner",
+            description="Plan",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="Analyze",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            plan_path = pathlib.Path(tempdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "legacy-files",
+                        "goal": "Reject legacy scope fields.",
+                        "sharedContext": {
+                            "summary": "Legacy scope test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect guidance.",
+                                "files": ["README.md"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "legacy 'files' was replaced by 'readPaths' and 'writePaths'",
             ):
                 orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
 
@@ -821,7 +886,7 @@ class ValidateCommandTest(unittest.TestCase):
             shared_context=orchestrator.SharedContext(
                 summary="Prompt test.",
                 constraints=[],
-                files=[],
+                read_paths=[],
                 validation=[],
             ),
             tasks=[task],
@@ -1131,21 +1196,21 @@ class ValidateCommandTest(unittest.TestCase):
             title="Edit alpha",
             agent="implementer",
             prompt="Edit alpha.",
-            files=["src/alpha/FileA.java"],
+            write_paths=["src/alpha/FileA.java"],
         )
         task_b = orchestrator.TaskDefinition(
             id="edit-alpha-child",
             title="Edit alpha child",
             agent="implementer",
             prompt="Edit alpha child.",
-            files=["src/alpha"],
+            write_paths=["src/alpha"],
         )
         task_c = orchestrator.TaskDefinition(
             id="review-docs",
             title="Review docs",
             agent="reviewer",
             prompt="Review docs.",
-            files=["README.md"],
+            read_paths=["README.md"],
         )
         plan = orchestrator.TaskPlan(
             version=1,
@@ -1154,7 +1219,7 @@ class ValidateCommandTest(unittest.TestCase):
             shared_context=orchestrator.SharedContext(
                 summary="Parallel safety test.",
                 constraints=[],
-                files=[],
+                read_paths=[],
                 validation=[],
             ),
             tasks=[task_a, task_b, task_c],
@@ -1214,11 +1279,134 @@ class ValidateCommandTest(unittest.TestCase):
             record,
             reported_files=["ai/state/current-state.md"],
             actual_files=[],
+            declared_write_scope=["docs"],
         )
 
         self.assertEqual("failed", audited.status)
         self.assertIn("ai/state/current-state.md", audited.protected_path_violations)
         self.assertIn("Protected-path violation", audited.summary)
+
+    def test_apply_workspace_audit_marks_write_scope_violation(self):
+        orchestrator = self.orchestrator
+        record = make_task_run_record(
+            orchestrator,
+            orchestrator.TaskDefinition(
+                id="edit-docs",
+                title="Edit docs",
+                agent="implementer",
+                prompt="Edit docs.",
+                write_paths=["docs"],
+            ),
+            status="completed",
+            summary="Completed safely.",
+            workspace_path="workspace",
+        )
+
+        audited = orchestrator.apply_workspace_audit(
+            record,
+            reported_files=["src/App.java"],
+            actual_files=["src/App.java"],
+            declared_write_scope=["docs"],
+        )
+
+        self.assertEqual("failed", audited.status)
+        self.assertEqual(["src/App.java"], audited.write_scope_violations)
+        self.assertIn("Write-scope violation", audited.summary)
+
+    def test_validate_scope_contract_requires_write_paths_for_write_capable_tasks(self):
+        orchestrator = self.orchestrator
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="impl",
+            prompt="Return JSON only.",
+            model_profile="balanced",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit", "Write"],
+            disallowed_tools=[],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="missing-write-scope",
+            goal="Reject implicit write scope.",
+            shared_context=orchestrator.SharedContext(
+                summary="Scope validation test.",
+                constraints=[],
+                read_paths=["README.md"],
+                validation=[],
+            ),
+            tasks=[
+                orchestrator.TaskDefinition(
+                    id="edit-readme",
+                    title="Edit README",
+                    agent="implementer",
+                    prompt="Edit the readme.",
+                    read_paths=["README.md"],
+                )
+            ],
+        )
+
+        with self.assertRaisesRegex(
+            orchestrator.OrchestratorError,
+            "write-capable tasks must declare non-empty writePaths",
+        ):
+            orchestrator.validate_scope_contract(plan, {"implementer": implementer})
+
+    def test_validate_scope_contract_rejects_copy_directory_read_paths(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            (repo_root / "docs").mkdir(parents=True)
+            (repo_root / "AGENTS.md").write_text("root guidance\n", encoding="utf-8")
+            (repo_root / "ai").mkdir(parents=True)
+            (repo_root / "ai" / "AGENTS.md").write_text("ai guidance\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="bad-copy-read-path",
+                    goal="Reject directory read paths.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Scope validation test.",
+                        constraints=[],
+                        read_paths=["docs"],
+                        validation=[],
+                    ),
+                    tasks=[
+                        orchestrator.TaskDefinition(
+                            id="inspect-docs",
+                            title="Inspect docs",
+                            agent="analyst",
+                            prompt="Inspect docs.",
+                        )
+                    ],
+                )
+
+                with self.assertRaisesRegex(
+                    orchestrator.OrchestratorError,
+                    "copy readPaths must be concrete files, not directories",
+                ):
+                    orchestrator.validate_scope_contract(plan, {"analyst": analyst})
+            finally:
+                orchestrator.ROOT = old_root
 
     def test_prepare_workspace_copy_is_sparse(self):
         orchestrator = self.orchestrator
@@ -1247,7 +1435,7 @@ class ValidateCommandTest(unittest.TestCase):
                     shared_context=orchestrator.SharedContext(
                         summary="Sparse workspace test.",
                         constraints=[],
-                        files=["docs/guide.md", "nested", "large.bin"],
+                        read_paths=["docs/guide.md"],
                         validation=[],
                     ),
                     tasks=[],
@@ -1257,7 +1445,7 @@ class ValidateCommandTest(unittest.TestCase):
                     title="Copy task",
                     agent="analyst",
                     prompt="Inspect sparse workspace.",
-                    files=["notes.txt", "nested/hinted.txt"],
+                    read_paths=["notes.txt", "nested/hinted.txt"],
                     workspace_mode="copy",
                 )
 
@@ -1308,7 +1496,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Worktree failure test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task],
@@ -1402,7 +1590,7 @@ class ValidateCommandTest(unittest.TestCase):
                     shared_context=orchestrator.SharedContext(
                         summary="Worker JSON failure test.",
                         constraints=[],
-                        files=[],
+                        read_paths=[],
                         validation=[],
                     ),
                     tasks=[task],
@@ -1493,7 +1681,7 @@ class ValidateCommandTest(unittest.TestCase):
                     shared_context=orchestrator.SharedContext(
                         summary="Worker intent-only failure test.",
                         constraints=[],
-                        files=[],
+                        read_paths=[],
                         validation=[],
                     ),
                     tasks=[task],
@@ -1565,7 +1753,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Fail-fast test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task_fail, task_ready],
@@ -1673,7 +1861,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Dependency blocking test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task_fail, task_blocked, task_independent],
@@ -1788,7 +1976,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Tracked mode test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task_a, task_b],
@@ -1900,7 +2088,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Override mode test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task],
@@ -2001,7 +2189,7 @@ class ValidateCommandTest(unittest.TestCase):
                 shared_context=orchestrator.SharedContext(
                     summary="Compat rejection test.",
                     constraints=[],
-                    files=[],
+                    read_paths=[],
                     validation=[],
                 ),
                 tasks=[task],
@@ -2420,7 +2608,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Retry test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -2604,7 +2792,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Retry test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -2790,7 +2978,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Retry test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [
@@ -2976,7 +3164,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "sharedContext": {
                             "summary": "Retry test.",
                             "constraints": [],
-                            "files": [],
+                            "readPaths": [],
                             "validation": [],
                         },
                         "tasks": [

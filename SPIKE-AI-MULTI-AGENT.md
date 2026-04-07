@@ -39,14 +39,18 @@ It is still weak for:
 
 ## Verified Baseline
 
-As of `2026-04-06`, the following are real in code and docs:
+As of `2026-04-07`, the following are real in code and docs:
 
-- sparse `copy` workspaces seed only `AGENTS.md`, `ai/AGENTS.md`, and explicit
-  file hints
+- task plans use explicit `sharedContext.readPaths`, task `readPaths`, and task
+  `writePaths` instead of overloading task `files`
+- sparse `copy` workspaces seed `AGENTS.md`, `ai/AGENTS.md`, declared
+  `readPaths`, and any existing file-backed `writePaths`
+- copy-mode validation surfaces missing or directory `readPaths` and oversized
+  hydration inputs instead of skipping them silently
 - overlapping write-capable tasks are serialized conservatively by declared
-  scope
+  write scope
 - worker-reported touched files are audited against actual workspace diffs
-- protected-path edits fail task records and block promotion
+- protected-path and out-of-scope edits fail task records and block promotion
 - reviewer tasks see dependency diff previews instead of only one-line
   summaries
 - promotion is conservative and blocks ambiguous file ownership
@@ -56,13 +60,15 @@ As of `2026-04-06`, the following are real in code and docs:
 
 So the spike should not reopen old validation-intent hardening work.
 
-It should focus on the gaps that still limit real multi-step orchestration.
+`WP9` is no longer open.
+
+It should now focus on the gaps that still limit real multi-step orchestration.
 
 ## Re-Investigation Findings
 
-### 1. Task Scope Is Still Too Implicit
+### 1. Task Scope Contract Was The First Reopened Gap
 
-Current behavior:
+Original problem:
 
 - task `files` are doing too many jobs at once
 - the same field drives prompt hints, sparse-copy hydration, and overlap
@@ -81,6 +87,12 @@ Why this matters:
 Conclusion:
 
 - the coordinator still lacks a first-class read-scope vs write-scope contract
+
+Status as of `2026-04-07`:
+
+- resolved in tracked code and docs via explicit `readPaths`/`writePaths`,
+  copy-mode validation, write-scope conflict detection, and workspace-audit
+  enforcement
 
 ### 2. Dependency Handoff Is Still Prompt-Level For Implementers
 
@@ -164,7 +176,11 @@ Conclusion:
 
 ## Active Work Package Board
 
-### WP9: Scope Contract And Enforcement
+### WP9: Scope Contract And Enforcement (Completed)
+
+Status:
+
+- completed `2026-04-07`
 
 Goal:
 
@@ -294,15 +310,13 @@ Success bar:
 
 ## Recommended Order
 
-1. `WP9` first because the current task contract is the main source of hidden
-   ambiguity.
-2. `WP10` second because dependency-state handoff is the biggest functional gap
+1. `WP10` first because dependency-state handoff is now the biggest functional gap
    for real multi-step implementation.
-3. `WP13` third because the new contracts should be proven live once they
+2. `WP13` second because the new contracts should be proven live once they
    exist.
-4. `WP11` fourth because resume and retention become more important after the
+3. `WP11` third because resume and retention become more important after the
    coordinator is used for longer real runs.
-5. `WP12` fifth because cost governance should be informed by the stronger live
+4. `WP12` fourth because cost governance should be informed by the stronger live
    workflow shape, not only by current small proofs.
 
 ## Non-Goals

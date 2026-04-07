@@ -56,24 +56,26 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker task plans declare:
   - task id, title, agent, and prompt
   - optional dependencies
-  - concrete file hints
+  - `sharedContext.readPaths` for cross-task read context
+  - task-local `readPaths` for additional read context
+  - task-local `writePaths` for allowed edits
   - constraints and validation hints
   - optional `contextMode` to keep worker prompts minimal by default
   - optional `modelProfile` to trade off speed, cost, and depth
   - workspace mode overrides when needed
 - Supported workspace modes are:
-  - `copy`: isolated sparse filesystem copy seeded from repo instructions plus explicit file hints; default
+  - `copy`: isolated sparse filesystem copy seeded from repo instructions plus declared `readPaths` and any existing file-backed `writePaths`; default
   - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
   - `repo`: live repo root; explicit high-risk exception only
 - Prompt context should default to `contextMode = minimal`:
   - include the shared summary
-  - include only task-local file hints unless fuller shared context is explicitly required
+  - include task-local read context and write scope unless fuller shared context is explicitly required
 - include task-local validation hints by default
 - dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
 - reviewer-oriented dependency handoff should also include bounded changed-file summaries and diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
-- Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy only explicit file hints, skip directory hints, and skip oversized files so workers do not inherit large generated trees by accident.
+- Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Live planner, worker, and coordinator validation execution should emit progress lines on interactive `stderr` only, with phase-tagged status text, so operators can see in-flight work without contaminating machine-readable `stdout`.
 - Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and `validationIntents` should stay capped to a few high-signal suggestions.
@@ -108,8 +110,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers must not edit `TODO.md`.
 - Workers must not edit `ai/state/*`, `ai/log/*`, or `ai/indexes/*`.
 - Workers may edit `ai/orchestrator/**` only when that is the assigned task.
-- Planner output should prefer `copy` workspaces and concrete file scopes.
-- The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths.
+- Planner output should prefer `copy` workspaces plus concrete `readPaths` and conservative `writePaths`.
+- The coordinator should compare worker-reported touched files with actual workspace diffs and fail task records that touch protected paths or fall outside declared `writePaths`.
 - The coordinator should normalize worker JSON after parsing: reject invalid statuses or malformed arrays/null usage, compact oversized summaries, cap `notes`, `followUps`, and `validationIntents` to a few high-signal items, preserve explicit unknown list fields in task records before writing manifests, and normalize structured `validationIntents` into a safe manifest form.
 - Worker validation suggestions should use structured `validationIntents` for direct repo-local script invocations or approved tool commands in all live worker paths; legacy raw `validationCommands` survive only in old manifests or review-time interpretation, and shell composition should be treated as low-quality and rejected by default at coordinator validation time.
 - When a legacy raw `validationCommand` already matches a safe direct tool or repo-script shape, the coordinator should preserve the original command text for review while also normalizing it into an argv-safe execution form so accepted legacy commands do not require shell execution.

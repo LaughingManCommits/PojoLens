@@ -46,17 +46,18 @@ Dry runs:
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 
 Workspace modes:
-- `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, and explicit file hints; safe default
+- `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, declared `readPaths`, and any existing files inside declared `writePaths`; safe default
 - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
 - `repo`: live repo root; high-risk and opt-in only
 
 Context discipline:
 - worker prompts default to `contextMode = minimal`
-- minimal mode includes the shared summary, the task's own file hints, merged constraints, dependency outputs, and only task-local validation hints
+- task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
+- minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
-- copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies explicit file hints, skips directory hints, and skips files above `512 KB`
+- copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
 
 Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
@@ -83,13 +84,13 @@ Concurrency:
 - ready tasks run in batches up to `--max-parallel`
 - each run gets a unique `run-id`, run manifest, and per-task workspace under `.claude-orchestrator/`
 - validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
-- overlapping write-capable tasks are serialized conservatively by declared file scope even when they are dependency-ready together
+- overlapping write-capable tasks are serialized conservatively by declared `writePaths` scope even when they are dependency-ready together
 - `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks
 
 Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - workers in `copy` or `worktree` mode should treat prompt dependency outputs as the only upstream handoff and should not inspect other task workspaces or prior run artifacts directly
-- task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations`; protected-path edits fail the task record
+- task records capture `actual_files_touched` from workspace diffs plus `protected_path_violations` and `write_scope_violations`; protected-path or out-of-scope edits fail the task record
 - `retry` can rerun failed or blocked tasks from a prior manifest while seeding already-completed dependencies from the earlier run
 - retry runs preserve an explicit source-run `workerValidationModeOverride` when one exists; older manifest-level `compat` fallbacks are not replayed into live workers
 - task plans or agent definitions may still declare `workerValidationMode = intents-only`, but live authoring rejects `workerValidationMode = compat`

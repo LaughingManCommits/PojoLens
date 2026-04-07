@@ -8,7 +8,7 @@
       "Keep changes tightly scoped to orchestrator tests unless a minimal coordinator code touch is required.",
       "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
     ],
-    "files": [
+    "readPaths": [
       "AGENTS.md",
       "ai/AGENTS.md",
       "scripts/claude-orchestrator.py",
@@ -25,7 +25,7 @@
       "agent": "analyst",
       "modelProfile": "simple",
       "prompt": "Read the orchestrator script and Python tests. Confirm the smallest missing parser-level regression around rejecting live `workerValidationMode = compat`, identify the exact test addition to make, and call out any file-scope risk before implementation.",
-      "files": [
+      "readPaths": [
         "scripts/claude-orchestrator.py",
         "scripts/tests/test_claude_orchestrator.py"
       ],
@@ -40,7 +40,11 @@
       "dependsOn": [
         "inspect-parser-gap"
       ],
-      "files": [
+      "readPaths": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "writePaths": [
         "scripts/claude-orchestrator.py",
         "scripts/tests/test_claude_orchestrator.py"
       ],
@@ -58,7 +62,7 @@
       "dependsOn": [
         "add-parser-regression"
       ],
-      "files": [
+      "readPaths": [
         "scripts/claude-orchestrator.py",
         "scripts/tests/test_claude_orchestrator.py"
       ],
