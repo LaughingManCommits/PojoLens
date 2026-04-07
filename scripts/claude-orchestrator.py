@@ -1394,13 +1394,19 @@ def select_parallel_ready_batch(
     return ordered[:1]
 
 
-def agent_payload_for_claude(agents: dict[str, AgentDefinition]) -> str:
+def agent_payload_for_claude(
+    agents: dict[str, AgentDefinition],
+    *,
+    selected_names: list[str] | None = None,
+) -> str:
+    selected = set(selected_names or agents.keys())
     payload = {
         name: {
             "description": agent.description,
             "prompt": agent.prompt,
         }
         for name, agent in agents.items()
+        if name in selected
     }
     return json.dumps(payload, separators=(",", ":"))
 
@@ -3203,22 +3209,19 @@ def worker_prompt(
         materialization_truncated = layers_truncated
     worker_rules, rule_count, rules_truncated = format_bullet_list(
         [
-            "Follow repo instructions from AGENTS.md and ai/AGENTS.md when relevant.",
-            "Use only the task repo root plus the declared read context and write scope. In copy/worktree mode, do not access the source repo root, other task workspaces, or prior run artifacts.",
-            "Treat `writePaths` as the allowed edit contract. If the task is read-only, do not make edits.",
-            "Treat dependency outputs in this prompt as the coordinator handoff from prior tasks.",
-            "When dependency layers are materialized into the workspace, treat the task workspace as the source of truth for those upstream changes.",
+            "Follow repo instructions from `AGENTS.md` and `ai/AGENTS.md` when relevant.",
+            "Use only this workspace plus the declared `readPaths` and `writePaths`.",
+            "In copy/worktree mode, do not inspect the source repo root, other task workspaces, or prior run artifacts.",
+            "Treat `writePaths` as the edit contract. Dependency outputs are the coordinator handoff.",
+            "If dependency layers are materialized, workspace state overrides prompt summaries for those upstream files.",
             "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationIntents` to <=2 high-signal suggestions.",
-            "Use `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty. Use `null` only for `filesTouched`, `followUps`, or `notes` when the value is genuinely unknown or unverified.",
-            "Emit structured `validationIntents` only for validation suggestions in this run. Do not return raw `validationCommands` items.",
-            "Validation commands must be direct repo-script or tool invocations only. Do not use pipes, redirection, chaining, or shell wrappers.",
-            "State uncertainty or blockers explicitly instead of guessing.",
-            "Do not claim edits or validation you did not actually perform.",
-            "Do not edit TODO.md, ai/state/*, ai/log/*, or ai/indexes/*.",
-            "Keep changes and coordinator asks tightly scoped to the task.",
+            "Use `[]` for known-empty `filesTouched`, `validationIntents`, `followUps`, and `notes`. Use `null` only for genuinely unknown `filesTouched`, `followUps`, or `notes` values.",
+            "Emit only structured `validationIntents`, and keep them to direct repo-script or tool invocations with no pipes, redirection, chaining, or shell wrappers.",
+            "State blockers explicitly, and do not claim edits or validation you did not actually perform.",
+            "Do not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`. Keep changes tightly scoped to the task.",
         ],
         empty_line="- none",
-        max_items=12,
+        max_items=10,
     )
     return render_prompt(
         [
@@ -3283,12 +3286,16 @@ def worker_prompt(
                 heading="Execution context",
                 body=textwrap.dedent(
                     f"""\
-                    Task repo root: {task_root}
-                    Source repo root: {ROOT}
-                    Task workspace: {workspace_path}
+                    Current working directory: {(
+                        "live repo root"
+                        if workspace_mode == "repo"
+                        else "isolated task workspace"
+                        if workspace_mode == "copy"
+                        else "detached worktree"
+                    )}
                     Workspace mode: {workspace_mode}
                     Context mode: {context_mode}
-                    Workspace contract: {workspace_rule}
+                    Contract: {workspace_rule}
                     """
                 ).strip(),
             ),
@@ -3685,7 +3692,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         max_estimated_tokens=agent.max_prompt_estimated_tokens,
     )
     planner_model = agent.model or (MODEL_PROFILE_TO_MODEL[agent.model_profile] if agent.model_profile else None)
-    agents_json = agent_payload_for_claude(agents)
+    agents_json = agent_payload_for_claude(agents, selected_names=[args.planner_agent])
     output_path = planner_output_path(args.name, args.out)
     command = claude_command(
         args.claude_bin,
@@ -4353,7 +4360,10 @@ def run_loaded_plan(
     write_selected_plan_snapshot(run_dir, plan)
 
     seeded_task_ids = sorted(initial_records or {})
-    agents_json = agent_payload_for_claude(agents)
+    agents_json_by_name = {
+        name: agent_payload_for_claude(agents, selected_names=[name])
+        for name in agents
+    }
     records: dict[str, TaskRunRecord] = dict(initial_records or {})
     pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
@@ -4437,7 +4447,7 @@ def run_loaded_plan(
                     task,
                     records,
                     claude_bin=claude_bin,
-                    agents_json=agents_json,
+                    agents_json=agents_json_by_name[task.agent],
                     dry_run=dry_run,
                     worker_validation_mode=worker_validation_override,
                 ): task

@@ -13,7 +13,8 @@
 
 ## Verified
 
-- `2026-04-07`: worker prompt overhead is lower; minimal-mode prompts now omit shared `readPaths` from the prompt body, and stable coordinator sections now precede run-specific workspace context to improve provider-side prefix-cache reuse across tasks.
+- `2026-04-07`: worker requests are leaner; minimal prompts omit shared `readPaths`, pass only the selected agent definition, and use stable execution-context labels.
+- `2026-04-07`: the tracked `WP13` dry-run prompt estimate fell from `3790` to `3193`; the worker-rules block is now compact and untruncated.
 - `2026-04-07`: orchestration `WP13` is complete; live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved a chained same-file `apply-reviewed` flow and downstream-only promotion back into the repo.
 - `2026-04-07`: the promoted `WP13` slice added dependency-materialization prompt plus validate/manifest visibility coverage in `scripts/tests/test_claude_orchestrator.py`, and the repo Python suite passed after promotion.
 - `2026-04-07`: `WP13` showed two active operator findings: task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files, and reviewer false positives remain a live risk.

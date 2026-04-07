@@ -60,6 +60,7 @@ Context discipline:
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - minimal-mode worker prompts now keep shared file lists out of the prompt body; workers still get the shared summary, but shared `readPaths` stay prompt-visible only in `contextMode = full`
+- live Claude invocations now pass only the selected agent definition instead of the full agent catalog, so per-task request envelopes stay smaller
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
 - if you expect `validate-run --execution-scope task-workspace` to work before promotion, declare any runtime-loaded config or fixture files in `readPaths` or `writePaths`; sparse copies only hydrate declared context
 - when `dependencyMaterialization = "apply-reviewed"` is enabled, reviewed dependency layers are replayed into the downstream `copy` or `worktree` workspace after base hydration; dry-runs stay summary-only but surface the planned mode in the prompt
@@ -77,7 +78,7 @@ Token and cost visibility:
 - live worker validation now defaults to `intents-only`; tracked worker agents no longer need per-role overrides just to suppress raw command suggestions
 - live worker JSON schemas now require `validationIntents` and omit `validationCommands`, so raw legacy command items are blocked at the schema boundary as well as during coordinator parsing
 - live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
-- worker prompts now put stable coordinator sections ahead of run-specific workspace paths and dependency detail so provider-side prefix caching can reuse more of each request
+- worker prompts now put stable coordinator sections ahead of run-specific workspace paths and dependency detail, avoid absolute workspace paths in the execution-context text, and keep the repeated worker-rules block compact enough to stay untruncated so provider-side prefix caching can reuse more of each request
 
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
