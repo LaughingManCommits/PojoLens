@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "name": "wp13-live-materialized-prompt-proof",
+  "goal": "Use the local orchestrator on a small real chained test change that proves reviewed dependency materialization is workable in a downstream implementer workspace.",
+  "sharedContext": {
+    "summary": "Run one bounded live chained workflow beyond the dry-run materialization sample. Focus on the operator-visible prompt and manifest surfaces for dependency materialization, keep the change narrow, and prove that a downstream implementer can continue from reviewed upstream test state inside its own isolated workspace.",
+    "constraints": [
+      "Keep changes tightly scoped to the Python orchestrator test suite unless a minimal coordinator code touch is required.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "AGENTS.md",
+      "ai/AGENTS.md",
+      "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
+      "scripts/claude-orchestrator.py",
+      "scripts/tests/test_claude_orchestrator.py"
+    ],
+    "validation": [
+      "py -3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+    ]
+  },
+  "tasks": [
+    {
+      "id": "inspect-materialization-proof-gap",
+      "title": "Inspect the live materialization proof gap",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Read the orchestrator script, guide/spec, and Python tests. Identify the smallest missing regression coverage that would make the new dependency-materialization contract operator-visible in tests, especially around worker prompts, validate output, or manifest/task-record serialization. Recommend a narrow two-step implementation path that can be split across two sequential implementer tasks without broadening scope.",
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "add-materialization-regression",
+      "title": "Add first dependency-materialization regression",
+      "agent": "implementer",
+      "modelProfile": "balanced",
+      "prompt": "Implement the first half of the narrowest coherent regression coverage for dependency materialization. Prefer focused additions in `scripts/tests/test_claude_orchestrator.py` that prove the operator-visible contract around `dependencyMaterialization`, `dependency_materialization_mode`, or prompt rendering. Keep the change small, avoid unrelated cleanup, and include at most one high-signal structured validation intent if you make a real change.",
+      "dependsOn": [
+        "inspect-materialization-proof-gap"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "writePaths": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "validation": [
+        "py -3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "extend-materialization-regression",
+      "title": "Extend the regression from reviewed upstream state",
+      "agent": "implementer",
+      "modelProfile": "balanced",
+      "prompt": "Continue from the reviewed upstream workspace state and complete the same regression slice. Tighten or extend the tests so they prove the live dependency-materialization contract more clearly end to end, such as applied-layer visibility or the `apply-reviewed` prompt path. Work from the task workspace as the source of truth, keep the scope narrow, and change coordinator code only if the tighter regression exposes a real mismatch.",
+      "dependsOn": [
+        "add-materialization-regression"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "writePaths": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "validation": [
+        "py -3 -m unittest discover -s scripts/tests -p \"test_*.py\""
+      ],
+      "workspaceMode": "copy",
+      "dependencyMaterialization": "apply-reviewed"
+    },
+    {
+      "id": "review-materialization-proof",
+      "title": "Review the chained materialization proof",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "prompt": "Review the dependency outputs and changed files. Focus on whether the new regression coverage actually proves the live dependency-materialization contract operators care about, whether the chained implementer split stayed coherent, and whether the suggested validation is sufficient. Findings first: call out bugs, regressions, or missing coverage before any summary.",
+      "dependsOn": [
+        "extend-materialization-regression"
+      ],
+      "readPaths": [
+        "scripts/claude-orchestrator.py",
+        "scripts/tests/test_claude_orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

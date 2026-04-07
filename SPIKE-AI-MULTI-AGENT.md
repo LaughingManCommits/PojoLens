@@ -286,7 +286,11 @@ Success bar:
 - the coordinator can enforce a practical spend and artifact discipline across
   the whole run, not only per worker prompt
 
-### WP13: Multi-Step Live Workflow Proof
+### WP13: Multi-Step Live Workflow Proof (Completed)
+
+Status:
+
+- completed `2026-04-07`
 
 Goal:
 
@@ -312,14 +316,26 @@ Success bar:
 - the next live proof validates the reopened packages instead of only proving
   surfaces that were already known to work
 
+Findings:
+
+- retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c`
+  proved that a downstream `apply-reviewed` task records its applied
+  dependency layer and that promoting only the downstream workspace is enough
+  to adopt the cumulative same-file change
+- repo-root `validate-run` passed for the promoted regression slice, but
+  `validate-run --execution-scope task-workspace` failed because sparse copy
+  hydration did not include an undeclared runtime-loaded file
+  (`ai/orchestrator/agents.json`) needed by an existing prompt-budget test
+- reviewer reliability is still an operational risk: the reviewer falsely
+  claimed the new regression tests were missing even though the downstream
+  workspace contained them
+
 ## Recommended Order
 
-1. `WP13` first because the new dependency-materialization contract should now
-   be proven in a real chained workflow.
-2. `WP11` second because resume and retention become more important after the
-   coordinator is used for longer real runs.
-3. `WP12` third because cost governance should be informed by the stronger live
-   workflow shape, not only by current small proofs.
+1. `WP11` first because retained live runs now exist and same-run resume plus
+   inventory are the largest remaining operational gap.
+2. `WP12` second because the live proof showed meaningful cache-read and
+   output cost without any run-level stop.
 
 ## Non-Goals
 

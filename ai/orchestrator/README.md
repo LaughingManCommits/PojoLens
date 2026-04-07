@@ -60,6 +60,7 @@ Context discipline:
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
+- if you expect `validate-run --execution-scope task-workspace` to work before promotion, declare any runtime-loaded config or fixture files in `readPaths` or `writePaths`; sparse copies only hydrate declared context
 - when `dependencyMaterialization = "apply-reviewed"` is enabled, reviewed dependency layers are replayed into the downstream `copy` or `worktree` workspace after base hydration; dry-runs stay summary-only but surface the planned mode in the prompt
 
 Token and cost visibility:
@@ -113,4 +114,5 @@ Coordinator rules:
 - the coordinator owns memory updates, final summaries, and merge decisions
 - prefer `copy` mode unless a task clearly needs git metadata
 - `ai/orchestrator/tasks/example-materialized-chain.json` is the tracked sample for a sequential implementer chain that opts into reviewed dependency materialization
+- `ai/orchestrator/tasks/wp13-live-materialized-prompt-proof.json` is the tracked live proof for a chained same-file regression slice that promotes only the downstream materialized workspace
 - review worker outputs before live promotion; use `promote --dry-run` when you want the adoption summary without mutating the repo

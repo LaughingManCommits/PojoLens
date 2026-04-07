@@ -9,19 +9,20 @@
 
 ## Focus
 
-- The orchestration spike is reopened; `WP10` is complete, so start with `WP13` chained live proof and keep release work closed.
+- The orchestration spike is reopened; `WP13` is complete, so start with `WP11` resume/inventory/retention and keep release work closed.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
-- `2026-04-07`: `WP10` is complete; downstream `copy` or `worktree` tasks can opt into `dependencyMaterialization = "apply-reviewed"`, reviewed dependency layers replay into downstream workspaces, and task/manifests/review output now record `dependency_layers_applied`.
-- `2026-04-07`: added tracked sample plan `ai/orchestrator/tasks/example-materialized-chain.json`; the guide/spec now document when to stay summary-only versus when to opt into reviewed dependency materialization.
-- `2026-04-07`: `WP9` is complete; tracked plans now use `readPaths`/`writePaths`, copy-mode scope validation fails missing or directory read inputs, overlapping write tasks serialize by declared `writePaths`, and workspace audit now fails out-of-scope edits.
-- `SPIKE-AI-MULTI-AGENT.md` now records `WP10` complete and moves the next open orchestration slice to `WP13`, then `WP11`, then `WP12`.
-- The current coordinator is proven for isolated implementer/review/promotion flows, but chained implementer proof is still missing.
+- `2026-04-07`: `WP13` is complete; live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved a chained same-file `apply-reviewed` flow and downstream-only promotion.
+- `2026-04-07`: `WP13` added dependency-materialization prompt plus validate/manifest visibility tests in `scripts/tests/test_claude_orchestrator.py`.
+- `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files needed by validation.
+- `2026-04-07`: reviewer reliability is still a live operational risk; the reviewer falsely claimed the new regression tests were missing.
+- `2026-04-07`: `WP9` and `WP10` are complete; explicit `readPaths`/`writePaths` plus opt-in `dependencyMaterialization = "apply-reviewed"` are live.
+- `SPIKE-AI-MULTI-AGENT.md` now records `WP13` complete and moves the next open orchestration slices to `WP11`, then `WP12`.
 - Claude orchestration uses repo-local `.claude-orchestrator/`; review/export/promote/retry/cleanup and `validate-run` are live.
 - Live workers are structured-intent-only; raw worker `validationCommands` survive only in old manifests or review-time `validate-run`.
-- `WP6` proved the live end-to-end path, `WP7` added reviewer diff previews plus task-workspace `validate-run`, and `WP8` added deterministic invalid-plan and worktree failure coverage.
+- `WP6` proved the live end-to-end path, `WP7` added reviewer diff previews plus task-workspace `validate-run`, `WP8` added deterministic invalid-plan and worktree failure coverage, and `WP13` proved downstream-only promotion from a materialized same-file chain.
 
 ## Validate
 
