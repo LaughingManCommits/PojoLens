@@ -1191,6 +1191,12 @@ def effective_task_read_paths(plan: TaskPlan, task: TaskDefinition) -> list[str]
     return dedupe_strings(plan.shared_context.read_paths + task.read_paths)
 
 
+def prompt_task_read_paths(plan: TaskPlan, task: TaskDefinition, *, context_mode: str) -> list[str]:
+    if context_mode == "minimal":
+        return dedupe_strings(task.read_paths)
+    return effective_task_read_paths(plan, task)
+
+
 def effective_task_write_scope(task: TaskDefinition) -> list[str]:
     return dedupe_strings(task.write_paths)
 
@@ -3142,7 +3148,7 @@ def worker_prompt(
         worker_validation_mode,
         location=f"task '{task.id}' worker validation mode",
     )
-    read_paths = effective_task_read_paths(plan, task)
+    read_paths = prompt_task_read_paths(plan, task, context_mode=context_mode)
     write_paths = effective_task_write_scope(task)
     constraints = dedupe_strings(plan.shared_context.constraints + task.constraints)
     validation_hints = (
@@ -3216,25 +3222,18 @@ def worker_prompt(
     )
     return render_prompt(
         [
-            PromptSection(
-                name="execution_context",
-                heading="Execution context",
-                body=textwrap.dedent(
-                    f"""\
-                    Task repo root: {task_root}
-                    Source repo root: {ROOT}
-                    Task workspace: {workspace_path}
-                    Workspace mode: {workspace_mode}
-                    Context mode: {context_mode}
-                    Workspace contract: {workspace_rule}
-                    """
-                ).strip(),
-            ),
             PromptSection(name="coordinator_goal", heading="Coordinator goal", body=plan.goal),
             PromptSection(
                 name="shared_summary",
                 heading="Shared context summary",
                 body=plan.shared_context.summary,
+            ),
+            PromptSection(
+                name="worker_rules",
+                heading="Worker rules",
+                body=worker_rules,
+                item_count=rule_count,
+                truncated=rules_truncated,
             ),
             PromptSection(name="task_identity", heading="Task id/title", body=f"{task.id} / {task.title}"),
             PromptSection(name="task_objective", heading="Task objective", body=task.prompt),
@@ -3280,11 +3279,18 @@ def worker_prompt(
                 truncated=validation_truncated,
             ),
             PromptSection(
-                name="worker_rules",
-                heading="Worker rules",
-                body=worker_rules,
-                item_count=rule_count,
-                truncated=rules_truncated,
+                name="execution_context",
+                heading="Execution context",
+                body=textwrap.dedent(
+                    f"""\
+                    Task repo root: {task_root}
+                    Source repo root: {ROOT}
+                    Task workspace: {workspace_path}
+                    Workspace mode: {workspace_mode}
+                    Context mode: {context_mode}
+                    Workspace contract: {workspace_rule}
+                    """
+                ).strip(),
             ),
         ]
     )

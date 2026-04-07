@@ -14,6 +14,7 @@
 
 ## Facts
 
+- `2026-04-07`: worker prompt overhead is lower; minimal-mode prompts now omit shared `readPaths`, and stable coordinator sections now precede run-specific workspace context to improve prefix-cache reuse.
 - `2026-04-07`: `WP13` is complete; live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved a chained same-file `apply-reviewed` flow and downstream-only promotion.
 - `2026-04-07`: `WP13` added dependency-materialization prompt plus validate/manifest visibility tests in `scripts/tests/test_claude_orchestrator.py`.
 - `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files needed by validation.

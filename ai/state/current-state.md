@@ -13,6 +13,7 @@
 
 ## Verified
 
+- `2026-04-07`: worker prompt overhead is lower; minimal-mode prompts now omit shared `readPaths` from the prompt body, and stable coordinator sections now precede run-specific workspace context to improve provider-side prefix-cache reuse across tasks.
 - `2026-04-07`: orchestration `WP13` is complete; live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved a chained same-file `apply-reviewed` flow and downstream-only promotion back into the repo.
 - `2026-04-07`: the promoted `WP13` slice added dependency-materialization prompt plus validate/manifest visibility coverage in `scripts/tests/test_claude_orchestrator.py`, and the repo Python suite passed after promotion.
 - `2026-04-07`: `WP13` showed two active operator findings: task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files, and reviewer false positives remain a live risk.
@@ -28,6 +29,7 @@
 - Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
 - Claude orchestration still lacks same-run resume plus inventory for retained runs; operators still have to pivot through retry/new-run flow or manual filesystem inspection.
 - Claude orchestration task-workspace validation still depends on declared sparse-copy inputs; undeclared runtime-loaded files can make pre-promotion validation fail even when the promoted repo patch is healthy.
+- Claude orchestration still pays high cache-read and output cost on longer runs; prompt-shape reduction is improved, but run-level budget control is still missing.
 - Claude orchestration still has no run-level budget stop; worker output and cache reads remain the main cost drivers.
 
 ## Next

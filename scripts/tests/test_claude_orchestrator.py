@@ -916,6 +916,102 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertIn("Emit structured `validationIntents` only", rendered.text)
         self.assertIn("Use `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty", rendered.text)
 
+    def test_worker_prompt_minimal_mode_uses_task_local_read_paths_only(self):
+        orchestrator = self.orchestrator
+        agent = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+            read_paths=["task-only.md"],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="minimal-read-context",
+            goal="Keep minimal worker prompts task-local.",
+            shared_context=orchestrator.SharedContext(
+                summary="Prompt test.",
+                constraints=[],
+                read_paths=["shared.md"],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        rendered = orchestrator.worker_prompt(
+            plan,
+            task,
+            agent,
+            "copy",
+            pathlib.Path("C:/tmp/workspace"),
+            "- none",
+            worker_validation_mode="intents-only",
+        )
+
+        self.assertIn("`task-only.md`", rendered.text)
+        self.assertNotIn("`shared.md`", rendered.text)
+
+    def test_worker_prompt_full_mode_includes_shared_read_paths(self):
+        orchestrator = self.orchestrator
+        agent = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="full",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the coordinator.",
+            read_paths=["task-only.md"],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="full-read-context",
+            goal="Keep full worker prompts inclusive.",
+            shared_context=orchestrator.SharedContext(
+                summary="Prompt test.",
+                constraints=[],
+                read_paths=["shared.md"],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        rendered = orchestrator.worker_prompt(
+            plan,
+            task,
+            agent,
+            "copy",
+            pathlib.Path("C:/tmp/workspace"),
+            "- none",
+            worker_validation_mode="intents-only",
+        )
+
+        self.assertIn("`task-only.md`", rendered.text)
+        self.assertIn("`shared.md`", rendered.text)
+
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
         payload = {
