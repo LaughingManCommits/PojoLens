@@ -2541,9 +2541,9 @@ def planner_prompt(
             'Use `workspaceMode="worktree"` only when isolated git metadata matters.',
             'Avoid `workspaceMode="repo"` unless direct in-place execution is essential.',
             'Use `contextMode="minimal"` unless a task really needs the full shared context.',
-            '`modelProfile="simple"` fits quick summaries, classification, or narrow lookups.',
-            '`modelProfile="balanced"` fits most coding, analysis, and implementation tasks.',
-            '`modelProfile="complex"` fits architecture or deeply nuanced multi-step reasoning.',
+            '`modelProfile="simple"` fits narrow lookups, doc summaries, and other cheap read-only tasks.',
+            '`modelProfile="balanced"` fits planning, coding, analysis, and most review tasks.',
+            '`modelProfile="complex"` is the exceptional path; use it only when `simple` or `balanced` are likely insufficient for architecture or unusually deep multi-step reasoning.',
             "Live worker validation suggestions are structured-intent-only; do not plan around raw worker `validationCommands`.",
             "Use `sharedContext.readPaths` for cross-task context, task `readPaths` for task-local context, and task `writePaths` for allowed edits.",
             "Keep `readPaths` repo-relative and concrete. In copy mode they must point at existing files, not directories.",
@@ -2757,6 +2757,30 @@ def resolved_model(task: TaskDefinition, agent: AgentDefinition) -> str | None:
     if profile:
         return MODEL_PROFILE_TO_MODEL[profile]
     return None
+
+
+def effective_plan_model_profiles(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+) -> dict[str, str | None]:
+    return {
+        task.id: resolved_model_profile(task, agents[task.agent])
+        for task in plan.tasks
+    }
+
+
+def effective_plan_models(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+) -> dict[str, str | None]:
+    return {
+        task.id: resolved_model(task, agents[task.agent])
+        for task in plan.tasks
+    }
+
+
+def complex_model_task_ids(task_model_profiles: dict[str, str | None]) -> list[str]:
+    return [task_id for task_id, profile in task_model_profiles.items() if profile == "complex"]
 
 
 def dependency_handoff(record: TaskRunRecord) -> str:
@@ -4188,6 +4212,9 @@ def manifest_payload(
         agents,
         run_override=worker_validation_override,
     )
+    task_model_profiles = effective_plan_model_profiles(plan, agents)
+    task_models = effective_plan_models(plan, agents)
+    complex_model_tasks = complex_model_task_ids(task_model_profiles)
     usage_totals = aggregate_usage(records)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
     payload = {
@@ -4200,6 +4227,10 @@ def manifest_payload(
         "workerValidationModeOverride": worker_validation_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskModels": task_models,
+        "taskModelProfiles": task_model_profiles,
+        "complexModelTaskIds": complex_model_tasks,
+        "complexModelTaskCount": len(complex_model_tasks),
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
         "agentsPath": str(agents_path),
@@ -4498,6 +4529,9 @@ def run_loaded_plan(
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
     usage_totals = aggregate_usage(records)
+    task_model_profiles = effective_plan_model_profiles(plan, agents)
+    task_models = effective_plan_models(plan, agents)
+    complex_model_tasks = complex_model_task_ids(task_model_profiles)
     payload = {
         "runId": run_id,
         "plan": plan.name,
@@ -4509,6 +4543,10 @@ def run_loaded_plan(
         "workerValidationModeOverride": worker_validation_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskModels": task_models,
+        "taskModelProfiles": task_model_profiles,
+        "complexModelTaskIds": complex_model_tasks,
+        "complexModelTaskCount": len(complex_model_tasks),
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
@@ -5102,6 +5140,9 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
         validate_scope_contract(plan, agents)
         task_worker_validation_modes = effective_plan_worker_validation_modes(plan, agents)
         task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(plan, agents)
+        task_model_profiles = effective_plan_model_profiles(plan, agents)
+        task_models = effective_plan_models(plan, agents)
+        complex_model_tasks = complex_model_task_ids(task_model_profiles)
         payload.update(
             {
                 "taskPlanPath": str(plan_path),
@@ -5110,10 +5151,16 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                 "taskIds": [task.id for task in plan.tasks],
                 "taskWorkerValidationModes": task_worker_validation_modes,
                 "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+                "taskModels": task_models,
+                "taskModelProfiles": task_model_profiles,
+                "complexModelTaskIds": complex_model_tasks,
+                "complexModelTaskCount": len(complex_model_tasks),
                 "tasks": [
                     {
                         "id": task.id,
                         "agent": task.agent,
+                        "model": task_models[task.id],
+                        "modelProfile": task_model_profiles[task.id],
                         "readPaths": effective_task_read_paths(plan, task),
                         "writePaths": effective_task_write_scope(task),
                         "dependencyMaterialization": effective_dependency_materialization_mode(task),

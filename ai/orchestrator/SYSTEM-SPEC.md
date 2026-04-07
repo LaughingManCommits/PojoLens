@@ -78,6 +78,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Minimal worker prompts should keep shared file lists out of the prompt body unless `contextMode = full`; shared summaries can stay visible without forcing every worker to reread the same file inventory.
 - Live Claude invocations should pass only the selected agent definition instead of the full agent catalog when a single planner or worker role is being invoked.
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
+- Validate, dry-run, and manifest surfaces should expose resolved task models/profiles plus a compact list or count of any `complex` tasks so accidental `opus` usage is easy to spot.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
 - Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
 - If task-workspace validation is expected before promotion, any runtime-loaded config or fixture files needed by that validation should be declared in `readPaths` or `writePaths`; sparse copies should not be assumed to contain undeclared repo files.
@@ -96,7 +97,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
-  - `complex` -> `claude-opus-4-6`
+  - `complex` -> `claude-opus-4-6` only as an explicit exception when cheaper models are likely insufficient
 
 ## Concurrency Contract
 

@@ -401,10 +401,22 @@ class ValidateCommandTest(unittest.TestCase):
             payload["taskWorkerValidationModeSources"],
         )
         self.assertEqual(
+            {"inspect": "claude-haiku-4-5", "implement": "claude-haiku-4-5"},
+            payload["taskModels"],
+        )
+        self.assertEqual(
+            {"inspect": "simple", "implement": "simple"},
+            payload["taskModelProfiles"],
+        )
+        self.assertEqual([], payload["complexModelTaskIds"])
+        self.assertEqual(0, payload["complexModelTaskCount"])
+        self.assertEqual(
             [
                 {
                     "id": "inspect",
                     "agent": "analyst",
+                    "model": "claude-haiku-4-5",
+                    "modelProfile": "simple",
                     "readPaths": [],
                     "writePaths": [],
                     "dependencyMaterialization": "summary-only",
@@ -414,6 +426,8 @@ class ValidateCommandTest(unittest.TestCase):
                 {
                     "id": "implement",
                     "agent": "implementer",
+                    "model": "claude-haiku-4-5",
+                    "modelProfile": "simple",
                     "readPaths": [],
                     "writePaths": [],
                     "dependencyMaterialization": "summary-only",
@@ -423,6 +437,92 @@ class ValidateCommandTest(unittest.TestCase):
             ],
             payload["tasks"],
         )
+
+    def test_validate_command_reports_complex_model_tasks(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "planning",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "analyst": {
+                                "description": "analysis",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "balanced",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "complex-model-visibility",
+                        "goal": "Expose exceptional model choices.",
+                        "sharedContext": {
+                            "summary": "Complex model summary test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect the coordinator.",
+                            },
+                            {
+                                "id": "deep-design",
+                                "title": "Deep design",
+                                "agent": "analyst",
+                                "prompt": "Reason about architecture tradeoffs.",
+                                "modelProfile": "complex",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = orchestrator.validate_command(
+                SimpleNamespace(
+                    agents=str(agents_path),
+                    task_plan=str(plan_path),
+                )
+            )
+
+        self.assertEqual(
+            {"inspect": "claude-sonnet-4-6", "deep-design": "claude-opus-4-6"},
+            payload["taskModels"],
+        )
+        self.assertEqual(
+            {"inspect": "balanced", "deep-design": "complex"},
+            payload["taskModelProfiles"],
+        )
+        self.assertEqual(["deep-design"], payload["complexModelTaskIds"])
+        self.assertEqual(1, payload["complexModelTaskCount"])
 
     def test_validate_command_rejects_compat_worker_validation_mode(self):
         orchestrator = self.orchestrator
@@ -2731,7 +2831,109 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("intents-only", payload["workerValidationModeOverride"])
         self.assertEqual({"inspect-a": "intents-only"}, payload["taskWorkerValidationModes"])
         self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
+        self.assertEqual({"inspect-a": "claude-haiku-4-5"}, payload["taskModels"])
+        self.assertEqual({"inspect-a": "simple"}, payload["taskModelProfiles"])
+        self.assertEqual([], payload["complexModelTaskIds"])
+        self.assertEqual(0, payload["complexModelTaskCount"])
         self.assertEqual("override", payload["tasks"][0]["worker_validation_mode_source"])
+
+    def test_run_loaded_plan_reports_complex_model_tasks_in_payload_and_manifest(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="balanced",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="deep-design",
+                title="Deep design",
+                agent="analyst",
+                prompt="Handle the hardest architecture slice.",
+                model_profile="complex",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="complex-model-run-visibility",
+                goal="Expose complex model tasks in run output.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Complex model run test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                record = make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+                record.model = orchestrator.resolved_model(task, agents[task.agent])
+                record.model_profile = orchestrator.resolved_model_profile(task, agents[task.agent])
+                return record
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+            manifest = json.loads(
+                (pathlib.Path(payload["runDir"]) / "manifest.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual({"deep-design": "claude-opus-4-6"}, payload["taskModels"])
+        self.assertEqual({"deep-design": "complex"}, payload["taskModelProfiles"])
+        self.assertEqual(["deep-design"], payload["complexModelTaskIds"])
+        self.assertEqual(1, payload["complexModelTaskCount"])
+        self.assertEqual({"deep-design": "claude-opus-4-6"}, manifest["taskModels"])
+        self.assertEqual({"deep-design": "complex"}, manifest["taskModelProfiles"])
+        self.assertEqual(["deep-design"], manifest["complexModelTaskIds"])
+        self.assertEqual(1, manifest["complexModelTaskCount"])
 
     def test_run_loaded_plan_rejects_compat_worker_validation_override(self):
         orchestrator = self.orchestrator

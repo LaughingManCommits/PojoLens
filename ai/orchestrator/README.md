@@ -70,6 +70,7 @@ Token and cost visibility:
 - task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
 - agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
+- `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
 - worker results now distinguish known-empty from unknown list fields, and may emit structured `validationIntents`; use `[]` for known-empty `filesTouched` / `validationIntents` / `followUps` / `notes`, use `null` only for `filesTouched` / `followUps` / `notes` when those values are genuinely unknown, and task records preserve that in `unknown_fields` / `unknownFields`
@@ -83,8 +84,9 @@ Token and cost visibility:
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
 - use `modelProfile = balanced` for `claude-sonnet-4-6`
-- use `modelProfile = complex` for `claude-opus-4-6`
+- use `modelProfile = complex` for `claude-opus-4-6` only as an explicit exception when cheaper models are likely insufficient
 - `model` still works as an explicit override and wins over `modelProfile`
+- planner guidance now treats `complex` as the exceptional path; current tracked plans stay on `simple` or `balanced`
 - `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap doc-summary work
 
 Concurrency:
