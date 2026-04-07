@@ -28,6 +28,7 @@ scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materiali
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
 scripts/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
@@ -36,6 +37,8 @@ scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> 
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --intents-only --dry-run --json
 scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
+scripts/claude-orchestrator.ps1 inventory --json
+scripts/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json
 scripts/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
 scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
 ```
@@ -45,6 +48,13 @@ Dry runs:
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
+
+Lifecycle helpers:
+- `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
+- same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
+- `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
+- `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, and cost fields
+- `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
 Workspace modes:
 - `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, declared `readPaths`, and any existing files inside declared `writePaths`; safe default

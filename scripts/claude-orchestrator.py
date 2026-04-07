@@ -17,7 +17,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
@@ -554,6 +554,59 @@ def parse_args() -> argparse.Namespace:
         help="Emit the run summary as JSON.",
     )
 
+    resume_parser = subparsers.add_parser(
+        "resume",
+        help="Continue a partially completed run in place from an existing manifest.",
+    )
+    resume_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    resume_parser.add_argument(
+        "--agents",
+        default="",
+        help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
+    )
+    resume_parser.add_argument(
+        "--claude-bin",
+        default=DEFAULT_CLAUDE_BIN,
+        help="Claude CLI executable to invoke.",
+    )
+    resume_parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=2,
+        help="Maximum number of ready tasks to run concurrently.",
+    )
+    resume_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict resume to one or more task ids. Defaults to all non-completed or missing tasks in the run snapshot.",
+    )
+    resume_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue running independent tasks after a worker fails or reports blocked.",
+    )
+    resume_parser.add_argument(
+        "--worker-validation-mode",
+        choices=sorted(WORKER_VALIDATION_MODES),
+        default="",
+        help="Override worker validation suggestion policy for the resumed run. Defaults to the source run mode or 'intents-only'.",
+    )
+    resume_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Refresh the in-place run manifest and task requests without invoking Claude.",
+    )
+    resume_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the resume summary as JSON.",
+    )
+
     retry_parser = subparsers.add_parser(
         "retry",
         help="Retry failed or blocked tasks from a previous run manifest.",
@@ -709,6 +762,69 @@ def parse_args() -> argparse.Namespace:
         "--json",
         action="store_true",
         help="Emit the cleanup summary as JSON.",
+    )
+
+    inventory_parser = subparsers.add_parser(
+        "inventory",
+        help="List retained runs under the runtime root with compact status summaries.",
+    )
+    inventory_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="Runtime root whose run manifests should be inventoried.",
+    )
+    inventory_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of runs to show. Use 0 to show all discovered runs.",
+    )
+    inventory_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the inventory summary as JSON.",
+    )
+
+    prune_parser = subparsers.add_parser(
+        "prune",
+        help="Prune retained run directories and workspaces by age under the runtime root.",
+    )
+    prune_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="Runtime root whose retained runs should be considered for pruning.",
+    )
+    prune_parser.add_argument(
+        "--older-than-days",
+        type=float,
+        default=7.0,
+        help="Prune runs older than this many days.",
+    )
+    prune_parser.add_argument(
+        "--keep",
+        type=int,
+        default=0,
+        help="Always keep this many newest runs even if they are older than the cutoff.",
+    )
+    prune_parser.add_argument(
+        "--include-incomplete",
+        action="store_true",
+        help="Allow pruning runs that still have non-completed tasks.",
+    )
+    prune_parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue pruning later runs after a cleanup failure.",
+    )
+    prune_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report prune candidates without deleting them.",
+    )
+    prune_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the prune summary as JSON.",
     )
 
     validate_run_parser = subparsers.add_parser(
@@ -1767,7 +1883,7 @@ def resolve_manifest_path(run_ref: str) -> Path:
     if not candidate.exists():
         raise OrchestratorError(f"Run manifest '{candidate}' does not exist")
     if candidate.name != "manifest.json":
-        raise OrchestratorError("Review/export/promote expects a run directory or manifest.json path")
+        raise OrchestratorError("Run commands expect a run directory or manifest.json path")
     return candidate
 
 
@@ -1802,6 +1918,33 @@ def manifest_workspaces_dir(manifest: dict[str, Any], *, run_dir: Path) -> Path:
     if not run_id:
         raise OrchestratorError("Run manifest is missing 'workspacesDir' and 'runId'")
     return (run_dir.parent.parent / "workspaces" / run_id).resolve()
+
+
+def manifest_selected_plan_path(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    *,
+    location: str,
+) -> Path:
+    run_dir = manifest_run_dir(manifest_path, manifest)
+    selected_plan_path = (run_dir / "selected-plan.json").resolve()
+    if selected_plan_path.exists():
+        return selected_plan_path
+    return manifest_required_path(manifest, "planPath", location=location)
+
+
+def manifest_worker_validation_override(
+    manifest: dict[str, Any],
+    *,
+    location: str,
+) -> str | None:
+    override = require_optional_string(manifest, "workerValidationModeOverride", location=location)
+    if override:
+        return override
+    legacy_mode = require_optional_string(manifest, "workerValidationMode", location=location)
+    if legacy_mode in WORKER_VALIDATION_MODES:
+        return legacy_mode
+    return None
 
 
 def count_statuses(values: list[str]) -> dict[str, int]:
@@ -3835,6 +3978,65 @@ def blocked_record(
     )
 
 
+def planned_record(
+    task: TaskDefinition,
+    agent_name: str,
+    agent: AgentDefinition,
+    workspace_mode: str,
+    workspace_path: str,
+    *,
+    summary: str,
+    worker_validation_mode: str | None = None,
+) -> TaskRunRecord:
+    now = iso_now()
+    validation_resolution = resolve_worker_validation_mode(
+        task,
+        agent,
+        run_override=worker_validation_mode,
+    )
+    dependency_materialization_mode = effective_dependency_materialization_mode(task)
+    return TaskRunRecord(
+        id=task.id,
+        title=task.title,
+        agent=agent_name,
+        status="planned",
+        summary=summary,
+        workspace_mode=workspace_mode,
+        workspace_path=workspace_path,
+        started_at=now,
+        finished_at=now,
+        files_touched=[],
+        actual_files_touched=[],
+        protected_path_violations=[],
+        write_scope_violations=[],
+        validation_commands=[],
+        follow_ups=[],
+        notes=[],
+        model=resolved_model(task, agent),
+        model_profile=resolved_model_profile(task, agent),
+        prompt_chars=0,
+        prompt_estimated_tokens=0,
+        prompt_sections=[],
+        prompt_budget=PromptBudgetResult(
+            max_chars=None,
+            max_estimated_tokens=None,
+            exceeded=False,
+            violations=[],
+        ),
+        usage=None,
+        return_code=None,
+        prompt_path="",
+        command_path="",
+        stdout_path=None,
+        stderr_path=None,
+        result_path=None,
+        dependency_materialization_mode=dependency_materialization_mode,
+        dependency_layers_applied=[],
+        worker_validation_mode=validation_resolution.mode,
+        worker_validation_mode_source=validation_resolution.source,
+    )
+
+
 def execute_task(
     run_dir: Path,
     runtime_root: Path,
@@ -4355,6 +4557,10 @@ def run_loaded_plan(
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
+    existing_run_id: str | None = None,
+    existing_run_dir: Path | None = None,
+    existing_workspaces_dir: Path | None = None,
+    write_plan_snapshot: bool = True,
 ) -> dict[str, Any]:
     worker_validation_override = (
         normalize_worker_validation_mode(
@@ -4379,16 +4585,21 @@ def run_loaded_plan(
     if not dry_run:
         ensure_claude_available(claude_bin)
 
-    run_id = (
+    runtime_root = runtime_root.resolve()
+    run_id = existing_run_id or (
         f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         f"-{slugify(plan.name)}-{uuid4().hex[:8]}"
     )
-    runtime_root = runtime_root.resolve()
-    run_dir = runtime_root / "runs" / run_id
-    workspaces_dir = runtime_root / "workspaces" / run_id
+    run_dir = existing_run_dir.resolve() if existing_run_dir is not None else runtime_root / "runs" / run_id
+    workspaces_dir = (
+        existing_workspaces_dir.resolve()
+        if existing_workspaces_dir is not None
+        else runtime_root / "workspaces" / run_id
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     workspaces_dir.mkdir(parents=True, exist_ok=True)
-    write_selected_plan_snapshot(run_dir, plan)
+    if write_plan_snapshot:
+        write_selected_plan_snapshot(run_dir, plan)
 
     seeded_task_ids = sorted(initial_records or {})
     agents_json_by_name = {
@@ -4581,6 +4792,115 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+def resume_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    previous_records = {record.id: record for record in selected_run_records(manifest, [])}
+    if not previous_records:
+        raise OrchestratorError(f"{manifest_path}: run manifest contains no task records to resume")
+
+    run_dir = manifest_run_dir(manifest_path, manifest)
+    workspaces_dir = manifest_workspaces_dir(manifest, run_dir=run_dir)
+    runtime_root = manifest_required_path(manifest, "runtimeRoot", location=str(manifest_path))
+    agents_path = (
+        Path(args.agents).resolve()
+        if args.agents
+        else manifest_required_path(manifest, "agentsPath", location=str(manifest_path))
+    )
+    if not agents_path.exists():
+        raise OrchestratorError(f"Resume source agents file '{agents_path}' does not exist")
+    agents = load_agents(agents_path)
+
+    source_plan_path = manifest_selected_plan_path(
+        manifest_path,
+        manifest,
+        location=str(manifest_path),
+    )
+    if not source_plan_path.exists():
+        raise OrchestratorError(f"Resume source plan '{source_plan_path}' does not exist")
+    base_plan = load_task_plan(source_plan_path, agents)
+
+    source_worker_validation_override = manifest_worker_validation_override(
+        manifest,
+        location=str(manifest_path),
+    )
+    resume_worker_validation_mode = (
+        normalize_worker_validation_mode(
+            getattr(args, "worker_validation_mode", "") or source_worker_validation_override,
+            location=f"resume source '{manifest_path}' worker validation mode",
+        )
+        if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override)
+        else None
+    )
+
+    requested_task_ids = list(args.selected_tasks)
+    if not requested_task_ids:
+        requested_task_ids = [
+            task.id
+            for task in base_plan.tasks
+            if previous_records.get(task.id) is None or previous_records[task.id].status != "completed"
+        ]
+    if not requested_task_ids:
+        raise OrchestratorError(
+            "Run manifest contains no resumable tasks; use --task to pick tasks explicitly"
+        )
+
+    resume_scope = selected_plan(base_plan, requested_task_ids)
+    resume_scope_ids = {task.id for task in resume_scope.tasks}
+    requested_set = set(requested_task_ids)
+    initial_records: dict[str, TaskRunRecord] = {}
+    resumed_task_ids: list[str] = []
+    for task in base_plan.tasks:
+        prior_record = previous_records.get(task.id)
+        if task.id in resume_scope_ids:
+            if task.id in requested_set or prior_record is None or prior_record.status != "completed":
+                resumed_task_ids.append(task.id)
+                continue
+            if prior_record is not None:
+                initial_records[task.id] = prior_record
+            continue
+        if prior_record is not None:
+            initial_records[task.id] = prior_record
+            continue
+        initial_records[task.id] = planned_record(
+            task,
+            task.agent,
+            agents[task.agent],
+            effective_workspace_mode(task, agents[task.agent]),
+            str((workspaces_dir / task.id).resolve())
+            if effective_workspace_mode(task, agents[task.agent]) != "repo"
+            else str(ROOT),
+            summary="Pending from the existing run; not selected for this resume.",
+            worker_validation_mode=resume_worker_validation_mode,
+        )
+    if not resumed_task_ids:
+        raise OrchestratorError("Nothing to resume; all selected tasks are already completed")
+
+    payload = run_loaded_plan(
+        source_plan_path,
+        agents_path,
+        agents,
+        base_plan,
+        claude_bin=args.claude_bin,
+        runtime_root=runtime_root,
+        max_parallel=args.max_parallel,
+        continue_on_error=args.continue_on_error,
+        dry_run=args.dry_run,
+        worker_validation_mode=resume_worker_validation_mode,
+        initial_records=initial_records,
+        requested_task_ids=requested_task_ids,
+        existing_run_id=str(manifest.get("runId", "")).strip() or None,
+        existing_run_dir=run_dir,
+        existing_workspaces_dir=workspaces_dir,
+        write_plan_snapshot=False,
+    )
+    payload["sourceManifestPath"] = str(manifest_path)
+    payload["requestedTaskIds"] = requested_task_ids
+    payload["resumedTaskIds"] = resumed_task_ids
+    payload["preservedTaskIds"] = sorted(initial_records)
+    payload["resumedInPlace"] = True
+    return payload
+
+
 def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     previous_records = {record.id: record for record in selected_run_records(manifest, [])}
@@ -4596,7 +4916,11 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
             "Run manifest contains no failed or blocked tasks to retry; use --task to pick tasks explicitly"
         )
 
-    plan_path = manifest_required_path(manifest, "planPath", location=str(manifest_path))
+    plan_path = manifest_selected_plan_path(
+        manifest_path,
+        manifest,
+        location=str(manifest_path),
+    )
     agents_path = (
         Path(args.agents).resolve()
         if args.agents
@@ -4628,11 +4952,10 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     if not retried_task_ids:
         raise OrchestratorError("Nothing to retry; all selected tasks are already completed")
 
-    manifest_worker_validation_override = str(manifest.get("workerValidationModeOverride", "")).strip()
-    if not manifest_worker_validation_override:
-        legacy_manifest_mode = str(manifest.get("workerValidationMode", "")).strip()
-        if legacy_manifest_mode in WORKER_VALIDATION_MODES:
-            manifest_worker_validation_override = legacy_manifest_mode
+    source_worker_validation_override = manifest_worker_validation_override(
+        manifest,
+        location=str(manifest_path),
+    )
     payload = run_loaded_plan(
         plan_path,
         agents_path,
@@ -4645,10 +4968,10 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
         dry_run=args.dry_run,
         worker_validation_mode=(
             normalize_worker_validation_mode(
-                getattr(args, "worker_validation_mode", "") or manifest_worker_validation_override,
+                getattr(args, "worker_validation_mode", "") or source_worker_validation_override,
                 location=f"retry source '{manifest_path}' worker validation mode",
             )
-            if (getattr(args, "worker_validation_mode", "") or manifest_worker_validation_override)
+            if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override)
             else None
         ),
         initial_records=initial_records,
@@ -4660,8 +4983,26 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     return payload
 
 
-def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
-    manifest_path, manifest = load_run_manifest(args.run_ref)
+def parse_iso_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone()
+
+
+def datetime_to_iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone().isoformat()
+
+
+def cleanup_loaded_run(manifest_path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     run_dir = manifest_run_dir(manifest_path, manifest)
     workspaces_dir = manifest_workspaces_dir(manifest, run_dir=run_dir)
     records = selected_run_records(manifest, [])
@@ -4712,6 +5053,177 @@ def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
         "removedWorkspacesDir": not workspaces_dir.exists(),
         "removedWorktrees": removed_worktrees,
         "missingWorktreesSkipped": missing_worktrees_skipped,
+    }
+
+
+def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    return cleanup_loaded_run(manifest_path, manifest)
+
+
+def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, Any]]]:
+    runs_dir = runtime_root / "runs"
+    if not runs_dir.exists():
+        return []
+    entries: list[tuple[Path, dict[str, Any]]] = []
+    for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir()):
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        entries.append(load_run_manifest(str(manifest_path)))
+    return entries
+
+
+def summarize_run_manifest(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    *,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], datetime]:
+    now = now or datetime.now(timezone.utc).astimezone()
+    run_dir = manifest_run_dir(manifest_path, manifest)
+    workspaces_dir = manifest_workspaces_dir(manifest, run_dir=run_dir)
+    records = selected_run_records(manifest, [])
+    plan_payload = manifest.get("plan")
+    if isinstance(plan_payload, dict):
+        plan_name = str(plan_payload.get("name", ""))
+        plan_goal = str(plan_payload.get("goal", ""))
+        plan_task_ids = [str(task_id) for task_id in plan_payload.get("taskIds", []) or []]
+    else:
+        plan_name = str(plan_payload or "")
+        plan_goal = str(manifest.get("goal", ""))
+        plan_task_ids = [record.id for record in records]
+    status_counts = count_statuses([record.status for record in records])
+    resume_candidate_task_ids = [record.id for record in records if record.status != "completed"]
+    usage_totals = manifest.get("usageTotals") if isinstance(manifest.get("usageTotals"), dict) else {}
+    candidate_times = [
+        datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
+    ]
+    generated_at = parse_iso_datetime(manifest.get("generatedAt"))
+    if generated_at is not None:
+        candidate_times.append(generated_at)
+    for record in records:
+        for value in (record.started_at, record.finished_at):
+            parsed = parse_iso_datetime(value)
+            if parsed is not None:
+                candidate_times.append(parsed)
+    last_updated_at = max(candidate_times)
+    age_days = max((now - last_updated_at).total_seconds(), 0.0) / 86400.0
+    summary = {
+        "runId": str(manifest.get("runId", "")),
+        "manifestPath": str(manifest_path),
+        "runDir": str(run_dir),
+        "workspacesDir": str(workspaces_dir),
+        "plan": plan_name,
+        "goal": plan_goal,
+        "dryRun": bool(manifest.get("dryRun", False)),
+        "retryOfRunId": str(manifest.get("retryOfRunId", "")).strip() or None,
+        "generatedAt": datetime_to_iso(generated_at) if generated_at is not None else None,
+        "lastUpdatedAt": datetime_to_iso(last_updated_at),
+        "ageDays": round(age_days, 3),
+        "taskCount": len(records),
+        "taskIds": plan_task_ids or [record.id for record in records],
+        "statusCounts": status_counts,
+        "resumeCandidateTaskIds": resume_candidate_task_ids,
+        "resumeCandidateTaskCount": len(resume_candidate_task_ids),
+        "allTasksCompleted": bool(records) and not resume_candidate_task_ids,
+        "runDirExists": run_dir.exists(),
+        "workspacesDirExists": workspaces_dir.exists(),
+        "coordinatorValidationPresent": isinstance(manifest.get("coordinatorValidation"), dict),
+        "promptEstimatedTokens": int(usage_totals.get("promptEstimatedTokens", 0) or 0),
+        "totalCostUsd": float(usage_totals.get("totalCostUsd", 0.0) or 0.0),
+    }
+    return summary, last_updated_at
+
+
+def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
+    runtime_root = Path(args.runtime_root).resolve()
+    now = datetime.now(timezone.utc).astimezone()
+    entries = [
+        (*summarize_run_manifest(manifest_path, manifest, now=now), manifest_path, manifest)
+        for manifest_path, manifest in runtime_manifest_entries(runtime_root)
+    ]
+    entries.sort(key=lambda item: item[1], reverse=True)
+    limit = max(int(args.limit), 0)
+    visible = entries[:limit] if limit else entries
+    run_summaries = [summary for summary, _, _, _ in visible]
+    return {
+        "runtimeRoot": str(runtime_root),
+        "runCount": len(entries),
+        "shownRunCount": len(run_summaries),
+        "completedRunCount": sum(1 for summary, _, _, _ in entries if summary["allTasksCompleted"]),
+        "resumableRunCount": sum(
+            1 for summary, _, _, _ in entries if summary["resumeCandidateTaskCount"] > 0
+        ),
+        "runs": run_summaries,
+    }
+
+
+def prune_runs(args: argparse.Namespace) -> dict[str, Any]:
+    runtime_root = Path(args.runtime_root).resolve()
+    older_than_days = float(args.older_than_days)
+    if older_than_days < 0:
+        raise OrchestratorError("--older-than-days must be >= 0")
+    keep = max(int(args.keep), 0)
+    now = datetime.now(timezone.utc).astimezone()
+    entries = [
+        (*summarize_run_manifest(manifest_path, manifest, now=now), manifest_path, manifest)
+        for manifest_path, manifest in runtime_manifest_entries(runtime_root)
+    ]
+    entries.sort(key=lambda item: item[1], reverse=True)
+    keep_run_ids = {
+        summary["runId"]
+        for summary, _, _, _ in entries[:keep]
+    }
+    cutoff = now - timedelta(days=older_than_days)
+    candidate_entries: list[tuple[dict[str, Any], datetime, Path, dict[str, Any]]] = []
+    skipped_recent_run_ids: list[str] = []
+    skipped_incomplete_run_ids: list[str] = []
+    for summary, last_updated_at, manifest_path, manifest in entries:
+        run_id = str(summary["runId"])
+        if run_id in keep_run_ids:
+            continue
+        if last_updated_at > cutoff:
+            skipped_recent_run_ids.append(run_id)
+            continue
+        if summary["resumeCandidateTaskCount"] > 0 and not args.include_incomplete:
+            skipped_incomplete_run_ids.append(run_id)
+            continue
+        candidate_entries.append((summary, last_updated_at, manifest_path, manifest))
+    removed: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    for summary, _, manifest_path, manifest in candidate_entries:
+        if args.dry_run:
+            removed.append(
+                {
+                    "runId": summary["runId"],
+                    "manifestPath": summary["manifestPath"],
+                    "runDir": summary["runDir"],
+                    "workspacesDir": summary["workspacesDir"],
+                    "dryRun": True,
+                }
+            )
+            continue
+        try:
+            removed.append(cleanup_loaded_run(manifest_path, manifest))
+        except OrchestratorError as exc:
+            failure = {"runId": summary["runId"], "error": str(exc)}
+            failures.append(failure)
+            if not args.continue_on_error:
+                raise
+    return {
+        "runtimeRoot": str(runtime_root),
+        "olderThanDays": older_than_days,
+        "keep": keep,
+        "includeIncomplete": bool(args.include_incomplete),
+        "dryRun": bool(args.dry_run),
+        "candidateRunIds": [summary["runId"] for summary, _, _, _ in candidate_entries],
+        "removedRunIds": [str(payload.get("runId", "")) for payload in removed],
+        "skippedRecentRunIds": skipped_recent_run_ids,
+        "skippedIncompleteRunIds": skipped_incomplete_run_ids,
+        "keptRunIds": sorted(keep_run_ids),
+        "removed": removed,
+        "failures": failures,
     }
 
 
@@ -5195,6 +5707,9 @@ def main() -> int:
         if args.command == "run":
             print_payload(run_plan(args), as_json=args.json)
             return 0
+        if args.command == "resume":
+            print_payload(resume_run(args), as_json=args.json)
+            return 0
         if args.command == "retry":
             print_payload(retry_run(args), as_json=args.json)
             return 0
@@ -5209,6 +5724,12 @@ def main() -> int:
             return 0
         if args.command == "cleanup":
             print_payload(cleanup_run(args), as_json=args.json)
+            return 0
+        if args.command == "inventory":
+            print_payload(inventory_runs(args), as_json=args.json)
+            return 0
+        if args.command == "prune":
+            print_payload(prune_runs(args), as_json=args.json)
             return 0
         if args.command == "validate-run":
             print_payload(validate_run(args), as_json=args.json)

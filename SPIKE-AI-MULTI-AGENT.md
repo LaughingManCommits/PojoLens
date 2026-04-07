@@ -22,7 +22,7 @@ That part is already proven:
 - a non-trivial live proof already exercised implementer, reviewer, export,
   validation, and promotion paths
 
-The remaining problems are more specific.
+The remaining blocker is more specific.
 
 The coordinator is already credible for:
 
@@ -32,10 +32,8 @@ The coordinator is already credible for:
 
 It is still weak for:
 
-- chained implementation DAGs where one implementer must build on another
-- strict task-scope enforcement
-- operator lifecycle beyond "retry in a new run" and "cleanup this run"
-- run-level cost governance
+- longer runs that need run-level spend or artifact governance instead of only
+  post-hoc inspection
 
 ## Verified Baseline
 
@@ -117,24 +115,27 @@ Conclusion:
 - real stacked implementation is still underpowered without dependency-state
   materialization
 
-### 3. Lifecycle Tooling Stops At Retry-And-Cleanup
+### 3. Lifecycle Tooling Was The Third Reopened Gap
 
-Current behavior:
+Original behavior:
 
 - failed or blocked tasks can be retried into a new run
 - completed dependencies can be reused
 - run-scoped cleanup exists
 
-What is still missing:
+Status as of `2026-04-07`:
 
-- same-run resume after interruption
-- run inventory or status listing across many retained runs
-- age-based prune or retention policy
-
-Why this matters:
-
-- the coordinator is usable for occasional runs, but not yet pleasant to
-  operate as a repeated local tool with accumulating runtime state
+- resolved in tracked code and docs via same-run `resume`, runtime-root
+  `inventory`, and age-based `prune`
+- `resume` now prefers the run's `selected-plan.json` snapshot, defaults to
+  unfinished or missing tasks, preserves completed records, and reuses the
+  same `runId`, run directory, and workspaces directory
+- `inventory` surfaces compact status, resume-candidate, validation, prompt,
+  and cost summaries across retained runs
+- `prune` supports age filters plus `--keep` and skips incomplete runs unless
+  `--include-incomplete` is set explicitly
+- resumed `copy` or `worktree` tasks still rebuild fresh sandboxes before
+  rerun; same-run resume is run continuity, not partial workspace recovery
 
 ### 4. Budget Controls Are Mostly Per-Task And Observational
 
@@ -238,7 +239,11 @@ Success bar:
 - a downstream implementer can run, inspect, edit, and validate against
   upstream task changes inside its own isolated workspace
 
-### WP11: Resume, Inventory, And Retention
+### WP11: Resume, Inventory, And Retention (Completed)
+
+Status:
+
+- completed `2026-04-07`
 
 Goal:
 
@@ -260,6 +265,19 @@ Success bar:
 
 - lifecycle ergonomics are no longer limited to "retry into a new run" or
   "delete one run manually"
+
+Findings:
+
+- same-run `resume` now reuses the original run id plus runtime directories,
+  defaults to unfinished or missing tasks, and prefers the run's own selected
+  plan snapshot instead of drifting back to the broader tracked plan file
+- `inventory` reports compact per-run status, resumable task ids,
+  prompt-estimate, and cost fields across retained runtime state
+- `prune` now supports age-based retention with `--keep` and skips incomplete
+  runs by default
+- resumed `copy` and `worktree` tasks still rebuild fresh task sandboxes
+  before rerun, so the new surface is run-level continuity rather than
+  partial workspace recovery
 
 ### WP12: Run-Level Budget And Artifact Governance
 
@@ -332,10 +350,10 @@ Findings:
 
 ## Recommended Order
 
-1. `WP11` first because retained live runs now exist and same-run resume plus
-   inventory are the largest remaining operational gap.
-2. `WP12` second because the live proof showed meaningful cache-read and
-   output cost without any run-level stop.
+1. `WP12` next because retained-run lifecycle is now adequate but longer runs
+   still have no run-level spend or artifact stop.
+2. If `WP12` changes budget behavior materially, follow it with one bounded
+   live proof instead of reopening generic hardening.
 
 ## Non-Goals
 
@@ -354,14 +372,12 @@ The target remains:
 
 ## Bottom Line
 
-The orchestrator does not need another generic hardening pass.
+The reopened phase already delivered explicit scope, portable dependency
+state, a stronger live chained proof, and retained-run lifecycle helpers.
 
-It needs a narrower second phase:
+The remaining open work is narrower:
 
-- make scope explicit
-- make dependency state portable across isolated workspaces when requested
-- make retained runs easier to operate
-- add run-level budget controls
-- then prove the reopened design on a live multi-step change
+- add run-level budget and artifact governance
+- then rerun a bounded live proof only if the new budget controls need it
 
-That is the right reopening point for the spike.
+That is the right remaining scope for the spike.

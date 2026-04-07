@@ -2,11 +2,13 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import asdict
 from types import SimpleNamespace
 
 
@@ -2935,6 +2937,107 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["deep-design"], manifest["complexModelTaskIds"])
         self.assertEqual(1, manifest["complexModelTaskCount"])
 
+    def test_run_loaded_plan_can_reuse_existing_run_directories_without_overwriting_snapshot(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "same-run"
+            workspaces_dir = runtime_root / "workspaces" / "same-run"
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            selected_plan_path = run_dir / "selected-plan.json"
+            selected_plan_path.write_text("{\"sentinel\":true}\n", encoding="utf-8")
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="same-run-reuse",
+                goal="Reuse an existing run directory.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Existing run test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                    existing_run_id="same-run",
+                    existing_run_dir=run_dir,
+                    existing_workspaces_dir=workspaces_dir,
+                    write_plan_snapshot=False,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+            manifest = orchestrator.read_json(run_dir / "manifest.json")
+            selected_plan_text = selected_plan_path.read_text(encoding="utf-8")
+
+        self.assertEqual("same-run", payload["runId"])
+        self.assertEqual(str(run_dir.resolve()), payload["runDir"])
+        self.assertEqual(str(workspaces_dir.resolve()), payload["workspacesDir"])
+        self.assertEqual("{\"sentinel\":true}\n", selected_plan_text)
+        self.assertEqual("same-run", manifest["runId"])
+        self.assertEqual(str(run_dir.resolve()), manifest["runDir"])
+        self.assertEqual(str(workspaces_dir.resolve()), manifest["workspacesDir"])
+
     def test_run_loaded_plan_rejects_compat_worker_validation_override(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:
@@ -3609,6 +3712,10 @@ class ValidateCommandTest(unittest.TestCase):
                 retry_of_run_id=None,
                 requested_task_ids=None,
                 retried_task_ids=None,
+                existing_run_id=None,
+                existing_run_dir=None,
+                existing_workspaces_dir=None,
+                write_plan_snapshot=True,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
                 return {
@@ -3648,6 +3755,7 @@ class ValidateCommandTest(unittest.TestCase):
                         "runDir": str(run_dir),
                         "workspacesDir": str(workspaces_dir),
                         "workerValidationMode": "intents-only",
+                        "workerValidationModeOverride": None,
                         "tasks": {
                             "retry-b": {
                                 "id": "retry-b",
@@ -3795,6 +3903,10 @@ class ValidateCommandTest(unittest.TestCase):
                 retry_of_run_id=None,
                 requested_task_ids=None,
                 retried_task_ids=None,
+                existing_run_id=None,
+                existing_run_dir=None,
+                existing_workspaces_dir=None,
+                write_plan_snapshot=True,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
                 return {
@@ -4076,6 +4188,408 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["inspect-a", "retry-b"], payload["retriedTaskIds"])
         self.assertEqual([], payload["seededTaskIds"])
         self.assertEqual({"planned": 2}, payload["statusCounts"])
+
+    def test_resume_run_reuses_existing_run_and_preserves_unselected_tasks(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_loaded_plan = orchestrator.run_loaded_plan
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "same-run"
+            workspaces_dir = runtime_root / "workspaces" / "same-run"
+            repo_root.mkdir()
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            selected_plan_path = run_dir / "selected-plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                            "analyst": {
+                                "description": "Analyze",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                            },
+                        },
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            plan_payload = {
+                "version": 1,
+                "name": "resume-plan",
+                "goal": "Resume in place.",
+                "sharedContext": {
+                    "summary": "Resume test.",
+                    "constraints": [],
+                    "readPaths": [],
+                    "validation": [],
+                },
+                "tasks": [
+                    {
+                        "id": "inspect-a",
+                        "title": "Inspect A",
+                        "agent": "analyst",
+                        "prompt": "Inspect A.",
+                    },
+                    {
+                        "id": "retry-b",
+                        "title": "Retry B",
+                        "agent": "analyst",
+                        "prompt": "Retry B.",
+                        "dependsOn": ["inspect-a"],
+                    },
+                    {
+                        "id": "later-c",
+                        "title": "Later C",
+                        "agent": "analyst",
+                        "prompt": "Later C.",
+                    },
+                ],
+            }
+            plan_path.write_text(json.dumps(plan_payload, indent=2) + "\n", encoding="utf-8")
+            selected_plan_path.write_text(json.dumps(plan_payload, indent=2) + "\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            captured: dict[str, object] = {}
+
+            def fake_run_loaded_plan(
+                plan_path_arg,
+                agents_path_arg,
+                agents,
+                plan,
+                *,
+                claude_bin,
+                runtime_root,
+                max_parallel,
+                continue_on_error,
+                dry_run,
+                worker_validation_mode=None,
+                initial_records=None,
+                retry_of_run_id=None,
+                requested_task_ids=None,
+                retried_task_ids=None,
+                existing_run_id=None,
+                existing_run_dir=None,
+                existing_workspaces_dir=None,
+                write_plan_snapshot=True,
+            ):
+                captured["plan_path"] = pathlib.Path(plan_path_arg)
+                captured["plan_task_ids"] = [task.id for task in plan.tasks]
+                captured["requested_task_ids"] = list(requested_task_ids or [])
+                captured["initial_record_statuses"] = {
+                    task_id: record.status for task_id, record in sorted((initial_records or {}).items())
+                }
+                captured["initial_record_summaries"] = {
+                    task_id: record.summary for task_id, record in sorted((initial_records or {}).items())
+                }
+                captured["existing_run_id"] = existing_run_id
+                captured["existing_run_dir"] = str(existing_run_dir)
+                captured["existing_workspaces_dir"] = str(existing_workspaces_dir)
+                captured["write_plan_snapshot"] = write_plan_snapshot
+                return {
+                    "runId": existing_run_id,
+                    "plan": plan.name,
+                    "goal": plan.goal,
+                    "dryRun": dry_run,
+                    "workerValidationMode": worker_validation_mode or "intents-only",
+                    "runtimeRoot": str(runtime_root),
+                    "runDir": str(existing_run_dir),
+                    "workspacesDir": str(existing_workspaces_dir),
+                    "statusCounts": {"completed": 1, "failed": 1, "planned": 1},
+                    "usageTotals": {
+                        "tasksWithUsage": 0,
+                        "promptEstimatedTokens": 0,
+                        "inputTokens": 0,
+                        "outputTokens": 0,
+                        "cacheReadInputTokens": 0,
+                        "cacheCreationInputTokens": 0,
+                        "totalCostUsd": 0.0,
+                        "perModel": {},
+                    },
+                    "tasks": [],
+                }
+
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "same-run",
+                        "planPath": str(plan_path),
+                        "agentsPath": str(agents_path),
+                        "runtimeRoot": str(runtime_root),
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "workerValidationMode": "intents-only",
+                        "workerValidationModeOverride": None,
+                        "tasks": {
+                            "inspect-a": asdict(
+                                make_task_run_record(
+                                    orchestrator,
+                                    orchestrator.TaskDefinition(
+                                        id="inspect-a",
+                                        title="Inspect A",
+                                        agent="analyst",
+                                        prompt="Inspect A.",
+                                    ),
+                                    status="completed",
+                                    summary="Completed A.",
+                                    workspace_path=str(workspaces_dir / "inspect-a"),
+                                )
+                            ),
+                            "retry-b": asdict(
+                                make_task_run_record(
+                                    orchestrator,
+                                    orchestrator.TaskDefinition(
+                                        id="retry-b",
+                                        title="Retry B",
+                                        agent="analyst",
+                                        prompt="Retry B.",
+                                        depends_on=["inspect-a"],
+                                    ),
+                                    status="failed",
+                                    summary="B failed.",
+                                    workspace_path=str(workspaces_dir / "retry-b"),
+                                )
+                            ),
+                        },
+                    },
+                )
+                orchestrator.run_loaded_plan = fake_run_loaded_plan
+                payload = orchestrator.resume_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        agents="",
+                        claude_bin="claude",
+                        max_parallel=2,
+                        selected_tasks=["retry-b"],
+                        continue_on_error=False,
+                        worker_validation_mode="",
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.run_loaded_plan = old_run_loaded_plan
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(selected_plan_path.resolve(), captured["plan_path"])
+        self.assertEqual(["inspect-a", "retry-b", "later-c"], captured["plan_task_ids"])
+        self.assertEqual(["retry-b"], captured["requested_task_ids"])
+        self.assertEqual(
+            {"inspect-a": "completed", "later-c": "planned"},
+            captured["initial_record_statuses"],
+        )
+        self.assertIn("not selected for this resume", captured["initial_record_summaries"]["later-c"])
+        self.assertEqual("same-run", captured["existing_run_id"])
+        self.assertEqual(str(run_dir), captured["existing_run_dir"])
+        self.assertEqual(str(workspaces_dir), captured["existing_workspaces_dir"])
+        self.assertFalse(captured["write_plan_snapshot"])
+        self.assertEqual("same-run", payload["runId"])
+        self.assertEqual(["retry-b"], payload["requestedTaskIds"])
+        self.assertEqual(["retry-b"], payload["resumedTaskIds"])
+        self.assertEqual(["inspect-a", "later-c"], payload["preservedTaskIds"])
+        self.assertTrue(payload["resumedInPlace"])
+
+    def test_inventory_runs_summarizes_newest_runs_first(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            old_run_dir = runtime_root / "runs" / "old-run"
+            new_run_dir = runtime_root / "runs" / "new-run"
+            old_workspaces_dir = runtime_root / "workspaces" / "old-run"
+            new_workspaces_dir = runtime_root / "workspaces" / "new-run"
+            old_run_dir.mkdir(parents=True)
+            new_run_dir.mkdir(parents=True)
+            old_workspaces_dir.mkdir(parents=True)
+            new_workspaces_dir.mkdir(parents=True)
+            orchestrator.write_json(
+                old_run_dir / "manifest.json",
+                {
+                    "runId": "old-run",
+                    "generatedAt": "2026-04-01T10:00:00+00:00",
+                    "dryRun": False,
+                    "runDir": str(old_run_dir),
+                    "workspacesDir": str(old_workspaces_dir),
+                    "plan": {"name": "old-plan", "goal": "Old goal", "taskIds": ["task-a"]},
+                    "usageTotals": {"promptEstimatedTokens": 123, "totalCostUsd": 0.12},
+                    "tasks": {
+                        "task-a": asdict(
+                            make_task_run_record(
+                                orchestrator,
+                                orchestrator.TaskDefinition(
+                                    id="task-a",
+                                    title="Task A",
+                                    agent="analyst",
+                                    prompt="A.",
+                                ),
+                                status="completed",
+                                summary="Done.",
+                                workspace_path=str(old_workspaces_dir / "task-a"),
+                            )
+                        )
+                    },
+                },
+            )
+            orchestrator.write_json(
+                new_run_dir / "manifest.json",
+                {
+                    "runId": "new-run",
+                    "generatedAt": "2026-04-07T10:00:00+00:00",
+                    "dryRun": False,
+                    "runDir": str(new_run_dir),
+                    "workspacesDir": str(new_workspaces_dir),
+                    "plan": {"name": "new-plan", "goal": "New goal", "taskIds": ["task-b"]},
+                    "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
+                    "tasks": {
+                        "task-b": asdict(
+                            make_task_run_record(
+                                orchestrator,
+                                orchestrator.TaskDefinition(
+                                    id="task-b",
+                                    title="Task B",
+                                    agent="analyst",
+                                    prompt="B.",
+                                ),
+                                status="failed",
+                                summary="Failed.",
+                                workspace_path=str(new_workspaces_dir / "task-b"),
+                            )
+                        )
+                    },
+                },
+            )
+
+            payload = orchestrator.inventory_runs(
+                SimpleNamespace(
+                    runtime_root=str(runtime_root),
+                    limit=20,
+                )
+            )
+
+        self.assertEqual(2, payload["runCount"])
+        self.assertEqual(2, payload["shownRunCount"])
+        self.assertEqual(1, payload["completedRunCount"])
+        self.assertEqual(1, payload["resumableRunCount"])
+        self.assertEqual(["new-run", "old-run"], [run["runId"] for run in payload["runs"]])
+        self.assertEqual(["task-b"], payload["runs"][0]["resumeCandidateTaskIds"])
+        self.assertEqual({"failed": 1}, payload["runs"][0]["statusCounts"])
+        self.assertEqual([], payload["runs"][1]["resumeCandidateTaskIds"])
+
+    def test_prune_runs_removes_only_old_completed_runs_by_default(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            repo_root.mkdir()
+            orchestrator.ROOT = repo_root
+
+            def write_run(run_id: str, generated_at: str, status: str) -> tuple[pathlib.Path, pathlib.Path]:
+                run_dir = runtime_root / "runs" / run_id
+                workspaces_dir = runtime_root / "workspaces" / run_id
+                task_workspace = workspaces_dir / "task-a"
+                manifest_path = run_dir / "manifest.json"
+                run_dir.mkdir(parents=True)
+                task_workspace.mkdir(parents=True)
+                record = make_task_run_record(
+                    orchestrator,
+                    orchestrator.TaskDefinition(
+                        id="task-a",
+                        title="Task A",
+                        agent="analyst",
+                        prompt="A.",
+                    ),
+                    status=status,
+                    summary=status,
+                    workspace_path=str(task_workspace),
+                )
+                record.started_at = generated_at
+                record.finished_at = generated_at
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": run_id,
+                        "generatedAt": generated_at,
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "plan": {"name": run_id, "goal": run_id, "taskIds": ["task-a"]},
+                        "tasks": {
+                            "task-a": asdict(record)
+                        },
+                    },
+                )
+                generated_dt = orchestrator.parse_iso_datetime(generated_at)
+                if generated_dt is not None:
+                    os.utime(manifest_path, (generated_dt.timestamp(), generated_dt.timestamp()))
+                return run_dir, workspaces_dir
+
+            old_completed_run_dir, old_completed_workspaces = write_run(
+                "old-completed",
+                "2026-03-01T10:00:00+00:00",
+                "completed",
+            )
+            old_failed_run_dir, old_failed_workspaces = write_run(
+                "old-failed",
+                "2026-03-02T10:00:00+00:00",
+                "failed",
+            )
+            recent_completed_run_dir, recent_completed_workspaces = write_run(
+                "recent-completed",
+                "2026-04-07T10:00:00+00:00",
+                "completed",
+            )
+
+            try:
+                payload = orchestrator.prune_runs(
+                    SimpleNamespace(
+                        runtime_root=str(runtime_root),
+                        older_than_days=7.0,
+                        keep=0,
+                        include_incomplete=False,
+                        continue_on_error=False,
+                        dry_run=False,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+            old_completed_exists = old_completed_run_dir.exists()
+            old_completed_workspaces_exist = old_completed_workspaces.exists()
+            old_failed_exists = old_failed_run_dir.exists()
+            old_failed_workspaces_exist = old_failed_workspaces.exists()
+            recent_completed_exists = recent_completed_run_dir.exists()
+            recent_completed_workspaces_exist = recent_completed_workspaces.exists()
+
+        self.assertEqual(["old-completed"], payload["removedRunIds"])
+        self.assertEqual(["old-failed"], payload["skippedIncompleteRunIds"])
+        self.assertEqual(["recent-completed"], payload["skippedRecentRunIds"])
+        self.assertFalse(old_completed_exists)
+        self.assertFalse(old_completed_workspaces_exist)
+        self.assertTrue(old_failed_exists)
+        self.assertTrue(old_failed_workspaces_exist)
+        self.assertTrue(recent_completed_exists)
+        self.assertTrue(recent_completed_workspaces_exist)
 
     def test_cleanup_run_removes_run_and_workspace_directories(self):
         orchestrator = self.orchestrator

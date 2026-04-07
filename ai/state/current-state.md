@@ -8,19 +8,17 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- AI orchestration remains on `WP11` resume/inventory/retention; `WP13` is complete.
+- AI orchestration now moves to `WP12` run-level budget/artifact governance; `WP11` and `WP13` are complete.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
 ## Verified
 
-- `2026-04-07`: worker requests are leaner; minimal prompts omit shared `readPaths`, pass only the selected agent, and use stable execution labels.
-- `2026-04-07`: the tracked `WP13` dry-run prompt estimate fell `3790` -> `3193`; worker rules are compact and untruncated.
-- `2026-04-07`: validate, dry-run, and manifest surfaces now expose resolved task models and flag any `complex` tasks; tracked plans stay `simple`/`balanced`.
-- `2026-04-07`: orchestration `WP13` is complete; live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved a chained same-file `apply-reviewed` flow and downstream-only promotion back into the repo.
-- `2026-04-07`: `WP13` added dependency-materialization visibility tests in `scripts/tests/test_claude_orchestrator.py`; the repo Python suite passed after promotion.
-- `2026-04-07`: `WP13` showed two active operator findings: task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files, and reviewer false positives remain a live risk.
-- `2026-04-07`: orchestration `WP9` and `WP10` are complete; explicit `readPaths`/`writePaths` plus opt-in `dependencyMaterialization = "apply-reviewed"` are now live.
-- `2026-04-03`: `docs/natural.md` is the canonical natural guide; the surface covers grouped aggregates, charts/time buckets, joins, windows, templates, computed fields, reports, and bounded aliases.
+- `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live, and retained runs resume from their run-local `selected-plan.json` snapshot.
+- `2026-04-07`: same-run `resume` preserves completed records and reuses the original run id/runtime directories; `prune` skips incomplete runs by default.
+- `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.
+- `2026-04-07`: prompt-overhead work cut the tracked `WP13` dry-run estimate from `3790` to `3193`; tracked plans still resolve to `simple`/`balanced`.
+- `2026-04-07`: `WP9` and `WP10` are complete; explicit `readPaths`/`writePaths` and opt-in `dependencyMaterialization = "apply-reviewed"` are live.
+- `2026-04-03`: `docs/natural.md` is the canonical natural guide.
 
 ## Release
 
@@ -29,13 +27,12 @@
 ## Risks
 
 - Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
-- Claude orchestration still lacks same-run resume plus inventory for retained runs.
-- Claude orchestration task-workspace validation still depends on declared sparse-copy inputs; undeclared runtime-loaded files can make pre-promotion validation fail even when the promoted repo patch is healthy.
-- Claude orchestration still pays high cache-read and output cost on longer runs; prompt-shape reduction is improved, but run-level budget control is still missing.
-- Claude orchestration still has no run-level budget stop; worker output and cache reads remain the main cost drivers.
+- Claude orchestration same-run `resume` is run continuity, not partial sandbox recovery; resumed `copy` or `worktree` tasks rebuild fresh workspaces before rerun.
+- Claude orchestration task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files.
+- Claude orchestration still has no run-level budget stop; cache reads and worker output remain the main cost drivers.
 
 ## Next
 
-- For the AI orchestration spike, start with `WP11` resume/inventory/retention, then run-level budget governance in `WP12`.
+- For the AI orchestration spike, start with `WP12` run-level budget/artifact governance.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.
