@@ -56,6 +56,7 @@ This file defines the portable contract for recreating the repository's AI memor
   - `.claude-orchestrator/workspaces/<run-id>/<task-id>/`
 - Worker task plans declare:
   - task id, title, agent, and prompt
+  - optional top-level `runPolicy` with `runBudgetUsd`, `budgetBehavior`, per-task artifact byte limits (`maxTaskStdoutBytes`, `maxTaskStderrBytes`, `maxTaskResultBytes`), and `artifactBehavior`
   - optional dependencies
   - `sharedContext.readPaths` for cross-task read context
   - task-local `readPaths` for additional read context
@@ -89,6 +90,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - If task-workspace validation is expected before promotion, any runtime-loaded config or fixture files needed by that validation should be declared in `readPaths` or `writePaths`; sparse copies should not be assumed to contain undeclared repo files.
 - When `dependencyMaterialization = apply-reviewed`, the coordinator should replay reviewed dependency layers into the downstream `copy` or `worktree` workspace after base hydration, reject ambiguous overlaps across direct dependencies, and record which dependency layers were applied.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
+- Optional run-level governance should be expressible in tracked plans via `runPolicy`; `budgetBehavior` / `artifactBehavior` should support `warn` and `stop`, and `stop` should block unscheduled later batches rather than trying to cancel already-running tasks.
+- Run governance should cover aggregate spend plus per-task stdout, stderr, and result artifact size, and should surface the highest-cost tasks plus aggregate artifact totals for operator review.
 - Prompt assembly should keep the most stable coordinator instructions and shared summary ahead of run-specific workspace paths or dependency detail so provider-side prefix caching can reuse more of each request.
 - Worker execution-context text should prefer stable workspace labels over absolute filesystem paths, and the repeated worker-rules block should stay compact enough to avoid normal prompt truncation.
 - Live planner, worker, and coordinator validation execution should emit progress lines on interactive `stderr` only, with phase-tagged status text, so operators can see in-flight work without contaminating machine-readable `stdout`.
@@ -118,6 +121,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Same-run resume should default to unfinished or missing tasks, preserve already-completed task records, reuse the same run id and runtime directories, and allow explicit task narrowing.
 - Same-run resume is run continuity rather than partial sandbox continuity; resumed `copy` or `worktree` tasks may rebuild fresh workspaces before rerun.
 - Run inventory should expose compact status, resume-candidate, coordinator-validation, prompt, and cost summaries across the runtime root.
+- Validate surfaces should expose tracked `runPolicy`, and run/retry/manifests plus retained-run summaries should expose run-governance status, alert counts, highest-cost tasks, and aggregate artifact totals.
 - Age-based prune should support keeping the newest `N` runs and should skip incomplete runs by default unless the operator opts into pruning them.
 - The coordinator should support a run-validation surface that consolidates worker-suggested validation commands or structured validation intents, defaults to completed-task suggestions unless the coordinator explicitly broadens the policy, rejects shell-composed or unknown-entrypoint commands by default unless the coordinator explicitly overrides that policy, can execute accepted suggestions from repo root or from the suggesting task workspace when the operator requests that scope, may expose an intent-only mode that rejects legacy raw `validationCommands`, and records actual coordinator validation outcomes separately in the run manifest.
 - When validation runs against task workspaces, dedupe should happen by command plus execution workspace rather than command text alone so the same suggestion can run independently against multiple worker sandboxes before promotion.

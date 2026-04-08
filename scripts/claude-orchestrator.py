@@ -42,6 +42,9 @@ WORKER_VALIDATION_MODES = {"intents-only"}
 LEGACY_WORKER_VALIDATION_MODES = {"compat", *WORKER_VALIDATION_MODES}
 DEFAULT_WORKER_VALIDATION_MODE = "intents-only"
 WORKER_VALIDATION_MODE_SOURCES = {"override", "task", "agent", "default"}
+RUN_POLICY_BEHAVIORS = {"warn", "stop"}
+DEFAULT_RUN_BUDGET_BEHAVIOR = "stop"
+DEFAULT_ARTIFACT_BEHAVIOR = "warn"
 MODEL_PROFILE_TO_MODEL = {
     "simple": "claude-haiku-4-5",
     "balanced": "claude-sonnet-4-6",
@@ -69,6 +72,7 @@ MAX_WORKER_VALIDATION_COMMANDS = 2
 MAX_WORKER_VALIDATION_COMMAND_CHARS = 320
 MAX_WORKER_VALIDATION_INTENTS = 2
 MAX_WORKER_VALIDATION_INTENT_ARG_CHARS = 180
+MAX_RUN_SUMMARY_TOP_TASKS = 3
 VALIDATION_INTENT_KINDS = {"repo-script", "tool"}
 VALIDATION_ALLOWED_EXECUTABLES = {
     "git",
@@ -154,6 +158,24 @@ PLAN_RESULT_SCHEMA = {
         "version": {"type": "integer", "enum": [1]},
         "name": {"type": "string"},
         "goal": {"type": "string"},
+        "runPolicy": {
+            "type": "object",
+            "properties": {
+                "runBudgetUsd": {"type": "number", "exclusiveMinimum": 0},
+                "budgetBehavior": {
+                    "type": "string",
+                    "enum": sorted(RUN_POLICY_BEHAVIORS),
+                },
+                "maxTaskStdoutBytes": {"type": "integer", "minimum": 1},
+                "maxTaskStderrBytes": {"type": "integer", "minimum": 1},
+                "maxTaskResultBytes": {"type": "integer", "minimum": 1},
+                "artifactBehavior": {
+                    "type": "string",
+                    "enum": sorted(RUN_POLICY_BEHAVIORS),
+                },
+            },
+            "additionalProperties": False,
+        },
         "sharedContext": {
             "type": "object",
             "properties": {
@@ -287,12 +309,23 @@ class TaskDefinition:
 
 
 @dataclass(frozen=True)
+class RunPolicy:
+    run_budget_usd: float | None = None
+    budget_behavior: str = DEFAULT_RUN_BUDGET_BEHAVIOR
+    max_task_stdout_bytes: int | None = None
+    max_task_stderr_bytes: int | None = None
+    max_task_result_bytes: int | None = None
+    artifact_behavior: str = DEFAULT_ARTIFACT_BEHAVIOR
+
+
+@dataclass(frozen=True)
 class TaskPlan:
     version: int
     name: str
     goal: str
     shared_context: SharedContext
     tasks: list[TaskDefinition]
+    run_policy: RunPolicy = field(default_factory=RunPolicy)
 
 
 @dataclass(frozen=True)
@@ -402,6 +435,9 @@ class TaskRunRecord:
     stdout_path: str | None
     stderr_path: str | None
     result_path: str | None
+    stdout_bytes: int = 0
+    stderr_bytes: int = 0
+    result_bytes: int = 0
     validation_intents: list[ValidationIntent] = field(default_factory=list)
     unknown_fields: list[str] = field(default_factory=list)
     dependency_materialization_mode: str = DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
@@ -1026,6 +1062,21 @@ def ensure_context_mode(value: str | None, *, location: str) -> str | None:
     return value
 
 
+def normalize_run_policy_behavior(value: str | None, *, location: str, key: str) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        return (
+            DEFAULT_RUN_BUDGET_BEHAVIOR
+            if key == "budgetBehavior"
+            else DEFAULT_ARTIFACT_BEHAVIOR
+        )
+    if normalized not in RUN_POLICY_BEHAVIORS:
+        raise OrchestratorError(
+            f"{location}:{key}: expected one of {sorted(RUN_POLICY_BEHAVIORS)}"
+        )
+    return normalized
+
+
 def normalize_dependency_materialization_mode(
     value: str | None,
     *,
@@ -1049,6 +1100,52 @@ def ensure_model_profile(value: str | None, *, location: str) -> str | None:
             f"{location}: invalid modelProfile '{value}', expected one of {sorted(MODEL_PROFILE_TO_MODEL)}"
         )
     return value
+
+
+def load_run_policy(payload: Any, *, location: str) -> RunPolicy:
+    if payload is None:
+        return RunPolicy()
+    if not isinstance(payload, dict):
+        raise OrchestratorError(f"{location}: runPolicy must be an object")
+    return RunPolicy(
+        run_budget_usd=require_optional_float(payload, "runBudgetUsd", location=location),
+        budget_behavior=normalize_run_policy_behavior(
+            require_optional_string(payload, "budgetBehavior", location=location),
+            location=location,
+            key="budgetBehavior",
+        ),
+        max_task_stdout_bytes=require_optional_int(payload, "maxTaskStdoutBytes", location=location),
+        max_task_stderr_bytes=require_optional_int(payload, "maxTaskStderrBytes", location=location),
+        max_task_result_bytes=require_optional_int(payload, "maxTaskResultBytes", location=location),
+        artifact_behavior=normalize_run_policy_behavior(
+            require_optional_string(payload, "artifactBehavior", location=location),
+            location=location,
+            key="artifactBehavior",
+        ),
+    )
+
+
+def serialize_run_policy(run_policy: RunPolicy) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    if run_policy.run_budget_usd is not None:
+        payload["runBudgetUsd"] = run_policy.run_budget_usd
+        payload["budgetBehavior"] = run_policy.budget_behavior
+    if run_policy.max_task_stdout_bytes is not None:
+        payload["maxTaskStdoutBytes"] = run_policy.max_task_stdout_bytes
+    if run_policy.max_task_stderr_bytes is not None:
+        payload["maxTaskStderrBytes"] = run_policy.max_task_stderr_bytes
+    if run_policy.max_task_result_bytes is not None:
+        payload["maxTaskResultBytes"] = run_policy.max_task_result_bytes
+    if any(
+        limit is not None
+        for limit in (
+            run_policy.max_task_stdout_bytes,
+            run_policy.max_task_stderr_bytes,
+            run_policy.max_task_result_bytes,
+        )
+    ):
+        payload["artifactBehavior"] = run_policy.artifact_behavior
+    return payload
 
 
 def load_agents(path: Path) -> dict[str, AgentDefinition]:
@@ -1140,6 +1237,7 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
         ),
         validation=require_string_list(shared_context_payload, "validation", location=f"{path}:sharedContext"),
     )
+    run_policy = load_run_policy(payload.get("runPolicy"), location=str(path))
     raw_tasks = payload.get("tasks")
     if not isinstance(raw_tasks, list) or not raw_tasks:
         raise OrchestratorError(f"{path}: expected non-empty tasks list")
@@ -1246,6 +1344,7 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
         goal=require_string(payload, "goal", location=str(path)),
         shared_context=shared_context,
         tasks=tasks,
+        run_policy=run_policy,
     )
 
 
@@ -1286,6 +1385,7 @@ def selected_plan(plan: TaskPlan, selected_ids: list[str]) -> TaskPlan:
         goal=plan.goal,
         shared_context=plan.shared_context,
         tasks=[task for task in plan.tasks if task.id in wanted],
+        run_policy=plan.run_policy,
     )
 
 
@@ -1954,6 +2054,12 @@ def count_statuses(values: list[str]) -> dict[str, int]:
     return counts
 
 
+def task_cost_usd(record: TaskRunRecord) -> float:
+    if not record.usage:
+        return 0.0
+    return float(record.usage.get("totalCostUsd", 0.0) or 0.0)
+
+
 def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
     if not isinstance(payload, dict):
         raise OrchestratorError(f"{location}: expected task record object")
@@ -2028,6 +2134,9 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         stdout_path=str(payload["stdout_path"]) if payload.get("stdout_path") is not None else None,
         stderr_path=str(payload["stderr_path"]) if payload.get("stderr_path") is not None else None,
         result_path=str(payload["result_path"]) if payload.get("result_path") is not None else None,
+        stdout_bytes=int(payload.get("stdout_bytes", 0) or 0),
+        stderr_bytes=int(payload.get("stderr_bytes", 0) or 0),
+        result_bytes=int(payload.get("result_bytes", 0) or 0),
         validation_intents=[
             coerce_validation_intent_payload(item, location=f"{location}:validation_intents")
             for item in payload.get("validation_intents", []) or []
@@ -2697,6 +2806,7 @@ def planner_prompt(
             "Minimize per-task context and validation hints.",
             "Do not assign `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*` edits to workers.",
             "Put cross-task setup in `sharedContext`.",
+            "Add `runPolicy` only when run-level cost or artifact governance is important for the plan.",
             "Use `dependsOn` only when one task genuinely needs another task's output.",
             "Omit speculative tasks when evidence is insufficient.",
         ],
@@ -3705,6 +3815,138 @@ def aggregate_usage(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
     return totals
 
 
+def aggregate_artifacts(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
+    totals: dict[str, Any] = {
+        "tasksWithArtifacts": 0,
+        "stdoutBytes": 0,
+        "stderrBytes": 0,
+        "resultBytes": 0,
+        "totalBytes": 0,
+        "largestTasks": [],
+    }
+    task_summaries: list[dict[str, Any]] = []
+    for record in records.values():
+        task_total = record.stdout_bytes + record.stderr_bytes + record.result_bytes
+        totals["stdoutBytes"] += record.stdout_bytes
+        totals["stderrBytes"] += record.stderr_bytes
+        totals["resultBytes"] += record.result_bytes
+        totals["totalBytes"] += task_total
+        if task_total > 0:
+            totals["tasksWithArtifacts"] += 1
+        task_summaries.append(
+            {
+                "taskId": record.id,
+                "status": record.status,
+                "stdoutBytes": record.stdout_bytes,
+                "stderrBytes": record.stderr_bytes,
+                "resultBytes": record.result_bytes,
+                "totalBytes": task_total,
+            }
+        )
+    task_summaries.sort(
+        key=lambda item: (
+            int(item["totalBytes"]),
+            str(item["taskId"]),
+        ),
+        reverse=True,
+    )
+    totals["largestTasks"] = [
+        item for item in task_summaries[:MAX_RUN_SUMMARY_TOP_TASKS] if int(item["totalBytes"]) > 0
+    ]
+    return totals
+
+
+def evaluate_run_governance(
+    records: dict[str, TaskRunRecord],
+    run_policy: RunPolicy,
+) -> dict[str, Any]:
+    usage_totals = aggregate_usage(records)
+    artifact_totals = aggregate_artifacts(records)
+    highest_cost_tasks = []
+    for record in sorted(
+        records.values(),
+        key=lambda item: (task_cost_usd(item), item.id),
+        reverse=True,
+    ):
+        cost_usd = task_cost_usd(record)
+        if cost_usd <= 0:
+            continue
+        highest_cost_tasks.append(
+            {
+                "taskId": record.id,
+                "status": record.status,
+                "model": record.model,
+                "costUsd": round(cost_usd, 6),
+                "inputTokens": int(record.usage.get("inputTokens", 0) or 0) if record.usage else 0,
+                "outputTokens": int(record.usage.get("outputTokens", 0) or 0) if record.usage else 0,
+            }
+        )
+        if len(highest_cost_tasks) >= MAX_RUN_SUMMARY_TOP_TASKS:
+            break
+    alerts: list[dict[str, Any]] = []
+    if run_policy.run_budget_usd is not None:
+        total_cost = float(usage_totals.get("totalCostUsd", 0.0) or 0.0)
+        if total_cost >= run_policy.run_budget_usd:
+            alerts.append(
+                {
+                    "kind": "budget",
+                    "severity": run_policy.budget_behavior,
+                    "message": (
+                        f"Run cost ${total_cost:.6f} reached configured budget "
+                        f"${run_policy.run_budget_usd:.6f}"
+                    ),
+                    "actualUsd": round(total_cost, 6),
+                    "limitUsd": run_policy.run_budget_usd,
+                }
+            )
+    artifact_limits = {
+        "stdout": run_policy.max_task_stdout_bytes,
+        "stderr": run_policy.max_task_stderr_bytes,
+        "result": run_policy.max_task_result_bytes,
+    }
+    for record in sorted(records.values(), key=lambda item: item.id):
+        artifact_values = {
+            "stdout": record.stdout_bytes,
+            "stderr": record.stderr_bytes,
+            "result": record.result_bytes,
+        }
+        for artifact_kind, limit in artifact_limits.items():
+            actual_bytes = artifact_values[artifact_kind]
+            if limit is None or actual_bytes <= limit:
+                continue
+            alerts.append(
+                {
+                    "kind": "artifact",
+                    "severity": run_policy.artifact_behavior,
+                    "message": (
+                        f"Task '{record.id}' {artifact_kind} artifact {actual_bytes} B "
+                        f"exceeds configured limit {limit} B"
+                    ),
+                    "taskId": record.id,
+                    "artifact": artifact_kind,
+                    "actualBytes": actual_bytes,
+                    "limitBytes": limit,
+                }
+            )
+    blocking_alerts = [alert for alert in alerts if alert.get("severity") == "stop"]
+    status = "ok"
+    if blocking_alerts:
+        status = "stop"
+    elif alerts:
+        status = "warn"
+    return {
+        "status": status,
+        "policy": serialize_run_policy(run_policy),
+        "alertCount": len(alerts),
+        "blockingAlertCount": len(blocking_alerts),
+        "alerts": alerts,
+        "blockingAlerts": blocking_alerts,
+        "highestCostTasks": highest_cost_tasks,
+        "artifactTotals": artifact_totals,
+        "shouldStopScheduling": bool(blocking_alerts),
+    }
+
+
 def slop_log_action(actor: str, phase: str, phrase: str, reason: str) -> SlopLogAction:
     normalized_phase = phase.strip().upper()
     if not normalized_phase:
@@ -4036,6 +4278,12 @@ def planned_record(
     )
 
 
+def artifact_file_size(path: Path | None) -> int:
+    if path is None or not path.exists() or not path.is_file():
+        return 0
+    return int(path.stat().st_size)
+
+
 def execute_task(
     run_dir: Path,
     runtime_root: Path,
@@ -4150,6 +4398,9 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            stdout_bytes=0,
+            stderr_bytes=0,
+            result_bytes=0,
             dependency_materialization_mode=dependency_materialization_mode,
             dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
@@ -4188,6 +4439,9 @@ def execute_task(
             stdout_path=None,
             stderr_path=None,
             result_path=None,
+            stdout_bytes=0,
+            stderr_bytes=0,
+            result_bytes=0,
             dependency_materialization_mode=dependency_materialization_mode,
             dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
@@ -4254,6 +4508,9 @@ def execute_task(
                 stdout_path=str(stdout_path),
                 stderr_path=str(stderr_path),
                 result_path=None,
+                stdout_bytes=artifact_file_size(stdout_path),
+                stderr_bytes=artifact_file_size(stderr_path),
+                result_bytes=0,
                 dependency_materialization_mode=dependency_materialization_mode,
                 dependency_layers_applied=prepared_dependency_layers,
                 worker_validation_mode=effective_validation_mode,
@@ -4312,6 +4569,9 @@ def execute_task(
             stdout_path=str(stdout_path),
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
+            stdout_bytes=artifact_file_size(stdout_path),
+            stderr_bytes=artifact_file_size(stderr_path),
+            result_bytes=artifact_file_size(worker_result_path),
             unknown_fields=[str(item) for item in payload.get("unknownFields", [])],
             dependency_materialization_mode=dependency_materialization_mode,
             dependency_layers_applied=prepared_dependency_layers,
@@ -4362,6 +4622,9 @@ def execute_task(
             stdout_path=str(stdout_path) if stdout_path.exists() else None,
             stderr_path=str(stderr_path),
             result_path=None,
+            stdout_bytes=artifact_file_size(stdout_path) if stdout_path.exists() else 0,
+            stderr_bytes=artifact_file_size(stderr_path),
+            result_bytes=0,
             dependency_materialization_mode=dependency_materialization_mode,
             dependency_layers_applied=prepared_dependency_layers,
             worker_validation_mode=effective_validation_mode,
@@ -4417,6 +4680,7 @@ def manifest_payload(
     task_models = effective_plan_models(plan, agents)
     complex_model_tasks = complex_model_task_ids(task_model_profiles)
     usage_totals = aggregate_usage(records)
+    run_governance = evaluate_run_governance(records, plan.run_policy)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
     payload = {
         "runId": run_id,
@@ -4438,6 +4702,8 @@ def manifest_payload(
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
+        "runPolicy": serialize_run_policy(plan.run_policy),
+        "runGovernance": run_governance,
         "plan": {
             "name": plan.name,
             "goal": plan.goal,
@@ -4502,6 +4768,7 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
             "version": plan.version,
             "name": plan.name,
             "goal": plan.goal,
+            **({"runPolicy": serialize_run_policy(plan.run_policy)} if serialize_run_policy(plan.run_policy) else {}),
             "sharedContext": {
                 "summary": plan.shared_context.summary,
                 "constraints": plan.shared_context.constraints,
@@ -4608,8 +4875,13 @@ def run_loaded_plan(
     records: dict[str, TaskRunRecord] = dict(initial_records or {})
     pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
+    stop_scheduling_reason: str | None = None
 
     while pending:
+        run_governance = evaluate_run_governance(records, plan.run_policy)
+        if run_governance["shouldStopScheduling"] and stop_scheduling_reason is None:
+            first_alert = run_governance["blockingAlerts"][0]
+            stop_scheduling_reason = f"Run policy stop triggered: {first_alert['message']}"
         newly_blocked = False
         for task_id, task in list(pending.items()):
             if not task.depends_on:
@@ -4648,14 +4920,15 @@ def run_loaded_plan(
             )
             continue
 
-        if fail_fast_triggered:
+        if fail_fast_triggered or stop_scheduling_reason is not None:
             for task_id, task in list(pending.items()):
                 records[task_id] = blocked_record(
                     task,
                     task.agent,
                     agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
-                    reason="Coordinator stopped scheduling new tasks after a worker failure.",
+                    reason=stop_scheduling_reason
+                    or "Coordinator stopped scheduling new tasks after a worker failure.",
                     worker_validation_mode=worker_validation_override,
                 )
                 pending.pop(task_id)
@@ -4717,6 +4990,7 @@ def run_loaded_plan(
                 )
                 if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
                     fail_fast_triggered = True
+                    stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
 
     write_manifest(
         run_id,
@@ -4739,6 +5013,7 @@ def run_loaded_plan(
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
     usage_totals = aggregate_usage(records)
+    run_governance = evaluate_run_governance(records, plan.run_policy)
     task_model_profiles = effective_plan_model_profiles(plan, agents)
     task_models = effective_plan_models(plan, agents)
     complex_model_tasks = complex_model_task_ids(task_model_profiles)
@@ -4760,6 +5035,8 @@ def run_loaded_plan(
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
+        "runPolicy": serialize_run_policy(plan.run_policy),
+        "runGovernance": run_governance,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
@@ -5095,6 +5372,12 @@ def summarize_run_manifest(
     status_counts = count_statuses([record.status for record in records])
     resume_candidate_task_ids = [record.id for record in records if record.status != "completed"]
     usage_totals = manifest.get("usageTotals") if isinstance(manifest.get("usageTotals"), dict) else {}
+    run_governance = manifest.get("runGovernance") if isinstance(manifest.get("runGovernance"), dict) else {}
+    artifact_totals = (
+        run_governance.get("artifactTotals")
+        if isinstance(run_governance.get("artifactTotals"), dict)
+        else {}
+    )
     candidate_times = [
         datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
     ]
@@ -5131,6 +5414,10 @@ def summarize_run_manifest(
         "coordinatorValidationPresent": isinstance(manifest.get("coordinatorValidation"), dict),
         "promptEstimatedTokens": int(usage_totals.get("promptEstimatedTokens", 0) or 0),
         "totalCostUsd": float(usage_totals.get("totalCostUsd", 0.0) or 0.0),
+        "governanceStatus": str(run_governance.get("status", "ok") or "ok"),
+        "governanceAlertCount": int(run_governance.get("alertCount", 0) or 0),
+        "governanceBlockingAlertCount": int(run_governance.get("blockingAlertCount", 0) or 0),
+        "totalArtifactBytes": int(artifact_totals.get("totalBytes", 0) or 0),
     }
     return summary, last_updated_at
 
@@ -5658,6 +5945,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
             {
                 "taskPlanPath": str(plan_path),
                 "planName": plan.name,
+                "runPolicy": serialize_run_policy(plan.run_policy),
                 "taskCount": len(plan.tasks),
                 "taskIds": [task.id for task in plan.tasks],
                 "taskWorkerValidationModes": task_worker_validation_modes,

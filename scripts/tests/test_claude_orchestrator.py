@@ -37,6 +37,13 @@ def make_task_run_record(
     actual_files_touched=None,
     dependency_materialization_mode=None,
     dependency_layers_applied=None,
+    usage=None,
+    stdout_path=None,
+    stderr_path=None,
+    result_path=None,
+    stdout_bytes=0,
+    stderr_bytes=0,
+    result_bytes=0,
 ):
     return orchestrator.TaskRunRecord(
         id=task.id,
@@ -66,13 +73,16 @@ def make_task_run_record(
             exceeded=False,
             violations=[],
         ),
-        usage=None,
+        usage=usage,
         return_code=0 if status == "completed" else 1,
         prompt_path="",
         command_path="",
-        stdout_path=None,
-        stderr_path=None,
-        result_path=None,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        result_path=result_path,
+        stdout_bytes=stdout_bytes,
+        stderr_bytes=stderr_bytes,
+        result_bytes=result_bytes,
         dependency_materialization_mode=(
             dependency_materialization_mode
             or orchestrator.DEFAULT_DEPENDENCY_MATERIALIZATION_MODE
@@ -2503,6 +2513,315 @@ class ValidateCommandTest(unittest.TestCase):
             "Coordinator stopped scheduling new tasks after a worker failure.",
             tasks_by_id["c-ready"]["summary"],
         )
+
+    def test_run_loaded_plan_stops_after_budget_limit_before_later_batch(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_a = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            task_b = orchestrator.TaskDefinition(
+                id="inspect-b",
+                title="Inspect B",
+                agent="analyst",
+                prompt="Inspect B.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="budget-stop",
+                goal="Stop before the next batch after the run budget is reached.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Budget stop test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task_a, task_b],
+                run_policy=orchestrator.RunPolicy(
+                    run_budget_usd=0.5,
+                    budget_behavior="stop",
+                ),
+            )
+            executed_task_ids: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                executed_task_ids.append(task.id)
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="completed",
+                    summary="Completed with spend.",
+                    workspace_path=str(workspaces_dir / task.id),
+                    usage={
+                        "inputTokens": 10,
+                        "outputTokens": 5,
+                        "cacheReadInputTokens": 0,
+                        "cacheCreationInputTokens": 0,
+                        "totalCostUsd": 0.75,
+                        "modelUsage": {},
+                    },
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=True,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        tasks_by_id = {task["id"]: task for task in payload["tasks"]}
+        self.assertEqual(["inspect-a"], executed_task_ids)
+        self.assertEqual({"completed": 1, "blocked": 1}, payload["statusCounts"])
+        self.assertEqual({"runBudgetUsd": 0.5, "budgetBehavior": "stop"}, payload["runPolicy"])
+        self.assertEqual("stop", payload["runGovernance"]["status"])
+        self.assertEqual(1, payload["runGovernance"]["blockingAlertCount"])
+        self.assertEqual("blocked", tasks_by_id["inspect-b"]["status"])
+        self.assertIn("Run policy stop triggered", tasks_by_id["inspect-b"]["summary"])
+        self.assertEqual("inspect-a", payload["runGovernance"]["highestCostTasks"][0]["taskId"])
+
+    def test_run_loaded_plan_warns_on_budget_limit_and_continues(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_a = orchestrator.TaskDefinition(id="inspect-a", title="Inspect A", agent="analyst", prompt="A.")
+            task_b = orchestrator.TaskDefinition(id="inspect-b", title="Inspect B", agent="analyst", prompt="B.")
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="budget-warn",
+                goal="Warn on budget and continue.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Budget warn test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task_a, task_b],
+                run_policy=orchestrator.RunPolicy(
+                    run_budget_usd=0.5,
+                    budget_behavior="warn",
+                ),
+            )
+            executed_task_ids: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                executed_task_ids.append(task.id)
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="completed",
+                    summary="Completed.",
+                    workspace_path=str(workspaces_dir / task.id),
+                    usage={
+                        "inputTokens": 10,
+                        "outputTokens": 5,
+                        "cacheReadInputTokens": 0,
+                        "cacheCreationInputTokens": 0,
+                        "totalCostUsd": 0.75 if task.id == "inspect-a" else 0.0,
+                        "modelUsage": {},
+                    },
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=True,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        self.assertEqual(["inspect-a", "inspect-b"], executed_task_ids)
+        self.assertEqual({"completed": 2}, payload["statusCounts"])
+        self.assertEqual("warn", payload["runGovernance"]["status"])
+        self.assertEqual(1, payload["runGovernance"]["alertCount"])
+        self.assertEqual(0, payload["runGovernance"]["blockingAlertCount"])
+
+    def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_a = orchestrator.TaskDefinition(id="inspect-a", title="Inspect A", agent="analyst", prompt="A.")
+            task_b = orchestrator.TaskDefinition(id="inspect-b", title="Inspect B", agent="analyst", prompt="B.")
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="artifact-stop",
+                goal="Stop before the next batch when task artifacts are too large.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Artifact stop test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task_a, task_b],
+                run_policy=orchestrator.RunPolicy(
+                    max_task_stdout_bytes=10,
+                    artifact_behavior="stop",
+                ),
+            )
+            executed_task_ids: list[str] = []
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                executed_task_ids.append(task.id)
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="completed",
+                    summary="Completed with large stdout.",
+                    workspace_path=str(workspaces_dir / task.id),
+                    stdout_bytes=32 if task.id == "inspect-a" else 0,
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=True,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        tasks_by_id = {task["id"]: task for task in payload["tasks"]}
+        self.assertEqual(["inspect-a"], executed_task_ids)
+        self.assertEqual("stop", payload["runGovernance"]["status"])
+        self.assertEqual(32, payload["runGovernance"]["artifactTotals"]["totalBytes"])
+        self.assertEqual("inspect-a", payload["runGovernance"]["artifactTotals"]["largestTasks"][0]["taskId"])
+        self.assertEqual("blocked", tasks_by_id["inspect-b"]["status"])
+        self.assertIn("Run policy stop triggered", tasks_by_id["inspect-b"]["summary"])
 
     def test_run_loaded_plan_blocks_dependents_after_failed_dependency(self):
         orchestrator = self.orchestrator

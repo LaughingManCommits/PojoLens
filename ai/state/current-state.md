@@ -8,11 +8,12 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- AI orchestration now moves to `WP14` run-level budget/artifact governance; `WP12` and `WP13` are complete.
+- AI orchestration tracked spike work is complete through `WP14`; follow-up should be bounded live `runPolicy` calibration or smaller default plans.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
 ## Verified
 
+- `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on run spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
 - `2026-04-08`: worker context now excludes implicit coordinator memory; `copy` workspaces hydrate only declared task files, and worker prompts treat the prompt plus declared workspace as the full contract.
 - `2026-04-08`: prompt/topology re-evaluation trimmed duplicated worker prompt scaffolding, moved output-discipline back into the selected agent definition, and changed planner guidance to prefer the smallest viable actor set.
 - `2026-04-08`: after the explicit worker-contract pass, the tracked `WP13` dry-run prompt estimate is `2745` total tokens.
@@ -31,10 +32,10 @@
 - Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
 - Claude orchestration same-run `resume` is run continuity, not partial sandbox recovery; resumed `copy` or `worktree` tasks rebuild fresh workspaces before rerun.
 - Claude orchestration task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files.
-- Claude orchestration still has no run-level budget stop; cache reads and worker output remain the main cost drivers.
+- Claude orchestration `runPolicy` stop is between-batch only; already-running tasks finish before later tasks are blocked.
 
 ## Next
 
-- For the AI orchestration spike, start with `WP14` run-level budget/artifact governance.
+- For AI orchestration follow-up, calibrate `runPolicy` on one bounded live plan and keep trimming tracked plans to the smallest actor set that still lowers risk.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.

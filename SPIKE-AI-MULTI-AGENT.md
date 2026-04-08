@@ -30,7 +30,7 @@ The coordinator is already credible for:
 - isolated implementer tasks whose changes can be promoted directly
 - pre-promotion validation of a single worker sandbox
 
-It is still weak for:
+The last reopened weakness was:
 
 - longer runs that need run-level spend or artifact governance instead of only
   post-hoc inspection
@@ -158,6 +158,19 @@ Why this matters:
 
 - the orchestrator can report cost after the fact better than it can govern
   total spend or output volume during a longer run
+
+Status as of `2026-04-08`:
+
+- resolved in tracked code and docs via optional top-level `runPolicy`
+- aggregate run spend can now warn or stop before later batches once
+  completed-task cost crosses `runBudgetUsd`
+- per-task `stdout`, `stderr`, and worker-result artifact sizes can now warn
+  or stop later scheduling
+- validate output now exposes tracked `runPolicy`, while run/manifests plus
+  retained-run summaries expose run-governance status, alerts, highest-cost
+  tasks, and artifact totals
+- stop behavior is intentionally between-batch governance, not mid-flight task
+  cancellation
 
 ### 5. Live Proof Is Still Narrow
 
@@ -334,7 +347,11 @@ Success bar:
 - worker execution is explainable from the selected agent definition, the task
   prompt, dependency handoff, and declared workspace files alone
 
-### WP14: Run-Level Budget And Artifact Governance
+### WP14: Run-Level Budget And Artifact Governance (Completed)
+
+Status:
+
+- completed `2026-04-08`
 
 Goal:
 
@@ -358,6 +375,23 @@ Success bar:
 
 - the coordinator can enforce a practical spend and artifact discipline across
   the whole run, not only per worker prompt
+
+Findings:
+
+- tracked plans may now declare top-level `runPolicy` with aggregate budget
+  plus per-task artifact byte limits and independent `warn` / `stop`
+  behaviors
+- governance is evaluated after each completed batch; when a blocking alert is
+  present, the coordinator marks unscheduled tasks as blocked before the next
+  batch starts
+- `run --json` and run manifests now expose `runGovernance` with alert counts,
+  blocking alerts, highest-cost tasks, and aggregate artifact totals; retained
+  run summaries also surface governance status plus total artifact bytes
+- `validate --json` exposes the tracked `runPolicy` so repo-local plan review
+  can catch governance settings before live execution
+- the implementation intentionally avoids mid-flight cancellation; already
+  running tasks in the current batch finish and are then evaluated against the
+  run policy
 
 ### WP13: Multi-Step Live Workflow Proof (Completed)
 
@@ -405,10 +439,9 @@ Findings:
 
 ## Recommended Order
 
-1. `WP14` next because the coordinator-vs-worker context boundary is now in
-   place but longer runs still have no run-level spend or artifact stop.
-2. If `WP14` changes budget behavior materially, follow it with one bounded
-   live proof instead of reopening generic hardening.
+1. The tracked reopened work packages are complete through `WP14`.
+2. If operators want stronger real-path evidence, run one bounded live plan
+   that sets explicit `runPolicy` thresholds; otherwise close the spike.
 
 ## Non-Goals
 
@@ -430,9 +463,9 @@ The target remains:
 The reopened phase already delivered explicit scope, portable dependency
 state, a stronger live chained proof, and retained-run lifecycle helpers.
 
-The remaining open work is narrower:
+The remaining open work is now optional:
 
-- add run-level budget and artifact governance
-- then rerun a bounded live proof only if the new budget controls need it
+- calibrate real `runPolicy` thresholds on a bounded live plan only if
+  operators need proof beyond the current regression coverage
 
 That is the right remaining scope for the spike.

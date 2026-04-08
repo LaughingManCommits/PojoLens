@@ -70,6 +70,7 @@ Context discipline:
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
 - workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters, declare it in `readPaths` or `writePaths`
+- task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` only on `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before execution
 - full shared file and validation context is opt-in via `contextMode = full`
@@ -85,6 +86,9 @@ Token and cost visibility:
 - task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
 - agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
+- `runPolicy.runBudgetUsd` now governs aggregate `usage.totalCostUsd` across completed tasks; `budgetBehavior = "stop"` blocks unscheduled tasks before the next batch, while `warn` records the alert and continues
+- `runPolicy.maxTaskStdoutBytes`, `maxTaskStderrBytes`, and `maxTaskResultBytes` govern per-task artifact size; `artifactBehavior = "stop"` blocks later scheduling after an oversized completed task, while `warn` keeps the run moving
+- `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
