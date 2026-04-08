@@ -483,11 +483,56 @@ Findings:
   `example-parallel.json` now demonstrates parallel analysts without an
   automatic review stage
 
+### WP16: Live RunPolicy Proof (Completed)
+
+Status:
+
+- completed `2026-04-08`
+
+Goal:
+
+- prove the new run-level governance on a real retained run, not only in dry
+  runs or unit tests
+
+Scope:
+
+- add one tiny tracked live plan with explicit `runPolicy` thresholds
+- run it live on a read-only workflow with at least two batches so later work
+  can be blocked
+- confirm retained-run summaries surface the governance and topology result
+- capture empirical cost and artifact data from the first real governed task
+
+Deliver:
+
+- one retained live run that proves between-batch governance stop with real
+  usage data
+
+Success bar:
+
+- the first task completes, a later task is blocked by run policy, and the
+  retained summary surfaces the stop cleanly
+
+Findings:
+
+- retained live run `20260408T184403Z-wp16-live-run-policy-proof-4f22bffe`
+  completed the first analyst task, then blocked the second task before the
+  next batch because run cost `$0.079901` exceeded the configured
+  `$0.000001` stop budget
+- the same run also surfaced the configured artifact warning: the first task
+  wrote a `921 B` worker-result file and `2642 B` total artifacts against a
+  `1 B` result limit
+- retained-run inventory now shows the same live run with
+  `governanceStatus = stop`, `governanceAlertCount = 2`,
+  `topologyBatchCount = 2`, and `topologyWarningCount = 0`
+- even this tiny read-only analyst task consumed large cache-read volume
+  (`186234` cache read input tokens), so practical `runPolicy` thresholds need
+  empirical tuning rather than guessed micro-budgets
+
 ## Recommended Order
 
-1. The tracked reopened work packages are complete through `WP15`.
-2. If operators want stronger real-path evidence, run one bounded live plan
-   that sets explicit `runPolicy` thresholds; otherwise close the spike.
+1. The tracked reopened work packages are complete through `WP16`.
+2. If the spike reopens, tune practical `runPolicy` thresholds on a more
+   representative plan; do not reopen the coordinator contract by default.
 
 ## Non-Goals
 
@@ -507,12 +552,12 @@ The target remains:
 ## Bottom Line
 
 The reopened phase already delivered explicit scope, portable dependency
-state, a stronger live chained proof, retained-run lifecycle helpers, and
-coordinator-side lean-topology visibility.
+state, a stronger live chained proof, retained-run lifecycle helpers,
+coordinator-side lean-topology visibility, and a real governed run proof.
 
 The remaining open work is now optional:
 
-- calibrate real `runPolicy` thresholds on a bounded live plan only if
-  operators need proof beyond the current regression coverage
+- tune non-contrived `runPolicy` thresholds on representative plans only if
+  operators want practical guardrails beyond the current proof
 
 That is the right remaining scope for the spike.

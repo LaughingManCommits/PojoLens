@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "name": "wp16-live-run-policy-proof",
+  "goal": "Use the local orchestrator on a tiny live read-only run that proves runPolicy surfaces and between-batch stop behavior on a retained manifest.",
+  "runPolicy": {
+    "runBudgetUsd": 0.000001,
+    "budgetBehavior": "stop",
+    "maxTaskResultBytes": 1,
+    "artifactBehavior": "warn"
+  },
+  "sharedContext": {
+    "summary": "Run one bounded live read-only workflow to prove that runPolicy is surfaced in validate/run/inventory outputs and enforced between batches without needing a write-capable pipeline.",
+    "constraints": [
+      "Keep work read-only and bounded to orchestration guidance and the coordinator script.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "ai/orchestrator/README.md",
+      "ai/orchestrator/SYSTEM-SPEC.md",
+      "scripts/claude-orchestrator.py"
+    ],
+    "validation": []
+  },
+  "tasks": [
+    {
+      "id": "inspect-governance-contract",
+      "title": "Inspect run governance contract",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Read the orchestration guide, system spec, and coordinator script. Summarize the current runPolicy contract and mention one operator caveat about between-batch stop behavior. Keep the response compact and read-only.",
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "follow-up-governance-calibration",
+      "title": "Follow up on governance calibration",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Use the dependency output plus the same tracked contract files to propose one concrete next step for calibrating real runPolicy thresholds. Keep it short and do not broaden scope.",
+      "dependsOn": [
+        "inspect-governance-contract"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}
