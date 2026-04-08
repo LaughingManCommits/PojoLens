@@ -437,9 +437,52 @@ Findings:
   claimed the new regression tests were missing even though the downstream
   workspace contained them
 
+### WP15: Topology Audit And Lean-Plan Signals (Completed)
+
+Status:
+
+- completed `2026-04-08`
+
+Goal:
+
+- make overweight task graphs visible before or during a run instead of only
+  relying on planner wording
+
+Scope:
+
+- expose compact topology summaries in `validate --json`, `run --json`, and
+  run manifests
+- surface agent mix, read-only vs write-capable task counts, batch shape, and
+  dependency depth
+- add conservative warnings only for obvious cases where the plan may be
+  heavier than necessary
+- surface compact topology fields in retained-run summaries so inventory stays
+  useful without opening each manifest
+
+Deliver:
+
+- operators can inspect whether a DAG is genuinely lean before spending tokens
+  on it
+
+Success bar:
+
+- the coordinator can point at an obviously heavy plan shape, not only ask the
+  planner to avoid one
+
+Findings:
+
+- tracked validation and run surfaces now emit `topology` with agent counts,
+  read-only/write-capable task counts, batch sizes, max dependency hops, and
+  warning count
+- retained-run summaries now expose topology batch count, max parallel width,
+  and warning count for inventory-style review
+- warnings stay intentionally conservative: the coordinator only flags a
+  read-only plan that still adds reviewer hops, or a single write-capable task
+  that is preceded by upstream analyst work
+
 ## Recommended Order
 
-1. The tracked reopened work packages are complete through `WP14`.
+1. The tracked reopened work packages are complete through `WP15`.
 2. If operators want stronger real-path evidence, run one bounded live plan
    that sets explicit `runPolicy` thresholds; otherwise close the spike.
 
@@ -461,7 +504,8 @@ The target remains:
 ## Bottom Line
 
 The reopened phase already delivered explicit scope, portable dependency
-state, a stronger live chained proof, and retained-run lifecycle helpers.
+state, a stronger live chained proof, retained-run lifecycle helpers, and
+coordinator-side lean-topology visibility.
 
 The remaining open work is now optional:
 

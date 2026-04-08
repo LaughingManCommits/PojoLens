@@ -1364,6 +1364,111 @@ def topological_batches(tasks: list[TaskDefinition]) -> list[list[TaskDefinition
     return batches
 
 
+def task_dependency_hops(tasks: list[TaskDefinition]) -> dict[str, int]:
+    by_id = {task.id: task for task in tasks}
+    memo: dict[str, int] = {}
+
+    def hops(task_id: str) -> int:
+        cached = memo.get(task_id)
+        if cached is not None:
+            return cached
+        task = by_id[task_id]
+        value = 0 if not task.depends_on else 1 + max(hops(dependency_id) for dependency_id in task.depends_on)
+        memo[task_id] = value
+        return value
+
+    return {task.id: hops(task.id) for task in tasks}
+
+
+def upstream_task_ids(tasks: list[TaskDefinition], task_id: str) -> set[str]:
+    by_id = {task.id: task for task in tasks}
+    seen: set[str] = set()
+    stack = list(by_id[task_id].depends_on)
+    while stack:
+        dependency_id = stack.pop()
+        if dependency_id in seen:
+            continue
+        seen.add(dependency_id)
+        stack.extend(by_id[dependency_id].depends_on)
+    return seen
+
+
+def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> dict[str, Any]:
+    batches = topological_batches(plan.tasks)
+    batch_sizes = [len(batch) for batch in batches]
+    dependency_hops = task_dependency_hops(plan.tasks)
+    agent_counts: dict[str, int] = {}
+    write_task_ids: list[str] = []
+    read_only_task_ids: list[str] = []
+    analyst_task_ids: list[str] = []
+    implementer_task_ids: list[str] = []
+    reviewer_task_ids: list[str] = []
+    analyst_task_id_set: set[str] = set()
+    for task in plan.tasks:
+        agent_counts[task.agent] = agent_counts.get(task.agent, 0) + 1
+        if task.agent == "analyst":
+            analyst_task_ids.append(task.id)
+            analyst_task_id_set.add(task.id)
+        elif task.agent == "implementer":
+            implementer_task_ids.append(task.id)
+        elif task.agent == "reviewer":
+            reviewer_task_ids.append(task.id)
+        if task_may_write(plan, task, agents[task.agent]):
+            write_task_ids.append(task.id)
+        else:
+            read_only_task_ids.append(task.id)
+    warnings: list[dict[str, Any]] = []
+    if reviewer_task_ids and not write_task_ids:
+        warnings.append(
+            {
+                "kind": "read-only-review-optional",
+                "taskIds": sorted(reviewer_task_ids),
+                "message": (
+                    "Plan is read-only but includes reviewer tasks; prefer analyst-only execution "
+                    "unless independent review is required."
+                ),
+            }
+        )
+    if len(write_task_ids) == 1 and len(implementer_task_ids) == 1 and analyst_task_ids:
+        sole_write_task_id = write_task_ids[0]
+        upstream_analyst_task_ids = sorted(
+            task_id
+            for task_id in upstream_task_ids(plan.tasks, sole_write_task_id)
+            if task_id in analyst_task_id_set
+        )
+        if upstream_analyst_task_ids:
+            warnings.append(
+                {
+                    "kind": "single-write-task-upstream-analyst",
+                    "taskIds": upstream_analyst_task_ids + [sole_write_task_id],
+                    "message": (
+                        f"Plan has one write-capable task ('{sole_write_task_id}') plus upstream analyst work; "
+                        "consider folding analysis into the implementer unless implementation uncertainty is high."
+                    ),
+                }
+            )
+    return {
+        "taskCount": len(plan.tasks),
+        "dependencyEdgeCount": sum(len(task.depends_on) for task in plan.tasks),
+        "batchCount": len(batches),
+        "batchSizes": batch_sizes,
+        "maxParallelWidth": max(batch_sizes, default=0),
+        "maxDependencyHops": max(dependency_hops.values(), default=0),
+        "taskDependencyHops": dependency_hops,
+        "agentCounts": {name: agent_counts[name] for name in sorted(agent_counts)},
+        "agentKinds": sorted(agent_counts),
+        "readOnlyTaskCount": len(read_only_task_ids),
+        "writeTaskCount": len(write_task_ids),
+        "readOnlyTaskIds": sorted(read_only_task_ids),
+        "writeTaskIds": sorted(write_task_ids),
+        "analystTaskCount": len(analyst_task_ids),
+        "implementerTaskCount": len(implementer_task_ids),
+        "reviewerTaskCount": len(reviewer_task_ids),
+        "warnings": warnings,
+        "warningCount": len(warnings),
+    }
+
+
 def selected_plan(plan: TaskPlan, selected_ids: list[str]) -> TaskPlan:
     if not selected_ids:
         return plan
@@ -4679,6 +4784,7 @@ def manifest_payload(
     task_model_profiles = effective_plan_model_profiles(plan, agents)
     task_models = effective_plan_models(plan, agents)
     complex_model_tasks = complex_model_task_ids(task_model_profiles)
+    topology = analyze_plan_topology(plan, agents)
     usage_totals = aggregate_usage(records)
     run_governance = evaluate_run_governance(records, plan.run_policy)
     parallel_conflicts = detect_parallel_scope_conflicts(plan, agents)
@@ -4696,6 +4802,7 @@ def manifest_payload(
         "taskModelProfiles": task_model_profiles,
         "complexModelTaskIds": complex_model_tasks,
         "complexModelTaskCount": len(complex_model_tasks),
+        "topology": topology,
         "repoRoot": str(ROOT),
         "planPath": str(plan_path),
         "agentsPath": str(agents_path),
@@ -5017,6 +5124,7 @@ def run_loaded_plan(
     task_model_profiles = effective_plan_model_profiles(plan, agents)
     task_models = effective_plan_models(plan, agents)
     complex_model_tasks = complex_model_task_ids(task_model_profiles)
+    topology = analyze_plan_topology(plan, agents)
     payload = {
         "runId": run_id,
         "plan": plan.name,
@@ -5032,6 +5140,7 @@ def run_loaded_plan(
         "taskModelProfiles": task_model_profiles,
         "complexModelTaskIds": complex_model_tasks,
         "complexModelTaskCount": len(complex_model_tasks),
+        "topology": topology,
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
@@ -5373,6 +5482,7 @@ def summarize_run_manifest(
     resume_candidate_task_ids = [record.id for record in records if record.status != "completed"]
     usage_totals = manifest.get("usageTotals") if isinstance(manifest.get("usageTotals"), dict) else {}
     run_governance = manifest.get("runGovernance") if isinstance(manifest.get("runGovernance"), dict) else {}
+    topology = manifest.get("topology") if isinstance(manifest.get("topology"), dict) else {}
     artifact_totals = (
         run_governance.get("artifactTotals")
         if isinstance(run_governance.get("artifactTotals"), dict)
@@ -5418,6 +5528,9 @@ def summarize_run_manifest(
         "governanceAlertCount": int(run_governance.get("alertCount", 0) or 0),
         "governanceBlockingAlertCount": int(run_governance.get("blockingAlertCount", 0) or 0),
         "totalArtifactBytes": int(artifact_totals.get("totalBytes", 0) or 0),
+        "topologyBatchCount": int(topology.get("batchCount", 0) or 0),
+        "topologyMaxParallelWidth": int(topology.get("maxParallelWidth", 0) or 0),
+        "topologyWarningCount": int(topology.get("warningCount", 0) or 0),
     }
     return summary, last_updated_at
 
@@ -5941,6 +6054,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
         task_model_profiles = effective_plan_model_profiles(plan, agents)
         task_models = effective_plan_models(plan, agents)
         complex_model_tasks = complex_model_task_ids(task_model_profiles)
+        topology = analyze_plan_topology(plan, agents)
         payload.update(
             {
                 "taskPlanPath": str(plan_path),
@@ -5954,6 +6068,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                 "taskModelProfiles": task_model_profiles,
                 "complexModelTaskIds": complex_model_tasks,
                 "complexModelTaskCount": len(complex_model_tasks),
+                "topology": topology,
                 "tasks": [
                     {
                         "id": task.id,

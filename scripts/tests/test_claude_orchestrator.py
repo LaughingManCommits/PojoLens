@@ -311,6 +311,76 @@ class ValidateCommandTest(unittest.TestCase):
     def setUpClass(cls):
         cls.orchestrator = load_orchestrator_module()
 
+    def test_analyze_plan_topology_flags_read_only_review_flow(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        reviewer = orchestrator.AgentDefinition(
+            name="reviewer",
+            description="review",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        inspect_task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect the docs.",
+        )
+        review_task = orchestrator.TaskDefinition(
+            id="review",
+            title="Review",
+            agent="reviewer",
+            prompt="Review the findings.",
+            depends_on=["inspect"],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="read-only-review",
+            goal="Show read-only review topology.",
+            shared_context=orchestrator.SharedContext(
+                summary="Read-only review topology test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[inspect_task, review_task],
+        )
+
+        topology = orchestrator.analyze_plan_topology(
+            plan,
+            {"analyst": analyst, "reviewer": reviewer},
+        )
+
+        self.assertEqual(2, topology["taskCount"])
+        self.assertEqual({"analyst": 1, "reviewer": 1}, topology["agentCounts"])
+        self.assertEqual(2, topology["readOnlyTaskCount"])
+        self.assertEqual(0, topology["writeTaskCount"])
+        self.assertEqual(2, topology["batchCount"])
+        self.assertEqual([1, 1], topology["batchSizes"])
+        self.assertEqual(1, topology["maxDependencyHops"])
+        self.assertEqual({"inspect": 0, "review": 1}, topology["taskDependencyHops"])
+        self.assertEqual(1, topology["warningCount"])
+        self.assertEqual("read-only-review-optional", topology["warnings"][0]["kind"])
+
     def test_validate_command_reports_effective_worker_validation_sources(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:
@@ -536,6 +606,105 @@ class ValidateCommandTest(unittest.TestCase):
         )
         self.assertEqual(["deep-design"], payload["complexModelTaskIds"])
         self.assertEqual(1, payload["complexModelTaskCount"])
+
+    def test_validate_command_reports_topology_summary_and_warnings(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "planning",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "analyst": {
+                                "description": "analysis",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "implementer": {
+                                "description": "implementation",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "balanced",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read", "Edit"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "topology-summary",
+                        "goal": "Expose lean-plan topology warnings.",
+                        "sharedContext": {
+                            "summary": "Topology summary test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect the code.",
+                            },
+                            {
+                                "id": "implement",
+                                "title": "Implement",
+                                "agent": "implementer",
+                                "prompt": "Implement the change.",
+                                "dependsOn": ["inspect"],
+                                "writePaths": ["scripts/tests/test_claude_orchestrator.py"],
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = orchestrator.validate_command(
+                SimpleNamespace(
+                    agents=str(agents_path),
+                    task_plan=str(plan_path),
+                )
+            )
+
+        self.assertEqual({"analyst": 1, "implementer": 1}, payload["topology"]["agentCounts"])
+        self.assertEqual(1, payload["topology"]["writeTaskCount"])
+        self.assertEqual(1, payload["topology"]["readOnlyTaskCount"])
+        self.assertEqual(2, payload["topology"]["batchCount"])
+        self.assertEqual(1, payload["topology"]["maxParallelWidth"])
+        self.assertEqual(1, payload["topology"]["maxDependencyHops"])
+        self.assertEqual({"inspect": 0, "implement": 1}, payload["topology"]["taskDependencyHops"])
+        self.assertEqual(1, payload["topology"]["warningCount"])
+        self.assertEqual(
+            "single-write-task-upstream-analyst",
+            payload["topology"]["warnings"][0]["kind"],
+        )
 
     def test_validate_command_rejects_compat_worker_validation_mode(self):
         orchestrator = self.orchestrator
@@ -3267,6 +3436,102 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual({"deep-design": "complex"}, manifest["taskModelProfiles"])
         self.assertEqual(["deep-design"], manifest["complexModelTaskIds"])
         self.assertEqual(1, manifest["complexModelTaskCount"])
+
+    def test_run_loaded_plan_and_summary_report_topology(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="topology-run-visibility",
+                goal="Expose topology in run output.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Topology run test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+            manifest_path = pathlib.Path(payload["runDir"]) / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            summary, _ = orchestrator.summarize_run_manifest(manifest_path, manifest)
+
+        self.assertEqual(1, payload["topology"]["taskCount"])
+        self.assertEqual({"analyst": 1}, payload["topology"]["agentCounts"])
+        self.assertEqual(1, payload["topology"]["batchCount"])
+        self.assertEqual(1, payload["topology"]["maxParallelWidth"])
+        self.assertEqual(0, payload["topology"]["warningCount"])
+        self.assertEqual(1, manifest["topology"]["batchCount"])
+        self.assertEqual({"inspect-a": 0}, manifest["topology"]["taskDependencyHops"])
+        self.assertEqual(1, summary["topologyBatchCount"])
+        self.assertEqual(1, summary["topologyMaxParallelWidth"])
+        self.assertEqual(0, summary["topologyWarningCount"])
 
     def test_run_loaded_plan_can_reuse_existing_run_directories_without_overwriting_snapshot(self):
         orchestrator = self.orchestrator

@@ -8,20 +8,19 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- AI orchestration tracked spike work is complete through `WP14`; follow-up should be bounded live `runPolicy` calibration or smaller default plans.
+- AI orchestration tracked spike work is complete through `WP15`; follow-up should be bounded live `runPolicy` calibration or smaller plans.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
 ## Verified
 
-- `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on run spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
+- `2026-04-08`: `WP15` is complete; `validate`, run payloads, manifests, and retained-run summaries now expose compact `topology` data and conservative lean-plan warnings.
+- `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
 - `2026-04-08`: worker context now excludes implicit coordinator memory; `copy` workspaces hydrate only declared task files, and worker prompts treat the prompt plus declared workspace as the full contract.
-- `2026-04-08`: prompt/topology re-evaluation trimmed duplicated worker prompt scaffolding, moved output-discipline back into the selected agent definition, and changed planner guidance to prefer the smallest viable actor set.
-- `2026-04-08`: after the explicit worker-contract pass, the tracked `WP13` dry-run prompt estimate is `2745` total tokens.
+- `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task prompts no longer repeat role-stable output discipline.
 - `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live, and retained runs resume from their run-local `selected-plan.json` snapshot.
 - `2026-04-07`: same-run `resume` preserves completed records and reuses the original run id/runtime directories; `prune` skips incomplete runs by default.
 - `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.
 - `2026-04-07`: `WP9` and `WP10` are complete; explicit `readPaths`/`writePaths` and opt-in `dependencyMaterialization = "apply-reviewed"` are live.
-- `2026-04-03`: `docs/natural.md` is the canonical natural guide.
 
 ## Release
 
