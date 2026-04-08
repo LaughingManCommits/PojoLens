@@ -3,14 +3,12 @@
   "name": "example-review",
   "goal": "Demonstrate a bounded orchestrated review flow.",
   "sharedContext": {
-    "summary": "Use this file as a template for a minimal sequential local Claude orchestration flow. The first task inspects repository guidance; the second reviews the first task output.",
+    "summary": "Use this file as a template for a minimal sequential local Claude orchestration flow. The first task inspects the orchestration guide; the second reviews the first task output.",
     "constraints": [
       "Keep work bounded to repository guidance and local scripts.",
       "Do not edit TODO.md or ai/state files."
     ],
     "readPaths": [
-      "AGENTS.md",
-      "ai/AGENTS.md",
       "ai/orchestrator/README.md",
       "ai/orchestrator/SYSTEM-SPEC.md",
       "scripts/claude-orchestrator.py"
@@ -25,10 +23,8 @@
       "title": "Inspect orchestration guidance",
       "agent": "analyst",
       "modelProfile": "simple",
-      "prompt": "Read the orchestration guide and agent workflow docs. Summarize the three most important coordinator rules and note any obvious gaps in the MVP.",
+      "prompt": "Read the orchestration guide and system spec. Summarize the three most important coordinator rules and note any obvious gaps in the MVP.",
       "readPaths": [
-        "AGENTS.md",
-        "ai/AGENTS.md",
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md"
       ],
@@ -44,8 +40,6 @@
         "inspect-guidance"
       ],
       "readPaths": [
-        "AGENTS.md",
-        "ai/AGENTS.md",
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md"
       ],

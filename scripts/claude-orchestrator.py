@@ -90,7 +90,7 @@ VALIDATION_ALLOWED_RELATIVE_PREFIXES = ("scripts/",)
 VALIDATION_ALLOWED_SCRIPT_SUFFIXES = {".bat", ".cmd", ".ps1", ".py", ".sh"}
 VALIDATION_SHELL_OPERATOR_TOKENS = {"&", "&&", "|", "||", ";", "<", ">", ">>"}
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
-SPARSE_COPY_BASE_FILES = ("AGENTS.md", "ai/AGENTS.md")
+SPARSE_COPY_BASE_FILES: tuple[str, ...] = ()
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
     ".git",
     ".claude",
@@ -3332,7 +3332,7 @@ def worker_prompt(
         else dedupe_strings(plan.shared_context.validation + task.validation)
     )
     workspace_rule = {
-        "copy": "Isolated sparse filesystem copy seeded from AGENTS files plus declared read context and existing write-scope files from the current working tree. Edit only inside this copy.",
+        "copy": "Isolated sparse filesystem copy seeded from declared read context and existing write-scope files. Undeclared repo files are unavailable. Edit only inside this copy.",
         "repo": "Live repo root. Treat this as high-risk and avoid incidental edits.",
         "worktree": "Detached git worktree rooted at HEAD. Root-repo uncommitted changes are not present.",
     }[workspace_mode]
@@ -3378,7 +3378,7 @@ def worker_prompt(
         materialization_truncated = layers_truncated
     worker_rules, rule_count, rules_truncated = format_bullet_list(
         [
-            "Follow repo instructions from `AGENTS.md` and `ai/AGENTS.md` when relevant.",
+            "Treat this prompt plus the declared workspace as the full contract. Do not assume hidden coordinator memory or undeclared repo files.",
             "Use only this workspace plus the declared `readPaths` and `writePaths`.",
             "In copy/worktree mode, do not inspect the source repo root, other task workspaces, or prior run artifacts.",
             "Treat `writePaths` as the edit contract. Dependency outputs are the coordinator handoff.",

@@ -1249,6 +1249,7 @@ class ValidateCommandTest(unittest.TestCase):
             section for section in rendered.sections if section.name == "worker_rules"
         )
         self.assertFalse(worker_rules.truncated)
+        self.assertIn("Treat this prompt plus the declared workspace as the full contract.", rendered.text)
         self.assertLessEqual(worker_rules.item_count, 7)
         self.assertIn("Treat `writePaths` as the edit contract.", rendered.text)
         self.assertNotIn("Emit only structured `validationIntents`", rendered.text)
@@ -1989,10 +1990,7 @@ class ValidateCommandTest(unittest.TestCase):
                 if path.is_file()
             )
 
-        self.assertEqual(
-            ["AGENTS.md", "ai/AGENTS.md", "docs/guide.md", "nested/hinted.txt", "notes.txt"],
-            copied_files,
-        )
+        self.assertEqual(["docs/guide.md", "nested/hinted.txt", "notes.txt"], copied_files)
 
     def test_prepare_workspace_worktree_surfaces_git_failure(self):
         orchestrator = self.orchestrator

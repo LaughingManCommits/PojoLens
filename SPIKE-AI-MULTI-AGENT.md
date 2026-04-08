@@ -37,14 +37,16 @@ It is still weak for:
 
 ## Verified Baseline
 
-As of `2026-04-07`, the following are real in code and docs:
+As of `2026-04-08`, the following are real in code and docs:
 
 - task plans use explicit `sharedContext.readPaths`, task `readPaths`, and task
   `writePaths` instead of overloading task `files`
-- sparse `copy` workspaces seed `AGENTS.md`, `ai/AGENTS.md`, declared
-  `readPaths`, and any existing file-backed `writePaths`
+- sparse `copy` workspaces hydrate only declared `readPaths` and any existing
+  file-backed `writePaths`
 - copy-mode validation surfaces missing or directory `readPaths` and oversized
   hydration inputs instead of skipping them silently
+- worker prompts plus declared workspace state are the worker contract; workers
+  no longer inherit `AGENTS.md` or `ai/AGENTS.md` implicitly
 - overlapping write-capable tasks are serialized conservatively by declared
   write scope
 - worker-reported touched files are audited against actual workspace diffs
@@ -175,33 +177,29 @@ Conclusion:
 - the next live proof should target the current weak spots, not repeat the old
   parser-proof shape
 
-### 6. Default Topology And Shared Prompt Memory Are Still Heavier Than They Need To Be
+### 6. Coordinator Memory And Worker Contract Were Still Coupled
 
 Current evidence:
 
-- the tracked `WP13` dry-run still estimates `3193` prompt tokens across only
-  four tasks
-- the repeated worker-rules block alone accounts for about `295` estimated
-  tokens per task before the agent prompt is counted
-- the task prompt still repeated some output-discipline rules that were
-  already present in the selected agent definition
-- tracked example flows still make analyst/reviewer hops look more normal than
-  they should be for narrow code changes
+- `copy` workspaces auto-seeded `AGENTS.md` and `ai/AGENTS.md`
+- worker prompts still told workers to follow those coordinator files
+- tracked sample plans still pulled coordinator-memory files into shared
+  worker context even when the task did not actually need them
 
 Why this matters:
 
-- run-level budget ceilings help after a plan exists, but avoidable worker hops
-  and duplicated prompt scaffolding increase cost and latency before those
-  ceilings ever trigger
-- the coordinator should default to the smallest actor set that can safely
-  finish the work instead of normalizing an `analyst -> implementer ->
-  reviewer` shape
+- worker behavior becomes less deterministic when it depends on ambient
+  coordinator memory instead of only on the selected agent definition, task
+  prompt, dependency handoff, and declared workspace files
+- this also widens the worker memory footprint and makes it harder to reason
+  about what context was truly necessary for a task
 
-Conclusion:
+Status as of `2026-04-08`:
 
-- the next step should start by shrinking duplicated prompt scaffolding and by
-  making leaner task topology the default before or alongside hard run-level
-  budget stops
+- resolved in tracked code and docs: `copy` workspaces no longer auto-seed
+  coordinator memory files, worker prompts now treat the prompt plus declared
+  workspace as the full contract, and tracked sample plans only pass
+  `AGENTS.md` / `ai/AGENTS.md` when a task explicitly needs them
 
 ## Active Work Package Board
 
@@ -307,18 +305,43 @@ Findings:
   before rerun, so the new surface is run-level continuity rather than
   partial workspace recovery
 
-### WP12: Lean Topology, Run-Level Budget, And Artifact Governance
+### WP12: Coordinator vs Worker Context Boundary (Completed)
+
+Status:
+
+- completed `2026-04-08`
 
 Goal:
 
-- move from cost visibility to lighter-weight cost control
+- separate coordinator/project-manager memory from worker runtime contract
 
 Scope:
 
-- bias planner guidance and tracked operating guidance toward the smallest
-  viable actor set
-- keep role-stable output discipline in the selected agent definition and keep
-  per-task prompt text focused on coordinator handoff plus workspace contract
+- stop auto-seeding `AGENTS.md` and `ai/AGENTS.md` into worker `copy`
+  workspaces
+- make the selected agent definition plus task prompt and declared workspace
+  the full worker contract
+- remove unnecessary coordinator-memory files from tracked sample plans and
+  docs
+
+Deliver:
+
+- workers rely on explicit prompt/workspace packets instead of ambient
+  coordinator memory
+
+Success bar:
+
+- worker execution is explainable from the selected agent definition, the task
+  prompt, dependency handoff, and declared workspace files alone
+
+### WP14: Run-Level Budget And Artifact Governance
+
+Goal:
+
+- move from cost visibility to practical run-level cost control
+
+Scope:
+
 - add optional run-level budget ceilings
 - stop or warn before later batches when aggregate spend crosses the configured
   run budget
@@ -329,14 +352,12 @@ Scope:
 Deliver:
 
 - longer runs can be bounded by repo-local policy instead of only by
-  post-hoc inspection, and common plans stop paying for unnecessary hops by
-  default
+  post-hoc inspection
 
 Success bar:
 
-- the coordinator avoids unnecessary worker hops and can enforce a practical
-  spend and artifact discipline across the whole run, not only per worker
-  prompt
+- the coordinator can enforce a practical spend and artifact discipline across
+  the whole run, not only per worker prompt
 
 ### WP13: Multi-Step Live Workflow Proof (Completed)
 
@@ -384,10 +405,9 @@ Findings:
 
 ## Recommended Order
 
-1. `WP12` next, starting with lean-topology and prompt-footprint reduction,
-   because retained-run lifecycle is adequate but the default worker pipeline
-   is still heavier than it needs to be.
-2. If `WP12` changes budget behavior materially, follow it with one bounded
+1. `WP14` next because the coordinator-vs-worker context boundary is now in
+   place but longer runs still have no run-level spend or artifact stop.
+2. If `WP14` changes budget behavior materially, follow it with one bounded
    live proof instead of reopening generic hardening.
 
 ## Non-Goals
@@ -412,7 +432,6 @@ state, a stronger live chained proof, and retained-run lifecycle helpers.
 
 The remaining open work is narrower:
 
-- shrink the default actor topology and duplicated prompt scaffolding
 - add run-level budget and artifact governance
 - then rerun a bounded live proof only if the new budget controls need it
 

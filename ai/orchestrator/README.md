@@ -57,24 +57,26 @@ Lifecycle helpers:
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
 Workspace modes:
-- `copy`: isolated sparse filesystem copy seeded with `AGENTS.md`, `ai/AGENTS.md`, declared `readPaths`, and any existing files inside declared `writePaths`; safe default
+- `copy`: isolated sparse filesystem copy seeded only with declared `readPaths` and any existing files inside declared `writePaths`; safe default
 - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
 - `repo`: live repo root; high-risk and opt-in only
 
 Context discipline:
+- coordinator/project-manager memory lives in `AGENTS.md`, `ai/AGENTS.md`, and the `ai/state/*` hot snapshot; workers do not inherit that memory unless a task explicitly declares those files in `readPaths`
 - worker prompts default to `contextMode = minimal`
 - planner guidance now prefers the smallest actor set that can finish the work; `analyst` and `reviewer` are optional roles, not mandatory pipeline stages
 - for narrow code changes, prefer one `implementer` task or an `implementer -> reviewer` path only when the extra hop materially lowers risk
 - task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
+- workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters, declare it in `readPaths` or `writePaths`
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` only on `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before execution
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - minimal-mode worker prompts now keep shared file lists out of the prompt body; workers still get the shared summary, but shared `readPaths` stay prompt-visible only in `contextMode = full`
 - live Claude invocations now pass only the selected agent definition instead of the full agent catalog, so per-task request envelopes stay smaller
-- copy-mode workspace hydration seeds `AGENTS.md` plus `ai/AGENTS.md`, then copies declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
+- copy-mode workspace hydration copies only declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` now fail validation explicitly, and oversized inputs above `512 KB` are surfaced instead of being skipped silently
 - if you expect `validate-run --execution-scope task-workspace` to work before promotion, declare any runtime-loaded config or fixture files in `readPaths` or `writePaths`; sparse copies only hydrate declared context
 - when `dependencyMaterialization = "apply-reviewed"` is enabled, reviewed dependency layers are replayed into the downstream `copy` or `worktree` workspace after base hydration; dry-runs stay summary-only but surface the planned mode in the prompt
 

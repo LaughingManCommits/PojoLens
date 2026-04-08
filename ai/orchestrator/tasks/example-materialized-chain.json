@@ -9,8 +9,6 @@
       "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
     ],
     "readPaths": [
-      "AGENTS.md",
-      "ai/AGENTS.md",
       "ai/orchestrator/README.md",
       "ai/orchestrator/SYSTEM-SPEC.md",
       "scripts/claude-orchestrator.py"

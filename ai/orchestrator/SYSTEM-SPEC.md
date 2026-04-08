@@ -42,6 +42,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Warm state keeps compact validation history in `ai/state/recent-validations.md`.
 - Cold context is loaded on demand from `ai/core/*`, `ai/state/*`, `ai/log/*`, and `ai/indexes/*`.
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts and must be regenerated, not hand-maintained.
+- Coordinator/project-manager memory lives in `AGENTS.md`, `ai/AGENTS.md`, and the `ai/state/*` snapshot; worker tasks must not depend on that memory implicitly.
 - After tracked AI memory changes, run:
   - `scripts/refresh-ai-memory.ps1`
   - `scripts/refresh-ai-memory.ps1 -Check`
@@ -67,13 +68,14 @@ This file defines the portable contract for recreating the repository's AI memor
 - Planner guidance should prefer the smallest actor set that can finish the work; `analyst` and `reviewer` should be optional roles rather than default stages for every plan.
 - For narrow code changes, the default topology should be one `implementer` task or an `implementer -> reviewer` path only when the extra review hop materially lowers risk.
 - Supported workspace modes are:
-  - `copy`: isolated sparse filesystem copy seeded from repo instructions plus declared `readPaths` and any existing file-backed `writePaths`; default
+  - `copy`: isolated sparse filesystem copy seeded only from declared `readPaths` and any existing file-backed `writePaths`; default
   - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
   - `repo`: live repo root; explicit high-risk exception only
 - Prompt context should default to `contextMode = minimal`:
   - include the shared summary
   - include task-local read context and write scope unless fuller shared context is explicitly required
 - Task-local worker prompts should keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output-discipline rules should live in the selected agent definition so they are not duplicated inside every task prompt.
+- Workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters to the task, it should be declared explicitly in `readPaths` or `writePaths`.
 - include task-local validation hints by default
 - dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
 - dependency handoff should remain `summary-only` by default; `dependencyMaterialization = apply-reviewed` should be opt-in for downstream `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before they run
@@ -83,7 +85,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Validate, dry-run, and manifest surfaces should expose resolved task models/profiles plus a compact list or count of any `complex` tasks so accidental `opus` usage is easy to spot.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
-- Copy-mode workspace hydration should seed `AGENTS.md` plus `ai/AGENTS.md`, then copy declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
+- Copy-mode workspace hydration should copy only declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
 - If task-workspace validation is expected before promotion, any runtime-loaded config or fixture files needed by that validation should be declared in `readPaths` or `writePaths`; sparse copies should not be assumed to contain undeclared repo files.
 - When `dependencyMaterialization = apply-reviewed`, the coordinator should replay reviewed dependency layers into the downstream `copy` or `worktree` workspace after base hydration, reject ambiguous overlaps across direct dependencies, and record which dependency layers were applied.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
