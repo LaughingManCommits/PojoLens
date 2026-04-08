@@ -64,6 +64,8 @@ This file defines the portable contract for recreating the repository's AI memor
   - optional `contextMode` to keep worker prompts minimal by default
   - optional `modelProfile` to trade off speed, cost, and depth
   - workspace mode overrides when needed
+- Planner guidance should prefer the smallest actor set that can finish the work; `analyst` and `reviewer` should be optional roles rather than default stages for every plan.
+- For narrow code changes, the default topology should be one `implementer` task or an `implementer -> reviewer` path only when the extra review hop materially lowers risk.
 - Supported workspace modes are:
   - `copy`: isolated sparse filesystem copy seeded from repo instructions plus declared `readPaths` and any existing file-backed `writePaths`; default
   - `worktree`: detached git worktree rooted at `HEAD`; requires a clean repo
@@ -71,6 +73,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Prompt context should default to `contextMode = minimal`:
   - include the shared summary
   - include task-local read context and write scope unless fuller shared context is explicitly required
+- Task-local worker prompts should keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output-discipline rules should live in the selected agent definition so they are not duplicated inside every task prompt.
 - include task-local validation hints by default
 - dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
 - dependency handoff should remain `summary-only` by default; `dependencyMaterialization = apply-reviewed` should be opt-in for downstream `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before they run

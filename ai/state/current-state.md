@@ -8,11 +8,13 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- AI orchestration now moves to `WP12` run-level budget/artifact governance; `WP11` and `WP13` are complete.
+- AI orchestration now moves to `WP12` lean-topology plus run-level budget/artifact governance; `WP11` and `WP13` are complete.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
 ## Verified
 
+- `2026-04-08`: prompt/topology re-evaluation trimmed duplicated worker prompt scaffolding, moved output-discipline back into the selected agent definition, and changed planner guidance to prefer the smallest viable actor set.
+- `2026-04-08`: the tracked `WP13` dry-run prompt estimate fell from `3193` to `2697` total tokens after the lean-topology/prompt-footprint reduction pass.
 - `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live, and retained runs resume from their run-local `selected-plan.json` snapshot.
 - `2026-04-07`: same-run `resume` preserves completed records and reuses the original run id/runtime directories; `prune` skips incomplete runs by default.
 - `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.
@@ -33,6 +35,6 @@
 
 ## Next
 
-- For the AI orchestration spike, start with `WP12` run-level budget/artifact governance.
+- For the AI orchestration spike, start with `WP12` lean-topology/prompt-footprint follow-through, then add run-level budget/artifact governance in the same package.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.

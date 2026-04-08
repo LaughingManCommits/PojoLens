@@ -2680,6 +2680,8 @@ def planner_prompt(
         [
             "Return schema-valid JSON only. No narration or markdown fences.",
             "Create 1 to 6 tasks.",
+            "Prefer the smallest actor set that can finish the work; do not add analyst or reviewer hops by default.",
+            "For narrow code changes, prefer a single implementer or implementer->reviewer path. Use a separate analyst only when implementation uncertainty is high, and use a reviewer only when independent review materially lowers risk or the operator asked for it.",
             'Use `workspaceMode="copy"` for most tasks.',
             'Use `workspaceMode="worktree"` only when isolated git metadata matters.',
             'Avoid `workspaceMode="repo"` unless direct in-place execution is essential.',
@@ -2699,7 +2701,7 @@ def planner_prompt(
             "Omit speculative tasks when evidence is insufficient.",
         ],
         empty_line="- none",
-        max_items=18,
+        max_items=22,
     )
     return render_prompt(
         [
@@ -3381,9 +3383,6 @@ def worker_prompt(
             "In copy/worktree mode, do not inspect the source repo root, other task workspaces, or prior run artifacts.",
             "Treat `writePaths` as the edit contract. Dependency outputs are the coordinator handoff.",
             "If dependency layers are materialized, workspace state overrides prompt summaries for those upstream files.",
-            "Return schema-valid JSON only. Keep `summary` to 1-2 sentences, `notes` to <=5 items, `followUps` to <=3, and `validationIntents` to <=2 high-signal suggestions.",
-            "Use `[]` for known-empty `filesTouched`, `validationIntents`, `followUps`, and `notes`. Use `null` only for genuinely unknown `filesTouched`, `followUps`, or `notes` values.",
-            "Emit only structured `validationIntents`, and keep them to direct repo-script or tool invocations with no pipes, redirection, chaining, or shell wrappers.",
             "State blockers explicitly, and do not claim edits or validation you did not actually perform.",
             "Do not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`. Keep changes tightly scoped to the task.",
         ],

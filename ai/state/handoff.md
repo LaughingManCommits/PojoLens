@@ -9,11 +9,13 @@
 
 ## Focus
 
-- The orchestration spike moves to `WP12` run-level budget/artifact governance; keep release work closed.
+- The orchestration spike moves to `WP12` lean-topology plus run-level budget/artifact governance; keep release work closed.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
+- `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task worker prompts keep only coordinator/workspace rules while role-stable output discipline lives in the selected agent definition.
+- `2026-04-08`: the tracked `WP13` dry-run prompt estimate dropped from `3193` to `2697` total tokens after the lean-topology/prompt-footprint reduction pass.
 - `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live for retained `.claude-orchestrator` runs.
 - `2026-04-07`: same-run `resume` preserves completed records and reuses the original run id/runtime directories, but resumed `copy` and `worktree` task sandboxes are rebuilt before rerun.
 - `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.

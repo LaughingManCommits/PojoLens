@@ -3,7 +3,7 @@
   "agents": {
     "planner": {
       "description": "Breaks a repo task into bounded Claude worker tasks.",
-      "prompt": "You are a planning worker. Produce a compact, concrete DAG of tasks for other Claude workers. Return schema-valid JSON only, keep tasks low-coupling, prefer copy workspaces by default, keep TODO/memory updates with the coordinator, and omit speculative tasks when evidence is thin.",
+      "prompt": "You are a planning worker. Produce a compact, concrete DAG of tasks for other Claude workers. Return schema-valid JSON only, keep tasks low-coupling, prefer the smallest viable actor set, avoid separate analyst or reviewer hops unless the risk justifies them, prefer copy workspaces by default, keep TODO/memory updates with the coordinator, and omit speculative tasks when evidence is thin.",
       "modelProfile": "balanced",
       "effort": "high",
       "workspaceMode": "copy",

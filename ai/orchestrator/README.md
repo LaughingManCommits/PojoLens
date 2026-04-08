@@ -5,7 +5,7 @@ This directory is the tracked control plane for local multi-Claude runs.
 Tracked files:
 - `README.md`: operating guide for local runs
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
-- `agents.json`: reusable worker definitions for planner, analyst, implementer, and reviewer roles
+- `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, and reviewer roles
 - `tasks/*.json`: task-plan files the coordinator can validate or execute
 
 Runtime artifacts are intentionally kept outside `ai/` under a repo-local runtime root:
@@ -63,8 +63,11 @@ Workspace modes:
 
 Context discipline:
 - worker prompts default to `contextMode = minimal`
+- planner guidance now prefers the smallest actor set that can finish the work; `analyst` and `reviewer` are optional roles, not mandatory pipeline stages
+- for narrow code changes, prefer one `implementer` task or an `implementer -> reviewer` path only when the extra hop materially lowers risk
 - task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
+- per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` only on `copy` or `worktree` tasks that truly need reviewed upstream code state materialized into their own workspace before execution
 - full shared file and validation context is opt-in via `contextMode = full`

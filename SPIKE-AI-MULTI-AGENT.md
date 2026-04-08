@@ -175,6 +175,34 @@ Conclusion:
 - the next live proof should target the current weak spots, not repeat the old
   parser-proof shape
 
+### 6. Default Topology And Shared Prompt Memory Are Still Heavier Than They Need To Be
+
+Current evidence:
+
+- the tracked `WP13` dry-run still estimates `3193` prompt tokens across only
+  four tasks
+- the repeated worker-rules block alone accounts for about `295` estimated
+  tokens per task before the agent prompt is counted
+- the task prompt still repeated some output-discipline rules that were
+  already present in the selected agent definition
+- tracked example flows still make analyst/reviewer hops look more normal than
+  they should be for narrow code changes
+
+Why this matters:
+
+- run-level budget ceilings help after a plan exists, but avoidable worker hops
+  and duplicated prompt scaffolding increase cost and latency before those
+  ceilings ever trigger
+- the coordinator should default to the smallest actor set that can safely
+  finish the work instead of normalizing an `analyst -> implementer ->
+  reviewer` shape
+
+Conclusion:
+
+- the next step should start by shrinking duplicated prompt scaffolding and by
+  making leaner task topology the default before or alongside hard run-level
+  budget stops
+
 ## Active Work Package Board
 
 ### WP9: Scope Contract And Enforcement (Completed)
@@ -279,14 +307,18 @@ Findings:
   before rerun, so the new surface is run-level continuity rather than
   partial workspace recovery
 
-### WP12: Run-Level Budget And Artifact Governance
+### WP12: Lean Topology, Run-Level Budget, And Artifact Governance
 
 Goal:
 
-- move from cost visibility to cost control
+- move from cost visibility to lighter-weight cost control
 
 Scope:
 
+- bias planner guidance and tracked operating guidance toward the smallest
+  viable actor set
+- keep role-stable output discipline in the selected agent definition and keep
+  per-task prompt text focused on coordinator handoff plus workspace contract
 - add optional run-level budget ceilings
 - stop or warn before later batches when aggregate spend crosses the configured
   run budget
@@ -297,12 +329,14 @@ Scope:
 Deliver:
 
 - longer runs can be bounded by repo-local policy instead of only by
-  post-hoc inspection
+  post-hoc inspection, and common plans stop paying for unnecessary hops by
+  default
 
 Success bar:
 
-- the coordinator can enforce a practical spend and artifact discipline across
-  the whole run, not only per worker prompt
+- the coordinator avoids unnecessary worker hops and can enforce a practical
+  spend and artifact discipline across the whole run, not only per worker
+  prompt
 
 ### WP13: Multi-Step Live Workflow Proof (Completed)
 
@@ -350,8 +384,9 @@ Findings:
 
 ## Recommended Order
 
-1. `WP12` next because retained-run lifecycle is now adequate but longer runs
-   still have no run-level spend or artifact stop.
+1. `WP12` next, starting with lean-topology and prompt-footprint reduction,
+   because retained-run lifecycle is adequate but the default worker pipeline
+   is still heavier than it needs to be.
 2. If `WP12` changes budget behavior materially, follow it with one bounded
    live proof instead of reopening generic hardening.
 
@@ -377,6 +412,7 @@ state, a stronger live chained proof, and retained-run lifecycle helpers.
 
 The remaining open work is narrower:
 
+- shrink the default actor topology and duplicated prompt scaffolding
 - add run-level budget and artifact governance
 - then rerun a bounded live proof only if the new budget controls need it
 

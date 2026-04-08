@@ -289,6 +289,7 @@ class PromptBudgetTest(unittest.TestCase):
         self.assertIn("promptBudget", payload)
         self.assertFalse(payload["promptBudget"]["exceeded"])
         self.assertGreater(len(payload["promptSections"]), 0)
+        self.assertIn("Prefer the smallest actor set", payload["prompt"])
         self.assertIn("structured-intent-only", payload["prompt"])
         planner_agents_index = payload["command"].index("--agents")
         planner_agents_payload = json.loads(payload["command"][planner_agents_index + 1])
@@ -998,12 +999,15 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertIn("-old", summary)
         self.assertIn("+new", summary)
 
-    def test_worker_prompt_intents_only_forbids_raw_validation_commands(self):
+    def test_intents_only_output_contract_lives_in_agent_prompt(self):
         orchestrator = self.orchestrator
         agent = orchestrator.AgentDefinition(
             name="analyst",
             description="analysis",
-            prompt="Return JSON only.",
+            prompt=(
+                "Return JSON only. Emit only structured `validationIntents`. "
+                "Use `[]` for known-empty `filesTouched`."
+            ),
             model_profile="simple",
             effort="high",
             permission_mode="dontAsk",
@@ -1042,8 +1046,15 @@ class ValidateCommandTest(unittest.TestCase):
             worker_validation_mode="intents-only",
         )
 
-        self.assertIn("Emit only structured `validationIntents`", rendered.text)
-        self.assertIn("Use `[]` for known-empty `filesTouched`", rendered.text)
+        agent_payload = orchestrator.agent_payload_for_claude(
+            {"analyst": agent},
+            selected_names=["analyst"],
+        )
+
+        self.assertNotIn("Emit only structured `validationIntents`", rendered.text)
+        self.assertNotIn("Use `[]` for known-empty `filesTouched`", rendered.text)
+        self.assertIn("Emit only structured `validationIntents`", agent_payload)
+        self.assertIn("Use `[]` for known-empty `filesTouched`", agent_payload)
 
     def test_worker_prompt_minimal_mode_uses_task_local_read_paths_only(self):
         orchestrator = self.orchestrator
@@ -1238,7 +1249,10 @@ class ValidateCommandTest(unittest.TestCase):
             section for section in rendered.sections if section.name == "worker_rules"
         )
         self.assertFalse(worker_rules.truncated)
-        self.assertIn("Emit only structured `validationIntents`", rendered.text)
+        self.assertLessEqual(worker_rules.item_count, 7)
+        self.assertIn("Treat `writePaths` as the edit contract.", rendered.text)
+        self.assertNotIn("Emit only structured `validationIntents`", rendered.text)
+        self.assertNotIn("Use `[]` for known-empty", rendered.text)
 
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
