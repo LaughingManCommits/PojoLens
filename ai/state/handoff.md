@@ -9,15 +9,16 @@
 
 ## Focus
 
-- The orchestration spike's tracked packages are complete through `WP15`; if it reopens, focus on bounded live `runPolicy` calibration or further actor-set trimming.
+- The orchestration spike's tracked packages are complete through `WP15`; if it reopens, focus on one bounded live `runPolicy` calibration.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
 - `2026-04-08`: `WP15` is complete; `validate`, run payloads, manifests, and retained-run summaries now expose compact `topology` data with conservative lean-plan warnings.
+- `2026-04-08`: tracked `example-review.json` is now a one-task reviewer sample, and `example-parallel.json` now shows parallel analysts with no automatic review hop.
 - `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
-- `2026-04-08`: `WP12` is complete; workers no longer inherit `AGENTS.md` / `ai/AGENTS.md` implicitly, and the prompt plus declared workspace is now the worker contract.
-- `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task worker prompts keep only coordinator/workspace rules while role-stable output discipline lives in the selected agent definition.
+- `2026-04-08`: `WP12` is complete; workers no longer inherit `AGENTS.md` / `ai/AGENTS.md`, and the prompt plus declared workspace is now the worker contract.
+- `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task prompts no longer repeat role-stable output discipline.
 - `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live for retained `.claude-orchestrator` runs.
 - `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.
 - `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files.

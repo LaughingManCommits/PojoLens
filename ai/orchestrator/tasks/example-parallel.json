@@ -1,18 +1,14 @@
 {
   "version": 1,
   "name": "example-parallel",
-  "goal": "Demonstrate two concurrent-ready workers followed by a shared review.",
+  "goal": "Demonstrate two concurrent-ready read-only workers without an automatic reviewer hop.",
   "sharedContext": {
-    "summary": "Use this file as a template for parallel local Claude orchestration. The first two tasks are independent and can run together; the final task reviews both outputs.",
+    "summary": "Use this file as a template for lean parallel local Claude orchestration. The tasks are independent and can run together without a required downstream reviewer stage.",
     "constraints": [
       "Keep work bounded to AI memory and orchestration guidance.",
       "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
     ],
-    "readPaths": [
-      "ai/orchestrator/README.md",
-      "ai/orchestrator/SYSTEM-SPEC.md",
-      "scripts/claude-orchestrator.py"
-    ],
+    "readPaths": [],
     "validation": [
       "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json",
       "scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2"
@@ -39,25 +35,6 @@
       "modelProfile": "simple",
       "prompt": "Read the orchestrator guide and runtime script. Summarize the repo-local runtime layout, workspace modes, and the concurrency safety rules.",
       "readPaths": [
-        "ai/orchestrator/README.md",
-        "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
-      ],
-      "workspaceMode": "copy"
-    },
-    {
-      "id": "review-contracts",
-      "title": "Review the combined concurrency contract",
-      "agent": "reviewer",
-      "modelProfile": "simple",
-      "prompt": "Review the dependency outputs. Call out any missing concurrency, runtime-root, or portability risk and propose one concrete coordinator follow-up.",
-      "dependsOn": [
-        "inspect-memory-contract",
-        "inspect-runtime-contract"
-      ],
-      "readPaths": [
-        "AGENTS.md",
-        "ai/AGENTS.md",
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
         "scripts/claude-orchestrator.py"

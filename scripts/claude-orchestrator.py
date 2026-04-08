@@ -1418,7 +1418,7 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
         else:
             read_only_task_ids.append(task.id)
     warnings: list[dict[str, Any]] = []
-    if reviewer_task_ids and not write_task_ids:
+    if reviewer_task_ids and not write_task_ids and len(read_only_task_ids) > len(reviewer_task_ids):
         warnings.append(
             {
                 "kind": "read-only-review-optional",

@@ -1,47 +1,29 @@
 {
   "version": 1,
   "name": "example-review",
-  "goal": "Demonstrate a bounded orchestrated review flow.",
+  "goal": "Demonstrate a minimal review-only local Claude orchestration flow.",
   "sharedContext": {
-    "summary": "Use this file as a template for a minimal sequential local Claude orchestration flow. The first task inspects the orchestration guide; the second reviews the first task output.",
+    "summary": "Use this file as a template for a lean review task that reads the tracked orchestration contract directly instead of adding an upstream analyst hop.",
     "constraints": [
       "Keep work bounded to repository guidance and local scripts.",
       "Do not edit TODO.md or ai/state files."
     ],
-    "readPaths": [
-      "ai/orchestrator/README.md",
-      "ai/orchestrator/SYSTEM-SPEC.md",
-      "scripts/claude-orchestrator.py"
-    ],
+    "readPaths": [],
     "validation": [
       "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"
     ]
   },
   "tasks": [
     {
-      "id": "inspect-guidance",
-      "title": "Inspect orchestration guidance",
-      "agent": "analyst",
-      "modelProfile": "simple",
-      "prompt": "Read the orchestration guide and system spec. Summarize the three most important coordinator rules and note any obvious gaps in the MVP.",
-      "readPaths": [
-        "ai/orchestrator/README.md",
-        "ai/orchestrator/SYSTEM-SPEC.md"
-      ],
-      "workspaceMode": "copy"
-    },
-    {
       "id": "review-guidance",
-      "title": "Review the guidance summary",
+      "title": "Review orchestration guidance",
       "agent": "reviewer",
       "modelProfile": "simple",
-      "prompt": "Review the dependency output. Call out any missing risk, conflict, or operational hole in the guidance and propose one concrete follow-up.",
-      "dependsOn": [
-        "inspect-guidance"
-      ],
+      "prompt": "Read the orchestration guide and system spec directly. Review them for missing coordinator risks, conflict holes, or operational gaps, then propose one concrete follow-up.",
       "readPaths": [
         "ai/orchestrator/README.md",
-        "ai/orchestrator/SYSTEM-SPEC.md"
+        "ai/orchestrator/SYSTEM-SPEC.md",
+        "scripts/claude-orchestrator.py"
       ],
       "workspaceMode": "copy"
     }

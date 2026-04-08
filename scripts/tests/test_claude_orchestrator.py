@@ -381,6 +381,50 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(1, topology["warningCount"])
         self.assertEqual("read-only-review-optional", topology["warnings"][0]["kind"])
 
+    def test_analyze_plan_topology_allows_single_reviewer_only_plan(self):
+        orchestrator = self.orchestrator
+        reviewer = orchestrator.AgentDefinition(
+            name="reviewer",
+            description="review",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        review_task = orchestrator.TaskDefinition(
+            id="review",
+            title="Review",
+            agent="reviewer",
+            prompt="Review the docs directly.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="reviewer-only",
+            goal="Allow a direct reviewer task without warning.",
+            shared_context=orchestrator.SharedContext(
+                summary="Reviewer-only topology test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[review_task],
+        )
+
+        topology = orchestrator.analyze_plan_topology(
+            plan,
+            {"reviewer": reviewer},
+        )
+
+        self.assertEqual(1, topology["taskCount"])
+        self.assertEqual({"reviewer": 1}, topology["agentCounts"])
+        self.assertEqual(0, topology["warningCount"])
+        self.assertEqual([], topology["warnings"])
+
     def test_validate_command_reports_effective_worker_validation_sources(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:

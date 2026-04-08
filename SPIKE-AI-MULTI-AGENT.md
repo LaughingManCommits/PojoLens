@@ -479,6 +479,9 @@ Findings:
 - warnings stay intentionally conservative: the coordinator only flags a
   read-only plan that still adds reviewer hops, or a single write-capable task
   that is preceded by upstream analyst work
+- tracked `example-review.json` is now a one-task reviewer sample, and
+  `example-parallel.json` now demonstrates parallel analysts without an
+  automatic review stage
 
 ## Recommended Order
 

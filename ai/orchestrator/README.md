@@ -43,6 +43,11 @@ scripts/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --jso
 scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
 ```
 
+Tracked samples:
+- `ai/orchestrator/tasks/example-review.json`: one-task reviewer sample for direct contract review without an upstream analyst hop
+- `ai/orchestrator/tasks/example-parallel.json`: two concurrent-ready analyst tasks with no automatic downstream reviewer stage
+- `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
+
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
@@ -108,14 +113,14 @@ Model selection:
 - use `modelProfile = complex` for `claude-opus-4-6` only as an explicit exception when cheaper models are likely insufficient
 - `model` still works as an explicit override and wins over `modelProfile`
 - planner guidance now treats `complex` as the exceptional path; current tracked plans stay on `simple` or `balanced`
-- `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap doc-summary work
+- `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap read-only work
 
 Concurrency:
 - ready tasks run in batches up to `--max-parallel`
 - each run gets a unique `run-id`, run manifest, and per-task workspace under `.claude-orchestrator/`
 - validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
 - overlapping write-capable tasks are serialized conservatively by declared `writePaths` scope even when they are dependency-ready together
-- `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks
+- `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks without a forced reviewer hop
 
 Coordinator rules:
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`

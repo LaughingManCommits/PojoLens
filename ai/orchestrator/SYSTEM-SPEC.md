@@ -153,7 +153,7 @@ This file defines the portable contract for recreating the repository's AI memor
 2. Create the hot context files under `ai/core/` and `ai/state/`.
 3. Add warm state and event-log files under `ai/state/` and `ai/log/`.
 4. Add refresh, query, and benchmark scripts that understand the target repo's paths and document taxonomy.
-5. Add the orchestrator guide, agent catalog, and at least one sequential and one parallel-ready task-plan example under `ai/orchestrator/`.
+5. Add the orchestrator guide, agent catalog, and at least one lean single-task sample plus one parallel-ready task-plan example under `ai/orchestrator/`; keep heavier review or dependency-chain samples only when they demonstrate a distinct contract.
 6. Set the orchestrator default runtime root to repo-local `.claude-orchestrator/`.
 7. Ignore `/.claude-orchestrator/` in Git.
 8. Encode repo-specific validation commands in the task plans and memory state.

@@ -14,6 +14,7 @@
 ## Verified
 
 - `2026-04-08`: `WP15` is complete; `validate`, run payloads, manifests, and retained-run summaries now expose compact `topology` data and conservative lean-plan warnings.
+- `2026-04-08`: tracked `example-review.json` is now a one-task reviewer sample, and `example-parallel.json` now demonstrates parallel analysts without an automatic review hop.
 - `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
 - `2026-04-08`: worker context now excludes implicit coordinator memory; `copy` workspaces hydrate only declared task files, and worker prompts treat the prompt plus declared workspace as the full contract.
 - `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task prompts no longer repeat role-stable output discipline.
@@ -35,6 +36,6 @@
 
 ## Next
 
-- For AI orchestration follow-up, calibrate `runPolicy` on one bounded live plan and keep trimming tracked plans to the smallest actor set that still lowers risk.
+- For AI orchestration follow-up, run one bounded live plan with explicit `runPolicy` thresholds now that governance and topology signals are in place.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.
