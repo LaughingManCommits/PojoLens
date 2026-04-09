@@ -2,9 +2,9 @@
 
 ## Confirmed Alignment
 
-- `README.md` positions the repository correctly as an in-memory POJO query library with fluent and SQL-like APIs.
-- README quick starts for fluent queries, SQL-like queries, parameters, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are covered by tests.
-- Public entry points in README (`PojoLens`, `PojoLensCore`, `PojoLensSql`, `PojoLensChart`, `PojoLensRuntime`) match current code.
+- `README.md` positions the repository correctly as a POJO-first in-memory query library with fluent, SQL-like, plain-English, and bounded CSV boundary-adapter surfaces.
+- README quick starts for fluent queries, SQL-like queries, plain-English queries, optional CSV boundary loading, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are covered by tests.
+- Public entry points in README (`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensChart`, `PojoLensRuntime`) match current code.
 
 ## Process-Doc Alignment
 

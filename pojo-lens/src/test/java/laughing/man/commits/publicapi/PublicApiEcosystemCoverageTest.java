@@ -1,6 +1,7 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensCsv;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 
@@ -31,9 +32,13 @@ import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.metamodel.FieldMetamodel;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
@@ -54,6 +59,28 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertFalse(prodRuntime.isStrictParameterTypes());
         assertFalse(prodRuntime.isLintMode());
         assertTrue(prodRuntime.sqlLikeCache().isEnabled());
+    }
+
+    @Test
+    public void csvAdapterShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees.csv");
+        Files.writeString(
+                csv,
+                """
+                        id,name,department,salary,active
+                        1,Alice,Engineering,120000,true
+                        2,Bob,Finance,90000,true
+                        3,Cara,Engineering,130000,true
+                        """
+        );
+
+        List<Employee> rows = PojoLensCsv.read(csv, Employee.class);
+        List<Employee> result = PojoLensSql
+                .parse("where department = 'Engineering' order by salary desc")
+                .filter(rows, Employee.class);
+
+        assertEquals(3, rows.size());
+        assertEquals(List.of("Cara", "Alice"), result.stream().map(row -> row.name).toList());
     }
 
     @Test

@@ -16,6 +16,7 @@ Core execution model:
 | Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
+| Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim needs. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
 | Reusable business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
@@ -37,6 +38,8 @@ Core execution model:
   with a fixed named-parameter schema.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
+- Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
+  in-memory rows before normal fluent, SQL-like, or natural execution.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
   policy instead of the default direct-entry behavior.
 - Use `PojoLensChart` when you already have rows and only need deterministic

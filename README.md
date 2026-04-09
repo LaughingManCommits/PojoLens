@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes a bounded `PojoLensCsv` adapter for loading UTF-8 CSV files into typed rows before they enter the same engine.
 
 Core execution model:
 `query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
@@ -86,7 +86,7 @@ Runnable example project:
 ## Pick A Path
 
 For new code, prefer one default path per job:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
@@ -94,6 +94,7 @@ For new code, prefer one default path per job:
 | Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
 | Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
 | Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [SPIKE-CSV.md](SPIKE-CSV.md)                             |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
@@ -108,6 +109,8 @@ For new code, prefer one default path per job:
 - `Workflow helpers`:
   chart mapping, reusable report/preset wrappers, dataset composition, and
   schema metadata.
+- `Compatibility adapter`:
+  boundary-only CSV loading into typed rows via `PojoLensCsv`.
 - `Runtime integration`:
   runtime-scoped configuration and optional Spring Boot wiring.
 - `Advanced and tooling`:
@@ -157,6 +160,16 @@ List<Employee> rows = PojoLensNatural
     .filter(source, Employee.class);
 ```
 
+### CSV boundary load
+
+```java
+List<Employee> rows = PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+
+List<Employee> filtered = PojoLensSql
+    .parse("where department = 'Engineering' order by salary desc")
+    .filter(rows, Employee.class);
+```
+
 More examples:
 - Fluent and scenario selection: [docs/usecases.md](docs/usecases.md)
 - SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
@@ -191,6 +204,10 @@ More examples:
 - Runtime-scoped presets and policy controls via `PojoLensRuntime`
 - Runtime-scoped natural vocabulary for plain-English field aliases
 - Optional Spring Boot starter/autoconfigure modules
+
+### Compatibility adapter
+
+- UTF-8 CSV loading into typed rows with header mapping and narrow delimiter/trim options
 
 ### Advanced and tooling
 

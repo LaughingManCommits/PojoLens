@@ -8,19 +8,15 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- AI orchestration tracked spike work is complete through `WP16`; only optional practical `runPolicy` tuning remains.
+- `2026-04-09`: bounded CSV support started with a typed loader slice; `PojoLensCsv` now loads UTF-8 CSV into typed rows without changing the POJO-first engine story.
+- AI orchestration tracked spike work is complete through `WP16`; optional `WP17` now tracks a practical CSV slice with dry-run-calibrated `runPolicy`, but no live run yet.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
 ## Verified
 
+- `2026-04-09`: `PojoLensCsv` and `CsvOptions` landed with strict header-based typed loading, row/column-aware coercion errors, nested-path projection reuse, public API coverage, and aligned README/entry-point/product-surface docs.
+- `2026-04-09`: tracked plan `wp17-csv-typed-loader-slice.json` validates cleanly as a lean `implementer -> reviewer` DAG with `runBudgetUsd = 2.0` and a `1482`-token dry-run prompt estimate.
 - `2026-04-08`: retained live run `20260408T184403Z-wp16-live-run-policy-proof-4f22bffe` proved between-batch `runPolicy` stop on real usage; the first task cost `$0.079901` and blocked the second.
-- `2026-04-08`: `WP15` is complete; `validate`, run payloads, manifests, and retained-run summaries now expose compact `topology` data and conservative lean-plan warnings.
-- `2026-04-08`: tracked `example-review.json` is now a one-task reviewer sample, and `example-parallel.json` now demonstrates parallel analysts without an automatic review hop.
-- `2026-04-08`: `WP14` is complete; plans may now declare top-level `runPolicy`, and the coordinator can warn or stop between batches on spend and oversized stdout/stderr/result artifacts while surfacing `runGovernance`.
-- `2026-04-08`: worker context now excludes implicit coordinator memory; `copy` workspaces hydrate only declared task files, and worker prompts treat the prompt plus declared workspace as the full contract.
-- `2026-04-08`: planner guidance now prefers the smallest viable actor set, and per-task prompts no longer repeat role-stable output discipline.
-- `2026-04-07`: `WP11` is complete; `resume`, `inventory`, and `prune` are live, and retained runs resume from their run-local `selected-plan.json` snapshot.
-- `2026-04-07`: retained live run `20260407T120023Z-wp13-live-materialized-prompt-proof-87dda84c` proved same-file `apply-reviewed` chaining and downstream-only promotion.
 
 ## Release
 
@@ -29,12 +25,12 @@
 ## Risks
 
 - Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
-- Claude orchestration same-run `resume` is run continuity, not partial sandbox recovery; resumed `copy` or `worktree` tasks rebuild fresh workspaces before rerun.
 - Claude orchestration task-workspace validation still depends on declared sparse-copy inputs for runtime-loaded files.
-- Claude orchestration `runPolicy` stop is between-batch only, and practical thresholds still need empirical tuning.
+- Claude orchestration `runPolicy` stop is between-batch only; `WP17` gives a practical dry-run baseline, but live cost ceilings still are not empirically tuned on a write-capable plan.
 
 ## Next
 
-- For AI orchestration follow-up, only tune practical `runPolicy` thresholds on representative plans if that extra operational calibration is worth the cost.
+- For AI orchestration follow-up, only run or tune `wp17-csv-typed-loader-slice.json` live if the extra empirical budget calibration is worth the cost.
+- If CSV follow-up resumes, keep it in Phase 1 adapter territory: narrow coercion policy or explicit schema only after the typed loader settles.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.

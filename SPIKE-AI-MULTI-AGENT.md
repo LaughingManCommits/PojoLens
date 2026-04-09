@@ -528,11 +528,57 @@ Findings:
   (`186234` cache read input tokens), so practical `runPolicy` thresholds need
   empirical tuning rather than guessed micro-budgets
 
+### WP17: Practical CSV Slice Guardrails (Started)
+
+Status:
+
+- started `2026-04-09`
+
+Goal:
+
+- move practical `runPolicy` tuning onto a real write-capable product slice
+  instead of another synthetic proof
+
+Scope:
+
+- add one tracked representative plan around the first bounded CSV adapter
+  slice
+- keep topology lean with one implementer task and one reviewer task
+- set non-contrived budget and artifact ceilings, then capture dry-run prompt
+  budgets
+- avoid reopening coordinator-contract work unless a later live run exposes a
+  real gap
+
+Deliver:
+
+- a tracked representative plan plus dry-run calibration for practical
+  `runPolicy` defaults
+
+Success bar:
+
+- the plan validates cleanly, stays lean, and dry-run surfaces practical
+  thresholds without prompt-budget failures
+
+Findings:
+
+- tracked plan `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json` now
+  models a real CSV starter slice with `runBudgetUsd = 2.0`,
+  `maxTaskResultBytes = 16000`, and `maxTaskStdoutBytes = 24000`
+- `validate --json` resolves the plan to one `implementer` and one
+  `reviewer`, one write-capable task, one read-only task, and zero topology
+  warnings
+- `run --dry-run --json` estimates `1482` total prompt tokens
+  (`834` implementer, `648` reviewer), with no prompt-budget violations
+- no live `WP17` run has been executed yet, so these are practical dry-run
+  defaults rather than empirically confirmed cost ceilings
+
 ## Recommended Order
 
 1. The tracked reopened work packages are complete through `WP16`.
-2. If the spike reopens, tune practical `runPolicy` thresholds on a more
-   representative plan; do not reopen the coordinator contract by default.
+2. Optional follow-up `WP17` now provides a representative CSV slice and a
+   dry-run budget baseline without reopening the coordinator contract.
+3. Only run `WP17` live if extra empirical threshold tuning is worth the
+   additional spend.
 
 ## Non-Goals
 
@@ -557,7 +603,7 @@ coordinator-side lean-topology visibility, and a real governed run proof.
 
 The remaining open work is now optional:
 
-- tune non-contrived `runPolicy` thresholds on representative plans only if
-  operators want practical guardrails beyond the current proof
+- run or tune `WP17` live only if operators want empirical threshold data on a
+  real product slice beyond the current dry-run baseline
 
 That is the right remaining scope for the spike.

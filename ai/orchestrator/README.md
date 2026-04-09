@@ -48,6 +48,7 @@ Tracked samples:
 - `ai/orchestrator/tasks/example-parallel.json`: two concurrent-ready analyst tasks with no automatic downstream reviewer stage
 - `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
 - `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
+- `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
 
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude

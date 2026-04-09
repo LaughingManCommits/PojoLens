@@ -1,6 +1,7 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensCsv;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
@@ -10,6 +11,7 @@ import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +52,8 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(PojoLensNatural.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
+        requirePublicStaticMethod(PojoLensCsv.class, "read", Path.class, Class.class);
+        requirePublicStaticMethod(PojoLensCsv.class, "read", Path.class, Class.class, CsvOptions.class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
         requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
         requirePublicMethod(PojoLensRuntime.class, "natural");
@@ -56,6 +61,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
         requirePublicMethod(PojoLensRuntime.class, "setNaturalVocabulary", NaturalVocabulary.class);
         requirePublicMethod(PojoLensRuntime.class, "getNaturalVocabulary");
+        requirePublicStaticMethod(CsvOptions.class, "builder");
+        requirePublicStaticMethod(CsvOptions.class, "defaults");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
     }
