@@ -39,7 +39,8 @@ Core execution model:
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,
   or otherwise represented as SQL-like text.
 - Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
-  in-memory rows before normal fluent, SQL-like, or natural execution.
+  in-memory rows before normal fluent, SQL-like, or natural execution;
+  see [docs/csv.md](csv.md) for options, type mapping, and error model.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
   policy instead of the default direct-entry behavior.
 - Use `PojoLensChart` when you already have rows and only need deterministic

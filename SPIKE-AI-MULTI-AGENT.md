@@ -593,14 +593,27 @@ Findings:
   `validate-run --include-status failed --intents-only` accepted and executed
   that Maven test successfully; the task itself still failed for a separate
   reason because the representative `WP17` write scope omitted `docs/csv.md`
+- tracked plan `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json` now
+  includes `docs/csv.md` in the implementer write scope so adjacent CSV guide
+  work is in-bounds for the representative slice
+- retained live run `20260409T160647Z-wp17-csv-typed-loader-slice-f939dec7`
+  completed the implementer task cleanly, created `docs/csv.md`, updated the
+  linked docs, stayed within `runPolicy` at `$0.949219`, and again produced an
+  accepted `tool: mvn ...` validation intent that coordinator `validate-run`
+  executed successfully
+- the same live run left the reviewer task `blocked`, not because of write
+  scope or validation policy, but because `summary-only` dependency handoff
+  did not materialize the newly created `docs/csv.md` into the reviewer
+  workspace; that is now the remaining product-shaped orchestration gap
 
 ## Recommended Order
 
 1. The tracked reopened work packages are complete through `WP16`.
 2. `WP17` now closes the practical-threshold follow-up on a representative
    write-capable product slice.
-3. Reopen this area only if you need tighter representative write scopes or a
-   different live plan.
+3. Reopen this area only if you need reviewer-visible materialization for new
+   dependency files, tighter representative write scopes, or a different live
+   plan.
 
 ## Non-Goals
 
@@ -627,6 +640,8 @@ The remaining open work is now optional:
 
 - tighten representative write scopes only if you want later live product
   slices to permit adjacent doc work like `docs/csv.md`
+- materialize reviewed dependency outputs only if downstream reviewers need to
+  inspect newly created files instead of diff previews alone
 - calibrate additional representative live plans only if one CSV-based proof is
   not enough operationally
 

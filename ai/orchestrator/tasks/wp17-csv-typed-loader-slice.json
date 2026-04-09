@@ -53,6 +53,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiEcosystemCoverageTest.java",
         "README.md",
+        "docs/csv.md",
         "docs/entry-points.md",
         "docs/product-surface.md"
       ],

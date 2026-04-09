@@ -49,7 +49,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Regression and snapshot support | `Tooling` | Regression safety and parity tooling | `QueryRegressionFixture`, `QuerySnapshotFixture`, `FluentSqlLikeParity`, `SnapshotComparison` | `Advanced` tooling surface | `docs/regression-fixtures.md`, `docs/snapshot-comparison.md` |
 | Field metamodel generation | `Tooling` | Typed field constants for query authoring support | `FieldMetamodel`, `FieldMetamodelGenerator` | `Advanced` tooling surface | `docs/metamodel.md` |
 | Benchmarking and thresholds | `Tooling` | Performance validation, not runtime product surface | `pojo-lens-benchmarks`, threshold/parity checkers | Tooling only | `docs/benchmarking.md`, `CONTRIBUTING.md` |
-| CSV onboarding | `Compatibility adapter` | Boundary-only loading from UTF-8 CSV into typed rows | `PojoLensCsv`, `CsvOptions` | `Advanced` adapter surface | `README.md`, `docs/entry-points.md` |
+| CSV onboarding | `Compatibility adapter` | Boundary-only loading from UTF-8 CSV into typed rows | `PojoLensCsv`, `CsvOptions` | `Advanced` adapter surface | `README.md`, `docs/entry-points.md`, `docs/csv.md` |
 | Boundary adapters | `Compatibility adapter` | Explicit conversion for boundary inputs only | `JoinBindings.from(Map)` | `Advanced` adapter surface | `docs/sql-like.md`, `MIGRATION.md` |
 
 ## Current Classification Calls
