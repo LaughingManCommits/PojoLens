@@ -580,19 +580,27 @@ Findings:
   validation intents (`mvn`, `grep`, and a pseudo repo-script), which exposed
   a remaining quality gap in worker validation suggestions even when the task
   result itself is sound
-- post-live hardening now tells workers to mirror approved validation hints,
-  use `repo-script` only for `scripts/...` or `mvnw(.cmd)`, use `tool` only
-  for approved executables, and emit `[]` instead of inventing `grep` or
-  pseudo scripts; Python regression tests and a fresh `WP17` dry-run passed,
-  but this tighter guidance has not been re-proven on a second live run yet
+- retained live run `20260409T141118Z-wp17-csv-typed-loader-slice-26f856cc`
+  showed partial improvement after the first prompt hardening: the reviewer
+  emitted `[]`, but the implementer still suggested `repo-script: mvnw ...`,
+  which coordinator policy rejected
+- follow-up hardening now renders approved validation hints with their
+  normalized intent shape, explicitly tells workers not to swap entrypoints
+  like `mvn` and `mvnw`, and resolves PATH-backed tool wrappers before
+  shell-free execution
+- retained live run `20260409T150845Z-wp17-csv-typed-loader-slice-e16f357e`
+  then emitted `tool: mvn ...`, and coordinator-side
+  `validate-run --include-status failed --intents-only` accepted and executed
+  that Maven test successfully; the task itself still failed for a separate
+  reason because the representative `WP17` write scope omitted `docs/csv.md`
 
 ## Recommended Order
 
 1. The tracked reopened work packages are complete through `WP16`.
 2. `WP17` now closes the practical-threshold follow-up on a representative
    write-capable product slice.
-3. Reopen this area only if you need further validation-intent quality work or
-   a different representative live plan.
+3. Reopen this area only if you need tighter representative write scopes or a
+   different live plan.
 
 ## Non-Goals
 
@@ -617,8 +625,8 @@ coordinator-side lean-topology visibility, and a real governed run proof.
 
 The remaining open work is now optional:
 
-- improve worker validation-intent quality only if coordinator-side
-  `validate-run` acceptance still matters enough to justify one more live proof
+- tighten representative write scopes only if you want later live product
+  slices to permit adjacent doc work like `docs/csv.md`
 - calibrate additional representative live plans only if one CSV-based proof is
   not enough operationally
 

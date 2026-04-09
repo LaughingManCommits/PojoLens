@@ -9,19 +9,18 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP17`; the representative follow-up now has one retained live CSV run.
+- The orchestration spike is complete through `WP17`; post-`WP17` live proof now confirms accepted `tool: mvn` validation intents on the representative CSV plan.
 - The first CSV adapter slice is now in the repo as a bounded typed loader via `PojoLensCsv`.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
-- `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict header-based typed loading, row/column-aware errors, nested-path projection support, and public API/docs coverage.
-- `2026-04-09`: retained live run `20260409T125416Z-wp17-csv-typed-loader-slice-b41544f3` completed both tasks with `governanceStatus = ok`, `totalCostUsd = 0.93547`, and `10987 B` of artifacts; the implementer made no edits because the slice was already landed.
-- `2026-04-09`: worker validation-intent guidance now tells workers to mirror approved validation hints, use `repo-script` only for `scripts/...` or `mvnw(.cmd)`, use `tool` only for approved executables, and emit `[]` instead of inventing `grep` or pseudo scripts.
-- `2026-04-08`: retained live run `20260408T184403Z-wp16-live-run-policy-proof-4f22bffe` proved between-batch `runPolicy` stop on real usage; the first task cost `$0.079901` and blocked the second task.
+- `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
+- `2026-04-09`: worker validation-intent guidance now tells workers to mirror approved hints exactly, avoid swapping `mvn` and `mvnw`, keep `repo-script` to `scripts/...` or `mvnw(.cmd)`, use `tool` for approved executables, and emit `[]` instead of invented scripts.
+- `2026-04-09`: retained live run `20260409T150845Z-wp17-csv-typed-loader-slice-e16f357e` failed on out-of-scope `docs/csv.md`, but coordinator `validate-run --include-status failed --intents-only` accepted and executed the worker's `tool: mvn ...` suggestion after PATH-wrapper resolution.
 - `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files.
 - `2026-04-07`: reviewer false positives remain a live risk.
-- Live workers are structured-intent-only; `validationCommands` survive only in old manifests or review-time `validate-run`, and the new prompt guidance still needs fresh live run proof if we want empirical confirmation that worker suggestions improved.
+- Live workers are structured-intent-only; `validationCommands` survive only in old manifests or review-time `validate-run`, and the remaining representative-plan gap is write-scope completeness.
 
 ## Validate
 

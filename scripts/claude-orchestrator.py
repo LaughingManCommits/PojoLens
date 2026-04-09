@@ -3489,7 +3489,8 @@ def validation_intent_command_text(intent: ValidationIntent) -> str:
 
 def validation_intent_execution_tokens(intent: ValidationIntent) -> list[str]:
     if intent.kind == "tool":
-        return [intent.entrypoint, *intent.args]
+        resolved_entrypoint = shutil.which(intent.entrypoint) or intent.entrypoint
+        return [resolved_entrypoint, *intent.args]
     absolute_path = str((ROOT / intent.entrypoint).resolve())
     suffix = Path(intent.entrypoint).suffix.lower()
     if suffix == ".ps1":
@@ -3565,10 +3566,23 @@ def worker_prompt(
         constraints,
         empty_line="- none",
     )
+    rendered_validation_hints: list[str] = []
+    for hint in validation_hints:
+        policy = validation_command_policy(hint)
+        intent = policy.get("intent") if isinstance(policy, dict) else None
+        if policy.get("accepted") and isinstance(intent, dict):
+            kind = str(intent.get("kind", "")).strip()
+            entrypoint = str(intent.get("entrypoint", "")).strip()
+            if kind and entrypoint:
+                rendered_validation_hints.append(
+                    f"`{hint}` -> `{kind}` `{entrypoint}` (mirror exactly; keep args unchanged)"
+                )
+                continue
+        rendered_validation_hints.append(f"`{hint}`")
     validation_lines, validation_count, validation_truncated = format_bullet_list(
-        validation_hints,
+        rendered_validation_hints,
         empty_line="- none",
-        code_format=True,
+        code_format=False,
     )
     materialization_items = [
         f"{layer.task_id} ({len(layer.operations)} ops from {layer.workspace_mode})"
@@ -3598,7 +3612,7 @@ def worker_prompt(
             "In copy/worktree mode, do not inspect the source repo root, other task workspaces, or prior run artifacts.",
             "Treat `writePaths` as the edit contract. Dependency outputs are the coordinator handoff.",
             "If dependency layers are materialized, workspace state overrides prompt summaries for those upstream files.",
-            "If validation hints already show an approved command, prefer mirroring that exact entrypoint and args in `validationIntents`.",
+            "If validation hints already show an approved command, mirror that exact entrypoint and args in `validationIntents`. Do not swap `mvn` and `mvnw` or invent alternate wrappers.",
             "Suggest only coordinator-accepted validation shapes: `repo-script` for `scripts/...` or `mvnw(.cmd)`, `tool` for approved executables like `git`, `java`, `mvn`, `py`, or `pytest`.",
             "If no approved validation shape fits, emit `[]`. Do not invent scripts or use `grep`, `findstr`, or shell fragments.",
             "State blockers explicitly, and do not claim edits or validation you did not actually perform.",
