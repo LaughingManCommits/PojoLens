@@ -1473,8 +1473,11 @@ class ValidateCommandTest(unittest.TestCase):
         )
         self.assertFalse(worker_rules.truncated)
         self.assertIn("Treat this prompt plus the declared workspace as the full contract.", rendered.text)
-        self.assertLessEqual(worker_rules.item_count, 7)
+        self.assertLessEqual(worker_rules.item_count, 10)
         self.assertIn("Treat `writePaths` as the edit contract.", rendered.text)
+        self.assertIn("prefer mirroring that exact entrypoint and args", rendered.text)
+        self.assertIn("`repo-script` for `scripts/...` or `mvnw(.cmd)`", rendered.text)
+        self.assertIn("Do not invent scripts or use `grep`, `findstr`, or shell fragments.", rendered.text)
         self.assertNotIn("Emit only structured `validationIntents`", rendered.text)
         self.assertNotIn("Use `[]` for known-empty", rendered.text)
 
@@ -1644,6 +1647,20 @@ class ValidateCommandTest(unittest.TestCase):
 
         self.assertFalse(policy["accepted"])
         self.assertIn("not an approved executable", policy["reason"])
+
+    def test_validation_intent_policy_rejects_repo_script_tool_kind_mismatch(self):
+        orchestrator = self.orchestrator
+
+        policy = orchestrator.validation_intent_policy(
+            orchestrator.ValidationIntent(
+                kind="repo-script",
+                entrypoint="mvn",
+                args=["-q", "test"],
+            )
+        )
+
+        self.assertFalse(policy["accepted"])
+        self.assertIn("approved repo-local script or wrapper", policy["reason"])
 
     def test_collect_validation_commands_marks_unknown_validation_commands(self):
         orchestrator = self.orchestrator

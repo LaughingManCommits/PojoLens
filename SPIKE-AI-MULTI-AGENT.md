@@ -528,11 +528,11 @@ Findings:
   (`186234` cache read input tokens), so practical `runPolicy` thresholds need
   empirical tuning rather than guessed micro-budgets
 
-### WP17: Practical CSV Slice Guardrails (Started)
+### WP17: Practical CSV Slice Guardrails (Completed)
 
 Status:
 
-- started `2026-04-09`
+- completed `2026-04-09`
 
 Goal:
 
@@ -567,18 +567,32 @@ Findings:
 - `validate --json` resolves the plan to one `implementer` and one
   `reviewer`, one write-capable task, one read-only task, and zero topology
   warnings
-- `run --dry-run --json` estimates `1482` total prompt tokens
-  (`834` implementer, `648` reviewer), with no prompt-budget violations
-- no live `WP17` run has been executed yet, so these are practical dry-run
-  defaults rather than empirically confirmed cost ceilings
+- retained live run `20260409T125416Z-wp17-csv-typed-loader-slice-b41544f3`
+  completed both tasks with `governanceStatus = ok`, zero alerts, and
+  `totalCostUsd = 0.93547`
+- the same live run consumed `1599` estimated prompt tokens, wrote `10987 B`
+  total artifacts, and stayed well under the configured budget and artifact
+  ceilings
+- because the CSV slice was already implemented in the repo, the implementer
+  made no edits and instead confirmed that the nine-file write scope was
+  already aligned with the spike
+- coordinator-side `validate-run --intents-only` rejected all three suggested
+  validation intents (`mvn`, `grep`, and a pseudo repo-script), which exposed
+  a remaining quality gap in worker validation suggestions even when the task
+  result itself is sound
+- post-live hardening now tells workers to mirror approved validation hints,
+  use `repo-script` only for `scripts/...` or `mvnw(.cmd)`, use `tool` only
+  for approved executables, and emit `[]` instead of inventing `grep` or
+  pseudo scripts; Python regression tests and a fresh `WP17` dry-run passed,
+  but this tighter guidance has not been re-proven on a second live run yet
 
 ## Recommended Order
 
 1. The tracked reopened work packages are complete through `WP16`.
-2. Optional follow-up `WP17` now provides a representative CSV slice and a
-   dry-run budget baseline without reopening the coordinator contract.
-3. Only run `WP17` live if extra empirical threshold tuning is worth the
-   additional spend.
+2. `WP17` now closes the practical-threshold follow-up on a representative
+   write-capable product slice.
+3. Reopen this area only if you need further validation-intent quality work or
+   a different representative live plan.
 
 ## Non-Goals
 
@@ -603,7 +617,9 @@ coordinator-side lean-topology visibility, and a real governed run proof.
 
 The remaining open work is now optional:
 
-- run or tune `WP17` live only if operators want empirical threshold data on a
-  real product slice beyond the current dry-run baseline
+- improve worker validation-intent quality only if coordinator-side
+  `validate-run` acceptance still matters enough to justify one more live proof
+- calibrate additional representative live plans only if one CSV-based proof is
+  not enough operationally
 
 That is the right remaining scope for the spike.
