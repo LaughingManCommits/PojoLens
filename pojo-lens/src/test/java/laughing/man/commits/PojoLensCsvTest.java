@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,6 +39,7 @@ class PojoLensCsvTest {
                 .filter(rows, Employee.class);
 
         assertEquals(4, rows.size());
+        assertNull(rows.get(0).hireDate);
         assertEquals(List.of("Cara", "Alice"), result.stream().map(row -> row.name).toList());
     }
 
@@ -126,6 +128,26 @@ class PojoLensCsvTest {
         );
 
         assertTrue(error.getMessage().contains("CSV header column 'id' is duplicated"));
+    }
+
+    @Test
+    void csvRowsShouldRejectMissingPrimitiveBackedHeaderColumns(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "missing-required-column.csv",
+                """
+                        id,name,department,hireDate,active
+                        1,Alice,Engineering,2024-01-15,true
+                        """
+        );
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensCsv.read(csv, Employee.class)
+        );
+
+        assertTrue(error.getMessage().contains("CSV header for Employee is missing required columns"));
+        assertTrue(error.getMessage().contains("salary"));
     }
 
     private static Path writeCsv(Path tempDir, String fileName, String contents) throws IOException {

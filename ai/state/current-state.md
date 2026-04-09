@@ -15,6 +15,7 @@
 ## Verified
 
 - `2026-04-09`: `PojoLensCsv` and `CsvOptions` landed with strict typed loading, row/column-aware errors, nested-path projection reuse, public API coverage, and aligned docs.
+- `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns instead of silently defaulting them; nullable object fields may still be omitted and resolve to `null`.
 - `2026-04-09`: worker validation-intent guidance is now explicit in `scripts/claude-orchestrator.py` and `ai/orchestrator/agents.json`: mirror approved hints, keep `repo-script` to `scripts/...` or `mvnw(.cmd)`, use `tool` for approved executables, and emit `[]` instead of invented scripts.
 - `2026-04-09`: retained runs `20260409T150845Z-wp17-csv-typed-loader-slice-e16f357e` and `20260409T160647Z-wp17-csv-typed-loader-slice-f939dec7` proved the repaired validation path and widened `WP17` write scope: coordinator `validate-run` accepted `tool: mvn ...`, PATH-backed wrappers resolved cleanly, and the later run's doc changes were promoted into the repo.
 - `2026-04-08`: retained live run `20260408T184403Z-wp16-live-run-policy-proof-4f22bffe` proved between-batch `runPolicy` stop on real usage; the first task cost `$0.079901` and blocked the second.
@@ -32,6 +33,6 @@
 ## Next
 
 - For AI orchestration follow-up, only revisit this area if you want reviewer-visible dependency materialization for new files, or run another representative live plan.
-- If CSV follow-up resumes, keep it in Phase 1 adapter territory: narrow coercion policy or explicit schema only after the typed loader settles.
+- If CSV follow-up resumes, keep it in Phase 1 adapter territory: multiline quoted field support is the next hardening slice.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.

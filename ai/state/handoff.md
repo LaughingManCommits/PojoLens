@@ -9,15 +9,16 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP17`; live proof now confirms accepted `tool: mvn` validation intents and in-scope CSV doc creation on the representative plan.
+- The orchestration spike is complete through `WP17`; live proof now confirms accepted `tool: mvn` intents and in-scope CSV doc creation.
 - The first CSV adapter slice is now in the repo as a bounded typed loader via `PojoLensCsv`.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
+- `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns; nullable object fields may still be omitted and resolve to `null`.
 - `2026-04-09`: worker validation-intent guidance now tells workers to mirror approved hints exactly, avoid swapping `mvn` and `mvnw`, keep `repo-script` to `scripts/...` or `mvnw(.cmd)`, use `tool` for approved executables, and emit `[]` instead of invented scripts.
-- `2026-04-09`: retained runs `20260409T150845Z-wp17-csv-typed-loader-slice-e16f357e` and `20260409T160647Z-wp17-csv-typed-loader-slice-f939dec7` proved accepted `tool: mvn ...` execution, fixed `docs/csv.md` write scope, and promoted the new CSV guide plus linked doc updates into the repo; the remaining live issue is `summary-only` reviewer handoff for new files.
+- `2026-04-09`: retained runs `20260409T150845Z-wp17-csv-typed-loader-slice-e16f357e` and `20260409T160647Z-wp17-csv-typed-loader-slice-f939dec7` proved accepted `tool: mvn ...` execution, fixed `docs/csv.md` write scope, and promoted the CSV guide/docs; the remaining live issue is `summary-only` reviewer handoff for new files.
 - `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files.
 - `2026-04-07`: reviewer false positives remain a live risk.
 - Live workers are structured-intent-only; `validationCommands` survive only in old manifests or review-time `validate-run`, and the remaining representative-plan gap is reviewer-visible materialization of new dependency files.

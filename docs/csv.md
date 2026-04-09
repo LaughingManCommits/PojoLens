@@ -64,6 +64,9 @@ List<Employee> rows = PojoLensCsv.read(
 ## Header Mapping
 
 The adapter maps CSV column names to Java field names by exact match.
+Header-mode reads reject duplicate or unknown columns.
+Primitive-backed target fields are required; nullable object-typed fields may
+be omitted and will default to `null`.
 
 A CSV with columns `id,name,department,salary` maps directly to a POJO with
 fields of those names:
@@ -147,6 +150,7 @@ All errors include row number and column name for fast diagnosis.
 | Invalid integer | `CSV row 18 column salary: cannot parse '12k' as Integer` |
 | Invalid boolean | `CSV row 3 column active: cannot parse 'maybe' as Boolean` |
 | Blank value for primitive field | `CSV row 5 column id: blank value is not allowed for primitive targets` |
+| Missing required header column | `CSV header for Employee is missing required columns: salary` |
 | Duplicate header column | `CSV header column 'id' is duplicated` |
 | Header column not mapped to row type | `CSV header column 'unknown' does not map to Employee` |
 | Wrong column count in a data row | `CSV row 7 has 3 columns; expected 4` |

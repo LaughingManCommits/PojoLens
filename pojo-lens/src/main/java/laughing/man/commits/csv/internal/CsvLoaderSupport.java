@@ -244,6 +244,18 @@ public final class CsvLoaderSupport {
             }
             schema.add(headerName);
         }
+        ArrayList<String> missingRequired = new ArrayList<>();
+        for (CsvColumnBinding binding : bindingsByName.values()) {
+            if (binding.primitive() && !seen.contains(binding.columnName())) {
+                missingRequired.add(binding.columnName());
+            }
+        }
+        if (!missingRequired.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "CSV header for " + rowType.getSimpleName()
+                            + " is missing required columns: " + String.join(", ", missingRequired)
+            );
+        }
         return List.copyOf(schema);
     }
 
