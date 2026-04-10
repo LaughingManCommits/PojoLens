@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-10T19:07:45.047226+02:00",
+  "generatedAt": "2026-04-10T19:52:10.224689+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "615d337c8b51005a8de3a5d35717c4895eca51339382ec606565c57a39894418",
+      "inputHash": "a64aec823aee0c4ff76183b32e21fad6d9d4c7c678492b02f7400cf06b9655c8",
       "pathHashes": {
         "AGENTS.md": "785100279166c503d93f4e43ef18ad5c0ec8a5478bcb2270a2973cbe60abfe35",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -19,7 +19,8 @@
         "ai/core/runbook.md": "4f854c0ce2106e71ea028bd0b5cdd0b63674c0f477e0c8fe7e0681e33f378ca8",
         "ai/core/system-boundaries.md": "c26c3f3949e4469940869374005715ef4af2e976d16a397f01f41cf4d57a179f",
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
-        "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
+        "ai/log/archive/2026-03-summary.md": "f5afa5af036fabf36ccbde9835ddee17edb0df154ea0901ee369df09c347903b",
+        "ai/log/archive/2026-04-summary.md": "fcb391b945e01d041bd2aacbddf4f2a82c481b58a6075aef06a46114fc725ca7",
         "ai/orchestrator/README.md": "9875651f89517a2b4947ebded280a0141f0f7e60dbe7b7a9cd0ba723aee5a243",
         "ai/orchestrator/SYSTEM-SPEC.md": "ed369d809471e4dd8b21439bb3235b820b8ae8a34532cd3575c9fa4800e11914",
         "ai/state/benchmark-state.md": "a03c5cf39b3967384d4a773998d517b54eeb109ae55f454b04476503b281d891",
@@ -59,7 +60,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "110a0bdc77b48b9f2876325595323ed39141e5e1f88022829ee7a3b3dde2a3f5",
+      "inputHash": "9a1b665f910f08e601a9c68ede06f7a7ede30e31a6a510e4fcf30782ee0be237",
       "pathHashes": {
         ".github/workflows/ci.yml": "f182571210a25fa92ab8d2f2284ac2255496d12d2a6570d1a71346a1515af194",
         ".github/workflows/release.yml": "f00571c35c1cd32e61d2d33a978507b09bac5f3702f24492eef971eff77f3d7c",
@@ -76,7 +77,8 @@
         "ai/core/runbook.md": "4f854c0ce2106e71ea028bd0b5cdd0b63674c0f477e0c8fe7e0681e33f378ca8",
         "ai/core/system-boundaries.md": "c26c3f3949e4469940869374005715ef4af2e976d16a397f01f41cf4d57a179f",
         "ai/core/test-strategy.md": "233f55089d460329bf07781385f580da2837404c8338b17de5e0967f88cd5354",
-        "ai/log/archive/2026-03-summary.md": "3858184bf31644891442a4c6dcb9424b79049f66eaecbaa5ee73e36609d7efa7",
+        "ai/log/archive/2026-03-summary.md": "f5afa5af036fabf36ccbde9835ddee17edb0df154ea0901ee369df09c347903b",
+        "ai/log/archive/2026-04-summary.md": "fcb391b945e01d041bd2aacbddf4f2a82c481b58a6075aef06a46114fc725ca7",
         "ai/orchestrator/agents.json": "3770c41e158a30b6e0759577be0f95c24e884cc8103c940fd1f33375922c4177",
         "ai/orchestrator/README.md": "9875651f89517a2b4947ebded280a0141f0f7e60dbe7b7a9cd0ba723aee5a243",
         "ai/orchestrator/SYSTEM-SPEC.md": "ed369d809471e4dd8b21439bb3235b820b8ae8a34532cd3575c9fa4800e11914",
