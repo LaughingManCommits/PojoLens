@@ -423,37 +423,207 @@ This still fits the repo well if:
 - existing query semantics stay unchanged
 - docs still describe the library primarily as querying Java objects
 
-## Suggested Phases
+## Reevaluated Rollout
 
-### Phase 1: Typed CSV Loader
+The original phase split still holds, but the repo now has enough concrete
+implementation to tighten the order:
+
+- `CSV-WP1` is complete: `PojoLensCsv.read(...)`, `CsvOptions`, strict typed
+  loading, nested-path projection reuse, and aligned docs/tests are already in
+  the repo.
+- The remaining Phase 1 work should stay parser-hardening only; do not widen
+  into runtime policy or dynamic schema before common exported CSV files load
+  cleanly.
+- The old Phase 2 bundle should be split so runtime ownership, coercion policy,
+  and diagnostics can move independently.
+- Dynamic-schema work remains explicitly gated; do not start it unless the
+  typed-first path proves insufficient on real use cases.
+
+## Active Work Package Board
+
+### CSV-WP1: Typed Loader Foundation (Completed)
+
+Status:
+
+- completed `2026-04-09`
+
+Goal:
+
+- land a bounded CSV-to-typed-row adapter without changing query-core
+  semantics
+
+Scope:
+
+- static `PojoLensCsv.read(path, rowType)` entry points
+- narrow `CsvOptions` for header/delimiter/trim/skip-empty behavior
+- strict header mapping, nested-path projection reuse, and row/column-aware
+  coercion failures
+- public docs and public-API coverage
 
 Deliver:
 
-- `PojoLensCsv.read(path, MyType.class)`
-- header mapping
-- delimiter/header/trim options
-- strict type errors
+- CSV can enter the existing engine as typed in-memory rows with no query-core
+  changes
 
-Outcome:
+Success bar:
 
-- existing fluent and SQL-like features work once rows are loaded
+- fluent, SQL-like, chart, report, and natural surfaces all work only after the
+  load, not through a second tabular engine
 
-### Phase 2: Runtime-Scoped CSV Policy
+Findings:
+
+- the current parser is still physical-line based, so quoted multiline fields
+  are the next real compatibility gap
+- the bounded adapter story is now proven in code and docs; the remaining work
+  is about hardening and policy, not repositioning the library
+
+### CSV-WP2: RFC 4180 Record Hardening (Ready)
+
+Status:
+
+- ready
+
+Goal:
+
+- finish Phase 1 by handling the common CSV shapes exported by spreadsheets and
+  line-oriented tools without changing the adapter boundary
+
+Scope:
+
+- support quoted fields that span multiple physical lines
+- keep escaped-quote and delimiter handling correct across embedded newlines
+- preserve row/column diagnostics using the logical record start line
+- lock BOM, CRLF, blank-line, and quoted-newline behavior in docs/tests
 
 Deliver:
 
-- runtime defaults
-- date/number/null coercion policy
-- telemetry/explain hooks for load diagnostics
+- common exported CSV files import cleanly into typed rows without widening the
+  public model
 
-### Phase 3: Explicit Dynamic Schema
+Success bar:
+
+- `PojoLensCsv.read(...)` still returns `List<T>` and no runtime/dynamic schema
+  API is introduced
+
+### CSV-WP3: Runtime-Owned CSV Entry Point (Planned)
+
+Status:
+
+- planned
+
+Goal:
+
+- let applications configure CSV onboarding once per runtime instead of
+  repeating `CsvOptions` at every call site
+
+Scope:
+
+- add a runtime-owned CSV entry point such as `runtime.csv()`
+- let runtime defaults seed header/delimiter/trim/skip-empty behavior
+- keep static `PojoLensCsv.read(...)` convenience intact
+- support explicit per-call overrides on top of runtime defaults
 
 Deliver:
 
-- `CsvSchema`
-- dynamic row loading for ad hoc exploration
+- DI and multi-tenant callers can centralize file-boundary CSV policy without
+  touching query execution
 
-This is the first phase where scope risk increases materially.
+Success bar:
+
+- no query-core changes and no inferred/dynamic schema surface
+
+### CSV-WP4: Explicit Coercion Policy (Planned)
+
+Status:
+
+- planned
+
+Goal:
+
+- turn the current hard-coded null/date/enum/number parsing rules into explicit
+  policy where real CSV variation demands it
+
+Scope:
+
+- add opt-in policy hooks for null tokens, date/time parsing, enum matching,
+  and numeric coercion
+- keep the existing strict defaults unchanged
+- thread the policy through the static and runtime CSV entry points
+- expand docs/tests around ambiguous value handling
+
+Deliver:
+
+- callers can adapt to common CSV conventions without preprocessing the file
+  externally
+
+Success bar:
+
+- defaults stay strict and typed-first; policy is explicit rather than inferred
+
+### CSV-WP5: Load Diagnostics And Observability (Planned)
+
+Status:
+
+- planned
+
+Goal:
+
+- make CSV onboarding inspectable in the same operational style as the rest of
+  the runtime
+
+Scope:
+
+- expose load-level diagnostics such as row counts, resolved schema, rejected
+  columns, and timing/coercion failures
+- integrate with existing telemetry patterns or a narrow load report without
+  pretending CSV load is a second query engine
+- document which signals are for load troubleshooting vs query explain output
+
+Deliver:
+
+- operators can tell what a CSV load did and why it failed without stepping
+  through parser internals
+
+Success bar:
+
+- diagnostics stay load-scoped and do not blur into raw-table execution
+  features
+
+### CSV-WP6: Explicit Dynamic Schema (Deferred)
+
+Status:
+
+- deferred pending typed-first demand
+
+Goal:
+
+- support ad hoc unknown-shape CSV exploration only if the typed-first adapter
+  proves insufficient
+
+Scope:
+
+- design an explicit `CsvSchema`/dynamic row surface instead of silent
+  inference
+- document the feature gaps vs typed POJO flows up front
+- keep joins/charts/reports as post-load reuse of the same engine, not a new
+  tabular runtime
+
+Deliver:
+
+- an optional exploration path for unknown CSV shape with explicit tradeoffs
+
+Success bar:
+
+- do not open this package until `CSV-WP2` through `CSV-WP5` are complete or a
+  real user need justifies the added scope risk
+
+## Recommended Order
+
+1. `CSV-WP2`
+2. `CSV-WP3`
+3. `CSV-WP4`
+4. `CSV-WP5`
+5. `CSV-WP6` only if the typed-first path still proves insufficient
 
 ## Initial Recommendation
 

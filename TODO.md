@@ -1,5 +1,19 @@
 # TODO
 
+## CSV Adapter Follow-Up (2026-04-10)
+
+- Detailed package scopes now live in `SPIKE-CSV.md`.
+- `CSV-WP1` `Done`: typed loader foundation is already in the repo via
+  `PojoLensCsv` and `CsvOptions`.
+- `CSV-WP2` `Ready`: multiline quoted-record hardening while staying in Phase 1
+  adapter territory.
+- `CSV-WP3` `Planned`: runtime-owned CSV entry point and defaults.
+- `CSV-WP4` `Planned`: explicit coercion policy for null/date/enum/number
+  handling.
+- `CSV-WP5` `Planned`: load diagnostics and observability.
+- `CSV-WP6` `Deferred`: explicit dynamic schema only if the typed-first path
+  proves insufficient.
+
 ## Benchmark Snapshot (2026-03-31)
 
 - Full benchmark runner rebuilt with `mvn -B -ntp -Pbenchmark-runner -DskipTests package`.

@@ -8,7 +8,7 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- `2026-04-09`: bounded CSV support started with a typed loader slice; `PojoLensCsv` now loads UTF-8 CSV into typed rows without changing the POJO-first engine story.
+- `2026-04-10`: CSV follow-up now has a `CSV-WP1` through `CSV-WP6` board; `CSV-WP2` multiline quoted-record hardening is next.
 - AI orchestration tracked spike work is complete through `WP17`; live proof now confirms accepted `tool: mvn` intents and in-scope CSV doc creation on the representative plan.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
@@ -33,6 +33,6 @@
 ## Next
 
 - For AI orchestration follow-up, only revisit this area if you want reviewer-visible dependency materialization for new files, or run another representative live plan.
-- If CSV follow-up resumes, keep it in Phase 1 adapter territory: multiline quoted field support is the next hardening slice.
+- If CSV follow-up resumes, do `CSV-WP2` next, then `CSV-WP3` through `CSV-WP5`; keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.
