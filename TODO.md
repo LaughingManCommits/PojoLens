@@ -14,6 +14,11 @@
 - `CSV-WP5` `Done`: `readWithReport(...)` and `CsvLoadException.report()` now
   expose load-scoped row counts, schema, rejected columns, duration, and
   failure details.
+- `CSV Cleanup` `Done`: preflight and no-bindable-type failures now stay on the
+  same `CsvLoadException.report()` path, missing header columns are reported
+  separately from rejected columns, logical/data row counts are explicit, enum
+  leaf discovery is aligned in shared reflection, and guarded CSV load
+  benchmarks now live in the core threshold suite.
 - `CSV-WP6` `Deferred`: explicit dynamic schema only if the typed-first path
   proves insufficient.
 

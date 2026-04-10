@@ -540,7 +540,7 @@ public final class ReflectionUtil {
                 Class<?> fieldType = wrapPrimitive(field.getType());
                 List<Field> fieldPath = appendPath(path, field);
 
-                if (isSimpleType(fieldType)) {
+                if (isSimpleType(fieldType) || fieldType.isEnum()) {
                     flattenedFields.add(new FlattenedFieldDescriptor(
                             qualifiedName,
                             new ResolvedFieldPath(fieldPath, fieldType, true)

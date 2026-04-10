@@ -17,7 +17,7 @@ Core execution model:
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim/coercion needs. |
-| CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
+| CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and split header diagnostics; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
 | Runtime-scoped CSV onboarding defaults | `runtime.csv().read(path, rowType)` | Uses the same bounded adapter while letting delimiter/header/trim/coercion defaults live on `PojoLensRuntime`. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |

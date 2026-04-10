@@ -627,6 +627,11 @@ Findings:
 - CSV troubleshooting is now explicitly separated from query `explain(...)` and
   query telemetry; diagnostics stay at the file boundary instead of pretending
   CSV load is a second execution engine.
+- Post-WP5 hardening now also keeps preflight and empty-row-type failures on the
+  same `CsvLoadException.report()` contract, splits rejected vs missing header
+  columns, clarifies logical-vs-data record counts, moves enum leaf discovery
+  into shared `ReflectionUtil`, and adds guarded `CsvLoadJmhBenchmark` load
+  budgets to the core benchmark suite.
 
 ### CSV-WP6: Explicit Dynamic Schema (Deferred)
 

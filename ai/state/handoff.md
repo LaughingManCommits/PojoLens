@@ -10,20 +10,16 @@
 ## Focus
 
 - The orchestration spike is complete through `WP17`.
-- CSV now has a `CSV-WP1` through `CSV-WP6` board; `CSV-WP5` is complete and `CSV-WP6` remains deferred pending typed-first demand.
+- CSV is complete through `CSV-WP5` plus cleanup hardening; `CSV-WP6` remains deferred.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
 - `2026-04-10`: `SPIKE-CSV.md` now stages CSV follow-up as `CSV-WP1` through `CSV-WP6`; dynamic schema stays deferred.
-- `2026-04-10`: CSV loading now supports multiline quoted fields and logical start-line diagnostics for multiline failures.
-- `2026-04-10`: `PojoLensRuntime` now owns CSV defaults, exposes `runtime.csv().read(...)`, and keeps one-off overrides layered through `CsvOptions.toBuilder()`.
-- `2026-04-10`: `CsvCoercionPolicy` now makes null tokens, blank-string handling, locale-number parsing, custom date/date-time patterns, and enum case matching explicit and opt-in for both static and runtime-owned CSV reads.
-- `2026-04-10`: CSV binding discovery now includes enum-backed fields, closing a hidden gap between coercion support and header/schema binding.
-- `2026-04-10`: CSV load diagnostics now use `PojoLensCsv.readWithReport(...)`, `runtime.csv().readWithReport(...)`, and `CsvLoadException.report()` to expose load-scoped row counts, resolved schema, rejected columns, duration, and failure details without widening query telemetry or `explain(...)`.
+- `2026-04-10`: CSV load now covers multiline quoted records, runtime-owned defaults, explicit coercion policy, split header diagnostics, logical/data counts, and `CsvLoadException.report()` across preflight plus load failures.
+- `2026-04-10`: Shared `ReflectionUtil` now exposes enum leaves, keeping CSV binding aligned with general queryable-field discovery.
+- `2026-04-10`: `CsvLoadJmhBenchmark` now keeps typed and multiline CSV load overhead in the guarded core suite under the `LOAD` category.
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
-- `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns; nullable object fields may still be omitted and resolve to `null`.
-- `2026-04-09`: workers must mirror approved validation entrypoints.
 - `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`; the remaining orchestration gap is reviewer-visible new-file materialization.
 
 ## Validate
@@ -35,7 +31,7 @@
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
+- CSV: `SPIKE-CSV.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
+- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`, `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CsvLoadJmhBenchmark.java`
+- orchestration: `SPIKE-AI-MULTI-AGENT.md`, `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`
 - limitation spike: `SPIKE-LIMITATIONS.md`
-- AI orchestration spike: `SPIKE-AI-MULTI-AGENT.md`, `ai/orchestrator/README.md`, `ai/orchestrator/SYSTEM-SPEC.md`, `scripts/claude-orchestrator.py`
-- CSV spike and starter surface: `SPIKE-CSV.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
-- natural surfaces: `docs/natural.md`, `pojo-lens/src/main/java/laughing/man/commits/natural/`, `pojo-lens/src/test/java/laughing/man/commits/natural/`

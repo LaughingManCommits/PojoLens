@@ -152,10 +152,12 @@ CsvLoadReport report = result.report();
 
 The report is load-scoped. It captures:
 
-- logical record count
+- logical record count, including the header record when `header` is enabled
+- parsed data record count
 - successfully loaded row count
 - resolved schema
 - rejected header columns
+- missing required header columns
 - load duration
 - failure stage, row, column, and message when the load fails
 
@@ -168,7 +170,7 @@ CsvLoadResult<Employee> result = runtime.csv().readWithReport(
 );
 ```
 
-The plain `read(...)` methods still throw on failure, but the exception is now a
+The plain `read(...)` methods still throw on failure, and the exception is a
 `CsvLoadException` with the same report attached:
 
 ```java
@@ -180,6 +182,10 @@ try {
     System.out.println(report.failureMessage());
 }
 ```
+
+This includes preflight failures such as a missing file path or a row type with
+no bindable fields. When the caller omits `path`, `rowType`, or `options`, the
+matching accessors on the attached `CsvLoadReport` may be `null`.
 
 Use these reports for file-boundary troubleshooting only. Once rows are loaded,
 use normal query `explain(...)` and query telemetry for engine-stage visibility.
@@ -202,6 +208,7 @@ The adapter maps CSV column names to Java field names by exact match.
 Header-mode reads reject duplicate or unknown columns.
 Primitive-backed target fields are required; nullable object-typed fields may
 be omitted and will default to `null`.
+Row types with no bindable/queryable fields are rejected before parsing starts.
 
 A CSV with columns `id,name,department,salary` maps directly to a POJO with
 fields of those names:
@@ -291,6 +298,7 @@ For multiline quoted records, the row number is the logical record start line.
 | Missing required header column | `CSV header for Employee is missing required columns: salary` |
 | Duplicate header column | `CSV header column 'id' is duplicated` |
 | Header column not mapped to row type | `CSV header column 'unknown' does not map to Employee` |
+| No bindable target fields | `CSV row type EmptyRow exposes no bindable fields` |
 | Wrong column count in a data row | `CSV row 7 has 3 columns; expected 4` |
 | Unmatched quote | `CSV row 2 has an unmatched quote` |
 

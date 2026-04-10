@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-10T15:57:37.552582+02:00",
+  "generatedAt": "2026-04-10T18:55:13.162288+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 110,
-    "testClasses": 110
+    "testJavaFiles": 114,
+    "testClasses": 114
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 99
+      "testJavaFiles": 102
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -29,7 +29,7 @@
     },
     {
       "path": "pojo-lens-benchmarks",
-      "testJavaFiles": 7
+      "testJavaFiles": 8
     },
     {
       "path": "examples/spring-boot-starter-basic",
@@ -44,6 +44,7 @@
     {
       "category": "benchmark-tooling",
       "files": [
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricLoaderCsvTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricLoaderTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricQueriesParityTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGeneratorTest.java",
@@ -125,6 +126,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/util/GroupKeyUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/ObjectUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/QueryFieldLookupUtilTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/util/ReflectionUtilEnumFieldTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/ReflectionUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/SchemaIndexUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/StringUtilTest.java",
@@ -135,6 +137,8 @@
       "category": "public-surface",
       "files": [
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/AbstractPublicApiCoverageTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/CsvPublicApiContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/publicapi/CsvPublicApiCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiCacheCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiEcosystemCoverageTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/PublicApiFluentCoverageTest.java",

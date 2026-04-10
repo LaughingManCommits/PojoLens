@@ -2,7 +2,6 @@ package laughing.man.commits.csv;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Immutable diagnostics for a single CSV load attempt.
@@ -14,7 +13,9 @@ public final class CsvLoadReport {
     private final CsvOptions options;
     private final List<String> resolvedSchema;
     private final List<String> rejectedColumns;
+    private final List<String> missingColumns;
     private final int logicalRecordCount;
+    private final int dataRecordCount;
     private final int loadedRowCount;
     private final boolean success;
     private final String failureStage;
@@ -28,7 +29,9 @@ public final class CsvLoadReport {
                          CsvOptions options,
                          List<String> resolvedSchema,
                          List<String> rejectedColumns,
+                         List<String> missingColumns,
                          int logicalRecordCount,
+                         int dataRecordCount,
                          int loadedRowCount,
                          boolean success,
                          String failureStage,
@@ -36,12 +39,14 @@ public final class CsvLoadReport {
                          String failureColumn,
                          String failureMessage,
                          long durationNanos) {
-        this.path = Objects.requireNonNull(path, "path must not be null");
-        this.rowType = Objects.requireNonNull(rowType, "rowType must not be null");
-        this.options = Objects.requireNonNull(options, "options must not be null");
+        this.path = path;
+        this.rowType = rowType;
+        this.options = options;
         this.resolvedSchema = List.copyOf(resolvedSchema == null ? List.of() : resolvedSchema);
         this.rejectedColumns = List.copyOf(rejectedColumns == null ? List.of() : rejectedColumns);
+        this.missingColumns = List.copyOf(missingColumns == null ? List.of() : missingColumns);
         this.logicalRecordCount = logicalRecordCount;
+        this.dataRecordCount = dataRecordCount;
         this.loadedRowCount = loadedRowCount;
         this.success = success;
         this.failureStage = failureStage;
@@ -71,8 +76,16 @@ public final class CsvLoadReport {
         return rejectedColumns;
     }
 
+    public List<String> missingColumns() {
+        return missingColumns;
+    }
+
     public int logicalRecordCount() {
         return logicalRecordCount;
+    }
+
+    public int dataRecordCount() {
+        return dataRecordCount;
     }
 
     public int loadedRowCount() {

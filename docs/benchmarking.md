@@ -12,6 +12,7 @@ The benchmark contract for this project is:
 ## Benchmark Categories
 
 The current benchmark/reporting layer classifies workloads into these categories:
+- `LOAD`
 - `FILTER`
 - `GROUP`
 - `TIME_BUCKET`
@@ -81,6 +82,11 @@ The budget files are the source of truth:
 
 **Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLensSql.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
 
+CSV load guardrails intentionally keep file-boundary parse/materialize cost
+separate from query execution cost. `CsvLoadJmhBenchmark` is part of the core
+suite so typed and multiline CSV load overhead stays visible without hiding it
+inside downstream query benchmarks.
+
 Representative core budgets from `benchmarks/thresholds.json`:
 
 | Workload | Category | Size 1k | Size 10k |
@@ -89,6 +95,8 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `219.8 ms/op` | `290.0 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `182.4 ms/op` | `243.5 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `82.2 ms/op` | `205.7 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `8.0 ms/op` | `65.0 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `4.0 ms/op` | `30.0 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `0.2 ms/op` | `0.2 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `198.3 ms/op` | `235.3 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `0.1 ms/op` | `0.1 ms/op` |

@@ -42,29 +42,32 @@ public final class CsvLoaderSupport {
     }
 
     public static <T> CsvLoadResult<T> readWithReport(Path path, Class<T> rowType, CsvOptions options) {
-        if (path == null) {
-            throw new IllegalArgumentException("path must not be null");
-        }
-        if (rowType == null) {
-            throw new IllegalArgumentException("rowType must not be null");
-        }
-        if (options == null) {
-            throw new IllegalArgumentException("options must not be null");
-        }
-        if (!Files.isRegularFile(path)) {
-            throw new IllegalArgumentException("path must point to an existing file");
-        }
-
         long started = System.nanoTime();
         CsvLoadReportState reportState = new CsvLoadReportState(path, rowType, options);
+        validatePreconditions(path, rowType, options, reportState, started);
+
+        return readWithReportValidated(path, rowType, options, reportState, started);
+    }
+
+    private static <T> CsvLoadResult<T> readWithReportValidated(Path path,
+                                                                Class<T> rowType,
+                                                                CsvOptions options,
+                                                                CsvLoadReportState reportState,
+                                                                long started) {
         try {
             LinkedHashMap<String, CsvColumnBinding> bindingsByName = resolveBindings(rowType);
             if (bindingsByName.isEmpty()) {
-                return new CsvLoadResult<>(List.of(), reportState.success(System.nanoTime() - started));
+                throw new CsvLoadFailure(
+                        "schema",
+                        null,
+                        null,
+                        "CSV row type " + rowType.getSimpleName() + " exposes no bindable fields",
+                        List.of(),
+                        List.of()
+                );
             }
 
-            List<CsvRecord> records = parseRecords(path, options);
-            reportState.logicalRecordCount(records.size());
+            List<CsvRecord> records = parseRecords(path, options, reportState);
             if (records.isEmpty()) {
                 return new CsvLoadResult<>(List.of(), reportState.success(System.nanoTime() - started));
             }
@@ -109,20 +112,49 @@ public final class CsvLoaderSupport {
             throw new CsvLoadException(failure.getMessage(), report, failure.getCause());
         } catch (UncheckedIOException ex) {
             CsvLoadReport report = reportState.failure(
-                    new CsvLoadFailure("parse", null, null, ex.getMessage(), List.of(), ex),
+                    new CsvLoadFailure("parse", null, null, ex.getMessage(), List.of(), List.of(), ex),
                     System.nanoTime() - started
             );
             throw new CsvLoadException(ex.getMessage(), report, ex);
         } catch (RuntimeException ex) {
             CsvLoadReport report = reportState.failure(
-                    new CsvLoadFailure("materialize", null, null, ex.getMessage(), List.of(), ex),
+                    new CsvLoadFailure("materialize", null, null, ex.getMessage(), List.of(), List.of(), ex),
                     System.nanoTime() - started
             );
             throw new CsvLoadException(ex.getMessage(), report, ex);
         }
     }
 
-    private static List<CsvRecord> parseRecords(Path path, CsvOptions options) {
+    private static void validatePreconditions(Path path,
+                                              Class<?> rowType,
+                                              CsvOptions options,
+                                              CsvLoadReportState reportState,
+                                              long started) {
+        if (path == null) {
+            throw preflightFailure(reportState, started, "path must not be null");
+        }
+        if (rowType == null) {
+            throw preflightFailure(reportState, started, "rowType must not be null");
+        }
+        if (options == null) {
+            throw preflightFailure(reportState, started, "options must not be null");
+        }
+        if (!Files.isRegularFile(path)) {
+            throw preflightFailure(reportState, started, "path must point to an existing file");
+        }
+    }
+
+    private static CsvLoadException preflightFailure(CsvLoadReportState reportState,
+                                                     long started,
+                                                     String message) {
+        CsvLoadReport report = reportState.failure(
+                new CsvLoadFailure("preflight", null, null, message, List.of(), List.of()),
+                System.nanoTime() - started
+        );
+        return new CsvLoadException(message, report);
+    }
+
+    private static List<CsvRecord> parseRecords(Path path, CsvOptions options, CsvLoadReportState reportState) {
         ArrayList<CsvRecord> records = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             String line;
@@ -176,6 +208,7 @@ public final class CsvLoaderSupport {
                                 recordStartLine,
                                 null,
                                 "CSV row " + recordStartLine + " has invalid characters after closing quote",
+                                List.of(),
                                 List.of()
                         );
                     }
@@ -192,6 +225,7 @@ public final class CsvLoaderSupport {
                                     recordStartLine,
                                     null,
                                     "CSV row " + recordStartLine + " has an unexpected quote inside an unquoted field",
+                                    List.of(),
                                     List.of()
                             );
                         }
@@ -208,6 +242,7 @@ public final class CsvLoaderSupport {
                 CsvRecord record = finalizeRecord(recordStartLine, values, current, options, firstRecord);
                 if (record != null) {
                     records.add(record);
+                    reportState.logicalRecordCount(records.size());
                     firstRecord = false;
                 }
                 values = new ArrayList<>();
@@ -221,6 +256,7 @@ public final class CsvLoaderSupport {
                         recordStartLine,
                         null,
                         "CSV row " + recordStartLine + " has an unmatched quote",
+                        List.of(),
                         List.of()
                 );
             }
@@ -252,7 +288,6 @@ public final class CsvLoaderSupport {
 
     private static LinkedHashMap<String, CsvColumnBinding> resolveBindings(Class<?> rowType) {
         LinkedHashSet<String> fieldNames = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(rowType));
-        collectEnumFieldNames(rowType, "", fieldNames, new LinkedHashSet<>());
         LinkedHashMap<String, CsvColumnBinding> bindings = new LinkedHashMap<>(fieldNames.size());
         for (String fieldName : fieldNames) {
             CsvColumnBinding binding = resolveBinding(rowType, fieldName, fieldName);
@@ -261,27 +296,6 @@ public final class CsvLoaderSupport {
             }
         }
         return bindings;
-    }
-
-    private static void collectEnumFieldNames(Class<?> type,
-                                              String prefix,
-                                              LinkedHashSet<String> fieldNames,
-                                              LinkedHashSet<Class<?>> pathTypes) {
-        if (type == null || !pathTypes.add(type)) {
-            return;
-        }
-        for (Field field : mutableFields(type)) {
-            Class<?> fieldType = field.getType();
-            String qualifiedName = prefix.isEmpty() ? field.getName() : prefix + "." + field.getName();
-            if (fieldType.isEnum()) {
-                fieldNames.add(qualifiedName);
-                continue;
-            }
-            if (isNestedPojoType(fieldType)) {
-                collectEnumFieldNames(fieldType, qualifiedName, fieldNames, pathTypes);
-            }
-        }
-        pathTypes.remove(type);
     }
 
     private static CsvColumnBinding resolveBinding(Class<?> rowType, String fieldName, String columnName) {
@@ -318,30 +332,6 @@ public final class CsvLoaderSupport {
         return null;
     }
 
-    private static List<Field> mutableFields(Class<?> type) {
-        ArrayList<Field> fields = new ArrayList<>();
-        Class<?> current = type;
-        while (current != null && current != Object.class) {
-            fields.addAll(ReflectionUtil.getFields(current));
-            current = current.getSuperclass();
-        }
-        return List.copyOf(fields);
-    }
-
-    private static boolean isNestedPojoType(Class<?> type) {
-        if (type == null || ReflectionUtil.isSimpleType(type) || type.isEnum() || type.isArray()) {
-            return false;
-        }
-        Package pkg = type.getPackage();
-        if (pkg == null) {
-            return true;
-        }
-        String packageName = pkg.getName();
-        return !packageName.startsWith("java.")
-                && !packageName.startsWith("javax.")
-                && !packageName.startsWith("jdk.");
-    }
-
     private static List<String> resolveHeaderSchema(CsvRecord header,
                                                     Map<String, CsvColumnBinding> bindingsByName,
                                                     Class<?> rowType) {
@@ -354,6 +344,7 @@ public final class CsvLoaderSupport {
                         header.lineNumber(),
                         null,
                         "CSV header columns must not be blank",
+                        List.of(),
                         List.of()
                 );
             }
@@ -363,7 +354,8 @@ public final class CsvLoaderSupport {
                         header.lineNumber(),
                         headerName,
                         "CSV header column '" + headerName + "' is duplicated",
-                        List.of(headerName)
+                        List.of(headerName),
+                        List.of()
                 );
             }
             if (!bindingsByName.containsKey(headerName)) {
@@ -372,7 +364,8 @@ public final class CsvLoaderSupport {
                         header.lineNumber(),
                         headerName,
                         "CSV header column '" + headerName + "' does not map to " + rowType.getSimpleName(),
-                        List.of(headerName)
+                        List.of(headerName),
+                        List.of()
                 );
             }
             schema.add(headerName);
@@ -390,6 +383,7 @@ public final class CsvLoaderSupport {
                     null,
                     "CSV header for " + rowType.getSimpleName()
                             + " is missing required columns: " + String.join(", ", missingRequired),
+                    List.of(),
                     missingRequired
             );
         }
@@ -407,7 +401,8 @@ public final class CsvLoaderSupport {
                         null,
                         fieldName,
                         "CSV schema field '" + fieldName + "' is not queryable",
-                        List.of(fieldName)
+                        List.of(fieldName),
+                        List.of()
                 );
             }
             bindings.add(new CsvColumnBinding(binding.fieldName(), fieldName, binding.valueType(), binding.primitive()));
@@ -423,6 +418,7 @@ public final class CsvLoaderSupport {
                     null,
                     "CSV row " + record.lineNumber() + " has " + record.values().size()
                             + " columns; expected " + expectedColumns,
+                    List.of(),
                     List.of()
             );
         }
@@ -446,6 +442,7 @@ public final class CsvLoaderSupport {
                         binding.columnName(),
                         "CSV row " + record.lineNumber() + " column " + binding.columnName()
                                 + ": blank value is not allowed for primitive targets",
+                        List.of(),
                         List.of()
                 );
             }
@@ -459,6 +456,7 @@ public final class CsvLoaderSupport {
                         binding.columnName(),
                         "CSV row " + record.lineNumber() + " column " + binding.columnName()
                                 + ": null value is not allowed for primitive targets",
+                        List.of(),
                         List.of()
                 );
             }
@@ -533,6 +531,7 @@ public final class CsvLoaderSupport {
                 record.lineNumber(),
                 binding.columnName(),
                 "CSV column '" + binding.columnName() + "' maps to unsupported type " + targetType.getSimpleName(),
+                List.of(),
                 List.of()
         );
     }
@@ -650,6 +649,7 @@ public final class CsvLoaderSupport {
                 "CSV row " + record.lineNumber() + " column " + binding.columnName()
                         + ": cannot parse '" + rawValue + "' as " + targetType.getSimpleName(),
                 List.of(),
+                List.of(),
                 cause
         );
     }
@@ -710,7 +710,9 @@ public final class CsvLoaderSupport {
         private final CsvOptions options;
         private List<String> resolvedSchema = List.of();
         private List<String> rejectedColumns = List.of();
+        private List<String> missingColumns = List.of();
         private int logicalRecordCount;
+        private int dataRecordCount;
         private int loadedRowCount;
 
         private CsvLoadReportState(Path path, Class<?> rowType, CsvOptions options) {
@@ -732,8 +734,18 @@ public final class CsvLoaderSupport {
             this.rejectedColumns = List.copyOf(merged);
         }
 
+        private void missingColumns(List<String> value) {
+            if (value == null || value.isEmpty()) {
+                return;
+            }
+            LinkedHashSet<String> merged = new LinkedHashSet<>(missingColumns);
+            merged.addAll(value);
+            this.missingColumns = List.copyOf(merged);
+        }
+
         private void logicalRecordCount(int value) {
             this.logicalRecordCount = value;
+            this.dataRecordCount = options != null && options.header() ? Math.max(0, value - 1) : value;
         }
 
         private void loadedRowCount(int value) {
@@ -747,7 +759,9 @@ public final class CsvLoaderSupport {
                     options,
                     resolvedSchema,
                     rejectedColumns,
+                    missingColumns,
                     logicalRecordCount,
+                    dataRecordCount,
                     loadedRowCount,
                     true,
                     null,
@@ -760,13 +774,16 @@ public final class CsvLoaderSupport {
 
         private CsvLoadReport failure(CsvLoadFailure failure, long durationNanos) {
             rejectedColumns(failure.rejectedColumns());
+            missingColumns(failure.missingColumns());
             return new CsvLoadReport(
                     path,
                     rowType,
                     options,
                     resolvedSchema,
                     rejectedColumns,
+                    missingColumns,
                     logicalRecordCount,
+                    dataRecordCount,
                     loadedRowCount,
                     false,
                     failure.stage(),
@@ -783,17 +800,20 @@ public final class CsvLoaderSupport {
         private final Integer rowNumber;
         private final String columnName;
         private final List<String> rejectedColumns;
+        private final List<String> missingColumns;
 
         private CsvLoadFailure(String stage,
                                Integer rowNumber,
                                String columnName,
                                String message,
-                               List<String> rejectedColumns) {
+                               List<String> rejectedColumns,
+                               List<String> missingColumns) {
             super(message);
             this.stage = stage;
             this.rowNumber = rowNumber;
             this.columnName = columnName;
             this.rejectedColumns = List.copyOf(rejectedColumns == null ? List.of() : rejectedColumns);
+            this.missingColumns = List.copyOf(missingColumns == null ? List.of() : missingColumns);
         }
 
         private CsvLoadFailure(String stage,
@@ -801,12 +821,14 @@ public final class CsvLoaderSupport {
                                String columnName,
                                String message,
                                List<String> rejectedColumns,
+                               List<String> missingColumns,
                                Throwable cause) {
             super(message, cause);
             this.stage = stage;
             this.rowNumber = rowNumber;
             this.columnName = columnName;
             this.rejectedColumns = List.copyOf(rejectedColumns == null ? List.of() : rejectedColumns);
+            this.missingColumns = List.copyOf(missingColumns == null ? List.of() : missingColumns);
         }
 
         private String stage() {
@@ -823,6 +845,10 @@ public final class CsvLoaderSupport {
 
         private List<String> rejectedColumns() {
             return rejectedColumns;
+        }
+
+        private List<String> missingColumns() {
+            return missingColumns;
         }
     }
 

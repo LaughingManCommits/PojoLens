@@ -167,6 +167,9 @@ public final class BenchmarkMetricLoader {
         if (n.startsWith("fluent")) {
             return "FLUENT";
         }
+        if (n.startsWith("csv")) {
+            return "CSV";
+        }
         if (n.startsWith("sqllike") || n.contains("sqllike")) {
             return "SQLLIKE";
         }
@@ -180,6 +183,9 @@ public final class BenchmarkMetricLoader {
         String n = methodName.toLowerCase(Locale.ROOT);
         if (n.contains("cache")) {
             return "CACHE";
+        }
+        if (n.contains("csv")) {
+            return "LOAD";
         }
         if (n.contains("parseonly")) {
             return "PARSE";
@@ -235,6 +241,9 @@ public final class BenchmarkMetricLoader {
         String n = methodName.toLowerCase(Locale.ROOT);
         if (n.contains("payloadjsonexport")) {
             return "EXPORT";
+        }
+        if (n.contains("csv")) {
+            return "LOAD_PIPELINE";
         }
         if (n.contains("mapping")) {
             return "MAPPING";

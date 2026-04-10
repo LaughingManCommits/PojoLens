@@ -98,8 +98,10 @@ class PojoLensCsvTest {
         assertEquals(EmployeeSummary.class, result.report().rowType());
         assertEquals(List.of("employeeName", "annualSalary"), result.report().resolvedSchema());
         assertEquals(3, result.report().logicalRecordCount());
+        assertEquals(2, result.report().dataRecordCount());
         assertEquals(2, result.report().loadedRowCount());
         assertTrue(result.report().rejectedColumns().isEmpty());
+        assertTrue(result.report().missingColumns().isEmpty());
         assertNull(result.report().failureStage());
         assertNull(result.report().failureRowNumber());
         assertNull(result.report().failureColumn());
@@ -160,11 +162,17 @@ class PojoLensCsvTest {
                         + "2,\"third line\nfourth line\",12k\n"
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(csv, MultilineSalaryRow.class)
         );
 
+        assertEquals("coerce", error.report().failureStage());
+        assertEquals(4, error.report().failureRowNumber());
+        assertEquals("salary", error.report().failureColumn());
+        assertEquals(3, error.report().logicalRecordCount());
+        assertEquals(2, error.report().dataRecordCount());
+        assertEquals(1, error.report().loadedRowCount());
         assertTrue(error.getMessage().contains("CSV row 4 column salary"));
         assertTrue(error.getMessage().contains("12k"));
     }
@@ -178,11 +186,15 @@ class PojoLensCsvTest {
                         + "1,\"first line\nsecond line,true\n"
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(csv, MultilineRow.class)
         );
 
+        assertEquals("parse", error.report().failureStage());
+        assertEquals(2, error.report().failureRowNumber());
+        assertEquals(1, error.report().logicalRecordCount());
+        assertEquals(0, error.report().dataRecordCount());
         assertTrue(error.getMessage().contains("CSV row 2 has an unmatched quote"));
     }
 
@@ -304,8 +316,8 @@ class PojoLensCsvTest {
                         """
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(
                         csv,
                         PrimitiveIdRow.class,
@@ -315,6 +327,8 @@ class PojoLensCsvTest {
                 )
         );
 
+        assertEquals("coerce", error.report().failureStage());
+        assertEquals("id", error.report().failureColumn());
         assertTrue(error.getMessage().contains("CSV row 2 column id"));
         assertTrue(error.getMessage().contains("null value is not allowed for primitive targets"));
     }
@@ -331,11 +345,14 @@ class PojoLensCsvTest {
                         """
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(csv, Employee.class)
         );
 
+        assertEquals("coerce", error.report().failureStage());
+        assertEquals(3, error.report().failureRowNumber());
+        assertEquals("salary", error.report().failureColumn());
         assertTrue(error.getMessage().contains("CSV row 3 column salary"));
         assertTrue(error.getMessage().contains("12k"));
         assertTrue(error.getMessage().contains("Integer"));
@@ -364,8 +381,10 @@ class PojoLensCsvTest {
         assertTrue(error.report().failureMessage().contains("12k"));
         assertEquals(List.of("id", "name", "department", "salary", "active"), error.report().resolvedSchema());
         assertEquals(3, error.report().logicalRecordCount());
+        assertEquals(2, error.report().dataRecordCount());
         assertEquals(1, error.report().loadedRowCount());
         assertTrue(error.report().rejectedColumns().isEmpty());
+        assertTrue(error.report().missingColumns().isEmpty());
         assertFalse(error.report().success());
     }
 
@@ -380,11 +399,13 @@ class PojoLensCsvTest {
                         """
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(csv, Employee.class)
         );
 
+        assertEquals("header", error.report().failureStage());
+        assertEquals(List.of("id"), error.report().rejectedColumns());
         assertTrue(error.getMessage().contains("CSV header column 'id' is duplicated"));
     }
 
@@ -408,7 +429,9 @@ class PojoLensCsvTest {
         assertEquals(1, error.report().failureRowNumber());
         assertEquals("unknown", error.report().failureColumn());
         assertEquals(List.of("unknown"), error.report().rejectedColumns());
+        assertTrue(error.report().missingColumns().isEmpty());
         assertEquals(2, error.report().logicalRecordCount());
+        assertEquals(1, error.report().dataRecordCount());
         assertEquals(0, error.report().loadedRowCount());
         assertTrue(error.report().failureMessage().contains("does not map to Employee"));
     }
@@ -424,13 +447,62 @@ class PojoLensCsvTest {
                         """
         );
 
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
                 () -> PojoLensCsv.read(csv, Employee.class)
         );
 
+        assertEquals("header", error.report().failureStage());
+        assertTrue(error.report().rejectedColumns().isEmpty());
+        assertEquals(List.of("salary"), error.report().missingColumns());
+        assertEquals(2, error.report().logicalRecordCount());
+        assertEquals(1, error.report().dataRecordCount());
         assertTrue(error.getMessage().contains("CSV header for Employee is missing required columns"));
         assertTrue(error.getMessage().contains("salary"));
+    }
+
+    @Test
+    void csvRowsShouldExposePreflightFailureReportForMissingFiles(@TempDir Path tempDir) {
+        Path csv = tempDir.resolve("missing.csv");
+
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
+                () -> PojoLensCsv.read(csv, Employee.class)
+        );
+
+        assertEquals("preflight", error.report().failureStage());
+        assertEquals(csv, error.report().path());
+        assertEquals(Employee.class, error.report().rowType());
+        assertTrue(error.report().resolvedSchema().isEmpty());
+        assertTrue(error.report().rejectedColumns().isEmpty());
+        assertTrue(error.report().missingColumns().isEmpty());
+        assertEquals(0, error.report().logicalRecordCount());
+        assertEquals(0, error.report().dataRecordCount());
+        assertEquals(0, error.report().loadedRowCount());
+        assertTrue(error.getMessage().contains("path must point to an existing file"));
+    }
+
+    @Test
+    void csvRowsShouldRejectRowTypesWithoutBindableFields(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "empty-row.csv",
+                """
+                        ignored
+                        value
+                        """
+        );
+
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
+                () -> PojoLensCsv.read(csv, EmptyRow.class)
+        );
+
+        assertEquals("schema", error.report().failureStage());
+        assertEquals(0, error.report().logicalRecordCount());
+        assertEquals(0, error.report().dataRecordCount());
+        assertTrue(error.report().resolvedSchema().isEmpty());
+        assertTrue(error.getMessage().contains("exposes no bindable fields"));
     }
 
     private static Path writeCsv(Path tempDir, String fileName, String contents) throws IOException {
@@ -496,6 +568,11 @@ class PojoLensCsvTest {
         int id;
 
         public PrimitiveIdRow() {
+        }
+    }
+
+    static final class EmptyRow {
+        public EmptyRow() {
         }
     }
 
