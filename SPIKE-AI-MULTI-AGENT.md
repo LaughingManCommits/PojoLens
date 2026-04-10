@@ -393,6 +393,52 @@ Findings:
   running tasks in the current batch finish and are then evaluated against the
   run policy
 
+### WP18: Reviewer-Visible New-File Materialization (Completed)
+
+Status:
+
+- completed `2026-04-10`
+
+Goal:
+
+- fix the gap where reviewer tasks using `summary-only` handoff cannot inspect
+  files created by an upstream implementer task
+
+Scope:
+
+- update `wp17-csv-typed-loader-slice.json` reviewer task to opt into
+  `dependencyMaterialization = "apply-reviewed"`, which materializes the
+  implementer workspace into the reviewer workspace before execution
+- add `docs/csv.md` to reviewer `readPaths` so it is also declared as expected
+  context for the dry-run and base-workspace-hydration path
+- update reviewer prompt to reference materialized workspace files
+- clarify in `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md`
+  that reviewer tasks should use `apply-reviewed` when upstream creates new
+  files, and that diff previews alone are insufficient in those cases
+
+Deliver:
+
+- the `wp17-csv-typed-loader-slice.json` plan is now the representative proof
+  of a lean implementer + reviewer topology where the reviewer receives fully
+  materialized upstream workspace state including newly created files
+
+Success bar:
+
+- reviewer workspace receives `docs/csv.md` and all other implementer changes
+  via the materialized layer rather than only diff previews in the prompt
+
+Findings:
+
+- `dependencyMaterialization = "apply-reviewed"` was already supported by the
+  coordinator for all task types including reviewer roles; the gap was simply
+  that the WP17 plan did not declare it on the reviewer task
+- the coordinator's copy-mode validation ensures `readPaths` must exist at repo
+  HEAD; since `docs/csv.md` was already promoted, adding it to reviewer
+  `readPaths` is safe and validates cleanly
+- `SYSTEM-SPEC.md` now explicitly calls out new-file creation as the primary
+  reason to add `apply-reviewed` to a reviewer task, distinguishing it from the
+  diff-preview path that is otherwise sufficient for modified files only
+
 ### WP13: Multi-Step Live Workflow Proof (Completed)
 
 Status:
@@ -609,11 +655,13 @@ Findings:
 ## Recommended Order
 
 1. The tracked reopened work packages are complete through `WP16`.
-2. `WP17` now closes the practical-threshold follow-up on a representative
+2. `WP17` closed the practical-threshold follow-up on a representative
    write-capable product slice.
-3. Reopen this area only if you need reviewer-visible materialization for new
-   dependency files, tighter representative write scopes, or a different live
-   plan.
+3. `WP18` closed the reviewer-visible new-file materialization gap: the WP17
+   reviewer task now uses `apply-reviewed` and `docs/csv.md` is declared in
+   its `readPaths`.
+4. Reopen this area only if a new product slice introduces a different
+   orchestration pattern that is not covered by the existing tracked plans.
 
 ## Non-Goals
 
@@ -632,17 +680,24 @@ The target remains:
 
 ## Bottom Line
 
-The reopened phase already delivered explicit scope, portable dependency
-state, a stronger live chained proof, retained-run lifecycle helpers,
-coordinator-side lean-topology visibility, and a real governed run proof.
+The spike is fully closed.
 
-The remaining open work is now optional:
+Delivered across all work packages:
 
-- tighten representative write scopes only if you want later live product
-  slices to permit adjacent doc work like `docs/csv.md`
-- materialize reviewed dependency outputs only if downstream reviewers need to
-  inspect newly created files instead of diff previews alone
-- calibrate additional representative live plans only if one CSV-based proof is
-  not enough operationally
+- explicit read/write scope contract with copy-mode validation and write-scope
+  audit enforcement
+- portable dependency state via opt-in `apply-reviewed` materialization for any
+  downstream task including reviewer roles
+- retained-run lifecycle helpers: `resume`, `inventory`, `prune`
+- coordinator vs worker context boundary: workers run from explicit prompt and
+  workspace packets, not ambient coordinator memory
+- live chained proof with same-file promotion across materialized workspaces
+- run-level budget and artifact governance via `runPolicy`
+- lean-topology visibility in `validate`, `run`, and `inventory` surfaces
+- live governed run proof with empirical cost data
+- practical CSV slice guardrails with accepted `tool: mvn ...` validation
+- reviewer-visible new-file materialization: the WP17 reviewer now receives
+  fully materialized upstream workspace state via `apply-reviewed`
 
-That is the right remaining scope for the spike.
+No further orchestration spike work is needed unless a new product slice
+reveals a gap not covered by the existing tracked plans.

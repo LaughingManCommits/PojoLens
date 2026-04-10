@@ -67,13 +67,15 @@
       "title": "Review the CSV boundary slice",
       "agent": "reviewer",
       "modelProfile": "simple",
-      "prompt": "Review the dependency output and inspect the changed CSV files. Focus on scope creep, missing validation, public-surface risks, and any place where the adapter starts looking like a generic table platform instead of a bounded CSV-to-engine bridge.",
+      "prompt": "Review the dependency output and inspect the changed and newly created CSV files materialized into your workspace. Focus on scope creep, missing validation, public-surface risks, and any place where the adapter starts looking like a generic table platform instead of a bounded CSV-to-engine bridge.",
       "dependsOn": [
         "implement-csv-typed-loader"
       ],
+      "dependencyMaterialization": "apply-reviewed",
       "readPaths": [
         "SPIKE-CSV.md",
         "README.md",
+        "docs/csv.md",
         "docs/entry-points.md",
         "docs/product-surface.md",
         "pojo-lens/src/test/java/laughing/man/commits/publicapi/StablePublicApiContractTest.java",

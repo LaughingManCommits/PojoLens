@@ -9,7 +9,7 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP17`.
+- The orchestration spike is complete through `WP18`; fully closed.
 - CSV is complete through `CSV-WP5` plus cleanup hardening; `CSV-WP6` remains deferred.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
@@ -20,7 +20,8 @@
 - `2026-04-10`: Shared `ReflectionUtil` now exposes enum leaves, keeping CSV binding aligned with general queryable-field discovery.
 - `2026-04-10`: `CsvLoadJmhBenchmark` now keeps typed and multiline CSV load overhead in the guarded core suite under the `LOAD` category.
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
-- `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`; the remaining orchestration gap is reviewer-visible new-file materialization.
+- `2026-04-10`: WP18 closed reviewer-visible new-file materialization: WP17 reviewer uses `apply-reviewed`, docs/csv.md added to readPaths, README + SYSTEM-SPEC updated.
+- `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`.
 
 ## Validate
 
