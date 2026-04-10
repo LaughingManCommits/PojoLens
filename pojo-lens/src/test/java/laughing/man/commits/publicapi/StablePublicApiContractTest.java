@@ -12,6 +12,7 @@ import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvOptions;
+import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
@@ -57,14 +58,24 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
         requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
         requirePublicMethod(PojoLensRuntime.class, "natural");
+        requirePublicMethod(PojoLensRuntime.class, "csv");
         requirePublicMethod(PojoLensRuntime.class, "sqlLikeCache");
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
         requirePublicMethod(PojoLensRuntime.class, "setNaturalVocabulary", NaturalVocabulary.class);
         requirePublicMethod(PojoLensRuntime.class, "getNaturalVocabulary");
+        requirePublicMethod(PojoLensRuntime.class, "setCsvDefaults", CsvOptions.class);
+        requirePublicMethod(PojoLensRuntime.class, "getCsvDefaults");
         requirePublicStaticMethod(CsvOptions.class, "builder");
         requirePublicStaticMethod(CsvOptions.class, "defaults");
+        requirePublicMethod(CsvOptions.class, "toBuilder");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
+    }
+
+    @Test
+    public void stableCsvRuntimeContractsShouldRemainAvailable() throws Exception {
+        requirePublicMethod(CsvRuntime.class, "read", Path.class, Class.class);
+        requirePublicMethod(CsvRuntime.class, "read", Path.class, Class.class, CsvOptions.class);
     }
 
     @Test

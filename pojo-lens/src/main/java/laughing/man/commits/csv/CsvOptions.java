@@ -27,6 +27,14 @@ public final class CsvOptions {
         return new Builder();
     }
 
+    public Builder toBuilder() {
+        return builder()
+                .header(header)
+                .delimiter(delimiter)
+                .trim(trim)
+                .skipEmptyLines(skipEmptyLines);
+    }
+
     public boolean header() {
         return header;
     }

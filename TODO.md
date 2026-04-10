@@ -7,8 +7,9 @@
   `PojoLensCsv` and `CsvOptions`.
 - `CSV-WP2` `Done`: multiline quoted-record hardening now handles BOM/CRLF,
   quoted newlines, blank lines, and logical record row numbers.
-- `CSV-WP3` `Ready`: runtime-owned CSV entry point and defaults.
-- `CSV-WP4` `Planned`: explicit coercion policy for null/date/enum/number
+- `CSV-WP3` `Done`: `PojoLensRuntime` now owns CSV defaults and `runtime.csv()`
+  reads through the same bounded adapter.
+- `CSV-WP4` `Ready`: explicit coercion policy for null/date/enum/number
   handling.
 - `CSV-WP5` `Planned`: load diagnostics and observability.
 - `CSV-WP6` `Deferred`: explicit dynamic schema only if the typed-first path

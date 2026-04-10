@@ -149,6 +149,55 @@ class PojoLensCsvTest {
     }
 
     @Test
+    void runtimeCsvShouldApplyConfiguredDefaults(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "runtime-defaults.csv",
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        List<EmployeeSummary> rows = runtime.csv().read(csv, EmployeeSummary.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Alice", rows.get(0).employeeName);
+        assertEquals(120000, rows.get(0).annualSalary);
+    }
+
+    @Test
+    void runtimeCsvShouldAllowPerCallOverridesLayeredOnRuntimeDefaults(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "runtime-override.csv",
+                """
+                        employeeName,annualSalary
+                        Alice,120000
+                        Cara,130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        List<EmployeeSummary> rows = runtime.csv().read(
+                csv,
+                EmployeeSummary.class,
+                runtime.getCsvDefaults().toBuilder().delimiter(',').build()
+        );
+
+        assertEquals(2, rows.size());
+        assertEquals("Alice", rows.get(0).employeeName);
+        assertEquals(120000, rows.get(0).annualSalary);
+        assertEquals(';', runtime.getCsvDefaults().delimiter());
+    }
+
+    @Test
     void csvRowsShouldRejectInvalidIntegerWithRowAndColumnContext(@TempDir Path tempDir) throws IOException {
         Path csv = writeCsv(
                 tempDir,

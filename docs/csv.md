@@ -61,6 +61,36 @@ List<Employee> rows = PojoLensCsv.read(
 
 `CsvOptions.defaults()` returns the pre-built instance with all defaults applied.
 
+## Runtime Defaults
+
+Use `PojoLensRuntime` when CSV load defaults should be owned by an application
+runtime instead of repeated at each call site:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setCsvDefaults(
+    CsvOptions.builder()
+        .delimiter(';')
+        .trim(true)
+        .build()
+);
+
+List<Employee> rows = runtime.csv().read(Path.of("employees.csv"), Employee.class);
+```
+
+For a one-off override on top of those runtime defaults, start from
+`runtime.getCsvDefaults().toBuilder()`:
+
+```java
+List<Employee> rows = runtime.csv().read(
+    Path.of("employees.csv"),
+    Employee.class,
+    runtime.getCsvDefaults().toBuilder()
+        .delimiter(',')
+        .build()
+);
+```
+
 ## Quoted Fields
 
 Quoted fields may contain delimiters, escaped quotes (`""`), and embedded line

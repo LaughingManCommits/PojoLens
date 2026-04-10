@@ -514,11 +514,11 @@ Findings:
 - parser and coercion failures on multiline records now report the logical
   record start line instead of the later physical line where parsing stopped
 
-### CSV-WP3: Runtime-Owned CSV Entry Point (Ready)
+### CSV-WP3: Runtime-Owned CSV Entry Point (Completed)
 
 Status:
 
-- ready
+- completed `2026-04-10`
 
 Goal:
 
@@ -541,11 +541,20 @@ Success bar:
 
 - no query-core changes and no inferred/dynamic schema surface
 
-### CSV-WP4: Explicit Coercion Policy (Planned)
+Findings:
+
+- `PojoLensRuntime` now owns CSV defaults through `setCsvDefaults(...)` and
+  `getCsvDefaults()`
+- `runtime.csv().read(...)` reuses the same bounded adapter while making
+  instance-scoped defaults available for DI and multi-tenant callers
+- one-off overrides can now be layered from runtime defaults with
+  `runtime.getCsvDefaults().toBuilder()`
+
+### CSV-WP4: Explicit Coercion Policy (Ready)
 
 Status:
 
-- planned
+- ready
 
 Goal:
 

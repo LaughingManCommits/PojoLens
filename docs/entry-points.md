@@ -17,6 +17,7 @@ Core execution model:
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim needs. |
+| Runtime-scoped CSV onboarding defaults | `runtime.csv().read(path, rowType)` | Uses the same bounded adapter while letting delimiter/header/trim defaults live on `PojoLensRuntime`. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
 | Reusable business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
@@ -40,7 +41,8 @@ Core execution model:
   or otherwise represented as SQL-like text.
 - Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
   in-memory rows before normal fluent, SQL-like, or natural execution;
-  see [docs/csv.md](csv.md) for options, type mapping, and error model.
+  see [docs/csv.md](csv.md) for options, runtime defaults, type mapping, and
+  error model.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
   policy instead of the default direct-entry behavior.
 - Use `PojoLensChart` when you already have rows and only need deterministic
@@ -61,6 +63,7 @@ environment, tenant, request path, or test harness:
 - telemetry listener registration
 - computed field registry
 - natural vocabulary for plain-English field aliases
+- CSV adapter defaults for repeated file-boundary loads
 - SQL-like parse cache and fluent execution-plan cache behavior
 
 Two public construction patterns remain:
@@ -73,6 +76,7 @@ runtime.setNaturalVocabulary(NaturalVocabulary.builder()
     .field("department", "team")
     .build());
 NaturalQuery naturalQuery = runtime.natural().parse("show employees where active is true limit 10");
+List<Employee> csvRows = runtime.csv().read(Path.of("employees.csv"), Employee.class);
 ```
 
 Use the constructor when you want neutral defaults and explicit setup.
@@ -92,4 +96,3 @@ types instead of on a facade:
 
 This keeps the public story narrower: direct engine entry points first, helper
 types only where the use case actually needs them.
-

@@ -49,7 +49,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Regression and snapshot support | `Tooling` | Regression safety and parity tooling | `QueryRegressionFixture`, `QuerySnapshotFixture`, `FluentSqlLikeParity`, `SnapshotComparison` | `Advanced` tooling surface | `docs/regression-fixtures.md`, `docs/snapshot-comparison.md` |
 | Field metamodel generation | `Tooling` | Typed field constants for query authoring support | `FieldMetamodel`, `FieldMetamodelGenerator` | `Advanced` tooling surface | `docs/metamodel.md` |
 | Benchmarking and thresholds | `Tooling` | Performance validation, not runtime product surface | `pojo-lens-benchmarks`, threshold/parity checkers | Tooling only | `docs/benchmarking.md`, `CONTRIBUTING.md` |
-| CSV onboarding | `Compatibility adapter` | Boundary-only loading from UTF-8 CSV into typed rows | `PojoLensCsv`, `CsvOptions` | `Advanced` adapter surface | `README.md`, `docs/entry-points.md`, `docs/csv.md` |
+| CSV onboarding | `Compatibility adapter` | Boundary-only loading from UTF-8 CSV into typed rows, with optional runtime-owned defaults | `PojoLensCsv`, `CsvOptions`, `CsvRuntime`, `PojoLensRuntime` | `Advanced` adapter surface | `README.md`, `docs/entry-points.md`, `docs/csv.md` |
 | Boundary adapters | `Compatibility adapter` | Explicit conversion for boundary inputs only | `JoinBindings.from(Map)` | `Advanced` adapter surface | `docs/sql-like.md`, `MIGRATION.md` |
 
 ## Current Classification Calls
@@ -60,7 +60,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
   vocabulary for guided text queries.
 - `PojoLensCsv` is a boundary-only onboarding helper. It loads typed rows into
   memory before the existing engine runs; it is not a second query engine or
-  a generic table platform.
+  a generic table platform. `runtime.csv()` keeps the same adapter story while
+  moving defaults onto `PojoLensRuntime`.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered
   on top of query execution, not separate product pillars.
 - `ReportDefinition` is the general reusable execution wrapper.

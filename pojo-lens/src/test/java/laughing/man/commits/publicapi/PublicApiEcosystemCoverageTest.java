@@ -8,6 +8,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
@@ -23,6 +24,7 @@ import laughing.man.commits.testing.QueryRegressionFixture;
 import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
 import laughing.man.commits.testutil.PublicApiModels.StatsRow;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -81,6 +83,45 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
         assertEquals(3, rows.size());
         assertEquals(List.of("Cara", "Alice"), result.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void runtimeCsvDefaultsShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path semicolonCsv = tempDir.resolve("employees-semicolon.csv");
+        Files.writeString(
+                semicolonCsv,
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        Path commaCsv = tempDir.resolve("employees-comma.csv");
+        Files.writeString(
+                commaCsv,
+                """
+                        employeeName,annualSalary
+                        Alice,120000
+                        Cara,130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        List<EmployeeSummary> defaultRows = runtime.csv().read(semicolonCsv, EmployeeSummary.class);
+        List<EmployeeSummary> overrideRows = runtime.csv().read(
+                commaCsv,
+                EmployeeSummary.class,
+                runtime.getCsvDefaults().toBuilder().delimiter(',').build()
+        );
+
+        assertEquals(2, defaultRows.size());
+        assertEquals("Alice", defaultRows.get(0).employeeName);
+        assertEquals(2, overrideRows.size());
+        assertEquals("Cara", overrideRows.get(1).employeeName);
+        assertEquals(';', runtime.getCsvDefaults().delimiter());
     }
 
     @Test
