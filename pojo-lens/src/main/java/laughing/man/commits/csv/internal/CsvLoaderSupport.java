@@ -96,22 +96,87 @@ public final class CsvLoaderSupport {
             String line;
             boolean firstRecord = true;
             int lineNumber = 0;
+            int recordStartLine = 0;
+            ArrayList<String> values = new ArrayList<>();
+            StringBuilder current = new StringBuilder();
+            boolean inQuotes = false;
+            boolean expectingDelimiter = false;
+            boolean recordOpen = false;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                List<String> values = parseLine(line, options.delimiter(), lineNumber);
-                ArrayList<String> normalized = new ArrayList<>(values.size());
-                for (int i = 0; i < values.size(); i++) {
-                    String value = values.get(i);
-                    if (firstRecord && i == 0) {
-                        value = stripBom(value);
-                    }
-                    normalized.add(options.trim() ? value.trim() : value);
+                if (!recordOpen) {
+                    recordOpen = true;
+                    recordStartLine = lineNumber;
+                } else if (inQuotes) {
+                    current.append('\n');
                 }
-                if (options.skipEmptyLines() && isBlankRecord(normalized)) {
+
+                for (int i = 0; i < line.length(); i++) {
+                    char currentChar = line.charAt(i);
+                    if (inQuotes) {
+                        if (currentChar == '"') {
+                            if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                                current.append('"');
+                                i++;
+                            } else {
+                                inQuotes = false;
+                                expectingDelimiter = true;
+                            }
+                        } else {
+                            current.append(currentChar);
+                        }
+                        continue;
+                    }
+
+                    if (expectingDelimiter) {
+                        if (currentChar == options.delimiter()) {
+                            values.add(current.toString());
+                            current.setLength(0);
+                            expectingDelimiter = false;
+                            continue;
+                        }
+                        if (Character.isWhitespace(currentChar)) {
+                            current.append(currentChar);
+                            continue;
+                        }
+                        throw new IllegalArgumentException(
+                                "CSV row " + recordStartLine + " has invalid characters after closing quote"
+                        );
+                    }
+
+                    if (currentChar == options.delimiter()) {
+                        values.add(current.toString());
+                        current.setLength(0);
+                        continue;
+                    }
+                    if (currentChar == '"') {
+                        if (current.length() != 0) {
+                            throw new IllegalArgumentException(
+                                    "CSV row " + recordStartLine + " has an unexpected quote inside an unquoted field"
+                            );
+                        }
+                        inQuotes = true;
+                        continue;
+                    }
+                    current.append(currentChar);
+                }
+
+                if (inQuotes) {
                     continue;
                 }
-                records.add(new CsvRecord(lineNumber, List.copyOf(normalized)));
-                firstRecord = false;
+
+                CsvRecord record = finalizeRecord(recordStartLine, values, current, options, firstRecord);
+                if (record != null) {
+                    records.add(record);
+                    firstRecord = false;
+                }
+                values = new ArrayList<>();
+                current = new StringBuilder();
+                expectingDelimiter = false;
+                recordOpen = false;
+            }
+            if (recordOpen && inQuotes) {
+                throw new IllegalArgumentException("CSV row " + recordStartLine + " has an unmatched quote");
             }
         } catch (IOException ex) {
             throw new UncheckedIOException("Failed to read CSV file '" + path + "'", ex);
@@ -119,64 +184,24 @@ public final class CsvLoaderSupport {
         return List.copyOf(records);
     }
 
-    private static List<String> parseLine(String line, char delimiter, int lineNumber) {
-        ArrayList<String> values = new ArrayList<>();
-        StringBuilder current = new StringBuilder(line.length());
-        boolean inQuotes = false;
-        boolean expectingDelimiter = false;
-
-        for (int i = 0; i < line.length(); i++) {
-            char currentChar = line.charAt(i);
-            if (inQuotes) {
-                if (currentChar == '"') {
-                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
-                        current.append('"');
-                        i++;
-                    } else {
-                        inQuotes = false;
-                        expectingDelimiter = true;
-                    }
-                } else {
-                    current.append(currentChar);
-                }
-                continue;
-            }
-
-            if (expectingDelimiter) {
-                if (currentChar == delimiter) {
-                    values.add(current.toString());
-                    current.setLength(0);
-                    expectingDelimiter = false;
-                    continue;
-                }
-                if (Character.isWhitespace(currentChar)) {
-                    current.append(currentChar);
-                    continue;
-                }
-                throw new IllegalArgumentException("CSV row " + lineNumber + " has invalid characters after closing quote");
-            }
-
-            if (currentChar == delimiter) {
-                values.add(current.toString());
-                current.setLength(0);
-                continue;
-            }
-            if (currentChar == '"') {
-                if (current.length() != 0) {
-                    throw new IllegalArgumentException("CSV row " + lineNumber + " has an unexpected quote inside an unquoted field");
-                }
-                inQuotes = true;
-                continue;
-            }
-            current.append(currentChar);
-        }
-
-        if (inQuotes) {
-            throw new IllegalArgumentException("CSV row " + lineNumber + " has an unmatched quote");
-        }
-
+    private static CsvRecord finalizeRecord(int lineNumber,
+                                            List<String> values,
+                                            StringBuilder current,
+                                            CsvOptions options,
+                                            boolean firstRecord) {
+        ArrayList<String> normalized = new ArrayList<>(values.size() + 1);
         values.add(current.toString());
-        return values;
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i);
+            if (firstRecord && i == 0) {
+                value = stripBom(value);
+            }
+            normalized.add(options.trim() ? value.trim() : value);
+        }
+        if (options.skipEmptyLines() && isBlankRecord(normalized)) {
+            return null;
+        }
+        return new CsvRecord(lineNumber, List.copyOf(normalized));
     }
 
     private static LinkedHashMap<String, CsvColumnBinding> resolveBindings(Class<?> rowType) {

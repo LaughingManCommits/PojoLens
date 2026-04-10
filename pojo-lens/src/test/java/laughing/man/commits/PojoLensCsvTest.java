@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +88,64 @@ class PojoLensCsvTest {
         assertEquals("Amsterdam", rows.get(0).address.city);
         assertNotNull(rows.get(0).address.geo);
         assertEquals("NL", rows.get(0).address.geo.countryCode);
+    }
+
+    @Test
+    void csvRowsShouldLoadQuotedMultilineFieldsAcrossBomCrLfAndBlankLines(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "multiline.csv",
+                "\uFEFFid,notes,active\r\n"
+                        + "1,\"first line\r\nsecond line\",true\r\n"
+                        + "\r\n"
+                        + "2,\"top\r\n\r\nbottom\",false\r\n"
+        );
+
+        List<MultilineRow> rows = PojoLensCsv.read(csv, MultilineRow.class);
+
+        assertEquals(2, rows.size());
+        assertEquals(1, rows.get(0).id);
+        assertEquals("first line\nsecond line", rows.get(0).notes);
+        assertTrue(rows.get(0).active);
+        assertEquals(2, rows.get(1).id);
+        assertEquals("top\n\nbottom", rows.get(1).notes);
+        assertFalse(rows.get(1).active);
+    }
+
+    @Test
+    void csvRowsShouldReportLogicalRecordStartLineForInvalidIntegerInMultilineRecord(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "multiline-invalid-integer.csv",
+                "id,notes,salary\n"
+                        + "1,\"first line\nsecond line\",120000\n"
+                        + "2,\"third line\nfourth line\",12k\n"
+        );
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensCsv.read(csv, MultilineSalaryRow.class)
+        );
+
+        assertTrue(error.getMessage().contains("CSV row 4 column salary"));
+        assertTrue(error.getMessage().contains("12k"));
+    }
+
+    @Test
+    void csvRowsShouldReportLogicalRecordStartLineForUnmatchedQuotedMultilineField(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "multiline-unmatched-quote.csv",
+                "id,notes,active\n"
+                        + "1,\"first line\nsecond line,true\n"
+        );
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensCsv.read(csv, MultilineRow.class)
+        );
+
+        assertTrue(error.getMessage().contains("CSV row 2 has an unmatched quote"));
     }
 
     @Test
@@ -176,6 +235,24 @@ class PojoLensCsvTest {
         String countryCode;
 
         public Geo() {
+        }
+    }
+
+    static final class MultilineRow {
+        int id;
+        String notes;
+        boolean active;
+
+        public MultilineRow() {
+        }
+    }
+
+    static final class MultilineSalaryRow {
+        int id;
+        String notes;
+        int salary;
+
+        public MultilineSalaryRow() {
         }
     }
 }

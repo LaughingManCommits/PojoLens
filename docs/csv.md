@@ -61,6 +61,18 @@ List<Employee> rows = PojoLensCsv.read(
 
 `CsvOptions.defaults()` returns the pre-built instance with all defaults applied.
 
+## Quoted Fields
+
+Quoted fields may contain delimiters, escaped quotes (`""`), and embedded line
+breaks.
+
+When a quoted field spans multiple physical lines, `PojoLensCsv` keeps reading
+until the logical record closes. Embedded line breaks are normalized to `\n` in
+the loaded `String` values.
+
+Blank physical lines are skipped only between records when `skipEmptyLines` is
+enabled. Blank lines inside a quoted field remain part of that field's value.
+
 ## Header Mapping
 
 The adapter maps CSV column names to Java field names by exact match.
@@ -144,6 +156,7 @@ primitive fields throw an error immediately.
 ## Error Model
 
 All errors include row number and column name for fast diagnosis.
+For multiline quoted records, the row number is the logical record start line.
 
 | Error condition | Example message |
 |---|---|

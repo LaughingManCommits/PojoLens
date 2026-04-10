@@ -9,20 +9,18 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP17`; live proof now confirms accepted `tool: mvn` intents and in-scope CSV doc creation.
-- CSV now has a `CSV-WP1` through `CSV-WP6` board; `CSV-WP2` multiline quoted-record hardening is next.
+- The orchestration spike is complete through `WP17`.
+- CSV now has a `CSV-WP1` through `CSV-WP6` board; next is `CSV-WP3` runtime-owned defaults.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
 
-- `2026-04-10`: `SPIKE-CSV.md` now stages CSV follow-up as `CSV-WP1` through `CSV-WP6`; runtime defaults, coercion policy, and load diagnostics are later slices, and dynamic schema stays deferred.
+- `2026-04-10`: `SPIKE-CSV.md` now stages CSV follow-up as `CSV-WP1` through `CSV-WP6`; dynamic schema stays deferred.
+- `2026-04-10`: CSV loading now supports multiline quoted fields and logical start-line diagnostics for multiline failures.
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
 - `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns; nullable object fields may still be omitted and resolve to `null`.
-- `2026-04-09`: workers must mirror approved validation hints, keep `repo-script` to `scripts/...` or `mvnw(.cmd)`, use `tool` for approved executables, and emit `[]` instead of invented scripts.
-- `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`, fixed `docs/csv.md` write scope, and left `summary-only` reviewer handoff as the remaining new-file gap.
-- `2026-04-07`: task-workspace `validate-run` still fails when sparse copy hydration omits runtime-loaded files.
-- `2026-04-07`: reviewer false positives remain a live risk.
-- Live workers are structured-intent-only; `validationCommands` survive only in old manifests or review-time `validate-run`, and the remaining representative-plan gap is reviewer-visible materialization of new dependency files.
+- `2026-04-09`: workers must mirror approved validation entrypoints.
+- `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`; the remaining orchestration gap is reviewer-visible new-file materialization.
 
 ## Validate
 
@@ -36,6 +34,4 @@
 - limitation spike: `SPIKE-LIMITATIONS.md`
 - AI orchestration spike: `SPIKE-AI-MULTI-AGENT.md`, `ai/orchestrator/README.md`, `ai/orchestrator/SYSTEM-SPEC.md`, `scripts/claude-orchestrator.py`
 - CSV spike and starter surface: `SPIKE-CSV.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
-- natural-query code/tests: `pojo-lens/src/main/java/laughing/man/commits/natural/`, `pojo-lens/src/main/java/laughing/man/commits/natural/parser/`, `pojo-lens/src/test/java/laughing/man/commits/natural/`
-- runtime/public-API coverage: `pojo-lens/src/test/java/laughing/man/commits/publicapi/`
-- natural docs/examples guide: `docs/natural.md`, `pojo-lens/src/test/java/laughing/man/commits/natural/NaturalDocsExamplesTest.java`
+- natural surfaces: `docs/natural.md`, `pojo-lens/src/main/java/laughing/man/commits/natural/`, `pojo-lens/src/test/java/laughing/man/commits/natural/`

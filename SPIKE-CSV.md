@@ -477,11 +477,11 @@ Findings:
 - the bounded adapter story is now proven in code and docs; the remaining work
   is about hardening and policy, not repositioning the library
 
-### CSV-WP2: RFC 4180 Record Hardening (Ready)
+### CSV-WP2: RFC 4180 Record Hardening (Completed)
 
 Status:
 
-- ready
+- completed `2026-04-10`
 
 Goal:
 
@@ -505,11 +505,20 @@ Success bar:
 - `PojoLensCsv.read(...)` still returns `List<T>` and no runtime/dynamic schema
   API is introduced
 
-### CSV-WP3: Runtime-Owned CSV Entry Point (Planned)
+Findings:
+
+- quoted fields may now span multiple physical lines while still loading into
+  typed rows
+- embedded line breaks are normalized to `\n`, blank lines inside quoted fields
+  remain data, and blank lines between records still honor `skipEmptyLines`
+- parser and coercion failures on multiline records now report the logical
+  record start line instead of the later physical line where parsing stopped
+
+### CSV-WP3: Runtime-Owned CSV Entry Point (Ready)
 
 Status:
 
-- planned
+- ready
 
 Goal:
 
