@@ -1,6 +1,8 @@
 package laughing.man.commits;
 
 import laughing.man.commits.csv.CsvCoercionPolicy;
+import laughing.man.commits.csv.CsvLoadException;
+import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
@@ -70,6 +72,39 @@ class PojoLensCsvTest {
         assertEquals(120000, rows.get(0).annualSalary);
         assertEquals("Cara", rows.get(1).employeeName);
         assertEquals(130000, rows.get(1).annualSalary);
+    }
+
+    @Test
+    void csvRowsShouldReturnLoadReportForSuccessfulRead(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "report-success.csv",
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        CsvLoadResult<EmployeeSummary> result = PojoLensCsv.readWithReport(
+                csv,
+                EmployeeSummary.class,
+                CsvOptions.builder().delimiter(';').trim(true).build()
+        );
+
+        assertEquals(2, result.rows().size());
+        assertTrue(result.report().success());
+        assertEquals(csv, result.report().path());
+        assertEquals(EmployeeSummary.class, result.report().rowType());
+        assertEquals(List.of("employeeName", "annualSalary"), result.report().resolvedSchema());
+        assertEquals(3, result.report().logicalRecordCount());
+        assertEquals(2, result.report().loadedRowCount());
+        assertTrue(result.report().rejectedColumns().isEmpty());
+        assertNull(result.report().failureStage());
+        assertNull(result.report().failureRowNumber());
+        assertNull(result.report().failureColumn());
+        assertNull(result.report().failureMessage());
+        assertTrue(result.report().durationNanos() >= 0L);
     }
 
     @Test
@@ -307,6 +342,34 @@ class PojoLensCsvTest {
     }
 
     @Test
+    void csvRowsShouldExposeCoercionFailureReportThroughDefaultReadPath(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "bad-employees-report.csv",
+                """
+                        id,name,department,salary,active
+                        1,Alice,Engineering,120000,true
+                        2,Bob,Finance,12k,true
+                        """
+        );
+
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
+                () -> PojoLensCsv.read(csv, Employee.class)
+        );
+
+        assertEquals("coerce", error.report().failureStage());
+        assertEquals(3, error.report().failureRowNumber());
+        assertEquals("salary", error.report().failureColumn());
+        assertTrue(error.report().failureMessage().contains("12k"));
+        assertEquals(List.of("id", "name", "department", "salary", "active"), error.report().resolvedSchema());
+        assertEquals(3, error.report().logicalRecordCount());
+        assertEquals(1, error.report().loadedRowCount());
+        assertTrue(error.report().rejectedColumns().isEmpty());
+        assertFalse(error.report().success());
+    }
+
+    @Test
     void csvRowsShouldRejectDuplicateHeaders(@TempDir Path tempDir) throws IOException {
         Path csv = writeCsv(
                 tempDir,
@@ -323,6 +386,31 @@ class PojoLensCsvTest {
         );
 
         assertTrue(error.getMessage().contains("CSV header column 'id' is duplicated"));
+    }
+
+    @Test
+    void csvRowsShouldExposeRejectedColumnsInHeaderFailureReport(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "unknown-header.csv",
+                """
+                        id,unknown
+                        1,value
+                        """
+        );
+
+        CsvLoadException error = assertThrows(
+                CsvLoadException.class,
+                () -> PojoLensCsv.read(csv, Employee.class)
+        );
+
+        assertEquals("header", error.report().failureStage());
+        assertEquals(1, error.report().failureRowNumber());
+        assertEquals("unknown", error.report().failureColumn());
+        assertEquals(List.of("unknown"), error.report().rejectedColumns());
+        assertEquals(2, error.report().logicalRecordCount());
+        assertEquals(0, error.report().loadedRowCount());
+        assertTrue(error.report().failureMessage().contains("does not map to Employee"));
     }
 
     @Test

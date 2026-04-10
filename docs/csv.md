@@ -135,6 +135,55 @@ List<Employee> rows = runtime.csv().read(
 );
 ```
 
+## Load Diagnostics
+
+Use `readWithReport(...)` when you need structured load diagnostics in addition
+to the typed rows:
+
+```java
+CsvLoadResult<Employee> result = PojoLensCsv.readWithReport(
+    Path.of("employees.csv"),
+    Employee.class
+);
+
+List<Employee> rows = result.rows();
+CsvLoadReport report = result.report();
+```
+
+The report is load-scoped. It captures:
+
+- logical record count
+- successfully loaded row count
+- resolved schema
+- rejected header columns
+- load duration
+- failure stage, row, column, and message when the load fails
+
+The runtime entry point supports the same diagnostics shape:
+
+```java
+CsvLoadResult<Employee> result = runtime.csv().readWithReport(
+    Path.of("employees.csv"),
+    Employee.class
+);
+```
+
+The plain `read(...)` methods still throw on failure, but the exception is now a
+`CsvLoadException` with the same report attached:
+
+```java
+try {
+    PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+} catch (CsvLoadException ex) {
+    CsvLoadReport report = ex.report();
+    System.out.println(report.failureStage());
+    System.out.println(report.failureMessage());
+}
+```
+
+Use these reports for file-boundary troubleshooting only. Once rows are loaded,
+use normal query `explain(...)` and query telemetry for engine-stage visibility.
+
 ## Quoted Fields
 
 Quoted fields may contain delimiters, escaped quotes (`""`), and embedded line

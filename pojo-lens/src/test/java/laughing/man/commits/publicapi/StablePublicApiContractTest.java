@@ -12,6 +12,9 @@ import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvCoercionPolicy;
+import laughing.man.commits.csv.CsvLoadException;
+import laughing.man.commits.csv.CsvLoadReport;
+import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.enums.Clauses;
@@ -56,6 +59,8 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(PojoLensSql.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensCsv.class, "read", Path.class, Class.class);
         requirePublicStaticMethod(PojoLensCsv.class, "read", Path.class, Class.class, CsvOptions.class);
+        requirePublicStaticMethod(PojoLensCsv.class, "readWithReport", Path.class, Class.class);
+        requirePublicStaticMethod(PojoLensCsv.class, "readWithReport", Path.class, Class.class, CsvOptions.class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
         requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
         requirePublicMethod(PojoLensRuntime.class, "natural");
@@ -73,6 +78,11 @@ public class StablePublicApiContractTest {
         requirePublicMethod(CsvCoercionPolicy.class, "toBuilder");
         requirePublicMethod(CsvOptions.class, "coercionPolicy");
         requirePublicMethod(CsvOptions.class, "toBuilder");
+        requirePublicMethod(CsvLoadResult.class, "rows");
+        requirePublicMethod(CsvLoadResult.class, "report");
+        requirePublicMethod(CsvLoadReport.class, "success");
+        requirePublicMethod(CsvLoadReport.class, "resolvedSchema");
+        requirePublicMethod(CsvLoadException.class, "report");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
     }
@@ -81,6 +91,8 @@ public class StablePublicApiContractTest {
     public void stableCsvRuntimeContractsShouldRemainAvailable() throws Exception {
         requirePublicMethod(CsvRuntime.class, "read", Path.class, Class.class);
         requirePublicMethod(CsvRuntime.class, "read", Path.class, Class.class, CsvOptions.class);
+        requirePublicMethod(CsvRuntime.class, "readWithReport", Path.class, Class.class);
+        requirePublicMethod(CsvRuntime.class, "readWithReport", Path.class, Class.class, CsvOptions.class);
     }
 
     @Test

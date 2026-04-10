@@ -11,7 +11,9 @@
   reads through the same bounded adapter.
 - `CSV-WP4` `Done`: `CsvCoercionPolicy` now makes null/date/enum/number
   variation explicit for both static and runtime-owned CSV reads.
-- `CSV-WP5` `Ready`: load diagnostics and observability.
+- `CSV-WP5` `Done`: `readWithReport(...)` and `CsvLoadException.report()` now
+  expose load-scoped row counts, schema, rejected columns, duration, and
+  failure details.
 - `CSV-WP6` `Deferred`: explicit dynamic schema only if the typed-first path
   proves insufficient.
 

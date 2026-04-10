@@ -588,11 +588,11 @@ Findings:
 - CSV binding discovery now includes enum-backed fields, closing a hidden gap
   between coercion support and header/schema binding.
 
-### CSV-WP5: Load Diagnostics And Observability (Ready)
+### CSV-WP5: Load Diagnostics And Observability (Completed)
 
 Status:
 
-- ready
+- completed `2026-04-10`
 
 Goal:
 
@@ -616,6 +616,17 @@ Success bar:
 
 - diagnostics stay load-scoped and do not blur into raw-table execution
   features
+
+Findings:
+
+- `PojoLensCsv.readWithReport(...)` and `runtime.csv().readWithReport(...)` now
+  expose bounded load reports with row counts, resolved schema, rejected
+  columns, duration, and structured failure details.
+- The existing `read(...)` path now throws `CsvLoadException`, so load failures
+  still behave as errors while carrying the same report for diagnostics.
+- CSV troubleshooting is now explicitly separated from query `explain(...)` and
+  query telemetry; diagnostics stay at the file boundary instead of pretending
+  CSV load is a second execution engine.
 
 ### CSV-WP6: Explicit Dynamic Schema (Deferred)
 

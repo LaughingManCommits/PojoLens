@@ -25,4 +25,12 @@ public final class CsvRuntime {
     public <T> List<T> read(Path path, Class<T> rowType, CsvOptions options) {
         return PojoLensCsv.read(path, rowType, options);
     }
+
+    public <T> CsvLoadResult<T> readWithReport(Path path, Class<T> rowType) {
+        return PojoLensCsv.readWithReport(path, rowType, runtime.getCsvDefaults());
+    }
+
+    public <T> CsvLoadResult<T> readWithReport(Path path, Class<T> rowType, CsvOptions options) {
+        return PojoLensCsv.readWithReport(path, rowType, options);
+    }
 }

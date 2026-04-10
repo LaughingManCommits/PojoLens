@@ -9,6 +9,7 @@ import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.csv.CsvCoercionPolicy;
+import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
@@ -126,6 +127,30 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(2, overrideRows.size());
         assertEquals("Cara", overrideRows.get(1).employeeName);
         assertEquals(';', runtime.getCsvDefaults().delimiter());
+    }
+
+    @Test
+    public void runtimeCsvLoadReportsShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees-report.csv");
+        Files.writeString(
+                csv,
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        CsvLoadResult<EmployeeSummary> result = runtime.csv().readWithReport(csv, EmployeeSummary.class);
+
+        assertEquals(2, result.rows().size());
+        assertTrue(result.report().success());
+        assertEquals(List.of("employeeName", "annualSalary"), result.report().resolvedSchema());
+        assertEquals(3, result.report().logicalRecordCount());
+        assertEquals(2, result.report().loadedRowCount());
     }
 
     @Test
