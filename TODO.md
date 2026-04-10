@@ -9,9 +9,9 @@
   quoted newlines, blank lines, and logical record row numbers.
 - `CSV-WP3` `Done`: `PojoLensRuntime` now owns CSV defaults and `runtime.csv()`
   reads through the same bounded adapter.
-- `CSV-WP4` `Ready`: explicit coercion policy for null/date/enum/number
-  handling.
-- `CSV-WP5` `Planned`: load diagnostics and observability.
+- `CSV-WP4` `Done`: `CsvCoercionPolicy` now makes null/date/enum/number
+  variation explicit for both static and runtime-owned CSV reads.
+- `CSV-WP5` `Ready`: load diagnostics and observability.
 - `CSV-WP6` `Deferred`: explicit dynamic schema only if the typed-first path
   proves insufficient.
 

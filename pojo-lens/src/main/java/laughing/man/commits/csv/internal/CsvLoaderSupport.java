@@ -1,5 +1,6 @@
 package laughing.man.commits.csv.internal;
 
+import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
@@ -75,6 +76,7 @@ public final class CsvLoaderSupport {
             return List.of();
         }
 
+        CsvCoercionPolicy coercionPolicy = options.coercionPolicy();
         ArrayList<Object[]> typedRows = new ArrayList<>(Math.max(0, records.size() - dataStartIndex));
         for (int i = dataStartIndex; i < records.size(); i++) {
             CsvRecord record = records.get(i);
@@ -82,7 +84,7 @@ public final class CsvLoaderSupport {
             Object[] values = new Object[schema.size()];
             for (int columnIndex = 0; columnIndex < schema.size(); columnIndex++) {
                 CsvColumnBinding binding = bindings.get(columnIndex);
-                values[columnIndex] = coerce(record, binding, record.values().get(columnIndex));
+                values[columnIndex] = coerce(record, binding, record.values().get(columnIndex), coercionPolicy);
             }
             typedRows.add(values);
         }
@@ -205,7 +207,8 @@ public final class CsvLoaderSupport {
     }
 
     private static LinkedHashMap<String, CsvColumnBinding> resolveBindings(Class<?> rowType) {
-        List<String> fieldNames = ReflectionUtil.collectQueryableFieldNames(rowType);
+        LinkedHashSet<String> fieldNames = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(rowType));
+        collectEnumFieldNames(rowType, "", fieldNames, new LinkedHashSet<>());
         LinkedHashMap<String, CsvColumnBinding> bindings = new LinkedHashMap<>(fieldNames.size());
         for (String fieldName : fieldNames) {
             CsvColumnBinding binding = resolveBinding(rowType, fieldName, fieldName);
@@ -214,6 +217,27 @@ public final class CsvLoaderSupport {
             }
         }
         return bindings;
+    }
+
+    private static void collectEnumFieldNames(Class<?> type,
+                                              String prefix,
+                                              LinkedHashSet<String> fieldNames,
+                                              LinkedHashSet<Class<?>> pathTypes) {
+        if (type == null || !pathTypes.add(type)) {
+            return;
+        }
+        for (Field field : mutableFields(type)) {
+            Class<?> fieldType = field.getType();
+            String qualifiedName = prefix.isEmpty() ? field.getName() : prefix + "." + field.getName();
+            if (fieldType.isEnum()) {
+                fieldNames.add(qualifiedName);
+                continue;
+            }
+            if (isNestedPojoType(fieldType)) {
+                collectEnumFieldNames(fieldType, qualifiedName, fieldNames, pathTypes);
+            }
+        }
+        pathTypes.remove(type);
     }
 
     private static CsvColumnBinding resolveBinding(Class<?> rowType, String fieldName, String columnName) {
@@ -248,6 +272,30 @@ public final class CsvLoaderSupport {
             }
         }
         return null;
+    }
+
+    private static List<Field> mutableFields(Class<?> type) {
+        ArrayList<Field> fields = new ArrayList<>();
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            fields.addAll(ReflectionUtil.getFields(current));
+            current = current.getSuperclass();
+        }
+        return List.copyOf(fields);
+    }
+
+    private static boolean isNestedPojoType(Class<?> type) {
+        if (type == null || ReflectionUtil.isSimpleType(type) || type.isEnum() || type.isArray()) {
+            return false;
+        }
+        Package pkg = type.getPackage();
+        if (pkg == null) {
+            return true;
+        }
+        String packageName = pkg.getName();
+        return !packageName.startsWith("java.")
+                && !packageName.startsWith("javax.")
+                && !packageName.startsWith("jdk.");
     }
 
     private static List<String> resolveHeaderSchema(CsvRecord header,
@@ -306,18 +354,30 @@ public final class CsvLoaderSupport {
         }
     }
 
-    private static Object coerce(CsvRecord record, CsvColumnBinding binding, String rawValue) {
+    private static Object coerce(CsvRecord record,
+                                 CsvColumnBinding binding,
+                                 String rawValue,
+                                 CsvCoercionPolicy coercionPolicy) {
         if (rawValue == null) {
             return null;
         }
         if (rawValue.isEmpty()) {
             if (binding.valueType() == String.class) {
-                return rawValue;
+                return coercionPolicy.blankStringAsNull() ? null : rawValue;
             }
             if (binding.primitive()) {
                 throw new IllegalArgumentException(
                         "CSV row " + record.lineNumber() + " column " + binding.columnName()
                                 + ": blank value is not allowed for primitive targets"
+                );
+            }
+            return null;
+        }
+        if (coercionPolicy.isNullToken(rawValue)) {
+            if (binding.primitive()) {
+                throw new IllegalArgumentException(
+                        "CSV row " + record.lineNumber() + " column " + binding.columnName()
+                                + ": null value is not allowed for primitive targets"
                 );
             }
             return null;
@@ -329,22 +389,22 @@ public final class CsvLoaderSupport {
                 return rawValue;
             }
             if (targetType == Integer.class) {
-                return Integer.valueOf(rawValue);
+                return Integer.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Long.class) {
-                return Long.valueOf(rawValue);
+                return Long.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Double.class) {
-                return Double.valueOf(rawValue);
+                return Double.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Float.class) {
-                return Float.valueOf(rawValue);
+                return Float.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Short.class) {
-                return Short.valueOf(rawValue);
+                return Short.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Byte.class) {
-                return Byte.valueOf(rawValue);
+                return Byte.valueOf(normalizeNumericValue(rawValue, coercionPolicy));
             }
             if (targetType == Boolean.class) {
                 Boolean parsed = StringUtil.parseBoolStrict(rawValue);
@@ -360,13 +420,13 @@ public final class CsvLoaderSupport {
                 return rawValue.charAt(0);
             }
             if (targetType == Instant.class) {
-                return parseInstant(rawValue);
+                return parseInstant(rawValue, coercionPolicy);
             }
             if (targetType == LocalDate.class) {
-                return LocalDate.parse(rawValue);
+                return parseLocalDate(rawValue, coercionPolicy);
             }
             if (targetType == LocalDateTime.class) {
-                return LocalDateTime.parse(rawValue);
+                return parseLocalDateTime(rawValue, coercionPolicy);
             }
             if (targetType == OffsetDateTime.class) {
                 return OffsetDateTime.parse(rawValue);
@@ -375,12 +435,10 @@ public final class CsvLoaderSupport {
                 return ZonedDateTime.parse(rawValue);
             }
             if (targetType == Date.class) {
-                return Date.from(parseDateInstant(rawValue));
+                return Date.from(parseDateInstant(rawValue, coercionPolicy));
             }
             if (targetType.isEnum()) {
-                @SuppressWarnings({"rawtypes", "unchecked"})
-                Enum<?> parsed = Enum.valueOf((Class<? extends Enum>) targetType, rawValue);
-                return parsed;
+                return parseEnumValue(targetType, rawValue, coercionPolicy);
             }
         } catch (RuntimeException ex) {
             throw parseError(record, binding, rawValue, targetType, ex);
@@ -391,15 +449,70 @@ public final class CsvLoaderSupport {
         );
     }
 
-    private static Instant parseInstant(String rawValue) {
+    private static String normalizeNumericValue(String rawValue, CsvCoercionPolicy coercionPolicy) {
+        if (!coercionPolicy.numericNormalizationEnabled()) {
+            return rawValue;
+        }
+        String normalized = rawValue.replace(String.valueOf(coercionPolicy.groupingSeparator()), "");
+        if (coercionPolicy.decimalSeparator() != '.') {
+            normalized = normalized.replace(coercionPolicy.decimalSeparator(), '.');
+        }
+        return normalized;
+    }
+
+    private static LocalDate parseLocalDate(String rawValue, CsvCoercionPolicy coercionPolicy) {
         try {
-            return Instant.parse(rawValue);
-        } catch (DateTimeParseException ignored) {
-            return OffsetDateTime.parse(rawValue).toInstant();
+            return LocalDate.parse(rawValue);
+        } catch (DateTimeParseException isoFailure) {
+            for (var formatter : coercionPolicy.dateFormatters()) {
+                try {
+                    return LocalDate.parse(rawValue, formatter);
+                } catch (DateTimeParseException ignored) {
+                }
+            }
+            throw isoFailure;
         }
     }
 
-    private static Instant parseDateInstant(String rawValue) {
+    private static LocalDateTime parseLocalDateTime(String rawValue, CsvCoercionPolicy coercionPolicy) {
+        try {
+            return LocalDateTime.parse(rawValue);
+        } catch (DateTimeParseException isoFailure) {
+            for (var formatter : coercionPolicy.dateTimeFormatters()) {
+                try {
+                    return LocalDateTime.parse(rawValue, formatter);
+                } catch (DateTimeParseException ignored) {
+                }
+            }
+            throw isoFailure;
+        }
+    }
+
+    private static Instant parseInstant(String rawValue, CsvCoercionPolicy coercionPolicy) {
+        try {
+            return Instant.parse(rawValue);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(rawValue).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+        for (var formatter : coercionPolicy.dateTimeFormatters()) {
+            try {
+                return LocalDateTime.parse(rawValue, formatter).atZone(ZoneId.systemDefault()).toInstant();
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+        for (var formatter : coercionPolicy.dateFormatters()) {
+            try {
+                return LocalDate.parse(rawValue, formatter).atStartOfDay(ZoneId.systemDefault()).toInstant();
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+        return OffsetDateTime.parse(rawValue).toInstant();
+    }
+
+    private static Instant parseDateInstant(String rawValue, CsvCoercionPolicy coercionPolicy) {
         try {
             return Instant.parse(rawValue);
         } catch (DateTimeParseException ignored) {
@@ -413,10 +526,28 @@ public final class CsvLoaderSupport {
         } catch (DateTimeParseException ignored) {
         }
         try {
-            return LocalDateTime.parse(rawValue).atZone(ZoneId.systemDefault()).toInstant();
-        } catch (DateTimeParseException ignored) {
+            return parseLocalDateTime(rawValue, coercionPolicy).atZone(ZoneId.systemDefault()).toInstant();
+        } catch (RuntimeException ignored) {
         }
-        return LocalDate.parse(rawValue).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return parseLocalDate(rawValue, coercionPolicy).atStartOfDay(ZoneId.systemDefault()).toInstant();
+    }
+
+    private static Object parseEnumValue(Class<?> targetType, String rawValue, CsvCoercionPolicy coercionPolicy) {
+        @SuppressWarnings("rawtypes")
+        Class<? extends Enum> enumType = targetType.asSubclass(Enum.class);
+        if (!coercionPolicy.enumCaseInsensitive()) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Enum<?> parsed = Enum.valueOf(enumType, rawValue);
+            return parsed;
+        }
+        Object[] constants = enumType.getEnumConstants();
+        for (Object constant : constants) {
+            Enum<?> candidate = (Enum<?>) constant;
+            if (candidate.name().equalsIgnoreCase(rawValue)) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("Invalid enum constant");
     }
 
     private static IllegalArgumentException parseError(CsvRecord record,

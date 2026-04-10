@@ -1,5 +1,6 @@
 package laughing.man.commits;
 
+import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -176,25 +179,109 @@ class PojoLensCsvTest {
                 tempDir,
                 "runtime-override.csv",
                 """
-                        employeeName,annualSalary
-                        Alice,120000
-                        Cara,130000
+                        nickname,bonus,salary,hireDate,reviewedAt,department
+                        ,NULL,"1.234,50",15/01/2024,15/01/2024 10:30:00,engineering
                         """
         );
 
+        CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+                .blankStringAsNull(true)
+                .nullToken("NULL")
+                .enumCaseInsensitive(true)
+                .decimalSeparator(',')
+                .groupingSeparator('.')
+                .datePattern("dd/MM/uuuu")
+                .dateTimePattern("dd/MM/uuuu HH:mm:ss")
+                .build();
         PojoLensRuntime runtime = new PojoLensRuntime();
-        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+        runtime.setCsvDefaults(
+                CsvOptions.builder()
+                        .delimiter(';')
+                        .trim(true)
+                        .coercionPolicy(policy)
+                        .build()
+        );
 
-        List<EmployeeSummary> rows = runtime.csv().read(
+        List<CoercionRow> rows = runtime.csv().read(
                 csv,
-                EmployeeSummary.class,
+                CoercionRow.class,
                 runtime.getCsvDefaults().toBuilder().delimiter(',').build()
         );
 
-        assertEquals(2, rows.size());
-        assertEquals("Alice", rows.get(0).employeeName);
-        assertEquals(120000, rows.get(0).annualSalary);
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).nickname);
+        assertNull(rows.get(0).bonus);
+        assertEquals(1234.5d, rows.get(0).salary);
+        assertEquals(LocalDate.of(2024, 1, 15), rows.get(0).hireDate);
+        assertEquals(LocalDateTime.of(2024, 1, 15, 10, 30), rows.get(0).reviewedAt);
+        assertEquals(DepartmentCode.ENGINEERING, rows.get(0).department);
         assertEquals(';', runtime.getCsvDefaults().delimiter());
+        assertTrue(runtime.getCsvDefaults().coercionPolicy().blankStringAsNull());
+    }
+
+    @Test
+    void csvRowsShouldHonorConfiguredCoercionPolicy(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "coercion.csv",
+                """
+                        nickname;bonus;salary;hireDate;reviewedAt;department
+                        ;NULL;1.234,50;15/01/2024;15/01/2024 10:30:00;engineering
+                        """
+        );
+
+        CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+                .blankStringAsNull(true)
+                .nullToken("NULL")
+                .enumCaseInsensitive(true)
+                .decimalSeparator(',')
+                .groupingSeparator('.')
+                .datePattern("dd/MM/uuuu")
+                .dateTimePattern("dd/MM/uuuu HH:mm:ss")
+                .build();
+
+        List<CoercionRow> rows = PojoLensCsv.read(
+                csv,
+                CoercionRow.class,
+                CsvOptions.builder()
+                        .delimiter(';')
+                        .coercionPolicy(policy)
+                        .build()
+        );
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).nickname);
+        assertNull(rows.get(0).bonus);
+        assertEquals(1234.5d, rows.get(0).salary);
+        assertEquals(LocalDate.of(2024, 1, 15), rows.get(0).hireDate);
+        assertEquals(LocalDateTime.of(2024, 1, 15, 10, 30), rows.get(0).reviewedAt);
+        assertEquals(DepartmentCode.ENGINEERING, rows.get(0).department);
+    }
+
+    @Test
+    void csvRowsShouldRejectConfiguredNullTokensForPrimitiveTargets(@TempDir Path tempDir) throws IOException {
+        Path csv = writeCsv(
+                tempDir,
+                "primitive-null-token.csv",
+                """
+                        id
+                        NULL
+                        """
+        );
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensCsv.read(
+                        csv,
+                        PrimitiveIdRow.class,
+                        CsvOptions.builder()
+                                .coercionPolicy(CsvCoercionPolicy.builder().nullToken("NULL").build())
+                                .build()
+                )
+        );
+
+        assertTrue(error.getMessage().contains("CSV row 2 column id"));
+        assertTrue(error.getMessage().contains("null value is not allowed for primitive targets"));
     }
 
     @Test
@@ -303,5 +390,29 @@ class PojoLensCsvTest {
 
         public MultilineSalaryRow() {
         }
+    }
+
+    static final class CoercionRow {
+        String nickname;
+        Integer bonus;
+        double salary;
+        LocalDate hireDate;
+        LocalDateTime reviewedAt;
+        DepartmentCode department;
+
+        public CoercionRow() {
+        }
+    }
+
+    static final class PrimitiveIdRow {
+        int id;
+
+        public PrimitiveIdRow() {
+        }
+    }
+
+    enum DepartmentCode {
+        ENGINEERING,
+        FINANCE
     }
 }

@@ -550,11 +550,11 @@ Findings:
 - one-off overrides can now be layered from runtime defaults with
   `runtime.getCsvDefaults().toBuilder()`
 
-### CSV-WP4: Explicit Coercion Policy (Ready)
+### CSV-WP4: Explicit Coercion Policy (Completed)
 
 Status:
 
-- ready
+- completed `2026-04-10`
 
 Goal:
 
@@ -578,11 +578,21 @@ Success bar:
 
 - defaults stay strict and typed-first; policy is explicit rather than inferred
 
-### CSV-WP5: Load Diagnostics And Observability (Planned)
+Findings:
+
+- `CsvCoercionPolicy` now makes blank-string, null-token, locale-number,
+  custom date/date-time, and enum-case rules explicit and opt-in.
+- `CsvOptions` and `PojoLensRuntime` now carry the same coercion policy surface,
+  so static reads and `runtime.csv().read(...)` share one bounded adapter
+  contract.
+- CSV binding discovery now includes enum-backed fields, closing a hidden gap
+  between coercion support and header/schema binding.
+
+### CSV-WP5: Load Diagnostics And Observability (Ready)
 
 Status:
 
-- planned
+- ready
 
 Goal:
 

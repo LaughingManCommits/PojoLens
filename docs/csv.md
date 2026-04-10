@@ -61,17 +61,61 @@ List<Employee> rows = PojoLensCsv.read(
 
 `CsvOptions.defaults()` returns the pre-built instance with all defaults applied.
 
+## Coercion Policy
+
+Defaults stay strict. `PojoLensCsv` does not widen null, enum, numeric, or
+date handling unless you opt in through `CsvCoercionPolicy`.
+
+Use a coercion policy when the file boundary needs to adapt to common CSV
+conventions such as explicit null tokens, locale-style numbers, or non-ISO
+date formats:
+
+```java
+CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+    .blankStringAsNull(true)
+    .nullToken("NULL")
+    .enumCaseInsensitive(true)
+    .decimalSeparator(',')
+    .groupingSeparator('.')
+    .datePattern("dd/MM/uuuu")
+    .dateTimePattern("dd/MM/uuuu HH:mm:ss")
+    .build();
+
+List<Employee> rows = PojoLensCsv.read(
+    Path.of("employees.csv"),
+    Employee.class,
+    CsvOptions.builder()
+        .delimiter(';')
+        .coercionPolicy(policy)
+        .build()
+);
+```
+
+Policy rules are explicit and opt-in:
+
+- blank `String` values stay blank by default; `blankStringAsNull(true)` flips only `String` blanks to `null`
+- extra null tokens such as `NULL` apply only when configured
+- numeric grouping and decimal normalization apply only when configured
+- `LocalDate` and `LocalDateTime` stay ISO-only unless custom patterns are configured
+- enum matching stays case-sensitive unless `enumCaseInsensitive(true)` is enabled
+
 ## Runtime Defaults
 
 Use `PojoLensRuntime` when CSV load defaults should be owned by an application
 runtime instead of repeated at each call site:
 
 ```java
+CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+    .nullToken("NULL")
+    .enumCaseInsensitive(true)
+    .build();
+
 PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setCsvDefaults(
     CsvOptions.builder()
         .delimiter(';')
         .trim(true)
+        .coercionPolicy(policy)
         .build()
 );
 
@@ -164,24 +208,25 @@ The adapter coerces string values to these target types:
 | Java type | Parse rule |
 |---|---|
 | `String` | Raw string value. |
-| `int` / `Integer` | `Integer.valueOf(value)`. |
-| `long` / `Long` | `Long.valueOf(value)`. |
-| `double` / `Double` | `Double.valueOf(value)`. |
-| `float` / `Float` | `Float.valueOf(value)`. |
-| `short` / `Short` | `Short.valueOf(value)`. |
-| `byte` / `Byte` | `Byte.valueOf(value)`. |
+| `int` / `Integer` | `Integer.valueOf(value)`, with optional configured grouping/decimal normalization. |
+| `long` / `Long` | `Long.valueOf(value)`, with optional configured grouping/decimal normalization. |
+| `double` / `Double` | `Double.valueOf(value)`, with optional configured grouping/decimal normalization. |
+| `float` / `Float` | `Float.valueOf(value)`, with optional configured grouping/decimal normalization. |
+| `short` / `Short` | `Short.valueOf(value)`, with optional configured grouping/decimal normalization. |
+| `byte` / `Byte` | `Byte.valueOf(value)`, with optional configured grouping/decimal normalization. |
 | `boolean` / `Boolean` | `true/false/1/0/yes/no/on/off` (case-insensitive). |
 | `char` / `Character` | Single character only. |
-| `LocalDate` | ISO-8601 date (`2024-01-15`). |
-| `LocalDateTime` | ISO-8601 date-time (`2024-01-15T10:30:00`). |
+| `LocalDate` | ISO-8601 date (`2024-01-15`), with optional custom patterns. |
+| `LocalDateTime` | ISO-8601 date-time (`2024-01-15T10:30:00`), with optional custom patterns. |
 | `OffsetDateTime` | ISO-8601 with offset (`2024-01-15T10:30:00+01:00`). |
 | `ZonedDateTime` | ISO-8601 with zone (`2024-01-15T10:30:00+01:00[Europe/Amsterdam]`). |
-| `Instant` | ISO-8601 instant (`2024-01-15T10:30:00Z`) or offset. |
-| `java.util.Date` | ISO-8601 instant, offset, zoned, date-time, or date. |
-| `Enum` | Exact enum constant name, case-sensitive. |
+| `Instant` | ISO-8601 instant or offset, with optional custom local date/date-time patterns converted through the system default zone. |
+| `java.util.Date` | ISO-8601 instant, offset, zoned, date-time, or date, with optional custom local date/date-time patterns. |
+| `Enum` | Exact enum constant name by default; optional case-insensitive matching through `CsvCoercionPolicy`. |
 
 Blank values coerce to `null` for object-typed fields. Blank values for
-primitive fields throw an error immediately.
+primitive fields throw an error immediately. Configured null tokens also resolve
+to `null` for object targets and fail immediately for primitive targets.
 
 ## Error Model
 
@@ -193,6 +238,7 @@ For multiline quoted records, the row number is the logical record start line.
 | Invalid integer | `CSV row 18 column salary: cannot parse '12k' as Integer` |
 | Invalid boolean | `CSV row 3 column active: cannot parse 'maybe' as Boolean` |
 | Blank value for primitive field | `CSV row 5 column id: blank value is not allowed for primitive targets` |
+| Configured null token for primitive field | `CSV row 5 column id: null value is not allowed for primitive targets` |
 | Missing required header column | `CSV header for Employee is missing required columns: salary` |
 | Duplicate header column | `CSV header column 'id' is duplicated` |
 | Header column not mapped to row type | `CSV header column 'unknown' does not map to Employee` |

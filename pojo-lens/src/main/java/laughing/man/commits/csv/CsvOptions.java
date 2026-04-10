@@ -11,12 +11,17 @@ public final class CsvOptions {
     private final char delimiter;
     private final boolean trim;
     private final boolean skipEmptyLines;
+    private final CsvCoercionPolicy coercionPolicy;
 
     private CsvOptions(Builder builder) {
         this.header = builder.header;
         this.delimiter = requireDelimiter(builder.delimiter);
         this.trim = builder.trim;
         this.skipEmptyLines = builder.skipEmptyLines;
+        if (builder.coercionPolicy == null) {
+            throw new IllegalArgumentException("coercionPolicy must not be null");
+        }
+        this.coercionPolicy = builder.coercionPolicy;
     }
 
     public static CsvOptions defaults() {
@@ -32,7 +37,8 @@ public final class CsvOptions {
                 .header(header)
                 .delimiter(delimiter)
                 .trim(trim)
-                .skipEmptyLines(skipEmptyLines);
+                .skipEmptyLines(skipEmptyLines)
+                .coercionPolicy(coercionPolicy);
     }
 
     public boolean header() {
@@ -51,6 +57,10 @@ public final class CsvOptions {
         return skipEmptyLines;
     }
 
+    public CsvCoercionPolicy coercionPolicy() {
+        return coercionPolicy;
+    }
+
     private static char requireDelimiter(char delimiter) {
         if (delimiter == '\n' || delimiter == '\r' || delimiter == '"') {
             throw new IllegalArgumentException("delimiter must be a visible non-quote character");
@@ -63,6 +73,7 @@ public final class CsvOptions {
         private char delimiter = ',';
         private boolean trim = true;
         private boolean skipEmptyLines = true;
+        private CsvCoercionPolicy coercionPolicy = CsvCoercionPolicy.defaults();
 
         private Builder() {
         }
@@ -84,6 +95,11 @@ public final class CsvOptions {
 
         public Builder skipEmptyLines(boolean enabled) {
             this.skipEmptyLines = enabled;
+            return this;
+        }
+
+        public Builder coercionPolicy(CsvCoercionPolicy value) {
+            this.coercionPolicy = value;
             return this;
         }
 

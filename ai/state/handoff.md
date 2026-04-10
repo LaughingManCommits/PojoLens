@@ -10,7 +10,7 @@
 ## Focus
 
 - The orchestration spike is complete through `WP17`.
-- CSV now has a `CSV-WP1` through `CSV-WP6` board; next is `CSV-WP4` coercion policy.
+- CSV now has a `CSV-WP1` through `CSV-WP6` board; next is `CSV-WP5` load diagnostics.
 - If engine follow-up resumes, the next limitation slice is grouped/aggregate subquery widening.
 
 ## Facts
@@ -18,6 +18,8 @@
 - `2026-04-10`: `SPIKE-CSV.md` now stages CSV follow-up as `CSV-WP1` through `CSV-WP6`; dynamic schema stays deferred.
 - `2026-04-10`: CSV loading now supports multiline quoted fields and logical start-line diagnostics for multiline failures.
 - `2026-04-10`: `PojoLensRuntime` now owns CSV defaults, exposes `runtime.csv().read(...)`, and keeps one-off overrides layered through `CsvOptions.toBuilder()`.
+- `2026-04-10`: `CsvCoercionPolicy` now makes null tokens, blank-string handling, locale-number parsing, custom date/date-time patterns, and enum case matching explicit and opt-in for both static and runtime-owned CSV reads.
+- `2026-04-10`: CSV binding discovery now includes enum-backed fields, closing a hidden gap between coercion support and header/schema binding.
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
 - `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns; nullable object fields may still be omitted and resolve to `null`.
 - `2026-04-09`: workers must mirror approved validation entrypoints.

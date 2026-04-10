@@ -8,6 +8,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
@@ -37,16 +38,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTest {
@@ -122,6 +126,47 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(2, overrideRows.size());
         assertEquals("Cara", overrideRows.get(1).employeeName);
         assertEquals(';', runtime.getCsvDefaults().delimiter());
+    }
+
+    @Test
+    public void runtimeCsvCoercionPolicyShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees-coercion.csv");
+        Files.writeString(
+                csv,
+                """
+                        nickname;bonus;salary;hireDate;reviewedAt;department
+                        ;NULL;1.234,50;15/01/2024;15/01/2024 10:30:00;engineering
+                        """
+        );
+
+        CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+                .blankStringAsNull(true)
+                .nullToken("NULL")
+                .enumCaseInsensitive(true)
+                .decimalSeparator(',')
+                .groupingSeparator('.')
+                .datePattern("dd/MM/uuuu")
+                .dateTimePattern("dd/MM/uuuu HH:mm:ss")
+                .build();
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(
+                CsvOptions.builder()
+                        .delimiter(';')
+                        .trim(true)
+                        .coercionPolicy(policy)
+                        .build()
+        );
+
+        List<CsvPolicyRow> rows = runtime.csv().read(csv, CsvPolicyRow.class);
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).nickname);
+        assertNull(rows.get(0).bonus);
+        assertEquals(1234.5d, rows.get(0).salary);
+        assertEquals(LocalDate.of(2024, 1, 15), rows.get(0).hireDate);
+        assertEquals(LocalDateTime.of(2024, 1, 15, 10, 30), rows.get(0).reviewedAt);
+        assertEquals(CsvDepartmentCode.ENGINEERING, rows.get(0).department);
     }
 
     @Test
@@ -305,6 +350,23 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .assertOrderedRows(row -> row.department + ":" + row.total,
                         "Engineering:3",
                         "Finance:1");
+    }
+
+    static final class CsvPolicyRow {
+        String nickname;
+        Integer bonus;
+        double salary;
+        LocalDate hireDate;
+        LocalDateTime reviewedAt;
+        CsvDepartmentCode department;
+
+        public CsvPolicyRow() {
+        }
+    }
+
+    enum CsvDepartmentCode {
+        ENGINEERING,
+        FINANCE
     }
 }
 

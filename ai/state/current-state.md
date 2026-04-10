@@ -8,7 +8,7 @@
 ## Focus
 
 - No repo-wide release work is pending.
-- `2026-04-10`: CSV now tracks `CSV-WP1` through `CSV-WP6`; `CSV-WP3` is complete and `CSV-WP4` coercion policy is next.
+- `2026-04-10`: CSV now tracks `CSV-WP1` through `CSV-WP6`; `CSV-WP4` coercion policy is complete and `CSV-WP5` diagnostics is next.
 - AI orchestration tracked spike work is complete through `WP17`; live proof now confirms accepted `tool: mvn` intents and in-scope CSV doc creation on the representative plan.
 - Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
 
@@ -18,6 +18,7 @@
 - `2026-04-09`: header-mode CSV loading now rejects missing primitive-backed mapped columns instead of silently defaulting them; nullable object fields may still be omitted and resolve to `null`.
 - `2026-04-10`: CSV loading now supports multiline quoted fields across CRLF/LF input, keeps blank lines inside quoted values, normalizes embedded breaks to `\n`, and reports logical record start lines for multiline failures.
 - `2026-04-10`: `PojoLensRuntime` now owns CSV defaults via `set/getCsvDefaults(...)`, exposes `runtime.csv().read(...)`, and supports layered overrides through `CsvOptions.toBuilder()`.
+- `2026-04-10`: `CsvCoercionPolicy` now adds explicit opt-in null-token, blank-string, locale-number, custom date/date-time, and enum-case rules for both static and runtime-owned CSV reads; CSV binding discovery also now includes enum-backed fields.
 - `2026-04-09`: worker validation hints now mirror approved entrypoints, and retained `WP17` runs proved accepted `tool: mvn ...`.
 
 ## Release
@@ -33,6 +34,6 @@
 ## Next
 
 - For AI orchestration follow-up, only revisit this area if you want reviewer-visible dependency materialization for new files, or run another representative live plan.
-- If CSV follow-up resumes, do `CSV-WP4` next, then `CSV-WP5`; keep `CSV-WP6` deferred unless demand proves otherwise.
+- If CSV follow-up resumes, do `CSV-WP5` next; keep `CSV-WP6` deferred unless demand proves otherwise.
 - If natural follow-up resumes, start with the remaining `qualify`/window/`schema(...)`/delegate-cache gaps.
 - If limitation-reduction work resumes, start with grouped/aggregate subquery widening; the time-bucket input broadening slice is complete.
