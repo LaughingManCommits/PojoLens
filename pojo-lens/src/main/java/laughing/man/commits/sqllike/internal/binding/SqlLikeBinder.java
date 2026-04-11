@@ -6,6 +6,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.WindowFunction;
@@ -28,6 +29,8 @@ import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeJoinResolution;
+import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
@@ -428,25 +431,33 @@ public final class SqlLikeBinder {
                                                       List<?> pojos,
                                                       Map<String, List<?>> joinSources,
                                                       ComputedFieldRegistry computedFieldRegistry) {
-        QueryAst subquery = subqueryValueAst.query();
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(subqueryValueAst.query());
         SelectFieldAst selectedField = subquery.select().fields().get(0);
         List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
         if (sourceRows == null || sourceRows.isEmpty()) {
             return Collections.emptyList();
         }
 
-        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, Collections.emptyMap(), inferSourceClass(sourceRows), computedFieldRegistry);
-        Sort subquerySort = resolveSort(subquery);
         Class<?> sourceClass = inferSourceClass(sourceRows);
-        List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, sourceClass);
-
-        ArrayList<Object> values = new ArrayList<>(rows.size());
-        for (Object row : rows) {
-            try {
-                values.add(ReflectionUtil.getFieldValue(row, selectedField.field()));
-            } catch (Exception e) {
-                throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
-                        "Failed to resolve subquery field '" + selectedField.field() + "'");
+        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, Collections.emptyMap(), sourceClass, computedFieldRegistry);
+        Sort subquerySort = resolveSort(subquery);
+        ArrayList<Object> values = new ArrayList<>(sourceRows.size());
+        if (selectedField.metricField()) {
+            List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, QueryRow.class);
+            String outputName = selectedField.outputName();
+            for (Object row : rows) {
+                QueryRow queryRow = (QueryRow) row;
+                values.add(QueryFieldLookupUtil.findFieldValue(queryRow.getFields(), outputName));
+            }
+        } else {
+            List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, sourceClass);
+            for (Object row : rows) {
+                try {
+                    values.add(ReflectionUtil.getFieldValue(row, selectedField.field()));
+                } catch (Exception e) {
+                    throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
+                            "Failed to resolve subquery field '" + selectedField.field() + "'");
+                }
             }
         }
         return values;

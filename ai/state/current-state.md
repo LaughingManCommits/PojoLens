@@ -10,7 +10,7 @@
 - No repo-wide release work is pending.
 - `2026-04-10`: CSV is complete through `CSV-WP5`; cleanup hardening and guarded load benchmarks also landed, and `CSV-WP6` stays deferred.
 - AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
-- Limitation-reduction follow-up now starts with grouped/aggregate subquery widening.
+- `2026-04-11`: grouped/aggregate subquery widening was live-tested and fixed; the next active limitation slice is time-bucket input broadening.
 
 ## Verified
 
@@ -20,6 +20,8 @@
 - `2026-04-10`: WP18 closed reviewer-visible new-file materialization: WP17 reviewer now uses `apply-reviewed` with `docs/csv.md` in readPaths.
 - `2026-04-09`: worker validation hints now mirror approved entrypoints, and retained `WP17` runs proved accepted `tool: mvn ...`.
 - `2026-04-11`: Claude subagent definitions now preserve optional `skills`, and tracked orchestrator agents preload repo-local `caveman` through the generated `--agents` payload.
+- `2026-04-11`: the live `spike-limitations-subquery-widening` run passed after fixing aggregate subquery validation against `QueryRow` projections and normalizing grouped-only aliases in the subquery binder.
+- `2026-04-11`: focused `pojo-lens` validation/contract tests and the full `pojo-lens` module test suite passed after the subquery widening fix.
 
 ## Release
 
@@ -34,4 +36,4 @@
 
 - Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: grouped/aggregate subquery widening is the next active engine slice.
+- Limitations: time-bucket input broadening is the next active engine slice.

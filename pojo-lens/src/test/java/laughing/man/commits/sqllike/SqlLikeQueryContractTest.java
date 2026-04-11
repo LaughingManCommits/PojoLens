@@ -6,6 +6,7 @@ import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountAlias;
 import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedBoostProjection;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -257,6 +259,52 @@ public class SqlLikeQueryContractTest {
 
         List<DepartmentEmployeeWithActive> results = PojoLensSql.parse("where department in (select department where active = true)")
                 .filter(activeSource, DepartmentEmployeeWithActive.class);
+
+        assertEquals(2, results.size());
+        assertEquals(Arrays.asList("Engineering", "Engineering"),
+                results.stream().map(r -> r.department).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportAggregateMetricSelect() {
+        List<Employee> source = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where id in (select count(*) as total where active = true)")
+                .filter(source, Employee.class);
+
+        assertEquals(1, results.size());
+        assertEquals(3, results.get(0).id);
+        assertEquals("Cara", results.get(0).name);
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportGroupedFieldWithHavingAggregate() {
+        List<DepartmentEmployee> source = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+
+        List<DepartmentEmployee> results = PojoLensSql.parse(
+                        "where department in (select department group by department having count(*) > 1)")
+                .filter(source, DepartmentEmployee.class);
+
+        assertEquals(2, results.size());
+        results.forEach(r -> assertEquals("Engineering", r.department));
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportGroupedFieldAliasWithWhereFilter() {
+        List<DepartmentEmployeeWithActive> source = Arrays.asList(
+                new DepartmentEmployeeWithActive("Engineering", true),
+                new DepartmentEmployeeWithActive("Engineering", false),
+                new DepartmentEmployeeWithActive("Finance", false),
+                new DepartmentEmployeeWithActive("HR", false)
+        );
+
+        List<DepartmentEmployeeWithActive> results = PojoLensSql.parse(
+                        "where department in (select department as dept where active = true group by dept)")
+                .filter(source, DepartmentEmployeeWithActive.class);
 
         assertEquals(2, results.size());
         assertEquals(Arrays.asList("Engineering", "Engineering"),

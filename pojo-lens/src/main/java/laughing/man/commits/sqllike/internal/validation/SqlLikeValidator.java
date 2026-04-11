@@ -328,28 +328,48 @@ public final class SqlLikeValidator {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subqueries do not support JOIN clauses in v1");
         }
-        if (subquery.hasAggregation()
-                || !subquery.groupByFields().isEmpty()
-                || !subquery.havingFilters().isEmpty()) {
-            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries support only non-aggregate SELECT filters in v1");
-        }
         SelectAst select = subquery.select();
         if (select == null || select.wildcard() || select.fields().size() != 1) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subqueries must select exactly one explicit field");
         }
         SelectFieldAst selectedField = select.fields().get(0);
-        if (selectedField.metricField()
-                || selectedField.timeBucketField()
+        if (selectedField.timeBucketField()
                 || selectedField.computedField()
                 || selectedField.windowField()) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries support only simple field SELECTs in v1");
+                    "Subqueries support only simple field or aggregate SELECTs in v1");
         }
 
         Class<?> subquerySourceClass = resolveSubquerySourceClass(sourceClass, joinSources, select);
-        validateForFilter(subquery, subquerySourceClass, subquerySourceClass, java.util.Collections.emptyMap(), false, computedFieldRegistry);
+        boolean groupedOnly = !subquery.hasAggregation() && !subquery.groupByFields().isEmpty();
+        if (groupedOnly) {
+            validateGroupedOnlySubquery(subquery, subquerySourceClass, computedFieldRegistry);
+        } else {
+            validateForFilter(subquery, subquerySourceClass, QueryRow.class,
+                    java.util.Collections.emptyMap(), false, computedFieldRegistry);
+        }
+    }
+
+    private static void validateGroupedOnlySubquery(QueryAst subquery,
+                                                    Class<?> sourceClass,
+                                                    ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst normalizedSubquery = normalizeAggregationAliases(subquery);
+        Set<String> sourceFields = collectFields(sourceClass);
+        for (String group : normalizedSubquery.groupByFields()) {
+            requireKnownField(group, sourceFields, "GROUP BY");
+        }
+        SelectFieldAst selectedField = normalizedSubquery.select().fields().get(0);
+        String fieldName = selectedField.field();
+        if (!normalizedSubquery.groupByFields().contains(fieldName)
+                && !normalizedSubquery.groupByFields().contains(selectedField.outputName())) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Subquery grouped field '" + fieldName + "' must be present in GROUP BY");
+        }
+        validateFilters(normalizedSubquery.filters(), sourceFields, sourceClass,
+                java.util.Collections.emptyMap(), computedFieldRegistry);
+        validateHaving(normalizedSubquery, sourceFields, sourceClass,
+                java.util.Collections.emptyMap(), computedFieldRegistry);
     }
 
     private static Class<?> resolveSubquerySourceClass(Class<?> sourceClass,
@@ -473,7 +493,7 @@ public final class SqlLikeValidator {
         }
     }
 
-    private static QueryAst normalizeAggregationAliases(QueryAst ast) {
+    public static QueryAst normalizeAggregationAliases(QueryAst ast) {
         SelectAst select = ast.select();
         if (select == null || select.wildcard()) {
             return ast;

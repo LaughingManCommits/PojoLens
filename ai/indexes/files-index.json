@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T09:02:28.360165+02:00",
+  "generatedAt": "2026-04-11T12:00:57.649895+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
@@ -8,7 +8,7 @@
     "markdownDocs": 49,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
-    "orchestratorTaskPlans": 7
+    "orchestratorTaskPlans": 8
   },
   "roots": [
     {

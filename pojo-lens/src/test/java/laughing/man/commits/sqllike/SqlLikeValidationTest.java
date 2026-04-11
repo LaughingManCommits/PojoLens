@@ -345,14 +345,28 @@ public class SqlLikeValidationTest {
     }
 
     @Test
-    public void subqueryShouldRejectAggregateSelects() {
+    public void subqueryWithSingleAggregateSelectShouldBeAllowed() {
+        List<Employee> employees = sampleEmployees();
+        PojoLensSql.parse("where id in (select count(*) as total where active = true)")
+                .filter(employees, Employee.class);
+    }
+
+    @Test
+    public void subqueryWithGroupedFieldAndHavingShouldBeAllowed() {
+        List<Employee> employees = sampleEmployees();
+        PojoLensSql.parse("where department in (select department group by department having count(*) > 1)")
+                .filter(employees, Employee.class);
+    }
+
+    @Test
+    public void subqueryShouldRejectJoinClause() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLensSql.parse("where department in (select count(*) as total where active = true)")
+            PojoLensSql.parse("where department in (select department from employees join companies on companyId = id)")
                     .filter(employees, Employee.class);
-            fail("Expected subquery validation error");
+            fail("Expected JOIN subquery validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Subqueries support only non-aggregate SELECT filters in v1"));
+            assertTrue(ex.getMessage().contains("Subqueries do not support JOIN clauses in v1"));
         }
     }
 
