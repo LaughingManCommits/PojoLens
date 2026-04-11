@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T12:00:57.649895+02:00",
+  "generatedAt": "2026-04-11T20:06:19.296420+02:00",
   "groups": [
     {
       "component": "facades",
@@ -92,17 +92,17 @@
         {
           "name": "SqlLikeParser",
           "kind": "class",
-          "path": ".claude-orchestrator/workspaces/20260411T075349Z-spike-limitations-subquery-widening-e9cd16ec/implement-subquery-widening/pojo-lens/src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java"
         },
         {
           "name": "SqlLikeValidator",
           "kind": "class",
-          "path": ".claude-orchestrator/workspaces/20260411T075349Z-spike-limitations-subquery-widening-e9cd16ec/implement-subquery-widening/pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java"
         },
         {
           "name": "SqlLikeBinder",
           "kind": "class",
-          "path": ".claude-orchestrator/workspaces/20260411T075349Z-spike-limitations-subquery-widening-e9cd16ec/implement-subquery-widening/pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinder.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinder.java"
         },
         {
           "name": "SqlExpressionEvaluator",

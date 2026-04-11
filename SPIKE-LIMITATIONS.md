@@ -2,20 +2,34 @@
 
 ## Question
 
-Which current documented limitations are worth fixing, and how should they be
-reduced without turning `pojo-lens` into a full SQL engine or a concurrency
-framework?
+Which documented limitations are still real, which have already been reduced,
+and what should be fixed next without turning `pojo-lens` into a full SQL
+engine or a concurrency framework?
 
-Current README limitations:
+## Current Scan (2026-04-11)
 
-- SQL-like subqueries currently support only uncorrelated single-column
-  `WHERE <field> IN (select ...)` subqueries
-- joined and correlated subqueries remain unsupported
-- aggregate SQL-like `ORDER BY` is restricted
-- aggregate windows currently support only
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
-- time-bucket input fields must be `java.util.Date`
-- fluent query builders are mutable and not safe for concurrent mutation
+Completed:
+
+- Time-bucket input broadening is implemented. Bucket source fields now support
+  `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`,
+  `OffsetDateTime`, and `ZonedDateTime`.
+- SQL-like `WHERE ... IN (select ...)` subqueries now support one uncorrelated
+  output column produced from a simple field, grouped alias, or aggregate alias.
+- Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
+  output aliases/names, and aggregate expressions.
+- Fluent builder execution isolation is documented through default
+  `copyOnBuild(true)` and reusable `ReportDefinition.fluent(...)` guidance.
+
+Still valid:
+
+- SQL-like subqueries are still intentionally bounded to uncorrelated,
+  single-output `WHERE <field> IN (select ...)` shapes.
+- Joined and correlated subqueries are still unsupported.
+- SQL-like aggregate windows still support only
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- Window functions still run only in non-aggregate query shapes.
+- Mutable fluent builders are still configuration objects and are not safe for
+  concurrent mutation.
 
 ## Thesis
 
@@ -27,148 +41,94 @@ The right strategy is:
   execution model
 - clarify or reframe limits that are mostly about API shape or documentation
 - avoid drifting into a general SQL planner, correlated-subquery engine, or
-  highly synchronized builder runtime
-
-In practice, that means:
-
-- subquery expansion should stay deterministic and uncorrelated at first
-- window-frame expansion should stay narrow and explicit
-- time-bucket broadening should normalize more Java time types into the same
-  existing bucket logic
-- fluent builder mutability should probably be addressed with an immutable
-  prepared wrapper, not by making the builder itself concurrent
-
-## Verified Current State
-
-As of `2026-04-03`, the current constraints are real and come from the current
-code path, not just README wording.
-
-Highlights:
-
-- SQL-like subqueries are parsed only under `IN (select ...)` and now support
-  single-column grouped/aggregate outputs; joins and correlation remain out of
-  scope.
-- Aggregate `ORDER BY` is intentionally constrained to the aggregate row shape.
-- Aggregate windows require the running frame
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- Time buckets require `java.util.Date`.
-- Fluent `QueryBuilder` is mutable; `copyOnBuild(true)` is already the default
-  execution-isolation mechanism.
+  synchronized mutable-builder runtime
 
 ## Limitation Review
 
-### 1. SQL-like Subqueries
+### 1. Time Bucket Input Types (Completed)
+
+Current behavior:
+
+- supported inputs are `Date`, `Instant`, `LocalDate`, `LocalDateTime`,
+  `OffsetDateTime`, and `ZonedDateTime`
+- `LocalDate` and `LocalDateTime` are interpreted in the active bucket preset
+  timezone
+- instant-based inputs are normalized into the active bucket preset timezone
+  before bucketing
+
+Evidence:
+
+- `TimeBucketUtil.supportsTimeBucketType(...)` covers all supported types
+- `TimeBucketUtilTest` covers the shared formatter and timezone semantics
+- `TimeBucketAggregationTest` covers fluent and SQL-like execution
+- `SqlLikeValidationTest` covers SQL-like validation for broadened field types
+- public docs in `docs/time-buckets.md`, `docs/sql-like.md`, and
+  `docs/natural.md` already describe the broadened support
+
+Status:
+
+- completed; no implementation work remains for the original Date-only limit
+
+### 2. SQL-like Subqueries (First Widening Completed)
 
 Current behavior:
 
 - only uncorrelated `WHERE field IN (select oneColumn ...)`
-- subquery `SELECT` must contain exactly one explicit field
-- single-column grouped and aggregate outputs are supported
-- no joined subqueries
+- subquery `SELECT` must contain exactly one explicit output
+- that output may be a simple field, grouped alias, or aggregate alias
+- named subquery `FROM <source>` can read from provided join-source bindings
+- no `JOIN` clauses inside subqueries
 - no correlated subqueries
-
-Why it exists:
-
-- the current binder resolves subqueries as a flat list of values
-- the validator still rejects joins early
-- the binder now extracts either raw field values or aggregate output aliases
-  depending on the supported subquery shape
-
-What is worth fixing:
-
-- possibly allow uncorrelated joined subqueries later if existing
-  `JoinBindings`-driven use cases genuinely need it
 
 Status:
 
-- `2026-04-11`: uncorrelated single-column grouped/aggregate subquery widening
-  has landed and been live-tested.
+- `2026-04-11`: grouped/aggregate subquery widening landed and was live-tested
 
-What is not worth fixing first:
+Remaining valid limits:
 
+- joined subqueries
 - correlated subqueries
+- broad `EXISTS` / scalar-subquery support
 - arbitrary nested SQL-engine semantics
-- broad `EXISTS` / scalar-subquery support before single-column grouped
-  subqueries are stable
-
-Recommended first slice:
-
-1. keep the outer shape as `WHERE field IN (select oneColumn ...)`
-2. allow the subquery to produce that one column via:
-   - grouped field
-   - aggregate output alias
-   - time-bucket alias
-3. update subquery value extraction to read the actual output column name, not
-   only the raw selected field
-4. keep joins and correlation out of scope for this first widening
-
-Expected repo fit:
-
-- good
-- this extends the current SQL-like path without creating a new planner model
-
-Risk:
-
-- medium
-- subquery validation, binder extraction, and explain/error messages all need
-  coordinated updates
-
-### 2. Aggregate SQL-like ORDER BY
-
-Current behavior:
-
-- aggregate queries can order by grouped fields, aggregate output aliases/names,
-  and aggregate expressions that resolve against the aggregate row shape
-- they cannot order by arbitrary raw source fields once the query has been
-  grouped
-
-Why it exists:
-
-- after grouping, the working row shape is no longer the raw source row shape
-- allowing arbitrary source-field ordering would be semantically unclear and
-  would force hidden tie-break or pre-aggregation semantics
-
-What is worth fixing:
-
-- improve wording and validation messages so the supported shapes are obvious
-- normalize docs around "group-by field or aggregate output/expression"
-
-What is probably not worth fixing:
-
-- ordering aggregate results by non-grouped raw source fields
 
 Recommendation:
 
-- treat this mainly as a documentation and diagnostics refinement item, not a
-  major engine-expansion spike
+- keep the current subquery boundary unless real `JoinBindings` use cases prove
+  that uncorrelated joined subqueries are worth the added planner complexity
 
-Expected repo fit:
+### 3. Aggregate SQL-like ORDER BY (Mostly Resolved)
 
-- strong
-- this keeps semantics crisp instead of emulating surprising SQL edge cases
+Current behavior:
 
-Risk:
+- aggregate queries can order by grouped fields
+- aggregate queries can order by aggregate output aliases/names
+- aggregate queries can order by aggregate expressions, including unselected
+  aggregate expressions such as `order by sum(salary) desc`
+- aggregate queries cannot order by arbitrary non-grouped raw source fields
 
-- low
+Why the remaining limit exists:
 
-### 3. Aggregate Window Frames
+- after grouping, the working row shape is no longer the raw source row shape
+- ordering aggregate rows by non-grouped source fields would require hidden
+  pre-aggregation or tie-break semantics
+
+Recommendation:
+
+- treat this as a semantic boundary, not an engine gap
+- polish wording or diagnostics if they drift, but do not add raw-field
+  aggregate ordering by default
+
+### 4. Aggregate Window Frames (Next Active Slice)
 
 Current behavior:
 
 - aggregate windows support only
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- parser/tests reject unsupported frames such as
+  `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`
+- window functions are still limited to non-aggregate query shapes
 
-Why it exists:
-
-- the current implementation is optimized around deterministic running-window
-  behavior
-- this keeps parser, AST, validation, and execution simpler
-
-What is worth fixing:
-
-- a small explicit frame menu that stays deterministic and practical
-
-Recommended frame expansion order:
+Worth fixing next:
 
 1. `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
    - trailing windows
@@ -177,120 +137,46 @@ Recommended frame expansion order:
    - full-partition totals
    - useful for percent-of-total style calculations
 
-What should stay out of scope initially:
+Keep out of scope initially:
 
 - `RANGE` frames
-- arbitrary expression-based frames
-- mixed aggregate + grouped query shapes in the same statement
-
-Expected repo fit:
-
-- good
-- this is a real analytic capability expansion without changing the public story
-
-Risk:
-
-- medium
-- execution cost and explain output will need fresh coverage and probably new
-  benchmark cases
-
-### 4. Time Bucket Input Types
-
-Current behavior:
-
-- time buckets require `java.util.Date`
-
-Why it exists:
-
-- the bucketing utility currently normalizes from `Date`
-- older repo behavior and tests are centered on `Date`
-
-What is worth fixing:
-
-- accept more common Java time inputs while keeping deterministic bucket output
-
-Recommended expansion order:
-
-1. `Instant`
-2. `LocalDate`
-3. `LocalDateTime`
-4. `OffsetDateTime` / `ZonedDateTime`
+- `GROUPS` frames
+- expression-based frame offsets
+- mixed aggregate-window plus grouped-query execution
 
 Implementation direction:
 
-- centralize conversion into one helper that normalizes supported time types
-  into an instant-or-date-equivalent value before bucket formatting
-- keep `TimeBucketPreset` as the owning timezone/week-start policy model
+- add an explicit frame model instead of encoding the current frame as parser
+  text only
+- keep frame parsing narrow and fail fast for unsupported shapes
+- extend fluent window execution only for the supported frame menu
+- update SQL-like parser/runtime/parity/docs tests together
+- add benchmark coverage only after semantics are stable
 
-Expected repo fit:
-
-- very good
-- this removes a practical ergonomics limit without changing query semantics
-
-Risk:
-
-- low to medium
-- `LocalDate` / `LocalDateTime` need clear zone semantics
-
-### 5. Fluent Builder Mutability
+### 5. Fluent Builder Mutability (Valid, Optional Follow-Up)
 
 Current behavior:
 
 - fluent `QueryBuilder` is mutable
-- it is not safe for concurrent mutation
-- `copyOnBuild(true)` already snapshots execution state and is enabled by
-  default
+- concurrent mutation is not supported
+- `copyOnBuild(true)` snapshots execution state and is enabled by default
+- `ReportDefinition.fluent(...)` already provides a reusable business-query
+  contract that builds a fresh builder per execution
 
-Why it exists:
+Recommendation:
 
-- the builder is a configuration object, not an immutable query plan
-- mutability keeps the fluent API lightweight
-
-What is worth fixing:
-
-- add an explicit immutable prepared fluent wrapper if the repo wants a
-  reusable first-class fluent "template" contract
-
-What is probably not worth fixing:
-
-- making the mutable builder itself synchronized or deeply immutable by default
-
-Recommended direction:
-
-- keep the existing mutable builder
-- if more reuse is desired, add something like:
-  - `FluentTemplate`
-  - `PreparedFluentQuery`
-  - or a stronger `ReportDefinition.fluent(...)`-style promoted contract
-
-Expected repo fit:
-
-- medium
-- useful if there is a real repeated-builder authoring need
-
-Risk:
-
-- medium
-- this touches public API shape more than execution semantics
+- keep the mutable builder lightweight
+- only add a first-class immutable fluent template/prepared-query wrapper if
+  repeated fluent authoring demand justifies another public type
+- do not make the mutable builder synchronized by default
 
 ## Recommended Work Order
 
-Recommended priority:
-
-1. time-bucket input broadening
-2. single-column grouped/aggregate subquery widening
-3. bounded aggregate window frames
-4. aggregate `ORDER BY` doc/diagnostic cleanup
-5. immutable fluent prepared-wrapper design
-
-Why this order:
-
-- item 1 is high-value and relatively contained
-- item 2 meaningfully expands SQL-like power without demanding full SQL-engine
-  semantics
-- item 3 is valuable but should follow the subquery/time-bucket wins
-- item 4 is mostly clarity work
-- item 5 is useful only if the repo wants another reusable wrapper family
+1. Bounded aggregate window frames.
+2. Aggregate `ORDER BY` wording/diagnostic polish if docs or errors drift.
+3. Immutable fluent prepared-wrapper design only if real reuse demand appears.
+4. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
+   prove the need.
 
 ## Non-Goals
 
@@ -298,36 +184,24 @@ This spike should not be read as a plan to add:
 
 - correlated subqueries
 - general nested SQL semantics
-- full window-frame parity with SQL engines
+- full SQL window-frame parity
 - arbitrary temporal coercion rules with hidden timezone guessing
 - a thread-safe mutable builder
 
 ## Adjacent Limits Not In README
 
-These are real adjacent constraints, but they are not the core focus of this
-spike unless explicitly pulled in later:
+These remain real adjacent constraints, but they are not the core focus unless
+explicitly pulled in later:
 
 - natural `qualify` is still alias-based
-- natural window phrasing is still intentionally narrow
-- natural `schema(...)` is still structural, not vocabulary-resolved
-- natural reusable presets are still not implemented
+- natural window phrasing is intentionally narrow
+- natural `schema(...)` is structural, not vocabulary-resolved
 - natural execution still rebuilds a resolved delegate per execution/explain
 
 ## Recommendation
 
-Treat this as a narrowing spike, not a "remove all limits" spike.
+The next useful implementation slice is bounded aggregate window frames.
 
-Recommended conclusion:
-
-- fix the limits that expand real capability with bounded semantic cost
-- keep the limits that preserve product clarity unless there is strong evidence
-  they are blocking adoption
-- prefer explicit new wrappers over hidden builder/concurrency magic
-
-If this spike turns into execution work, the best first implementation slice is:
-
-1. broaden time-bucket input types
-2. then widen uncorrelated single-column grouped/aggregate subqueries
-
-That gives the repo useful capability gains while staying aligned with its
-current architecture.
+Time-bucket input broadening and grouped/aggregate subquery widening are already
+done, so future limitation work should not start there unless a regression is
+found.

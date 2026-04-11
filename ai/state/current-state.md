@@ -10,7 +10,7 @@
 - No repo-wide release work is pending.
 - `2026-04-10`: CSV is complete through `CSV-WP5`; cleanup hardening and guarded load benchmarks also landed, and `CSV-WP6` stays deferred.
 - AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
-- `2026-04-11`: grouped/aggregate subquery widening was live-tested and fixed; the next active limitation slice is time-bucket input broadening.
+- `2026-04-11`: grouped/aggregate subquery widening and time-bucket input broadening are done; the next active limitation slice is bounded aggregate window frames.
 
 ## Verified
 
@@ -22,6 +22,7 @@
 - `2026-04-11`: Claude subagent definitions now preserve optional `skills`, and tracked orchestrator agents preload repo-local `caveman` through the generated `--agents` payload.
 - `2026-04-11`: the live `spike-limitations-subquery-widening` run passed after fixing aggregate subquery validation against `QueryRow` projections and normalizing grouped-only aliases in the subquery binder.
 - `2026-04-11`: focused `pojo-lens` validation/contract tests and the full `pojo-lens` module test suite passed after the subquery widening fix.
+- `2026-04-11`: time-bucket implementation/docs/tests already support `Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`.
 - `2026-04-11`: public docs now keep `README.md` as a feature-set map while detailed SQL-like/fluent behavior lives in module docs.
 - `2026-04-11`: docs consistency and `SqlLikeDocsExamplesTest` passed after the public docs alignment.
 
@@ -38,4 +39,4 @@
 
 - Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: time-bucket input broadening is the next active engine slice.
+- Limitations: bounded aggregate window frames are the next active engine slice.

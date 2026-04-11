@@ -1,5 +1,19 @@
 # TODO
 
+## Engine Limitation Follow-Up (2026-04-11)
+
+- `Done`: time-bucket source fields now support `Date`, `Instant`,
+  `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`.
+- `Done`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries now
+  support single-output simple fields, grouped aliases, and aggregate aliases.
+- `Still valid`: joined/correlated subqueries remain unsupported.
+- `Still valid`: aggregate windows currently support only
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- `Next`: bounded aggregate window frames, starting with
+  `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`.
+- `Optional`: aggregate `ORDER BY` wording/diagnostics and immutable fluent
+  prepared-wrapper design if demand appears.
+
 ## CSV Adapter Follow-Up (2026-04-10)
 
 - Completed CSV spike detail has been retired; this section keeps the remaining

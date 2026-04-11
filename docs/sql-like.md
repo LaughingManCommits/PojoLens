@@ -135,7 +135,7 @@ Sort limitation:
 - SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.
 - Joined and correlated subqueries remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
-- SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
+- SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
 - Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).

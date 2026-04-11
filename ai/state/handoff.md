@@ -9,9 +9,9 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP18`; fully closed.
+- The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5` plus cleanup hardening; `CSV-WP6` remains deferred.
-- If engine follow-up resumes, the next limitation slice is time-bucket input broadening.
+- If engine follow-up resumes, the next limitation slice is bounded aggregate window frames.
 
 ## Facts
 
@@ -23,6 +23,7 @@
 - `2026-04-11`: `scripts/claude-orchestrator.py` now preserves optional agent `skills`; tracked workers pass `caveman` through `--agents` so the skill loads after agent setup.
 - `2026-04-11`: the live `spike-limitations-subquery-widening` run completed after fixing aggregate subquery validation against `QueryRow` projections and normalizing grouped-only aliases in the subquery binder.
 - `2026-04-11`: focused `pojo-lens` validation/contract tests and the full `pojo-lens` module test suite passed after the subquery widening fix.
+- `2026-04-11`: limitation scan found time-bucket input broadening done; `SPIKE-LIMITATIONS.md` and `TODO.md` point next to bounded aggregate window frames.
 - `2026-04-11`: `README.md` now stays at feature-set/routing level; SQL-like subquery/runtime preset detail and fluent builder reuse guidance live in `docs/sql-like.md` and `docs/usecases.md`.
 - `2026-04-11`: public docs alignment passed `scripts/check-doc-consistency.ps1` and `SqlLikeDocsExamplesTest`.
 
