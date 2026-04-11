@@ -19,6 +19,7 @@
 - `2026-04-10`: `CsvLoadJmhBenchmark` now measures typed and multiline CSV load cost separately from query execution, `scripts/benchmark-suite-main.args` includes those workloads, and the strict core threshold check passes with the new `LOAD` budgets.
 - `2026-04-10`: WP18 closed reviewer-visible new-file materialization: WP17 reviewer now uses `apply-reviewed` with `docs/csv.md` in readPaths.
 - `2026-04-09`: worker validation hints now mirror approved entrypoints, and retained `WP17` runs proved accepted `tool: mvn ...`.
+- `2026-04-11`: Claude subagent definitions now preserve optional `skills`, and tracked orchestrator agents preload repo-local `caveman` through the generated `--agents` payload.
 
 ## Release
 

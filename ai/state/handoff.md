@@ -22,6 +22,7 @@
 - `2026-04-09`: `PojoLensCsv` plus `CsvOptions` landed as a CSV adapter with strict typed loading, row/column-aware errors, nested-path support, and public API/docs coverage.
 - `2026-04-10`: WP18 closed reviewer-visible new-file materialization: WP17 reviewer uses `apply-reviewed`, docs/csv.md added to readPaths, README + SYSTEM-SPEC updated.
 - `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`.
+- `2026-04-11`: `scripts/claude-orchestrator.py` now preserves optional agent `skills`; tracked workers pass `caveman` through `--agents` so the skill loads after agent setup.
 
 ## Validate
 

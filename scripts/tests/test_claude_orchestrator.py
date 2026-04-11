@@ -106,6 +106,7 @@ class ClaudeCommandTest(unittest.TestCase):
                         name="planner",
                         description="Plan work.",
                         prompt="Planner prompt.",
+                        skills=["caveman"],
                         model_profile="simple",
                     ),
                     "analyst": orchestrator.AgentDefinition(
@@ -115,11 +116,13 @@ class ClaudeCommandTest(unittest.TestCase):
                         model_profile="simple",
                     ),
                 },
-                selected_names=["planner"],
+                selected_names=["planner", "analyst"],
             )
         )
 
-        self.assertEqual(["planner"], sorted(payload))
+        self.assertEqual(["analyst", "planner"], sorted(payload))
+        self.assertEqual(["caveman"], payload["planner"]["skills"])
+        self.assertNotIn("skills", payload["analyst"])
 
     def test_variadic_tool_flags_do_not_consume_prompt(self):
         command = self.orchestrator.claude_command(
@@ -854,6 +857,36 @@ class ValidateCommandTest(unittest.TestCase):
                 "required agent 'planner' is missing",
             ):
                 orchestrator.load_agents(agents_path)
+
+    def test_load_agents_preserves_skills(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            agents_path = pathlib.Path(tempdir) / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "skills": ["caveman"],
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            agents = orchestrator.load_agents(agents_path)
+
+            self.assertEqual(["caveman"], agents["planner"].skills)
 
     def test_load_task_plan_rejects_unknown_agent(self):
         orchestrator = self.orchestrator

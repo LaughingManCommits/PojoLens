@@ -250,6 +250,7 @@ class AgentDefinition:
     name: str
     description: str
     prompt: str
+    skills: list[str] = field(default_factory=list)
     model: str | None = None
     model_profile: str | None = None
     effort: str | None = None
@@ -1178,6 +1179,7 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             name=name.strip(),
             description=require_string(definition, "description", location=location),
             prompt=require_string(definition, "prompt", location=location),
+            skills=require_string_list(definition, "skills", location=location),
             model=require_optional_string(definition, "model", location=location),
             model_profile=ensure_model_profile(
                 require_optional_string(definition, "modelProfile", location=location),
@@ -1725,6 +1727,7 @@ def agent_payload_for_claude(
         name: {
             "description": agent.description,
             "prompt": agent.prompt,
+            **({"skills": agent.skills} if agent.skills else {}),
         }
         for name, agent in agents.items()
         if name in selected
