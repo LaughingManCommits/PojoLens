@@ -86,6 +86,15 @@ List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
 Outcome:
 - Stable top-N API payload with type-safe query construction.
 
+Builder reuse:
+- `PojoLensCore.newQueryBuilder(...)` returns a mutable configuration object.
+- Do not mutate one builder concurrently from multiple threads.
+- Configure once, then call `initFilter()`.
+- Keep the default `copyOnBuild(true)` behavior when a configured builder is
+  reused across executions or threads.
+- Use `ReportDefinition.fluent(...)` when the reusable object should be a stable
+  business-query contract instead of a mutable builder.
+
 ### Scenario 2: Admin-Configurable Queries
 
 Problem:

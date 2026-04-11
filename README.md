@@ -178,46 +178,58 @@ More examples:
 
 ## Capability Snapshot
 
+This README is the feature-set map. Clause grammar, recipes, and edge-case
+rules live in the module docs linked beside each surface.
+
 ### Core query engine
 
-- Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- Controlled plain-English querying for guided non-SQL text authoring (`show ...`, explicit `from ... join ... on ...`, `where ... group by ... having ... qualify ... sort by ... limit ...`)
-- Natural time-bucket phrases, deterministic window phrases, and terminal chart phrases (`bucket hire date by month as period`, `row number by department ordered by salary descending as rn`, `as bar chart`)
-- First-class keyset/cursor pagination primitives with token support
-- Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
-- Optional in-memory index hints for repeated fluent equality filters
-- Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
-- Time buckets (`day`, `week`, `month`, `quarter`, `year`)
-- SQL-like named parameters and typed bind-first execution
-- SQL-like window analytics (`ROW_NUMBER`, `RANK`, `DENSE_RANK`, running aggregates with `OVER(...)`) and `QUALIFY`
-- Chained SQL-like joins with typed join bindings
-- Computed field registry for derived expressions
+- Fluent query composition over existing Java objects. See
+  [docs/usecases.md](docs/usecases.md) and
+  [docs/entry-points.md](docs/entry-points.md).
+- SQL-like text queries for config-driven or user-authored flows. See
+  [docs/sql-like.md](docs/sql-like.md).
+- Controlled natural query text for guided non-SQL authoring. See
+  [docs/natural.md](docs/natural.md).
+- Derived values, time buckets, pagination, streaming, and repeated-snapshot
+  helpers. See [docs/computed-fields.md](docs/computed-fields.md),
+  [docs/time-buckets.md](docs/time-buckets.md), and
+  [docs/usecases.md](docs/usecases.md).
+- Multi-source execution with typed join bindings and reusable dataset bundles.
+  See [docs/sql-like.md](docs/sql-like.md),
+  [docs/natural.md](docs/natural.md), and [docs/reports.md](docs/reports.md).
 
 ### Workflow helpers
 
-- Chart payload mapping (`BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`)
-- Reusable report, chart-preset, and stats-preset wrappers
-- Dataset-bundle execution reuse and tabular schema metadata
+- Chart payload mapping, report definitions, chart presets, stats presets, and
+  tabular schema metadata. See [docs/charts.md](docs/charts.md),
+  [docs/reports.md](docs/reports.md),
+  [docs/stats-presets.md](docs/stats-presets.md), and
+  [docs/tabular-schema.md](docs/tabular-schema.md).
 
 ### Runtime integration
 
-- Runtime-scoped presets and policy controls via `PojoLensRuntime`
-- Runtime-scoped natural vocabulary for plain-English field aliases
-- Optional Spring Boot starter/autoconfigure modules
+- Runtime-scoped policy, diagnostics, caching, CSV defaults, computed fields,
+  and natural vocabulary. See [docs/entry-points.md](docs/entry-points.md),
+  [docs/advanced-features.md](docs/advanced-features.md),
+  [docs/caching.md](docs/caching.md), and
+  [docs/telemetry.md](docs/telemetry.md).
+- Optional Spring Boot starter and autoconfigure modules. See
+  [docs/modules.md](docs/modules.md).
 
 ### Compatibility adapter
 
-- UTF-8 CSV loading into typed rows with header mapping and narrow delimiter/trim options
+- CSV file-boundary loading into typed rows before normal query execution. See
+  [docs/csv.md](docs/csv.md).
 
 ### Advanced and tooling
 
-- Query telemetry hooks, lint mode, and cache tuning controls
-- Snapshot comparison helpers and regression fixtures
-- Field metamodel generation for typed field constants
-- Benchmark/JMH tooling in a separate benchmark module
-
-These public follow-on features are collected in
-[docs/advanced-features.md](docs/advanced-features.md).
+- Snapshot comparison, regression fixtures, metamodel generation, benchmarks,
+  and optional production diagnostics. See
+  [docs/advanced-features.md](docs/advanced-features.md),
+  [docs/snapshot-comparison.md](docs/snapshot-comparison.md),
+  [docs/regression-fixtures.md](docs/regression-fixtures.md),
+  [docs/metamodel.md](docs/metamodel.md), and
+  [docs/benchmarking.md](docs/benchmarking.md).
 
 ## API Entry Points
 
@@ -252,24 +264,23 @@ The explicit stable-surface contract and deprecation policy are documented in
 
 ## Runtime Presets
 
-```java
-PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
-```
-
-Preset intent:
-- `DEV`: strict + diagnostics friendly
-- `PROD`: lower overhead defaults
-- `TEST`: stricter deterministic behavior, caches disabled
+`PojoLensRuntime` includes `DEV`, `PROD`, and `TEST` presets for scoped policy
+defaults. Detailed behavior and override examples live in
+[docs/entry-points.md](docs/entry-points.md) and
+[docs/sql-like.md#recipe-runtime-policy-presets](docs/sql-like.md#recipe-runtime-policy-presets).
 
 ## Current Limitations
 
-- SQL-like subqueries currently support only `WHERE <field> IN (select <oneSimpleField> ...)`.
-- Subqueries do not yet support aggregate, grouped, or joined subquery plans.
-- In aggregate SQL-like queries, `ORDER BY` must reference a `GROUP BY` field or an aggregate output alias/name.
-- SQL-like aggregate windows currently support only the running frame `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- Fluent query builders are mutable and not safe for concurrent mutation; keep `copyOnBuild(true)` enabled (the default) when reusing a builder configuration across executions or threads.
+The README keeps limits at the product-surface level. Detailed limitations live
+with the owning guide.
+
+- SQL-like does not try to be a full SQL engine; subqueries, aggregate ordering,
+  and window frames remain bounded. See
+  [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations).
+- Natural queries use controlled grammar, not free-form language. See
+  [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
+- Fluent builders are mutable configuration objects; reuse guidance belongs with
+  the code-owned query path. See [docs/usecases.md](docs/usecases.md).
 
 ## Documentation Map
 

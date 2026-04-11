@@ -8,9 +8,9 @@ framework?
 
 Current README limitations:
 
-- SQL-like subqueries currently support only
-  `WHERE <field> IN (select <oneSimpleField> ...)`
-- subqueries do not yet support aggregate, grouped, or joined subquery plans
+- SQL-like subqueries currently support only uncorrelated single-column
+  `WHERE <field> IN (select ...)` subqueries
+- joined and correlated subqueries remain unsupported
 - aggregate SQL-like `ORDER BY` is restricted
 - aggregate windows currently support only
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
@@ -45,9 +45,9 @@ code path, not just README wording.
 
 Highlights:
 
-- SQL-like subqueries are parsed only under `IN (select ...)` and validated as
-  single-column simple-field subqueries with no joins or aggregate/grouped
-  plans.
+- SQL-like subqueries are parsed only under `IN (select ...)` and now support
+  single-column grouped/aggregate outputs; joins and correlation remain out of
+  scope.
 - Aggregate `ORDER BY` is intentionally constrained to the aggregate row shape.
 - Aggregate windows require the running frame
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
@@ -61,25 +61,28 @@ Highlights:
 
 Current behavior:
 
-- only `WHERE field IN (select oneSimpleField ...)`
-- subquery `SELECT` must contain exactly one simple field
-- no aggregate/grouped subqueries
+- only uncorrelated `WHERE field IN (select oneColumn ...)`
+- subquery `SELECT` must contain exactly one explicit field
+- single-column grouped and aggregate outputs are supported
 - no joined subqueries
 - no correlated subqueries
 
 Why it exists:
 
 - the current binder resolves subqueries as a flat list of values
-- the validator rejects joins and aggregate/grouped shapes early
-- the binder currently extracts values from the selected field directly, which
-  is easy for simple field projections and not robust yet for metric/time-bucket
-  outputs
+- the validator still rejects joins early
+- the binder now extracts either raw field values or aggregate output aliases
+  depending on the supported subquery shape
 
 What is worth fixing:
 
-- allow uncorrelated single-column grouped/aggregate subqueries first
 - possibly allow uncorrelated joined subqueries later if existing
   `JoinBindings`-driven use cases genuinely need it
+
+Status:
+
+- `2026-04-11`: uncorrelated single-column grouped/aggregate subquery widening
+  has landed and been live-tested.
 
 What is not worth fixing first:
 

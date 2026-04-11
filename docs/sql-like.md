@@ -132,8 +132,8 @@ Sort limitation:
 
 ## Current Limitations
 
-- SQL-like subqueries currently support only `WHERE <field> IN (select <field> ...)`.
-- Subqueries do not support nested joins or aggregate/grouped subquery plans yet.
+- SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.
+- Joined and correlated subqueries remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
@@ -387,10 +387,11 @@ ComputedFieldRegistry registry = runtime.getComputedFieldRegistry();
 runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets caches/stats
 ```
 
-Equivalent preset creation through the facade is also available:
+The same preset-created runtime can parse SQL-like queries directly:
 
 ```java
 PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 ```
 
 ### Recipe: WHERE IN Subquery
@@ -413,10 +414,25 @@ List<Company> rows = PojoLensSql
 
 Current subquery scope:
 
-- only `WHERE ... IN (select oneField ...)`
-- subquery `SELECT` must contain exactly one simple field
+- only `WHERE ... IN (select oneColumn ...)`
+- subquery `SELECT` must contain exactly one explicit field
+- that field can be a simple field, grouped field alias, or aggregate output alias
 - subquery `FROM <source>` must resolve from provided join-source bindings
-- aggregate, grouped, and join subqueries are not supported yet
+- joined and correlated subqueries are not supported yet
+
+Grouped and aggregate subquery examples:
+
+```java
+List<DepartmentEmployee> groupedRows = PojoLensSql
+    .parse("where department in (select department as dept group by dept having count(*) > 1)")
+    .filter(source, DepartmentEmployee.class);
+```
+
+```java
+List<Employee> aggregateRows = PojoLensSql
+    .parse("where id in (select count(*) as total where active = true)")
+    .filter(source, Employee.class);
+```
 
 ### Recipe: Query Template with Parameter Schema
 
@@ -676,7 +692,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
 | `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
-| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Restrict subqueries to `WHERE field IN (select oneField ...)` and bind named `FROM` sources. |
+| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` subqueries; the output may be a field, grouped alias, or aggregate alias, and named `FROM` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
