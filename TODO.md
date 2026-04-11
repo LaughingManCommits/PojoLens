@@ -2,7 +2,8 @@
 
 ## CSV Adapter Follow-Up (2026-04-10)
 
-- Detailed package scopes now live in `SPIKE-CSV.md`.
+- Completed CSV spike detail has been retired; this section keeps the remaining
+  public backlog summary.
 - `CSV-WP1` `Done`: typed loader foundation is already in the repo via
   `PojoLensCsv` and `CsvOptions`.
 - `CSV-WP2` `Done`: multiline quoted-record hardening now handles BOM/CRLF,

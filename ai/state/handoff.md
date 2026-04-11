@@ -35,7 +35,7 @@
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
-- CSV: `SPIKE-CSV.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
+- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
 - benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`, `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CsvLoadJmhBenchmark.java`
-- orchestration: `SPIKE-AI-MULTI-AGENT.md`, `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`
+- orchestration: `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`
 - limitation spike: `SPIKE-LIMITATIONS.md`
