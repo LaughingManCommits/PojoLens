@@ -184,8 +184,21 @@ public class SqlLikeValidationTest {
                     .filter(employees, AggregationProjection.class);
             fail("Expected ORDER BY validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Unknown field 'salary'"));
-            assertTrue(ex.getMessage().contains("in ORDER BY clause"));
+            assertTrue(ex.getMessage().contains("Invalid aggregate ORDER BY reference 'salary'"));
+            assertTrue(ex.getMessage().contains("expected grouped field, aggregate output, or aggregate expression"));
+        }
+    }
+
+    @Test
+    public void aggregatedOrderByTypoShouldKeepUnknownFieldSuggestion() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("select department, count(*) as total group by department order by totl desc")
+                    .filter(employees, AggregationProjection.class);
+            fail("Expected ORDER BY validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field 'totl'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'total'?"));
         }
     }
 
@@ -315,6 +328,19 @@ public class SqlLikeValidationTest {
         assertEquals("Engineering", rows.get(0).dept);
         assertEquals(3L, rows.get(0).total);
         assertEquals("Finance", rows.get(1).dept);
+    }
+
+    @Test
+    public void aggregatedOrderByShouldRejectInvalidAggregateExpressionArgument() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("select department, count(*) as total group by department order by sum(missing) desc")
+                    .filter(employees, AggregationProjection.class);
+            fail("Expected ORDER BY validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field 'missing' in ORDER BY aggregate expression 'sum(missing)'"));
+            assertTrue(ex.getMessage().contains("Allowed source fields"));
+        }
     }
 
     @Test

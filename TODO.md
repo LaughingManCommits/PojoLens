@@ -1,6 +1,6 @@
 # TODO
 
-## Engine Limitation Follow-Up (2026-04-11)
+## Engine Limitation Follow-Up (2026-04-12)
 
 - `Done`: time-bucket source fields now support `Date`, `Instant`,
   `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`.
@@ -8,12 +8,14 @@
   support single-output simple fields, grouped aliases, and aggregate aliases.
 - `Done`: SQL-like aggregate windows now support explicit running, bounded
   trailing, and full-partition `ROWS` frames.
+- `Done`: aggregate `ORDER BY` diagnostics now distinguish invalid raw source
+  fields from unknown-field typos in aggregate query shapes.
 - `Still valid`: joined/correlated subqueries remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row
   frames, expression offsets, and grouped-query window execution.
 - `Next`: choose only one concrete remaining limitation when there is a
-  user-facing need: aggregate `ORDER BY` diagnostic polish, immutable fluent
-  prepared-wrapper design, or uncorrelated joined subqueries.
+  user-facing need: immutable fluent prepared-wrapper design or uncorrelated
+  joined subqueries.
 
 ## CSV Adapter Follow-Up (2026-04-10)
 

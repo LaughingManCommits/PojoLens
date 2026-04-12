@@ -17,6 +17,8 @@ Completed:
   output column produced from a simple field, grouped alias, or aggregate alias.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
+- Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
+  fields from unknown-field typos in aggregate query shapes.
 - SQL-like aggregate windows now support the bounded frame menu:
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`,
   `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`, and
@@ -100,7 +102,7 @@ Recommendation:
 - keep the current subquery boundary unless real `JoinBindings` use cases prove
   that uncorrelated joined subqueries are worth the added planner complexity
 
-### 3. Aggregate SQL-like ORDER BY (Mostly Resolved)
+### 3. Aggregate SQL-like ORDER BY (Resolved Boundary)
 
 Current behavior:
 
@@ -119,8 +121,10 @@ Why the remaining limit exists:
 Recommendation:
 
 - treat this as a semantic boundary, not an engine gap
-- polish wording or diagnostics if they drift, but do not add raw-field
-  aggregate ordering by default
+- diagnostics now call out invalid aggregate `ORDER BY` references when a raw
+  source field is known but not grouped or aggregated
+- typo cases still use the unknown-field suggestion path
+- do not add raw-field aggregate ordering by default
 
 ### 4. Aggregate Window Frames (Completed Narrow Widening)
 
@@ -179,9 +183,8 @@ Recommendation:
 
 ## Recommended Work Order
 
-1. Aggregate `ORDER BY` wording/diagnostic polish if docs or errors drift.
-2. Immutable fluent prepared-wrapper design only if real reuse demand appears.
-3. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
+1. Immutable fluent prepared-wrapper design only if real reuse demand appears.
+2. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
    prove the need.
 
 ## Non-Goals
@@ -207,6 +210,6 @@ explicitly pulled in later:
 ## Recommendation
 
 The next useful limitation work is not another broad syntax expansion by
-default. Aggregate `ORDER BY` diagnostics, an immutable fluent prepared-wrapper
-design, or uncorrelated joined subqueries are the remaining candidates, but each
-should start only from a concrete user-facing gap.
+default. An immutable fluent prepared-wrapper design or uncorrelated joined
+subqueries are the remaining candidates, but each should start only from a
+concrete user-facing gap.

@@ -11,7 +11,7 @@
 
 - The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- If engine follow-up resumes, bounded aggregate window frames are done; choose the next limitation only from a concrete user-facing gap.
+- If engine follow-up resumes, bounded aggregate window frames and aggregate `ORDER BY` diagnostics are done; choose the next limitation only from a concrete user-facing gap.
 
 ## Facts
 
@@ -25,6 +25,7 @@
 - `2026-04-11`: `README.md` now stays at feature-set/routing level; SQL-like subquery/runtime preset detail and fluent builder reuse guidance live in `docs/sql-like.md` and `docs/usecases.md`.
 - `2026-04-11`: public docs alignment passed `scripts/check-doc-consistency.ps1` and `SqlLikeDocsExamplesTest`.
 - `2026-04-12`: aggregate SQL-like/fluent windows now support running, `<n> PRECEDING`, and full-partition `ROWS` frames; module tests and docs consistency passed.
+- `2026-04-12`: aggregate `ORDER BY` validation now reports known raw source fields as invalid aggregate references while typos keep unknown-field suggestions.
 
 ## Validate
 

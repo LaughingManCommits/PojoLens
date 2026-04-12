@@ -816,10 +816,10 @@ Fix:
 ### Error Code EQ-SQL-VAL-006
 
 Meaning:
-- Aggregate query semantics are inconsistent, such as missing aggregates or non-grouped selected fields.
+- Aggregate query semantics are inconsistent, such as missing aggregates, non-grouped selected fields, or aggregate `ORDER BY` references that are not grouped fields, aggregate outputs, or aggregate expressions.
 
 Fix:
-- Ensure grouped queries include aggregates and that non-aggregated selected fields also appear in `GROUP BY`.
+- Ensure grouped queries include aggregates, non-aggregated selected fields appear in `GROUP BY`, and aggregate `ORDER BY` uses only grouped fields, aggregate aliases/names, or aggregate expressions such as `sum(salary)`.
 
 ### Error Code EQ-SQL-VAL-007
 

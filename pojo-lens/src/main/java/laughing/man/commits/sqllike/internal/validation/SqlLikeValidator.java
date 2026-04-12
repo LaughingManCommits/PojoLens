@@ -4,6 +4,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -16,6 +17,7 @@ import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
@@ -209,14 +211,74 @@ public final class SqlLikeValidator {
     }
 
     private static void validateOrders(QueryAst ast, Set<String> allowedFields, Set<String> sourceFields) {
+        boolean aggregateShape = ast.hasAggregation() || !ast.groupByFields().isEmpty();
         for (OrderAst order : ast.orders()) {
-            if ((ast.hasAggregation() || !ast.groupByFields().isEmpty())
-                    && AggregateExpressionSupport.parse(order.field()) != null) {
-                AggregateExpressionSupport.canonicalFromReference(order.field(), sourceFields);
+            if (aggregateShape) {
+                validateAggregateOrderReference(order.field(), allowedFields, sourceFields);
                 continue;
             }
             requireKnownField(order.field(), allowedFields, "ORDER BY");
         }
+    }
+
+    private static void validateAggregateOrderReference(String reference,
+                                                        Set<String> allowedFields,
+                                                        Set<String> sourceFields) {
+        if (allowedFields.contains(reference)) {
+            return;
+        }
+        ParsedAggregateExpression aggregateExpression = AggregateExpressionSupport.parse(reference);
+        if (aggregateExpression != null) {
+            validateAggregateOrderFunction(reference, aggregateExpression, sourceFields);
+            return;
+        }
+        if (SqlExpressionEvaluator.looksLikeExpression(reference)) {
+            validateAggregateOrderExpression(reference, allowedFields, sourceFields);
+            return;
+        }
+        if (sourceFields.contains(reference)) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    formatInvalidAggregateOrderReferenceMessage(reference, allowedFields));
+        }
+        requireKnownField(reference, allowedFields, "ORDER BY");
+    }
+
+    private static void validateAggregateOrderFunction(String reference,
+                                                       ParsedAggregateExpression aggregateExpression,
+                                                       Set<String> sourceFields) {
+        if (aggregateExpression.countAll()) {
+            if (aggregateExpression.metric() == Metric.COUNT) {
+                return;
+            }
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Invalid aggregate ORDER BY expression '" + reference + "': only COUNT(*) supports '*'");
+        }
+        if (sourceFields.contains(aggregateExpression.field())) {
+            return;
+        }
+        throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
+                formatUnknownAggregateOrderArgumentMessage(reference, aggregateExpression.field(), sourceFields));
+    }
+
+    private static void validateAggregateOrderExpression(String expression,
+                                                         Set<String> allowedFields,
+                                                         Set<String> sourceFields) {
+        Set<String> identifiers = collectExpressionIdentifiers(expression);
+        for (String identifier : identifiers) {
+            if (allowedFields.contains(identifier)) {
+                continue;
+            }
+            if (sourceFields.contains(identifier)) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        "Invalid aggregate ORDER BY expression '" + expression
+                                + "': expected grouped field, aggregate output, or aggregate expression");
+            }
+            throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
+                    formatUnknownFieldMessage(identifier, allowedFields, "ORDER BY"));
+        }
+        throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                "Invalid aggregate ORDER BY expression '" + expression
+                        + "': expected grouped field, aggregate output, or aggregate expression");
     }
 
     private static void validateHaving(QueryAst ast,
@@ -717,6 +779,34 @@ public final class SqlLikeValidator {
             }
         }
         message.append(" Allowed fields: ").append(new TreeSet<>(allowedFields));
+        return message.toString();
+    }
+
+    private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {
+        return "Invalid aggregate ORDER BY reference '"
+                + reference
+                + "': expected grouped field, aggregate output, or aggregate expression. Allowed fields: "
+                + new TreeSet<>(allowedFields);
+    }
+
+    private static String formatUnknownAggregateOrderArgumentMessage(String expression,
+                                                                    String argument,
+                                                                    Set<String> sourceFields) {
+        StringBuilder message = new StringBuilder()
+                .append("Unknown field '")
+                .append(argument)
+                .append("' in ORDER BY aggregate expression '")
+                .append(expression)
+                .append("'.");
+        List<String> suggestions = suggestFields(argument, sourceFields);
+        if (!suggestions.isEmpty()) {
+            if (suggestions.size() == 1) {
+                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
+            } else {
+                message.append(" Did you mean one of ").append(suggestions).append("?");
+            }
+        }
+        message.append(" Allowed source fields: ").append(new TreeSet<>(sourceFields));
         return message.toString();
     }
 
