@@ -8,6 +8,7 @@ import laughing.man.commits.enums.Sort;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.SchemaIndexUtil;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -123,55 +124,30 @@ final class FluentWindowSupport {
                                               List<Integer> partitionRows,
                                               int valueIndex,
                                               Object[] values) {
-        long runningCount = 0L;
-        long runningNonNullCount = 0L;
-        double runningSum = 0D;
-        boolean hasFraction = false;
-        boolean minPresent = false;
-        boolean maxPresent = false;
-        double minDouble = 0D;
-        double maxDouble = 0D;
-        Number minValue = null;
-        Number maxValue = null;
+        AggregateWindowAccumulator accumulator = new AggregateWindowAccumulator(rows, window, valueIndex);
+        if (window.frame().isFullPartition()) {
+            for (int rowIndex : partitionRows) {
+                accumulator.add(rowIndex);
+            }
+            Object frameValue = accumulator.value();
+            for (int rowIndex : partitionRows) {
+                values[rowIndex] = frameValue;
+            }
+            return;
+        }
 
-        for (int rowIndex : partitionRows) {
-            QueryRow row = rows.get(rowIndex);
-            if (window.countAll()) {
-                runningCount++;
-            } else {
-                Object raw = row == null ? null : row.getValueAt(valueIndex);
-                if (raw != null) {
-                    if (!(raw instanceof Number number)) {
-                        throw new IllegalArgumentException(
-                                "Window function " + window.function() + " requires numeric field: " + window.valueField());
-                    }
-                    double asDouble = number.doubleValue();
-                    runningNonNullCount++;
-                    runningSum += asDouble;
-                    if (number instanceof Float || number instanceof Double) {
-                        hasFraction = true;
-                    }
-                    if (!minPresent || asDouble < minDouble) {
-                        minPresent = true;
-                        minDouble = asDouble;
-                        minValue = number;
-                    }
-                    if (!maxPresent || asDouble > maxDouble) {
-                        maxPresent = true;
-                        maxDouble = asDouble;
-                        maxValue = number;
-                    }
+        int frameStartPosition = 0;
+        for (int position = 0; position < partitionRows.size(); position++) {
+            int rowIndex = partitionRows.get(position);
+            accumulator.add(rowIndex);
+            if (window.frame().boundedPreceding()) {
+                int firstAllowedPosition = position - window.frame().precedingRows();
+                while (frameStartPosition < firstAllowedPosition) {
+                    accumulator.remove();
+                    frameStartPosition++;
                 }
             }
-            values[rowIndex] = switch (window.function()) {
-                case COUNT -> window.countAll() ? runningCount : runningNonNullCount;
-                case SUM -> runningNonNullCount == 0 ? null : hasFraction ? runningSum : (long) runningSum;
-                case AVG -> runningNonNullCount == 0 ? null : runningSum / runningNonNullCount;
-                case MIN -> minPresent ? minValue : null;
-                case MAX -> maxPresent ? maxValue : null;
-                default -> throw new IllegalArgumentException(
-                        "Unsupported aggregate window function '" + window.function() + "'");
-            };
+            values[rowIndex] = accumulator.value();
         }
     }
 
@@ -299,5 +275,164 @@ final class FluentWindowSupport {
 
     private record PartitionKey(List<Object> values) {
         private static final PartitionKey EMPTY = new PartitionKey(List.of());
+    }
+
+    private static final class AggregateWindowAccumulator {
+        private final List<QueryRow> rows;
+        private final QueryWindow window;
+        private final int valueIndex;
+        private final boolean trackEntries;
+        private final ArrayDeque<FrameEntry> entries = new ArrayDeque<>();
+        private long rowCount;
+        private long nonNullCount;
+        private double sum;
+        private int fractionalCount;
+        private boolean minDirty;
+        private boolean maxDirty;
+        private Number minValue;
+        private double minDouble;
+        private Number maxValue;
+        private double maxDouble;
+
+        private AggregateWindowAccumulator(List<QueryRow> rows, QueryWindow window, int valueIndex) {
+            this.rows = rows;
+            this.window = window;
+            this.valueIndex = valueIndex;
+            this.trackEntries = window.frame().boundedPreceding();
+        }
+
+        private void add(int rowIndex) {
+            if (window.countAll()) {
+                rowCount++;
+                return;
+            }
+            QueryRow row = rows.get(rowIndex);
+            Object raw = row == null ? null : row.getValueAt(valueIndex);
+            if (raw == null) {
+                if (trackEntries) {
+                    entries.addLast(FrameEntry.nullValue());
+                }
+                return;
+            }
+            if (!(raw instanceof Number number)) {
+                throw new IllegalArgumentException(
+                        "Window function " + window.function() + " requires numeric field: " + window.valueField());
+            }
+            FrameEntry entry = FrameEntry.of(number);
+            if (trackEntries) {
+                entries.addLast(entry);
+            }
+            nonNullCount++;
+            sum += entry.asDouble();
+            if (entry.fractional()) {
+                fractionalCount++;
+            }
+            if (minValue == null || entry.asDouble() < minDouble) {
+                minValue = number;
+                minDouble = entry.asDouble();
+                minDirty = false;
+            }
+            if (maxValue == null || entry.asDouble() > maxDouble) {
+                maxValue = number;
+                maxDouble = entry.asDouble();
+                maxDirty = false;
+            }
+        }
+
+        private void remove() {
+            if (window.countAll()) {
+                rowCount--;
+                return;
+            }
+            FrameEntry entry = entries.removeFirst();
+            if (entry.number() == null) {
+                return;
+            }
+            nonNullCount--;
+            sum -= entry.asDouble();
+            if (entry.fractional()) {
+                fractionalCount--;
+            }
+            if (entry.number() == minValue) {
+                minDirty = true;
+            }
+            if (entry.number() == maxValue) {
+                maxDirty = true;
+            }
+        }
+
+        private Object value() {
+            return switch (window.function()) {
+                case COUNT -> window.countAll() ? rowCount : nonNullCount;
+                case SUM -> nonNullCount == 0 ? null : fractionalCount > 0 ? sum : (long) sum;
+                case AVG -> nonNullCount == 0 ? null : sum / nonNullCount;
+                case MIN -> min();
+                case MAX -> max();
+                default -> throw new IllegalArgumentException(
+                        "Unsupported aggregate window function '" + window.function() + "'");
+            };
+        }
+
+        private Number min() {
+            if (nonNullCount == 0) {
+                return null;
+            }
+            if (minDirty) {
+                recomputeMin();
+            }
+            return minValue;
+        }
+
+        private Number max() {
+            if (nonNullCount == 0) {
+                return null;
+            }
+            if (maxDirty) {
+                recomputeMax();
+            }
+            return maxValue;
+        }
+
+        private void recomputeMin() {
+            minValue = null;
+            for (FrameEntry entry : entries) {
+                if (entry.number() == null) {
+                    continue;
+                }
+                if (minValue == null || entry.asDouble() < minDouble) {
+                    minValue = entry.number();
+                    minDouble = entry.asDouble();
+                }
+            }
+            minDirty = false;
+        }
+
+        private void recomputeMax() {
+            maxValue = null;
+            for (FrameEntry entry : entries) {
+                if (entry.number() == null) {
+                    continue;
+                }
+                if (maxValue == null || entry.asDouble() > maxDouble) {
+                    maxValue = entry.number();
+                    maxDouble = entry.asDouble();
+                }
+            }
+            maxDirty = false;
+        }
+    }
+
+    private record FrameEntry(Number number, double asDouble, boolean fractional) {
+        private static FrameEntry nullValue() {
+            return new FrameEntry(null, 0D, false);
+        }
+
+        private static FrameEntry of(Number number) {
+            return new FrameEntry(
+                    number,
+                    number.doubleValue(),
+                    number instanceof Float || number instanceof Double
+            );
+        }
     }
 }

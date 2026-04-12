@@ -10,6 +10,7 @@ import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvLoadException;
@@ -105,6 +106,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryBuilder.class, "addCount", String.class);
         requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, List.class, List.class);
         requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class);
+        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class, QueryWindowFrame.class);
         requirePublicMethod(QueryBuilder.class, "addHaving", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addQualify", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addJoinBeans", String.class, List.class, String.class, Join.class);
@@ -119,6 +121,12 @@ public class StablePublicApiContractTest {
         requirePublicMethod(Filter.class, "stream", Class.class);
         requirePublicMethod(Filter.class, "chart", Class.class, ChartSpec.class);
         requirePublicMethod(Filter.class, "join");
+
+        requirePublicStaticMethod(QueryWindowFrame.class, "running");
+        requirePublicStaticMethod(QueryWindowFrame.class, "unboundedPrecedingToCurrentRow");
+        requirePublicStaticMethod(QueryWindowFrame.class, "rowsPrecedingToCurrentRow", int.class);
+        requirePublicStaticMethod(QueryWindowFrame.class, "fullPartition");
+        requirePublicMethod(QueryWindowFrame.class, "sqlExpression");
     }
 
     @Test

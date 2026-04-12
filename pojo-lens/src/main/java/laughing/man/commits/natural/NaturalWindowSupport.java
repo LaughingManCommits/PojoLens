@@ -1,5 +1,6 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.ast.OrderAst;
 
 import java.util.List;
@@ -14,6 +15,22 @@ public final class NaturalWindowSupport {
                                                 boolean countAll,
                                                 List<String> partitionFields,
                                                 List<OrderAst> orderFields) {
+        return renderWindowExpression(
+                function,
+                valueField,
+                countAll,
+                partitionFields,
+                orderFields,
+                QueryWindowFrame.running()
+        );
+    }
+
+    public static String renderWindowExpression(String function,
+                                                String valueField,
+                                                boolean countAll,
+                                                List<String> partitionFields,
+                                                List<OrderAst> orderFields,
+                                                QueryWindowFrame frame) {
         StringBuilder expression = new StringBuilder(function).append('(');
         if (isAggregateWindowFunction(function)) {
             expression.append(countAll ? "*" : valueField);
@@ -45,7 +62,7 @@ public final class NaturalWindowSupport {
             if (wroteSegment) {
                 expression.append(' ');
             }
-            expression.append("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW");
+            expression.append((frame == null ? QueryWindowFrame.running() : frame).sqlExpression());
         }
         expression.append(')');
         return expression.toString();

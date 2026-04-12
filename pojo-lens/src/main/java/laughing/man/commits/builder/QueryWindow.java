@@ -17,19 +17,22 @@ public final class QueryWindow {
     private final boolean countAll;
     private final List<String> partitionFields;
     private final List<QueryWindowOrder> orderFields;
+    private final QueryWindowFrame frame;
 
     private QueryWindow(String alias,
                         WindowFunction function,
                         String valueField,
                         boolean countAll,
                         List<String> partitionFields,
-                        List<QueryWindowOrder> orderFields) {
+                        List<QueryWindowOrder> orderFields,
+                        QueryWindowFrame frame) {
         this.alias = alias;
         this.function = function;
         this.valueField = valueField;
         this.countAll = countAll;
         this.partitionFields = List.copyOf(partitionFields);
         this.orderFields = List.copyOf(orderFields);
+        this.frame = frame;
     }
 
     public static QueryWindow of(String alias,
@@ -45,12 +48,23 @@ public final class QueryWindow {
                                  boolean countAll,
                                  List<String> partitionFields,
                                  List<QueryWindowOrder> orderFields) {
+        return of(alias, function, valueField, countAll, partitionFields, orderFields, QueryWindowFrame.running());
+    }
+
+    public static QueryWindow of(String alias,
+                                 WindowFunction function,
+                                 String valueField,
+                                 boolean countAll,
+                                 List<String> partitionFields,
+                                 List<QueryWindowOrder> orderFields,
+                                 QueryWindowFrame frame) {
         if (alias == null || StringUtil.isNull(alias.trim())) {
             throw new IllegalArgumentException("alias is required");
         }
         if (function == null) {
             throw new IllegalArgumentException("function is required");
         }
+        QueryWindowFrame normalizedFrame = frame == null ? QueryWindowFrame.running() : frame;
         String normalizedValueField = valueField == null || StringUtil.isNull(valueField.trim())
                 ? null
                 : valueField.trim();
@@ -91,7 +105,15 @@ public final class QueryWindow {
         if (normalizedOrders.isEmpty()) {
             throw new IllegalArgumentException("window ORDER BY fields are required");
         }
-        return new QueryWindow(alias.trim(), function, normalizedValueField, countAll, normalizedPartitions, normalizedOrders);
+        return new QueryWindow(
+                alias.trim(),
+                function,
+                normalizedValueField,
+                countAll,
+                normalizedPartitions,
+                normalizedOrders,
+                normalizedFrame
+        );
     }
 
     public String alias() {
@@ -116,5 +138,9 @@ public final class QueryWindow {
 
     public List<QueryWindowOrder> orderFields() {
         return orderFields;
+    }
+
+    public QueryWindowFrame frame() {
+        return frame;
     }
 }

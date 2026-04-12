@@ -198,8 +198,24 @@ public interface QueryBuilder {
                                    boolean countAll,
                                    List<String> partitionFields,
                                    List<QueryWindowOrder> orderFields) {
+        return addWindow(alias, function, valueField, countAll, partitionFields, orderFields, QueryWindowFrame.running());
+    }
+
+    /**
+     * Adds a window output with explicit value argument and ROWS frame metadata.
+     */
+    default QueryBuilder addWindow(String alias,
+                                   WindowFunction function,
+                                   String valueField,
+                                   boolean countAll,
+                                   List<String> partitionFields,
+                                   List<QueryWindowOrder> orderFields,
+                                   QueryWindowFrame frame) {
         if (countAll || valueField != null) {
             throw new UnsupportedOperationException("Window value arguments are not supported by this builder");
+        }
+        if (frame != null && !frame.isRunning()) {
+            throw new UnsupportedOperationException("Window frames are not supported by this builder");
         }
         return addWindow(alias, function, partitionFields, orderFields);
     }

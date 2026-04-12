@@ -252,7 +252,8 @@ public final class SqlLikeBinder {
                     field.windowValueField(),
                     field.windowCountAll(),
                     field.windowPartitionFields(),
-                    toWindowOrderFields(field.windowOrderFields())
+                    toWindowOrderFields(field.windowOrderFields()),
+                    field.windowFrame()
             );
         }
     }

@@ -434,6 +434,17 @@ public class FilterQueryBuilder implements QueryBuilder {
                                         boolean countAll,
                                         List<String> partitionFields,
                                         List<QueryWindowOrder> orderFields) {
+        return addWindow(alias, function, valueField, countAll, partitionFields, orderFields, QueryWindowFrame.running());
+    }
+
+    @Override
+    public FilterQueryBuilder addWindow(String alias,
+                                        WindowFunction function,
+                                        String valueField,
+                                        boolean countAll,
+                                        List<String> partitionFields,
+                                        List<QueryWindowOrder> orderFields,
+                                        QueryWindowFrame frame) {
         WindowFunction normalizedFunction = requireWindowFunction(function);
         String normalizedAlias = requireIdentifier(alias, "alias");
         ensureOutputAliasAvailable(normalizedAlias);
@@ -451,7 +462,8 @@ public class FilterQueryBuilder implements QueryBuilder {
                 normalizedValueField,
                 countAll,
                 partitionFields,
-                orderFields
+                orderFields,
+                frame
         );
         spec.getWindows().add(window);
         markExecutionPlanShapeChanged();
@@ -1217,7 +1229,8 @@ public class FilterQueryBuilder implements QueryBuilder {
                     ? ":value=*"
                     : window.valueField() == null ? "" : ":value=" + window.valueField())
                     + ":partition=" + window.partitionFields()
-                    + ":order=[" + orderFields + "]");
+                    + ":order=[" + orderFields + "]"
+                    + ":frame=" + window.frame().explainToken());
         }
         return entries;
     }

@@ -83,8 +83,11 @@ Rank windows:
 Aggregate windows:
 - `COUNT(field)`, `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 - `SUM/AVG/MIN/MAX` require numeric value fields
-- currently support one frame mode only:
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- require an explicit `ROWS` frame
+- supported frames:
+  - `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+  - `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
+  - `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 
 Unsupported window frame expressions fail fast with actionable parser errors.
 
@@ -137,7 +140,8 @@ Sort limitation:
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
-- Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- Aggregate windows currently support only explicit `ROWS` frames from the supported frame menu above.
+- `RANGE`, `GROUPS`, following-row frames, and expression-based frame offsets remain unsupported.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
 - `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
 - Time bucket input fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`.
@@ -233,6 +237,17 @@ List<DepartmentRunningTotal> rows = PojoLensSql
     .parse("select department as dept, name, salary, "
         + "sum(salary) over (partition by department order by salary desc "
         + "rows between unbounded preceding and current row) as runningTotal "
+        + "where active = true order by dept asc, runningTotal asc")
+    .filter(source, DepartmentRunningTotal.class);
+```
+
+### Recipe: Trailing Window (`ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`)
+
+```java
+List<DepartmentRunningTotal> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "sum(salary) over (partition by department order by salary desc "
+        + "rows between 2 preceding and current row) as runningTotal "
         + "where active = true order by dept asc, runningTotal asc")
     .filter(source, DepartmentRunningTotal.class);
 ```

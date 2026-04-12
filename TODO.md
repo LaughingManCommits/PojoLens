@@ -6,13 +6,14 @@
   `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`.
 - `Done`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries now
   support single-output simple fields, grouped aliases, and aggregate aliases.
+- `Done`: SQL-like aggregate windows now support explicit running, bounded
+  trailing, and full-partition `ROWS` frames.
 - `Still valid`: joined/correlated subqueries remain unsupported.
-- `Still valid`: aggregate windows currently support only
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- `Next`: bounded aggregate window frames, starting with
-  `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`.
-- `Optional`: aggregate `ORDER BY` wording/diagnostics and immutable fluent
-  prepared-wrapper design if demand appears.
+- `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row
+  frames, expression offsets, and grouped-query window execution.
+- `Next`: choose only one concrete remaining limitation when there is a
+  user-facing need: aggregate `ORDER BY` diagnostic polish, immutable fluent
+  prepared-wrapper design, or uncorrelated joined subqueries.
 
 ## CSV Adapter Follow-Up (2026-04-10)
 

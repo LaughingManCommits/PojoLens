@@ -2,6 +2,7 @@ package laughing.man.commits.fluent;
 
 import laughing.man.commits.PojoLensCore;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.builder.QueryWindowOrder;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -205,6 +206,49 @@ public class FluentWindowFunctionTest {
         assertNull(rows.get(5).runningAvg);
         assertNull(rows.get(5).runningMin);
         assertNull(rows.get(5).runningMax);
+    }
+
+    @Test
+    public void fluentAggregateWindowsShouldComputeBoundedPrecedingRows() {
+        QueryWindowFrame onePreceding = QueryWindowFrame.rowsPrecedingToCurrentRow(1);
+
+        List<WindowMetricProjection> rows = PojoLensCore.newQueryBuilder(sampleWindowMetricInputs())
+                .addWindow(
+                        "runningSum",
+                        WindowFunction.SUM,
+                        "amount",
+                        false,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC)),
+                        onePreceding
+                )
+                .addWindow(
+                        "runningCountAll",
+                        WindowFunction.COUNT,
+                        null,
+                        true,
+                        List.of("department"),
+                        List.of(QueryWindowOrder.of("seq", Sort.ASC)),
+                        onePreceding
+                )
+                .addOrder("department", 1)
+                .addOrder("seq", 2)
+                .initFilter()
+                .filter(Sort.ASC, WindowMetricProjection.class);
+
+        assertEquals(6, rows.size());
+        assertEquals(10L, rows.get(0).runningSum);
+        assertEquals(1L, rows.get(0).runningCountAll);
+        assertEquals(10L, rows.get(1).runningSum);
+        assertEquals(2L, rows.get(1).runningCountAll);
+        assertEquals(5L, rows.get(2).runningSum);
+        assertEquals(2L, rows.get(2).runningCountAll);
+        assertEquals(2L, rows.get(3).runningSum);
+        assertEquals(1L, rows.get(3).runningCountAll);
+        assertEquals(5L, rows.get(4).runningSum);
+        assertEquals(2L, rows.get(4).runningCountAll);
+        assertNull(rows.get(5).runningSum);
+        assertEquals(1L, rows.get(5).runningCountAll);
     }
 
     @Test

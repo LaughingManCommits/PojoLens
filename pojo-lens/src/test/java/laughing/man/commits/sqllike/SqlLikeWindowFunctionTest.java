@@ -250,6 +250,117 @@ public class SqlLikeWindowFunctionTest {
     }
 
     @Test
+    public void aggregateWindowsShouldComputeBoundedPrecedingRows() {
+        List<WindowMetricInput> source = sampleWindowMetricInputs();
+
+        List<WindowMetricProjection> rows = PojoLensSql.parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningSum, "
+                        + "count(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningCount, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningCountAll, "
+                        + "avg(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningAvg, "
+                        + "min(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningMin, "
+                        + "max(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningMax "
+                        + "order by department asc, seq asc")
+                .filter(source, WindowMetricProjection.class);
+
+        assertEquals(6, rows.size());
+
+        assertEquals(10L, rows.get(0).runningSum);
+        assertEquals(1L, rows.get(0).runningCount);
+        assertEquals(1L, rows.get(0).runningCountAll);
+        assertEquals(10D, rows.get(0).runningAvg);
+        assertEquals(10, rows.get(0).runningMin);
+        assertEquals(10, rows.get(0).runningMax);
+
+        assertEquals(10L, rows.get(1).runningSum);
+        assertEquals(1L, rows.get(1).runningCount);
+        assertEquals(2L, rows.get(1).runningCountAll);
+        assertEquals(10D, rows.get(1).runningAvg);
+        assertEquals(10, rows.get(1).runningMin);
+        assertEquals(10, rows.get(1).runningMax);
+
+        assertEquals(5L, rows.get(2).runningSum);
+        assertEquals(1L, rows.get(2).runningCount);
+        assertEquals(2L, rows.get(2).runningCountAll);
+        assertEquals(5D, rows.get(2).runningAvg);
+        assertEquals(5, rows.get(2).runningMin);
+        assertEquals(5, rows.get(2).runningMax);
+
+        assertEquals(2L, rows.get(3).runningSum);
+        assertEquals(1L, rows.get(3).runningCount);
+        assertEquals(1L, rows.get(3).runningCountAll);
+        assertEquals(2D, rows.get(3).runningAvg);
+        assertEquals(2, rows.get(3).runningMin);
+        assertEquals(2, rows.get(3).runningMax);
+
+        assertEquals(5L, rows.get(4).runningSum);
+        assertEquals(2L, rows.get(4).runningCount);
+        assertEquals(2L, rows.get(4).runningCountAll);
+        assertEquals(2.5D, rows.get(4).runningAvg);
+        assertEquals(2, rows.get(4).runningMin);
+        assertEquals(3, rows.get(4).runningMax);
+
+        assertNull(rows.get(5).runningSum);
+        assertEquals(0L, rows.get(5).runningCount);
+        assertEquals(1L, rows.get(5).runningCountAll);
+        assertNull(rows.get(5).runningAvg);
+        assertNull(rows.get(5).runningMin);
+        assertNull(rows.get(5).runningMax);
+    }
+
+    @Test
+    public void aggregateWindowsShouldComputeFullPartitionFrame() {
+        List<WindowMetricInput> source = sampleWindowMetricInputs();
+
+        List<WindowMetricProjection> rows = PojoLensSql.parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningSum, "
+                        + "count(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningCount, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningCountAll, "
+                        + "avg(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningAvg, "
+                        + "min(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningMin, "
+                        + "max(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningMax "
+                        + "order by department asc, seq asc")
+                .filter(source, WindowMetricProjection.class);
+
+        assertEquals(6, rows.size());
+
+        for (int i = 0; i < 3; i++) {
+            assertEquals(15L, rows.get(i).runningSum);
+            assertEquals(2L, rows.get(i).runningCount);
+            assertEquals(3L, rows.get(i).runningCountAll);
+            assertEquals(7.5D, rows.get(i).runningAvg);
+            assertEquals(5, rows.get(i).runningMin);
+            assertEquals(10, rows.get(i).runningMax);
+        }
+        for (int i = 3; i < 5; i++) {
+            assertEquals(5L, rows.get(i).runningSum);
+            assertEquals(2L, rows.get(i).runningCount);
+            assertEquals(2L, rows.get(i).runningCountAll);
+            assertEquals(2.5D, rows.get(i).runningAvg);
+            assertEquals(2, rows.get(i).runningMin);
+            assertEquals(3, rows.get(i).runningMax);
+        }
+        assertNull(rows.get(5).runningSum);
+        assertEquals(0L, rows.get(5).runningCount);
+        assertEquals(1L, rows.get(5).runningCountAll);
+        assertNull(rows.get(5).runningAvg);
+        assertNull(rows.get(5).runningMin);
+        assertNull(rows.get(5).runningMax);
+    }
+
+    @Test
     public void aggregateWindowShouldRejectUnsupportedFrameExpression() {
         List<WindowMetricInput> source = Arrays.asList(
                 new WindowMetricInput("A", 1, 10),
@@ -259,7 +370,7 @@ public class SqlLikeWindowFunctionTest {
         try {
             PojoLensSql.parse("select department, "
                             + "sum(amount) over (partition by department order by seq asc "
-                            + "rows between 1 preceding and current row) as runningSum")
+                            + "rows between current row and unbounded following) as runningSum")
                     .filter(source, WindowMetricProjection.class);
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {

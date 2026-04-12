@@ -202,7 +202,8 @@ final class NaturalQueryResolutionSupport {
                         resolvedWindowValueField,
                         resolvedWindowCountAll,
                         resolvedWindowPartitions,
-                        resolvedWindowOrders
+                        resolvedWindowOrders,
+                        field.windowFrame()
                 );
             } else if (field.computedField()) {
                 resolvedField = field.field();
@@ -220,7 +221,8 @@ final class NaturalQueryResolutionSupport {
                     resolvedWindowPartitions,
                     resolvedWindowOrders,
                     resolvedWindowValueField,
-                    resolvedWindowCountAll
+                    resolvedWindowCountAll,
+                    field.windowFrame()
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());

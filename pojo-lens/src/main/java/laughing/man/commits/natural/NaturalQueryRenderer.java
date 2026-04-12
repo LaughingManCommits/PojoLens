@@ -80,7 +80,8 @@ final class NaturalQueryRenderer {
                         field.windowValueField(),
                         field.windowCountAll(),
                         field.windowPartitionFields(),
-                        field.windowOrderFields()
+                        field.windowOrderFields(),
+                        field.windowFrame()
                 );
             } else {
                 rendered = field.field();

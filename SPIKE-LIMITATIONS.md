@@ -6,7 +6,7 @@ Which documented limitations are still real, which have already been reduced,
 and what should be fixed next without turning `pojo-lens` into a full SQL
 engine or a concurrency framework?
 
-## Current Scan (2026-04-11)
+## Current Scan (2026-04-12)
 
 Completed:
 
@@ -17,6 +17,10 @@ Completed:
   output column produced from a simple field, grouped alias, or aggregate alias.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
+- SQL-like aggregate windows now support the bounded frame menu:
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`,
+  `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`, and
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`.
 - Fluent builder execution isolation is documented through default
   `copyOnBuild(true)` and reusable `ReportDefinition.fluent(...)` guidance.
 
@@ -25,8 +29,8 @@ Still valid:
 - SQL-like subqueries are still intentionally bounded to uncorrelated,
   single-output `WHERE <field> IN (select ...)` shapes.
 - Joined and correlated subqueries are still unsupported.
-- SQL-like aggregate windows still support only
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- SQL-like aggregate windows still reject broad SQL frame families such as
+  `RANGE`, `GROUPS`, following-row frames, and expression-based offsets.
 - Window functions still run only in non-aggregate query shapes.
 - Mutable fluent builders are still configuration objects and are not safe for
   concurrent mutation.
@@ -118,17 +122,19 @@ Recommendation:
 - polish wording or diagnostics if they drift, but do not add raw-field
   aggregate ordering by default
 
-### 4. Aggregate Window Frames (Next Active Slice)
+### 4. Aggregate Window Frames (Completed Narrow Widening)
 
 Current behavior:
 
-- aggregate windows support only
+- aggregate windows support
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
-- parser/tests reject unsupported frames such as
-  `ROWS BETWEEN 1 PRECEDING AND CURRENT ROW`
+- aggregate windows support
+  `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
+- aggregate windows support
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 - window functions are still limited to non-aggregate query shapes
 
-Worth fixing next:
+Completed on 2026-04-12:
 
 1. `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
    - trailing windows
@@ -146,12 +152,13 @@ Keep out of scope initially:
 
 Implementation direction:
 
-- add an explicit frame model instead of encoding the current frame as parser
-  text only
-- keep frame parsing narrow and fail fast for unsupported shapes
-- extend fluent window execution only for the supported frame menu
-- update SQL-like parser/runtime/parity/docs tests together
-- add benchmark coverage only after semantics are stable
+- `QueryWindowFrame` now represents the supported frame menu
+- SQL-like parsing stays narrow and fails fast for unsupported shapes
+- fluent aggregate-window execution honors the supported frame menu
+- SQL-like parser/runtime and fluent tests cover running, bounded trailing, and
+  full-partition frames
+- add benchmark coverage only if future frame work changes performance-critical
+  execution paths
 
 ### 5. Fluent Builder Mutability (Valid, Optional Follow-Up)
 
@@ -172,10 +179,9 @@ Recommendation:
 
 ## Recommended Work Order
 
-1. Bounded aggregate window frames.
-2. Aggregate `ORDER BY` wording/diagnostic polish if docs or errors drift.
-3. Immutable fluent prepared-wrapper design only if real reuse demand appears.
-4. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
+1. Aggregate `ORDER BY` wording/diagnostic polish if docs or errors drift.
+2. Immutable fluent prepared-wrapper design only if real reuse demand appears.
+3. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
    prove the need.
 
 ## Non-Goals
@@ -200,8 +206,7 @@ explicitly pulled in later:
 
 ## Recommendation
 
-The next useful implementation slice is bounded aggregate window frames.
-
-Time-bucket input broadening and grouped/aggregate subquery widening are already
-done, so future limitation work should not start there unless a regression is
-found.
+The next useful limitation work is not another broad syntax expansion by
+default. Aggregate `ORDER BY` diagnostics, an immutable fluent prepared-wrapper
+design, or uncorrelated joined subqueries are the remaining candidates, but each
+should start only from a concrete user-facing gap.
