@@ -23,6 +23,8 @@ Supported operators in `WHERE`:
 - `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`
 - `CONTAINS`
 - `MATCHES`
+- `IN (select ...)`
+- `EXISTS (select ...)`, `NOT EXISTS (select ...)`
 
 ## HAVING Contract
 
@@ -135,9 +137,16 @@ Sort limitation:
 
 ## Current Limitations
 
-- SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.
-- Subqueries may use explicit `JOIN` clauses when the subquery `FROM` source and joined sources are provided through `JoinBindings`.
-- Correlated subqueries, `EXISTS`, scalar subqueries, and arbitrary nested SQL planning remain unsupported.
+- SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`
+  and `WHERE [NOT] EXISTS (select ...)` predicates.
+- `IN` subqueries must select exactly one explicit output field, grouped
+  alias, or aggregate alias.
+- `EXISTS` subqueries ignore selected output and may use `SELECT *` or
+  explicit `SELECT` fields.
+- Subqueries may use explicit `JOIN` clauses when the subquery `FROM` source
+  and joined sources are provided through `JoinBindings`.
+- Correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
+  remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
@@ -410,7 +419,7 @@ PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
 SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 ```
 
-### Recipe: WHERE IN Subquery
+### Recipe: WHERE IN and EXISTS Subqueries
 
 Self-source subquery:
 
@@ -420,11 +429,35 @@ List<Employee> rows = PojoLensSql
     .filter(source, Employee.class);
 ```
 
+Self-source existence gate:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where exists (select * where active = true)")
+    .filter(source, Employee.class);
+```
+
+Negated existence gate:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where not exists (select * where department = 'Missing')")
+    .filter(source, Employee.class);
+```
+
 Named source subquery using runtime join-source bindings:
 
 ```java
 List<Company> rows = PojoLensSql
     .parse("where id in (select companyId from employees where title = 'Engineer')")
+    .filter(companies, JoinBindings.of("employees", employees), Company.class);
+```
+
+Named source existence gate using runtime join-source bindings:
+
+```java
+List<Company> rows = PojoLensSql
+    .parse("where exists (select * from employees where title = 'Engineer')")
     .filter(companies, JoinBindings.of("employees", employees), Company.class);
 ```
 
@@ -444,12 +477,14 @@ List<Company> rows = PojoLensSql
 
 Current subquery scope:
 
-- only `WHERE ... IN (select oneColumn ...)`
-- subquery `SELECT` must contain exactly one explicit field
-- that field can be a simple field, grouped field alias, or aggregate output alias
+- `WHERE ... IN (select oneColumn ...)`
+- `WHERE EXISTS (select ...)` and `WHERE NOT EXISTS (select ...)`
+- `IN` subquery `SELECT` must contain exactly one explicit field
+- the `IN` field can be a simple field, grouped field alias, or aggregate output alias
+- `EXISTS` subquery `SELECT` output is ignored and may be wildcard or explicit
 - subquery `FROM <source>` must resolve from provided join-source bindings
 - subquery `JOIN` clauses may reference provided join-source bindings
-- correlated subqueries are not supported
+- correlated subqueries and scalar subqueries are not supported
 
 Grouped and aggregate subquery examples:
 
@@ -723,7 +758,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
 | `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
-| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` subqueries; the output may be a field, grouped alias, or aggregate alias, and named `FROM` / subquery `JOIN` sources must be bound. |
+| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |

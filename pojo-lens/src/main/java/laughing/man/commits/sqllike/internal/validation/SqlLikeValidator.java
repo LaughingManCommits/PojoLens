@@ -5,6 +5,7 @@ import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -200,6 +201,9 @@ public final class SqlLikeValidator {
         for (FilterAst filter : filters) {
             if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
                 validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                continue;
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "WHERE");
@@ -308,9 +312,9 @@ public final class SqlLikeValidator {
         ambiguous.retainAll(aggregateOutputs);
 
         for (FilterAst filter : having) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                        "Subqueries are only supported in WHERE IN (...) filters");
+                        "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             String reference = filter.field();
             if (ambiguous.contains(reference)) {
@@ -360,9 +364,9 @@ public final class SqlLikeValidator {
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                        "Subqueries are only supported in WHERE IN (...) filters");
+                        "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "QUALIFY");
@@ -374,6 +378,26 @@ public final class SqlLikeValidator {
                         formatUnknownFieldMessage(filter.field(), qualifyOutputs, "QUALIFY"));
             }
         }
+    }
+
+    private static void validateExistsSubquery(FilterAst filter,
+                                               ExistsSubqueryValueAst existsSubqueryValueAst,
+                                               Class<?> sourceClass,
+                                               Map<String, List<?>> joinSources,
+                                               ComputedFieldRegistry computedFieldRegistry) {
+        if (filter.clause() != Clauses.EQUAL) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "EXISTS subquery predicates are only supported as WHERE EXISTS/WHERE NOT EXISTS");
+        }
+        QueryAst subquery = existsSubqueryValueAst.query();
+        SelectAst select = subquery.select();
+        if (select == null) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "EXISTS subqueries require SELECT");
+        }
+        Class<?> subquerySourceClass = resolveSubquerySourceClass(sourceClass, joinSources, select);
+        validateForFilter(subquery, subquerySourceClass, QueryRow.class,
+                joinSources, false, computedFieldRegistry);
     }
 
     private static void validateInSubquery(FilterAst filter,

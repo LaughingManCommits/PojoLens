@@ -17,6 +17,10 @@ Completed:
   output column produced from a simple field, grouped alias, or aggregate alias.
   Subqueries may also use explicit `JOIN` clauses when the subquery `FROM`
   source and joined sources are provided through `JoinBindings`.
+- SQL-like `WHERE EXISTS (select ...)` and `WHERE NOT EXISTS (select ...)`
+  subqueries are now supported for bounded, uncorrelated existence checks.
+  `EXISTS` may use a self-source subquery or a named `FROM`/`JOIN` subquery
+  backed by the existing `JoinBindings` model.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -32,10 +36,11 @@ Completed:
 
 Still valid:
 
-- SQL-like subqueries are still intentionally bounded to uncorrelated,
-  single-output `WHERE <field> IN (select ...)` shapes.
-- Correlated subqueries, `EXISTS`, scalar subqueries, and arbitrary nested SQL
-  planning are still unsupported.
+- SQL-like subqueries are still intentionally bounded to uncorrelated
+  `WHERE <field> IN (select ...)` and `WHERE [NOT] EXISTS (select ...)`
+  shapes.
+- Correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
+  are still unsupported.
 - SQL-like aggregate windows still reject broad SQL frame families such as
   `RANGE`, `GROUPS`, following-row frames, and expression-based offsets.
 - Window functions still run only in non-aggregate query shapes.
@@ -84,9 +89,12 @@ Status:
 
 Current behavior:
 
-- only uncorrelated `WHERE field IN (select oneColumn ...)`
-- subquery `SELECT` must contain exactly one explicit output
-- that output may be a simple field, grouped alias, or aggregate alias
+- uncorrelated `WHERE field IN (select oneColumn ...)`
+- uncorrelated `WHERE EXISTS (select ...)` and
+  `WHERE NOT EXISTS (select ...)`
+- `IN` subquery `SELECT` must contain exactly one explicit output
+- that `IN` output may be a simple field, grouped alias, or aggregate alias
+- `EXISTS` ignores selected output and may use `SELECT *` or explicit fields
 - named subquery `FROM <source>` can read from provided join-source bindings
 - subquery `JOIN` clauses can read from provided join-source bindings
 - no correlated subqueries
@@ -96,18 +104,19 @@ Status:
 - `2026-04-11`: grouped/aggregate subquery widening landed and was live-tested
 - `2026-04-13`: uncorrelated joined subqueries landed for existing
   `JoinBindings` workflows
+- `2026-04-13`: bounded uncorrelated `EXISTS` / `NOT EXISTS` subqueries
+  landed for self-source, named-source, and joined-source checks
 
 Remaining valid limits:
 
 - correlated subqueries
-- broad `EXISTS` / scalar-subquery support
+- scalar subqueries
 - arbitrary nested SQL-engine semantics
 
 Recommendation:
 
-- keep the current uncorrelated, single-output boundary
-- do not add correlated, `EXISTS`, scalar, or arbitrary nested SQL semantics by
-  default
+- keep the current uncorrelated boundary
+- do not add correlated, scalar, or arbitrary nested SQL semantics by default
 
 ### 3. Aggregate SQL-like ORDER BY (Resolved Boundary)
 
@@ -224,5 +233,5 @@ These adjacent natural-query constraints have been reduced:
 ## Recommendation
 
 The next useful limitation work is not another broad syntax expansion by
-default. Treat the remaining correlated subquery, broad scalar/`EXISTS`, broad
+default. Treat the remaining correlated subquery, broad scalar, broad
 window-frame, and mutable-builder concurrency ideas as opt-in only.

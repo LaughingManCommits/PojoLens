@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -222,6 +223,12 @@ public final class SqlLikeJoinResolution {
             Object value = filter.value();
             if (value instanceof SubqueryValueAst subqueryValueAst) {
                 value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                value = new ExistsSubqueryValueAst(
+                        existsSubqueryValueAst.source(),
+                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                        existsSubqueryValueAst.negated()
+                );
             }
             resolved.add(new FilterAst(field, filter.clause(), value, filter.separator()));
         }
@@ -242,6 +249,12 @@ public final class SqlLikeJoinResolution {
             Object value = filter.value();
             if (value instanceof SubqueryValueAst subqueryValueAst) {
                 value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                value = new ExistsSubqueryValueAst(
+                        existsSubqueryValueAst.source(),
+                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                        existsSubqueryValueAst.negated()
+                );
             }
             return new FilterPredicateAst(new FilterAst(field, filter.clause(), value, filter.separator()));
         }

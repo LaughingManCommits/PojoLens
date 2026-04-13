@@ -9,6 +9,7 @@ import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -171,17 +172,17 @@ final class SqlLikePreparedExecutionSupport {
 
     private static boolean containsSubqueries(QueryAst ast) {
         for (FilterAst filter : ast.filters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
         for (FilterAst filter : ast.havingFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
@@ -195,10 +196,14 @@ final class SqlLikePreparedExecutionSupport {
             return false;
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
-            return predicateAst.filter().value() instanceof SubqueryValueAst;
+            return isSubqueryValue(predicateAst.filter().value());
         }
         FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
         return containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+    }
+
+    private static boolean isSubqueryValue(Object value) {
+        return value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst;
     }
 
     static final class ExecutionContext {

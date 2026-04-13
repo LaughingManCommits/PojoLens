@@ -4,6 +4,7 @@ import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
@@ -122,12 +123,7 @@ public final class SqlLikeParameterSupport {
 
     private static void collectParameterNames(List<FilterAst> filters, Set<String> names) {
         for (FilterAst filter : filters) {
-            Object value = filter.value();
-            if (value instanceof ParameterValueAst) {
-                names.add(((ParameterValueAst) value).name());
-            } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-                names.addAll(collectParameterNamesInternal(subqueryValueAst.query()));
-            }
+            collectParameterNames(filter.value(), names);
         }
     }
 
@@ -136,15 +132,22 @@ public final class SqlLikeParameterSupport {
             return;
         }
         if (expression instanceof FilterPredicateAst) {
-            Object value = ((FilterPredicateAst) expression).filter().value();
-            if (value instanceof ParameterValueAst) {
-                names.add(((ParameterValueAst) value).name());
-            }
+            collectParameterNames(((FilterPredicateAst) expression).filter().value(), names);
             return;
         }
         FilterBinaryAst binary = (FilterBinaryAst) expression;
         collectParameterNames(binary.left(), names);
         collectParameterNames(binary.right(), names);
+    }
+
+    private static void collectParameterNames(Object value, Set<String> names) {
+        if (value instanceof ParameterValueAst) {
+            names.add(((ParameterValueAst) value).name());
+        } else if (value instanceof SubqueryValueAst subqueryValueAst) {
+            names.addAll(collectParameterNamesInternal(subqueryValueAst.query()));
+        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            names.addAll(collectParameterNamesInternal(existsSubqueryValueAst.query()));
+        }
     }
 
     private static List<FilterAst> resolveFilters(List<FilterAst> filters, Map<String, Object> parameters) {
@@ -183,6 +186,12 @@ public final class SqlLikeParameterSupport {
             value = new SubqueryValueAst(
                     subqueryValueAst.source(),
                     bind(subqueryValueAst.query(), parameters)
+            );
+        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            value = new ExistsSubqueryValueAst(
+                    existsSubqueryValueAst.source(),
+                    bind(existsSubqueryValueAst.query(), parameters),
+                    existsSubqueryValueAst.negated()
             );
         }
         return new FilterAst(filter.field(), filter.clause(), value, filter.separator());

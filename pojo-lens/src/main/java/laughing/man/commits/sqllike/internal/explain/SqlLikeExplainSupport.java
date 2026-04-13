@@ -4,6 +4,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
@@ -135,11 +136,19 @@ public final class SqlLikeExplainSupport {
             } else if (value instanceof BoundParameterValue boundParameterValue) {
                 snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
             } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-                collectParameterSnapshots(subqueryValueAst.query().filters(), snapshot);
-                collectParameterSnapshots(subqueryValueAst.query().havingFilters(), snapshot);
-                collectPaginationParameterSnapshots(subqueryValueAst.query(), snapshot);
+                collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
             }
         }
+    }
+
+    private static void collectQueryParameterSnapshots(QueryAst ast,
+                                                       Map<String, Map<String, Object>> snapshot) {
+        collectParameterSnapshots(ast.filters(), snapshot);
+        collectParameterSnapshots(ast.havingFilters(), snapshot);
+        collectParameterSnapshots(ast.qualifyFilters(), snapshot);
+        collectPaginationParameterSnapshots(ast, snapshot);
     }
 
     private static void collectPaginationParameterSnapshots(QueryAst ast,

@@ -243,9 +243,13 @@ Migration guidance:
 - SQL-like validation is strict: unknown or `@Exclude` fields are rejected.
 - Current SQL-like support includes a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
 - Current SQL-like support includes `HAVING` for grouped/aggregated queries (`AND`/`OR`).
-- Current SQL-like supports uncorrelated single-column `WHERE ... IN (select ...)` subqueries, including grouped/aggregate output aliases and subquery `JOIN` clauses backed by `JoinBindings`.
+- Current SQL-like supports uncorrelated `WHERE ... IN (select ...)`
+  subqueries, including grouped/aggregate output aliases and subquery `JOIN`
+  clauses backed by `JoinBindings`.
+- Current SQL-like supports bounded uncorrelated `WHERE EXISTS (select ...)`
+  and `WHERE NOT EXISTS (select ...)` subqueries.
 - SQL-like chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the previous source explicitly.
-- Correlated, `EXISTS`, scalar, and broad nested SQL subquery plans are still unsupported.
+- Correlated, scalar, and broad nested SQL subquery plans are still unsupported.
 
 ## SQL-like Typed Bind-First Execution
 

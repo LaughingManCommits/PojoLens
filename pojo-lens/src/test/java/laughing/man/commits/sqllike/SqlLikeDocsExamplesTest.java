@@ -374,11 +374,23 @@ public class SqlLikeDocsExamplesTest {
         assertEquals(Arrays.asList("Alice", "Cara"),
                 selfSourceRows.stream().map(r -> r.name).collect(Collectors.toList()));
 
+        List<Employee> existsRows = PojoLensSql.parse("where exists (select * where active = true)")
+                .filter(source, Employee.class);
+        assertEquals(source.size(), existsRows.size());
+
+        List<Employee> notExistsRows = PojoLensSql.parse("where not exists (select * where department = 'Missing')")
+                .filter(source, Employee.class);
+        assertEquals(source.size(), notExistsRows.size());
+
         List<Company> companies = sampleCompanies();
         List<Company> namedSourceRows = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                 .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
         assertEquals(1, namedSourceRows.size());
         assertEquals("Acme", namedSourceRows.get(0).name);
+
+        List<Company> namedExistsRows = PojoLensSql.parse("where exists (select * from employees where title = 'Engineer')")
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+        assertEquals(companies.size(), namedExistsRows.size());
 
         JoinBindings joinBindings = JoinBindings.builder()
                 .add("employees", sampleCompanyEmployees())

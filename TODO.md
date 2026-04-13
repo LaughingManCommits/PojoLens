@@ -8,6 +8,9 @@
   support single-output simple fields, grouped aliases, and aggregate aliases.
 - `Done`: SQL-like uncorrelated joined subqueries now use existing
   `JoinBindings` for the subquery `FROM` source and joined sources.
+- `Done`: SQL-like uncorrelated `WHERE EXISTS (select ...)` and
+  `WHERE NOT EXISTS (select ...)` subqueries now support self-source,
+  named-source, and joined-source existence checks.
 - `Done`: SQL-like aggregate windows now support explicit running, bounded
   trailing, and full-partition `ROWS` frames.
 - `Done`: aggregate `ORDER BY` diagnostics now distinguish invalid raw source
@@ -24,8 +27,8 @@
 - `Done`: natural execution reuses resolved delegates by execution shape, and
   joined natural schema metadata can resolve vocabulary through dataset or
   join-binding schema overloads.
-- `Still valid`: correlated subqueries, `EXISTS`, scalar subqueries, and broad
-  nested SQL planning remain unsupported.
+- `Still valid`: correlated subqueries, scalar subqueries, and broad nested SQL
+  planning remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row
   frames, expression offsets, and grouped-query window execution.
 - `Next`: choose another limitation slice only from concrete demand; avoid

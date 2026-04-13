@@ -405,7 +405,8 @@ public class SqlLikeValidationTest {
                     .filter(employees, AggregationProjection.class);
             fail("Expected HAVING subquery validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Subqueries are only supported in WHERE IN (...) filters"));
+            assertTrue(ex.getMessage().contains(
+                    "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters"));
         }
     }
 
@@ -416,6 +417,18 @@ public class SqlLikeValidationTest {
             PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                     .filter(companies, JoinBindings.empty(), Company.class);
             fail("Expected missing subquery source binding error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
+        }
+    }
+
+    @Test
+    public void existsSubquerySourceShouldRequireJoinSourceBinding() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("where exists (select * from employees where title = 'Engineer')")
+                    .filter(companies, JoinBindings.empty(), Company.class);
+            fail("Expected missing EXISTS subquery source binding error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
         }

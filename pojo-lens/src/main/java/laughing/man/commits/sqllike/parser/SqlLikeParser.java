@@ -7,6 +7,7 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -40,10 +41,11 @@ public final class SqlLikeParser {
     private static final int MAX_ORDER_FIELDS = 20;
     private static final int MAX_SELECT_FIELDS = 100;
     private static final int MAX_GROUP_FIELDS = 20;
+    private static final String EXISTS_PSEUDO_FIELD = "__pojo_lens_exists";
     private static final Set<String> KEYWORDS = Set.of(
             "SELECT", "FROM", "WHERE", "ORDER", "BY", "LIMIT", "OFFSET", "ASC", "DESC",
             "AND", "OR", "TRUE", "FALSE", "NULL", "CONTAINS", "MATCHES", "IN", "AS",
-            "GROUP", "HAVING", "QUALIFY", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
+            "NOT", "EXISTS", "GROUP", "HAVING", "QUALIFY", "LEFT", "RIGHT", "INNER", "ON", "JOIN",
             "COUNT", "SUM", "AVG", "MIN", "MAX", "BUCKET",
             "OVER", "PARTITION", "ROWS", "BETWEEN", "UNBOUNDED", "PRECEDING",
             "CURRENT", "ROW", "RANGE", "GROUPS", "FOLLOWING"
@@ -725,12 +727,28 @@ public final class SqlLikeParser {
                     peek().position);
         }
         clausePredicateCount++;
+        if (!allowAggregateReference && "WHERE".equals(clauseName)) {
+            if (isKeyword(peek(), "EXISTS")) {
+                return parseExistsCondition(false);
+            }
+            if (isKeyword(peek(), "NOT")
+                    && index + 1 < tokens.size()
+                    && isKeyword(tokens.get(index + 1), "EXISTS")) {
+                next();
+                return parseExistsCondition(true);
+            }
+        }
         String field = allowAggregateReference
                 ? parseConditionReferenceInHaving(clauseName)
                 : parseConditionReference(clauseName);
         Clauses clause = parseClause();
         Object value = parseValue(clause, clauseName);
         return new FilterAst(field, clause, value, null);
+    }
+
+    private FilterAst parseExistsCondition(boolean negated) {
+        Object value = parseExistsValue(negated);
+        return new FilterAst(EXISTS_PSEUDO_FIELD, Clauses.EQUAL, value, null);
     }
 
     private String parseConditionReference(String clauseName) {
@@ -1022,6 +1040,40 @@ public final class SqlLikeParser {
         QueryAst subquery = SqlLikeParser.parse(subquerySource);
         expect(TokenType.RIGHT_PAREN, "Expected ')' to close IN subquery");
         return new SubqueryValueAst(subquerySource, subquery);
+    }
+
+    private Object parseExistsValue(boolean negated) {
+        expectKeyword("EXISTS");
+        if (!match(TokenType.LEFT_PAREN)) {
+            throw error("Expected '(' after EXISTS", peek().position);
+        }
+        if (!isKeyword(peek(), "SELECT")) {
+            throw error("EXISTS requires a subquery starting with SELECT", peek().position);
+        }
+
+        int start = index;
+        int depth = 1;
+        while (depth > 0) {
+            Token token = peek();
+            if (token.type == TokenType.EOF) {
+                throw error("Expected ')' to close EXISTS subquery", token.position);
+            }
+            if (token.type == TokenType.LEFT_PAREN) {
+                depth++;
+            } else if (token.type == TokenType.RIGHT_PAREN) {
+                depth--;
+                if (depth == 0) {
+                    break;
+                }
+            }
+            next();
+        }
+
+        int end = index;
+        String subquerySource = buildExpressionText(start, end);
+        QueryAst subquery = SqlLikeParser.parse(subquerySource);
+        expect(TokenType.RIGHT_PAREN, "Expected ')' to close EXISTS subquery");
+        return new ExistsSubqueryValueAst(subquerySource, subquery, negated);
     }
 
     private Number parseNumber(Token token) {

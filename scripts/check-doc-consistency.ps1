@@ -55,15 +55,20 @@ Forbid-Pattern $contributing "CONTRIBUTING.md" 'pojo-lens-\d+\.\d+\.\d+-benchmar
 Forbid-Pattern $release "RELEASE.md" 'Release\s+\d+\.\d+\.\d+|v\d+\.\d+\.\d+' $errors
 
 # SQL-like capability drift checks.
-Require-Pattern $migration "MIGRATION.md" 'supports uncorrelated single-column .*IN \(select .*subqueries' $errors
+Require-Pattern $migration "MIGRATION.md" 'supports uncorrelated .*WHERE \.\.\. IN \(select \.\.\.\).*subqueries' $errors
+Require-Pattern $migration "MIGRATION.md" 'supports bounded uncorrelated .*EXISTS \(select' $errors
 Require-Pattern $migration "MIGRATION.md" 'chained joins are supported' $errors
-Require-Pattern $release "RELEASE.md" 'supports uncorrelated single-column .*IN \(select .*subqueries' $errors
+Require-Pattern $release "RELEASE.md" 'supports uncorrelated\s+`WHERE \.\.\. IN \(select \.\.\.\)` subqueries' $errors
+Require-Pattern $release "RELEASE.md" 'bounded uncorrelated\s+`WHERE \[NOT\] EXISTS \(select \.\.\.\)` subqueries' $errors
 Require-Pattern $release "RELEASE.md" 'chained joins are supported' $errors
 Forbid-Pattern $migration "MIGRATION.md" 'does not support subqueries or multi-join SQL plans' $errors
+Forbid-Pattern $migration "MIGRATION.md" '`EXISTS`, scalar, and broad nested SQL subquery plans are still unsupported' $errors
 Forbid-Pattern $release "RELEASE.md" 'unsupported:\s*subqueries,\s*multi-join SQL plans' $errors
+Forbid-Pattern $release "RELEASE.md" 'correlated, `EXISTS`, scalar, and broad nested SQL subqueries remain unsupported' $errors
 
 # Source docs still define the canonical behavior.
-Require-Substring $sqlLike "docs/sql-like.md" 'SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.' $errors
+Require-Substring $sqlLike "docs/sql-like.md" 'SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`' $errors
+Require-Substring $sqlLike "docs/sql-like.md" 'and `WHERE [NOT] EXISTS (select ...)` predicates.' $errors
 Require-Substring $sqlLike "docs/sql-like.md" 'chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly' $errors
 
 # Benchmark guide and suite should still cover the guarded benchmark path.

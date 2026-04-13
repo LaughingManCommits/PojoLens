@@ -2,6 +2,7 @@ package laughing.man.commits.sqllike.internal.lint;
 
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
@@ -60,6 +61,12 @@ public final class SqlLikeLintSupport {
             if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
                 if (hasInlineStringLiteral(subqueryValueAst.query().filters())
                         || hasInlineStringLiteral(subqueryValueAst.query().havingFilters())) {
+                    return true;
+                }
+            }
+            if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                if (hasInlineStringLiteral(existsSubqueryValueAst.query().filters())
+                        || hasInlineStringLiteral(existsSubqueryValueAst.query().havingFilters())) {
                     return true;
                 }
             }

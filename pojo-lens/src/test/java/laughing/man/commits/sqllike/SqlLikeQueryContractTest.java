@@ -355,6 +355,86 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void whereExistsSubqueryShouldFilterAllRowsWhenSelfSourceHasMatch() {
+        List<Employee> employees = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where exists (select * where active = true)")
+                .filter(employees, Employee.class);
+
+        assertEquals(employees.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldFilterNoRowsWhenSelfSourceHasNoMatch() {
+        List<Employee> results = PojoLensSql.parse("where exists (select * where department = 'Missing')")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(0, results.size());
+    }
+
+    @Test
+    public void whereNotExistsSubqueryShouldInvertResult() {
+        List<Employee> employees = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where not exists (select * where department = 'Missing')")
+                .filter(employees, Employee.class);
+
+        assertEquals(employees.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldCombineWithBooleanExpressions() {
+        List<Employee> results = PojoLensSql.parse(
+                        "where exists (select * where department = 'Missing') or department = 'Finance'")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(1, results.size());
+        assertEquals("Finance", results.get(0).department);
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldSupportNamedJoinSource() {
+        List<Company> companies = sampleCompanies();
+
+        List<Company> results = PojoLensSql.parse("where exists (select * from employees where title = 'Engineer')")
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+
+        assertEquals(companies.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldSupportUncorrelatedJoinedSource() {
+        List<CustomerOrder> orders = Arrays.asList(
+                new CustomerOrder(100, "Ada"),
+                new CustomerOrder(101, "Ben"),
+                new CustomerOrder(102, "Cara")
+        );
+
+        List<CustomerOrder> results = PojoLensSql.parse("where exists "
+                        + "(select * from lines join products on productId = id where category = 'Book')")
+                .filter(orders, sampleOrderJoinBindings(), CustomerOrder.class);
+
+        assertEquals(orders.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldRebindToCurrentRows() {
+        SqlLikeQuery query = PojoLensSql.parse("where exists (select * where department = 'Engineering')");
+
+        List<Employee> first = query.filter(
+                Collections.singletonList(new Employee(1, "Bob", "Finance", 90000, new Date(), true)),
+                Employee.class
+        );
+        List<Employee> second = query.filter(
+                Collections.singletonList(new Employee(2, "Alice", "Engineering", 120000, new Date(), true)),
+                Employee.class
+        );
+
+        assertEquals(0, first.size());
+        assertEquals(1, second.size());
+    }
+
+    @Test
     public void repeatedBeanBackedStatsExecutionsShouldRebindToCurrentRows() {
         List<DepartmentEmployee> firstRows = Arrays.asList(
                 new DepartmentEmployee("Engineering"),
