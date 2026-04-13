@@ -19,6 +19,8 @@ Completed:
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
   fields from unknown-field typos in aggregate query shapes.
+- `PojoLensCore.prepare(...)` now exposes a fluent-only immutable prepared query
+  definition for reusable code-owned builder recipes.
 - SQL-like aggregate windows now support the bounded frame menu:
   `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`,
   `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`, and
@@ -164,7 +166,7 @@ Implementation direction:
 - add benchmark coverage only if future frame work changes performance-critical
   execution paths
 
-### 5. Fluent Builder Mutability (Valid, Optional Follow-Up)
+### 5. Fluent Builder Mutability (Prepared Wrapper Added)
 
 Current behavior:
 
@@ -173,18 +175,22 @@ Current behavior:
 - `copyOnBuild(true)` snapshots execution state and is enabled by default
 - `ReportDefinition.fluent(...)` already provides a reusable business-query
   contract that builds a fresh builder per execution
+- `PojoLensCore.prepare(...)` returns a `FluentQueryDefinition<T>` that stores
+  the fluent builder recipe, rebuilds a fresh builder per execution, exposes
+  `schema()`/`explain()`, and can promote to `ReportDefinition<T>`
 
 Recommendation:
 
 - keep the mutable builder lightweight
-- only add a first-class immutable fluent template/prepared-query wrapper if
-  repeated fluent authoring demand justifies another public type
+- use `PojoLensCore.prepare(...)` when the reusable object should remain
+  fluent-only
+- use `ReportDefinition.fluent(...)` when the reusable object should be the
+  general row/chart business-query contract
 - do not make the mutable builder synchronized by default
 
 ## Recommended Work Order
 
-1. Immutable fluent prepared-wrapper design only if real reuse demand appears.
-2. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
+1. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
    prove the need.
 
 ## Non-Goals
@@ -210,6 +216,5 @@ explicitly pulled in later:
 ## Recommendation
 
 The next useful limitation work is not another broad syntax expansion by
-default. An immutable fluent prepared-wrapper design or uncorrelated joined
-subqueries are the remaining candidates, but each should start only from a
-concrete user-facing gap.
+default. Uncorrelated joined subqueries are the remaining candidate, but that
+slice should start only from concrete `JoinBindings` demand.

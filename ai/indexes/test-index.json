@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T19:38:22.071032+02:00",
+  "generatedAt": "2026-04-13T09:36:54.520314+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 114,
-    "testClasses": 114
+    "testJavaFiles": 115,
+    "testClasses": 115
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 102
+      "testJavaFiles": 103
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -109,6 +109,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/filter/QueryRowAdapterSupportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/AggregationFluentTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/AggregationGroupByFluentTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentQueryDefinitionTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentSqlLikeParityTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentWindowFunctionTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java",

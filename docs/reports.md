@@ -87,6 +87,33 @@ ChartData chart = report.chart(bundle);
 
 ## Fluent Report Definition
 
+Use `PojoLensCore.prepare(...)` when the reusable object should remain
+fluent-only while exposing `rows(...)`, `schema()`, and `explain()`:
+
+```java
+FluentQueryDefinition<DepartmentCount> prepared = PojoLensCore.prepare(
+    DepartmentCount.class,
+    builder -> builder
+        .addRule("active", true, Clauses.EQUAL)
+        .addGroup("department")
+        .addCount("total")
+        .addOrder("department", 1));
+
+List<DepartmentCount> rows = prepared.rows(snapshotA);
+TabularSchema schema = prepared.schema();
+```
+
+Promote it when the same fluent definition should become the general row/chart
+report contract:
+
+```java
+ReportDefinition<DepartmentCount> report = prepared.reportDefinition(
+    ChartSpec.of(ChartType.BAR, "department", "total"));
+```
+
+Use `ReportDefinition.fluent(...)` directly when the reusable business contract
+should start as a report definition:
+
 ```java
 ReportDefinition<DepartmentCount> report = ReportDefinition.fluent(
     DepartmentCount.class,

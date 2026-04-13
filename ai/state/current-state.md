@@ -10,7 +10,7 @@
 - No repo-wide release work is pending.
 - `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
 - AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
-- `2026-04-12`: grouped/aggregate subquery widening, time-bucket input broadening, bounded aggregate window frames, and aggregate `ORDER BY` diagnostic polish are done.
+- `2026-04-13`: grouped/aggregate subquery widening, time-bucket input broadening, bounded aggregate window frames, aggregate `ORDER BY` diagnostic polish, and immutable fluent prepared definitions are done.
 
 ## Verified
 
@@ -25,6 +25,7 @@
 - `2026-04-11`: docs consistency and `SqlLikeDocsExamplesTest` passed after the public docs alignment.
 - `2026-04-12`: aggregate SQL-like/fluent windows now support running, `<n> PRECEDING`, and full-partition `ROWS` frames; module tests and docs consistency passed.
 - `2026-04-12`: aggregate `ORDER BY` validation now reports known raw source fields as invalid aggregate references while typos keep unknown-field suggestions.
+- `2026-04-13`: `PojoLensCore.prepare(...)` now returns immutable `FluentQueryDefinition<T>` for reusable fluent builder recipes with rows/schema/explain and `ReportDefinition` promotion.
 
 ## Release
 
@@ -39,4 +40,4 @@
 
 - Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: remaining candidates are immutable fluent prepared-wrapper design or uncorrelated joined subqueries if demand appears.
+- Limitations: uncorrelated joined subqueries are the only remaining spike candidate, and only if concrete `JoinBindings` demand appears.

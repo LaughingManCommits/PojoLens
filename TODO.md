@@ -10,12 +10,13 @@
   trailing, and full-partition `ROWS` frames.
 - `Done`: aggregate `ORDER BY` diagnostics now distinguish invalid raw source
   fields from unknown-field typos in aggregate query shapes.
+- `Done`: `PojoLensCore.prepare(...)` now exposes a fluent-only immutable
+  prepared query definition for reusable code-owned builder recipes.
 - `Still valid`: joined/correlated subqueries remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row
   frames, expression offsets, and grouped-query window execution.
-- `Next`: choose only one concrete remaining limitation when there is a
-  user-facing need: immutable fluent prepared-wrapper design or uncorrelated
-  joined subqueries.
+- `Next`: choose uncorrelated joined subqueries only if concrete
+  `JoinBindings` demand appears.
 
 ## CSV Adapter Follow-Up (2026-04-10)
 

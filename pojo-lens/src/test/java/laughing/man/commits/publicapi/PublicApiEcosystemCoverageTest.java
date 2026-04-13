@@ -14,6 +14,7 @@ import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.report.ReportDefinition;
@@ -261,6 +262,14 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         );
         assertEquals(2, fluentReport.rows(sampleEmployees()).size());
         assertEquals("fluent", fluentReport.source());
+
+        FluentQueryDefinition<StatsRow> fluentDefinition = PojoLensCore.prepare(
+                StatsRow.class,
+                builder -> builder.addGroup("department").addCount("total")
+        );
+        assertEquals(2, fluentDefinition.rows(sampleEmployees()).size());
+        assertEquals(List.of("department", "total"), fluentDefinition.schema().names());
+        assertEquals("fluent", fluentDefinition.reportDefinition().source());
     }
 
     @Test

@@ -9,6 +9,7 @@ import laughing.man.commits.PojoLensChart;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartSpec;
@@ -43,6 +44,7 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,6 +56,7 @@ public class StablePublicApiContractTest {
     @Test
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
         requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
+        requirePublicStaticMethod(PojoLensCore.class, "prepare", Class.class, Consumer.class);
         requirePublicStaticMethod(PojoLensNatural.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensNatural.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
@@ -121,6 +124,15 @@ public class StablePublicApiContractTest {
         requirePublicMethod(Filter.class, "stream", Class.class);
         requirePublicMethod(Filter.class, "chart", Class.class, ChartSpec.class);
         requirePublicMethod(Filter.class, "join");
+
+        requirePublicStaticMethod(FluentQueryDefinition.class, "of", Class.class, Consumer.class);
+        requirePublicMethod(FluentQueryDefinition.class, "source");
+        requirePublicMethod(FluentQueryDefinition.class, "projectionClass");
+        requirePublicMethod(FluentQueryDefinition.class, "schema");
+        requirePublicMethod(FluentQueryDefinition.class, "explain");
+        requirePublicMethod(FluentQueryDefinition.class, "rows", List.class);
+        requirePublicMethod(FluentQueryDefinition.class, "reportDefinition");
+        requirePublicMethod(FluentQueryDefinition.class, "reportDefinition", ChartSpec.class);
 
         requirePublicStaticMethod(QueryWindowFrame.class, "running");
         requirePublicStaticMethod(QueryWindowFrame.class, "unboundedPrecedingToCurrentRow");

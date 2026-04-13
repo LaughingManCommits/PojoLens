@@ -51,6 +51,7 @@ The default first-read story stays centered on the core engine:
 ### Entry Points
 
 - `PojoLensCore.newQueryBuilder(List<?>)`
+- `PojoLensCore.prepare(Class<T>, Consumer<QueryBuilder>)`
 - `PojoLensNatural.parse(String)`
 - `PojoLensNatural.template(String, String...)`
 - `PojoLensSql.parse(String)`
@@ -79,6 +80,8 @@ The default first-read story stays centered on the core engine:
   - `addHaving`, `addQualify`, `addJoinBeans`
   - `limit`, `offset`
   - `initFilter`, `explain`, `schema`
+- `FluentQueryDefinition<T>`:
+  - `of`, `rows`, `schema`, `explain`, `reportDefinition`
 - `Filter`:
   - `filter`, `iterator`, `stream`, `chart`, `join`
 

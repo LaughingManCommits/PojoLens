@@ -36,7 +36,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 
 | Surface | Family | Positioning | Primary contracts | Current classification | Primary docs |
 | --- | --- | --- | --- | --- | --- |
-| Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
+| Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `FluentQueryDefinition`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
 | Plain-English querying | `Core query engine` | First-class guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalTemplate`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
 | SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
@@ -68,6 +68,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered
   on top of query execution, not separate product pillars.
 - `ReportDefinition` is the general reusable execution wrapper.
+  `FluentQueryDefinition` is the fluent-only immutable prepared query shape for
+  reusable code-owned builder recipes.
   `ChartQueryPreset` and `StatsViewPreset` are specialized convenience wrappers
   built for chart-first and table-first flows.
 - Raw map-shaped join execution is no longer public surface. Convert once with

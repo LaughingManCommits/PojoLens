@@ -92,8 +92,11 @@ Builder reuse:
 - Configure once, then call `initFilter()`.
 - Keep the default `copyOnBuild(true)` behavior when a configured builder is
   reused across executions or threads.
+- Use `PojoLensCore.prepare(...)` when the reusable object should stay
+  fluent-only but immutable and expose `rows(...)`, `schema()`, and `explain()`.
 - Use `ReportDefinition.fluent(...)` when the reusable object should be a stable
-  business-query contract instead of a mutable builder.
+  business-query contract with row/chart workflow methods instead of a mutable
+  builder.
 
 ### Scenario 2: Admin-Configurable Queries
 

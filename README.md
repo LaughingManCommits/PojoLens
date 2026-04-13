@@ -92,6 +92,7 @@ For new code, prefer one default path per job:
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
+| A reusable fluent query shape                             | `PojoLensCore.prepare(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/reusable-wrappers.md](docs/reusable-wrappers.md)   |
 | Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
 | Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
