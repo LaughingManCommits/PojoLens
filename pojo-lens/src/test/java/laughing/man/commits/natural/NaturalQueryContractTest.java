@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -224,6 +225,28 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void shouldExecuteNaturalAggregateWindowFramePhrases() {
+        List<NaturalWindowFrameRow> rows = PojoLensNatural
+                .parse("show department, seq, "
+                        + "running sum of amount per department order by seq ascending for last 1 row as trailing sum, "
+                        + "running sum of amount within each department order by seq ascending for all rows as full sum "
+                        + "sort by department ascending, seq ascending")
+                .filter(sampleWindowMetricInputs(), NaturalWindowFrameRow.class);
+
+        assertEquals(6, rows.size());
+        assertEquals(10L, rows.get(0).trailingSum);
+        assertEquals(15L, rows.get(0).fullSum);
+        assertEquals(10L, rows.get(1).trailingSum);
+        assertEquals(15L, rows.get(1).fullSum);
+        assertEquals(5L, rows.get(2).trailingSum);
+        assertEquals(15L, rows.get(2).fullSum);
+        assertEquals(2L, rows.get(3).trailingSum);
+        assertEquals(5L, rows.get(3).fullSum);
+        assertEquals(5L, rows.get(4).trailingSum);
+        assertEquals(5L, rows.get(4).fullSum);
+    }
+
+    @Test
     public void runtimeNaturalVocabularyShouldResolveAliasesForExecutionAndExplain() {
         PojoLensRuntime runtime = new PojoLensRuntime();
         runtime.setNaturalVocabulary(NaturalVocabulary.builder()
@@ -237,6 +260,10 @@ public class NaturalQueryContractTest {
         List<Employee> rows = query.filter(sampleEmployees(), Employee.class);
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
         assertEquals(List.of(130000, 120000), rows.stream().map(row -> row.salary).toList());
+
+        TabularSchema schema = query.schema(Employee.class);
+        assertEquals(List.of("name", "salary"), schema.names());
+        assertEquals(Integer.class, schema.column("salary").type());
 
         Map<String, Object> explain = query.explain(sampleEmployees(), Employee.class);
         assertEquals(
@@ -388,6 +415,37 @@ public class NaturalQueryContractTest {
     }
 
     @Test
+    public void runtimeNaturalVocabularyShouldResolveInlineQualifyWindowPhrases() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("department", "team")
+                .field("salary", "annual pay")
+                .field("id", "employee id")
+                .build());
+
+        NaturalQuery query = runtime.natural().parse(
+                "show team as dept, name, annual pay as pay, "
+                        + "row number by team ordered by annual pay descending then employee id ascending as top rank "
+                        + "where active is true qualify row number by team ordered by annual pay descending "
+                        + "then employee id ascending is at most 1 sort by dept ascending"
+        );
+
+        List<NaturalWindowAliasRow> rows = query.filter(sampleEmployees(), NaturalWindowAliasRow.class);
+        assertEquals(2, rows.size());
+        assertEquals(List.of("Cara", "Bob"), rows.stream().map(row -> row.name).toList());
+
+        Map<String, Object> explain = query.explain(sampleEmployees(), NaturalWindowAliasRow.class);
+        assertEquals(
+                "select department as dept, name, salary as pay, "
+                        + "ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC, id ASC) as topRank "
+                        + "where active = true qualify "
+                        + "ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC, id ASC) <= 1 "
+                        + "order by dept asc",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
+    @Test
     public void chartPhraseShouldInferChartSpecForExecutionAndExplain() {
         NaturalQuery query = PojoLensNatural
                 .parse("show department, count of employees as total "
@@ -530,6 +588,13 @@ public class NaturalQueryContractTest {
                 ),
                 explain.get("resolvedNaturalFields")
         );
+
+        TabularSchema schema = runtime.natural().parse(
+                        "from companies as company join employees as employee "
+                                + "on company id equals employee employer id show employee job title"
+                )
+                .schema(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()), CompanyEmployee.class);
+        assertEquals(List.of("employees.title"), schema.names());
     }
 
     @Test
@@ -584,6 +649,16 @@ public class NaturalQueryContractTest {
         public long topRank;
 
         public NaturalWindowAliasRow() {
+        }
+    }
+
+    public static class NaturalWindowFrameRow {
+        public String department;
+        public int seq;
+        public Long trailingSum;
+        public Long fullSum;
+
+        public NaturalWindowFrameRow() {
         }
     }
 

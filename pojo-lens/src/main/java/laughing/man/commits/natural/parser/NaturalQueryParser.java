@@ -1,5 +1,6 @@
 package laughing.man.commits.natural.parser;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -207,7 +208,8 @@ public final class NaturalQueryParser {
                                 windowPhrase.valueField(),
                                 windowPhrase.countAll(),
                                 windowPhrase.partitionFields(),
-                                windowPhrase.orderFields()
+                                windowPhrase.orderFields(),
+                                windowPhrase.frame()
                         ),
                         alias,
                         null,
@@ -218,7 +220,8 @@ public final class NaturalQueryParser {
                         windowPhrase.partitionFields(),
                         windowPhrase.orderFields(),
                         windowPhrase.valueField(),
-                        windowPhrase.countAll()
+                        windowPhrase.countAll(),
+                        windowPhrase.frame()
                 );
             }
             MetricPhrase metricPhrase = tryParseMetricPhrase(fieldTokens, "SHOW");
@@ -302,7 +305,7 @@ public final class NaturalQueryParser {
                 throw error("Parentheses are not supported in MVP natural queries", peek().position);
             }
 
-            OperatorMatch operator = findOperator();
+            OperatorMatch operator = findOperator(clauseName);
             if (operator == null) {
                 if (allowBooleanShorthand) {
                     return parseBooleanFieldShorthand(allowAggregateReferences, clauseName);
@@ -407,10 +410,11 @@ public final class NaturalQueryParser {
             }
         }
 
-        private OperatorMatch findOperator() {
+        private OperatorMatch findOperator(String clauseName) {
             int start = index;
             while (start < tokens.size()) {
-                if (isBooleanBoundary(tokens.get(start)) || isClauseBoundary(start)) {
+                if ((isBooleanBoundary(tokens.get(start)) || isClauseBoundary(start))
+                        && !isQualifyWindowFieldContinuation(clauseName, start)) {
                     return null;
                 }
                 for (Operator operator : Operator.values()) {
@@ -421,6 +425,13 @@ public final class NaturalQueryParser {
                 start++;
             }
             return null;
+        }
+
+        private boolean isQualifyWindowFieldContinuation(String clauseName, int tokenIndex) {
+            return "QUALIFY".equals(clauseName)
+                    && (isWindowReferenceSeparator(tokens.get(tokenIndex))
+                    || windowOrderMarkerWidth(tokens, tokenIndex) > 0)
+                    && looksLikeWindowItem(slice(index, tokenIndex));
         }
 
         private List<Token> readClauseItem(String clauseName) {
@@ -448,9 +459,9 @@ public final class NaturalQueryParser {
                 return true;
             }
             if ("SHOW".equals(clauseName)
-                    && isWord(tokenAt(tokenIndex), "ordered")
-                    && peekSortBy(tokenIndex)
-                    && looksLikeWindowItem(currentItem)) {
+                    && windowOrderMarkerWidth(tokens, tokenIndex) > 0
+                    && looksLikeWindowItem(currentItem)
+                    && lastIndexOfWord(currentItem, "as") < 0) {
                 return false;
             }
             return isClauseBoundary(tokenIndex);
@@ -785,6 +796,17 @@ public final class NaturalQueryParser {
             if (metricPhrase != null) {
                 return renderMetricReference(metricPhrase);
             }
+            WindowPhrase windowPhrase = "QUALIFY".equals(clauseName) ? tryParseWindowPhrase(fieldTokens, clauseName) : null;
+            if (windowPhrase != null) {
+                return NaturalWindowSupport.renderWindowExpression(
+                        windowPhrase.function(),
+                        windowPhrase.valueField(),
+                        windowPhrase.countAll(),
+                        windowPhrase.partitionFields(),
+                        windowPhrase.orderFields(),
+                        windowPhrase.frame()
+                );
+            }
             return normalizeTrackedReference(fieldTokens);
         }
 
@@ -891,39 +913,128 @@ public final class NaturalQueryParser {
             int cursor = functionStart.nextIndex();
             String valueField = functionStart.valueField();
             boolean countAll = functionStart.countAll();
-            List<String> partitionFields = List.of();
-            if (cursor < tokens.size() && isWord(tokens.get(cursor), "by")) {
-                int partitionStart = ++cursor;
-                while (cursor < tokens.size()
-                        && !(isWord(tokens.get(cursor), "ordered")
-                        && cursor + 1 < tokens.size()
-                        && isWord(tokens.get(cursor + 1), "by"))) {
-                    cursor++;
-                }
-                if (partitionStart == cursor) {
-                    throw error("Expected partition field after 'by' in " + clauseName, tokens.get(partitionStart - 1).position);
-                }
-                partitionFields = List.of(normalizeTrackedReference(tokens.subList(partitionStart, cursor)));
-            }
+            WindowPartitionParse partitionParse = parseOptionalWindowPartition(tokens, cursor, clauseName);
+            cursor = partitionParse.nextIndex();
+            List<String> partitionFields = partitionParse.partitionFields();
 
-            if (!(cursor < tokens.size()
-                    && isWord(tokens.get(cursor), "ordered")
-                    && cursor + 1 < tokens.size()
-                    && isWord(tokens.get(cursor + 1), "by"))) {
-                throw error("Window SELECT expressions require 'ordered by' clause", tokens.get(tokens.size() - 1).position);
+            int orderMarkerWidth = windowOrderMarkerWidth(tokens, cursor);
+            if (orderMarkerWidth == 0) {
+                throw error("Window SELECT expressions require an ordered/sorted BY clause", tokens.get(tokens.size() - 1).position);
             }
-            cursor += 2;
+            cursor += orderMarkerWidth;
             if (cursor >= tokens.size()) {
-                throw error("Expected field after 'ordered by' in " + clauseName, tokens.get(tokens.size() - 1).position);
+                throw error("Expected field after window order clause in " + clauseName, tokens.get(tokens.size() - 1).position);
             }
-            List<OrderAst> orderFields = parseWindowOrderFields(tokens.subList(cursor, tokens.size()), clauseName);
+            int frameStart = findWindowFrameStart(tokens, cursor);
+            int orderEnd = frameStart < 0 ? tokens.size() : frameStart;
+            List<OrderAst> orderFields = parseWindowOrderFields(tokens.subList(cursor, orderEnd), clauseName);
+            QueryWindowFrame frame = frameStart < 0
+                    ? QueryWindowFrame.running()
+                    : parseWindowFrame(tokens.subList(frameStart, tokens.size()), functionStart.function(), clauseName);
             return new WindowPhrase(
                     functionStart.function(),
                     valueField,
                     countAll,
                     partitionFields,
-                    orderFields
+                    orderFields,
+                    frame
             );
+        }
+
+        private WindowPartitionParse parseOptionalWindowPartition(List<Token> tokens,
+                                                                  int startIndex,
+                                                                  String clauseName) {
+            int markerWidth = windowPartitionMarkerWidth(tokens, startIndex);
+            if (markerWidth == 0) {
+                return new WindowPartitionParse(List.of(), startIndex);
+            }
+            int cursor = startIndex + markerWidth;
+            int partitionStart = cursor;
+            while (cursor < tokens.size() && windowOrderMarkerWidth(tokens, cursor) == 0) {
+                cursor++;
+            }
+            if (partitionStart == cursor) {
+                throw error("Expected partition field in " + clauseName, tokens.get(startIndex).position);
+            }
+            List<String> partitionFields = parseWindowReferenceList(
+                    tokens.subList(partitionStart, cursor),
+                    clauseName,
+                    "partition"
+            );
+            return new WindowPartitionParse(partitionFields, cursor);
+        }
+
+        private int windowPartitionMarkerWidth(List<Token> tokens, int startIndex) {
+            if (startIndex >= tokens.size()) {
+                return 0;
+            }
+            if (isWord(tokens.get(startIndex), "by")) {
+                return 1;
+            }
+            if ((isWord(tokens.get(startIndex), "partition") || isWord(tokens.get(startIndex), "partitioned"))
+                    && startIndex + 1 < tokens.size()
+                    && isWord(tokens.get(startIndex + 1), "by")) {
+                return 2;
+            }
+            if (isWord(tokens.get(startIndex), "within")
+                    && startIndex + 1 < tokens.size()
+                    && isWord(tokens.get(startIndex + 1), "each")) {
+                return 2;
+            }
+            if (isWord(tokens.get(startIndex), "per")) {
+                return 1;
+            }
+            return 0;
+        }
+
+        private int windowOrderMarkerWidth(List<Token> tokens, int startIndex) {
+            if (startIndex + 1 >= tokens.size()) {
+                return 0;
+            }
+            if ((isWord(tokens.get(startIndex), "ordered")
+                    || isWord(tokens.get(startIndex), "order")
+                    || isWord(tokens.get(startIndex), "sorted")
+                    || isWord(tokens.get(startIndex), "sort"))
+                    && isWord(tokens.get(startIndex + 1), "by")) {
+                return 2;
+            }
+            return 0;
+        }
+
+        private int findWindowFrameStart(List<Token> tokens, int startIndex) {
+            for (int cursor = startIndex; cursor < tokens.size(); cursor++) {
+                if (isWindowFrameLeadIn(tokens.get(cursor))) {
+                    return cursor;
+                }
+            }
+            return -1;
+        }
+
+        private boolean isWindowFrameLeadIn(Token token) {
+            return isWord(token, "for") || isWord(token, "over") || isWord(token, "using");
+        }
+
+        private List<String> parseWindowReferenceList(List<Token> tokens,
+                                                      String clauseName,
+                                                      String segmentName) {
+            ArrayList<String> fields = new ArrayList<>();
+            int cursor = 0;
+            while (cursor < tokens.size()) {
+                int nextSeparator = cursor;
+                while (nextSeparator < tokens.size() && !isWindowReferenceSeparator(tokens.get(nextSeparator))) {
+                    nextSeparator++;
+                }
+                List<Token> fieldTokens = tokens.subList(cursor, nextSeparator);
+                if (fieldTokens.isEmpty()) {
+                    throw error("Expected " + segmentName + " field in " + clauseName, tokens.get(cursor).position);
+                }
+                fields.add(normalizeTrackedReference(fieldTokens));
+                cursor = nextSeparator + 1;
+            }
+            if (fields.isEmpty()) {
+                throw error("Expected " + segmentName + " field in " + clauseName, peek().position);
+            }
+            return List.copyOf(fields);
         }
 
         private WindowFunctionStart parseWindowFunctionStart(List<Token> tokens, String clauseName) {
@@ -955,10 +1066,8 @@ public final class NaturalQueryParser {
             }
             int valueStart = cursor;
             while (cursor < tokens.size()
-                    && !isWord(tokens.get(cursor), "by")
-                    && !(isWord(tokens.get(cursor), "ordered")
-                    && cursor + 1 < tokens.size()
-                    && isWord(tokens.get(cursor + 1), "by"))) {
+                    && windowPartitionMarkerWidth(tokens, cursor) == 0
+                    && windowOrderMarkerWidth(tokens, cursor) == 0) {
                 cursor++;
             }
             List<Token> valueTokens = tokens.subList(valueStart, cursor);
@@ -980,11 +1089,14 @@ public final class NaturalQueryParser {
         }
 
         private List<OrderAst> parseWindowOrderFields(List<Token> tokens, String clauseName) {
+            if (tokens.isEmpty()) {
+                throw error("Expected field in window order clause", peek().position);
+            }
             ArrayList<OrderAst> orders = new ArrayList<>();
             int cursor = 0;
             while (cursor < tokens.size()) {
                 int nextSeparator = cursor;
-                while (nextSeparator < tokens.size() && !isWord(tokens.get(nextSeparator), "then")) {
+                while (nextSeparator < tokens.size() && !isWindowReferenceSeparator(tokens.get(nextSeparator))) {
                     nextSeparator++;
                 }
                 List<Token> orderTokens = tokens.subList(cursor, nextSeparator);
@@ -992,6 +1104,84 @@ public final class NaturalQueryParser {
                 cursor = nextSeparator + 1;
             }
             return List.copyOf(orders);
+        }
+
+        private boolean isWindowReferenceSeparator(Token token) {
+            return isWord(token, "then") || isWord(token, "and");
+        }
+
+        private QueryWindowFrame parseWindowFrame(List<Token> frameTokens,
+                                                  String function,
+                                                  String clauseName) {
+            if (!NaturalWindowSupport.isAggregateWindowFunction(function)) {
+                throw error("Window frame phrases are only supported for running aggregate windows in " + clauseName,
+                        frameTokens.get(0).position);
+            }
+            if (frameTokens.isEmpty() || !isWindowFrameLeadIn(frameTokens.get(0))) {
+                throw error("Expected window frame phrase in " + clauseName, peek().position);
+            }
+            List<Token> tokens = frameTokens.subList(1, frameTokens.size());
+            if (tokens.isEmpty()) {
+                throw error("Expected window frame after '" + frameTokens.get(0).text + "'", frameTokens.get(0).position);
+            }
+            if (matchesWords(tokens, 0, "running", "rows") || matchesWords(tokens, 0, "running", "frame")) {
+                requireTokenCount(tokens, 2, "window frame", clauseName);
+                return QueryWindowFrame.running();
+            }
+            if (matchesWords(tokens, 0, "all", "rows")
+                    || matchesWords(tokens, 0, "full", "partition")
+                    || matchesWords(tokens, 0, "whole", "partition")) {
+                requireTokenCount(tokens, 2, "window frame", clauseName);
+                return QueryWindowFrame.fullPartition();
+            }
+            if (matchesWords(tokens, 0, "last") || matchesWords(tokens, 0, "previous") || matchesWords(tokens, 0, "trailing")) {
+                int precedingRows = parseFrameRowCount(tokens, 1, clauseName);
+                requireTrailingFrameRows(tokens, 2, clauseName);
+                return QueryWindowFrame.rowsPrecedingToCurrentRow(precedingRows);
+            }
+            if (tokens.get(0).type == TokenType.RAW) {
+                int precedingRows = parseFrameRowCount(tokens, 0, clauseName);
+                if (tokens.size() == 3
+                        && (isWord(tokens.get(1), "preceding") || isWord(tokens.get(1), "previous"))
+                        && (isWord(tokens.get(2), "row") || isWord(tokens.get(2), "rows"))) {
+                    return QueryWindowFrame.rowsPrecedingToCurrentRow(precedingRows);
+                }
+            }
+            throw error("Unsupported natural window frame phrase", frameTokens.get(0).position);
+        }
+
+        private void requireTokenCount(List<Token> tokens,
+                                       int expected,
+                                       String segmentName,
+                                       String clauseName) {
+            if (tokens.size() != expected) {
+                Token token = tokens.get(Math.min(expected, tokens.size() - 1));
+                throw error("Unexpected token '" + token.text + "' in " + segmentName + " for " + clauseName,
+                        token.position);
+            }
+        }
+
+        private int parseFrameRowCount(List<Token> tokens, int index, String clauseName) {
+            if (index >= tokens.size()) {
+                throw error("Expected row count in window frame for " + clauseName, tokens.get(tokens.size() - 1).position);
+            }
+            try {
+                int rowCount = Integer.parseInt(tokens.get(index).text);
+                if (rowCount < 0) {
+                    throw error("Window frame row count must be >= 0", tokens.get(index).position);
+                }
+                return rowCount;
+            } catch (NumberFormatException ex) {
+                throw error("Window frame row count must be an integer", tokens.get(index).position);
+            }
+        }
+
+        private void requireTrailingFrameRows(List<Token> tokens, int rowTokenIndex, String clauseName) {
+            if (tokens.size() != rowTokenIndex + 1
+                    || !(isWord(tokens.get(rowTokenIndex), "row") || isWord(tokens.get(rowTokenIndex), "rows"))) {
+                throw error("Expected 'row' or 'rows' after window frame row count in " + clauseName,
+                        tokens.get(Math.min(rowTokenIndex, tokens.size() - 1)).position);
+            }
         }
 
         private OrderAst parseWindowOrderItem(List<Token> itemTokens, String clauseName) {
@@ -1571,7 +1761,11 @@ public final class NaturalQueryParser {
                                 String valueField,
                                 boolean countAll,
                                 List<String> partitionFields,
-                                List<OrderAst> orderFields) {
+                                List<OrderAst> orderFields,
+                                QueryWindowFrame frame) {
+    }
+
+    private record WindowPartitionParse(List<String> partitionFields, int nextIndex) {
     }
 
     private record WindowFunctionStart(String function,

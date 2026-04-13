@@ -14,6 +14,16 @@
   fields from unknown-field typos in aggregate query shapes.
 - `Done`: `PojoLensCore.prepare(...)` now exposes a fluent-only immutable
   prepared query definition for reusable code-owned builder recipes.
+- `Done`: non-join natural `schema(...)` now resolves runtime vocabulary using
+  the projection/source type and registered vocabulary targets.
+- `Done`: natural `qualify` now accepts controlled inline window phrases as
+  well as window output aliases.
+- `Done`: natural window phrasing now supports multiple partition fields,
+  broader partition/order wording, and running/trailing/full-partition aggregate
+  `ROWS` frames.
+- `Done`: natural execution reuses resolved delegates by execution shape, and
+  joined natural schema metadata can resolve vocabulary through dataset or
+  join-binding schema overloads.
 - `Still valid`: correlated subqueries, `EXISTS`, scalar subqueries, and broad
   nested SQL planning remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row

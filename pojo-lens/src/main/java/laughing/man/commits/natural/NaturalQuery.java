@@ -20,14 +20,17 @@ import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.util.ReflectionUtil;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 /**
@@ -38,11 +41,13 @@ public final class NaturalQuery {
     private final String source;
     private final String equivalentSqlLike;
     private final QueryState state;
+    private final ConcurrentMap<ResolutionShapeKey, ResolvedExecution> resolvedExecutions;
 
     private NaturalQuery(String source, String equivalentSqlLike, QueryState state) {
         this.source = Objects.requireNonNull(source, "source must not be null");
         this.equivalentSqlLike = Objects.requireNonNull(equivalentSqlLike, "equivalentSqlLike must not be null");
         this.state = Objects.requireNonNull(state, "state must not be null");
+        this.resolvedExecutions = new ConcurrentHashMap<>();
     }
 
     public static NaturalQuery of(String source) {
@@ -246,7 +251,25 @@ public final class NaturalQuery {
     }
 
     public TabularSchema schema(Class<?> projectionClass) {
-        return createDelegate(state.ast()).schema(projectionClass);
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolveForSchema(projectionClass);
+        return createDelegate(resolved.ast()).schema(projectionClass);
+    }
+
+    public TabularSchema schema(List<?> pojos, Class<?> projectionClass) {
+        return schema(pojos, JoinBindings.empty(), projectionClass);
+    }
+
+    public TabularSchema schema(DatasetBundle datasetBundle, Class<?> projectionClass) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return schema(datasetBundle.primaryRows(), datasetBundle.joinBindings(), projectionClass);
+    }
+
+    public TabularSchema schema(List<?> pojos, JoinBindings joinBindings, Class<?> projectionClass) {
+        Objects.requireNonNull(pojos, "pojos must not be null");
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return resolvedExecution(pojos, joinBindings.asMap(), projectionClass).delegate().schema(projectionClass);
     }
 
     public Map<String, Object> explain() {
@@ -254,20 +277,20 @@ public final class NaturalQuery {
     }
 
     public <T> Map<String, Object> explain(List<?> pojos, Class<T> projectionClass) {
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, Map.of(), projectionClass);
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, Map.of(), projectionClass);
         return addExplainMetadata(
-                createDelegate(resolved.ast()).explain(pojos, projectionClass),
-                resolved
+                resolvedExecution.delegate().explain(pojos, projectionClass),
+                resolvedExecution.resolved()
         );
     }
 
     public <T> Map<String, Object> explain(DatasetBundle datasetBundle, Class<T> projectionClass) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved =
-                resolve(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass);
+        ResolvedExecution resolvedExecution =
+                resolvedExecution(datasetBundle.primaryRows(), datasetBundle.joinBindings().asMap(), projectionClass);
         return addExplainMetadata(
-                createDelegate(resolved.ast()).explain(datasetBundle, projectionClass),
-                resolved
+                resolvedExecution.delegate().explain(datasetBundle, projectionClass),
+                resolvedExecution.resolved()
         );
     }
 
@@ -275,10 +298,10 @@ public final class NaturalQuery {
                                            JoinBindings joinBindings,
                                            Class<T> projectionClass) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, joinBindings.asMap(), projectionClass);
+        ResolvedExecution resolvedExecution = resolvedExecution(pojos, joinBindings.asMap(), projectionClass);
         return addExplainMetadata(
-                createDelegate(resolved.ast()).explain(pojos, joinBindings, projectionClass),
-                resolved
+                resolvedExecution.delegate().explain(pojos, joinBindings, projectionClass),
+                resolvedExecution.resolved()
         );
     }
 
@@ -295,8 +318,13 @@ public final class NaturalQuery {
     private ResolvedExecution resolvedExecution(List<?> pojos,
                                                 Map<String, List<?>> joinSources,
                                                 Class<?> projectionClass) {
-        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolve(pojos, joinSources, projectionClass);
-        return new ResolvedExecution(resolved, createDelegate(resolved.ast()));
+        Map<String, List<?>> effectiveJoinSources = joinSources == null ? Map.of() : joinSources;
+        ResolutionShapeKey shapeKey = ResolutionShapeKey.of(state.ast(), pojos, effectiveJoinSources, projectionClass);
+        return resolvedExecutions.computeIfAbsent(shapeKey, ignored -> {
+            NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved =
+                    resolve(pojos, effectiveJoinSources, projectionClass);
+            return new ResolvedExecution(resolved, createDelegate(resolved.ast()));
+        });
     }
 
     private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolve(List<?> pojos,
@@ -322,6 +350,51 @@ public final class NaturalQuery {
                 allowedFields,
                 state.vocabulary()
         );
+    }
+
+    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolveForSchema(Class<?> projectionClass) {
+        if (state.ast().hasJoins()) {
+            return NaturalQueryResolutionSupport.passthrough(state.ast(), equivalentSqlLike);
+        }
+        Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(projectionClass));
+        allowedFields.addAll(state.computedFieldRegistry().names());
+        addVocabularyTargets(allowedFields, state.vocabulary());
+        addUnaliasedSourcePhraseFields(allowedFields, state.sourceFieldPhrases(), state.vocabulary());
+        String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
+        if (rootSourceName != null) {
+            addQualifiedVocabularyTargets(allowedFields, rootSourceName, state.vocabulary());
+        }
+        return NaturalQueryResolutionSupport.resolve(
+                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
+                allowedFields,
+                state.vocabulary()
+        );
+    }
+
+    private static void addVocabularyTargets(Set<String> allowedFields, NaturalVocabulary vocabulary) {
+        for (List<String> targets : vocabulary.aliases().values()) {
+            allowedFields.addAll(targets);
+        }
+    }
+
+    private static void addUnaliasedSourcePhraseFields(Set<String> allowedFields,
+                                                       Map<String, String> sourceFieldPhrases,
+                                                       NaturalVocabulary vocabulary) {
+        for (String naturalField : sourceFieldPhrases.values()) {
+            if (vocabulary.resolveAliasTargets(naturalField).isEmpty()) {
+                allowedFields.add(naturalField);
+            }
+        }
+    }
+
+    private static void addQualifiedVocabularyTargets(Set<String> allowedFields,
+                                                     String sourceName,
+                                                     NaturalVocabulary vocabulary) {
+        for (List<String> targets : vocabulary.aliases().values()) {
+            for (String target : targets) {
+                allowedFields.add(sourceName + "." + target);
+            }
+        }
     }
 
     private boolean hasUnboundJoinSources(Map<String, List<?>> joinSources) {
@@ -525,6 +598,34 @@ public final class NaturalQuery {
 
     private record ResolvedExecution(NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved,
                                      SqlLikeQuery delegate) {
+    }
+
+    private record ResolutionShapeKey(Class<?> sourceClass,
+                                      Class<?> projectionClass,
+                                      List<JoinSourceShape> joinSources) {
+
+        private static ResolutionShapeKey of(QueryAst ast,
+                                             List<?> pojos,
+                                             Map<String, List<?>> joinSources,
+                                             Class<?> projectionClass) {
+            Class<?> sourceClass = SqlLikeExecutionSupport.inferSourceClass(pojos, projectionClass);
+            ArrayList<JoinSourceShape> joinShapes = new ArrayList<>();
+            for (var entry : joinSources.entrySet()) {
+                Class<?> joinSourceClass = SqlLikeExecutionSupport.inferSourceClass(entry.getValue(), projectionClass);
+                joinShapes.add(new JoinSourceShape(entry.getKey(), joinSourceClass));
+            }
+            if (ast.hasJoins()) {
+                for (var join : ast.joins()) {
+                    if (!joinSources.containsKey(join.childSource())) {
+                        joinShapes.add(new JoinSourceShape(join.childSource(), null));
+                    }
+                }
+            }
+            return new ResolutionShapeKey(sourceClass, projectionClass, List.copyOf(joinShapes));
+        }
+    }
+
+    private record JoinSourceShape(String sourceName, Class<?> rowClass) {
     }
 
     private static final class DefaultNaturalBoundQuery<T> implements NaturalBoundQuery<T> {

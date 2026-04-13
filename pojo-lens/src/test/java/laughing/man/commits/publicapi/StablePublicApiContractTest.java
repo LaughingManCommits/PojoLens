@@ -209,6 +209,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(NaturalQuery.class, "schema", Class.class);
+        requirePublicMethod(NaturalQuery.class, "schema", List.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "schema", DatasetBundle.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "schema", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, JoinBindings.class, Class.class);

@@ -328,6 +328,9 @@ final class NaturalQueryResolutionSupport {
     private static String rewriteReference(String reference, Map<String, String> resolvedByNaturalField) {
         ParsedAggregateExpression aggregateExpression = AggregateExpressionSupport.parse(reference);
         if (aggregateExpression == null) {
+            if (isWindowExpressionReference(reference)) {
+                return rewriteWindowExpressionReference(reference, resolvedByNaturalField);
+            }
             return resolvedByNaturalField.getOrDefault(reference, reference);
         }
         if (aggregateExpression.countAll()) {
@@ -337,6 +340,43 @@ final class NaturalQueryResolutionSupport {
                 + "("
                 + resolvedByNaturalField.getOrDefault(aggregateExpression.field(), aggregateExpression.field())
                 + ")";
+    }
+
+    private static boolean isWindowExpressionReference(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.toLowerCase(Locale.ROOT);
+        return normalized.contains(" over(") || normalized.contains(" over (");
+    }
+
+    private static String rewriteWindowExpressionReference(String expression,
+                                                           Map<String, String> resolvedByNaturalField) {
+        StringBuilder rewritten = new StringBuilder(expression.length());
+        int index = 0;
+        while (index < expression.length()) {
+            char current = expression.charAt(index);
+            if (!isIdentifierStart(current)) {
+                rewritten.append(current);
+                index++;
+                continue;
+            }
+            int start = index++;
+            while (index < expression.length() && isIdentifierPart(expression.charAt(index))) {
+                index++;
+            }
+            String identifier = expression.substring(start, index);
+            rewritten.append(resolvedByNaturalField.getOrDefault(identifier, identifier));
+        }
+        return rewritten.toString();
+    }
+
+    private static boolean isIdentifierStart(char value) {
+        return Character.isLetter(value) || value == '_';
+    }
+
+    private static boolean isIdentifierPart(char value) {
+        return Character.isLetterOrDigit(value) || value == '_' || value == '.';
     }
 
     static final class ResolvedNaturalQuery {

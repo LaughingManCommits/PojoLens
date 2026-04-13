@@ -1,5 +1,6 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -280,6 +281,39 @@ public class NaturalQueryParserTest {
         assertEquals("COUNT", ast.select().fields().get(4).windowFunction());
         assertTrue(ast.select().fields().get(4).windowCountAll());
         assertEquals("runningRows", ast.select().fields().get(4).outputName());
+    }
+
+    @Test
+    public void shouldParseBroaderWindowPhrasingAndInlineQualifyWindowPhrase() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show department as dept, role, salary, "
+                        + "row number partitioned by department and role sorted by salary descending and id ascending as rn "
+                        + "qualify row number partitioned by department and role sorted by salary descending and id ascending "
+                        + "is at most 1"
+        );
+
+        assertEquals(List.of("department", "role"), ast.select().fields().get(3).windowPartitionFields());
+        assertEquals(2, ast.select().fields().get(3).windowOrderFields().size());
+        assertEquals("salary", ast.select().fields().get(3).windowOrderFields().get(0).field());
+        assertEquals(Sort.DESC, ast.select().fields().get(3).windowOrderFields().get(0).sort());
+        assertEquals("id", ast.select().fields().get(3).windowOrderFields().get(1).field());
+        assertEquals(Sort.ASC, ast.select().fields().get(3).windowOrderFields().get(1).sort());
+        assertEquals(
+                "ROW_NUMBER() OVER (PARTITION BY department, role ORDER BY salary DESC, id ASC)",
+                ast.qualifyFilters().get(0).field()
+        );
+    }
+
+    @Test
+    public void shouldParseNaturalAggregateWindowFramePhrases() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show department, seq, amount, "
+                        + "running sum of amount per department order by seq ascending for last 1 row as running sum, "
+                        + "running count of employees within each department order by seq ascending for all rows as running rows"
+        );
+
+        assertEquals(QueryWindowFrame.rowsPrecedingToCurrentRow(1), ast.select().fields().get(3).windowFrame());
+        assertEquals(QueryWindowFrame.fullPartition(), ast.select().fields().get(4).windowFrame());
     }
 
     @Test

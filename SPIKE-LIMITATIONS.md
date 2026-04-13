@@ -209,15 +209,17 @@ This spike should not be read as a plan to add:
 - arbitrary temporal coercion rules with hidden timezone guessing
 - a thread-safe mutable builder
 
-## Adjacent Limits Not In README
+## Adjacent Natural Limits
 
-These remain real adjacent constraints, but they are not the core focus unless
-explicitly pulled in later:
+These adjacent natural-query constraints have been reduced:
 
-- natural `qualify` is still alias-based
-- natural window phrasing is intentionally narrow
-- natural `schema(...)` is structural, not vocabulary-resolved
-- natural execution still rebuilds a resolved delegate per execution/explain
+- natural `qualify` accepts window output aliases and controlled inline window
+  phrases
+- natural window phrasing supports multiple partition fields, additional
+  order/partition wording, and the supported aggregate `ROWS` frame menu
+- runtime-owned natural queries reuse resolved delegates by execution shape
+- joined natural schema metadata can resolve vocabulary through the dataset and
+  join-binding schema overloads
 
 ## Recommendation
 

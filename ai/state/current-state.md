@@ -10,7 +10,7 @@
 - No repo-wide release work is pending.
 - `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
 - AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
-- `2026-04-13`: grouped/aggregate/joined subquery widening, time-bucket input broadening, bounded aggregate window frames, aggregate `ORDER BY` diagnostic polish, and immutable fluent prepared definitions are done.
+- `2026-04-13`: grouped/aggregate/joined subquery widening, time-bucket input broadening, bounded aggregate windows, aggregate `ORDER BY` polish, immutable fluent prepared definitions, and bounded natural cleanup are done.
 
 ## Verified
 
@@ -21,6 +21,7 @@
 - `2026-04-12`: bounded aggregate windows and aggregate `ORDER BY` diagnostic polish passed module tests and docs consistency.
 - `2026-04-13`: `PojoLensCore.prepare(...)` now returns immutable `FluentQueryDefinition<T>` for reusable fluent builder recipes with rows/schema/explain and `ReportDefinition` promotion.
 - `2026-04-13`: SQL-like `WHERE ... IN (select ...)` subqueries now allow uncorrelated `JOIN` clauses over `JoinBindings`; focused SQL-like tests, full `pojo-lens` tests, Checkstyle, and doc consistency passed.
+- `2026-04-13`: natural cleanup passed: schema vocabulary resolves for non-join and join-aware overloads, `qualify` accepts controlled inline window phrases, window phrasing supports multiple partitions and supported aggregate frames, and resolved delegates are cached by execution shape.
 
 ## Release
 
@@ -28,10 +29,10 @@
 
 ## Risks
 
-- Natural gaps remain around alias-only `qualify`, fixed windows, structural `schema(...)`, and per-call resolved delegate rebuilds.
+- Natural remains controlled grammar; direct static parse/template entry points intentionally stay runtime-vocabulary-free.
 
 ## Next
 
 - Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: no active next slice is selected; correlated subqueries, broad scalar/`EXISTS`, broad window frames, and mutable-builder concurrency remain opt-in only.
+- Limitations: no active next slice is selected; correlated subqueries, broad scalar/`EXISTS`, broad SQL window-frame parity, and mutable-builder concurrency remain opt-in only.

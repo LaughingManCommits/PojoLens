@@ -43,10 +43,10 @@ Canonical time-bucket phrase:
 - optional week start for week buckets: `bucket <date field> by week in Europe/Amsterdam starting sunday as <alias>`
 
 Canonical window phrases:
-- `row number [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
-- `rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
-- `dense rank [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
-- `running count|sum|average|minimum|maximum of <field|employees> [by <field>] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `row number [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `dense rank [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] as <alias>`
+- `running count|sum|average|minimum|maximum of <field|employees> [by <field> [and <field> ...]] ordered by <field> [ascending|descending] [then <field> ...] [for running rows|for last <n> rows|for all rows] as <alias>`
 
 Join notes:
 - source labels are explicit: `from companies as company join employees as employee ...`
@@ -65,6 +65,9 @@ Clause aliases:
 - `grouped by`
 - top-level `ordered by`
 - `as a|an <type> chart`
+- window partition aliases: `partition by`, `partitioned by`, `within each`, `per`
+- window order aliases: `order by`, `sorted by`, `sort by`
+- window partition/order separators: `then`, `and`
 
 Bounded filler words:
 - `show me ...`
@@ -101,7 +104,7 @@ Alias notes:
 - free-form conversational language
 - fuzzy guessing
 - implicit business semantics such as `top performers` or `recent hires`
-- direct frame control or inline window expressions in `qualify`
+- free-form SQL window grammar beyond the supported natural window phrases
 
 ## Execution Model
 
@@ -200,6 +203,11 @@ Join guidance:
 - ambiguous aliases fail with candidate fields
 - unknown terms fail with the allowed-field set
 - direct `PojoLensNatural.parse(...)` remains vocabulary-free; runtime-owned vocabulary applies through `PojoLensRuntime.natural()`
+- `schema(...)` resolves runtime vocabulary using the projection/source type and
+  registered vocabulary targets
+- joined natural schema metadata can resolve join-source vocabulary when called
+  with `schema(rows, joinBindings, Projection.class)` or
+  `schema(datasetBundle, Projection.class)`
 
 Registration shape:
 
@@ -274,7 +282,7 @@ Time-bucket notes:
 
 ## Windows and Qualify
 
-Natural window phrasing stays narrow and deterministic.
+Natural window phrasing stays controlled and deterministic.
 
 Example top-per-department query:
 
@@ -289,9 +297,26 @@ List<DepartmentTopRow> rows = PojoLensNatural
 Window notes:
 
 - window outputs require `as <alias>`
-- `qualify` currently filters on window output aliases, not inline window expressions
-- running aggregate windows lower to `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- `qualify` can filter a window output alias or the same controlled window
+  phrase used in `show`
+- running aggregate windows default to
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- `for last <n> rows` lowers to
+  `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
+- `for all rows` lowers to
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 - grouped queries and `qualify` stay separate; use [docs/sql-like.md](sql-like.md) when you need more exact analytic control
+
+Inline natural `qualify` example:
+
+```java
+List<DepartmentTopRow> rows = PojoLensNatural
+    .parse("show department as dept, name, salary, "
+        + "row number by department ordered by salary descending as rn "
+        + "where active is true "
+        + "qualify row number by department ordered by salary descending is at most 1")
+    .filter(source, DepartmentTopRow.class);
+```
 
 ## Chart Phrase Contract
 
@@ -369,11 +394,12 @@ Map<String, Object> explain = PojoLensNatural
 ## Current Limitations
 
 - the language is controlled text, not free-form natural language
-- window phrasing is intentionally narrow: one optional partition field, explicit `ordered by`, and a fixed running frame for aggregate windows
-- `qualify` currently accepts window output aliases only, not inline window expressions
+- natural window phrases expose row-number/rank/dense-rank plus running
+  aggregate windows with running, trailing-row, and full-partition `ROWS` frames
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary
 - direct `PojoLensNatural.template(...)` does not apply runtime vocabulary or runtime-scoped computed fields
-- `schema(...)` remains structural and does not perform runtime vocabulary resolution
+- `schema(Projection.class)` alone cannot infer joined source classes; use the
+  dataset or join-binding schema overloads for joined vocabulary resolution
 - inferred chart mapping requires explicit non-wildcard `show` outputs
 
 ## Error Reference
