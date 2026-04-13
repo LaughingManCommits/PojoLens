@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T09:53:35.719808+02:00",
+  "generatedAt": "2026-04-13T12:27:10.324724+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -168,8 +168,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 43,
-      "byteCount": 2985,
+      "lineCount": 37,
+      "byteCount": 2115,
       "coldSearchEligible": true
     },
     {
@@ -177,8 +177,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 43,
-      "byteCount": 3033,
+      "lineCount": 39,
+      "byteCount": 2384,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +186,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 118,
-      "byteCount": 62303,
+      "lineCount": 119,
+      "byteCount": 62767,
       "coldSearchEligible": true
     },
     {
@@ -348,8 +348,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 977,
-      "byteCount": 34682,
+      "lineCount": 993,
+      "byteCount": 35372,
       "coldSearchEligible": true
     },
     {
@@ -412,7 +412,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 391,
-      "byteCount": 12616,
+      "byteCount": 12698,
       "coldSearchEligible": true
     },
     {
@@ -421,7 +421,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 334,
-      "byteCount": 14807,
+      "byteCount": 14818,
       "coldSearchEligible": true
     },
     {
@@ -430,7 +430,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 138,
-      "byteCount": 4916,
+      "byteCount": 4998,
       "coldSearchEligible": true
     },
     {
@@ -438,8 +438,8 @@
       "category": "planning",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 166,
-      "byteCount": 12311,
+      "lineCount": 169,
+      "byteCount": 12551,
       "coldSearchEligible": true
     }
   ]

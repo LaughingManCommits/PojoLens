@@ -379,6 +379,17 @@ public class SqlLikeDocsExamplesTest {
                 .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
         assertEquals(1, namedSourceRows.size());
         assertEquals("Acme", namedSourceRows.get(0).name);
+
+        JoinBindings joinBindings = JoinBindings.builder()
+                .add("employees", sampleCompanyEmployees())
+                .add("companies", companies)
+                .build();
+
+        List<Company> joinedSourceRows = PojoLensSql.parse("where id in (select companyId from employees "
+                        + "join companies on companyId = id where name = 'Acme')")
+                .filter(companies, joinBindings, Company.class);
+        assertEquals(1, joinedSourceRows.size());
+        assertEquals("Acme", joinedSourceRows.get(0).name);
     }
 
     @Test

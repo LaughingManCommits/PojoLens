@@ -136,7 +136,8 @@ Sort limitation:
 ## Current Limitations
 
 - SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.
-- Joined and correlated subqueries remain unsupported.
+- Subqueries may use explicit `JOIN` clauses when the subquery `FROM` source and joined sources are provided through `JoinBindings`.
+- Correlated subqueries, `EXISTS`, scalar subqueries, and arbitrary nested SQL planning remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
 - SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
@@ -427,13 +428,28 @@ List<Company> rows = PojoLensSql
     .filter(companies, JoinBindings.of("employees", employees), Company.class);
 ```
 
+Joined source subquery using the same runtime join-source binding model:
+
+```java
+JoinBindings joinBindings = JoinBindings.builder()
+    .add("employees", employees)
+    .add("companies", companies)
+    .build();
+
+List<Company> rows = PojoLensSql
+    .parse("where id in (select companyId from employees "
+        + "join companies on companyId = id where name = 'Acme')")
+    .filter(companies, joinBindings, Company.class);
+```
+
 Current subquery scope:
 
 - only `WHERE ... IN (select oneColumn ...)`
 - subquery `SELECT` must contain exactly one explicit field
 - that field can be a simple field, grouped field alias, or aggregate output alias
 - subquery `FROM <source>` must resolve from provided join-source bindings
-- joined and correlated subqueries are not supported yet
+- subquery `JOIN` clauses may reference provided join-source bindings
+- correlated subqueries are not supported
 
 Grouped and aggregate subquery examples:
 
@@ -707,7 +723,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
 | `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
-| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` subqueries; the output may be a field, grouped alias, or aggregate alias, and named `FROM` sources must be bound. |
+| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` subqueries; the output may be a field, grouped alias, or aggregate alias, and named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |

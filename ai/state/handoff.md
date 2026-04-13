@@ -11,22 +11,18 @@
 
 - The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- If engine follow-up resumes, bounded aggregate window frames, aggregate `ORDER BY` diagnostics, and immutable fluent prepared definitions are done.
+- If engine follow-up resumes, bounded aggregate window frames, aggregate `ORDER BY` diagnostics, immutable fluent prepared definitions, and uncorrelated joined subqueries are done.
 
 ## Facts
 
-- `2026-04-10`: CSV load covers multiline records, runtime defaults, coercion policy, report diagnostics, enum binding, and guarded load benchmarks.
-- `2026-04-10`: WP18 closed reviewer-visible new-file materialization: WP17 reviewer uses `apply-reviewed`, docs/csv.md added to readPaths, README + SYSTEM-SPEC updated.
-- `2026-04-09`: retained `WP17` runs proved accepted `tool: mvn ...`.
-- `2026-04-11`: `scripts/claude-orchestrator.py` now preserves optional agent `skills`; tracked workers pass `caveman` through `--agents` so the skill loads after agent setup.
-- `2026-04-11`: live `spike-limitations-subquery-widening` passed after aggregate subquery validation and grouped-alias fixes.
-- `2026-04-11`: focused `pojo-lens` validation/contract tests and the full `pojo-lens` module test suite passed after the subquery widening fix.
+- `2026-04-10`: CSV WP1-WP5 is validated; `CSV-WP6` remains deferred.
+- `2026-04-11`: orchestration WP18, worker validation hints, and `caveman` skill propagation are validated.
+- `2026-04-11`: SQL-like subqueries support grouped and aggregate outputs.
 - `2026-04-11`: limitation scan found time-bucket input broadening done.
 - `2026-04-11`: `README.md` now stays at feature-set/routing level; SQL-like subquery/runtime preset detail and fluent builder reuse guidance live in `docs/sql-like.md` and `docs/usecases.md`.
-- `2026-04-11`: public docs alignment passed `scripts/check-doc-consistency.ps1` and `SqlLikeDocsExamplesTest`.
-- `2026-04-12`: aggregate SQL-like/fluent windows now support running, `<n> PRECEDING`, and full-partition `ROWS` frames; module tests and docs consistency passed.
-- `2026-04-12`: aggregate `ORDER BY` validation now reports known raw source fields as invalid aggregate references while typos keep unknown-field suggestions.
+- `2026-04-12`: bounded aggregate windows and aggregate `ORDER BY` diagnostic polish passed module tests and docs consistency.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
+- `2026-04-13`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries can now use `JOIN` clauses backed by `JoinBindings`; correlated, `EXISTS`, scalar, and broad nested SQL subqueries remain unsupported.
 
 ## Validate
 

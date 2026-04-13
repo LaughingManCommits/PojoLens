@@ -6,17 +6,20 @@
   `LocalDate`, `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`.
 - `Done`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries now
   support single-output simple fields, grouped aliases, and aggregate aliases.
+- `Done`: SQL-like uncorrelated joined subqueries now use existing
+  `JoinBindings` for the subquery `FROM` source and joined sources.
 - `Done`: SQL-like aggregate windows now support explicit running, bounded
   trailing, and full-partition `ROWS` frames.
 - `Done`: aggregate `ORDER BY` diagnostics now distinguish invalid raw source
   fields from unknown-field typos in aggregate query shapes.
 - `Done`: `PojoLensCore.prepare(...)` now exposes a fluent-only immutable
   prepared query definition for reusable code-owned builder recipes.
-- `Still valid`: joined/correlated subqueries remain unsupported.
+- `Still valid`: correlated subqueries, `EXISTS`, scalar subqueries, and broad
+  nested SQL planning remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row
   frames, expression offsets, and grouped-query window execution.
-- `Next`: choose uncorrelated joined subqueries only if concrete
-  `JoinBindings` demand appears.
+- `Next`: choose another limitation slice only from concrete demand; avoid
+  broad SQL-planner or mutable-builder-concurrency expansion by default.
 
 ## CSV Adapter Follow-Up (2026-04-10)
 

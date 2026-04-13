@@ -386,10 +386,6 @@ public final class SqlLikeValidator {
                     "Subquery values are only supported with IN");
         }
         QueryAst subquery = subqueryValueAst.query();
-        if (subquery.hasJoins()) {
-            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries do not support JOIN clauses in v1");
-        }
         SelectAst select = subquery.select();
         if (select == null || select.wildcard() || select.fields().size() != 1) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
@@ -406,18 +402,26 @@ public final class SqlLikeValidator {
         Class<?> subquerySourceClass = resolveSubquerySourceClass(sourceClass, joinSources, select);
         boolean groupedOnly = !subquery.hasAggregation() && !subquery.groupByFields().isEmpty();
         if (groupedOnly) {
-            validateGroupedOnlySubquery(subquery, subquerySourceClass, computedFieldRegistry);
+            validateGroupedOnlySubquery(subquery, subquerySourceClass, joinSources, computedFieldRegistry);
         } else {
             validateForFilter(subquery, subquerySourceClass, QueryRow.class,
-                    java.util.Collections.emptyMap(), false, computedFieldRegistry);
+                    joinSources, false, computedFieldRegistry);
         }
     }
 
     private static void validateGroupedOnlySubquery(QueryAst subquery,
                                                     Class<?> sourceClass,
+                                                    Map<String, List<?>> joinSources,
                                                     ComputedFieldRegistry computedFieldRegistry) {
-        QueryAst normalizedSubquery = normalizeAggregationAliases(subquery);
-        Set<String> sourceFields = collectFields(sourceClass);
+        SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(subquery, sourceClass, joinSources);
+        QueryAst normalizedSubquery = SqlLikeJoinResolution.canonicalize(subquery, joinPlan);
+        normalizedSubquery = normalizeAggregationAliases(normalizedSubquery);
+        Map<String, Class<?>> sourceFieldTypes = joinPlan.isEmpty()
+                ? collectFieldTypes(sourceClass)
+                : joinPlan.mergedFieldTypes();
+        Set<String> sourceFields = ComputedFieldSupport
+                .augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
+                .keySet();
         for (String group : normalizedSubquery.groupByFields()) {
             requireKnownField(group, sourceFields, "GROUP BY");
         }
@@ -429,9 +433,9 @@ public final class SqlLikeValidator {
                     "Subquery grouped field '" + fieldName + "' must be present in GROUP BY");
         }
         validateFilters(normalizedSubquery.filters(), sourceFields, sourceClass,
-                java.util.Collections.emptyMap(), computedFieldRegistry);
+                joinSources, computedFieldRegistry);
         validateHaving(normalizedSubquery, sourceFields, sourceClass,
-                java.util.Collections.emptyMap(), computedFieldRegistry);
+                joinSources, computedFieldRegistry);
     }
 
     private static Class<?> resolveSubquerySourceClass(Class<?> sourceClass,

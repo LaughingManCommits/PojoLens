@@ -185,7 +185,7 @@ public final class ReflectionUtil {
             List<T> queryRows = new ArrayList<>(rows.size());
             for (Object[] row : rows) {
                 RawQueryRow queryRow = new RawQueryRow(
-                        row != null ? row : new Object[0],
+                        projectArrayRow(row, sourceIndexes),
                         sourceFieldSchema != null ? sourceFieldSchema : List.of()
                 );
                 if (cls.isInstance(queryRow)) {
@@ -221,6 +221,23 @@ public final class ReflectionUtil {
         }
 
         return result;
+    }
+
+    private static Object[] projectArrayRow(Object[] row, int[] sourceIndexes) {
+        if (row == null) {
+            return new Object[0];
+        }
+        if (sourceIndexes == null) {
+            return row;
+        }
+        Object[] projected = new Object[sourceIndexes.length];
+        for (int i = 0; i < sourceIndexes.length; i++) {
+            int sourceIndex = sourceIndexes[i];
+            if (sourceIndex >= 0 && sourceIndex < row.length) {
+                projected[i] = row[sourceIndex];
+            }
+        }
+        return projected;
     }
 
     /**

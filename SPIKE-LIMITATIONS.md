@@ -6,7 +6,7 @@ Which documented limitations are still real, which have already been reduced,
 and what should be fixed next without turning `pojo-lens` into a full SQL
 engine or a concurrency framework?
 
-## Current Scan (2026-04-12)
+## Current Scan (2026-04-13)
 
 Completed:
 
@@ -15,6 +15,8 @@ Completed:
   `OffsetDateTime`, and `ZonedDateTime`.
 - SQL-like `WHERE ... IN (select ...)` subqueries now support one uncorrelated
   output column produced from a simple field, grouped alias, or aggregate alias.
+  Subqueries may also use explicit `JOIN` clauses when the subquery `FROM`
+  source and joined sources are provided through `JoinBindings`.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -32,7 +34,8 @@ Still valid:
 
 - SQL-like subqueries are still intentionally bounded to uncorrelated,
   single-output `WHERE <field> IN (select ...)` shapes.
-- Joined and correlated subqueries are still unsupported.
+- Correlated subqueries, `EXISTS`, scalar subqueries, and arbitrary nested SQL
+  planning are still unsupported.
 - SQL-like aggregate windows still reject broad SQL frame families such as
   `RANGE`, `GROUPS`, following-row frames, and expression-based offsets.
 - Window functions still run only in non-aggregate query shapes.
@@ -77,7 +80,7 @@ Status:
 
 - completed; no implementation work remains for the original Date-only limit
 
-### 2. SQL-like Subqueries (First Widening Completed)
+### 2. SQL-like Subqueries (Bounded Widenings Completed)
 
 Current behavior:
 
@@ -85,24 +88,26 @@ Current behavior:
 - subquery `SELECT` must contain exactly one explicit output
 - that output may be a simple field, grouped alias, or aggregate alias
 - named subquery `FROM <source>` can read from provided join-source bindings
-- no `JOIN` clauses inside subqueries
+- subquery `JOIN` clauses can read from provided join-source bindings
 - no correlated subqueries
 
 Status:
 
 - `2026-04-11`: grouped/aggregate subquery widening landed and was live-tested
+- `2026-04-13`: uncorrelated joined subqueries landed for existing
+  `JoinBindings` workflows
 
 Remaining valid limits:
 
-- joined subqueries
 - correlated subqueries
 - broad `EXISTS` / scalar-subquery support
 - arbitrary nested SQL-engine semantics
 
 Recommendation:
 
-- keep the current subquery boundary unless real `JoinBindings` use cases prove
-  that uncorrelated joined subqueries are worth the added planner complexity
+- keep the current uncorrelated, single-output boundary
+- do not add correlated, `EXISTS`, scalar, or arbitrary nested SQL semantics by
+  default
 
 ### 3. Aggregate SQL-like ORDER BY (Resolved Boundary)
 
@@ -190,8 +195,9 @@ Recommendation:
 
 ## Recommended Work Order
 
-1. Uncorrelated joined subqueries only if existing `JoinBindings` workflows
-   prove the need.
+No active limitation work package is recommended by default. Pick the next
+slice only from concrete user demand and keep it inside the existing execution
+model.
 
 ## Non-Goals
 
@@ -216,5 +222,5 @@ explicitly pulled in later:
 ## Recommendation
 
 The next useful limitation work is not another broad syntax expansion by
-default. Uncorrelated joined subqueries are the remaining candidate, but that
-slice should start only from concrete `JoinBindings` demand.
+default. Treat the remaining correlated subquery, broad scalar/`EXISTS`, broad
+window-frame, and mutable-builder concurrency ideas as opt-in only.

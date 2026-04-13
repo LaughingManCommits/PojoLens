@@ -276,7 +276,7 @@ The README keeps limits at the product-surface level. Detailed limitations live
 with the owning guide.
 
 - SQL-like does not try to be a full SQL engine; subqueries, aggregate ordering,
-  and window frames remain bounded. See
+  and window frames are intentionally bounded. See
   [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations).
 - Natural queries use controlled grammar, not free-form language. See
   [docs/natural.md#current-limitations](docs/natural.md#current-limitations).

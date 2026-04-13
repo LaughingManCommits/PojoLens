@@ -385,14 +385,14 @@ public class SqlLikeValidationTest {
     }
 
     @Test
-    public void subqueryShouldRejectJoinClause() {
+    public void subqueryShouldRequireJoinSourceBindingForJoinClause() {
         List<Employee> employees = sampleEmployees();
         try {
             PojoLensSql.parse("where department in (select department from employees join companies on companyId = id)")
-                    .filter(employees, Employee.class);
-            fail("Expected JOIN subquery validation error");
+                    .filter(employees, JoinBindings.of("employees", employees), Employee.class);
+            fail("Expected JOIN subquery source validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Subqueries do not support JOIN clauses in v1"));
+            assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'companies'"));
         }
     }
 

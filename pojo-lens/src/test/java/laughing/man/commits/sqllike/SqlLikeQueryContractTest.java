@@ -323,6 +323,38 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void whereInSubqueryShouldSupportUncorrelatedJoinedSourceFiltering() {
+        List<CustomerOrder> orders = Arrays.asList(
+                new CustomerOrder(100, "Ada"),
+                new CustomerOrder(101, "Ben"),
+                new CustomerOrder(102, "Cara")
+        );
+
+        List<CustomerOrder> results = PojoLensSql.parse("where id in "
+                        + "(select orderId from lines join products on productId = id where category = 'Book')")
+                .filter(orders, sampleOrderJoinBindings(), CustomerOrder.class);
+
+        assertEquals(Arrays.asList(100, 102),
+                results.stream().map(row -> row.id).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportJoinedSelectedField() {
+        List<CustomerInterest> interests = Arrays.asList(
+                new CustomerInterest("Book"),
+                new CustomerInterest("Game"),
+                new CustomerInterest("Desk")
+        );
+
+        List<CustomerInterest> results = PojoLensSql.parse("where category in "
+                        + "(select category from lines join products on productId = id where orderId = 100)")
+                .filter(interests, sampleOrderJoinBindings(), CustomerInterest.class);
+
+        assertEquals(Arrays.asList("Book", "Game"),
+                results.stream().map(row -> row.category).collect(Collectors.toList()));
+    }
+
+    @Test
     public void repeatedBeanBackedStatsExecutionsShouldRebindToCurrentRows() {
         List<DepartmentEmployee> firstRows = Arrays.asList(
                 new DepartmentEmployee("Engineering"),
@@ -477,6 +509,72 @@ public class SqlLikeQueryContractTest {
 
         public TestBeanSummary() {
         }
+    }
+
+    public static class CustomerOrder {
+        int id;
+        String customer;
+
+        public CustomerOrder() {
+        }
+
+        public CustomerOrder(int id, String customer) {
+            this.id = id;
+            this.customer = customer;
+        }
+    }
+
+    public static class OrderLine {
+        int orderId;
+        int productId;
+
+        public OrderLine() {
+        }
+
+        public OrderLine(int orderId, int productId) {
+            this.orderId = orderId;
+            this.productId = productId;
+        }
+    }
+
+    public static class Product {
+        int id;
+        String category;
+
+        public Product() {
+        }
+
+        public Product(int id, String category) {
+            this.id = id;
+            this.category = category;
+        }
+    }
+
+    public static class CustomerInterest {
+        String category;
+
+        public CustomerInterest() {
+        }
+
+        public CustomerInterest(String category) {
+            this.category = category;
+        }
+    }
+
+    private static JoinBindings sampleOrderJoinBindings() {
+        return JoinBindings.builder()
+                .add("lines", Arrays.asList(
+                        new OrderLine(100, 10),
+                        new OrderLine(100, 20),
+                        new OrderLine(101, 20),
+                        new OrderLine(102, 30)
+                ))
+                .add("products", Arrays.asList(
+                        new Product(10, "Book"),
+                        new Product(20, "Game"),
+                        new Product(30, "Book")
+                ))
+                .build();
     }
 }
 

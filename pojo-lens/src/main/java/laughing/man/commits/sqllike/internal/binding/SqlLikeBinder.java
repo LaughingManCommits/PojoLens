@@ -31,7 +31,6 @@ import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeJoinResolution;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
 import laughing.man.commits.util.QueryFieldLookupUtil;
-import laughing.man.commits.util.ReflectionUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -440,28 +439,40 @@ public final class SqlLikeBinder {
         }
 
         Class<?> sourceClass = inferSourceClass(sourceRows);
-        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, Collections.emptyMap(), sourceClass, computedFieldRegistry);
+        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, joinSources, sourceClass, computedFieldRegistry);
         Sort subquerySort = resolveSort(subquery);
         ArrayList<Object> values = new ArrayList<>(sourceRows.size());
-        if (selectedField.metricField()) {
-            List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, QueryRow.class);
-            String outputName = selectedField.outputName();
-            for (Object row : rows) {
-                QueryRow queryRow = (QueryRow) row;
-                values.add(QueryFieldLookupUtil.findFieldValue(queryRow.getFields(), outputName));
-            }
-        } else {
-            List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, sourceClass);
-            for (Object row : rows) {
-                try {
-                    values.add(ReflectionUtil.getFieldValue(row, selectedField.field()));
-                } catch (Exception e) {
-                    throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
-                            "Failed to resolve subquery field '" + selectedField.field() + "'");
-                }
-            }
+        List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(
+                subqueryBuilder,
+                subquerySort,
+                subquery.hasJoins(),
+                QueryRow.class
+        );
+        String outputField = subqueryOutputField(selectedField);
+        for (Object row : rows) {
+            QueryRow queryRow = (QueryRow) row;
+            values.add(resolveSubqueryRowValue(queryRow, outputField));
         }
         return values;
+    }
+
+    private static String subqueryOutputField(SelectFieldAst selectedField) {
+        if (selectedField.metricField()
+                || selectedField.timeBucketField()
+                || selectedField.computedField()
+                || selectedField.windowField()) {
+            return selectedField.outputName();
+        }
+        return selectedField.field();
+    }
+
+    private static Object resolveSubqueryRowValue(QueryRow row, String fieldName) {
+        int fieldIndex = QueryFieldLookupUtil.findFieldIndex(row.getFields(), fieldName);
+        if (fieldIndex < 0) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
+                    "Failed to resolve subquery field '" + fieldName + "'");
+        }
+        return row.getValueAt(fieldIndex);
     }
 
     private static List<?> resolveSubquerySourceRows(SelectAst select,
