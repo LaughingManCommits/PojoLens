@@ -7,7 +7,6 @@
 
 ## Focus
 
-- No repo-wide release work is pending.
 - `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
 - AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
 - `2026-04-13`: grouped/aggregate/joined subquery widening, bounded
@@ -36,12 +35,15 @@
 
 ## Risks
 
+- Fluent/core should lead capability; SQL-like and natural are facades. Current
+  SQL-like-only subquery/existence support needs fluent-first parity recovery.
 - Natural remains controlled grammar; direct static parse/template entry points intentionally stay runtime-vocabulary-free.
 
 ## Next
 
 - Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: no active next slice is selected; correlated subqueries, scalar
-  subqueries, broad SQL window-frame parity, and mutable-builder concurrency
-  remain opt-in only.
+- Limitations: next useful slice is fluent/core parity recovery for bounded
+  subquery/existence predicates, then natural lowering; correlated subqueries,
+  scalar subqueries, broad SQL window-frame parity, and mutable-builder
+  concurrency remain opt-in only.

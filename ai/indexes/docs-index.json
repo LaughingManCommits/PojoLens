@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T19:25:14.964336+02:00",
+  "generatedAt": "2026-04-13T20:40:42.955112+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -33,8 +33,8 @@
       "category": "ai-core",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 23,
-      "byteCount": 1270,
+      "lineCount": 33,
+      "byteCount": 1657,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +168,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 47,
-      "byteCount": 2702,
+      "lineCount": 49,
+      "byteCount": 2904,
       "coldSearchEligible": true
     },
     {
@@ -177,8 +177,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 47,
-      "byteCount": 2880,
+      "lineCount": 48,
+      "byteCount": 3004,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +186,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 121,
-      "byteCount": 63836,
+      "lineCount": 122,
+      "byteCount": 64098,
       "coldSearchEligible": true
     },
     {

@@ -36,6 +36,10 @@ Completed:
 
 Still valid:
 
+- Cross-surface parity is currently incomplete for bounded subquery/existence
+  predicates. SQL-like has `WHERE ... IN (select ...)` and
+  `WHERE [NOT] EXISTS (select ...)`; fluent and natural still need first-class
+  equivalent capability.
 - SQL-like subqueries are still intentionally bounded to uncorrelated
   `WHERE <field> IN (select ...)` and `WHERE [NOT] EXISTS (select ...)`
   shapes.
@@ -55,9 +59,40 @@ The right strategy is:
 
 - expand limits that unlock meaningful query power while preserving the current
   execution model
+- keep fluent-led parity across fluent, SQL-like, and natural; syntax can
+  differ, but the core/fluent capability should normally lead and the other
+  surfaces should lower onto it
 - clarify or reframe limits that are mostly about API shape or documentation
 - avoid drifting into a general SQL planner, correlated-subquery engine, or
   synchronized mutable-builder runtime
+
+## Fluent-Led Parity Requirement
+
+New query capability should normally be modeled first as a fluent/core query
+primitive. SQL-like and natural are facade surfaces over that engine, not
+separate feature owners. A capability is not considered fully complete until
+fluent, SQL-like, and natural have equivalent first-class ways to express it, or
+the spike records an explicit product exception.
+
+For limitation work, "equivalent" means:
+
+- Fluent exposes the capability through typed builder/API primitives.
+- SQL-like may use SQL-style syntax.
+- Natural may use controlled grammar phrases that lower to the same bounded
+  engine behavior.
+- No surface should require users to manually precompute intermediate filter
+  values or existence flags to reach behavior available in another surface.
+- If a facade surface temporarily lands a capability first, the next work is to
+  move the capability back into fluent/core and regain parity.
+
+Current parity gap:
+
+- SQL-like now supports bounded uncorrelated `WHERE ... IN (select ...)` and
+  `WHERE [NOT] EXISTS (select ...)`.
+- Fluent needs canonical bounded subquery/existence primitives.
+- Natural needs controlled grammar that lowers to those fluent/core primitives.
+- Until those land, the subquery/existence limitation is reduced but not fully
+  closed at the product-surface level.
 
 ## Limitation Review
 
@@ -85,12 +120,12 @@ Status:
 
 - completed; no implementation work remains for the original Date-only limit
 
-### 2. SQL-like Subqueries (Bounded Widenings Completed)
+### 2. Bounded Subquery/Existence Predicates (Parity Incomplete)
 
 Current behavior:
 
-- uncorrelated `WHERE field IN (select oneColumn ...)`
-- uncorrelated `WHERE EXISTS (select ...)` and
+- SQL-like supports uncorrelated `WHERE field IN (select oneColumn ...)`
+- SQL-like supports uncorrelated `WHERE EXISTS (select ...)` and
   `WHERE NOT EXISTS (select ...)`
 - `IN` subquery `SELECT` must contain exactly one explicit output
 - that `IN` output may be a simple field, grouped alias, or aggregate alias
@@ -109,6 +144,9 @@ Status:
 
 Remaining valid limits:
 
+- fluent has no first-class equivalent for bounded subquery/existence predicates
+- natural has no controlled grammar equivalent for bounded subquery/existence
+  predicates
 - correlated subqueries
 - scalar subqueries
 - arbitrary nested SQL-engine semantics
@@ -116,6 +154,9 @@ Remaining valid limits:
 Recommendation:
 
 - keep the current uncorrelated boundary
+- regain full parity by adding fluent/core bounded subquery/existence primitives
+  first, then natural grammar lowering; do not ask users to precompute filter
+  lists or existence flags
 - do not add correlated, scalar, or arbitrary nested SQL semantics by default
 
 ### 3. Aggregate SQL-like ORDER BY (Resolved Boundary)
@@ -217,6 +258,8 @@ This spike should not be read as a plan to add:
 - full SQL window-frame parity
 - arbitrary temporal coercion rules with hidden timezone guessing
 - a thread-safe mutable builder
+- permanent one-surface-only query capabilities that force user-side
+  precomputation on fluent or natural users
 
 ## Adjacent Natural Limits
 
@@ -232,6 +275,9 @@ These adjacent natural-query constraints have been reduced:
 
 ## Recommendation
 
-The next useful limitation work is not another broad syntax expansion by
-default. Treat the remaining correlated subquery, broad scalar, broad
-window-frame, and mutable-builder concurrency ideas as opt-in only.
+The next useful limitation work is parity recovery, not another broad syntax
+expansion by default. Move bounded subquery/existence predicates into the
+fluent/core capability layer, then expose natural controlled phrasing that
+lowers to the same behavior. Treat the remaining correlated subquery, broad
+scalar, broad window-frame, and mutable-builder concurrency ideas as opt-in
+only.

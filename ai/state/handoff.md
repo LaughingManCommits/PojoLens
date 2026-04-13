@@ -5,16 +5,14 @@
 1. Load hot context files.
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
-4. Run `scripts/refresh-ai-memory.ps1 -Check` if memory freshness is uncertain.
+4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
 
 ## Focus
 
 - The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- If engine follow-up resumes, bounded aggregate windows, aggregate `ORDER BY`
-  diagnostics, immutable fluent prepared definitions, uncorrelated joined
-  subqueries, bounded `EXISTS` / `NOT EXISTS`, and bounded natural cleanup are
-  done.
+- Engine limitation work done: bounded windows, aggregate `ORDER BY` polish,
+  immutable fluent prepare, joined subqueries, SQL-like `EXISTS`, and natural cleanup.
 
 ## Facts
 
@@ -27,9 +25,12 @@
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
 - `2026-04-13`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries
   can now use `JOIN` clauses backed by `JoinBindings`.
-- `2026-04-13`: SQL-like bounded uncorrelated `WHERE [NOT] EXISTS (select ...)`
-  subqueries now work for self-source, named-source, and joined-source checks;
-  correlated, scalar, and broad nested SQL subqueries remain unsupported.
+- `2026-04-13`: SQL-like bounded `WHERE [NOT] EXISTS (select ...)` works for
+  self/named/joined sources; correlated/scalar/broad nested SQL remains unsupported.
+- `2026-04-13`: limitation-spike policy now requires fluent-led parity:
+  SQL-like/natural are facades, so SQL-like-only bounded subquery/existence
+  support needs fluent/core primitives plus natural lowering; user-side
+  precomputed filters are not the parity answer.
 - `2026-04-13`: natural `schema(...)` resolves runtime vocabulary for non-join and join-aware overloads; `qualify` supports controlled inline window phrases; window phrasing supports multiple partitions and supported aggregate frames; resolved delegates are cached by execution shape.
 
 ## Validate
