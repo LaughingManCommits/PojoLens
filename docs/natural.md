@@ -30,6 +30,11 @@ Canonical operator phrases in `where`, `having`, and `qualify`:
 - `starts with`
 - `ends with`
 
+Canonical bounded subquery phrases in `where`:
+- `<field> is in query <natural query> end query`
+- `exists query <natural query> end query`
+- `not exists query <natural query> end query`
+
 Canonical aggregate phrases:
 - `count of`
 - `sum of`
@@ -193,6 +198,54 @@ Join guidance:
 - use source labels when a joined field needs to stay explicit
 - unqualified joined fields are still allowed when the underlying joined field name is unique
 - when the joined shape becomes deeply select-heavy or window-heavy, prefer [docs/sql-like.md](sql-like.md)
+
+## Bounded Subquery Predicates
+
+Natural bounded subqueries use `query ... end query` instead of SQL parentheses.
+The inner query is another controlled natural query and lowers into the same
+bounded subquery engine used by fluent and SQL-like execution.
+
+Self-source `is in query` example:
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where department is in query "
+        + "show department where active is true end query")
+    .filter(employees, Employee.class);
+```
+
+Named-source `is in query` example:
+
+```java
+List<Company> rows = PojoLensNatural
+    .parse("show all where id is in query "
+        + "from employees show company id where title is Engineer end query")
+    .filter(
+        companies,
+        JoinBindings.of("employees", employees),
+        Company.class);
+```
+
+Existence example:
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where exists query "
+        + "show all where department is Engineering end query")
+    .filter(employees, Employee.class);
+```
+
+Subquery notes:
+
+- subqueries are supported only in `where`
+- `is in query` subqueries must `show` exactly one explicit output
+- `exists query` and `not exists query` ignore the inner `show` output and may
+  use `show all`
+- named subquery sources and joins use the same `JoinBindings` model as joins
+- runtime natural vocabulary resolves both the outer query and the bounded
+  subquery before execution
+- correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
+  are not supported
 
 ## Vocabulary Contract
 
@@ -394,6 +447,9 @@ Map<String, Object> explain = PojoLensNatural
 ## Current Limitations
 
 - the language is controlled text, not free-form natural language
+- bounded subqueries are limited to uncorrelated `where <field> is in query ... end query`
+  and `where [not] exists query ... end query`
+- scalar subqueries and correlated subqueries are not supported
 - natural window phrases expose row-number/rank/dense-rank plus running
   aggregate windows with running, trailing-row, and full-partition `ROWS` frames
 - direct `PojoLensNatural.parse(...)` does not apply runtime vocabulary

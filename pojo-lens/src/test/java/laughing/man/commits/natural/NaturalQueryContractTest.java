@@ -617,6 +617,84 @@ public class NaturalQueryContractTest {
                 .toList());
     }
 
+    @Test
+    public void shouldExecuteNaturalBoundedInSubqueryAgainstSelfSource() {
+        List<DepartmentActive> source = List.of(
+                new DepartmentActive("Engineering", true),
+                new DepartmentActive("Engineering", false),
+                new DepartmentActive("Finance", false),
+                new DepartmentActive("HR", false)
+        );
+
+        NaturalQuery query = PojoLensNatural
+                .parse("show employees where department is in query "
+                        + "show department where active is true end query");
+        List<DepartmentActive> rows = query.filter(source, DepartmentActive.class);
+
+        assertEquals(List.of("Engineering", "Engineering"),
+                rows.stream().map(row -> row.department).toList());
+        assertEquals(
+                "select * where department in (select department where active = true)",
+                query.explain(source, DepartmentActive.class).get("equivalentSqlLike")
+        );
+    }
+
+    @Test
+    public void shouldExecuteNaturalBoundedInSubqueryAgainstNamedSource() {
+        List<Company> rows = PojoLensNatural
+                .parse("show all where id is in query "
+                        + "from employees show company id where title is Engineer end query")
+                .filter(
+                        sampleCompanies(),
+                        JoinBindings.of("employees", sampleCompanyEmployees()),
+                        Company.class
+                );
+
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void shouldExecuteNaturalExistsSubqueries() {
+        NaturalQuery present = PojoLensNatural
+                .parse("show employees where exists query show all where department is Engineering end query");
+        NaturalQuery missing = PojoLensNatural
+                .parse("show employees where exists query show all where department is Missing end query");
+        NaturalQuery inverted = PojoLensNatural
+                .parse("show employees where not exists query show all where department is Missing end query");
+
+        assertEquals(sampleEmployees().size(), present.filter(sampleEmployees(), Employee.class).size());
+        assertEquals(0, missing.filter(sampleEmployees(), Employee.class).size());
+        assertEquals(sampleEmployees().size(), inverted.filter(sampleEmployees(), Employee.class).size());
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveBoundedSubqueryFields() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("department", "team")
+                .build());
+        List<DepartmentActive> source = List.of(
+                new DepartmentActive("Engineering", true),
+                new DepartmentActive("Engineering", false),
+                new DepartmentActive("Finance", false),
+                new DepartmentActive("HR", false)
+        );
+
+        NaturalQuery query = runtime.natural()
+                .parse("show employees where team is in query show team where active is true end query");
+
+        List<DepartmentActive> rows = query.filter(source, DepartmentActive.class);
+        assertEquals(List.of("Engineering", "Engineering"),
+                rows.stream().map(row -> row.department).toList());
+
+        Map<String, Object> explain = query.explain(source, DepartmentActive.class);
+        assertEquals(Map.of("team", "department"), explain.get("resolvedNaturalFields"));
+        assertEquals(
+                "select * where department in (select department where active = true)",
+                explain.get("resolvedEquivalentSqlLike")
+        );
+    }
+
     public static class DepartmentPayrollRow {
         public String dept;
         public long totalPayroll;
@@ -659,6 +737,19 @@ public class NaturalQueryContractTest {
         public Long fullSum;
 
         public NaturalWindowFrameRow() {
+        }
+    }
+
+    public static class DepartmentActive {
+        public String department;
+        public boolean active;
+
+        public DepartmentActive() {
+        }
+
+        public DepartmentActive(String department, boolean active) {
+            this.department = department;
+            this.active = active;
         }
     }
 

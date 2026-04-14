@@ -25,6 +25,10 @@ Completed:
   `QueryBuilder.addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)`.
   These resolve at execution-snapshot time and support self-source and
   explicit-source subqueries without caller-side precomputation.
+- Natural now exposes controlled bounded subquery/existence grammar:
+  `is in query ... end query`, `exists query ... end query`, and
+  `not exists query ... end query`. Runtime natural vocabulary is resolved
+  through both the outer query and the bounded subquery.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -40,10 +44,10 @@ Completed:
 
 Still valid:
 
-- Cross-surface parity is still incomplete for bounded subquery/existence
-  predicates. Fluent/core and SQL-like now have first-class equivalents, but
-  natural still needs controlled grammar that lowers to the same bounded
-  behavior.
+- No user-facing cross-surface parity gap is currently open for bounded
+  uncorrelated subquery/existence predicates. Fluent/core, SQL-like, and
+  natural all expose first-class bounded forms without caller-side
+  precomputation.
 - SQL-like subqueries are still intentionally bounded to uncorrelated
   `WHERE <field> IN (select ...)` and `WHERE [NOT] EXISTS (select ...)`
   shapes.
@@ -89,16 +93,16 @@ For limitation work, "equivalent" means:
 - If a facade surface temporarily lands a capability first, the next work is to
   move the capability back into fluent/core and regain parity.
 
-Current parity gap:
+Current parity status:
 
 - SQL-like now supports bounded uncorrelated `WHERE ... IN (select ...)` and
   `WHERE [NOT] EXISTS (select ...)`.
 - Fluent/core now has canonical bounded subquery/existence primitives.
-- Natural needs controlled grammar that lowers to those fluent/core primitives.
-- Facade implementation should continue moving toward direct lowering onto the
-  fluent/core primitive rather than owning separate behavior.
-- Until natural lowering lands, the subquery/existence limitation is reduced but
-  not fully closed at the product-surface level.
+- Natural now has controlled `query ... end query` grammar for bounded
+  `is in`, `exists`, and `not exists` predicates.
+- No user-facing precomputation workaround is required for this capability.
+- Facade implementation should continue converging on shared fluent/core
+  behavior rather than owning divergent behavior.
 
 ## Limitation Review
 
@@ -126,7 +130,7 @@ Status:
 
 - completed; no implementation work remains for the original Date-only limit
 
-### 2. Bounded Subquery/Existence Predicates (Parity Incomplete)
+### 2. Bounded Subquery/Existence Predicates (Parity Closed)
 
 Current behavior:
 
@@ -144,6 +148,8 @@ Current behavior:
 - `EXISTS` ignores selected output and may use `SELECT *` or explicit fields
 - named subquery `FROM <source>` can read from provided join-source bindings
 - subquery `JOIN` clauses can read from provided join-source bindings
+- natural supports equivalent uncorrelated forms with `query ... end query`
+  bounds instead of SQL parentheses
 - no correlated subqueries
 
 Status:
@@ -155,11 +161,11 @@ Status:
   landed for self-source, named-source, and joined-source checks
 - `2026-04-14`: fluent/core bounded subquery predicates landed for
   self-source and explicit-source `IN`, `EXISTS`, and `NOT EXISTS` workflows
+- `2026-04-14`: natural bounded subquery/existence grammar landed with runtime
+  vocabulary resolution across outer and nested natural query fields
 
 Remaining valid limits:
 
-- natural has no controlled grammar equivalent for bounded subquery/existence
-  predicates
 - SQL-like and natural facade code should keep moving toward direct lowering
   onto fluent/core subquery primitives instead of parallel behavior
 - correlated subqueries
@@ -169,7 +175,7 @@ Remaining valid limits:
 Recommendation:
 
 - keep the current uncorrelated boundary
-- regain full parity by adding natural grammar lowering; do not ask users to
+- keep parity tests across fluent, SQL-like, and natural; do not ask users to
   precompute filter lists or existence flags
 - do not add correlated, scalar, or arbitrary nested SQL semantics by default
 
@@ -259,9 +265,10 @@ Recommendation:
 
 ## Recommended Work Order
 
-Next default slice: add controlled natural-query phrasing for bounded
-subquery/existence predicates and lower it to the fluent/core primitives.
-Keep the scope uncorrelated and bounded.
+No default bounded subquery parity slice remains. Choose the next limitation
+slice only from concrete demand, and keep any future subquery work
+uncorrelated and bounded unless a separate design explicitly justifies broader
+planning.
 
 ## Non-Goals
 
@@ -289,8 +296,6 @@ These adjacent natural-query constraints have been reduced:
 
 ## Recommendation
 
-The next useful limitation work is natural parity recovery, not another broad
-syntax expansion by default. Bounded subquery/existence predicates now exist in
-the fluent/core capability layer; expose controlled natural phrasing that lowers
-to the same behavior. Treat the remaining correlated subquery, broad scalar,
-broad window-frame, and mutable-builder concurrency ideas as opt-in only.
+The bounded subquery/existence parity gap is closed at the product-surface
+level. Treat the remaining correlated subquery, broad scalar, broad
+window-frame, and mutable-builder concurrency ideas as opt-in only.

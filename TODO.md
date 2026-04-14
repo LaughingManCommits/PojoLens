@@ -27,6 +27,10 @@
 - `Done`: natural execution reuses resolved delegates by execution shape, and
   joined natural schema metadata can resolve vocabulary through dataset or
   join-binding schema overloads.
+- `Done`: natural bounded subquery/existence predicates now support controlled
+  `is in query ... end query`, `exists query ... end query`, and
+  `not exists query ... end query` grammar with runtime vocabulary resolution
+  through the bounded subquery.
 - `Still valid`: correlated subqueries, scalar subqueries, and broad nested SQL
   planning remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row

@@ -9,6 +9,7 @@ import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.natural.NaturalWindowSupport;
 import laughing.man.commits.natural.NaturalVocabularySupport;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -19,6 +20,7 @@ import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
+import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.StringUtil;
 
@@ -26,6 +28,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -34,6 +37,8 @@ import java.util.regex.Pattern;
  * Parser for the controlled MVP plain-English query surface.
  */
 public final class NaturalQueryParser {
+
+    private static final String EXISTS_PSEUDO_FIELD = "__pojo_lens_exists";
 
     private static final Set<String> WILDCARD_TERMS = Set.of(
             "all",
@@ -304,6 +309,12 @@ public final class NaturalQueryParser {
             if (peek().type == TokenType.LEFT_PAREN || peek().type == TokenType.RIGHT_PAREN) {
                 throw error("Parentheses are not supported in MVP natural queries", peek().position);
             }
+            if (isWord(peek(), "exists")) {
+                return parseExistsPredicate(false, clauseName);
+            }
+            if (isWord(peek(), "not") && isWord(tokenAt(index + 1), "exists")) {
+                return parseExistsPredicate(true, clauseName);
+            }
 
             OperatorMatch operator = findOperator(clauseName);
             if (operator == null) {
@@ -320,12 +331,70 @@ public final class NaturalQueryParser {
             String field = parseReference(fieldTokens, allowAggregateReferences, clauseName);
 
             index = operator.endIndex();
-            List<Token> valueTokens = readValueTokens();
-            if (valueTokens.isEmpty()) {
-                throw error("Expected value after operator", peek().position);
+            Object value;
+            if (operator.operator().clause == Clauses.IN) {
+                requireWhereSubquery(clauseName);
+                BoundedNaturalSubquery subquery = parseBoundedSubquery();
+                value = new SubqueryValueAst(subquery.source(), subquery.ast());
+            } else {
+                List<Token> valueTokens = readValueTokens();
+                if (valueTokens.isEmpty()) {
+                    throw error("Expected value after operator", peek().position);
+                }
+                value = parseValue(valueTokens, operator.operator());
             }
-            Object value = parseValue(valueTokens, operator.operator());
             return new FilterPredicateAst(new FilterAst(field, operator.operator().clause, value, null));
+        }
+
+        private FilterExpressionAst parseExistsPredicate(boolean negated, String clauseName) {
+            requireWhereSubquery(clauseName);
+            if (negated) {
+                expectWord("not");
+            }
+            expectWord("exists");
+            BoundedNaturalSubquery subquery = parseBoundedSubquery();
+            return new FilterPredicateAst(new FilterAst(
+                    EXISTS_PSEUDO_FIELD,
+                    Clauses.EQUAL,
+                    new ExistsSubqueryValueAst(subquery.source(), subquery.ast(), negated),
+                    null
+            ));
+        }
+
+        private void requireWhereSubquery(String clauseName) {
+            if (!"WHERE".equals(clauseName)) {
+                throw error("Subquery predicates are only supported in WHERE", peek().position);
+            }
+        }
+
+        private BoundedNaturalSubquery parseBoundedSubquery() {
+            expectWord("query");
+            int start = index;
+            int end = findEndQuery();
+            if (start == end) {
+                throw error("Subquery requires a natural query before 'end query'", tokenAt(end).position);
+            }
+            List<Token> subqueryTokens = slice(start, end);
+            String subquerySource = renderNaturalSource(subqueryTokens);
+            NaturalQueryParseResult subquery = NaturalQueryParser.parseResult(subquerySource);
+            for (Map.Entry<String, String> entry : subquery.sourceFieldPhrases().entrySet()) {
+                sourceFieldPhrases.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+            index = end;
+            expectWord("end");
+            expectWord("query");
+            return new BoundedNaturalSubquery(subquerySource, subquery.ast());
+        }
+
+        private int findEndQuery() {
+            int cursor = index;
+            while (!tokenAt(cursor).isEof()) {
+                if (isWord(tokenAt(cursor), "end") && isWord(tokenAt(cursor + 1), "query")) {
+                    return cursor;
+                }
+                cursor++;
+            }
+            throw error("Expected 'end query' to close subquery", peek().position);
         }
 
         private FilterExpressionAst parseBooleanFieldShorthand(boolean allowAggregateReferences, String clauseName) {
@@ -1569,6 +1638,25 @@ public final class NaturalQueryParser {
         return sb.toString().trim();
     }
 
+    private static String renderNaturalSource(List<Token> tokens) {
+        StringBuilder sb = new StringBuilder();
+        for (Token token : tokens) {
+            if (token.type == TokenType.COMMA) {
+                sb.append(',');
+                continue;
+            }
+            if (sb.length() > 0 && sb.charAt(sb.length() - 1) != ' ') {
+                sb.append(' ');
+            }
+            if (token.type == TokenType.STRING) {
+                sb.append('\'').append(token.text.replace("'", "''")).append('\'');
+            } else {
+                sb.append(token.text);
+            }
+        }
+        return sb.toString().trim();
+    }
+
     private static List<Token> tokenize(String input) {
         ArrayList<Token> tokens = new ArrayList<>();
         int index = 0;
@@ -1662,6 +1750,9 @@ public final class NaturalQueryParser {
     private record SortOrderTokens(List<Token> fieldTokens, Sort sort) {
     }
 
+    private record BoundedNaturalSubquery(String source, QueryAst ast) {
+    }
+
     private enum Operator {
         IS_NOT_EQUAL_TO(new String[]{"is", "not", "equal", "to"}, Clauses.NOT_EQUAL),
         NOT_EQUAL_TO(new String[]{"not", "equal", "to"}, Clauses.NOT_EQUAL),
@@ -1671,6 +1762,7 @@ public final class NaturalQueryParser {
         LESS_THAN_OR_EQUAL_TO(new String[]{"less", "than", "or", "equal", "to"}, Clauses.SMALLER_EQUAL),
         IS_EQUAL_TO(new String[]{"is", "equal", "to"}, Clauses.EQUAL),
         EQUAL_TO(new String[]{"equal", "to"}, Clauses.EQUAL),
+        IS_IN(new String[]{"is", "in"}, Clauses.IN),
         IS_NOT(new String[]{"is", "not"}, Clauses.NOT_EQUAL),
         EQUALS(new String[]{"equals"}, Clauses.EQUAL),
         IS_AT_LEAST(new String[]{"is", "at", "least"}, Clauses.BIGGER_EQUAL),

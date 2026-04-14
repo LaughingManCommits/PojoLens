@@ -3,6 +3,7 @@ package laughing.man.commits.natural;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -13,6 +14,7 @@ import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
+import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 
 import java.util.ArrayList;
@@ -132,6 +134,12 @@ final class NaturalQueryRenderer {
     }
 
     private static String renderPredicate(FilterAst filter) {
+        if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            return (existsSubqueryValueAst.negated() ? "not exists" : "exists")
+                    + " ("
+                    + toSqlLike(existsSubqueryValueAst.query())
+                    + ")";
+        }
         return filter.field()
                 + " "
                 + renderClause(filter.clause())
@@ -176,6 +184,9 @@ final class NaturalQueryRenderer {
         }
         if (value instanceof BoundParameterValue boundParameterValue) {
             return ":" + boundParameterValue.name();
+        }
+        if (value instanceof SubqueryValueAst subqueryValueAst) {
+            return "(" + toSqlLike(subqueryValueAst.query()) + ")";
         }
         if (value == null) {
             return "null";

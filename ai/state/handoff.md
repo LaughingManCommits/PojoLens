@@ -12,8 +12,7 @@
 - The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
 - Engine limitation work done: bounded windows, aggregate `ORDER BY`, immutable
-  fluent prepare, joined subqueries, SQL-like `EXISTS`, fluent/core subquery
-  predicates, and bounded natural cleanup.
+  fluent prepare, joined/`EXISTS` subqueries, and bounded parity cleanup.
 
 ## Facts
 
@@ -27,13 +26,13 @@
   self/named/joined sources; correlated/scalar/broad nested SQL remains unsupported.
 - `2026-04-13`: limitation policy requires fluent-led parity; SQL-like/natural
   are facades, and precomputed user filters are not the parity answer.
-- `2026-04-13`: natural schema vocabulary, `qualify` window phrases, broader
-  window phrasing/frames, and resolved-delegate caching are done.
-- `2026-04-14`: fluent/core bounded subquery predicates landed:
-  `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` resolve at
-  execution-snapshot time for self-source and explicit-source subqueries.
-- Next limitation slice: add controlled natural bounded subquery/existence
-  grammar and lower it to fluent/core.
+- `2026-04-13`: natural schema vocabulary, `qualify` window phrases,
+  broader window phrasing/frames, and resolved-delegate caching are done.
+- `2026-04-14`: bounded subquery/existence parity is closed across fluent,
+  SQL-like, and natural; natural uses bounded `query ... end query` grammar
+  with nested runtime-vocabulary resolution.
+- No default bounded subquery parity slice remains; keep correlated/scalar
+  subqueries and broad SQL planning opt-in only.
 
 ## Validate
 

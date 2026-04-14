@@ -1,5 +1,7 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.natural.parser.NaturalQueryParseResult;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -9,7 +11,7 @@ import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
-import laughing.man.commits.natural.parser.NaturalQueryParseResult;
+import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 
@@ -261,12 +263,7 @@ final class NaturalQueryResolutionSupport {
         }
         ArrayList<FilterAst> rewritten = new ArrayList<>(filters.size());
         for (FilterAst filter : filters) {
-            rewritten.add(new FilterAst(
-                    rewriteReference(filter.field(), resolvedByNaturalField),
-                    filter.clause(),
-                    filter.value(),
-                    filter.separator()
-            ));
+            rewritten.add(rewriteFilter(filter, resolvedByNaturalField));
         }
         return List.copyOf(rewritten);
     }
@@ -277,13 +274,7 @@ final class NaturalQueryResolutionSupport {
             return null;
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            return new FilterPredicateAst(new FilterAst(
-                    rewriteReference(filter.field(), resolvedByNaturalField),
-                    filter.clause(),
-                    filter.value(),
-                    filter.separator()
-            ));
+            return new FilterPredicateAst(rewriteFilter(predicateAst.filter(), resolvedByNaturalField));
         }
         FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
         return new FilterBinaryAst(
@@ -307,11 +298,46 @@ final class NaturalQueryResolutionSupport {
         return List.copyOf(rewritten);
     }
 
+    private static FilterAst rewriteFilter(FilterAst filter, Map<String, String> resolvedByNaturalField) {
+        return new FilterAst(
+                filter.value() instanceof ExistsSubqueryValueAst
+                        ? filter.field()
+                        : rewriteReference(filter.field(), resolvedByNaturalField),
+                filter.clause(),
+                rewriteFilterValue(filter.value(), resolvedByNaturalField),
+                filter.separator()
+        );
+    }
+
+    private static Object rewriteFilterValue(Object value, Map<String, String> resolvedByNaturalField) {
+        if (value instanceof SubqueryValueAst subqueryValueAst) {
+            QueryAst rewritten = rewrite(subqueryValueAst.query(), resolvedByNaturalField);
+            return new SubqueryValueAst(NaturalQueryRenderer.toSqlLike(rewritten), rewritten);
+        }
+        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            QueryAst rewritten = rewrite(existsSubqueryValueAst.query(), resolvedByNaturalField);
+            return new ExistsSubqueryValueAst(
+                    NaturalQueryRenderer.toSqlLike(rewritten),
+                    rewritten,
+                    existsSubqueryValueAst.negated()
+            );
+        }
+        return value;
+    }
+
     private static Set<String> collectExactReferences(QueryAst ast) {
         LinkedHashSet<String> references = new LinkedHashSet<>();
+        collectExactReferences(ast, references);
+        return references;
+    }
+
+    private static void collectExactReferences(QueryAst ast, Set<String> references) {
         SelectAst select = ast.select();
         if (select == null || select.wildcard()) {
-            return references;
+            collectNestedExactReferences(ast.filters(), references);
+            collectNestedExactReferences(ast.havingFilters(), references);
+            collectNestedExactReferences(ast.qualifyFilters(), references);
+            return;
         }
         for (SelectFieldAst field : select.fields()) {
             if (field.aliased()
@@ -322,7 +348,19 @@ final class NaturalQueryResolutionSupport {
                 references.add(field.outputName());
             }
         }
-        return references;
+        collectNestedExactReferences(ast.filters(), references);
+        collectNestedExactReferences(ast.havingFilters(), references);
+        collectNestedExactReferences(ast.qualifyFilters(), references);
+    }
+
+    private static void collectNestedExactReferences(List<FilterAst> filters, Set<String> references) {
+        for (FilterAst filter : filters) {
+            if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
+                collectExactReferences(subqueryValueAst.query(), references);
+            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                collectExactReferences(existsSubqueryValueAst.query(), references);
+            }
+        }
     }
 
     private static String rewriteReference(String reference, Map<String, String> resolvedByNaturalField) {

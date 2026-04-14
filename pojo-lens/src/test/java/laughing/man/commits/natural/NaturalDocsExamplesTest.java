@@ -118,6 +118,26 @@ public class NaturalDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipeNaturalBoundedSubqueriesShouldWork() {
+        List<Company> rows = PojoLensNatural
+                .parse("show all where id is in query "
+                        + "from employees show company id where title is Engineer end query")
+                .filter(
+                        sampleCompanies(),
+                        JoinBindings.of("employees", sampleCompanyEmployees()),
+                        Company.class
+                );
+
+        assertEquals(List.of("Acme"), rows.stream().map(row -> row.name).toList());
+
+        List<Employee> existsRows = PojoLensNatural
+                .parse("show employees where exists query show all where department is Engineering end query")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(sampleEmployees().size(), existsRows.size());
+    }
+
+    @Test
     public void docsRecipeNaturalWindowQualifyQueryShouldWork() {
         List<WindowRowNumberProjection> rows = PojoLensNatural
                 .parse("show department as dept, name, salary, "

@@ -9,8 +9,10 @@ import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.natural.parser.NaturalQueryParser;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
+import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -314,6 +316,45 @@ public class NaturalQueryParserTest {
 
         assertEquals(QueryWindowFrame.rowsPrecedingToCurrentRow(1), ast.select().fields().get(3).windowFrame());
         assertEquals(QueryWindowFrame.fullPartition(), ast.select().fields().get(4).windowFrame());
+    }
+
+    @Test
+    public void shouldParseBoundedInSubqueryPredicate() {
+        QueryAst ast = NaturalQueryParser.parse(
+                "show employees where department is in query show department where active is true end query"
+        );
+
+        assertEquals(1, ast.filters().size());
+        assertEquals("department", ast.filters().get(0).field());
+        assertEquals(Clauses.IN, ast.filters().get(0).clause());
+        assertTrue(ast.filters().get(0).value() instanceof SubqueryValueAst);
+        SubqueryValueAst subquery = (SubqueryValueAst) ast.filters().get(0).value();
+        assertEquals("show department where active is true", subquery.source());
+        assertEquals("department", subquery.query().select().fields().get(0).field());
+        assertEquals("active", subquery.query().filters().get(0).field());
+        assertEquals(true, subquery.query().filters().get(0).value());
+    }
+
+    @Test
+    public void shouldParseBoundedExistsSubqueryPredicates() {
+        QueryAst exists = NaturalQueryParser.parse(
+                "show employees where exists query show all where active is true end query"
+        );
+        QueryAst notExists = NaturalQueryParser.parse(
+                "show employees where not exists query from employees show all where active is false end query"
+        );
+
+        assertTrue(exists.filters().get(0).value() instanceof ExistsSubqueryValueAst);
+        ExistsSubqueryValueAst existsSubquery = (ExistsSubqueryValueAst) exists.filters().get(0).value();
+        assertFalse(existsSubquery.negated());
+        assertTrue(existsSubquery.query().select().wildcard());
+        assertEquals("active", existsSubquery.query().filters().get(0).field());
+
+        assertTrue(notExists.filters().get(0).value() instanceof ExistsSubqueryValueAst);
+        ExistsSubqueryValueAst notExistsSubquery = (ExistsSubqueryValueAst) notExists.filters().get(0).value();
+        assertTrue(notExistsSubquery.negated());
+        assertEquals("employees", notExistsSubquery.query().select().sourceName());
+        assertEquals("active", notExistsSubquery.query().filters().get(0).field());
     }
 
     @Test

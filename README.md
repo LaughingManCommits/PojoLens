@@ -175,7 +175,8 @@ List<Employee> filtered = PojoLensSql
 More examples:
 - Fluent and scenario selection: [docs/usecases.md](docs/usecases.md)
 - SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
-- Natural queries, joins, windows, and templates: [docs/natural.md](docs/natural.md)
+- Natural queries, joins, bounded subqueries, windows, and templates:
+  [docs/natural.md](docs/natural.md)
 - Charts, reports, and presets: [docs/charts.md](docs/charts.md), [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
 
 ## Capability Snapshot
@@ -279,7 +280,8 @@ with the owning guide.
 - SQL-like does not try to be a full SQL engine; subqueries, aggregate ordering,
   and window frames are intentionally bounded. See
   [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations).
-- Natural queries use controlled grammar, not free-form language. See
+- Natural queries use controlled grammar, not free-form language; bounded
+  subquery phrases are documented with that grammar. See
   [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
 - Fluent builders are mutable configuration objects; reuse guidance belongs with
   the code-owned query path. See [docs/usecases.md](docs/usecases.md).

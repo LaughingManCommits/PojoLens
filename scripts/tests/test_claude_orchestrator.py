@@ -5225,6 +5225,10 @@ class ValidateCommandTest(unittest.TestCase):
             runtime_root = temp_path / "runtime"
             repo_root.mkdir()
             orchestrator.ROOT = repo_root
+            now = orchestrator.datetime.now(orchestrator.timezone.utc)
+            old_completed_at = (now - orchestrator.timedelta(days=14)).isoformat()
+            old_failed_at = (now - orchestrator.timedelta(days=13)).isoformat()
+            recent_completed_at = (now - orchestrator.timedelta(days=1)).isoformat()
 
             def write_run(run_id: str, generated_at: str, status: str) -> tuple[pathlib.Path, pathlib.Path]:
                 run_dir = runtime_root / "runs" / run_id
@@ -5267,17 +5271,17 @@ class ValidateCommandTest(unittest.TestCase):
 
             old_completed_run_dir, old_completed_workspaces = write_run(
                 "old-completed",
-                "2026-03-01T10:00:00+00:00",
+                old_completed_at,
                 "completed",
             )
             old_failed_run_dir, old_failed_workspaces = write_run(
                 "old-failed",
-                "2026-03-02T10:00:00+00:00",
+                old_failed_at,
                 "failed",
             )
             recent_completed_run_dir, recent_completed_workspaces = write_run(
                 "recent-completed",
-                "2026-04-07T10:00:00+00:00",
+                recent_completed_at,
                 "completed",
             )
 
