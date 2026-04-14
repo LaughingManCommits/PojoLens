@@ -382,6 +382,11 @@ public class SqlLikeDocsExamplesTest {
                 .filter(source, Employee.class);
         assertEquals(source.size(), notExistsRows.size());
 
+        List<Employee> booleanRows = PojoLensSql.parse("where exists (select * where department = 'Missing') "
+                        + "or department = 'Finance'")
+                .filter(source, Employee.class);
+        assertEquals(List.of("Bob"), booleanRows.stream().map(r -> r.name).toList());
+
         List<Company> companies = sampleCompanies();
         List<Company> namedSourceRows = PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                 .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);

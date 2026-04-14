@@ -29,9 +29,9 @@
 - `2026-04-14`: SQL-like simple bounded `WHERE ... IN (select ...)` and
   `WHERE [NOT] EXISTS (select ...)` predicates now lower onto fluent/core
   subquery predicates.
-- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`,
-  `QueryRule.exists(...)`, and `QueryRule.notExists(...)` predicates are done;
-  SQL-like boolean `OR`/DNF subqueries now lower onto fluent/core.
+- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`, `exists(...)`,
+  and `notExists(...)` are done; SQL-like boolean `OR`/DNF subqueries lower
+  onto fluent/core, and public docs are aligned.
 - No default bounded subquery parity slice remains; keep correlated/scalar
   subqueries and broad SQL planning opt-in only.
 

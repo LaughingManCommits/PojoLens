@@ -4,7 +4,7 @@
 
 - `SELECT` (optional, supports `AS` aliases)
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
-- `WHERE`
+- `WHERE` (`AND`/`OR` predicates, including bounded subqueries)
 - aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
@@ -17,7 +17,7 @@
 - `OFFSET`
 
 Current non-goals:
-- full SQL-engine subqueries
+- full SQL-engine subqueries beyond the bounded uncorrelated `WHERE` forms below
 
 Supported operators in `WHERE`:
 - `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`
@@ -139,6 +139,10 @@ Sort limitation:
 
 - SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`
   and `WHERE [NOT] EXISTS (select ...)` predicates.
+- Supported subquery predicates can participate in `AND`/`OR` boolean `WHERE`
+  expressions. They lower through the same grouped fluent/core predicate path
+  used by `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`.
 - `IN` subqueries must select exactly one explicit output field, grouped
   alias, or aggregate alias.
 - `EXISTS` subqueries ignore selected output and may use `SELECT *` or
@@ -445,6 +449,15 @@ List<Employee> rows = PojoLensSql
     .filter(source, Employee.class);
 ```
 
+Boolean composition with subqueries:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where exists (select * where department = 'Missing') "
+        + "or department = 'Finance'")
+    .filter(source, Employee.class);
+```
+
 Named source subquery using runtime join-source bindings:
 
 ```java
@@ -479,6 +492,8 @@ Current subquery scope:
 
 - `WHERE ... IN (select oneColumn ...)`
 - `WHERE EXISTS (select ...)` and `WHERE NOT EXISTS (select ...)`
+- supported subquery predicates may be combined with other `WHERE` predicates
+  through `AND`/`OR`
 - `IN` subquery `SELECT` must contain exactly one explicit field
 - the `IN` field can be a simple field, grouped field alias, or aggregate output alias
 - `EXISTS` subquery `SELECT` output is ignored and may be wildcard or explicit

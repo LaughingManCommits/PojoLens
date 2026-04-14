@@ -26,8 +26,8 @@
   (`721` tests), docs, diff whitespace, Checkstyle goal, and script tests.
 - `2026-04-14`: SQL-like simple bounded `IN`/`EXISTS` predicates now bind as
   fluent/core subquery predicates.
-- `2026-04-14`: grouped fluent `QueryRule` subqueries are done, so SQL-like
-  boolean `OR`/DNF subqueries lower onto fluent/core.
+- `2026-04-14`: grouped fluent `QueryRule` subqueries are done, SQL-like
+  boolean `OR`/DNF subqueries lower onto fluent/core, and docs are aligned.
 
 ## Release
 

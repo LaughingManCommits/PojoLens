@@ -82,7 +82,9 @@ The default first-read story stays centered on the core engine:
   - `limit`, `offset`
   - `initFilter`, `explain`, `schema`
 - `QueryRule`:
-  - `of`, `inSubquery`, `exists`, `notExists`
+  - `of`
+  - `inSubquery` self-source and explicit-source overloads
+  - `exists` / `notExists` self-source and explicit-source overloads
 - `FluentQueryDefinition<T>`:
   - `of`, `rows`, `schema`, `explain`, `reportDefinition`
 - `Filter`:

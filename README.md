@@ -173,7 +173,8 @@ List<Employee> filtered = PojoLensSql
 ```
 
 More examples:
-- Fluent and scenario selection: [docs/usecases.md](docs/usecases.md)
+- Fluent queries, grouped predicates, and bounded subqueries:
+  [docs/usecases.md](docs/usecases.md)
 - SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
 - Natural queries, joins, bounded subqueries, windows, and templates:
   [docs/natural.md](docs/natural.md)
