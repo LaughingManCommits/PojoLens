@@ -2,10 +2,12 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -122,9 +124,9 @@ public class SqlLikeParserTest {
         QueryAst ast = SqlLikeParser.parse(
                 "select department, "
                         + "sum(salary) over (partition by department order by id asc "
-                        + "rows between unbounded preceding and current row) as runningSalary, "
+                        + "rows between 1 preceding and current row) as runningSalary, "
                         + "count(*) over (partition by department order by id asc "
-                        + "rows between unbounded preceding and current row) as runningRows");
+                        + "rows between unbounded preceding and unbounded following) as runningRows");
 
         assertNotNull(ast.select());
         assertEquals(3, ast.select().fields().size());
@@ -134,6 +136,7 @@ public class SqlLikeParserTest {
         assertEquals("SUM", runningSalary.windowFunction());
         assertEquals("salary", runningSalary.windowValueField());
         assertFalse(runningSalary.windowCountAll());
+        assertEquals(QueryWindowFrame.rowsPrecedingToCurrentRow(1), runningSalary.windowFrame());
         assertEquals("runningSalary", runningSalary.outputName());
 
         SelectFieldAst runningRows = ast.select().fields().get(2);
@@ -141,6 +144,7 @@ public class SqlLikeParserTest {
         assertEquals("COUNT", runningRows.windowFunction());
         assertTrue(runningRows.windowCountAll());
         assertNull(runningRows.windowValueField());
+        assertEquals(QueryWindowFrame.fullPartition(), runningRows.windowFrame());
         assertEquals("runningRows", runningRows.outputName());
     }
 
@@ -152,7 +156,7 @@ public class SqlLikeParserTest {
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains(
-                    "Aggregate window functions require ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"));
+                    "Aggregate window functions require a supported ROWS frame"));
         }
     }
 
@@ -161,7 +165,7 @@ public class SqlLikeParserTest {
         try {
             SqlLikeParser.parse(
                     "select sum(salary) over (partition by department order by id asc "
-                            + "rows between 1 preceding and current row) as runningSalary");
+                            + "rows between current row and unbounded following) as runningSalary");
             fail("Expected parse error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Unsupported window frame expression"));
@@ -225,6 +229,32 @@ public class SqlLikeParserTest {
         SubqueryValueAst subquery = (SubqueryValueAst) ast.filters().get(0).value();
         assertEquals("select department where active=true", subquery.source());
         assertEquals(1, subquery.query().filters().size());
+        assertEquals("department", subquery.query().select().fields().get(0).field());
+    }
+
+    @Test
+    public void shouldParseWhereExistsSubquery() {
+        QueryAst ast = SqlLikeParser.parse("where exists (select * where active = true)");
+        assertEquals(1, ast.filters().size());
+        assertEquals(Clauses.EQUAL, ast.filters().get(0).clause());
+        assertTrue(ast.filters().get(0).value() instanceof ExistsSubqueryValueAst);
+        ExistsSubqueryValueAst subquery = (ExistsSubqueryValueAst) ast.filters().get(0).value();
+        assertFalse(subquery.negated());
+        assertEquals("select*where active=true", subquery.source());
+        assertNotNull(subquery.query().select());
+        assertTrue(subquery.query().select().wildcard());
+        assertEquals(1, subquery.query().filters().size());
+    }
+
+    @Test
+    public void shouldParseWhereNotExistsSubquery() {
+        QueryAst ast = SqlLikeParser.parse("where not exists (select department from employees where active = false)");
+        assertEquals(1, ast.filters().size());
+        assertTrue(ast.filters().get(0).value() instanceof ExistsSubqueryValueAst);
+        ExistsSubqueryValueAst subquery = (ExistsSubqueryValueAst) ast.filters().get(0).value();
+        assertTrue(subquery.negated());
+        assertEquals("select department from employees where active=false", subquery.source());
+        assertEquals("employees", subquery.query().select().sourceName());
         assertEquals("department", subquery.query().select().fields().get(0).field());
     }
 

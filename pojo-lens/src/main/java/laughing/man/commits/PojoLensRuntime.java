@@ -2,7 +2,11 @@ package laughing.man.commits;
 
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.csv.CsvOptions;
+import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.natural.NaturalVocabulary;
+import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.internal.cache.SqlLikeQueryCache;
@@ -29,6 +33,8 @@ public final class PojoLensRuntime {
     private volatile boolean lintMode;
     private volatile QueryTelemetryListener telemetryListener;
     private volatile ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
+    private volatile NaturalVocabulary naturalVocabulary = NaturalVocabulary.empty();
+    private volatile CsvOptions csvDefaults = CsvOptions.defaults();
 
     public PojoLensRuntime() {
         this(new SqlLikeQueryCache(), new FilterExecutionPlanCacheStore());
@@ -54,6 +60,14 @@ public final class PojoLensRuntime {
         return PojoLensCore.newQueryBuilder(pojos, statsPlanCache)
                 .computedFields(computedFieldRegistry)
                 .telemetry(telemetryListener);
+    }
+
+    public NaturalRuntime natural() {
+        return new NaturalRuntime(this);
+    }
+
+    public CsvRuntime csv() {
+        return new CsvRuntime(this);
     }
 
     public SqlLikeQuery parse(String sqlLikeQuery) {
@@ -124,6 +138,28 @@ public final class PojoLensRuntime {
 
     public ComputedFieldRegistry getComputedFieldRegistry() {
         return computedFieldRegistry;
+    }
+
+    public void setNaturalVocabulary(NaturalVocabulary naturalVocabulary) {
+        if (naturalVocabulary == null) {
+            throw new IllegalArgumentException("naturalVocabulary must not be null");
+        }
+        this.naturalVocabulary = naturalVocabulary;
+    }
+
+    public NaturalVocabulary getNaturalVocabulary() {
+        return naturalVocabulary;
+    }
+
+    public void setCsvDefaults(CsvOptions csvDefaults) {
+        if (csvDefaults == null) {
+            throw new IllegalArgumentException("csvDefaults must not be null");
+        }
+        this.csvDefaults = csvDefaults;
+    }
+
+    public CsvOptions getCsvDefaults() {
+        return csvDefaults;
     }
 
     public PojoLensRuntime applyPreset(PojoLensRuntimePreset preset) {

@@ -132,7 +132,11 @@ marker.
 - [ ] Docs are synced (`README`, `MIGRATION`, `RELEASE`, `docs/*.md`).
 - [ ] If this is the first public `release-*` tag, binary compatibility
       enforcement is now expected to start from `release-*` baselines in CI.
-- [ ] SQL-like limitations text is still accurate: supports limited `WHERE ... IN (select oneField ...)` subqueries.
+- [ ] SQL-like limitations text is still accurate: supports uncorrelated
+      `WHERE ... IN (select ...)` subqueries, bounded uncorrelated
+      `WHERE [NOT] EXISTS (select ...)` subqueries, and subquery `JOIN`
+      clauses backed by `JoinBindings`; correlated, scalar, and broad nested
+      SQL subquery plans remain unsupported.
 - [ ] SQL-like join capability text is still accurate: chained joins are supported when each `JOIN ... ON ...` references the current plan correctly.
 - [ ] CI/workflow changes are intentional.
 - [ ] Release baseline tag pushed and visible.

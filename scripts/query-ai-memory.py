@@ -17,14 +17,15 @@ SOURCE_KIND_PRIORITY = {
     "ai-validation-history": 1,
     "ai-core": 2,
     "ai-state": 3,
-    "ai-archive-summary": 4,
-    "release-doc": 5,
-    "process-doc": 5,
-    "product-doc": 6,
-    "readme": 6,
-    "planning": 6,
-    "ai-log": 7,
-    "ai-log-archive": 8,
+    "ai-orchestrator": 4,
+    "ai-archive-summary": 5,
+    "release-doc": 6,
+    "process-doc": 6,
+    "product-doc": 7,
+    "readme": 7,
+    "planning": 7,
+    "ai-log": 8,
+    "ai-log-archive": 9,
 }
 
 

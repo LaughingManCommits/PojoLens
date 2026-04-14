@@ -63,14 +63,14 @@ def main() -> int:
     forbid_regex(contributing, CONTRIBUTING, r"pojo-lens-\d+\.\d+\.\d+-benchmarks\.jar", errors)
     forbid_regex(release, RELEASE, r"Release\s+\d+\.\d+\.\d+|v\d+\.\d+\.\d+", errors)
 
-    require_regex(migration, MIGRATION, r"supports limited `?WHERE .*IN \(select oneField .*subqueries", errors)
+    require_regex(migration, MIGRATION, r"supports uncorrelated single-column .*IN \(select .*subqueries", errors)
     require_regex(migration, MIGRATION, r"chained joins are supported", errors)
-    require_regex(release, RELEASE, r"supports limited `?WHERE .*IN \(select oneField .*subqueries", errors)
+    require_regex(release, RELEASE, r"supports uncorrelated single-column .*IN \(select .*subqueries", errors)
     require_regex(release, RELEASE, r"chained joins are supported", errors)
     forbid_regex(migration, MIGRATION, r"does not support subqueries or multi-join SQL plans", errors)
     forbid_regex(release, RELEASE, r"unsupported:\s*subqueries,\s*multi-join SQL plans", errors)
 
-    require_substring(sql_like, SQL_LIKE, "SQL-like subqueries currently support only `WHERE <field> IN (select <field> ...)`.", errors)
+    require_substring(sql_like, SQL_LIKE, "SQL-like subqueries currently support only uncorrelated single-column `WHERE <field> IN (select ...)` subqueries.", errors)
     require_substring(sql_like, SQL_LIKE, "chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly", errors)
 
     require_substring(benchmark_main_args, BENCHMARK_MAIN_ARGS, "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField", errors)

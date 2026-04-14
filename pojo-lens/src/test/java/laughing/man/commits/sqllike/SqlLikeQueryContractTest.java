@@ -6,6 +6,7 @@ import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountAlias;
 import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedBoostProjection;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -264,6 +266,52 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void whereInSubqueryShouldSupportAggregateMetricSelect() {
+        List<Employee> source = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where id in (select count(*) as total where active = true)")
+                .filter(source, Employee.class);
+
+        assertEquals(1, results.size());
+        assertEquals(3, results.get(0).id);
+        assertEquals("Cara", results.get(0).name);
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportGroupedFieldWithHavingAggregate() {
+        List<DepartmentEmployee> source = Arrays.asList(
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Engineering"),
+                new DepartmentEmployee("Finance")
+        );
+
+        List<DepartmentEmployee> results = PojoLensSql.parse(
+                        "where department in (select department group by department having count(*) > 1)")
+                .filter(source, DepartmentEmployee.class);
+
+        assertEquals(2, results.size());
+        results.forEach(r -> assertEquals("Engineering", r.department));
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportGroupedFieldAliasWithWhereFilter() {
+        List<DepartmentEmployeeWithActive> source = Arrays.asList(
+                new DepartmentEmployeeWithActive("Engineering", true),
+                new DepartmentEmployeeWithActive("Engineering", false),
+                new DepartmentEmployeeWithActive("Finance", false),
+                new DepartmentEmployeeWithActive("HR", false)
+        );
+
+        List<DepartmentEmployeeWithActive> results = PojoLensSql.parse(
+                        "where department in (select department as dept where active = true group by dept)")
+                .filter(source, DepartmentEmployeeWithActive.class);
+
+        assertEquals(2, results.size());
+        assertEquals(Arrays.asList("Engineering", "Engineering"),
+                results.stream().map(r -> r.department).collect(Collectors.toList()));
+    }
+
+    @Test
     public void whereInSubqueryShouldSupportNamedJoinSourceFiltering() {
         List<Company> companies = sampleCompanies();
 
@@ -272,6 +320,130 @@ public class SqlLikeQueryContractTest {
 
         assertEquals(1, results.size());
         assertEquals("Acme", results.get(0).name);
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportUncorrelatedJoinedSourceFiltering() {
+        List<CustomerOrder> orders = Arrays.asList(
+                new CustomerOrder(100, "Ada"),
+                new CustomerOrder(101, "Ben"),
+                new CustomerOrder(102, "Cara")
+        );
+
+        List<CustomerOrder> results = PojoLensSql.parse("where id in "
+                        + "(select orderId from lines join products on productId = id where category = 'Book')")
+                .filter(orders, sampleOrderJoinBindings(), CustomerOrder.class);
+
+        assertEquals(Arrays.asList(100, 102),
+                results.stream().map(row -> row.id).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void whereInSubqueryShouldSupportJoinedSelectedField() {
+        List<CustomerInterest> interests = Arrays.asList(
+                new CustomerInterest("Book"),
+                new CustomerInterest("Game"),
+                new CustomerInterest("Desk")
+        );
+
+        List<CustomerInterest> results = PojoLensSql.parse("where category in "
+                        + "(select category from lines join products on productId = id where orderId = 100)")
+                .filter(interests, sampleOrderJoinBindings(), CustomerInterest.class);
+
+        assertEquals(Arrays.asList("Book", "Game"),
+                results.stream().map(row -> row.category).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldFilterAllRowsWhenSelfSourceHasMatch() {
+        List<Employee> employees = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where exists (select * where active = true)")
+                .filter(employees, Employee.class);
+
+        assertEquals(employees.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldFilterNoRowsWhenSelfSourceHasNoMatch() {
+        List<Employee> results = PojoLensSql.parse("where exists (select * where department = 'Missing')")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(0, results.size());
+    }
+
+    @Test
+    public void whereNotExistsSubqueryShouldInvertResult() {
+        List<Employee> employees = sampleEmployees();
+
+        List<Employee> results = PojoLensSql.parse("where not exists (select * where department = 'Missing')")
+                .filter(employees, Employee.class);
+
+        assertEquals(employees.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldCombineWithBooleanExpressions() {
+        List<Employee> results = PojoLensSql.parse(
+                        "where exists (select * where department = 'Missing') or department = 'Finance'")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(1, results.size());
+        assertEquals("Finance", results.get(0).department);
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldSupportNamedJoinSource() {
+        List<Company> companies = sampleCompanies();
+
+        List<Company> results = PojoLensSql.parse("where exists (select * from employees where title = 'Engineer')")
+                .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+
+        assertEquals(companies.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldSupportUncorrelatedJoinedSource() {
+        List<CustomerOrder> orders = Arrays.asList(
+                new CustomerOrder(100, "Ada"),
+                new CustomerOrder(101, "Ben"),
+                new CustomerOrder(102, "Cara")
+        );
+
+        List<CustomerOrder> results = PojoLensSql.parse("where exists "
+                        + "(select * from lines join products on productId = id where category = 'Book')")
+                .filter(orders, sampleOrderJoinBindings(), CustomerOrder.class);
+
+        assertEquals(orders.size(), results.size());
+    }
+
+    @Test
+    public void whereExistsSubqueryShouldRebindToCurrentRows() {
+        SqlLikeQuery query = PojoLensSql.parse("where exists (select * where department = 'Engineering')");
+
+        List<Employee> first = query.filter(
+                Collections.singletonList(new Employee(1, "Bob", "Finance", 90000, new Date(), true)),
+                Employee.class
+        );
+        List<Employee> second = query.filter(
+                Collections.singletonList(new Employee(2, "Alice", "Engineering", 120000, new Date(), true)),
+                Employee.class
+        );
+
+        assertEquals(0, first.size());
+        assertEquals(1, second.size());
+    }
+
+    @Test
+    public void boundSubqueryShouldResolveBeforeReusableMaterialization() {
+        SqlLikeBoundQuery<EmployeeName> bound = PojoLensSql
+                .parse("select name where id in (select id where active = true)")
+                .bindTyped(sampleEmployees(), EmployeeName.class);
+
+        List<EmployeeName> results = bound.filter();
+
+        assertEquals(Arrays.asList("Alice", "Bob", "Cara"),
+                results.stream().map(row -> row.name).collect(Collectors.toList()));
     }
 
     @Test
@@ -429,6 +601,79 @@ public class SqlLikeQueryContractTest {
 
         public TestBeanSummary() {
         }
+    }
+
+    public static class EmployeeName {
+        String name;
+
+        public EmployeeName() {
+        }
+    }
+
+    public static class CustomerOrder {
+        int id;
+        String customer;
+
+        public CustomerOrder() {
+        }
+
+        public CustomerOrder(int id, String customer) {
+            this.id = id;
+            this.customer = customer;
+        }
+    }
+
+    public static class OrderLine {
+        int orderId;
+        int productId;
+
+        public OrderLine() {
+        }
+
+        public OrderLine(int orderId, int productId) {
+            this.orderId = orderId;
+            this.productId = productId;
+        }
+    }
+
+    public static class Product {
+        int id;
+        String category;
+
+        public Product() {
+        }
+
+        public Product(int id, String category) {
+            this.id = id;
+            this.category = category;
+        }
+    }
+
+    public static class CustomerInterest {
+        String category;
+
+        public CustomerInterest() {
+        }
+
+        public CustomerInterest(String category) {
+            this.category = category;
+        }
+    }
+
+    private static JoinBindings sampleOrderJoinBindings() {
+        return JoinBindings.builder()
+                .add("lines", Arrays.asList(
+                        new OrderLine(100, 10),
+                        new OrderLine(100, 20),
+                        new OrderLine(101, 20),
+                        new OrderLine(102, 30)
+                ))
+                .add("products", Arrays.asList(
+                        new Product(10, "Book"),
+                        new Product(20, "Game"),
+                        new Product(30, "Book")
+                ))
+                .build();
     }
 }
 

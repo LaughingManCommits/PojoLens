@@ -5,7 +5,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 ## Current Baselines
 
 - Benchmark methodology is execution-only in benchmark methods (setup moved to `@Setup`).
-- Core guardrails: `benchmarks/thresholds.json` (rebaselined on 2026-03-19 from CI data).
+- Core guardrails: `benchmarks/thresholds.json` (rebaselined on 2026-03-19 from CI data; `2026-04-10` added guarded `CsvLoadJmhBenchmark` budgets for typed and multiline CSV loads).
 - Chart guardrails: `benchmarks/chart-thresholds.json`.
 - Strict benchmark checker remains the gate for threshold validation.
 

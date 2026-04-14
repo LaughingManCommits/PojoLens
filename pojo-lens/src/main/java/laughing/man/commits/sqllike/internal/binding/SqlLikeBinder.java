@@ -6,11 +6,15 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
+import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterPredicateAst;
@@ -28,7 +32,8 @@ import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
 import laughing.man.commits.sqllike.internal.params.BoundParameterValue;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeJoinResolution;
-import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +43,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Internal SQL-like AST -> fluent query binder.
@@ -45,6 +51,7 @@ import java.util.Set;
 public final class SqlLikeBinder {
 
     private static final int MAX_BOOLEAN_DNF_GROUPS = 2048;
+    private static final String IMPOSSIBLE_EXISTS_FIELD = "__pojo_lens_exists_false";
 
     private SqlLikeBinder() {
     }
@@ -82,7 +89,15 @@ public final class SqlLikeBinder {
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
         QueryBuilder builder = PojoLensCore.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
+        return configureBoundBuilder(builder, normalizedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
+    }
 
+    private static QueryBuilder configureBoundBuilder(QueryBuilder builder,
+                                                      QueryAst normalizedAst,
+                                                      SqlLikeJoinResolution.Plan joinPlan,
+                                                      List<?> pojos,
+                                                      Map<String, List<?>> joinSources,
+                                                      ComputedFieldRegistry computedFieldRegistry) {
         SelectAst select = normalizedAst.select();
         boolean groupedAggregation = normalizedAst.hasAggregation() || !normalizedAst.groupByFields().isEmpty();
         Set<String> configuredGroups = new LinkedHashSet<>();
@@ -189,6 +204,27 @@ public final class SqlLikeBinder {
                                                 List<?> pojos,
                                                 Map<String, List<?>> joinSources,
                                                 ComputedFieldRegistry computedFieldRegistry) {
+        if (hasSubqueryFilter(filters) && !hasOrSeparator(filters)) {
+            for (FilterAst filter : filters) {
+                if (applyDirectWhereSubquery(builder, filter, pojos, joinSources, computedFieldRegistry)) {
+                    continue;
+                }
+                Separator separator = filter.separator() == null
+                        ? Separator.AND
+                        : filter.separator();
+                builder.addRule(
+                        filter.field(),
+                        resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                        filter.clause(),
+                        separator
+                );
+            }
+            return;
+        }
+        if (hasExistsFilter(filters)) {
+            applyWhereExpression(builder, expressionFromLegacyFilters(filters), pojos, joinSources, computedFieldRegistry);
+            return;
+        }
         for (FilterAst filter : filters) {
             Separator separator = filter.separator() == null
                     ? Separator.AND
@@ -220,6 +256,9 @@ public final class SqlLikeBinder {
                                              ComputedFieldRegistry computedFieldRegistry) {
         if (expression instanceof FilterPredicateAst) {
             FilterAst filter = ((FilterPredicateAst) expression).filter();
+            if (applyDirectWhereSubquery(builder, filter, pojos, joinSources, computedFieldRegistry)) {
+                return;
+            }
             if (!SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 builder.addRule(filter.field(),
                         resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
@@ -229,9 +268,20 @@ public final class SqlLikeBinder {
             }
         }
         List<List<FilterAst>> groups = BooleanExpressionNormalizer.toDnf(expression, MAX_BOOLEAN_DNF_GROUPS);
+        boolean matchedAnyGroup = false;
         for (List<FilterAst> group : groups) {
-            QueryRule[] rules = toQueryRules(group, pojos, joinSources, computedFieldRegistry);
-            builder.allOf(rules);
+            ResolvedWhereGroup resolved = resolveWhereGroup(group, pojos, joinSources, computedFieldRegistry);
+            if (resolved.unsatisfiable()) {
+                continue;
+            }
+            if (resolved.rules().isEmpty()) {
+                return;
+            }
+            builder.allOf(resolved.rules().toArray(new QueryRule[0]));
+            matchedAnyGroup = true;
+        }
+        if (!matchedAnyGroup) {
+            addImpossibleWhereGroup(builder);
         }
     }
 
@@ -249,7 +299,8 @@ public final class SqlLikeBinder {
                     field.windowValueField(),
                     field.windowCountAll(),
                     field.windowPartitionFields(),
-                    toWindowOrderFields(field.windowOrderFields())
+                    toWindowOrderFields(field.windowOrderFields()),
+                    field.windowFrame()
             );
         }
     }
@@ -384,6 +435,204 @@ public final class SqlLikeBinder {
         return rules;
     }
 
+    private static boolean hasExistsFilter(List<FilterAst> filters) {
+        for (FilterAst filter : filters) {
+            if (isExistsFilter(filter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasSubqueryFilter(List<FilterAst> filters) {
+        for (FilterAst filter : filters) {
+            Object value = unwrapValue(filter.value());
+            if (value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasOrSeparator(List<FilterAst> filters) {
+        for (FilterAst filter : filters) {
+            if (Separator.OR.equals(filter.separator())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static FilterExpressionAst expressionFromLegacyFilters(List<FilterAst> filters) {
+        FilterExpressionAst expression = null;
+        for (FilterAst filter : filters) {
+            FilterExpressionAst predicate = new FilterPredicateAst(
+                    new FilterAst(filter.field(), filter.clause(), filter.value(), null)
+            );
+            if (expression == null) {
+                expression = predicate;
+                continue;
+            }
+            Separator operator = filter.separator() == null ? Separator.AND : filter.separator();
+            expression = new FilterBinaryAst(expression, predicate, operator);
+        }
+        return expression;
+    }
+
+    private static boolean isExistsFilter(FilterAst filter) {
+        return unwrapValue(filter.value()) instanceof ExistsSubqueryValueAst;
+    }
+
+    private static boolean applyDirectWhereSubquery(QueryBuilder builder,
+                                                   FilterAst filter,
+                                                   List<?> pojos,
+                                                   Map<String, List<?>> joinSources,
+                                                   ComputedFieldRegistry computedFieldRegistry) {
+        Object value = unwrapValue(filter.value());
+        if (value instanceof SubqueryValueAst subqueryValueAst && Clauses.IN.equals(filter.clause())) {
+            applyInSubquery(builder, filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
+            return true;
+        }
+        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            applyExistsSubquery(builder, existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
+            return true;
+        }
+        return false;
+    }
+
+    private static void applyInSubquery(QueryBuilder builder,
+                                        String targetField,
+                                        SubqueryValueAst subqueryValueAst,
+                                        List<?> pojos,
+                                        Map<String, List<?>> joinSources,
+                                        ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(subqueryValueAst.query());
+        SelectFieldAst selectedField = subquery.select().fields().get(0);
+        String outputField = subqueryOutputField(selectedField);
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            builder.addInSubquery(targetField, outputField, configurer);
+        } else {
+            builder.addInSubquery(targetField, sourceRows, outputField, configurer);
+        }
+    }
+
+    private static void applyExistsSubquery(QueryBuilder builder,
+                                            ExistsSubqueryValueAst existsSubqueryValueAst,
+                                            List<?> pojos,
+                                            Map<String, List<?>> joinSources,
+                                            ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            if (existsSubqueryValueAst.negated()) {
+                builder.addNotExists(configurer);
+            } else {
+                builder.addExists(configurer);
+            }
+            return;
+        }
+        if (existsSubqueryValueAst.negated()) {
+            builder.addNotExists(sourceRows, configurer);
+        } else {
+            builder.addExists(sourceRows, configurer);
+        }
+    }
+
+    private static Consumer<QueryBuilder> subqueryConfigurer(QueryAst subquery,
+                                                             List<?> sourceRows,
+                                                             Map<String, List<?>> joinSources,
+                                                             ComputedFieldRegistry computedFieldRegistry) {
+        return subqueryBuilder -> configureSubqueryBuilder(subqueryBuilder, subquery, sourceRows, joinSources,
+                computedFieldRegistry);
+    }
+
+    private static void configureSubqueryBuilder(QueryBuilder builder,
+                                                 QueryAst subquery,
+                                                 List<?> sourceRows,
+                                                 Map<String, List<?>> joinSources,
+                                                 ComputedFieldRegistry computedFieldRegistry) {
+        Class<?> sourceClass = inferSourceClass(sourceRows);
+        SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(subquery, sourceClass, joinSources);
+        QueryAst normalizedSubquery = SqlLikeJoinResolution.canonicalize(subquery, joinPlan);
+        configureBoundBuilder(
+                builder.computedFields(computedFieldRegistry),
+                normalizedSubquery,
+                joinPlan,
+                sourceRows,
+                joinSources,
+                computedFieldRegistry
+        );
+    }
+
+    private static ResolvedWhereGroup resolveWhereGroup(List<FilterAst> group,
+                                                        List<?> pojos,
+                                                        Map<String, List<?>> joinSources,
+                                                        ComputedFieldRegistry computedFieldRegistry) {
+        ArrayList<QueryRule> rules = new ArrayList<>(group.size());
+        for (FilterAst filter : group) {
+            rules.add(toWhereQueryRule(filter, pojos, joinSources, computedFieldRegistry));
+        }
+        return ResolvedWhereGroup.satisfiable(rules);
+    }
+
+    private static QueryRule toWhereQueryRule(FilterAst filter,
+                                              List<?> pojos,
+                                              Map<String, List<?>> joinSources,
+                                              ComputedFieldRegistry computedFieldRegistry) {
+        Object value = unwrapValue(filter.value());
+        if (value instanceof SubqueryValueAst subqueryValueAst && Clauses.IN.equals(filter.clause())) {
+            return inSubqueryRule(filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
+        }
+        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            return existsSubqueryRule(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
+        }
+        return QueryRule.of(
+                filter.field(),
+                resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                filter.clause()
+        );
+    }
+
+    private static QueryRule inSubqueryRule(String targetField,
+                                            SubqueryValueAst subqueryValueAst,
+                                            List<?> pojos,
+                                            Map<String, List<?>> joinSources,
+                                            ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(subqueryValueAst.query());
+        SelectFieldAst selectedField = subquery.select().fields().get(0);
+        String outputField = subqueryOutputField(selectedField);
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            return QueryRule.inSubquery(targetField, outputField, configurer);
+        }
+        return QueryRule.inSubquery(targetField, sourceRows, outputField, configurer);
+    }
+
+    private static QueryRule existsSubqueryRule(ExistsSubqueryValueAst existsSubqueryValueAst,
+                                                List<?> pojos,
+                                                Map<String, List<?>> joinSources,
+                                                ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            return existsSubqueryValueAst.negated()
+                    ? QueryRule.notExists(configurer)
+                    : QueryRule.exists(configurer);
+        }
+        return existsSubqueryValueAst.negated()
+                ? QueryRule.notExists(sourceRows, configurer)
+                : QueryRule.exists(sourceRows, configurer);
+    }
+
+    private static void addImpossibleWhereGroup(QueryBuilder builder) {
+        builder.allOf(QueryRule.of(IMPOSSIBLE_EXISTS_FIELD, Boolean.TRUE, Clauses.EQUAL));
+    }
+
     private static Map<String, String> resolveAggregateExpressionOutputs(SelectAst select) {
         return AggregateExpressionSupport.resolveSelectAggregateOutputAliases(select);
     }
@@ -424,32 +673,77 @@ public final class SqlLikeBinder {
         return unwrapped;
     }
 
+    private static boolean resolveExistsSubquery(ExistsSubqueryValueAst existsSubqueryValueAst,
+                                                 List<?> pojos,
+                                                 Map<String, List<?>> joinSources,
+                                                 ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        if (sourceRows == null || sourceRows.isEmpty()) {
+            return existsSubqueryValueAst.negated();
+        }
+
+        boolean exists = !executeSubqueryRows(subquery, sourceRows, joinSources, computedFieldRegistry).isEmpty();
+        return existsSubqueryValueAst.negated() ? !exists : exists;
+    }
+
     private static List<Object> resolveSubqueryValues(SubqueryValueAst subqueryValueAst,
                                                       List<?> pojos,
                                                       Map<String, List<?>> joinSources,
                                                       ComputedFieldRegistry computedFieldRegistry) {
-        QueryAst subquery = subqueryValueAst.query();
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(subqueryValueAst.query());
         SelectFieldAst selectedField = subquery.select().fields().get(0);
         List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
         if (sourceRows == null || sourceRows.isEmpty()) {
             return Collections.emptyList();
         }
 
-        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, Collections.emptyMap(), inferSourceClass(sourceRows), computedFieldRegistry);
-        Sort subquerySort = resolveSort(subquery);
-        Class<?> sourceClass = inferSourceClass(sourceRows);
-        List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(subqueryBuilder, subquerySort, false, sourceClass);
-
-        ArrayList<Object> values = new ArrayList<>(rows.size());
-        for (Object row : rows) {
-            try {
-                values.add(ReflectionUtil.getFieldValue(row, selectedField.field()));
-            } catch (Exception e) {
-                throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
-                        "Failed to resolve subquery field '" + selectedField.field() + "'");
-            }
+        ArrayList<Object> values = new ArrayList<>(sourceRows.size());
+        List<QueryRow> rows = executeSubqueryRows(subquery, sourceRows, joinSources, computedFieldRegistry);
+        String outputField = subqueryOutputField(selectedField);
+        for (QueryRow row : rows) {
+            values.add(resolveSubqueryRowValue(row, outputField));
         }
         return values;
+    }
+
+    private static List<QueryRow> executeSubqueryRows(QueryAst subquery,
+                                                      List<?> sourceRows,
+                                                      Map<String, List<?>> joinSources,
+                                                      ComputedFieldRegistry computedFieldRegistry) {
+        Class<?> sourceClass = inferSourceClass(sourceRows);
+        QueryBuilder subqueryBuilder = bind(subquery, sourceRows, joinSources, sourceClass, computedFieldRegistry);
+        Sort subquerySort = resolveSort(subquery);
+        List<?> rows = SqlLikeExecutionSupport.executeWithOptionalJoin(
+                subqueryBuilder,
+                subquerySort,
+                subquery.hasJoins(),
+                QueryRow.class
+        );
+        ArrayList<QueryRow> queryRows = new ArrayList<>(rows.size());
+        for (Object row : rows) {
+            queryRows.add((QueryRow) row);
+        }
+        return queryRows;
+    }
+
+    private static String subqueryOutputField(SelectFieldAst selectedField) {
+        if (selectedField.metricField()
+                || selectedField.timeBucketField()
+                || selectedField.computedField()
+                || selectedField.windowField()) {
+            return selectedField.outputName();
+        }
+        return selectedField.field();
+    }
+
+    private static Object resolveSubqueryRowValue(QueryRow row, String fieldName) {
+        int fieldIndex = QueryFieldLookupUtil.findFieldIndex(row.getFields(), fieldName);
+        if (fieldIndex < 0) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED,
+                    "Failed to resolve subquery field '" + fieldName + "'");
+        }
+        return row.getValueAt(fieldIndex);
     }
 
     private static List<?> resolveSubquerySourceRows(SelectAst select,
@@ -474,6 +768,17 @@ public final class SqlLikeBinder {
         }
         throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                 "Subquery source rows must contain at least one non-null element");
+    }
+
+    private record ResolvedWhereGroup(List<QueryRule> rules, boolean unsatisfiable) {
+
+        static ResolvedWhereGroup satisfiable(List<QueryRule> rules) {
+            return new ResolvedWhereGroup(List.copyOf(rules), false);
+        }
+
+        static ResolvedWhereGroup unsatisfiableGroup() {
+            return new ResolvedWhereGroup(List.of(), true);
+        }
     }
 }
 

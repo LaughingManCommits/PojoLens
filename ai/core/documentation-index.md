@@ -4,6 +4,7 @@
 
 - `README.md`
 - `docs/entry-points.md`
+- `docs/natural.md`
 - `docs/reusable-wrappers.md`
 - `docs/usecases.md`
 - `docs/sql-like.md`
@@ -35,6 +36,8 @@
 - `MAINTENANCE.md`
 - `AGENTS.md`
 - `ai/AGENTS.md`
+- `ai/orchestrator/README.md`
+- `ai/orchestrator/SYSTEM-SPEC.md`
 - `LICENSE.md`
 
 ## Notes

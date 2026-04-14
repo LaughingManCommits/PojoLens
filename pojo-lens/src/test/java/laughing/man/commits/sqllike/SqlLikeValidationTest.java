@@ -11,6 +11,8 @@ import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedScalarPro
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -182,8 +184,21 @@ public class SqlLikeValidationTest {
                     .filter(employees, AggregationProjection.class);
             fail("Expected ORDER BY validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Unknown field 'salary'"));
-            assertTrue(ex.getMessage().contains("in ORDER BY clause"));
+            assertTrue(ex.getMessage().contains("Invalid aggregate ORDER BY reference 'salary'"));
+            assertTrue(ex.getMessage().contains("expected grouped field, aggregate output, or aggregate expression"));
+        }
+    }
+
+    @Test
+    public void aggregatedOrderByTypoShouldKeepUnknownFieldSuggestion() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("select department, count(*) as total group by department order by totl desc")
+                    .filter(employees, AggregationProjection.class);
+            fail("Expected ORDER BY validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field 'totl'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'total'?"));
         }
     }
 
@@ -199,15 +214,43 @@ public class SqlLikeValidationTest {
     }
 
     @Test
-    public void bucketFunctionShouldRequireDateField() {
+    public void bucketFunctionShouldRequireSupportedDateTimeField() {
         List<Employee> employees = sampleEmployees();
         try {
             PojoLensSql.parse("select bucket(name,'month') as period, count(*) as total group by period")
                     .filter(employees, AggregationProjection.class);
             fail("Expected bucket date-field validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Time bucket requires date field"));
+            assertTrue(ex.getMessage().contains("Time bucket requires supported date/time field"));
         }
+    }
+
+    @Test
+    public void bucketFunctionShouldAllowInstantField() {
+        List<InstantBucketRow> rows = List.of(
+                new InstantBucketRow(Instant.parse("2025-02-01T00:00:00Z"))
+        );
+
+        List<PeriodProjection> result = PojoLensSql.parse("select bucket(hireDate,'month') as period, count(*) as total group by period")
+                .filter(rows, PeriodProjection.class);
+
+        assertEquals(1, result.size());
+        assertEquals("2025-02", result.get(0).period);
+        assertEquals(1L, result.get(0).total);
+    }
+
+    @Test
+    public void bucketFunctionShouldAllowLocalDateField() {
+        List<LocalDateBucketRow> rows = List.of(
+                new LocalDateBucketRow(LocalDate.of(2025, 2, 1))
+        );
+
+        List<PeriodProjection> result = PojoLensSql.parse("select bucket(hireDate,'month') as period, count(*) as total group by period")
+                .filter(rows, PeriodProjection.class);
+
+        assertEquals(1, result.size());
+        assertEquals("2025-02", result.get(0).period);
+        assertEquals(1L, result.get(0).total);
     }
 
     @Test
@@ -288,6 +331,19 @@ public class SqlLikeValidationTest {
     }
 
     @Test
+    public void aggregatedOrderByShouldRejectInvalidAggregateExpressionArgument() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("select department, count(*) as total group by department order by sum(missing) desc")
+                    .filter(employees, AggregationProjection.class);
+            fail("Expected ORDER BY validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field 'missing' in ORDER BY aggregate expression 'sum(missing)'"));
+            assertTrue(ex.getMessage().contains("Allowed source fields"));
+        }
+    }
+
+    @Test
     public void computedSelectExpressionShouldRejectUnknownIdentifier() {
         List<Foo> source = Arrays.asList(
                 new Foo("abc", new Date(), 1)
@@ -315,14 +371,28 @@ public class SqlLikeValidationTest {
     }
 
     @Test
-    public void subqueryShouldRejectAggregateSelects() {
+    public void subqueryWithSingleAggregateSelectShouldBeAllowed() {
+        List<Employee> employees = sampleEmployees();
+        PojoLensSql.parse("where id in (select count(*) as total where active = true)")
+                .filter(employees, Employee.class);
+    }
+
+    @Test
+    public void subqueryWithGroupedFieldAndHavingShouldBeAllowed() {
+        List<Employee> employees = sampleEmployees();
+        PojoLensSql.parse("where department in (select department group by department having count(*) > 1)")
+                .filter(employees, Employee.class);
+    }
+
+    @Test
+    public void subqueryShouldRequireJoinSourceBindingForJoinClause() {
         List<Employee> employees = sampleEmployees();
         try {
-            PojoLensSql.parse("where department in (select count(*) as total where active = true)")
-                    .filter(employees, Employee.class);
-            fail("Expected subquery validation error");
+            PojoLensSql.parse("where department in (select department from employees join companies on companyId = id)")
+                    .filter(employees, JoinBindings.of("employees", employees), Employee.class);
+            fail("Expected JOIN subquery source validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Subqueries support only non-aggregate SELECT filters in v1"));
+            assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'companies'"));
         }
     }
 
@@ -335,7 +405,8 @@ public class SqlLikeValidationTest {
                     .filter(employees, AggregationProjection.class);
             fail("Expected HAVING subquery validation error");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("Subqueries are only supported in WHERE IN (...) filters"));
+            assertTrue(ex.getMessage().contains(
+                    "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters"));
         }
     }
 
@@ -346,6 +417,18 @@ public class SqlLikeValidationTest {
             PojoLensSql.parse("where id in (select companyId from employees where title = 'Engineer')")
                     .filter(companies, JoinBindings.empty(), Company.class);
             fail("Expected missing subquery source binding error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
+        }
+    }
+
+    @Test
+    public void existsSubquerySourceShouldRequireJoinSourceBinding() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("where exists (select * from employees where title = 'Engineer')")
+                    .filter(companies, JoinBindings.empty(), Company.class);
+            fail("Expected missing EXISTS subquery source binding error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
         }
@@ -393,6 +476,30 @@ public class SqlLikeValidationTest {
             this.state = state;
             this.stage = stage;
             this.status = status;
+        }
+    }
+
+    public static class PeriodProjection {
+        String period;
+        long total;
+
+        public PeriodProjection() {
+        }
+    }
+
+    public static class InstantBucketRow {
+        Instant hireDate;
+
+        public InstantBucketRow(Instant hireDate) {
+            this.hireDate = hireDate;
+        }
+    }
+
+    public static class LocalDateBucketRow {
+        LocalDate hireDate;
+
+        public LocalDateBucketRow(LocalDate hireDate) {
+            this.hireDate = hireDate;
         }
     }
 }

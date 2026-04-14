@@ -9,8 +9,10 @@ import laughing.man.commits.time.TimeBucketPreset;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
@@ -86,6 +88,42 @@ public class TimeBucketAggregationTest {
     }
 
     @Test
+    public void fluentTimeBucketShouldAcceptInstantInputFields() {
+        List<InstantEmployeePoint> rows = sampleInstantRows();
+
+        List<DepartmentPeriodAgg> result = PojoLensCore.newQueryBuilder(rows)
+                .addGroup("department")
+                .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
+                .addCount("total")
+                .addMetric("salary", Metric.SUM, "payroll")
+                .initFilter()
+                .filter(DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01|2|300",
+                        "Engineering|2025-02|1|150",
+                        "Finance|2025-02|1|300"
+                ),
+                normalized(result));
+    }
+
+    @Test
+    public void sqlLikeBucketFunctionShouldAcceptInstantInputFields() {
+        List<InstantEmployeePoint> rows = sampleInstantRows();
+
+        List<DepartmentPeriodAgg> sqlLike = PojoLensSql.parse("select department, bucket(hireDate,'month') as period, count(*) as total, sum(salary) as payroll "
+                        + "group by department, period")
+                .filter(rows, DepartmentPeriodAgg.class);
+
+        assertEquals(List.of(
+                        "Engineering|2025-01|2|300",
+                        "Engineering|2025-02|1|150",
+                        "Finance|2025-02|1|300"
+                ),
+                normalized(sqlLike));
+    }
+
+    @Test
     public void timeBucketPresetShouldRespectExplicitTimezoneBoundaries() {
         List<EmployeePoint> rows = new ArrayList<>();
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 31, 23, 30), 100));
@@ -104,6 +142,22 @@ public class TimeBucketAggregationTest {
 
         assertEquals(List.of("Engineering|2025-02|2|0"), normalized(fluent));
         assertEquals(normalized(fluent), normalized(sqlLike));
+    }
+
+    @Test
+    public void localDateTimeBucketsShouldUsePresetTimezoneAsLocalInterpretation() {
+        List<LocalDateTimeEmployeePoint> rows = new ArrayList<>();
+        rows.add(new LocalDateTimeEmployeePoint("Engineering", LocalDateTime.of(2025, 1, 31, 23, 30), 100));
+        rows.add(new LocalDateTimeEmployeePoint("Engineering", LocalDateTime.of(2025, 2, 1, 0, 30), 200));
+
+        List<DepartmentPeriodAgg> fluent = PojoLensCore.newQueryBuilder(rows)
+                .addGroup("department")
+                .addTimeBucket("hireDate", TimeBucketPreset.month().withZone("Europe/Amsterdam"), "period")
+                .addCount("total")
+                .initFilter()
+                .filter(DepartmentPeriodAgg.class);
+
+        assertEquals(List.of("Engineering|2025-01|1|0", "Engineering|2025-02|1|0"), normalized(fluent));
     }
 
     @Test
@@ -138,6 +192,16 @@ public class TimeBucketAggregationTest {
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
     }
 
+    @Test
+    public void timeBucketValidationShouldUseDeclaredInstantTypeWhenValuesAreNull() {
+        List<NullableInstantHireDatePoint> rows = List.of(
+                new NullableInstantHireDatePoint("Engineering", null, 100)
+        );
+
+        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(rows)
+                .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
+    }
+
     private static List<String> normalized(List<DepartmentPeriodAgg> rows) {
         return rows.stream()
                 .map(r -> r.department + "|" + r.period + "|" + r.total + "|" + r.payroll)
@@ -145,8 +209,45 @@ public class TimeBucketAggregationTest {
                 .collect(Collectors.toList());
     }
 
+    private static List<InstantEmployeePoint> sampleInstantRows() {
+        return sampleRows().stream()
+                .map(row -> new InstantEmployeePoint(row.department, row.hireDate.toInstant(), row.salary))
+                .collect(Collectors.toList());
+    }
+
+    public static class InstantEmployeePoint {
+        public String department;
+        public Instant hireDate;
+        public int salary;
+
+        public InstantEmployeePoint(String department, Instant hireDate, int salary) {
+            this.department = department;
+            this.hireDate = hireDate;
+            this.salary = salary;
+        }
+    }
+
+    public static class LocalDateTimeEmployeePoint {
+        public String department;
+        public LocalDateTime hireDate;
+        public int salary;
+
+        public LocalDateTimeEmployeePoint(String department, LocalDateTime hireDate, int salary) {
+            this.department = department;
+            this.hireDate = hireDate;
+            this.salary = salary;
+        }
+    }
+
+    public static class NullableInstantHireDatePoint {
+        public String department;
+        public Instant hireDate;
+        public int salary;
+
+        public NullableInstantHireDatePoint(String department, Instant hireDate, int salary) {
+            this.department = department;
+            this.hireDate = hireDate;
+            this.salary = salary;
+        }
+    }
 }
-
-
-
-

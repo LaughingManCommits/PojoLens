@@ -29,6 +29,9 @@ public class PublicSurfaceContractTest {
         assertTrue(methods.contains("computedFields"));
         assertTrue(methods.contains("addDistinct"));
         assertTrue(methods.contains("addJoinBeans"));
+        assertTrue(methods.contains("addInSubquery"));
+        assertTrue(methods.contains("addExists"));
+        assertTrue(methods.contains("addNotExists"));
     }
 
     @Test

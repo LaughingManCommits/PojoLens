@@ -4,40 +4,47 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Check `TODO.md`; `WP9` context-loading work is complete.
-4. Use `ai/state/benchmark-state.md` only for benchmark-specific work.
-5. If AI memory freshness is uncertain, run `scripts/refresh-ai-memory.ps1 -Check`.
+3. Use `ai/state/benchmark-state.md` only for benchmark work.
+4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
 
 ## Focus
 
-- Release retry or release verification for the dated version/tag scheme is the main pending repo task.
-- Keep conditional context loading and summarization rules stable as future changes land.
+- The orchestration spike is complete through `WP18`.
+- CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
+- Engine limitation work done: bounded windows, aggregate `ORDER BY`, fluent
+  prepare, joined/`EXISTS` subqueries, natural cleanup, and SQL-like lowering.
 
 ## Facts
 
-- Release versioning is date-based now: Maven versions use `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
-- Context-loading hardening is in place: conditional cold-load matrix in `AGENTS.md` and `ai/AGENTS.md`, with query fallback via `scripts/query-ai-memory.ps1`.
-- Hot-context budget policy is now explicit: hard cap `240` lines and `24 KB`; target range `160-200` total lines.
-- Query routing quality is benchmarked and currently healthy: `ai/indexes/memory-benchmark.json` reports `top1=1.0`, `top3=1.0`.
-- For module/architecture retrieval, use facet-constrained lookup: `scripts/query-ai-memory.ps1 -Query "<keywords>" -Kind ai-core`.
-- Lint baseline was refreshed on `2026-03-29`; run `mvn -B -ntp -Plint verify -DskipTests` before using `scripts/check-lint-baseline.ps1 -WriteBaseline` again.
-- Starter examples are now split by complexity: `examples/spring-boot-starter-quickstart` for onboarding and `examples/spring-boot-starter-basic` for advanced dashboard workflows.
-- `docs/` is now user-facing only; `consolidation-review.md` and benchmark `WP*` wording were removed.
-- Context-loading guidance is explicitly non-recursive between `AGENTS.md` and `ai/AGENTS.md`, and hot-context reloads are skipped for same-task `ai/state/*` edits unless the refreshed wording is immediately needed.
-- Runtime code lives in `pojo-lens/src/...`; benchmarks live in `pojo-lens-benchmarks/src/...`.
+- `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
+- `2026-04-13`: SQL-like bounded `IN`/`EXISTS` subqueries work for
+  self/named/joined sources; correlated/scalar/broad SQL remains unsupported.
+- `2026-04-13`: limitation policy requires fluent-led parity; SQL-like/natural
+  are facades, and precomputed user filters are not the parity answer.
+- `2026-04-13`: natural schema vocabulary, `qualify` windows, broader window
+  phrasing/frames, and resolved-delegate caching are done.
+- `2026-04-14`: bounded subquery/existence parity is closed across fluent,
+  SQL-like, and natural; natural uses bounded `query ... end query` grammar
+  with nested runtime-vocabulary resolution.
+- `2026-04-14`: SQL-like simple bounded `WHERE ... IN (select ...)` and
+  `WHERE [NOT] EXISTS (select ...)` predicates now lower onto fluent/core
+  subquery predicates.
+- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`, `exists(...)`,
+  and `notExists(...)` are done; SQL-like boolean `OR`/DNF subqueries lower
+  onto fluent/core, and public docs are aligned.
+- No default bounded subquery parity slice remains; keep correlated/scalar
+  subqueries and broad SQL planning opt-in only.
 
 ## Validate
 
-- After code changes: `mvn -q test`
+- After code changes: `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- When retrieval behavior changes materially:
-  `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json`
-- For release-path changes:
-  `mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests package`
 
 ## Cold Pointers
 
-- routing/summarization policy: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
-- release/process: `ai/core/runbook.md`, `RELEASE.md`, `ai/state/recent-validations.md`
-- benchmark context when needed: `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`
+- routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
+- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
+- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`, `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CsvLoadJmhBenchmark.java`
+- orchestration: `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`
+- limitation spike: `SPIKE-LIMITATIONS.md`

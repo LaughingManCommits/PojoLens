@@ -10,6 +10,7 @@ import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.ChartTestFixtures.ScatterPoint;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -117,6 +118,20 @@ public class SqlLikeTypedBindContractTest {
         SqlLikeBoundQuery<DepartmentCount> bound = PojoLensSql.parse("select department, count(*) as total group by department")
                 .bindTyped(source, DepartmentCount.class);
         ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "total");
+
+        ChartData first = bound.chart(spec);
+        ChartData second = bound.chart(spec);
+
+        assertEquals(first.getLabels(), second.getLabels());
+        assertEquals(first.getDatasets().get(0).getValues(), second.getDatasets().get(0).getValues());
+    }
+
+    @Test
+    public void typedBindShouldRemainReusableAcrossRepeatedScatterCharts() {
+        List<ScatterPoint> rows = List.of(new ScatterPoint(1, 10), new ScatterPoint(2, 25));
+        SqlLikeBoundQuery<ScatterPoint> bound = PojoLensSql.parse("select x, y")
+                .bindTyped(rows, ScatterPoint.class);
+        ChartSpec spec = ChartSpec.of(ChartType.SCATTER, "x", "y");
 
         ChartData first = bound.chart(spec);
         ChartData second = bound.chart(spec);

@@ -10,6 +10,11 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -180,7 +185,7 @@ public final class ReflectionUtil {
             List<T> queryRows = new ArrayList<>(rows.size());
             for (Object[] row : rows) {
                 RawQueryRow queryRow = new RawQueryRow(
-                        row != null ? row : new Object[0],
+                        projectArrayRow(row, sourceIndexes),
                         sourceFieldSchema != null ? sourceFieldSchema : List.of()
                 );
                 if (cls.isInstance(queryRow)) {
@@ -216,6 +221,23 @@ public final class ReflectionUtil {
         }
 
         return result;
+    }
+
+    private static Object[] projectArrayRow(Object[] row, int[] sourceIndexes) {
+        if (row == null) {
+            return new Object[0];
+        }
+        if (sourceIndexes == null) {
+            return row;
+        }
+        Object[] projected = new Object[sourceIndexes.length];
+        for (int i = 0; i < sourceIndexes.length; i++) {
+            int sourceIndex = sourceIndexes[i];
+            if (sourceIndex >= 0 && sourceIndex < row.length) {
+                projected[i] = row[sourceIndex];
+            }
+        }
+        return projected;
     }
 
     /**
@@ -464,7 +486,12 @@ public final class ReflectionUtil {
                 || wrapped == Byte.class
                 || wrapped == Character.class
                 || wrapped == String.class
-                || wrapped == Date.class;
+                || wrapped == Date.class
+                || wrapped == Instant.class
+                || wrapped == LocalDate.class
+                || wrapped == LocalDateTime.class
+                || wrapped == OffsetDateTime.class
+                || wrapped == ZonedDateTime.class;
     }
 
     private static boolean isPlatformType(Class<?> type) {
@@ -530,7 +557,7 @@ public final class ReflectionUtil {
                 Class<?> fieldType = wrapPrimitive(field.getType());
                 List<Field> fieldPath = appendPath(path, field);
 
-                if (isSimpleType(fieldType)) {
+                if (isSimpleType(fieldType) || fieldType.isEnum()) {
                     flattenedFields.add(new FlattenedFieldDescriptor(
                             qualifiedName,
                             new ResolvedFieldPath(fieldPath, fieldType, true)

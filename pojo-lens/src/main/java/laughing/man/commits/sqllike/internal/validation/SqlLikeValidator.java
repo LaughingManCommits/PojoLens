@@ -4,6 +4,8 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.enums.Metric;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -16,12 +18,13 @@ import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.util.ReflectionUtil;
+import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -166,7 +169,7 @@ public final class SqlLikeValidator {
                 requireKnownField(field.field(), sourceFields, "SELECT");
             }
             if (field.timeBucketField()) {
-                requireDateField(field.field(), sourceFieldTypes);
+                requireTimeBucketField(field.field(), sourceFieldTypes);
                 if (!field.aliased()) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
                             "bucket(dateField,'granularity'[, 'zone'[, 'weekStart']]) requires AS alias");
@@ -198,6 +201,9 @@ public final class SqlLikeValidator {
         for (FilterAst filter : filters) {
             if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
                 validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                continue;
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "WHERE");
@@ -209,14 +215,74 @@ public final class SqlLikeValidator {
     }
 
     private static void validateOrders(QueryAst ast, Set<String> allowedFields, Set<String> sourceFields) {
+        boolean aggregateShape = ast.hasAggregation() || !ast.groupByFields().isEmpty();
         for (OrderAst order : ast.orders()) {
-            if ((ast.hasAggregation() || !ast.groupByFields().isEmpty())
-                    && AggregateExpressionSupport.parse(order.field()) != null) {
-                AggregateExpressionSupport.canonicalFromReference(order.field(), sourceFields);
+            if (aggregateShape) {
+                validateAggregateOrderReference(order.field(), allowedFields, sourceFields);
                 continue;
             }
             requireKnownField(order.field(), allowedFields, "ORDER BY");
         }
+    }
+
+    private static void validateAggregateOrderReference(String reference,
+                                                        Set<String> allowedFields,
+                                                        Set<String> sourceFields) {
+        if (allowedFields.contains(reference)) {
+            return;
+        }
+        ParsedAggregateExpression aggregateExpression = AggregateExpressionSupport.parse(reference);
+        if (aggregateExpression != null) {
+            validateAggregateOrderFunction(reference, aggregateExpression, sourceFields);
+            return;
+        }
+        if (SqlExpressionEvaluator.looksLikeExpression(reference)) {
+            validateAggregateOrderExpression(reference, allowedFields, sourceFields);
+            return;
+        }
+        if (sourceFields.contains(reference)) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    formatInvalidAggregateOrderReferenceMessage(reference, allowedFields));
+        }
+        requireKnownField(reference, allowedFields, "ORDER BY");
+    }
+
+    private static void validateAggregateOrderFunction(String reference,
+                                                       ParsedAggregateExpression aggregateExpression,
+                                                       Set<String> sourceFields) {
+        if (aggregateExpression.countAll()) {
+            if (aggregateExpression.metric() == Metric.COUNT) {
+                return;
+            }
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Invalid aggregate ORDER BY expression '" + reference + "': only COUNT(*) supports '*'");
+        }
+        if (sourceFields.contains(aggregateExpression.field())) {
+            return;
+        }
+        throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
+                formatUnknownAggregateOrderArgumentMessage(reference, aggregateExpression.field(), sourceFields));
+    }
+
+    private static void validateAggregateOrderExpression(String expression,
+                                                         Set<String> allowedFields,
+                                                         Set<String> sourceFields) {
+        Set<String> identifiers = collectExpressionIdentifiers(expression);
+        for (String identifier : identifiers) {
+            if (allowedFields.contains(identifier)) {
+                continue;
+            }
+            if (sourceFields.contains(identifier)) {
+                throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                        "Invalid aggregate ORDER BY expression '" + expression
+                                + "': expected grouped field, aggregate output, or aggregate expression");
+            }
+            throw validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
+                    formatUnknownFieldMessage(identifier, allowedFields, "ORDER BY"));
+        }
+        throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                "Invalid aggregate ORDER BY expression '" + expression
+                        + "': expected grouped field, aggregate output, or aggregate expression");
     }
 
     private static void validateHaving(QueryAst ast,
@@ -246,9 +312,9 @@ public final class SqlLikeValidator {
         ambiguous.retainAll(aggregateOutputs);
 
         for (FilterAst filter : having) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                        "Subqueries are only supported in WHERE IN (...) filters");
+                        "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             String reference = filter.field();
             if (ambiguous.contains(reference)) {
@@ -298,9 +364,9 @@ public final class SqlLikeValidator {
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                        "Subqueries are only supported in WHERE IN (...) filters");
+                        "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "QUALIFY");
@@ -314,6 +380,26 @@ public final class SqlLikeValidator {
         }
     }
 
+    private static void validateExistsSubquery(FilterAst filter,
+                                               ExistsSubqueryValueAst existsSubqueryValueAst,
+                                               Class<?> sourceClass,
+                                               Map<String, List<?>> joinSources,
+                                               ComputedFieldRegistry computedFieldRegistry) {
+        if (filter.clause() != Clauses.EQUAL) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "EXISTS subquery predicates are only supported as WHERE EXISTS/WHERE NOT EXISTS");
+        }
+        QueryAst subquery = existsSubqueryValueAst.query();
+        SelectAst select = subquery.select();
+        if (select == null) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
+                    "EXISTS subqueries require SELECT");
+        }
+        Class<?> subquerySourceClass = resolveSubquerySourceClass(sourceClass, joinSources, select);
+        validateForFilter(subquery, subquerySourceClass, QueryRow.class,
+                joinSources, false, computedFieldRegistry);
+    }
+
     private static void validateInSubquery(FilterAst filter,
                                            SubqueryValueAst subqueryValueAst,
                                            Class<?> sourceClass,
@@ -324,32 +410,56 @@ public final class SqlLikeValidator {
                     "Subquery values are only supported with IN");
         }
         QueryAst subquery = subqueryValueAst.query();
-        if (subquery.hasJoins()) {
-            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries do not support JOIN clauses in v1");
-        }
-        if (subquery.hasAggregation()
-                || !subquery.groupByFields().isEmpty()
-                || !subquery.havingFilters().isEmpty()) {
-            throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries support only non-aggregate SELECT filters in v1");
-        }
         SelectAst select = subquery.select();
         if (select == null || select.wildcard() || select.fields().size() != 1) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                     "Subqueries must select exactly one explicit field");
         }
         SelectFieldAst selectedField = select.fields().get(0);
-        if (selectedField.metricField()
-                || selectedField.timeBucketField()
+        if (selectedField.timeBucketField()
                 || selectedField.computedField()
                 || selectedField.windowField()) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Subqueries support only simple field SELECTs in v1");
+                    "Subqueries support only simple field or aggregate SELECTs in v1");
         }
 
         Class<?> subquerySourceClass = resolveSubquerySourceClass(sourceClass, joinSources, select);
-        validateForFilter(subquery, subquerySourceClass, subquerySourceClass, java.util.Collections.emptyMap(), false, computedFieldRegistry);
+        boolean groupedOnly = !subquery.hasAggregation() && !subquery.groupByFields().isEmpty();
+        if (groupedOnly) {
+            validateGroupedOnlySubquery(subquery, subquerySourceClass, joinSources, computedFieldRegistry);
+        } else {
+            validateForFilter(subquery, subquerySourceClass, QueryRow.class,
+                    joinSources, false, computedFieldRegistry);
+        }
+    }
+
+    private static void validateGroupedOnlySubquery(QueryAst subquery,
+                                                    Class<?> sourceClass,
+                                                    Map<String, List<?>> joinSources,
+                                                    ComputedFieldRegistry computedFieldRegistry) {
+        SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(subquery, sourceClass, joinSources);
+        QueryAst normalizedSubquery = SqlLikeJoinResolution.canonicalize(subquery, joinPlan);
+        normalizedSubquery = normalizeAggregationAliases(normalizedSubquery);
+        Map<String, Class<?>> sourceFieldTypes = joinPlan.isEmpty()
+                ? collectFieldTypes(sourceClass)
+                : joinPlan.mergedFieldTypes();
+        Set<String> sourceFields = ComputedFieldSupport
+                .augmentFieldTypes(sourceFieldTypes, computedFieldRegistry)
+                .keySet();
+        for (String group : normalizedSubquery.groupByFields()) {
+            requireKnownField(group, sourceFields, "GROUP BY");
+        }
+        SelectFieldAst selectedField = normalizedSubquery.select().fields().get(0);
+        String fieldName = selectedField.field();
+        if (!normalizedSubquery.groupByFields().contains(fieldName)
+                && !normalizedSubquery.groupByFields().contains(selectedField.outputName())) {
+            throw validation(SqlLikeErrorCodes.VALIDATION_AGGREGATION_SEMANTICS,
+                    "Subquery grouped field '" + fieldName + "' must be present in GROUP BY");
+        }
+        validateFilters(normalizedSubquery.filters(), sourceFields, sourceClass,
+                joinSources, computedFieldRegistry);
+        validateHaving(normalizedSubquery, sourceFields, sourceClass,
+                joinSources, computedFieldRegistry);
     }
 
     private static Class<?> resolveSubquerySourceClass(Class<?> sourceClass,
@@ -458,7 +568,7 @@ public final class SqlLikeValidator {
                 continue;
             }
             if (field.timeBucketField()) {
-                requireDateField(field.field(), sourceFieldTypes);
+                requireTimeBucketField(field.field(), sourceFieldTypes);
                 String bucketOutput = field.outputName();
                 if (!groupBy.contains(bucketOutput)) {
                     throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
@@ -473,7 +583,7 @@ public final class SqlLikeValidator {
         }
     }
 
-    private static QueryAst normalizeAggregationAliases(QueryAst ast) {
+    public static QueryAst normalizeAggregationAliases(QueryAst ast) {
         SelectAst select = ast.select();
         if (select == null || select.wildcard()) {
             return ast;
@@ -648,11 +758,11 @@ public final class SqlLikeValidator {
         return map;
     }
 
-    private static void requireDateField(String fieldName, Map<String, Class<?>> fieldTypes) {
+    private static void requireTimeBucketField(String fieldName, Map<String, Class<?>> fieldTypes) {
         Class<?> type = fieldTypes.get(fieldName);
-        if (type == null || !Date.class.isAssignableFrom(type)) {
+        if (type == null || !TimeBucketUtil.supportsTimeBucketType(type)) {
             throw validation(SqlLikeErrorCodes.VALIDATION_TIME_BUCKET,
-                    "Time bucket requires date field '" + fieldName + "'");
+                    "Time bucket requires supported date/time field '" + fieldName + "'");
         }
     }
 
@@ -697,6 +807,34 @@ public final class SqlLikeValidator {
             }
         }
         message.append(" Allowed fields: ").append(new TreeSet<>(allowedFields));
+        return message.toString();
+    }
+
+    private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {
+        return "Invalid aggregate ORDER BY reference '"
+                + reference
+                + "': expected grouped field, aggregate output, or aggregate expression. Allowed fields: "
+                + new TreeSet<>(allowedFields);
+    }
+
+    private static String formatUnknownAggregateOrderArgumentMessage(String expression,
+                                                                    String argument,
+                                                                    Set<String> sourceFields) {
+        StringBuilder message = new StringBuilder()
+                .append("Unknown field '")
+                .append(argument)
+                .append("' in ORDER BY aggregate expression '")
+                .append(expression)
+                .append("'.");
+        List<String> suggestions = suggestFields(argument, sourceFields);
+        if (!suggestions.isEmpty()) {
+            if (suggestions.size() == 1) {
+                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
+            } else {
+                message.append(" Did you mean one of ").append(suggestions).append("?");
+            }
+        }
+        message.append(" Allowed source fields: ").append(new TreeSet<>(sourceFields));
         return message.toString();
     }
 

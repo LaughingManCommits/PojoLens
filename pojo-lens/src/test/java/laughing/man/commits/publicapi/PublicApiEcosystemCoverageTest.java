@@ -1,14 +1,20 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.PojoLensCsv;
+import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.csv.CsvCoercionPolicy;
+import laughing.man.commits.csv.CsvLoadResult;
+import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.report.ReportDefinition;
@@ -21,6 +27,7 @@ import laughing.man.commits.testing.QueryRegressionFixture;
 import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
 import laughing.man.commits.testutil.PublicApiModels.StatsRow;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -30,7 +37,13 @@ import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.metamodel.FieldMetamodel;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +52,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmploy
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTest {
@@ -53,6 +67,132 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertFalse(prodRuntime.isStrictParameterTypes());
         assertFalse(prodRuntime.isLintMode());
         assertTrue(prodRuntime.sqlLikeCache().isEnabled());
+    }
+
+    @Test
+    public void csvAdapterShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees.csv");
+        Files.writeString(
+                csv,
+                """
+                        id,name,department,salary,active
+                        1,Alice,Engineering,120000,true
+                        2,Bob,Finance,90000,true
+                        3,Cara,Engineering,130000,true
+                        """
+        );
+
+        List<Employee> rows = PojoLensCsv.read(csv, Employee.class);
+        List<Employee> result = PojoLensSql
+                .parse("where department = 'Engineering' order by salary desc")
+                .filter(rows, Employee.class);
+
+        assertEquals(3, rows.size());
+        assertEquals(List.of("Cara", "Alice"), result.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void runtimeCsvDefaultsShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path semicolonCsv = tempDir.resolve("employees-semicolon.csv");
+        Files.writeString(
+                semicolonCsv,
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        Path commaCsv = tempDir.resolve("employees-comma.csv");
+        Files.writeString(
+                commaCsv,
+                """
+                        employeeName,annualSalary
+                        Alice,120000
+                        Cara,130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        List<EmployeeSummary> defaultRows = runtime.csv().read(semicolonCsv, EmployeeSummary.class);
+        List<EmployeeSummary> overrideRows = runtime.csv().read(
+                commaCsv,
+                EmployeeSummary.class,
+                runtime.getCsvDefaults().toBuilder().delimiter(',').build()
+        );
+
+        assertEquals(2, defaultRows.size());
+        assertEquals("Alice", defaultRows.get(0).employeeName);
+        assertEquals(2, overrideRows.size());
+        assertEquals("Cara", overrideRows.get(1).employeeName);
+        assertEquals(';', runtime.getCsvDefaults().delimiter());
+    }
+
+    @Test
+    public void runtimeCsvLoadReportsShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees-report.csv");
+        Files.writeString(
+                csv,
+                """
+                        employeeName ; annualSalary
+                         Alice ; 120000
+                         Cara ; 130000
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().delimiter(';').trim(true).build());
+
+        CsvLoadResult<EmployeeSummary> result = runtime.csv().readWithReport(csv, EmployeeSummary.class);
+
+        assertEquals(2, result.rows().size());
+        assertTrue(result.report().success());
+        assertEquals(List.of("employeeName", "annualSalary"), result.report().resolvedSchema());
+        assertEquals(3, result.report().logicalRecordCount());
+        assertEquals(2, result.report().loadedRowCount());
+    }
+
+    @Test
+    public void runtimeCsvCoercionPolicyShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path csv = tempDir.resolve("employees-coercion.csv");
+        Files.writeString(
+                csv,
+                """
+                        nickname;bonus;salary;hireDate;reviewedAt;department
+                        ;NULL;1.234,50;15/01/2024;15/01/2024 10:30:00;engineering
+                        """
+        );
+
+        CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
+                .blankStringAsNull(true)
+                .nullToken("NULL")
+                .enumCaseInsensitive(true)
+                .decimalSeparator(',')
+                .groupingSeparator('.')
+                .datePattern("dd/MM/uuuu")
+                .dateTimePattern("dd/MM/uuuu HH:mm:ss")
+                .build();
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(
+                CsvOptions.builder()
+                        .delimiter(';')
+                        .trim(true)
+                        .coercionPolicy(policy)
+                        .build()
+        );
+
+        List<CsvPolicyRow> rows = runtime.csv().read(csv, CsvPolicyRow.class);
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).nickname);
+        assertNull(rows.get(0).bonus);
+        assertEquals(1234.5d, rows.get(0).salary);
+        assertEquals(LocalDate.of(2024, 1, 15), rows.get(0).hireDate);
+        assertEquals(LocalDateTime.of(2024, 1, 15, 10, 30), rows.get(0).reviewedAt);
+        assertEquals(CsvDepartmentCode.ENGINEERING, rows.get(0).department);
     }
 
     @Test
@@ -105,12 +245,31 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         );
         assertEquals(2, sqlReport.rows(sampleEmployees()).size());
 
+        ReportDefinition<StatsRow> naturalReport = ReportDefinition.natural(
+                PojoLensNatural.parse(
+                        "show department, count of employees as total "
+                                + "group by department sort by department ascending"
+                ),
+                StatsRow.class
+        );
+        assertEquals(2, naturalReport.rows(sampleEmployees()).size());
+        assertEquals("show department, count of employees as total group by department sort by department ascending",
+                naturalReport.source());
+
         ReportDefinition<StatsRow> fluentReport = ReportDefinition.fluent(
                 StatsRow.class,
                 builder -> builder.addGroup("department").addCount("total")
         );
         assertEquals(2, fluentReport.rows(sampleEmployees()).size());
         assertEquals("fluent", fluentReport.source());
+
+        FluentQueryDefinition<StatsRow> fluentDefinition = PojoLensCore.prepare(
+                StatsRow.class,
+                builder -> builder.addGroup("department").addCount("total")
+        );
+        assertEquals(2, fluentDefinition.rows(sampleEmployees()).size());
+        assertEquals(List.of("department", "total"), fluentDefinition.schema().names());
+        assertEquals("fluent", fluentDefinition.reportDefinition().source());
     }
 
     @Test
@@ -225,6 +384,23 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .assertOrderedRows(row -> row.department + ":" + row.total,
                         "Engineering:3",
                         "Finance:1");
+    }
+
+    static final class CsvPolicyRow {
+        String nickname;
+        Integer bonus;
+        double salary;
+        LocalDate hireDate;
+        LocalDateTime reviewedAt;
+        CsvDepartmentCode department;
+
+        public CsvPolicyRow() {
+        }
+    }
+
+    enum CsvDepartmentCode {
+        ENGINEERING,
+        FINANCE
     }
 }
 

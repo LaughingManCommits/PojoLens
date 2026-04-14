@@ -1,13 +1,14 @@
 {
-  "generatedAt": "2026-03-29T19:10:17.061061+02:00",
+  "generatedAt": "2026-04-14T20:34:44.376243+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
-    "mainJavaFiles": 176,
-    "testJavaFiles": 105,
-    "markdownDocs": 44,
+    "mainJavaFiles": 203,
+    "testJavaFiles": 117,
+    "markdownDocs": 49,
     "aiCoreFiles": 11,
-    "aiIndexFiles": 7
+    "aiIndexFiles": 7,
+    "orchestratorTaskPlans": 3
   },
   "roots": [
     {
@@ -21,6 +22,10 @@
     {
       "path": "ai/state",
       "kind": "ai-state"
+    },
+    {
+      "path": "ai/orchestrator",
+      "kind": "ai-orchestrator"
     },
     {
       "path": "ai/indexes",
@@ -76,8 +81,8 @@
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 140,
-      "testJavaFiles": 94,
+      "mainJavaFiles": 165,
+      "testJavaFiles": 105,
       "resourceFiles": 0
     },
     {
@@ -112,8 +117,8 @@
       "sourceRoot": "pojo-lens-benchmarks/src/main/java",
       "testRoot": "pojo-lens-benchmarks/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 24,
-      "testJavaFiles": 7,
+      "mainJavaFiles": 26,
+      "testJavaFiles": 8,
       "resourceFiles": 0
     },
     {
@@ -195,12 +200,40 @@
       "kind": "ai-warm-state"
     },
     {
+      "path": "ai/orchestrator/README.md",
+      "kind": "ai-orchestrator-guide"
+    },
+    {
+      "path": "ai/orchestrator/SYSTEM-SPEC.md",
+      "kind": "ai-orchestrator-guide"
+    },
+    {
+      "path": "ai/orchestrator/agents.json",
+      "kind": "ai-orchestration-config"
+    },
+    {
+      "path": "ai/orchestrator/tasks/example-review.json",
+      "kind": "ai-orchestration-task-plan"
+    },
+    {
+      "path": "ai/orchestrator/tasks/example-parallel.json",
+      "kind": "ai-orchestration-task-plan"
+    },
+    {
       "path": "scripts/refresh-ai-memory.py",
       "kind": "memory-script"
     },
     {
       "path": "scripts/query-ai-memory.py",
       "kind": "memory-script"
+    },
+    {
+      "path": "scripts/claude-orchestrator.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/claude-orchestrator.ps1",
+      "kind": "orchestration-script"
     },
     {
       "path": "scripts/benchmark-ai-memory.py",

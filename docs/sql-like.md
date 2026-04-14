@@ -4,7 +4,7 @@
 
 - `SELECT` (optional, supports `AS` aliases)
 - chained `JOIN` clauses (`INNER`, `LEFT`, `RIGHT`) with deterministic `ON <lhs> = <rhs>` binding
-- `WHERE`
+- `WHERE` (`AND`/`OR` predicates, including bounded subqueries)
 - aggregate functions: `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 - rank window functions: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` with `OVER (PARTITION BY ... ORDER BY ...)`
 - aggregate window functions: `COUNT(field|*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)` with `OVER (...)`
@@ -17,12 +17,14 @@
 - `OFFSET`
 
 Current non-goals:
-- full SQL-engine subqueries
+- full SQL-engine subqueries beyond the bounded uncorrelated `WHERE` forms below
 
 Supported operators in `WHERE`:
 - `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`
 - `CONTAINS`
 - `MATCHES`
+- `IN (select ...)`
+- `EXISTS (select ...)`, `NOT EXISTS (select ...)`
 
 ## HAVING Contract
 
@@ -83,8 +85,11 @@ Rank windows:
 Aggregate windows:
 - `COUNT(field)`, `COUNT(*)`, `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 - `SUM/AVG/MIN/MAX` require numeric value fields
-- currently support one frame mode only:
-  `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- require an explicit `ROWS` frame
+- supported frames:
+  - `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+  - `ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`
+  - `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 
 Unsupported window frame expressions fail fast with actionable parser errors.
 
@@ -132,15 +137,28 @@ Sort limitation:
 
 ## Current Limitations
 
-- SQL-like subqueries currently support only `WHERE <field> IN (select <field> ...)`.
-- Subqueries do not support nested joins or aggregate/grouped subquery plans yet.
+- SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`
+  and `WHERE [NOT] EXISTS (select ...)` predicates.
+- Supported subquery predicates can participate in `AND`/`OR` boolean `WHERE`
+  expressions. They lower through the same grouped fluent/core predicate path
+  used by `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`.
+- `IN` subqueries must select exactly one explicit output field, grouped
+  alias, or aggregate alias.
+- `EXISTS` subqueries ignore selected output and may use `SELECT *` or
+  explicit `SELECT` fields.
+- Subqueries may use explicit `JOIN` clauses when the subquery `FROM` source
+  and joined sources are provided through `JoinBindings`.
+- Correlated subqueries, scalar subqueries, and arbitrary nested SQL planning
+  remain unsupported.
 - SQL-like aggregate queries require explicit `SELECT` fields.
-- SQL-like aggregate `ORDER BY` must reference a group-by field or aggregate output alias/name.
+- SQL-like aggregate `ORDER BY` must reference a group-by field, aggregate output alias/name, or aggregate expression.
 - Window functions currently support rank windows and aggregate windows, but only for non-aggregate query shapes.
-- Aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
+- Aggregate windows currently support only explicit `ROWS` frames from the supported frame menu above.
+- `RANGE`, `GROUPS`, following-row frames, and expression-based frame offsets remain unsupported.
 - Window functions currently run in non-aggregate queries (no `GROUP BY`/aggregate metrics in the same query).
 - `QUALIFY` requires at least one selected window output and currently applies only to non-aggregate query shapes.
-- Time bucket input fields must be `java.util.Date` values.
+- Time bucket input fields may be `java.util.Date`, `Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, or `ZonedDateTime`.
 - Time bucket defaults are `UTC` + ISO-week (`MONDAY`) unless explicit SQL-like bucket arguments override them.
 - `weekStart` is supported only for `bucket(..., 'week', ...)`.
 
@@ -233,6 +251,17 @@ List<DepartmentRunningTotal> rows = PojoLensSql
     .parse("select department as dept, name, salary, "
         + "sum(salary) over (partition by department order by salary desc "
         + "rows between unbounded preceding and current row) as runningTotal "
+        + "where active = true order by dept asc, runningTotal asc")
+    .filter(source, DepartmentRunningTotal.class);
+```
+
+### Recipe: Trailing Window (`ROWS BETWEEN <n> PRECEDING AND CURRENT ROW`)
+
+```java
+List<DepartmentRunningTotal> rows = PojoLensSql
+    .parse("select department as dept, name, salary, "
+        + "sum(salary) over (partition by department order by salary desc "
+        + "rows between 2 preceding and current row) as runningTotal "
         + "where active = true order by dept asc, runningTotal asc")
     .filter(source, DepartmentRunningTotal.class);
 ```
@@ -387,19 +416,45 @@ ComputedFieldRegistry registry = runtime.getComputedFieldRegistry();
 runtime.applyPreset(PojoLensRuntimePreset.PROD); // reapplies preset and resets caches/stats
 ```
 
-Equivalent preset creation through the facade is also available:
+The same preset-created runtime can parse SQL-like queries directly:
 
 ```java
 PojoLensRuntime runtime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
+SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 ```
 
-### Recipe: WHERE IN Subquery
+### Recipe: WHERE IN and EXISTS Subqueries
 
 Self-source subquery:
 
 ```java
 List<Employee> rows = PojoLensSql
     .parse("where department in (select department where active = true)")
+    .filter(source, Employee.class);
+```
+
+Self-source existence gate:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where exists (select * where active = true)")
+    .filter(source, Employee.class);
+```
+
+Negated existence gate:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where not exists (select * where department = 'Missing')")
+    .filter(source, Employee.class);
+```
+
+Boolean composition with subqueries:
+
+```java
+List<Employee> rows = PojoLensSql
+    .parse("where exists (select * where department = 'Missing') "
+        + "or department = 'Finance'")
     .filter(source, Employee.class);
 ```
 
@@ -411,12 +466,54 @@ List<Company> rows = PojoLensSql
     .filter(companies, JoinBindings.of("employees", employees), Company.class);
 ```
 
+Named source existence gate using runtime join-source bindings:
+
+```java
+List<Company> rows = PojoLensSql
+    .parse("where exists (select * from employees where title = 'Engineer')")
+    .filter(companies, JoinBindings.of("employees", employees), Company.class);
+```
+
+Joined source subquery using the same runtime join-source binding model:
+
+```java
+JoinBindings joinBindings = JoinBindings.builder()
+    .add("employees", employees)
+    .add("companies", companies)
+    .build();
+
+List<Company> rows = PojoLensSql
+    .parse("where id in (select companyId from employees "
+        + "join companies on companyId = id where name = 'Acme')")
+    .filter(companies, joinBindings, Company.class);
+```
+
 Current subquery scope:
 
-- only `WHERE ... IN (select oneField ...)`
-- subquery `SELECT` must contain exactly one simple field
+- `WHERE ... IN (select oneColumn ...)`
+- `WHERE EXISTS (select ...)` and `WHERE NOT EXISTS (select ...)`
+- supported subquery predicates may be combined with other `WHERE` predicates
+  through `AND`/`OR`
+- `IN` subquery `SELECT` must contain exactly one explicit field
+- the `IN` field can be a simple field, grouped field alias, or aggregate output alias
+- `EXISTS` subquery `SELECT` output is ignored and may be wildcard or explicit
 - subquery `FROM <source>` must resolve from provided join-source bindings
-- aggregate, grouped, and join subqueries are not supported yet
+- subquery `JOIN` clauses may reference provided join-source bindings
+- correlated subqueries and scalar subqueries are not supported
+
+Grouped and aggregate subquery examples:
+
+```java
+List<DepartmentEmployee> groupedRows = PojoLensSql
+    .parse("where department in (select department as dept group by dept having count(*) > 1)")
+    .filter(source, DepartmentEmployee.class);
+```
+
+```java
+List<Employee> aggregateRows = PojoLensSql
+    .parse("where id in (select count(*) as total where active = true)")
+    .filter(source, Employee.class);
+```
 
 ### Recipe: Query Template with Parameter Schema
 
@@ -676,7 +773,7 @@ Parse errors include deterministic location text:
 | `EQ-SQL-VAL-007` | Computed `SELECT` projection is invalid. | Use computed expressions only in non-aggregate queries and add `AS`. |
 | `EQ-SQL-VAL-008` | Time-bucket validation failed. | Use a `Date` field, give it an alias, and include the alias in `GROUP BY`. |
 | `EQ-SQL-VAL-009` | Expression reference/operator validation failed. | Use valid numeric expressions and supported comparison operators. |
-| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Restrict subqueries to `WHERE field IN (select oneField ...)` and bind named `FROM` sources. |
+| `EQ-SQL-VAL-010` | Subquery shape/source is unsupported. | Use uncorrelated `WHERE field IN (select <single output> ...)` or `WHERE [NOT] EXISTS (select ...)` subqueries; named `FROM` / subquery `JOIN` sources must be bound. |
 | `EQ-SQL-VAL-011` | Field reference is ambiguous in a multi-join context. | Qualify the field with `<source>.<field>` or use the deterministic merged field name. |
 | `EQ-SQL-PRM-001` | Required named parameter is missing. | Supply all referenced parameters. |
 | `EQ-SQL-PRM-002` | Unknown named parameter was provided. | Remove unexpected parameter names or update the query/template. |
@@ -785,10 +882,10 @@ Fix:
 ### Error Code EQ-SQL-VAL-006
 
 Meaning:
-- Aggregate query semantics are inconsistent, such as missing aggregates or non-grouped selected fields.
+- Aggregate query semantics are inconsistent, such as missing aggregates, non-grouped selected fields, or aggregate `ORDER BY` references that are not grouped fields, aggregate outputs, or aggregate expressions.
 
 Fix:
-- Ensure grouped queries include aggregates and that non-aggregated selected fields also appear in `GROUP BY`.
+- Ensure grouped queries include aggregates, non-aggregated selected fields appear in `GROUP BY`, and aggregate `ORDER BY` uses only grouped fields, aggregate aliases/names, or aggregate expressions such as `sum(salary)`.
 
 ### Error Code EQ-SQL-VAL-007
 

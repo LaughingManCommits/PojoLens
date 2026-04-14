@@ -43,25 +43,31 @@ The families and tiers are related, but not the same thing:
   product story
 
 The default first-read story stays centered on the core engine:
-`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, and
-`ReportDefinition<T>`.
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`,
+`PojoLensChart`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
 ### Entry Points
 
 - `PojoLensCore.newQueryBuilder(List<?>)`
+- `PojoLensCore.prepare(Class<T>, Consumer<QueryBuilder>)`
+- `PojoLensNatural.parse(String)`
+- `PojoLensNatural.template(String, String...)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
 - `PojoLensRuntime`
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
+  - `natural()`
   - `newQueryBuilder(List<?>)`
   - `parse(String)`
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
   - strict/lint toggles
+  - `setNaturalVocabulary(NaturalVocabulary)`
+  - `getNaturalVocabulary()`
 - `DatasetBundle`
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
@@ -72,8 +78,15 @@ The default first-read story stays centered on the core engine:
 - `QueryBuilder`:
   - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`
   - `addHaving`, `addQualify`, `addJoinBeans`
+  - `addInSubquery`, `addExists`, `addNotExists`
   - `limit`, `offset`
   - `initFilter`, `explain`, `schema`
+- `QueryRule`:
+  - `of`
+  - `inSubquery` self-source and explicit-source overloads
+  - `exists` / `notExists` self-source and explicit-source overloads
+- `FluentQueryDefinition<T>`:
+  - `of`, `rows`, `schema`, `explain`, `reportDefinition`
 - `Filter`:
   - `filter`, `iterator`, `stream`, `chart`, `join`
 
@@ -95,8 +108,23 @@ The default first-read story stays centered on the core engine:
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
 
+### Plain-English Contracts
+
+- `NaturalRuntime`:
+  - `parse`, `template`
+- `NaturalQuery`:
+  - `of`, `source`, `equivalentSqlLike`, `params`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
+  - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `NaturalTemplate`:
+  - `of`, `bind`, `source`, `expectedParams`
+- `NaturalBoundQuery`:
+  - `filter`, `iterator`, `stream`, `chart`
+
 ### Shared Stable Types
 
+- `NaturalVocabulary`
 - `PojoLensRuntimePreset`
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`

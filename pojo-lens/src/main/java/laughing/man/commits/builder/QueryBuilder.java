@@ -13,6 +13,7 @@ import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public interface QueryBuilder {
 
@@ -198,8 +199,24 @@ public interface QueryBuilder {
                                    boolean countAll,
                                    List<String> partitionFields,
                                    List<QueryWindowOrder> orderFields) {
+        return addWindow(alias, function, valueField, countAll, partitionFields, orderFields, QueryWindowFrame.running());
+    }
+
+    /**
+     * Adds a window output with explicit value argument and ROWS frame metadata.
+     */
+    default QueryBuilder addWindow(String alias,
+                                   WindowFunction function,
+                                   String valueField,
+                                   boolean countAll,
+                                   List<String> partitionFields,
+                                   List<QueryWindowOrder> orderFields,
+                                   QueryWindowFrame frame) {
         if (countAll || valueField != null) {
             throw new UnsupportedOperationException("Window value arguments are not supported by this builder");
+        }
+        if (frame != null && !frame.isRunning()) {
+            throw new UnsupportedOperationException("Window frames are not supported by this builder");
         }
         return addWindow(alias, function, partitionFields, orderFields);
     }
@@ -254,6 +271,58 @@ public interface QueryBuilder {
 
     <T, R> QueryBuilder addRule(FieldSelector<T, R> selector, Object value,
                                 Clauses clause);
+
+    /**
+     * Adds a WHERE {@code column IN (subquery)} predicate using the same source
+     * rows as the parent query. The subquery is configured as a normal fluent
+     * builder and is resolved when {@link #initFilter()} creates the execution
+     * snapshot.
+     */
+    QueryBuilder addInSubquery(String column,
+                               String subqueryOutputField,
+                               Consumer<QueryBuilder> subqueryConfigurer);
+
+    <T, R> QueryBuilder addInSubquery(FieldSelector<T, R> selector,
+                                      String subqueryOutputField,
+                                      Consumer<QueryBuilder> subqueryConfigurer);
+
+    /**
+     * Adds a WHERE {@code column IN (subquery)} predicate over explicit
+     * subquery source rows.
+     */
+    QueryBuilder addInSubquery(String column,
+                               List<?> subqueryRows,
+                               String subqueryOutputField,
+                               Consumer<QueryBuilder> subqueryConfigurer);
+
+    <T, R> QueryBuilder addInSubquery(FieldSelector<T, R> selector,
+                                      List<?> subqueryRows,
+                                      String subqueryOutputField,
+                                      Consumer<QueryBuilder> subqueryConfigurer);
+
+    /**
+     * Adds a WHERE {@code EXISTS (subquery)} predicate using the same source
+     * rows as the parent query.
+     */
+    QueryBuilder addExists(Consumer<QueryBuilder> subqueryConfigurer);
+
+    /**
+     * Adds a WHERE {@code EXISTS (subquery)} predicate over explicit subquery
+     * source rows.
+     */
+    QueryBuilder addExists(List<?> subqueryRows, Consumer<QueryBuilder> subqueryConfigurer);
+
+    /**
+     * Adds a WHERE {@code NOT EXISTS (subquery)} predicate using the same
+     * source rows as the parent query.
+     */
+    QueryBuilder addNotExists(Consumer<QueryBuilder> subqueryConfigurer);
+
+    /**
+     * Adds a WHERE {@code NOT EXISTS (subquery)} predicate over explicit
+     * subquery source rows.
+     */
+    QueryBuilder addNotExists(List<?> subqueryRows, Consumer<QueryBuilder> subqueryConfigurer);
 
     /**
      * Adds a HAVING rule with explicit separator (applied after aggregation).

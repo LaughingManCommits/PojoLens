@@ -2,39 +2,48 @@
 
 ## Repo
 
-- Multi-module Maven Java 17 library: runtime `pojo-lens`, Spring Boot integration modules, and benchmark tooling.
-- Runtime consumer artifact remains `io.github.laughingmancommits:pojo-lens:2026.03.28.1919`; `TODO.md` tracks context-loading baseline and operational follow-up.
-- Release versioning is date-based: Maven versions use `YYYY.MM.DD.HHmm` and Git tags use `release-<version>`.
+- Java 17 library with runtime, Spring Boot, and JMH modules.
+- Current date-based release is `2026.03.28.1919`.
 
 ## Focus
 
-- `WP9` context-loading P0 work is complete: trigger matrix, conditional load rules, and summarization guardrails are live.
-- Highest-priority operational repo task remains Maven Central release retry or verification for `2026.03.28.1919`.
+- `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
+- AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
+- `2026-04-14`: limitation work is done for time buckets, aggregate windows,
+  prepare, bounded subqueries/`EXISTS`, natural cleanup, and SQL-like lowering.
 
 ## Verified
 
-- `2026-03-29`: refreshed `scripts/checkstyle-baseline.txt` from the latest lint profile output (`target/checkstyle-result.xml`) and revalidated with `scripts/check-lint-baseline.ps1` (`new=0`, `fixed=0`).
-- `2026-03-29`: split Spring Boot starter examples into a minimal onboarding app (`examples/spring-boot-starter-quickstart`) and an advanced dashboard reference (`examples/spring-boot-starter-basic`); quickstart tests and docs/memory validations passed.
-- `2026-03-29`: clarified context-loading policy to avoid recursive/extra reloads when `ai/state/*` is edited in the current task; cross-references between `AGENTS.md` and `ai/AGENTS.md` are now explicitly non-recursive.
-- `2026-03-29`: removed internal process docs from `docs/` (`consolidation-review.md`) and rewrote remaining benchmark `WP*` references to user-facing wording.
-- `2026-03-29`: added conditional cold-load matrix and routing fallback guidance to `AGENTS.md` and `ai/AGENTS.md`.
-- `2026-03-29`: validated routing on representative release, validation-history, archive-history, and module-routing queries (module routing uses `-Kind ai-core`).
-- `2026-03-29`: `scripts/refresh-ai-memory.ps1`, `scripts/refresh-ai-memory.ps1 -Check`, and `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` passed (`top1=1.0`, `top3=1.0`).
-- `2026-03-28`: pre-first-release surface cleanup is complete (`PojoLens` facade and compatibility-only overlap removed) and full test/doc checks passed.
+- `2026-04-10`: CSV WP1-WP5 is validated, including multiline records, runtime defaults, coercion policy, load reports, enum binding, and guarded load benchmarks.
+- `2026-04-11`: orchestration WP18 and `caveman` skill propagation are validated.
+- `2026-04-13`: `PojoLensCore.prepare(...)` now returns immutable `FluentQueryDefinition<T>` for reusable fluent builder recipes with rows/schema/explain and `ReportDefinition` promotion.
+- `2026-04-13`: SQL-like `IN`/`EXISTS` subqueries work for bounded
+  self/named/joined sources and passed focused/full validations.
+- `2026-04-13`: bounded natural cleanup passed for schema vocabulary,
+  `qualify` window phrases, window phrase breadth/frames, and delegate caching.
+- `2026-04-14`: bounded subquery/existence parity passed focused fluent/public
+  API and natural/docs-example tests plus the full `pojo-lens` suite
+  (`721` tests), docs, diff whitespace, Checkstyle goal, and script tests.
+- `2026-04-14`: SQL-like simple bounded `IN`/`EXISTS` predicates now bind as
+  fluent/core subquery predicates.
+- `2026-04-14`: grouped fluent `QueryRule` subqueries are done, SQL-like
+  boolean `OR`/DNF subqueries lower onto fluent/core, and docs are aligned.
 
 ## Release
 
-- Central namespace is verified for `io.github.laughingmancommits`.
-- The last publish attempt uploaded the bundle but failed signature verification because Central could not find the signer public key; the public key upload is done and retry remains next.
+- `2026.03.28.1919` is complete.
 
 ## Risks
 
-- Central publish status is not yet reconfirmed after key propagation.
-- Query quality for module-routing intent is sensitive without facet-constrained lookup; use `scripts/query-ai-memory.ps1 -Kind ai-core` for module/architecture retrieval.
+- Fluent/core should lead capability; SQL-like and natural are facades.
+- Bounded subquery/existence parity is user-facing complete across fluent,
+  SQL-like, and natural; SQL-like subquery binding now uses the shared
+  fluent/core path for direct and grouped boolean shapes.
+- Natural remains controlled grammar; static parse/template stay vocabulary-free.
 
 ## Next
 
-- Retry the release workflow or a manual release dispatch for `2026.03.28.1919`.
-- Keep memory indexes fresh after memory/doc changes:
-  `scripts/refresh-ai-memory.ps1` and `scripts/refresh-ai-memory.ps1 -Check`.
-
+- Orchestration: spike closed through WP18; revisit only if a new product slice reveals an uncovered gap.
+- CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
+- Limitations: no default bounded subquery parity slice remains;
+  correlated/scalar subqueries and broad window-frame parity stay opt-in only.

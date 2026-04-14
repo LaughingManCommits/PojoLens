@@ -11,6 +11,7 @@ import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.filter.Filter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
@@ -104,6 +105,15 @@ public class StatsQueryJmhBenchmark {
                 .addMetric("integerField", Metric.SUM, "totalValue");
         parsedGroupedSql = runtime.parse(groupedSql);
         parsedBucketSql = runtime.parse(bucketSql);
+    }
+
+    @Setup(Level.Invocation)
+    public void resetFluentExecutionCaches() {
+        BenchmarkFilterCacheReset.clear(fluentGroupedRowsFilter);
+        BenchmarkFilterCacheReset.clear(fluentGroupedFilter);
+        BenchmarkFilterCacheReset.clear(fluentTimeBucketFilter);
+        BenchmarkFilterCacheReset.clear(fluentGroupedToChartFilter);
+        BenchmarkFilterCacheReset.clear(fluentTimeBucketToChartFilter);
     }
 
     @Benchmark

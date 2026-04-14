@@ -1,7 +1,10 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports both a fluent API and SQL-like query strings for filtering, ordering, grouping, joins, aggregates, HAVING, time buckets, and chart payload mapping.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes a bounded `PojoLensCsv` adapter for loading UTF-8 CSV files into typed rows before they enter the same engine.
+
+Core execution model:
+`query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
 
 > Note: This project is fully AI-built and is maintained as an experiment.
 
@@ -59,6 +62,7 @@ Runnable example project:
 - Choose query style per use case:
   - fluent API for type-safe Java composition
   - SQL-like strings for dynamic/user-authored queries
+  - controlled plain-English queries for guided non-SQL text authoring
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
@@ -70,6 +74,8 @@ Runnable example project:
 
 - Need to choose the default query/runtime entry path:
   [docs/entry-points.md](docs/entry-points.md)
+- Need the controlled plain-English grammar and recipes:
+  [docs/natural.md](docs/natural.md)
 - Need to choose between reusable report/chart/table wrappers:
   [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
 - Need a scenario-driven selection guide:
@@ -80,27 +86,33 @@ Runnable example project:
 ## Pick A Path
 
 For new code, prefer one default path per job:
-`PojoLensCore`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
+| A reusable fluent query shape                             | `PojoLensCore.prepare(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/reusable-wrappers.md](docs/reusable-wrappers.md)   |
+| Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
 | Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
 | A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTable`                 | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
-| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md)                               |
+| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/natural.md](docs/natural.md), [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md) |
 
 ## Product Shape
 
 - `Core query engine`:
-  fluent and SQL-like querying over existing Java objects.
+  fluent, SQL-like, and controlled plain-English querying over existing Java
+  objects.
 - `Workflow helpers`:
   chart mapping, reusable report/preset wrappers, dataset composition, and
   schema metadata.
+- `Compatibility adapter`:
+  boundary-only CSV loading into typed rows via `PojoLensCsv`.
 - `Runtime integration`:
   runtime-scoped configuration and optional Spring Boot wiring.
 - `Advanced and tooling`:
@@ -114,6 +126,9 @@ Advanced/optional follow-on guide:
 - [docs/advanced-features.md](docs/advanced-features.md)
 
 ## Quick Start
+
+Three short examples, one per query style.
+Broader recipes for joins, grouping, windows, templates, charts, and presets live in the docs linked below.
 
 ### Fluent query
 
@@ -137,62 +152,93 @@ List<Employee> rows = PojoLensSql
     .filter(source, Employee.class);
 ```
 
-### Chart payload in one call
+### Controlled plain-English query
 
 ```java
-ChartData chart = PojoLensSql
-    .parse("select department, count(*) as total "
-        + "group by department order by total desc")
-    .chart(source, DepartmentCount.class, ChartSpec.of(ChartType.BAR, "department", "total"));
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where department is :dept and salary is at least :minSalary "
+        + "sort by salary descending limit 10")
+    .params(Map.of("dept", "Engineering", "minSalary", 120000))
+    .filter(source, Employee.class);
 ```
 
-### Predefined stats table in one call
+### CSV boundary load
 
 ```java
-StatsTable<DepartmentPayrollRow> table = StatsViewPresets
-    .topNBy("department", Metric.SUM, "salary", "payroll", 3, DepartmentPayrollRow.class)
-    .table(source);
+List<Employee> rows = PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+
+List<Employee> filtered = PojoLensSql
+    .parse("where department = 'Engineering' order by salary desc")
+    .filter(rows, Employee.class);
 ```
+
+More examples:
+- Fluent queries, grouped predicates, and bounded subqueries:
+  [docs/usecases.md](docs/usecases.md)
+- SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
+- Natural queries, joins, bounded subqueries, windows, and templates:
+  [docs/natural.md](docs/natural.md)
+- Charts, reports, and presets: [docs/charts.md](docs/charts.md), [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
 
 ## Capability Snapshot
 
+This README is the feature-set map. Clause grammar, recipes, and edge-case
+rules live in the module docs linked beside each surface.
+
 ### Core query engine
 
-- Filtering, ordering, and pagination (`WHERE`, fluent rules, `ORDER BY`, `LIMIT`, `OFFSET`)
-- First-class keyset/cursor pagination primitives with token support
-- Streaming execution output (`iterator` / `stream`) for low-allocation simple query scans
-- Optional in-memory index hints for repeated fluent equality filters
-- Aggregation and grouped queries (`GROUP BY`, metrics, `HAVING`)
-- Time buckets (`day`, `week`, `month`, `quarter`, `year`)
-- SQL-like named parameters and typed bind-first execution
-- SQL-like window analytics (`ROW_NUMBER`, `RANK`, `DENSE_RANK`, running aggregates with `OVER(...)`) and `QUALIFY`
-- Chained SQL-like joins with typed join bindings
-- Computed field registry for derived expressions
+- Fluent query composition over existing Java objects. See
+  [docs/usecases.md](docs/usecases.md) and
+  [docs/entry-points.md](docs/entry-points.md).
+- SQL-like text queries for config-driven or user-authored flows. See
+  [docs/sql-like.md](docs/sql-like.md).
+- Controlled natural query text for guided non-SQL authoring. See
+  [docs/natural.md](docs/natural.md).
+- Derived values, time buckets, pagination, streaming, and repeated-snapshot
+  helpers. See [docs/computed-fields.md](docs/computed-fields.md),
+  [docs/time-buckets.md](docs/time-buckets.md), and
+  [docs/usecases.md](docs/usecases.md).
+- Multi-source execution with typed join bindings and reusable dataset bundles.
+  See [docs/sql-like.md](docs/sql-like.md),
+  [docs/natural.md](docs/natural.md), and [docs/reports.md](docs/reports.md).
 
 ### Workflow helpers
 
-- Chart payload mapping (`BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`)
-- Reusable report, chart-preset, and stats-preset wrappers
-- Dataset-bundle execution reuse and tabular schema metadata
+- Chart payload mapping, report definitions, chart presets, stats presets, and
+  tabular schema metadata. See [docs/charts.md](docs/charts.md),
+  [docs/reports.md](docs/reports.md),
+  [docs/stats-presets.md](docs/stats-presets.md), and
+  [docs/tabular-schema.md](docs/tabular-schema.md).
 
 ### Runtime integration
 
-- Runtime-scoped presets and policy controls via `PojoLensRuntime`
-- Optional Spring Boot starter/autoconfigure modules
+- Runtime-scoped policy, diagnostics, caching, CSV defaults, computed fields,
+  and natural vocabulary. See [docs/entry-points.md](docs/entry-points.md),
+  [docs/advanced-features.md](docs/advanced-features.md),
+  [docs/caching.md](docs/caching.md), and
+  [docs/telemetry.md](docs/telemetry.md).
+- Optional Spring Boot starter and autoconfigure modules. See
+  [docs/modules.md](docs/modules.md).
+
+### Compatibility adapter
+
+- CSV file-boundary loading into typed rows before normal query execution. See
+  [docs/csv.md](docs/csv.md).
 
 ### Advanced and tooling
 
-- Query telemetry hooks, lint mode, and cache tuning controls
-- Snapshot comparison helpers and regression fixtures
-- Field metamodel generation for typed field constants
-- Benchmark/JMH tooling in a separate benchmark module
-
-These public follow-on features are collected in
-[docs/advanced-features.md](docs/advanced-features.md).
+- Snapshot comparison, regression fixtures, metamodel generation, benchmarks,
+  and optional production diagnostics. See
+  [docs/advanced-features.md](docs/advanced-features.md),
+  [docs/snapshot-comparison.md](docs/snapshot-comparison.md),
+  [docs/regression-fixtures.md](docs/regression-fixtures.md),
+  [docs/metamodel.md](docs/metamodel.md), and
+  [docs/benchmarking.md](docs/benchmarking.md).
 
 ## API Entry Points
 
 - `PojoLensCore`: default for new service-owned fluent queries
+- `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensSql`: default for new SQL-like and template-driven queries
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
@@ -222,25 +268,24 @@ The explicit stable-surface contract and deprecation policy are documented in
 
 ## Runtime Presets
 
-```java
-PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
-PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);
-PojoLensRuntime testRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.TEST);
-```
-
-Preset intent:
-- `DEV`: strict + diagnostics friendly
-- `PROD`: lower overhead defaults
-- `TEST`: stricter deterministic behavior, caches disabled
+`PojoLensRuntime` includes `DEV`, `PROD`, and `TEST` presets for scoped policy
+defaults. Detailed behavior and override examples live in
+[docs/entry-points.md](docs/entry-points.md) and
+[docs/sql-like.md#recipe-runtime-policy-presets](docs/sql-like.md#recipe-runtime-policy-presets).
 
 ## Current Limitations
 
-- SQL-like subqueries are currently limited to `WHERE <field> IN (select <oneField> ...)`.
-- Aggregate/grouped/joined subquery plans are not supported.
-- SQL-like aggregate `ORDER BY` must reference grouped fields or aggregate outputs.
-- SQL-like aggregate windows currently support only `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-- Time bucket source fields must be `java.util.Date`.
-- Builders are mutable and not safe for concurrent mutation; use `copyOnBuild(true)` for reusable templates.
+The README keeps limits at the product-surface level. Detailed limitations live
+with the owning guide.
+
+- SQL-like does not try to be a full SQL engine; subqueries, aggregate ordering,
+  and window frames are intentionally bounded. See
+  [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations).
+- Natural queries use controlled grammar, not free-form language; bounded
+  subquery phrases are documented with that grammar. See
+  [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
+- Fluent builders are mutable configuration objects; reuse guidance belongs with
+  the code-owned query path. See [docs/usecases.md](docs/usecases.md).
 
 ## Documentation Map
 
@@ -253,6 +298,8 @@ Preset intent:
 
 ### Core Guides
 
+- CSV boundary adapter guide: [docs/csv.md](docs/csv.md)
+- Natural query guide: [docs/natural.md](docs/natural.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)
 - Reports and presets: [docs/reports.md](docs/reports.md)

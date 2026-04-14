@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
+import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -132,7 +134,8 @@ public final class SqlLikeJoinResolution {
                         resolvedWindowValueField,
                         resolvedWindowCountAll,
                         resolvedWindowPartitions,
-                        resolvedWindowOrders
+                        resolvedWindowOrders,
+                        field.windowFrame()
                 );
             } else if (field.computedField()) {
                 resolvedField = rewriteExpression(field.field(), plan, "SELECT");
@@ -150,7 +153,8 @@ public final class SqlLikeJoinResolution {
                     resolvedWindowPartitions,
                     resolvedWindowOrders,
                     resolvedWindowValueField,
-                    resolvedWindowCountAll
+                    resolvedWindowCountAll,
+                    field.windowFrame()
             ));
         }
         return new SelectAst(select.wildcard(), fields, select.sourceName());
@@ -160,7 +164,8 @@ public final class SqlLikeJoinResolution {
                                            String valueField,
                                            boolean countAll,
                                            List<String> partitionFields,
-                                           List<OrderAst> orders) {
+                                           List<OrderAst> orders,
+                                           QueryWindowFrame frame) {
         StringBuilder expression = new StringBuilder(function).append('(');
         if (isAggregateWindowFunction(function)) {
             expression.append(countAll ? "*" : valueField);
@@ -186,12 +191,13 @@ public final class SqlLikeJoinResolution {
                     expression.append(' ').append(order.sort().name());
                 }
             }
+            wroteSegment = true;
         }
         if (isAggregateWindowFunction(function)) {
             if (wroteSegment) {
                 expression.append(' ');
             }
-            expression.append("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW");
+            expression.append((frame == null ? QueryWindowFrame.running() : frame).sqlExpression());
         }
         expression.append(')');
         return expression.toString();
@@ -217,6 +223,12 @@ public final class SqlLikeJoinResolution {
             Object value = filter.value();
             if (value instanceof SubqueryValueAst subqueryValueAst) {
                 value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                value = new ExistsSubqueryValueAst(
+                        existsSubqueryValueAst.source(),
+                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                        existsSubqueryValueAst.negated()
+                );
             }
             resolved.add(new FilterAst(field, filter.clause(), value, filter.separator()));
         }
@@ -237,6 +249,12 @@ public final class SqlLikeJoinResolution {
             Object value = filter.value();
             if (value instanceof SubqueryValueAst subqueryValueAst) {
                 value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                value = new ExistsSubqueryValueAst(
+                        existsSubqueryValueAst.source(),
+                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                        existsSubqueryValueAst.negated()
+                );
             }
             return new FilterPredicateAst(new FilterAst(field, filter.clause(), value, filter.separator()));
         }

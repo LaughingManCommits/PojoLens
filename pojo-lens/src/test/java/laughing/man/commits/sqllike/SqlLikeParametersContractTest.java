@@ -68,6 +68,15 @@ public class SqlLikeParametersContractTest {
     }
 
     @Test
+    public void parameterizedExistsSubqueryShouldBindNestedParameters() {
+        List<Employee> rows = PojoLensSql.parse("where exists (select * where department = :dept) and active = true")
+                .params(Map.of("dept", "Engineering"))
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(Arrays.asList("Alice", "Bob", "Cara"), names(rows));
+    }
+
+    @Test
     public void parameterizedQueryShouldSupportDateAndNullValues() {
         List<Employee> source = sampleEmployees();
         Date hiredAt = source.get(0).hireDate;

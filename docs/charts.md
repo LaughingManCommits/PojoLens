@@ -70,18 +70,20 @@ Wrapper choice:
 
 Recommended defaults:
 - start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
+- start from `PojoLensNatural.parse(...)` for guided non-SQL chart flows when the query text already carries `as <type> chart`
 - start from `PojoLensSql.parse(...)` for SQL-like chart flows
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
 - for multi-source SQL-like chart execution, start with `JoinBindings` and
   promote to `DatasetBundle` when the same snapshot is reused
 
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `NaturalQuery.chart(List<?>, Class<T>)`
+- `NaturalQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `ChartJsAdapter.toPayload(ChartData)`
 - `Filter.chart(Class<T>, ChartSpec)`
 - `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
-- `SqlLikeQuery.chart(List<?>, Map<String,List<?>>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
 - `ChartQueryPresets.categoryCounts(...)`
 - `ChartQueryPresets.categoryTotals(...)`
@@ -115,6 +117,15 @@ SQL-like chart:
 ChartData chart = PojoLensSql
     .parse("select department, count(*) as headcount group by department order by headcount desc")
     .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
+```
+
+Natural chart phrase with inferred mapping:
+
+```java
+ChartData chart = PojoLensNatural
+    .parse("show department, count of employees as total "
+        + "where active is true group by department sort by total descending as bar chart")
+    .chart(source, DepartmentCount.class);
 ```
 
 Preset-driven chart:
@@ -209,6 +220,14 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
+Natural chart inference contract:
+
+- chart phrases set chart type only
+- 2 `show` outputs infer `xField`, `yField`
+- 3 `show` outputs infer `xField`, `seriesField`, `yField`
+- `pie` charts require exactly 2 outputs
+- explicit `ChartSpec` still overrides inference when you want a different mapping
 
 
 

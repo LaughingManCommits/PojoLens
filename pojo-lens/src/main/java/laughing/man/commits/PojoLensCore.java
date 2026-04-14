@@ -1,10 +1,12 @@
 package laughing.man.commits;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Core fluent-query entry points without SQL-like parser concerns.
@@ -23,6 +25,10 @@ public final class PojoLensCore {
 
     public static QueryBuilder newQueryBuilder(List<?> pojos, FilterExecutionPlanCacheStore cacheStore) {
         return new FilterQueryBuilder(pojos, cacheStore);
+    }
+
+    public static <T> FluentQueryDefinition<T> prepare(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {
+        return FluentQueryDefinition.of(projectionClass, configurer);
     }
 }
 

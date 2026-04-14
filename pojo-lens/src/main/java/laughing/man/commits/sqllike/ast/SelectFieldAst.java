@@ -1,5 +1,6 @@
 package laughing.man.commits.sqllike.ast;
 
+import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -23,6 +24,7 @@ public final class SelectFieldAst {
     private final List<OrderAst> windowOrderFields;
     private final String windowValueField;
     private final boolean windowCountAll;
+    private final QueryWindowFrame windowFrame;
 
     public SelectFieldAst(String field,
                           String alias,
@@ -41,7 +43,8 @@ public final class SelectFieldAst {
                 List.of(),
                 List.of(),
                 null,
-                false
+                false,
+                QueryWindowFrame.running()
         );
     }
 
@@ -65,6 +68,34 @@ public final class SelectFieldAst {
                           List<OrderAst> windowOrderFields,
                           String windowValueField,
                           boolean windowCountAll) {
+        this(
+                field,
+                alias,
+                metric,
+                countAll,
+                timeBucketPreset,
+                computedExpression,
+                windowFunction,
+                windowPartitionFields,
+                windowOrderFields,
+                windowValueField,
+                windowCountAll,
+                QueryWindowFrame.running()
+        );
+    }
+
+    public SelectFieldAst(String field,
+                          String alias,
+                          Metric metric,
+                          boolean countAll,
+                          TimeBucketPreset timeBucketPreset,
+                          boolean computedExpression,
+                          String windowFunction,
+                          List<String> windowPartitionFields,
+                          List<OrderAst> windowOrderFields,
+                          String windowValueField,
+                          boolean windowCountAll,
+                          QueryWindowFrame windowFrame) {
         this.field = Objects.requireNonNull(field, "field must not be null");
         this.alias = alias;
         this.metric = metric;
@@ -74,6 +105,7 @@ public final class SelectFieldAst {
         this.windowFunction = windowFunction;
         this.windowValueField = windowValueField;
         this.windowCountAll = windowCountAll;
+        this.windowFrame = windowFrame == null ? QueryWindowFrame.running() : windowFrame;
         this.windowPartitionFields = Collections.unmodifiableList(new ArrayList<>(
                 windowPartitionFields == null ? List.of() : windowPartitionFields
         ));
@@ -140,6 +172,10 @@ public final class SelectFieldAst {
 
     public boolean windowCountAll() {
         return windowCountAll;
+    }
+
+    public QueryWindowFrame windowFrame() {
+        return windowFrame;
     }
 
     public String outputName() {

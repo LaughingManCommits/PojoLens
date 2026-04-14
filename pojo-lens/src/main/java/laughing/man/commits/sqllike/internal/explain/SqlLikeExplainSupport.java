@@ -4,6 +4,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.ParameterValueAst;
@@ -36,7 +37,9 @@ public final class SqlLikeExplainSupport {
     private SqlLikeExplainSupport() {
     }
 
-    public static Map<String, Object> payload(String source,
+    public static Map<String, Object> payload(String queryType,
+                                              String source,
+                                              String normalizedQuery,
                                               QueryAst ast,
                                               Map<String, List<?>> joinSources,
                                               Map<String, Object> stageRowCounts,
@@ -44,9 +47,9 @@ public final class SqlLikeExplainSupport {
                                               List<SqlLikeLintWarning> lintWarnings,
                                               ComputedFieldRegistry computedFieldRegistry) {
         LinkedHashMap<String, Object> explain = new LinkedHashMap<>();
-        explain.put("type", "sql-like");
+        explain.put("type", queryType);
         explain.put("source", source);
-        explain.put("normalizedQuery", source);
+        explain.put("normalizedQuery", normalizedQuery);
         explain.put("hasJoin", ast.hasJoins());
         explain.put("whereRuleCount", ast.filters().size());
         explain.put("havingRuleCount", ast.havingFilters().size());
@@ -133,11 +136,19 @@ public final class SqlLikeExplainSupport {
             } else if (value instanceof BoundParameterValue boundParameterValue) {
                 snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
             } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-                collectParameterSnapshots(subqueryValueAst.query().filters(), snapshot);
-                collectParameterSnapshots(subqueryValueAst.query().havingFilters(), snapshot);
-                collectPaginationParameterSnapshots(subqueryValueAst.query(), snapshot);
+                collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
+            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+                collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
             }
         }
+    }
+
+    private static void collectQueryParameterSnapshots(QueryAst ast,
+                                                       Map<String, Map<String, Object>> snapshot) {
+        collectParameterSnapshots(ast.filters(), snapshot);
+        collectParameterSnapshots(ast.havingFilters(), snapshot);
+        collectParameterSnapshots(ast.qualifyFilters(), snapshot);
+        collectPaginationParameterSnapshots(ast, snapshot);
     }
 
     private static void collectPaginationParameterSnapshots(QueryAst ast,

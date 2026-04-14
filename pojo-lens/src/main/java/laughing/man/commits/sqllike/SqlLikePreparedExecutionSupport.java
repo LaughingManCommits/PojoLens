@@ -2,12 +2,14 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
 import laughing.man.commits.filter.FilterExecutionPlanCacheKey;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -38,7 +40,8 @@ final class SqlLikePreparedExecutionSupport {
     private SqlLikePreparedExecutionSupport() {
     }
 
-    static <T> ExecutionContext prepareExecution(String source,
+    static <T> ExecutionContext prepareExecution(String queryType,
+                                                 String source,
                                                  QueryAst ast,
                                                  boolean strictParameterTypes,
                                                  ComputedFieldRegistry computedFieldRegistry,
@@ -84,7 +87,7 @@ final class SqlLikePreparedExecutionSupport {
         QueryTelemetrySupport.emit(
                 telemetryListener,
                 QueryTelemetryStage.BIND,
-                "sql-like",
+                queryType,
                 source,
                 bindStarted,
                 pojos.size(),
@@ -95,7 +98,7 @@ final class SqlLikePreparedExecutionSupport {
                         "applyJoin", prepared.applyJoin()
                 )
         );
-        return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, source);
+        return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source);
     }
 
     private static <T> PreparedExecution buildPreparedExecution(QueryAst ast,
@@ -139,6 +142,7 @@ final class SqlLikePreparedExecutionSupport {
 
     private static boolean shouldCacheRawExecutionPlan(QueryAst ast, FilterQueryBuilder builder) {
         return !ast.hasJoins()
+                && !containsSubqueries(ast)
                 && (!builder.getMetrics().isEmpty()
                 || !builder.getGroupFields().isEmpty()
                 || !builder.getTimeBuckets().isEmpty());
@@ -169,17 +173,17 @@ final class SqlLikePreparedExecutionSupport {
 
     private static boolean containsSubqueries(QueryAst ast) {
         for (FilterAst filter : ast.filters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
         for (FilterAst filter : ast.havingFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst) {
+            if (isSubqueryValue(filter.value())) {
                 return true;
             }
         }
@@ -193,10 +197,14 @@ final class SqlLikePreparedExecutionSupport {
             return false;
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
-            return predicateAst.filter().value() instanceof SubqueryValueAst;
+            return isSubqueryValue(predicateAst.filter().value());
         }
         FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
         return containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+    }
+
+    private static boolean isSubqueryValue(Object value) {
+        return value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst;
     }
 
     static final class ExecutionContext {
@@ -204,22 +212,50 @@ final class SqlLikePreparedExecutionSupport {
         private final List<?> pojos;
         private final Map<String, List<?>> joinSources;
         private final QueryTelemetryListener telemetryListener;
+        private final String queryType;
         private final String source;
+        private final FilterQueryBuilder reusableBuilderTemplate;
 
         ExecutionContext(PreparedExecution prepared,
                          List<?> pojos,
                          Map<String, List<?>> joinSources,
                          QueryTelemetryListener telemetryListener,
+                         String queryType,
                          String source) {
+            this(prepared, pojos, joinSources, telemetryListener, queryType, source, null);
+        }
+
+        private ExecutionContext(PreparedExecution prepared,
+                                 List<?> pojos,
+                                 Map<String, List<?>> joinSources,
+                                 QueryTelemetryListener telemetryListener,
+                                 String queryType,
+                                 String source,
+                                 FilterQueryBuilder reusableBuilderTemplate) {
             this.prepared = prepared;
             this.pojos = pojos;
             this.joinSources = joinSources;
             this.telemetryListener = telemetryListener;
+            this.queryType = queryType;
             this.source = source;
+            this.reusableBuilderTemplate = reusableBuilderTemplate;
         }
 
         FilterQueryBuilder newExecutionBuilder() {
-            return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, source);
+            if (reusableBuilderTemplate != null) {
+                return reusableBuilderTemplate.snapshotForExecution();
+            }
+            return prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
+        }
+
+        ExecutionContext reusableBoundContext() {
+            if (prepared.applyJoin() || reusableBuilderTemplate != null || containsSubqueries(prepared.ast())) {
+                return this;
+            }
+            FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
+            List<QueryRow> rows = builder.getRows();
+            builder.setMaterializedRows(rows, builder.getSourceFieldTypesForExecution());
+            return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source, builder);
         }
 
         Sort sort() {
@@ -236,6 +272,14 @@ final class SqlLikePreparedExecutionSupport {
 
         QueryAst ast() {
             return prepared.ast();
+        }
+
+        String queryType() {
+            return queryType;
+        }
+
+        List<?> sourceRows() {
+            return pojos;
         }
 
         FilterExecutionPlan resolveRawExecutionPlan(FilterCore core, FilterQueryBuilder builder) {
@@ -326,13 +370,14 @@ final class SqlLikePreparedExecutionSupport {
         private FilterQueryBuilder newExecutionBuilder(List<?> pojos,
                                                        Map<String, List<?>> joinSources,
                                                        QueryTelemetryListener telemetryListener,
+                                                       String queryType,
                                                        String source) {
             FilterQueryBuilder builder = templateBuilder.preparedExecutionView(
                     pojos,
                     joinSourcesByIndex(joinSources)
             );
             builder.telemetry(telemetryListener);
-            builder.telemetryContext("sql-like", source, telemetryListener);
+            builder.telemetryContext(queryType, source, telemetryListener);
             return builder;
         }
 

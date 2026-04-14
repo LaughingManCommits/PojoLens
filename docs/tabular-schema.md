@@ -16,6 +16,10 @@ Each column includes:
 Entry points:
 - `QueryBuilder.schema(Projection.class)`
 - `SqlLikeQuery.schema(Projection.class)`
+- `NaturalQuery.schema(Projection.class)`
+- `NaturalQuery.schema(rows, Projection.class)`
+- `NaturalQuery.schema(rows, joinBindings, Projection.class)`
+- `NaturalQuery.schema(datasetBundle, Projection.class)`
 - `ReportDefinition.schema()`
 - `ChartQueryPreset.schema()`
 
@@ -33,6 +37,14 @@ SQL-like example:
 ```java
 TabularSchema schema = PojoLensSql
     .parse("select department, count(*) as total group by department")
+    .schema(DepartmentCount.class);
+```
+
+Natural example:
+
+```java
+TabularSchema schema = PojoLensNatural
+    .parse("show department, count of employees as total group by department")
     .schema(DepartmentCount.class);
 ```
 

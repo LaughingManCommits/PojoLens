@@ -94,8 +94,8 @@ Use the owning type directly:
 4. `PojoLens.toChartData(...)` -> `PojoLensChart.toChartData(...)`
 5. `PojoLens.newRuntime(...)` -> `new PojoLensRuntime()` or
    `PojoLensRuntime.ofPreset(...)`
-6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)` or
-   `ReportDefinition.fluent(...)`
+6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)`,
+   `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)`
 7. `PojoLens.bundle(...)` -> `DatasetBundle.of(...)`
 8. `PojoLens.compareSnapshots(...)` -> `SnapshotComparison.builder(...)`
 
