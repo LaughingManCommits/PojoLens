@@ -59,6 +59,8 @@ final class QuerySpec {
     private List<List<QueryRule>> havingAnyOfGroups = new ArrayList<>();
     private List<List<QueryRule>> qualifyAllOfGroups = new ArrayList<>();
     private List<List<QueryRule>> qualifyAnyOfGroups = new ArrayList<>();
+    private List<FluentSubqueryPredicate> filterSubqueries = new ArrayList<>();
+    private boolean filterAlwaysFalse;
     private Integer limit;
     private Integer offset;
 
@@ -246,6 +248,18 @@ final class QuerySpec {
         return qualifyAnyOfGroups;
     }
 
+    List<FluentSubqueryPredicate> getFilterSubqueries() {
+        return filterSubqueries;
+    }
+
+    boolean isFilterAlwaysFalse() {
+        return filterAlwaysFalse;
+    }
+
+    void setFilterAlwaysFalse(boolean filterAlwaysFalse) {
+        this.filterAlwaysFalse = filterAlwaysFalse;
+    }
+
     Integer getLimit() {
         return limit;
     }
@@ -343,6 +357,8 @@ final class QuerySpec {
         copy.havingAnyOfGroups = havingAnyOfGroups;
         copy.qualifyAllOfGroups = qualifyAllOfGroups;
         copy.qualifyAnyOfGroups = qualifyAnyOfGroups;
+        copy.filterSubqueries = filterSubqueries;
+        copy.filterAlwaysFalse = filterAlwaysFalse;
         copy.limit = limit;
         copy.offset = offset;
         return copy;
@@ -411,6 +427,9 @@ final class QuerySpec {
         target.qualifyAllOfGroups.addAll(copyRuleGroups(qualifyAllOfGroups));
         target.qualifyAnyOfGroups.clear();
         target.qualifyAnyOfGroups.addAll(copyRuleGroups(qualifyAnyOfGroups));
+        target.filterSubqueries.clear();
+        target.filterSubqueries.addAll(filterSubqueries);
+        target.filterAlwaysFalse = filterAlwaysFalse;
         target.limit = limit;
         target.offset = offset;
     }

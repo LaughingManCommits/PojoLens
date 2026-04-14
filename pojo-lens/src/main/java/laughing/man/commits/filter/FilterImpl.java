@@ -307,6 +307,9 @@ public class FilterImpl implements Filter {
                                                                                   Sort sortMethod,
                                                                                   Class<T> projectionClass,
                                                                                   boolean hasWindowOrQualify) {
+        if (executionBuilder.isFilterAlwaysFalse()) {
+            return FluentExecutionMaterialization.queryRows(new ArrayList<>());
+        }
         if (hasWindowOrQualify) {
             return FluentExecutionMaterialization.queryRows(filterRows(sortMethod));
         }

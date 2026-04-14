@@ -188,6 +188,39 @@ List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
 Outcome:
 - Optional index hints narrow candidate rows for compatible equality filters, with automatic fallback to scan when inapplicable.
 
+### Scenario 2E: Bounded Subquery Filter in Fluent Code
+
+Problem:
+- A service-owned query needs departments that have at least one active row,
+  without precomputing the department list outside the query.
+
+Use:
+
+```java
+List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
+    .addInSubquery("department", "department",
+        subquery -> subquery.addRule("active", true, Clauses.EQUAL))
+    .initFilter()
+    .filter(EmployeeDirectoryRow.class);
+```
+
+Explicit source:
+
+```java
+List<CompanyRow> rows = PojoLensCore.newQueryBuilder(companies)
+    .addInSubquery("id", employees, "companyId",
+        subquery -> subquery.addRule("active", true, Clauses.EQUAL))
+    .addExists(employees,
+        subquery -> subquery.addRule("title", "Engineer", Clauses.EQUAL))
+    .initFilter()
+    .filter(CompanyRow.class);
+```
+
+Outcome:
+- The subquery is configured as a normal fluent query and resolved when the
+  execution snapshot is built. `addExists(...)` and `addNotExists(...)` cover
+  bounded existence checks without caller-side existence flags.
+
 ### Scenario 3: Monthly Payroll Trend
 
 Problem:

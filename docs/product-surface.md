@@ -10,6 +10,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - PojoLens is an in-memory POJO query engine.
 - Its first-class surface is fluent, controlled plain-English, and SQL-like
   querying over existing Java objects.
+- New query capability should normally land in fluent/core first; SQL-like and
+  natural are syntax facades that should lower to the same engine behavior.
 - Boundary adapters may load external representations into typed rows, but
   they do not change the POJO-first engine story.
 - Chart/table/report helpers, runtime wiring, and tooling layer on top of that

@@ -6,7 +6,7 @@ Which documented limitations are still real, which have already been reduced,
 and what should be fixed next without turning `pojo-lens` into a full SQL
 engine or a concurrency framework?
 
-## Current Scan (2026-04-13)
+## Current Scan (2026-04-14)
 
 Completed:
 
@@ -21,6 +21,10 @@ Completed:
   subqueries are now supported for bounded, uncorrelated existence checks.
   `EXISTS` may use a self-source subquery or a named `FROM`/`JOIN` subquery
   backed by the existing `JoinBindings` model.
+- Fluent/core now exposes bounded uncorrelated subquery predicates through
+  `QueryBuilder.addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)`.
+  These resolve at execution-snapshot time and support self-source and
+  explicit-source subqueries without caller-side precomputation.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -36,10 +40,10 @@ Completed:
 
 Still valid:
 
-- Cross-surface parity is currently incomplete for bounded subquery/existence
-  predicates. SQL-like has `WHERE ... IN (select ...)` and
-  `WHERE [NOT] EXISTS (select ...)`; fluent and natural still need first-class
-  equivalent capability.
+- Cross-surface parity is still incomplete for bounded subquery/existence
+  predicates. Fluent/core and SQL-like now have first-class equivalents, but
+  natural still needs controlled grammar that lowers to the same bounded
+  behavior.
 - SQL-like subqueries are still intentionally bounded to uncorrelated
   `WHERE <field> IN (select ...)` and `WHERE [NOT] EXISTS (select ...)`
   shapes.
@@ -89,10 +93,12 @@ Current parity gap:
 
 - SQL-like now supports bounded uncorrelated `WHERE ... IN (select ...)` and
   `WHERE [NOT] EXISTS (select ...)`.
-- Fluent needs canonical bounded subquery/existence primitives.
+- Fluent/core now has canonical bounded subquery/existence primitives.
 - Natural needs controlled grammar that lowers to those fluent/core primitives.
-- Until those land, the subquery/existence limitation is reduced but not fully
-  closed at the product-surface level.
+- Facade implementation should continue moving toward direct lowering onto the
+  fluent/core primitive rather than owning separate behavior.
+- Until natural lowering lands, the subquery/existence limitation is reduced but
+  not fully closed at the product-surface level.
 
 ## Limitation Review
 
@@ -124,6 +130,12 @@ Status:
 
 Current behavior:
 
+- fluent supports uncorrelated `addInSubquery(...)`, `addExists(...)`, and
+  `addNotExists(...)` predicates
+- fluent subqueries may run against the parent source rows or an explicit
+  subquery source list
+- fluent subqueries are configured with the normal `QueryBuilder`, so they can
+  use filters, grouping, aggregate outputs, limits, and explicit joins
 - SQL-like supports uncorrelated `WHERE field IN (select oneColumn ...)`
 - SQL-like supports uncorrelated `WHERE EXISTS (select ...)` and
   `WHERE NOT EXISTS (select ...)`
@@ -141,12 +153,15 @@ Status:
   `JoinBindings` workflows
 - `2026-04-13`: bounded uncorrelated `EXISTS` / `NOT EXISTS` subqueries
   landed for self-source, named-source, and joined-source checks
+- `2026-04-14`: fluent/core bounded subquery predicates landed for
+  self-source and explicit-source `IN`, `EXISTS`, and `NOT EXISTS` workflows
 
 Remaining valid limits:
 
-- fluent has no first-class equivalent for bounded subquery/existence predicates
 - natural has no controlled grammar equivalent for bounded subquery/existence
   predicates
+- SQL-like and natural facade code should keep moving toward direct lowering
+  onto fluent/core subquery primitives instead of parallel behavior
 - correlated subqueries
 - scalar subqueries
 - arbitrary nested SQL-engine semantics
@@ -154,9 +169,8 @@ Remaining valid limits:
 Recommendation:
 
 - keep the current uncorrelated boundary
-- regain full parity by adding fluent/core bounded subquery/existence primitives
-  first, then natural grammar lowering; do not ask users to precompute filter
-  lists or existence flags
+- regain full parity by adding natural grammar lowering; do not ask users to
+  precompute filter lists or existence flags
 - do not add correlated, scalar, or arbitrary nested SQL semantics by default
 
 ### 3. Aggregate SQL-like ORDER BY (Resolved Boundary)
@@ -245,9 +259,9 @@ Recommendation:
 
 ## Recommended Work Order
 
-No active limitation work package is recommended by default. Pick the next
-slice only from concrete user demand and keep it inside the existing execution
-model.
+Next default slice: add controlled natural-query phrasing for bounded
+subquery/existence predicates and lower it to the fluent/core primitives.
+Keep the scope uncorrelated and bounded.
 
 ## Non-Goals
 
@@ -275,9 +289,8 @@ These adjacent natural-query constraints have been reduced:
 
 ## Recommendation
 
-The next useful limitation work is parity recovery, not another broad syntax
-expansion by default. Move bounded subquery/existence predicates into the
-fluent/core capability layer, then expose natural controlled phrasing that
-lowers to the same behavior. Treat the remaining correlated subquery, broad
-scalar, broad window-frame, and mutable-builder concurrency ideas as opt-in
-only.
+The next useful limitation work is natural parity recovery, not another broad
+syntax expansion by default. Bounded subquery/existence predicates now exist in
+the fluent/core capability layer; expose controlled natural phrasing that lowers
+to the same behavior. Treat the remaining correlated subquery, broad scalar,
+broad window-frame, and mutable-builder concurrency ideas as opt-in only.

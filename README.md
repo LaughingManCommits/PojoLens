@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes a bounded `PojoLensCsv` adapter for loading UTF-8 CSV files into typed rows before they enter the same engine.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes a bounded `PojoLensCsv` adapter for loading UTF-8 CSV files into typed rows before they enter the same engine.
 
 Core execution model:
 `query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
@@ -106,7 +106,8 @@ For new code, prefer one default path per job:
 ## Product Shape
 
 - `Core query engine`:
-  fluent and SQL-like querying over existing Java objects.
+  fluent, SQL-like, and controlled plain-English querying over existing Java
+  objects.
 - `Workflow helpers`:
   chart mapping, reusable report/preset wrappers, dataset composition, and
   schema metadata.

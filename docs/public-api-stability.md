@@ -78,6 +78,7 @@ The default first-read story stays centered on the core engine:
 - `QueryBuilder`:
   - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`
   - `addHaving`, `addQualify`, `addJoinBeans`
+  - `addInSubquery`, `addExists`, `addNotExists`
   - `limit`, `offset`
   - `initFilter`, `explain`, `schema`
 - `FluentQueryDefinition<T>`:

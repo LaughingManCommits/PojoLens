@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import laughing.man.commits.enums.Clauses;
@@ -22,6 +23,7 @@ import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.CollectionUtil;
+import laughing.man.commits.util.QueryFieldLookupUtil;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.util.TimeBucketUtil;
@@ -127,7 +129,11 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     @Override
     public Filter initFilter() {
-        return new FilterImpl(copyOnBuild ? snapshotForExecution() : this);
+        FilterQueryBuilder executionBuilder = copyOnBuild || hasFilterSubqueries()
+                ? snapshotForExecution()
+                : this;
+        executionBuilder.resolveFilterSubqueries();
+        return new FilterImpl(executionBuilder);
     }
 
     @Override
@@ -143,8 +149,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
+        explain.put("whereSubqueryCount", spec.getFilterSubqueries().size());
         explain.put("havingRuleCount", spec.getHavingValues().size());
         explain.put("qualifyRuleCount", spec.getQualifyValues().size());
+        explain.put("whereAlwaysFalse", spec.isFilterAlwaysFalse());
         explain.put("joinCount", spec.getJoinClasses().size());
         explain.put("metrics", metricEntries(spec.getMetrics()));
         explain.put("timeBuckets", timeBucketEntries(spec.getTimeBuckets()));
@@ -565,6 +573,91 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     @Override
+    public FilterQueryBuilder addInSubquery(String column,
+                                            String subqueryOutputField,
+                                            Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.in(
+                requireIdentifier(column, "column"),
+                requireIdentifier(subqueryOutputField, "subqueryOutputField"),
+                requireSubqueryConfigurer(subqueryConfigurer)
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addInSubquery(FieldSelector<T, R> selector,
+                                                   String subqueryOutputField,
+                                                   Consumer<QueryBuilder> subqueryConfigurer) {
+        return addInSubquery(FieldSelectors.resolve(selector), subqueryOutputField, subqueryConfigurer);
+    }
+
+    @Override
+    public FilterQueryBuilder addInSubquery(String column,
+                                            List<?> subqueryRows,
+                                            String subqueryOutputField,
+                                            Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.in(
+                requireIdentifier(column, "column"),
+                copySourceBeans(subqueryRows),
+                requireIdentifier(subqueryOutputField, "subqueryOutputField"),
+                requireSubqueryConfigurer(subqueryConfigurer)
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public <T, R> FilterQueryBuilder addInSubquery(FieldSelector<T, R> selector,
+                                                   List<?> subqueryRows,
+                                                   String subqueryOutputField,
+                                                   Consumer<QueryBuilder> subqueryConfigurer) {
+        return addInSubquery(FieldSelectors.resolve(selector), subqueryRows, subqueryOutputField, subqueryConfigurer);
+    }
+
+    @Override
+    public FilterQueryBuilder addExists(Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.exists(
+                requireSubqueryConfigurer(subqueryConfigurer),
+                false
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addExists(List<?> subqueryRows, Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.exists(
+                copySourceBeans(subqueryRows),
+                requireSubqueryConfigurer(subqueryConfigurer),
+                false
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addNotExists(Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.exists(
+                requireSubqueryConfigurer(subqueryConfigurer),
+                true
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
+    public FilterQueryBuilder addNotExists(List<?> subqueryRows, Consumer<QueryBuilder> subqueryConfigurer) {
+        spec.getFilterSubqueries().add(FluentSubqueryPredicate.exists(
+                copySourceBeans(subqueryRows),
+                requireSubqueryConfigurer(subqueryConfigurer),
+                true
+        ));
+        markExecutionPlanShapeChanged();
+        return this;
+    }
+
+    @Override
     public FilterQueryBuilder addHaving(String column, Object value,
                                         Clauses clause, Separator separator) {
         addHaving(column, value, clause, separator, null);
@@ -786,6 +879,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getFilterIDs();
     }
 
+    public boolean isFilterAlwaysFalse() {
+        return spec.isFilterAlwaysFalse();
+    }
+
     /**
      * Removes a WHERE rule by rule id.
      * Intended for internal cleaner/normalization flows.
@@ -920,6 +1017,89 @@ public class FilterQueryBuilder implements QueryBuilder {
         spec.getJoinMethods().put(index, joinMethod);
         spec.getJoinParentFields().put(index, parentField);
         spec.getJoinChildFields().put(index, childField);
+    }
+
+    private boolean hasFilterSubqueries() {
+        return !spec.getFilterSubqueries().isEmpty();
+    }
+
+    private void resolveFilterSubqueries() {
+        if (!hasFilterSubqueries()) {
+            return;
+        }
+        List<FluentSubqueryPredicate> pending = new ArrayList<>(spec.getFilterSubqueries());
+        spec.getFilterSubqueries().clear();
+        for (FluentSubqueryPredicate predicate : pending) {
+            if (spec.isFilterAlwaysFalse()) {
+                return;
+            }
+            if (FluentSubqueryPredicate.Type.IN.equals(predicate.type())) {
+                addCriteriaRule(
+                        predicate.targetField(),
+                        resolveFluentSubqueryValues(predicate),
+                        Clauses.IN,
+                        Separator.AND,
+                        null,
+                        false
+                );
+                continue;
+            }
+            if (!resolveFluentExists(predicate)) {
+                spec.setFilterAlwaysFalse(true);
+                markExecutionPlanShapeChanged();
+            }
+        }
+    }
+
+    private List<Object> resolveFluentSubqueryValues(FluentSubqueryPredicate predicate) {
+        List<QueryRow> rows = executeFluentSubqueryRows(predicate);
+        if (rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        ArrayList<Object> values = new ArrayList<>(rows.size());
+        for (QueryRow row : rows) {
+            values.add(resolveFluentSubqueryRowValue(row, predicate.outputField()));
+        }
+        return values;
+    }
+
+    private boolean resolveFluentExists(FluentSubqueryPredicate predicate) {
+        boolean exists = !executeFluentSubqueryRows(predicate).isEmpty();
+        return predicate.negated() ? !exists : exists;
+    }
+
+    private List<QueryRow> executeFluentSubqueryRows(FluentSubqueryPredicate predicate) {
+        List<?> rows = fluentSubquerySourceRows(predicate);
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        FilterQueryBuilder subqueryBuilder = new FilterQueryBuilder(rows, executionPlanCache)
+                .computedFields(computedFieldRegistry);
+        predicate.configurer().accept(subqueryBuilder);
+        Filter subqueryFilter = subqueryBuilder.initFilter();
+        List<QueryRow> queryRows = subqueryBuilder.hasJoinDefinitions()
+                ? subqueryFilter.join().filter(QueryRow.class)
+                : subqueryFilter.filter(QueryRow.class);
+        return queryRows == null ? Collections.emptyList() : queryRows;
+    }
+
+    private List<?> fluentSubquerySourceRows(FluentSubqueryPredicate predicate) {
+        if (predicate.explicitSource()) {
+            return predicate.sourceRows();
+        }
+        if (hasSourceBeans()) {
+            return sourceBeans;
+        }
+        ensureRowsMaterialized();
+        return spec.getRows();
+    }
+
+    private Object resolveFluentSubqueryRowValue(QueryRow row, String fieldName) {
+        int fieldIndex = QueryFieldLookupUtil.findFieldIndex(row.getFields(), fieldName);
+        if (fieldIndex < 0) {
+            throw new IllegalArgumentException("Failed to resolve subquery field '" + fieldName + "'");
+        }
+        return row.getValueAt(fieldIndex);
     }
 
     private void addCriteriaRule(String column,
@@ -1178,6 +1358,13 @@ public class FilterQueryBuilder implements QueryBuilder {
             throw new IllegalArgumentException(label + " is required");
         }
         return value.trim();
+    }
+
+    private Consumer<QueryBuilder> requireSubqueryConfigurer(Consumer<QueryBuilder> configurer) {
+        if (configurer == null) {
+            throw new IllegalArgumentException("subqueryConfigurer is required");
+        }
+        return configurer;
     }
 
     private TimeBucket requireTimeBucket(TimeBucket bucket) {

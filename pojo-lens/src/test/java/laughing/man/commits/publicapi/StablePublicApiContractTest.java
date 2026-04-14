@@ -112,6 +112,12 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class, QueryWindowFrame.class);
         requirePublicMethod(QueryBuilder.class, "addHaving", String.class, Object.class, Clauses.class);
         requirePublicMethod(QueryBuilder.class, "addQualify", String.class, Object.class, Clauses.class);
+        requirePublicMethod(QueryBuilder.class, "addInSubquery", String.class, String.class, Consumer.class);
+        requirePublicMethod(QueryBuilder.class, "addInSubquery", String.class, List.class, String.class, Consumer.class);
+        requirePublicMethod(QueryBuilder.class, "addExists", Consumer.class);
+        requirePublicMethod(QueryBuilder.class, "addExists", List.class, Consumer.class);
+        requirePublicMethod(QueryBuilder.class, "addNotExists", Consumer.class);
+        requirePublicMethod(QueryBuilder.class, "addNotExists", List.class, Consumer.class);
         requirePublicMethod(QueryBuilder.class, "addJoinBeans", String.class, List.class, String.class, Join.class);
         requirePublicMethod(QueryBuilder.class, "limit", int.class);
         requirePublicMethod(QueryBuilder.class, "offset", int.class);

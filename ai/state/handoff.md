@@ -11,27 +11,29 @@
 
 - The orchestration spike is complete through `WP18`.
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- Engine limitation work done: bounded windows, aggregate `ORDER BY` polish,
-  immutable fluent prepare, joined subqueries, SQL-like `EXISTS`, and natural cleanup.
+- Engine limitation work done: bounded windows, aggregate `ORDER BY`, immutable
+  fluent prepare, joined subqueries, SQL-like `EXISTS`, fluent/core subquery
+  predicates, and bounded natural cleanup.
 
 ## Facts
 
 - `2026-04-10`: CSV WP1-WP5 is validated; `CSV-WP6` remains deferred.
 - `2026-04-11`: orchestration WP18, worker validation hints, and `caveman` skill propagation are validated.
-- `2026-04-11`: SQL-like subqueries support grouped and aggregate outputs.
-- `2026-04-11`: limitation scan found time-bucket input broadening done.
-- `2026-04-11`: `README.md` now stays at feature-set/routing level; SQL-like subquery/runtime preset detail and fluent builder reuse guidance live in `docs/sql-like.md` and `docs/usecases.md`.
 - `2026-04-12`: bounded aggregate windows and aggregate `ORDER BY` diagnostic polish passed module tests and docs consistency.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
 - `2026-04-13`: SQL-like uncorrelated `WHERE ... IN (select ...)` subqueries
   can now use `JOIN` clauses backed by `JoinBindings`.
 - `2026-04-13`: SQL-like bounded `WHERE [NOT] EXISTS (select ...)` works for
   self/named/joined sources; correlated/scalar/broad nested SQL remains unsupported.
-- `2026-04-13`: limitation-spike policy now requires fluent-led parity:
-  SQL-like/natural are facades, so SQL-like-only bounded subquery/existence
-  support needs fluent/core primitives plus natural lowering; user-side
-  precomputed filters are not the parity answer.
-- `2026-04-13`: natural `schema(...)` resolves runtime vocabulary for non-join and join-aware overloads; `qualify` supports controlled inline window phrases; window phrasing supports multiple partitions and supported aggregate frames; resolved delegates are cached by execution shape.
+- `2026-04-13`: limitation policy requires fluent-led parity; SQL-like/natural
+  are facades, and precomputed user filters are not the parity answer.
+- `2026-04-13`: natural schema vocabulary, `qualify` window phrases, broader
+  window phrasing/frames, and resolved-delegate caching are done.
+- `2026-04-14`: fluent/core bounded subquery predicates landed:
+  `addInSubquery(...)`, `addExists(...)`, and `addNotExists(...)` resolve at
+  execution-snapshot time for self-source and explicit-source subqueries.
+- Next limitation slice: add controlled natural bounded subquery/existence
+  grammar and lower it to fluent/core.
 
 ## Validate
 

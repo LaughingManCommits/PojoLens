@@ -143,6 +143,10 @@ public class FilterCore {
             return rows;
         }
 
+        if (allowExplicitGroups && builder.isFilterAlwaysFalse()) {
+            return new ArrayList<>();
+        }
+
         if (allowExplicitGroups && hasExplicitRuleGroups(builder.getAllOfGroups(), builder.getAnyOfGroups())) {
             List<QueryRow> groupedResults = new ArrayList<>(rows.size());
             for (QueryRow row : rows) {
