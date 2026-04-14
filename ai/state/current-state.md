@@ -25,8 +25,9 @@
   API and natural/docs-example tests plus the full `pojo-lens` suite
   (`721` tests), docs, diff whitespace, Checkstyle goal, and script tests.
 - `2026-04-14`: SQL-like simple bounded `IN`/`EXISTS` predicates now bind as
-  fluent/core subquery predicates; boolean `OR`/DNF subquery shapes retain the
-  intentional SQL-like fallback.
+  fluent/core subquery predicates.
+- `2026-04-14`: grouped fluent `QueryRule` subqueries are done, so SQL-like
+  boolean `OR`/DNF subqueries lower onto fluent/core.
 
 ## Release
 
@@ -36,8 +37,8 @@
 
 - Fluent/core should lead capability; SQL-like and natural are facades.
 - Bounded subquery/existence parity is user-facing complete across fluent,
-  SQL-like, and natural; simple SQL-like subquery binding now uses the shared
-  fluent/core path.
+  SQL-like, and natural; SQL-like subquery binding now uses the shared
+  fluent/core path for direct and grouped boolean shapes.
 - Natural remains controlled grammar; static parse/template stay vocabulary-free.
 
 ## Next

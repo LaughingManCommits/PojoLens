@@ -149,7 +149,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         explain.put("distinct", new TreeMap<>(spec.getDistinctFields()));
         explain.put("indexes", new ArrayList<>(spec.getIndexedFields()));
         explain.put("whereRuleCount", spec.getFilterValues().size());
-        explain.put("whereSubqueryCount", spec.getFilterSubqueries().size());
+        explain.put("whereSubqueryCount", filterSubqueryCount());
         explain.put("havingRuleCount", spec.getHavingValues().size());
         explain.put("qualifyRuleCount", spec.getQualifyValues().size());
         explain.put("whereAlwaysFalse", spec.isFilterAlwaysFalse());
@@ -1020,11 +1020,41 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private boolean hasFilterSubqueries() {
-        return !spec.getFilterSubqueries().isEmpty();
+        return filterSubqueryCount() > 0;
+    }
+
+    private int filterSubqueryCount() {
+        int total = spec.getFilterSubqueries().size();
+        total += countGroupedSubqueries(spec.getAllOfGroups());
+        total += countGroupedSubqueries(spec.getAnyOfGroups());
+        return total;
+    }
+
+    private int countGroupedSubqueries(List<List<QueryRule>> groups) {
+        int total = 0;
+        for (List<QueryRule> group : groups) {
+            if (group == null) {
+                continue;
+            }
+            for (QueryRule rule : group) {
+                if (rule != null && rule.hasSubqueryPredicate()) {
+                    total++;
+                }
+            }
+        }
+        return total;
     }
 
     private void resolveFilterSubqueries() {
         if (!hasFilterSubqueries()) {
+            return;
+        }
+        resolveStandaloneFilterSubqueries();
+        resolveGroupedFilterSubqueries();
+    }
+
+    private void resolveStandaloneFilterSubqueries() {
+        if (spec.getFilterSubqueries().isEmpty()) {
             return;
         }
         List<FluentSubqueryPredicate> pending = new ArrayList<>(spec.getFilterSubqueries());
@@ -1049,6 +1079,89 @@ public class FilterQueryBuilder implements QueryBuilder {
                 markExecutionPlanShapeChanged();
             }
         }
+    }
+
+    private void resolveGroupedFilterSubqueries() {
+        if (spec.isFilterAlwaysFalse()) {
+            return;
+        }
+        GroupResolution allOf = resolveRuleGroups(spec.getAllOfGroups(), true);
+        if (allOf.failed()) {
+            spec.setFilterAlwaysFalse(true);
+            markExecutionPlanShapeChanged();
+            return;
+        }
+        replaceRuleGroups(spec.getAllOfGroups(), allOf.groups());
+
+        GroupResolution anyOf = resolveRuleGroups(spec.getAnyOfGroups(), false);
+        if (anyOf.failed()) {
+            spec.setFilterAlwaysFalse(true);
+            markExecutionPlanShapeChanged();
+            return;
+        }
+        replaceRuleGroups(spec.getAnyOfGroups(), anyOf.groups());
+    }
+
+    private GroupResolution resolveRuleGroups(List<List<QueryRule>> groups, boolean requireAllRules) {
+        if (groups.isEmpty()) {
+            return GroupResolution.satisfiedBy(groups);
+        }
+        ArrayList<List<QueryRule>> resolvedGroups = new ArrayList<>(groups.size());
+        for (List<QueryRule> group : groups) {
+            SingleGroupResolution resolved = resolveRuleGroup(group, requireAllRules);
+            if (resolved.always()) {
+                return GroupResolution.satisfiedBy(List.of());
+            }
+            if (!resolved.failed()) {
+                resolvedGroups.add(resolved.rules());
+            }
+        }
+        if (resolvedGroups.isEmpty()) {
+            return GroupResolution.unsatisfied();
+        }
+        return GroupResolution.satisfiedBy(resolvedGroups);
+    }
+
+    private SingleGroupResolution resolveRuleGroup(List<QueryRule> group, boolean requireAllRules) {
+        if (group == null || group.isEmpty()) {
+            return requireAllRules ? SingleGroupResolution.alwaysSatisfied() : SingleGroupResolution.unsatisfiable();
+        }
+        ArrayList<QueryRule> resolvedRules = new ArrayList<>(group.size());
+        for (QueryRule rule : group) {
+            if (rule == null) {
+                continue;
+            }
+            if (!rule.hasSubqueryPredicate()) {
+                resolvedRules.add(rule);
+                continue;
+            }
+            FluentSubqueryPredicate predicate = rule.getSubqueryPredicate();
+            if (FluentSubqueryPredicate.Type.IN.equals(predicate.type())) {
+                resolvedRules.add(QueryRule.of(
+                        predicate.targetField(),
+                        resolveFluentSubqueryValues(predicate),
+                        Clauses.IN
+                ));
+                continue;
+            }
+            boolean matched = resolveFluentExists(predicate);
+            if (requireAllRules) {
+                if (!matched) {
+                    return SingleGroupResolution.unsatisfiable();
+                }
+            } else if (matched) {
+                return SingleGroupResolution.alwaysSatisfied();
+            }
+        }
+        if (resolvedRules.isEmpty()) {
+            return requireAllRules ? SingleGroupResolution.alwaysSatisfied() : SingleGroupResolution.unsatisfiable();
+        }
+        return SingleGroupResolution.satisfiedBy(resolvedRules);
+    }
+
+    private void replaceRuleGroups(List<List<QueryRule>> target, List<List<QueryRule>> source) {
+        target.clear();
+        target.addAll(source);
     }
 
     private List<Object> resolveFluentSubqueryValues(FluentSubqueryPredicate predicate) {
@@ -1161,6 +1274,35 @@ public class FilterQueryBuilder implements QueryBuilder {
         }
         if (!group.isEmpty()) {
             groups.add(group);
+            markExecutionPlanShapeChanged();
+        }
+    }
+
+    private record GroupResolution(List<List<QueryRule>> groups, boolean failed) {
+
+        static GroupResolution satisfiedBy(List<List<QueryRule>> groups) {
+            return new GroupResolution(List.copyOf(groups), false);
+        }
+
+        static GroupResolution unsatisfied() {
+            return new GroupResolution(List.of(), true);
+        }
+    }
+
+    private record SingleGroupResolution(List<QueryRule> rules,
+                                         boolean always,
+                                         boolean failed) {
+
+        static SingleGroupResolution satisfiedBy(List<QueryRule> rules) {
+            return new SingleGroupResolution(List.copyOf(rules), false, false);
+        }
+
+        static SingleGroupResolution alwaysSatisfied() {
+            return new SingleGroupResolution(List.of(), true, false);
+        }
+
+        static SingleGroupResolution unsatisfiable() {
+            return new SingleGroupResolution(List.of(), false, true);
         }
     }
 

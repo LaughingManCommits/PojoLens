@@ -31,9 +31,10 @@ Completed:
   through both the outer query and the bounded subquery.
 - SQL-like simple bounded `WHERE ... IN (select ...)` and
   `WHERE [NOT] EXISTS (select ...)` predicates now lower onto the fluent/core
-  subquery predicate path. SQL-like still keeps its precomputed fallback for
-  boolean `OR` / normalized DNF shapes that the fluent API cannot yet represent
-  as grouped subquery predicates.
+  subquery predicate path, including boolean `OR` / normalized DNF shapes.
+- Fluent/core grouped rules now accept bounded subqueries through
+  `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -106,9 +107,8 @@ Current parity status:
 - Natural now has controlled `query ... end query` grammar for bounded
   `is in`, `exists`, and `not exists` predicates.
 - No user-facing precomputation workaround is required for this capability.
-- SQL-like simple bounded subquery predicates now use the shared fluent/core
-  path; complex boolean `OR`/DNF subquery shapes retain SQL-like fallback
-  resolution until grouped fluent subquery predicates exist.
+- SQL-like bounded subquery predicates now use the shared fluent/core path,
+  including boolean `OR`/DNF shapes.
 
 ## Limitation Review
 
@@ -157,8 +157,10 @@ Current behavior:
 - natural supports equivalent uncorrelated forms with `query ... end query`
   bounds instead of SQL parentheses
 - SQL-like simple bounded subquery predicates are stored as fluent/core
-  subquery predicates during binding; complex boolean `OR`/DNF cases keep the
-  previous precomputed fallback
+  subquery predicates during binding
+- grouped fluent rules can express bounded subqueries with
+  `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`
 - no correlated subqueries
 
 Status:
@@ -173,13 +175,14 @@ Status:
 - `2026-04-14`: natural bounded subquery/existence grammar landed with runtime
   vocabulary resolution across outer and nested natural query fields
 - `2026-04-14`: SQL-like simple bounded subquery predicates were converged onto
-  the fluent/core subquery predicate path, with boolean `OR`/DNF fallback left
-  intentionally precomputed
+  the fluent/core subquery predicate path
+- `2026-04-14`: grouped fluent subquery predicates landed, so SQL-like
+  boolean `OR`/DNF subquery shapes now lower onto fluent/core instead of a
+  SQL-like precomputed fallback
 
 Remaining valid limits:
 
-- SQL-like complex boolean subquery groups still use a precomputed fallback
-  because fluent/core does not yet expose grouped subquery predicates
+- Fluent/core still supports only bounded uncorrelated grouped subqueries
 - correlated subqueries
 - scalar subqueries
 - arbitrary nested SQL-engine semantics

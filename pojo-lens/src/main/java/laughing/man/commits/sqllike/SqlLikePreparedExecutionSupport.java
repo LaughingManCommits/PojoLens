@@ -142,6 +142,7 @@ final class SqlLikePreparedExecutionSupport {
 
     private static boolean shouldCacheRawExecutionPlan(QueryAst ast, FilterQueryBuilder builder) {
         return !ast.hasJoins()
+                && !containsSubqueries(ast)
                 && (!builder.getMetrics().isEmpty()
                 || !builder.getGroupFields().isEmpty()
                 || !builder.getTimeBuckets().isEmpty());

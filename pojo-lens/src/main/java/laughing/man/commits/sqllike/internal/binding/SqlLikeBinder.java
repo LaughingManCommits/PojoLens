@@ -573,20 +573,60 @@ public final class SqlLikeBinder {
                                                         ComputedFieldRegistry computedFieldRegistry) {
         ArrayList<QueryRule> rules = new ArrayList<>(group.size());
         for (FilterAst filter : group) {
-            Object value = unwrapValue(filter.value());
-            if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                if (!resolveExistsSubquery(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry)) {
-                    return ResolvedWhereGroup.unsatisfiableGroup();
-                }
-                continue;
-            }
-            rules.add(QueryRule.of(
-                    filter.field(),
-                    resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
-                    filter.clause()
-            ));
+            rules.add(toWhereQueryRule(filter, pojos, joinSources, computedFieldRegistry));
         }
         return ResolvedWhereGroup.satisfiable(rules);
+    }
+
+    private static QueryRule toWhereQueryRule(FilterAst filter,
+                                              List<?> pojos,
+                                              Map<String, List<?>> joinSources,
+                                              ComputedFieldRegistry computedFieldRegistry) {
+        Object value = unwrapValue(filter.value());
+        if (value instanceof SubqueryValueAst subqueryValueAst && Clauses.IN.equals(filter.clause())) {
+            return inSubqueryRule(filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
+        }
+        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
+            return existsSubqueryRule(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
+        }
+        return QueryRule.of(
+                filter.field(),
+                resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                filter.clause()
+        );
+    }
+
+    private static QueryRule inSubqueryRule(String targetField,
+                                            SubqueryValueAst subqueryValueAst,
+                                            List<?> pojos,
+                                            Map<String, List<?>> joinSources,
+                                            ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(subqueryValueAst.query());
+        SelectFieldAst selectedField = subquery.select().fields().get(0);
+        String outputField = subqueryOutputField(selectedField);
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            return QueryRule.inSubquery(targetField, outputField, configurer);
+        }
+        return QueryRule.inSubquery(targetField, sourceRows, outputField, configurer);
+    }
+
+    private static QueryRule existsSubqueryRule(ExistsSubqueryValueAst existsSubqueryValueAst,
+                                                List<?> pojos,
+                                                Map<String, List<?>> joinSources,
+                                                ComputedFieldRegistry computedFieldRegistry) {
+        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
+        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
+        Consumer<QueryBuilder> configurer = subqueryConfigurer(subquery, sourceRows, joinSources, computedFieldRegistry);
+        if (subquery.select().sourceName() == null) {
+            return existsSubqueryValueAst.negated()
+                    ? QueryRule.notExists(configurer)
+                    : QueryRule.exists(configurer);
+        }
+        return existsSubqueryValueAst.negated()
+                ? QueryRule.notExists(sourceRows, configurer)
+                : QueryRule.exists(sourceRows, configurer);
     }
 
     private static void addImpossibleWhereGroup(QueryBuilder builder) {

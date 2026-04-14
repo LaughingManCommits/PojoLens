@@ -11,6 +11,7 @@ import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
 import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvCoercionPolicy;
@@ -124,6 +125,12 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryBuilder.class, "initFilter");
         requirePublicMethod(QueryBuilder.class, "explain");
         requirePublicMethod(QueryBuilder.class, "schema", Class.class);
+        requirePublicStaticMethod(QueryRule.class, "inSubquery", String.class, String.class, Consumer.class);
+        requirePublicStaticMethod(QueryRule.class, "inSubquery", String.class, List.class, String.class, Consumer.class);
+        requirePublicStaticMethod(QueryRule.class, "exists", Consumer.class);
+        requirePublicStaticMethod(QueryRule.class, "exists", List.class, Consumer.class);
+        requirePublicStaticMethod(QueryRule.class, "notExists", Consumer.class);
+        requirePublicStaticMethod(QueryRule.class, "notExists", List.class, Consumer.class);
 
         requirePublicMethod(Filter.class, "filter", Class.class);
         requirePublicMethod(Filter.class, "iterator", Class.class);

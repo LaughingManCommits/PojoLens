@@ -221,6 +221,29 @@ Outcome:
   execution snapshot is built. `addExists(...)` and `addNotExists(...)` cover
   bounded existence checks without caller-side existence flags.
 
+Grouped predicates:
+
+```java
+List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
+    .allOf(
+        QueryRule.inSubquery("department", "department",
+            subquery -> subquery.addRule("active", true, Clauses.EQUAL)),
+        QueryRule.of("region", "EMEA", Clauses.EQUAL)
+    )
+    .anyOf(
+        QueryRule.exists(assignments,
+            subquery -> subquery.addRule("priority", "Critical", Clauses.EQUAL)),
+        QueryRule.of("tier", "Gold", Clauses.EQUAL)
+    )
+    .initFilter()
+    .filter(EmployeeDirectoryRow.class);
+```
+
+Outcome:
+- `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)` can participate in `allOf(...)` and `anyOf(...)`
+  groups. Subqueries remain uncorrelated and bounded.
+
 ### Scenario 3: Monthly Payroll Trend
 
 Problem:

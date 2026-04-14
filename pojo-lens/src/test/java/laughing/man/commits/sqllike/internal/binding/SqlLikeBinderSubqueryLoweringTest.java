@@ -49,7 +49,7 @@ public class SqlLikeBinderSubqueryLoweringTest {
     }
 
     @Test
-    public void booleanOrExistsSubqueryShouldKeepPrecomputedFallback() {
+    public void booleanOrExistsSubqueryShouldLowerToGroupedFluentPredicate() {
         List<DepartmentActive> rows = Arrays.asList(
                 new DepartmentActive("Engineering", true),
                 new DepartmentActive("Finance", false)
@@ -59,9 +59,27 @@ public class SqlLikeBinderSubqueryLoweringTest {
 
         FilterQueryBuilder builder = bind(ast, rows, Map.of(), DepartmentActive.class);
 
-        assertEquals(0, builder.explain().get("whereSubqueryCount"));
+        assertEquals(1, builder.explain().get("whereSubqueryCount"));
         List<DepartmentActive> results = builder.initFilter().filter(DepartmentActive.class);
         assertEquals(List.of("Finance"), results.stream().map(row -> row.department).toList());
+    }
+
+    @Test
+    public void booleanOrInSubqueryShouldLowerToGroupedFluentPredicate() {
+        List<DepartmentActive> rows = Arrays.asList(
+                new DepartmentActive("Engineering", true),
+                new DepartmentActive("Finance", false),
+                new DepartmentActive("HR", false)
+        );
+        QueryAst ast = SqlLikeParser.parse(
+                "where department in (select department where active = true) or department = 'Finance'");
+
+        FilterQueryBuilder builder = bind(ast, rows, Map.of(), DepartmentActive.class);
+
+        assertEquals(1, builder.explain().get("whereSubqueryCount"));
+        List<DepartmentActive> results = builder.initFilter().filter(DepartmentActive.class);
+        assertEquals(Arrays.asList("Engineering", "Finance"),
+                results.stream().map(row -> row.department).toList());
     }
 
     @Test

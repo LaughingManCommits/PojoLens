@@ -192,6 +192,9 @@ Evaluation model:
 - `allOf` groups: each group uses AND across its rules, and any one matching group satisfies the allOf side.
 - `anyOf` groups: each group uses OR across its rules, and any one matching group satisfies the anyOf side.
 - Final match: `(allOf satisfied) AND (anyOf satisfied)`.
+- Bounded fluent subquery predicates can be grouped with
+  `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`.
 
 ## Join API
 

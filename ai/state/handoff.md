@@ -16,7 +16,6 @@
 
 ## Facts
 
-- `2026-04-10`: CSV WP1-WP5 is validated; `CSV-WP6` remains deferred.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
 - `2026-04-13`: SQL-like bounded `IN`/`EXISTS` subqueries work for
   self/named/joined sources; correlated/scalar/broad SQL remains unsupported.
@@ -29,8 +28,10 @@
   with nested runtime-vocabulary resolution.
 - `2026-04-14`: SQL-like simple bounded `WHERE ... IN (select ...)` and
   `WHERE [NOT] EXISTS (select ...)` predicates now lower onto fluent/core
-  subquery predicates; SQL-like boolean `OR`/DNF subquery shapes keep the
-  precomputed fallback until grouped fluent subquery predicates exist.
+  subquery predicates.
+- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`,
+  `QueryRule.exists(...)`, and `QueryRule.notExists(...)` predicates are done;
+  SQL-like boolean `OR`/DNF subqueries now lower onto fluent/core.
 - No default bounded subquery parity slice remains; keep correlated/scalar
   subqueries and broad SQL planning opt-in only.
 

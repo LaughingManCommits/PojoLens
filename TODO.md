@@ -32,8 +32,11 @@
   `not exists query ... end query` grammar with runtime vocabulary resolution
   through the bounded subquery.
 - `Done`: SQL-like simple bounded `IN`/`EXISTS` subquery predicates now lower
-  onto fluent/core subquery predicates; boolean `OR`/DNF subquery shapes keep
-  the intentional SQL-like precomputed fallback.
+  onto fluent/core subquery predicates.
+- `Done`: grouped fluent rules now accept bounded subqueries through
+  `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
+  `QueryRule.notExists(...)`; SQL-like boolean `OR`/DNF subquery shapes now
+  lower onto grouped fluent/core predicates.
 - `Still valid`: correlated subqueries, scalar subqueries, and broad nested SQL
   planning remain unsupported.
 - `Still valid`: aggregate windows reject `RANGE`, `GROUPS`, following-row

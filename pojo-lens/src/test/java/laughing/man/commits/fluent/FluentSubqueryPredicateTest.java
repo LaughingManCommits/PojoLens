@@ -3,6 +3,7 @@ package laughing.man.commits.fluent;
 import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.builder.QueryRule;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -116,6 +117,57 @@ public class FluentSubqueryPredicateTest {
         assertEquals(employees.size(), present.size());
         assertEquals(0, missing.size());
         assertEquals(employees.size(), inverted.size());
+    }
+
+    @Test
+    public void groupedSubqueriesShouldParticipateInAllOfGroups() {
+        List<DepartmentActive> source = Arrays.asList(
+                new DepartmentActive("Engineering", true),
+                new DepartmentActive("Engineering", false),
+                new DepartmentActive("Finance", true),
+                new DepartmentActive("HR", false)
+        );
+
+        List<DepartmentActive> results = PojoLensCore.newQueryBuilder(source)
+                .allOf(
+                        QueryRule.of("active", true, Clauses.EQUAL),
+                        QueryRule.inSubquery("department", "department",
+                                query -> query.addRule("department", "Engineering", Clauses.EQUAL))
+                )
+                .initFilter()
+                .filter(DepartmentActive.class);
+
+        assertEquals(List.of("Engineering"),
+                results.stream().map(row -> row.department).collect(Collectors.toList()));
+    }
+
+    @Test
+    public void groupedExistsShouldParticipateInAnyOfGroups() {
+        List<Employee> results = PojoLensCore.newQueryBuilder(sampleEmployees())
+                .anyOf(
+                        QueryRule.exists(query -> query.addRule("department", "Missing", Clauses.EQUAL)),
+                        QueryRule.of("department", "Finance", Clauses.EQUAL)
+                )
+                .initFilter()
+                .filter(Employee.class);
+
+        assertEquals(1, results.size());
+        assertEquals("Finance", results.get(0).department);
+    }
+
+    @Test
+    public void groupedExistsShouldAllowDnfStyleAllOfAlternatives() {
+        List<Employee> results = PojoLensCore.newQueryBuilder(sampleEmployees())
+                .allOf(
+                        QueryRule.exists(query -> query.addRule("department", "Missing", Clauses.EQUAL)),
+                        QueryRule.of("department", "Finance", Clauses.EQUAL)
+                )
+                .allOf(QueryRule.of("department", "Engineering", Clauses.EQUAL))
+                .initFilter()
+                .filter(Employee.class);
+
+        assertEquals(Arrays.asList("Alice", "Cara", "Dan"),
+                results.stream().map(row -> row.name).collect(Collectors.toList()));
     }
 
     @Test
