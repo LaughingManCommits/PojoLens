@@ -29,6 +29,11 @@ Completed:
   `is in query ... end query`, `exists query ... end query`, and
   `not exists query ... end query`. Runtime natural vocabulary is resolved
   through both the outer query and the bounded subquery.
+- SQL-like simple bounded `WHERE ... IN (select ...)` and
+  `WHERE [NOT] EXISTS (select ...)` predicates now lower onto the fluent/core
+  subquery predicate path. SQL-like still keeps its precomputed fallback for
+  boolean `OR` / normalized DNF shapes that the fluent API cannot yet represent
+  as grouped subquery predicates.
 - Aggregate SQL-like `ORDER BY` already supports grouped fields, aggregate
   output aliases/names, and aggregate expressions.
 - Aggregate SQL-like `ORDER BY` diagnostics now distinguish invalid raw source
@@ -101,8 +106,9 @@ Current parity status:
 - Natural now has controlled `query ... end query` grammar for bounded
   `is in`, `exists`, and `not exists` predicates.
 - No user-facing precomputation workaround is required for this capability.
-- Facade implementation should continue converging on shared fluent/core
-  behavior rather than owning divergent behavior.
+- SQL-like simple bounded subquery predicates now use the shared fluent/core
+  path; complex boolean `OR`/DNF subquery shapes retain SQL-like fallback
+  resolution until grouped fluent subquery predicates exist.
 
 ## Limitation Review
 
@@ -150,6 +156,9 @@ Current behavior:
 - subquery `JOIN` clauses can read from provided join-source bindings
 - natural supports equivalent uncorrelated forms with `query ... end query`
   bounds instead of SQL parentheses
+- SQL-like simple bounded subquery predicates are stored as fluent/core
+  subquery predicates during binding; complex boolean `OR`/DNF cases keep the
+  previous precomputed fallback
 - no correlated subqueries
 
 Status:
@@ -163,11 +172,14 @@ Status:
   self-source and explicit-source `IN`, `EXISTS`, and `NOT EXISTS` workflows
 - `2026-04-14`: natural bounded subquery/existence grammar landed with runtime
   vocabulary resolution across outer and nested natural query fields
+- `2026-04-14`: SQL-like simple bounded subquery predicates were converged onto
+  the fluent/core subquery predicate path, with boolean `OR`/DNF fallback left
+  intentionally precomputed
 
 Remaining valid limits:
 
-- SQL-like and natural facade code should keep moving toward direct lowering
-  onto fluent/core subquery primitives instead of parallel behavior
+- SQL-like complex boolean subquery groups still use a precomputed fallback
+  because fluent/core does not yet expose grouped subquery predicates
 - correlated subqueries
 - scalar subqueries
 - arbitrary nested SQL-engine semantics

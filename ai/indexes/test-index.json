@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T13:57:03.848875+02:00",
+  "generatedAt": "2026-04-14T16:51:23.599343+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 116,
-    "testClasses": 116
+    "testJavaFiles": 117,
+    "testClasses": 117
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 104
+      "testJavaFiles": 105
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -184,6 +184,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeValidationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeWindowFunctionTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinderSubqueryLoweringTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/SqlLikeDocsProjections.java",

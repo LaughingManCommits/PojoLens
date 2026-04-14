@@ -435,6 +435,18 @@ public class SqlLikeQueryContractTest {
     }
 
     @Test
+    public void boundSubqueryShouldResolveBeforeReusableMaterialization() {
+        SqlLikeBoundQuery<EmployeeName> bound = PojoLensSql
+                .parse("select name where id in (select id where active = true)")
+                .bindTyped(sampleEmployees(), EmployeeName.class);
+
+        List<EmployeeName> results = bound.filter();
+
+        assertEquals(Arrays.asList("Alice", "Bob", "Cara"),
+                results.stream().map(row -> row.name).collect(Collectors.toList()));
+    }
+
+    @Test
     public void repeatedBeanBackedStatsExecutionsShouldRebindToCurrentRows() {
         List<DepartmentEmployee> firstRows = Arrays.asList(
                 new DepartmentEmployee("Engineering"),
@@ -588,6 +600,13 @@ public class SqlLikeQueryContractTest {
         int annualSalary;
 
         public TestBeanSummary() {
+        }
+    }
+
+    public static class EmployeeName {
+        String name;
+
+        public EmployeeName() {
         }
     }
 

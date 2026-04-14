@@ -248,7 +248,7 @@ final class SqlLikePreparedExecutionSupport {
         }
 
         ExecutionContext reusableBoundContext() {
-            if (prepared.applyJoin() || reusableBuilderTemplate != null) {
+            if (prepared.applyJoin() || reusableBuilderTemplate != null || containsSubqueries(prepared.ast())) {
                 return this;
             }
             FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
