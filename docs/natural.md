@@ -30,6 +30,10 @@ Canonical operator phrases in `where`, `having`, and `qualify`:
 - `starts with`
 - `ends with`
 
+Canonical boolean connectors in `where`, `having`, and `qualify`:
+- `and`
+- `or`
+
 Canonical bounded subquery phrases in `where`:
 - `<field> is in query <natural query> end query`
 - `exists query <natural query> end query`
@@ -235,9 +239,21 @@ List<Employee> rows = PojoLensNatural
     .filter(employees, Employee.class);
 ```
 
+Boolean composition with subqueries:
+
+```java
+List<Employee> rows = PojoLensNatural
+    .parse("show employees where exists query "
+        + "show all where department is Missing end query "
+        + "or department is Finance")
+    .filter(employees, Employee.class);
+```
+
 Subquery notes:
 
 - subqueries are supported only in `where`
+- subquery predicates may be combined with normal `where` predicates through
+  `and` / `or`
 - `is in query` subqueries must `show` exactly one explicit output
 - `exists query` and `not exists query` ignore the inner `show` output and may
   use `show all`

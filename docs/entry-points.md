@@ -39,7 +39,8 @@ Core execution model:
   should not have to learn SQL-like clause syntax, including grouped aggregate
   phrases such as `count of ...`, `group by`, `having`, deterministic window
   phrases with `qualify`, explicit `from ... join ... on ...` wording,
-  time-bucket phrases, and terminal chart phrases.
+  bounded subquery/existence phrases, time-bucket phrases, and terminal chart
+  phrases.
 - Use `PojoLensNatural.template(...)` when that guided-text query is reused
   with a fixed named-parameter schema.
 - Use `PojoLensSql` when the query is stored in config, assembled dynamically,

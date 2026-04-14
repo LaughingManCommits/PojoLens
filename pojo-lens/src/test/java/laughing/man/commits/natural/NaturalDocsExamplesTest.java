@@ -135,6 +135,13 @@ public class NaturalDocsExamplesTest {
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(sampleEmployees().size(), existsRows.size());
+
+        List<Employee> booleanRows = PojoLensNatural
+                .parse("show employees where exists query show all where department is Missing end query "
+                        + "or department is Finance")
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Bob"), booleanRows.stream().map(row -> row.name).toList());
     }
 
     @Test

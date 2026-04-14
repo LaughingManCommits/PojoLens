@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-14T19:56:23.529261+02:00",
+  "generatedAt": "2026-04-14T20:34:44.376243+02:00",
   "git": {
-    "headCommit": "ba0f656b8a1f7fff5c4c6fe230e5cc32461fd7b6",
+    "headCommit": "3e665fa599982c073e0ac5430ad1df345f03db97",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "efe71fd4853923e3c9e748c66afaed7694486822bd56ea685019465b5e583a55",
+  "inputsHash": "089e4835453146a03c4354ffc0e4f927d720140619afa2dba89b6a64a378da3a",
   "hotContext": {
     "files": [
       {
@@ -113,8 +113,8 @@
   "eventLog": {
     "activeLog": {
       "path": "ai/log/events.jsonl",
-      "entries": 26,
-      "bytes": 13709
+      "entries": 27,
+      "bytes": 14087
     },
     "archiveFiles": [
       {
@@ -133,7 +133,7 @@
       "ai/log/archive/2026-04-summary.md"
     ],
     "retention": 12,
-    "totalEntries": 199
+    "totalEntries": 200
   },
   "derivedArtifacts": {
     "refreshCache": "ai/indexes/refresh-state.json",
@@ -141,13 +141,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "b1555894c76029cfb2fcfecfd150f4cac4e35abf514c8f7f2b3f91ae37c42ca2",
+        "inputHash": "30e9548b24dfff845b48e54312b3fbbc2aa03dfb3df96fb7fee1a107c5270ae2",
         "inputFiles": 50
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "02459e2bfa5cfdb348f962123389c6f5804b03cc4ce2b0ff0669c73194aec77d",
+        "inputHash": "69abad7926369e38883e8a90c050577ab12dce0dcf6c8aa7154f8f91615a701c",
         "inputFiles": 386
       },
       {
@@ -158,8 +158,8 @@
       },
       {
         "path": "ai/indexes/test-index.json",
-        "status": "reused",
-        "inputHash": "5fe8f08a8869cf86adae8027419131c0edb9c7f076403a2bd426ecbacdcc01a3",
+        "status": "rebuilt",
+        "inputHash": "fa209556c9343bde979d594ffd760ad3b8b703c3a2f5c15da30330f64910535c",
         "inputFiles": 118
       },
       {
@@ -174,9 +174,9 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 52,
-      "sections": 604,
-      "updatedFiles": 2,
-      "reusedFiles": 50,
+      "sections": 605,
+      "updatedFiles": 5,
+      "reusedFiles": 47,
       "removedFiles": 0,
       "mode": "incremental"
     }
