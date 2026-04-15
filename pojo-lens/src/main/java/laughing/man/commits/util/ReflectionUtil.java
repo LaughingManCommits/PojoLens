@@ -18,7 +18,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -484,7 +483,7 @@ public final class ReflectionUtil {
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
         List<Field> fields = getMutableFields(clazz);
-        Map<String, Field> byName = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
 
         for (int i = 0; i < fields.size(); i++) {
             Field field = fields.get(i);
