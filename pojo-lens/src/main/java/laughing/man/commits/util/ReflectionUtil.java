@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -555,7 +556,8 @@ public final class ReflectionUtil {
 
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
         ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
-        collectFieldGraph(root, "", List.of(), new LinkedHashSet<>(), 0, flattenedFields);
+        Field[] pathStack = new Field[MAX_FIELD_GRAPH_DEPTH + 1];
+        collectFieldGraph(root, "", pathStack, 0, new LinkedHashSet<>(), flattenedFields);
         LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
         ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
         for (int i = 0; i < flattenedFields.size(); i++) {
@@ -568,9 +570,9 @@ public final class ReflectionUtil {
 
     private static void collectFieldGraph(Class<?> type,
                                           String prefix,
-                                          List<Field> path,
-                                          Set<Class<?>> activePath,
+                                          Field[] pathStack,
                                           int depth,
+                                          Set<Class<?>> activePath,
                                           List<FlattenedFieldDescriptor> flattenedFields) {
         if (type == null) {
             return;
@@ -594,28 +596,20 @@ public final class ReflectionUtil {
                 Field field = fields.get(i);
                 String qualifiedName = qualify(prefix, field.getName());
                 Class<?> fieldType = wrapPrimitive(field.getType());
-                List<Field> fieldPath = appendPath(path, field);
+                pathStack[depth] = field;
 
                 if (isSimpleType(fieldType) || fieldType.isEnum()) {
                     flattenedFields.add(new FlattenedFieldDescriptor(
                             qualifiedName,
-                            new ResolvedFieldPath(fieldPath, fieldType, true)
+                            new ResolvedFieldPath(List.of(Arrays.copyOf(pathStack, depth + 1)), fieldType, true)
                     ));
                 } else if (isTraversableType(fieldType)) {
-                    collectFieldGraph(fieldType, qualifiedName, fieldPath, activePath, depth + 1, flattenedFields);
+                    collectFieldGraph(fieldType, qualifiedName, pathStack, depth + 1, activePath, flattenedFields);
                 }
             }
         } finally {
             activePath.remove(type);
         }
-    }
-
-    private static List<String> buildSchema(List<FlattenedFieldDescriptor> flattenedFields) {
-        List<String> names = new ArrayList<>(flattenedFields.size());
-        for (int i = 0; i < flattenedFields.size(); i++) {
-            names.add(flattenedFields.get(i).fieldName());
-        }
-        return Collections.unmodifiableList(names);
     }
 
     private static List<FlattenedFieldDescriptor> selectedFlattenedFields(FieldGraphDescriptor descriptor,
@@ -662,13 +656,6 @@ public final class ReflectionUtil {
             return null;
         }
         return fieldPath.read(bean);
-    }
-
-    private static List<Field> appendPath(List<Field> path, Field field) {
-        ArrayList<Field> fieldPath = new ArrayList<>(path.size() + 1);
-        fieldPath.addAll(path);
-        fieldPath.add(field);
-        return fieldPath;
     }
 
     private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
