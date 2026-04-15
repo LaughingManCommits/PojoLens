@@ -598,19 +598,6 @@ public final class ReflectionUtil {
         return Collections.unmodifiableList(names);
     }
 
-    private static List<QueryField> extractQueryFields(Object bean,
-                                                       List<FlattenedFieldDescriptor> flattenedFields) throws IllegalAccessException {
-        List<QueryField> fields = new ArrayList<>(flattenedFields.size());
-        for (int i = 0; i < flattenedFields.size(); i++) {
-            FlattenedFieldDescriptor flattenedField = flattenedFields.get(i);
-            QueryField field = new QueryField();
-            field.setFieldName(flattenedField.fieldName());
-            field.setValue(readResolvedFieldValue(bean, flattenedField.fieldPath()));
-            fields.add(field);
-        }
-        return fields;
-    }
-
     private static List<FlattenedFieldDescriptor> selectedFlattenedFields(FieldGraphDescriptor descriptor,
                                                                           Collection<String> selectedFieldNames) {
         List<FlattenedFieldDescriptor> flattenedFields = descriptor.flattenedFields();
