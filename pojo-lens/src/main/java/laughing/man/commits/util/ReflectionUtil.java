@@ -513,7 +513,7 @@ public final class ReflectionUtil {
                 || wrapped == ZonedDateTime.class;
     }
 
-    private static boolean isPlatformType(Class<?> type) {
+    private static boolean isUserDefinedType(Class<?> type) {
         Package pkg = type.getPackage();
         if (pkg == null) {
             return true;
@@ -526,7 +526,7 @@ public final class ReflectionUtil {
     }
 
     private static boolean isTraversableType(Class<?> type) {
-        return type != null && !isSimpleType(type) && !type.isEnum() && isPlatformType(type);
+        return type != null && !isSimpleType(type) && !type.isEnum() && isUserDefinedType(type);
     }
 
     private static FieldGraphDescriptor fieldGraph(Class<?> root) {
