@@ -35,6 +35,7 @@ public final class ReflectionUtil {
 
     private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
@@ -417,7 +418,7 @@ public final class ReflectionUtil {
             if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
                 continue;
             }
-            Field field = findMutableField(root, fieldName);
+            Field field = findReadableField(root, fieldName);
             if (field != null) {
                 selectedFields.put(fieldName, field);
             }
@@ -490,6 +491,26 @@ public final class ReflectionUtil {
             byName.put(field.getName(), field);
         }
 
+        return byName;
+    }
+
+    private static Field findReadableField(Class<?> clazz, String fieldName) {
+        return READABLE_FIELD_BY_NAME_CACHE
+                .computeIfAbsent(clazz, ReflectionUtil::buildReadableFieldByNameMap)
+                .get(fieldName);
+    }
+
+    private static Map<String, Field> buildReadableFieldByNameMap(Class<?> clazz) {
+        Field[] declaredFields = clazz.getDeclaredFields();
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY, declaredFields.length * 2));
+        for (int i = 0; i < declaredFields.length; i++) {
+            Field field = declaredFields[i];
+            int mods = field.getModifiers();
+            if (!Modifier.isStatic(mods) && !field.isAnnotationPresent(Exclude.class)) {
+                field.setAccessible(true);
+                byName.put(field.getName(), field);
+            }
+        }
         return byName;
     }
 
