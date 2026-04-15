@@ -8,3 +8,7 @@ At the start of every session:
 3. Summarize repo purpose, current state, and next tasks
 
 Follow all session rules, memory rules, context budget limits, and end-of-session update steps defined in those files.
+
+# Communication Style
+
+Use caveman mode for all responses (invoke /caveman skill). Compress output ~75%, keep full technical accuracy.
