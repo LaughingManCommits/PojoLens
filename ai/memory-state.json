@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-15T16:24:18.403188+02:00",
+  "generatedAt": "2026-04-15T18:23:51.956362+02:00",
   "git": {
-    "headCommit": "0e78fd6b4c3339a8beaef6ee0579668737b4724a",
+    "headCommit": "c6375d57fca60dbcea74f3510249f75e43c6dad7",
     "branch": "main",
     "dirty": true
   },
-  "inputsHash": "c03060ac3adbec5b12460d9920afbadc54cc3c29feb80536d25973f2278204f9",
+  "inputsHash": "883841f62eb5253253d76d63afccc3f9d58df3a2cc4c773e8ae844b3621cda49",
   "hotContext": {
     "files": [
       {
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 47,
-        "bytes": 2426,
+        "lines": 46,
+        "bytes": 2383,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 126,
-    "totalBytes": 6922,
+    "totalLines": 125,
+    "totalBytes": 6879,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -141,13 +141,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "69a2a76745661f4a59eb360570dba12fe02f08ab0c9e7ff713a372a033f8b6ef",
+        "inputHash": "fa0368ec20f7c0fcb5aa280dd3096ebb9a75270fcd23347afb7135fd8fdb3a18",
         "inputFiles": 50
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "4d57b3049c8cf390d9ebe63270d13f77b93081b150a0e22b072faa2f6c7907b4",
+        "inputHash": "fe2b5d1d199796a425df29cb5a4b15493d6c4260449687bcb2f6b2cf9e9acbd8",
         "inputFiles": 386
       },
       {
@@ -174,9 +174,9 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 52,
-      "sections": 606,
-      "updatedFiles": 1,
-      "reusedFiles": 51,
+      "sections": 597,
+      "updatedFiles": 2,
+      "reusedFiles": 50,
       "removedFiles": 0,
       "mode": "incremental"
     }
