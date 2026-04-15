@@ -8,26 +8,25 @@
 ## Focus
 
 - `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
-- AI orchestration tracked spike work is complete through `WP18`; spike is fully closed.
+- AI orchestration tracked spike work is complete through `WP18`.
 - `2026-04-14`: limitation work is done for time buckets, aggregate windows,
   prepare, bounded subqueries/`EXISTS`, natural cleanup, and SQL-like lowering.
+- `2026-04-15`: scatter allocation follow-up added
+  `ReflectionUtil.DirectFieldReadPlan` for direct POJO chart reads and reran a
+  `size=1000` warmed scatter GC spot check.
 
 ## Verified
 
-- `2026-04-10`: CSV WP1-WP5 is validated, including multiline records, runtime defaults, coercion policy, load reports, enum binding, and guarded load benchmarks.
-- `2026-04-11`: orchestration WP18 and `caveman` skill propagation are validated.
-- `2026-04-13`: `PojoLensCore.prepare(...)` now returns immutable `FluentQueryDefinition<T>` for reusable fluent builder recipes with rows/schema/explain and `ReportDefinition` promotion.
-- `2026-04-13`: SQL-like `IN`/`EXISTS` subqueries work for bounded
-  self/named/joined sources and passed focused/full validations.
-- `2026-04-13`: bounded natural cleanup passed for schema vocabulary,
-  `qualify` window phrases, window phrase breadth/frames, and delegate caching.
-- `2026-04-14`: bounded subquery/existence parity passed focused fluent/public
-  API and natural/docs-example tests plus the full `pojo-lens` suite
-  (`721` tests), docs, diff whitespace, Checkstyle goal, and script tests.
-- `2026-04-14`: SQL-like simple bounded `IN`/`EXISTS` predicates now bind as
-  fluent/core subquery predicates.
-- `2026-04-14`: grouped fluent `QueryRule` subqueries are done, SQL-like
-  boolean `OR`/DNF subqueries lower onto fluent/core, and docs are aligned.
+- `2026-04-10`: CSV WP1-WP5 is validated, including guarded load benchmarks.
+- `2026-04-11`: orchestration WP18 and skill propagation are validated.
+- `2026-04-14`: bounded subquery/existence parity is closed across fluent,
+  SQL-like, and natural.
+- `2026-04-14`: grouped fluent `QueryRule` subqueries are done; SQL-like
+  boolean `OR`/DNF subqueries lower onto fluent/core.
+- `2026-04-15`: direct POJO chart mapping now avoids primitive x-value boxing
+  for direct fields and reuses boxed y-values where possible; `size=1000`
+  scatter spot check measured fluent `259,400 B/op`, direct SQL-like
+  `284,273 B/op`, and bound SQL-like `283,737 B/op`.
 
 ## Release
 
@@ -47,3 +46,5 @@
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: no default bounded subquery parity slice remains;
   correlated/scalar subqueries and broad window-frame parity stay opt-in only.
+- Benchmarks: rerun warmed `10k`/`100k` scatter GC checks only if continuing
+  the residual chart allocation thread.

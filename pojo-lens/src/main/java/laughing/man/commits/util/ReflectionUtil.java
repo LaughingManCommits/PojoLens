@@ -407,6 +407,25 @@ public final class ReflectionUtil {
         );
     }
 
+    public static DirectFieldReadPlan compileDirectFieldReadPlan(Class<?> root,
+                                                                 Collection<String> selectedFieldNames) {
+        if (root == null) {
+            throw new IllegalArgumentException("root must not be null");
+        }
+        List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
+        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
+        for (String fieldName : normalizedSelection) {
+            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
+                continue;
+            }
+            Field field = findMutableField(root, fieldName);
+            if (field != null) {
+                selectedFields.put(fieldName, field);
+            }
+        }
+        return new DirectFieldReadPlan(root, selectedFields);
+    }
+
     public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
         if (bean == null || plan == null) {
             return new Object[0];
@@ -1067,6 +1086,108 @@ public final class ReflectionUtil {
 
         private ResolvedFieldPath[] fieldPaths() {
             return fieldPaths;
+        }
+    }
+
+    public static final class DirectFieldReadPlan {
+        private final Class<?> rootType;
+        private final Map<String, Field> fields;
+
+        private DirectFieldReadPlan(Class<?> rootType, Map<String, Field> fields) {
+            this.rootType = rootType;
+            this.fields = Collections.unmodifiableMap(new LinkedHashMap<>(fields));
+        }
+
+        public boolean canRead(Object row) {
+            return row != null && rootType.isInstance(row);
+        }
+
+        public boolean hasField(String fieldName) {
+            return fields.containsKey(fieldName);
+        }
+
+        public boolean isPrimitiveField(String fieldName) {
+            Field field = fields.get(fieldName);
+            return field != null && field.getType().isPrimitive();
+        }
+
+        public boolean isNumericPrimitiveField(String fieldName) {
+            Field field = fields.get(fieldName);
+            return field != null && isNumericPrimitive(field.getType());
+        }
+
+        public Object readValue(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            return field == null ? null : field.get(row);
+        }
+
+        public String readPrimitiveAsString(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            if (field == null || !field.getType().isPrimitive()) {
+                return null;
+            }
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return String.valueOf(field.getInt(row));
+            }
+            if (fieldType == long.class) {
+                return String.valueOf(field.getLong(row));
+            }
+            if (fieldType == double.class) {
+                return String.valueOf(field.getDouble(row));
+            }
+            if (fieldType == float.class) {
+                return String.valueOf(field.getFloat(row));
+            }
+            if (fieldType == short.class) {
+                return String.valueOf(field.getShort(row));
+            }
+            if (fieldType == byte.class) {
+                return String.valueOf(field.getByte(row));
+            }
+            if (fieldType == boolean.class) {
+                return String.valueOf(field.getBoolean(row));
+            }
+            if (fieldType == char.class) {
+                return String.valueOf(field.getChar(row));
+            }
+            return null;
+        }
+
+        public Double readNumericPrimitiveAsDouble(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            if (field == null) {
+                return null;
+            }
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return (double) field.getInt(row);
+            }
+            if (fieldType == long.class) {
+                return (double) field.getLong(row);
+            }
+            if (fieldType == double.class) {
+                return field.getDouble(row);
+            }
+            if (fieldType == float.class) {
+                return (double) field.getFloat(row);
+            }
+            if (fieldType == short.class) {
+                return (double) field.getShort(row);
+            }
+            if (fieldType == byte.class) {
+                return (double) field.getByte(row);
+            }
+            return null;
+        }
+
+        private static boolean isNumericPrimitive(Class<?> fieldType) {
+            return fieldType == int.class
+                    || fieldType == long.class
+                    || fieldType == double.class
+                    || fieldType == float.class
+                    || fieldType == short.class
+                    || fieldType == byte.class;
         }
     }
 }

@@ -21,6 +21,12 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - No active benchmark optimization work is open.
 - WP19 is intentionally parked; do not reopen without a materially different structural hypothesis.
 - Warmed profiler hotspots have repeatedly concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
+- `2026-04-15`: `ReflectionUtil.DirectFieldReadPlan` now backs direct POJO
+  chart fast paths and reduced the small-size SQL-like scatter allocation gap.
+  Final `size=1000` warmed GC spot check measured fluent `259,400 B/op`,
+  direct SQL-like `284,273 B/op`, and bound SQL-like `283,737 B/op`; rerun
+  warmed `10k`/`100k` scatter checks before retiring the broader scatter
+  allocation concern.
 
 ## Operational Rules
 

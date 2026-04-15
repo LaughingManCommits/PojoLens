@@ -13,25 +13,22 @@
 - CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
 - Engine limitation work done: bounded windows, aggregate `ORDER BY`, fluent
   prepare, joined/`EXISTS` subqueries, natural cleanup, and SQL-like lowering.
+- Scatter allocation follow-up has a narrow `size=1000` improvement; broader
+  `10k`/`100k` scatter allocation checks are still optional follow-up work.
 
 ## Facts
 
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
-- `2026-04-13`: SQL-like bounded `IN`/`EXISTS` subqueries work for
-  self/named/joined sources; correlated/scalar/broad SQL remains unsupported.
-- `2026-04-13`: limitation policy requires fluent-led parity; SQL-like/natural
-  are facades, and precomputed user filters are not the parity answer.
-- `2026-04-13`: natural schema vocabulary, `qualify` windows, broader window
-  phrasing/frames, and resolved-delegate caching are done.
 - `2026-04-14`: bounded subquery/existence parity is closed across fluent,
   SQL-like, and natural; natural uses bounded `query ... end query` grammar
   with nested runtime-vocabulary resolution.
-- `2026-04-14`: SQL-like simple bounded `WHERE ... IN (select ...)` and
-  `WHERE [NOT] EXISTS (select ...)` predicates now lower onto fluent/core
-  subquery predicates.
 - `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`, `exists(...)`,
   and `notExists(...)` are done; SQL-like boolean `OR`/DNF subqueries lower
   onto fluent/core, and public docs are aligned.
+- `2026-04-15`: `ReflectionUtil.DirectFieldReadPlan` owns direct POJO field
+  reflection for chart fast paths; final `size=1000` scatter spot check
+  measured fluent `259,400 B/op`, direct SQL-like `284,273 B/op`, and bound
+  SQL-like `283,737 B/op`.
 - No default bounded subquery parity slice remains; keep correlated/scalar
   subqueries and broad SQL planning opt-in only.
 

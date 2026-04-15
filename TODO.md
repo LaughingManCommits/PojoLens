@@ -160,6 +160,15 @@
 
 - Stable chart latency parity is healthy after the cache-reset fix and a warmed rerun.
   - The remaining chart-specific concern is scatter allocation, not scatter latency parity.
+  - `2026-04-15` direct POJO chart mapping now uses
+    `ReflectionUtil.DirectFieldReadPlan` to avoid primitive x-value boxing for
+    direct fields and reuses boxed y-values when possible. A final `size=1000`
+    warmed spot check measured fluent scatter at `259,400 B/op`, direct
+    SQL-like scatter at `284,273 B/op`, and bound SQL-like scatter at
+    `283,737 B/op`.
+  - The `2026-04-15` spot check narrows the small-size scatter allocation gap;
+    rerun warmed `10k`/`100k` scatter GC checks before retiring the broader
+    scatter allocation concern.
   - In the latest warmed rerun, SQL-like scatter allocates `1.43x` more at `1k`, `1.57x` more at `10k`, and `3.41x` more at `100k` than fluent.
   - Direct and bound SQL-like scatter now benchmark at near-parity, so repeated direct-path rebind/materialization is no longer the main remaining scatter issue.
 - SQL-like window stages are allocation-heavy.
@@ -184,7 +193,10 @@
 
 - Treat the broad chart-parity failure in `2026-03-31-full` as a benchmark artifact first, not a product regression.
 - Treat the one-iteration cache-reset chart follow-up as noisy; use warmed multi-iteration reruns before opening parity bugs.
-- If chart follow-up continues, profile the residual SQL-like scatter allocation shared by direct and bound runs rather than chart latency parity.
+- If chart follow-up continues, rerun warmed `10k`/`100k` scatter GC checks for
+  the `2026-04-15` direct POJO chart-mapping change before profiling remaining
+  `ChartMapper` calls or `ReflectionUtil.DirectFieldReadPlan` allocation
+  sources.
 - Use `bindTyped(...)` or `DatasetBundle` when you want explicit reusable snapshots, but simple direct scatter charts no longer need bind-first execution to avoid the old repeated-materialization penalty.
 - Profile allocation sources in window rank/running-total execution, computed-field join materialization, and reflection/projection conversion.
 - Keep recommending lazy stream consumption for first-page or bounded-window callers.

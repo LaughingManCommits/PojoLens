@@ -79,4 +79,17 @@ final class ChartValidation {
         }
         return ((Number) value).doubleValue();
     }
+
+    static Double validateYValueBoxed(Object value, String fieldName) {
+        if (value == null) {
+            throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
+        }
+        if (value instanceof Double doubleValue) {
+            return doubleValue;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+    }
 }
