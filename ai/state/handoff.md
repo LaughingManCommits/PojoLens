@@ -9,28 +9,17 @@
 
 ## Focus
 
-- The orchestration spike is complete through `WP18`.
-- CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- Engine limitation work done: bounded windows, aggregate `ORDER BY`, fluent
-  prepare, joined/`EXISTS` subqueries, natural cleanup, and SQL-like lowering.
-- Scatter allocation follow-up has a narrow `size=1000` improvement; broader
-  `10k`/`100k` scatter allocation checks are still optional follow-up work.
+- `ReflectionUtil` cleanup complete: RU-WP1 through RU-WP5 done.
+- `FastArrayQuerySupport` cleanup in progress: FA-WP1 and FA-WP2 done; FA-WP3 dropped (child values must be stored — buffer reuse adds a copy); FA-WP4 through FA-WP6 remain.
+- Scatter allocation concern retired: warmed `10k`/`100k` GC checks passed clean; baselines recorded.
 
 ## Facts
 
+- `2026-04-15`: `ReflectionUtil` — `isPlatformType` → `isUserDefinedType`; dead `extractQueryFields`/`buildSchema` removed; `final` fields included in `DirectFieldReadPlan` via `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses array-backed path stack; `HashMap` → `LinkedHashMap` in `buildMutableFieldByNameMap`.
+- `2026-04-15`: `FastArrayQuerySupport` — stream `findFirst()` → direct iterator; `visitingComputedNames` allocated once per `compileJoinPlan` call.
+- `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
-- `2026-04-14`: bounded subquery/existence parity is closed across fluent,
-  SQL-like, and natural; natural uses bounded `query ... end query` grammar
-  with nested runtime-vocabulary resolution.
-- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`, `exists(...)`,
-  and `notExists(...)` are done; SQL-like boolean `OR`/DNF subqueries lower
-  onto fluent/core, and public docs are aligned.
-- `2026-04-15`: `ReflectionUtil.DirectFieldReadPlan` owns direct POJO field
-  reflection for chart fast paths; final `size=1000` scatter spot check
-  measured fluent `259,400 B/op`, direct SQL-like `284,273 B/op`, and bound
-  SQL-like `283,737 B/op`.
-- No default bounded subquery parity slice remains; keep correlated/scalar
-  subqueries and broad SQL planning opt-in only.
+- No default bounded subquery parity slice remains; correlated/scalar subqueries and broad SQL planning stay opt-in only.
 
 ## Validate
 
@@ -41,6 +30,6 @@
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
-- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
-- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`, `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CsvLoadJmhBenchmark.java`
+- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`
+- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`
 - orchestration: `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`

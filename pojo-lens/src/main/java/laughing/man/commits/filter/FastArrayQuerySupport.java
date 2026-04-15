@@ -41,7 +41,7 @@ final class FastArrayQuerySupport {
             return null;
         }
 
-        Integer joinIndex = builder.getJoinSourceBeansForExecution().keySet().stream().findFirst().orElse(null);
+        Integer joinIndex = builder.getJoinSourceBeansForExecution().keySet().iterator().next();
         if (joinIndex == null) {
             return null;
         }
@@ -152,7 +152,7 @@ final class FastArrayQuerySupport {
                 || !builder.getWindows().isEmpty()) {
             return false;
         }
-        Join joinMethod = builder.getJoinMethods().values().stream().findFirst().orElse(null);
+        Join joinMethod = builder.getJoinMethods().values().iterator().next();
         return Join.LEFT_JOIN.equals(joinMethod) || Join.INNER_JOIN.equals(joinMethod);
     }
 
@@ -170,6 +170,7 @@ final class FastArrayQuerySupport {
         LinkedHashSet<String> parentSelected = new LinkedHashSet<>();
         LinkedHashSet<String> childSelected = new LinkedHashSet<>();
         LinkedHashSet<String> neededComputedNames = new LinkedHashSet<>();
+        LinkedHashSet<String> visitingComputedNames = new LinkedHashSet<>();
 
         if (!addFieldReference(builder.getJoinParentFields().get(joinIndex),
                 parentFieldTypes,
@@ -178,7 +179,7 @@ final class FastArrayQuerySupport {
                 parentSelected,
                 childSelected,
                 neededComputedNames,
-                new LinkedHashSet<>())) {
+                visitingComputedNames)) {
             return null;
         }
         if (!addFieldReference(builder.getJoinChildFields().get(joinIndex),
@@ -188,7 +189,7 @@ final class FastArrayQuerySupport {
                 parentSelected,
                 childSelected,
                 neededComputedNames,
-                new LinkedHashSet<>())) {
+                visitingComputedNames)) {
             return null;
         }
 
@@ -198,7 +199,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
         if (!addConfiguredFieldReferences(builder.getFilterFields().values(),
@@ -207,7 +209,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
         if (!addConfiguredFieldReferences(builder.getOrderFields().values(),
@@ -216,7 +219,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
 
@@ -312,7 +316,8 @@ final class FastArrayQuerySupport {
                                                         ComputedFieldRegistry registry,
                                                         Set<String> parentSelected,
                                                         Set<String> childSelected,
-                                                        Set<String> neededComputedNames) {
+                                                        Set<String> neededComputedNames,
+                                                        Set<String> visitingComputedNames) {
         for (String fieldName : configuredFields) {
             if (!addFieldReference(fieldName,
                     parentFieldTypes,
@@ -321,7 +326,7 @@ final class FastArrayQuerySupport {
                     parentSelected,
                     childSelected,
                     neededComputedNames,
-                    new LinkedHashSet<>())) {
+                    visitingComputedNames)) {
                 return false;
             }
         }

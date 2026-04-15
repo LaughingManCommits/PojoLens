@@ -24,12 +24,6 @@
 - **Work:** Allocate `visitingComputedNames` once in `compileJoinPlan` and pass it through. Clear between calls if needed.
 - **Risk:** Low — compile-time only, well-contained.
 
-### FA-WP3 — Reuse child row buffer in `buildChildIndex`
-- **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:423`
-- **Problem:** `readFlatRowValues(child, plan.childReadPlan())` allocates a new `Object[]` per child row. Parent side (L76) correctly reuses a buffer — child side doesn't get the same treatment.
-- **Work:** Pre-allocate a single `childValues` buffer outside the loop; use the `readFlatRowValues(bean, plan, target, offset)` overload. Copy into a fresh array only when storing into the index.
-- **Risk:** Medium — must ensure stored arrays are independent copies, not the reused buffer.
-
 ### FA-WP4 — Replace `HashMap` with `LinkedHashMap` in `buildChildIndex`
 - **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:418,439,452`
 - **Problem:** `buildChildIndex` uses `HashMap` for the hash index, inconsistent with the rest of the codebase which uses `LinkedHashMap`.
