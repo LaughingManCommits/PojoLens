@@ -12,23 +12,17 @@
 
 ## FastArrayQuerySupport Cleanup
 
-### FA-WP1 — Replace stream usage in `canUseFastJoinPath`
+### ~~FA-WP1 — Replace stream usage in `canUseFastJoinPath`~~ ✓ DONE
 - **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:44,155`
 - **Problem:** Two `stream().findFirst().orElse(null)` calls on small maps inside a hot gate check. Stream overhead unnecessary.
 - **Work:** Replace with direct map key iteration (`map.keySet().iterator().next()`).
 - **Risk:** Low — private method, no logic change.
 
-### FA-WP2 — Reuse `visitingComputedNames` set in `compileJoinPlan`
+### ~~FA-WP2 — Reuse `visitingComputedNames` set in `compileJoinPlan`~~ ✓ DONE
 - **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:181,191,324`
 - **Problem:** `addFieldReference` called with `new LinkedHashSet<>()` per field for `visitingComputedNames`. Allocates a fresh set on every field reference during plan compilation.
 - **Work:** Allocate `visitingComputedNames` once in `compileJoinPlan` and pass it through. Clear between calls if needed.
 - **Risk:** Low — compile-time only, well-contained.
-
-### FA-WP4 — Replace `HashMap` with `LinkedHashMap` in `buildChildIndex`
-- **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:418,439,452`
-- **Problem:** `buildChildIndex` uses `HashMap` for the hash index, inconsistent with the rest of the codebase which uses `LinkedHashMap`.
-- **Work:** Change to `LinkedHashMap`. No behaviour change — this is a lookup structure.
-- **Risk:** Low — internal structure, no order contract exposed.
 
 ### FA-WP5 — Delete dead 3-arg `orderRows` overload
 - **File:** `pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java:688`

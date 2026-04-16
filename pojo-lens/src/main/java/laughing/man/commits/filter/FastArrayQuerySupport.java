@@ -636,8 +636,8 @@ final class FastArrayQuerySupport {
         if (ruleGroups.length == 0) {
             return true;
         }
-        boolean andMatched = false;
-        boolean andFailed = false;
+        boolean andAnyPassed = false;
+        boolean andAnyFailed = false;
         boolean orMatched = false;
 
         outer:
@@ -651,19 +651,20 @@ final class FastArrayQuerySupport {
                 boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
                 if (Separator.AND.equals(rule.separator)) {
                     if (matched) {
-                        andMatched = true;
+                        andAnyPassed = true;
                     } else {
-                        andFailed = true;
+                        andAnyFailed = true;
                     }
                 } else if (Separator.OR.equals(rule.separator) && matched) {
                     orMatched = true;
                 }
-                if (andFailed && orMatched) {
+                if (andAnyFailed && orMatched) {
                     break outer;
                 }
             }
         }
-        return (andMatched && !andFailed) || orMatched;
+        // Row passes if all AND rules passed (none failed) OR any OR rule matched
+        return (andAnyPassed && !andAnyFailed) || orMatched;
     }
 
     private static boolean isNumericClause(Clauses clause) {
@@ -688,10 +689,6 @@ final class FastArrayQuerySupport {
             case SMALLER -> left < right;
             default -> false;
         };
-    }
-
-    private static List<Object[]> orderRows(List<Object[]> rows, Sort sortMethod, FilterExecutionPlan plan) {
-        return orderRows(rows, sortMethod, plan, null);
     }
 
     private static List<Object[]> orderRows(List<Object[]> rows,
