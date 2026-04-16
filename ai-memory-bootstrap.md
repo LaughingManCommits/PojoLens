@@ -105,7 +105,7 @@ they cannot easily rewrite dense prose.
 2. Is the primary test/validation command exact and confirmed to work?
 3. Are `current-state.md` and `handoff.md` each under 60 lines?
 4. Does every `ai/core/` bullet contain exactly one verifiable fact?
-5. Are all `[UNVERIFIED]` items explicitly listed in the WP-5 report?
+5. Are all `[UNVERIFIED]` items explicitly listed in the WP-4 report?
 
 ---
 
@@ -122,7 +122,7 @@ If the user said "full", "complete", or gave no instruction → `MODE = FULL`
 
 Fast bootstrap. Gets AI memory working. No scripts, no doc generation.
 
-Work packages: **WP-1 → WP-3 → WP-5**
+Work packages: **WP-1 → WP-3 → WP-4**
 
 Creates:
 - `AGENTS.md` (root)
@@ -132,17 +132,17 @@ Creates:
 - `ai/state/current-state.md`
 - `ai/state/handoff.md`
 - `ai/log/events.jsonl`
-- `ai/state/bootstrap-progress.json`
+- `ai/state/bootstrap-progress.md`
 
-Skips: WP-2 (doc generation), WP-4 (scripts), all `[FULL ONLY]` files.
+Skips: WP-2 (doc generation), all `[FULL ONLY]` files.
 
 ---
 
 ### MODE = FULL
 
-Complete bootstrap. Generates all memory files, missing project docs, and memory scripts.
+Complete bootstrap. Generates all memory files and missing project docs.
 
-Work packages: **WP-1 → WP-2 → WP-3 → WP-4 → WP-5**
+Work packages: **WP-1 → WP-2 → WP-3 → WP-4**
 
 Creates everything in MINIMUM, plus:
 - `ai/core/architecture-map.md`
@@ -155,9 +155,6 @@ Creates everything in MINIMUM, plus:
 - `ai/core/benchmark-context.md` *(if benchmarks exist)*
 - `ai/core/discovery-notes.md`
 - Missing standard docs: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `RELEASE.md`, `MIGRATION.md`
-- `scripts/refresh-ai-memory.py` + platform wrappers
-- `scripts/query-ai-memory.py` + platform wrappers
-- `scripts/check-doc-consistency.py` + platform wrappers
 
 ---
 
@@ -169,12 +166,12 @@ Creates everything in MINIMUM, plus:
 
 **Idempotency:** Every WP is safe to re-run. If a file already exists and its content looks
 correct, leave it alone. If the session is interrupted mid-WP, the next agent can resume
-from the last completed WP by reading `ai/state/bootstrap-progress.json` (written after each
+from the last completed WP by reading `ai/state/bootstrap-progress.md` (written after each
 WP completes) and continuing from the first incomplete WP.
 
 **Large repo warning:** FULL mode on repos with many modules or docs may exceed a single
-context window. If context runs low, complete the current WP, write
-`ai/state/bootstrap-progress.json`, and continue in a new session from the next WP.
+context window. If context runs low, complete the current WP, update
+`ai/state/bootstrap-progress.md`, and continue in a new session from the next WP.
 
 ---
 
@@ -186,7 +183,7 @@ Bootstrap mode: MINIMUM
 
 - [ ] WP-1: Explore repository
 - [ ] WP-3: Create AI memory files
-- [ ] WP-5: Verify and report
+- [ ] WP-4: Verify and report
 ```
 
 For FULL mode, output:
@@ -196,8 +193,7 @@ Bootstrap mode: FULL
 - [ ] WP-1: Explore repository
 - [ ] WP-2: Create missing standard docs
 - [ ] WP-3: Create AI memory files
-- [ ] WP-4: Create memory management scripts
-- [ ] WP-5: Verify and report
+- [ ] WP-4: Verify and report
 ```
 
 Then begin executing from WP-1. Mark each work package done as you complete it.
@@ -208,10 +204,10 @@ Do not invent facts. Derive everything from actual code, config, and documentati
 Mark anything you could not verify with `[UNVERIFIED]`.
 
 **Security guardrail — non-negotiable:**
-Never write secrets, API keys, tokens, passwords, connection strings, or credentials of any
-kind into any memory file. If you encounter these during exploration, note their *location*
-(e.g. "secrets stored in environment variables — see CI config") but never their *values*.
-If a file you are about to write would contain a secret value, stop and report it instead.
+Never copy private runtime configuration values into any memory file. If exploration reveals
+sensitive configuration (access keys, runtime values, connection details stored in env vars
+or CI vault variables), record only where they live — not their content.
+If writing a memory file would require capturing such a value, stop and report it instead.
 
 ---
 
@@ -300,7 +296,7 @@ Do not output answers. Use them internally.
 
 Do not output your answers. Use them internally to fill in the files below.
 
-**WP-1 complete.** Write or update `ai/state/bootstrap-progress.json` marking WP-1 done.
+**WP-1 complete.** Write or update `ai/state/bootstrap-progress.md` marking WP-1 done.
 Proceed to next WP.
 
 ---
@@ -319,7 +315,7 @@ create it using the discovery rules below.
 #### `README.md` (create if missing)
 
 **Why it matters:** The primary user-facing doc. Without it, the project is invisible to
-developers. The AI memory files in Step 2 reference it heavily.
+developers. The AI memory files in WP-3 reference it heavily.
 
 **Discover from code:**
 - Build config (`pom.xml`, `package.json`, `go.mod`, etc.) — artifact name, group ID, version
@@ -442,7 +438,7 @@ what changed at each version boundary.
 Only create this file if the project has released more than one version OR has a clearly
 versioned public API. Skip for pre-1.0 projects with no prior releases.
 
-**WP-2 complete.** Update `ai/state/bootstrap-progress.json` marking WP-2 done. Proceed to WP-3.
+**WP-2 complete.** Update `ai/state/bootstrap-progress.md` marking WP-2 done. Proceed to WP-3.
 
 ---
 
@@ -521,12 +517,10 @@ confirmations, multi-step sequences where fragment order risks misread.
 ## Routing fallback
 
 When cold-load hints don't match the task, search memory directly:
-```
-python3 scripts/query-ai-memory.py "<task keywords>"
-```
-Add facets to narrow: `--tier hot,warm` for recent state, `--kind ai-core` for architecture
-facts, `--path "ai/core/*"` to restrict scope. If no results, retry without `--tier` to
-include archive.
+1. Read `ai/core/` files most likely to match the task domain.
+2. If not found, scan `ai/log/events.jsonl` for relevant discoveries.
+3. If still not found, read `ai/log/archive/` summaries.
+Start specific, widen only if needed.
 
 ## Session rules
 
@@ -534,11 +528,15 @@ include archive.
 - Reload only if state files changed outside the current edit flow or context was lost.
 - Code, tests, and build config override `ai/` when facts conflict.
 
-## End of session
+## End of session — health check
 
-1. Update `ai/state/current-state.md`.
-2. Update `ai/state/handoff.md`.
-3. Append significant discoveries to `ai/log/events.jsonl`.
+Before closing, run this 3-step check:
+
+1. **Budget** — are the 4 hot files combined under 240 lines / 24 KB?
+   If not: trim completed items from `state/`; promote stable facts to `core/`.
+2. **State** — update `ai/state/current-state.md` and `ai/state/handoff.md`.
+3. **Log** — append discoveries to `ai/log/events.jsonl`. Over 30 entries?
+   Archive oldest to `ai/log/archive/YYYY-MM.md`; keep 10 most recent.
 
 ## Changelog
 
@@ -611,6 +609,18 @@ When durable repository facts change:
 ## Promotion rule
 
 If a fact stays relevant across multiple sessions, promote it from `state/` to `core/`.
+
+---
+
+## Healthy memory looks like
+
+- `current-state.md` — under 60 lines, only active/recent facts
+- `handoff.md` — under 60 lines, only what next agent needs to start
+- `ai/core/` files — short bullets, one fact each, no duplicates across files
+- `events.jsonl` — under 30 entries; older entries archived
+- Hot context total — under 240 lines / 24 KB across all 4 files
+
+If any of these fail: compact before starting new work.
 ```
 
 ---
@@ -889,6 +899,7 @@ is next. Must stay concise — it counts toward the 240-line hot context budget.
 
 ```markdown
 # Current State
+<!-- hot context | hard limit: 60 lines | trim completed items; promote stable facts to ai/core/ -->
 
 ## Repo
 [2-3 bullets: language, build system, current version]
@@ -929,6 +940,7 @@ pointers are. Must stay concise — counts toward the 240-line hot context budge
 
 ```markdown
 # Handoff
+<!-- hot context | hard limit: 60 lines | trim completed items; keep only what next agent needs to act -->
 
 ## Resume
 1. Read `AGENTS.md` and `ai/AGENTS.md`.
@@ -1003,397 +1015,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 If a CHANGELOG already exists, skip this file.
 
-**WP-3 complete.** Update `ai/state/bootstrap-progress.json` marking WP-3 done. Proceed to next WP.
+**WP-3 complete.** Update `ai/state/bootstrap-progress.md` marking WP-3 done. Proceed to WP-4.
 
 ---
 
-### WP-4 — Create the memory management scripts `[FULL ONLY]`
-
-Create the following scripts. Choose the implementation language based on what the project
-already uses for scripting. Python is preferred for cross-platform portability. If the
-project uses shell scripts, create `.sh` equivalents. If it uses PowerShell, create `.ps1`
-wrappers that delegate to Python.
-
-Each script spec defines: purpose, CLI interface, behaviour, and exit codes.
-Implement each spec faithfully — do not add flags or behaviours not listed.
-
----
-
-#### `scripts/refresh-ai-memory.py`
-
-**Platform:** Pure Python 3 (≥3.9). Use `pathlib` throughout — no hard-coded path separators.
-Works on Mac, Linux, and Windows without changes. If the repo uses `uv`, the scripts can be
-run as `uv run python scripts/refresh-ai-memory.py` for isolated dependency management.
-
-**Purpose:** Rebuilds derived navigation indexes from the `ai/` markdown source files and
-checks that the hot context files are within budget. Run after any edit to `ai/` files or
-significant structural changes to the repo.
-
-**CLI:**
-```
-refresh-ai-memory.py [--check] [--compact-log] [--force-full] [--no-sqlite]
-```
-
-**Flags:**
-- `--check` — verify freshness only; do not rebuild. Exit 0 if fresh, 1 if stale.
-- `--compact-log` — archive old entries from `ai/log/events.jsonl` into
-  `ai/log/archive/YYYY-MM.jsonl`; keep only the most recent 20 entries in the active log.
-- `--force-full` — ignore cached hashes and rebuild everything from scratch.
-- `--no-sqlite` — skip SQLite cold-search database build even if sqlite3 is available.
-
-**Behaviour — default (rebuild):**
-
-1. Walk these file sets and compute a combined SHA-256 hash over their contents:
-   - All `.md` files under `ai/`
-   - All `.jsonl` files under `ai/log/`
-   - Root markdown files that exist: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
-     `RELEASE.md`, `MIGRATION.md`, `TODO.md`, `AGENTS.md`
-   - All `.md` files under `docs/` (if the folder exists)
-   - The build config root file (`pom.xml`, `package.json`, `go.mod`, `Cargo.toml`, etc.)
-   - CI config files — detect and include whichever exist:
-     `.github/workflows/*.yml` (GitHub Actions),
-     `azure-pipelines.yml` + `azure-pipelines/*.yml` + `.azure/**/*.yml` (Azure DevOps),
-     `.gitlab-ci.yml` (GitLab),
-     `.circleci/config.yml` (CircleCI),
-     `Jenkinsfile` (Jenkins),
-     `bitbucket-pipelines.yml` (Bitbucket)
-
-2. Load `ai/indexes/refresh-state.json` if it exists. If the hash matches and `--force-full`
-   is not set, skip rebuilding indexes that have not changed.
-
-3. Before writing any file under `ai/indexes/`, ensure the directory exists:
-   `Path("ai/indexes").mkdir(parents=True, exist_ok=True)`
-
-4. Build `ai/indexes/docs-index.json`:
-   - One entry per markdown file discovered in step 1.
-   - Fields: `path` (repo-relative), `category`, `relevance`, `loadTier`, `lineCount`,
-     `byteCount`.
-   - `loadTier`: `"hot"` for the 4 hot context files, `"warm"` for
-     `ai/state/recent-validations.md`, `"cold"` for all others.
-   - `category`: `"ai-hot-context"`, `"ai-core"`, `"ai-state"`, `"ai-log"`,
-     `"product-doc"`, `"process-doc"`, `"readme"`, `"planning"`, etc.
-
-5. Build `ai/indexes/files-index.json`:
-   - List of important files with their `path` and `kind` fields.
-   - Include: build config, CI workflows, root markdown files, `ai/` structure roots,
-     `docs/` if present, `scripts/` if present.
-   - Also include `counts`: total markdown docs, `ai/core` files, `ai/` index files.
-
-6. Check hot context budget:
-   - Read the 4 hot files: `ai/core/agent-invariants.md`, `ai/core/repo-purpose.md`,
-     `ai/state/current-state.md`, `ai/state/handoff.md`.
-   - Sum their line counts and byte sizes.
-   - Budget: 240 lines max, 24 576 bytes (24 KB) max.
-
-7. If SQLite is available and `--no-sqlite` not set, build or update
-   `ai/indexes/cold-memory.db` with FTS over all cold-search files (all `.md` and `.jsonl`
-   files from step 1). Schema: `documents(path, content)` + FTS virtual table.
-
-8. Write `ai/memory-state.json`:
-   ```json
-   {
-     "schemaVersion": 1,
-     "generatedAt": "<ISO 8601>",
-     "inputsHash": "<sha256>",
-     "hotContext": {
-       "files": [{"path": "...", "lines": N, "bytes": N}],
-       "totalLines": N,
-       "totalBytes": N,
-       "maxLines": 240,
-       "maxBytes": 24576,
-       "withinBudget": true
-     },
-     "freshness": {
-       "status": "fresh",
-       "reasons": []
-     }
-   }
-   ```
-
-9. Update `ai/indexes/refresh-state.json` with the current hash per file.
-
-**Exit codes:**
-- `0` — success (or `--check` passed)
-- `1` — budget exceeded, missing files, or `--check` found stale state
-
-**Output (stdout):**
-```
-[ai-memory] refreshed indexes
-[ai-memory] hot context: N lines / N bytes
-[ai-memory] inputs hash: <hash>
-```
-
----
-
-#### `scripts/query-ai-memory.py`
-
-**Platform:** Pure Python 3. Use `pathlib` throughout — no hard-coded separators.
-
-**Purpose:** Searches the `ai/` memory and project docs for relevant context. Used by agents
-when routing fallback is needed. Falls back to plain-text grep if SQLite is not available.
-
-**CLI:**
-```
-query-ai-memory.py <query> [--limit N] [--tier TIERS] [--kind KINDS]
-                           [--path GLOB] [--db PATH] [--json]
-```
-
-**Flags:**
-- `<query>` — required positional; search string (plain text, not regex)
-- `--limit N` — max results to return (default: 8)
-- `--tier TIERS` — comma-separated filter: `hot`, `warm`, `cold`, `archive`
-  (default: all except archive; include archive only if no results found without it)
-- `--kind KINDS` — comma-separated filter: `ai-core`, `ai-state`, `ai-orchestrator`,
-  `ai-log`, `process-doc`, `release-doc`, `product-doc`, `readme`, `planning`
-- `--path GLOB` — glob pattern to restrict search to matching file paths
-  (e.g. `"ai/core/*"`, `"ai/state/*"`)
-- `--db PATH` — path to SQLite database (default: `ai/indexes/cold-memory.db`)
-- `--json` — emit results as JSON array instead of human-readable text
-
-**Search behaviour:**
-
-1. If `ai/indexes/cold-memory.db` exists and sqlite3 is available: run FTS query against
-   the database, filtered by `--tier`, `--kind`, and `--path` facets.
-2. Otherwise: fall back to plain-text case-insensitive substring search across all
-   cold-search files (all `.md` and `.jsonl` files in `ai/` and root docs).
-3. If no results and `--tier` was not specified: retry including archive files.
-
-**Result fields:** `path`, `lineNumber`, `summary` (the matching line, trimmed).
-
-**Output (human-readable, default):**
-```
-1. ai/core/architecture-map.md:12
-   hit: The main execution flow is: input → parser → engine → output
-```
-
-**Output (`--json`):**
-```json
-[{"path": "ai/core/architecture-map.md", "lineNumber": 12, "summary": "..."}]
-```
-
-**Exit codes:**
-- `0` — one or more results found
-- `1` — no results found
-
----
-
-#### `scripts/check-doc-consistency.py`
-
-**Platform:** Pure Python 3. Use `pathlib` throughout — no hard-coded separators.
-
-**Purpose:** Verifies that key documentation claims are consistent with actual repo state.
-Catches drift between docs and code before it becomes a problem. Agents run this after
-doc edits or significant refactors.
-
-**CLI:**
-```
-check-doc-consistency.py [--fix] [--json]
-```
-
-**Flags:**
-- `--fix` — automatically correct trivial drift (e.g. update a version number in a doc)
-  when safe to do so. Default: report only.
-- `--json` — emit results as JSON.
-
-**Checks to implement** (discover what applies from the repo; skip checks that are not
-relevant to this project's structure):
-
-1. **Version consistency** — extract the current version from the build config
-   (`pom.xml`, `package.json`, `go.mod`, etc.) and verify it matches every occurrence of
-   a version string in `README.md`, `CONTRIBUTING.md`, `RELEASE.md`, and `CHANGELOG.md`.
-   Report mismatches.
-
-2. **Entry point references** — for each public entry point or API class/function listed in
-   `README.md`, verify that a corresponding source file or export exists in the repo.
-   Report any that are missing.
-
-3. **Doc link integrity** — find all markdown links of the form `[text](path)` in `README.md`
-   and `docs/*.md`. Verify each relative link target exists as a file. Report dead links.
-
-4. **CHANGELOG has Unreleased section** — verify `CHANGELOG.md` contains an `## [Unreleased]`
-   heading. Report if missing.
-
-5. **Hot context budget** — read the 4 hot context files and verify their combined line count
-   is under 240 and byte count is under 24 576. Report if over budget.
-
-6. **ai/core files exist** — verify that all core memory files referenced in `AGENTS.md`
-   exist on disk. Report any that are missing.
-
-**Output (human-readable, default):**
-```
-[doc-consistency] checking...
-  OK  version consistency
-  FAIL entry point references: PojoLensOld not found in source
-  OK  doc link integrity
-  OK  CHANGELOG unreleased section
-  OK  hot context budget
-[doc-consistency] 1 failure(s)
-```
-
-**Exit codes:**
-- `0` — all checks passed
-- `1` — one or more checks failed
-
----
-
-**Determine the platform and create the appropriate thin wrappers.**
-
-Detect the OS from the repo context (CI workflow OS matrix, existing scripts, `.gitattributes`,
-shebang lines in scripts, etc.). Then create wrappers accordingly:
-
-- **Mac / Linux** — create `.sh` wrappers (make them executable: `chmod +x`)
-- **Windows** — create `.ps1` wrappers
-- **Cross-platform / CI-first repos** — create both `.sh` and `.ps1` wrappers
-- When in doubt, create both
-
-The Python scripts are the implementation. Wrappers are thin delegates only.
-
----
-
-#### Shell wrappers (Mac / Linux / cross-platform)
-
-##### `scripts/refresh-ai-memory.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY=$(command -v python3 || command -v python || { echo "Python not found" >&2; exit 1; })
-exec "$PY" "$SCRIPT_DIR/refresh-ai-memory.py" "$@"
-```
-
-##### `scripts/query-ai-memory.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY=$(command -v python3 || command -v python || { echo "Python not found" >&2; exit 1; })
-exec "$PY" "$SCRIPT_DIR/query-ai-memory.py" "$@"
-```
-
-##### `scripts/check-doc-consistency.sh`
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY=$(command -v python3 || command -v python || { echo "Python not found" >&2; exit 1; })
-exec "$PY" "$SCRIPT_DIR/check-doc-consistency.py" "$@"
-```
-
-After creating `.sh` files, make them executable:
-```bash
-chmod +x scripts/refresh-ai-memory.sh scripts/query-ai-memory.sh scripts/check-doc-consistency.sh
-```
-
----
-
-#### PowerShell wrappers (Windows / cross-platform)
-
-##### `scripts/refresh-ai-memory.ps1`
-
-```powershell
-param([switch]$Check, [switch]$CompactLog, [switch]$ForceFull, [switch]$NoSQLite)
-$py = (Get-Command python3, python, py -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $py) { Write-Error "Python not found"; exit 1 }
-$a = @((Join-Path $PSScriptRoot "refresh-ai-memory.py"))
-if ($Check)      { $a += "--check" }
-if ($CompactLog) { $a += "--compact-log" }
-if ($ForceFull)  { $a += "--force-full" }
-if ($NoSQLite)   { $a += "--no-sqlite" }
-& $py @a; exit $LASTEXITCODE
-```
-
-##### `scripts/query-ai-memory.ps1`
-
-```powershell
-param([Parameter(Mandatory=$true)][string]$Query,
-      [int]$Limit=8, [string]$Tier="", [string]$Kind="",
-      [string[]]$Path=@(), [switch]$Json)
-$py = (Get-Command python3, python, py -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $py) { Write-Error "Python not found"; exit 1 }
-$a = @((Join-Path $PSScriptRoot "query-ai-memory.py"), $Query, "--limit", "$Limit")
-if ($Tier) { $a += @("--tier", $Tier) }
-if ($Kind) { $a += @("--kind", $Kind) }
-foreach ($p in $Path) { if ($p) { $a += @("--path", $p) } }
-if ($Json) { $a += "--json" }
-& $py @a; exit $LASTEXITCODE
-```
-
-##### `scripts/check-doc-consistency.ps1`
-
-```powershell
-param([switch]$Fix, [switch]$Json)
-$py = (Get-Command python3, python, py -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $py) { Write-Error "Python not found"; exit 1 }
-$a = @((Join-Path $PSScriptRoot "check-doc-consistency.py"))
-if ($Fix)  { $a += "--fix"  }
-if ($Json) { $a += "--json" }
-& $py @a; exit $LASTEXITCODE
-```
-
----
-
-After creating wrappers, wire commands into `ai/core/runbook.md` under **Memory management**.
-Use the platform-appropriate command style based on what was detected, but always show both:
-
-```markdown
-## Memory management
-
-Refresh indexes after ai/ edits:
-- Mac/Linux: `./scripts/refresh-ai-memory.sh`
-- Windows:   `pwsh scripts/refresh-ai-memory.ps1`
-- Direct:    `python3 scripts/refresh-ai-memory.py`
-
-Check memory freshness:
-- Mac/Linux: `./scripts/refresh-ai-memory.sh --check`
-- Windows:   `pwsh scripts/refresh-ai-memory.ps1 -Check`
-- Direct:    `python3 scripts/refresh-ai-memory.py --check`
-
-Compact event log:
-- Mac/Linux: `./scripts/refresh-ai-memory.sh --compact-log`
-- Windows:   `pwsh scripts/refresh-ai-memory.ps1 -CompactLog`
-- Direct:    `python3 scripts/refresh-ai-memory.py --compact-log`
-
-Search memory:
-- Mac/Linux: `./scripts/query-ai-memory.sh "<query>"`
-- Windows:   `pwsh scripts/query-ai-memory.ps1 -Query "<query>"`
-- Direct:    `python3 scripts/query-ai-memory.py "<query>"`
-
-Check doc consistency:
-- Mac/Linux: `./scripts/check-doc-consistency.sh`
-- Windows:   `pwsh scripts/check-doc-consistency.ps1`
-- Direct:    `python3 scripts/check-doc-consistency.py`
-```
-
-Also add to `AGENTS.md` under **Session rules**:
-```markdown
-- After significant ai/ memory edits, run:
-  `python3 scripts/refresh-ai-memory.py` (or platform wrapper)
-- To verify memory is fresh:
-  `python3 scripts/refresh-ai-memory.py --check`
-- For cold context routing:
-  `python3 scripts/query-ai-memory.py "<keywords>"`
-```
-
-**After creating scripts, update `.gitignore`:**
-
-Append the following to `.gitignore` (create it if it does not exist):
-```
-# AI memory derived artifacts — rebuilt by scripts/refresh-ai-memory.py
-ai/indexes/cold-memory.db
-```
-
-The `.json` index files (`docs-index.json`, `files-index.json`, etc.) may be committed if
-the team wants to track memory evolution in git. The SQLite database is always derived and
-should not be committed.
-
-**WP-4 complete.** Update `ai/state/bootstrap-progress.json` marking WP-4 done. Proceed to WP-5.
-
----
-
-### WP-5 — Verify `[BOTH]`
+### WP-4 — Verify `[BOTH]`
 
 After creating all files, report the following. Items marked `[FULL ONLY]` are skipped in
 MINIMUM mode.
@@ -1410,47 +1036,37 @@ MINIMUM mode.
 4. **Standard docs audit** `[FULL ONLY]` — for each of `README.md`, `CONTRIBUTING.md`,
    `CHANGELOG.md`, `RELEASE.md`, `MIGRATION.md`: existed / created / skipped (reason).
 
-5. **Platform wrappers** `[FULL ONLY]` — which wrappers created (`.sh`, `.ps1`, or both),
-   why, and confirmation that `.sh` files have execute permission.
+5. **Benchmark file** `[FULL ONLY]` — created or skipped, and what evidence led to that.
 
-6. **Benchmark file** `[FULL ONLY]` — created or skipped, and what evidence led to that.
+6. **Full file list** `[BOTH]` — every file created or updated, with its line count.
 
-7. **Full file list** `[BOTH]` — every file created or updated, with its line count.
+7. **Write bootstrap record** `[BOTH]` — write `ai/state/bootstrap-progress.md`:
 
-8. **Write bootstrap manifest** `[BOTH]` — write `ai/state/bootstrap-progress.json`:
+```markdown
+# Bootstrap Progress
 
-```json
-{
-  "bootstrapVersion": "1.0",
-  "mode": "FULL",
-  "completedAt": "<ISO 8601 timestamp>",
-  "workPackages": {
-    "WP-1": "complete",
-    "WP-2": "complete",
-    "WP-3": "complete",
-    "WP-4": "complete",
-    "WP-5": "complete"
-  },
-  "filesCreated": ["AGENTS.md", "ai/AGENTS.md", "..."],
-  "unverifiedItems": 0,
-  "hotContextLines": 0,
-  "hotContextBytes": 0
-}
+Mode: FULL
+Completed: <date>
+
+- [x] WP-1: Explore
+- [x] WP-2: Standard docs
+- [x] WP-3: Memory files
+- [x] WP-4: Verify
+
+Unverified items: 0
+Hot context: N lines / N bytes
 ```
 
-   This file lets a future agent verify bootstrap completeness and resume if interrupted.
-
-9. **Suggest git commit** `[BOTH]` — after writing all files, output the following for the
-   user to run if they want to commit the memory system:
+8. **Suggest git commit** `[BOTH]` — output for the user to run if they want to commit:
 
 ```
-git add AGENTS.md ai/ CHANGELOG.md .gitignore
+git add AGENTS.md ai/ CHANGELOG.md
 git commit -m "chore: initialize AI memory system"
 ```
 
    Do not run this automatically. Only suggest it.
 
-10. **Next steps** `[BOTH]` — output a short "what to do next" note:
+9. **Next steps** `[BOTH]` — output:
 
 ```
 Bootstrap complete. AI memory system ready.
@@ -1458,7 +1074,7 @@ Bootstrap complete. AI memory system ready.
 Next session: tell your agent "Read AGENTS.md and follow it."
 The agent will load hot context and pick up from current-state.md.
 
-Suggested first task: review ai/core/ files for accuracy and fill in any [UNVERIFIED] items.
+Suggested first task: review ai/core/ files and verify any [UNVERIFIED] items.
 ```
 
 ---
