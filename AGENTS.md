@@ -82,3 +82,8 @@ End of session:
 - update `ai/state/handoff.md`
 - append significant discoveries to `ai/log/events.jsonl` if useful
 - compact older log history with `scripts/refresh-ai-memory.ps1 -CompactLog` when the active log grows noisy
+
+Changelog:
+- update `CHANGELOG.md` when completing a work package or shipping a feature
+- add entries under `[Unreleased]` using the Keep a Changelog categories (`Added`, `Changed`, `Fixed`, `Removed`)
+- move `[Unreleased]` entries into a versioned block when cutting a release

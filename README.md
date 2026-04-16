@@ -6,8 +6,6 @@ From `List<T>` to query and chart-ready results, without a database.
 Core execution model:
 `query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
 
-> Note: This project is fully AI-built and is maintained as an experiment.
-
 ## Installation
 
 ```xml
@@ -82,6 +80,7 @@ Runnable example project:
   [docs/usecases.md](docs/usecases.md)
 - Need optional runtime tuning, testing, or tooling:
   [docs/advanced-features.md](docs/advanced-features.md)
+- See what has changed: [CHANGELOG.md](CHANGELOG.md)
 
 ## Pick A Path
 

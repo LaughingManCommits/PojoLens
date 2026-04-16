@@ -6,6 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
+5. Next likely task: cut a new release to ship FA/RU cleanup + all April features.
 
 ## Focus
 

@@ -34,7 +34,16 @@
 
 ## Next
 
-- `FastArrayQuerySupport` cleanup complete; `TODO.md` cleared.
+- No active engineering backlog; `TODO.md` is empty.
 - Orchestration: revisit only if a new product slice reveals an uncovered gap.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
+- Release: consider cutting next version to ship FA/RU cleanup and all April features.
+
+## Housekeeping (2026-04-16)
+
+- `TODO.md` cleared (all work done).
+- AI-experiment disclaimer removed from `README.md`.
+- `CHANGELOG.md` created; covers `[Unreleased]` and `[2026.03.28.1919]`.
+- `CHANGELOG.md` linked from README "Start Here".
+- `AGENTS.md` updated: changelog update added to end-of-session rules.
