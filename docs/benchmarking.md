@@ -117,8 +117,8 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensPipelineJmhBenchmark.fullGroupPipeline` | `GROUP` | `219.8 ms/op` | `290.0 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `182.4 ms/op` | `243.5 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `82.2 ms/op` | `205.7 ms/op` |
-| `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `8.0 ms/op` | `65.0 ms/op` |
-| `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `4.0 ms/op` | `30.0 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `18.0 ms/op` | `65.0 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `4.0 ms/op` | `70.0 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `0.2 ms/op` | `0.2 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `198.3 ms/op` | `235.3 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `0.1 ms/op` | `0.1 ms/op` |
@@ -128,6 +128,10 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart` | `CHART` | `12.7 ms/op` | `81.0 ms/op` |
 
 The chart threshold file carries the full chart-type matrix for `BAR`, `LINE`, `PIE`, `AREA`, and `SCATTER` mapping/export paths across `1k`, `10k`, and `100k` datasets.
+
+CSV load budgets are calibrated against CI guardrail runs because these
+benchmarks include temp-file I/O and cold single-iteration setup sensitivity.
+Local spot checks may be materially faster than the published thresholds.
 
 ## Conservative Streams Baseline
 

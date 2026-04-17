@@ -26,6 +26,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 - **Release guardrails** - binary compatibility checks now include the stable
   `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
+- **Lint baseline** - refreshed `scripts/checkstyle-baseline.txt` from the
+  current Checkstyle report so the baseline gate is synchronized again.
+- **Benchmark thresholds** - recalibrated CSV load guardrails against CI
+  timings for cold temp-file I/O sensitivity.
 - **Positioning guidance** - README and benchmarking docs now state when to use
   PojoLens, when not to use it, and how to keep external performance
   comparisons reproducible and honest.

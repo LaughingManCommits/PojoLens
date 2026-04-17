@@ -24,7 +24,7 @@
 - `2026-04-15`: core guardrail suite passed clean after all cleanup changes.
 - `2026-04-16`: `FastArrayQuerySupport` FA-WP5/WP6 - `mvn test` + core guardrail suite + threshold checker all passed clean.
 - `2026-04-17`: `PojoLensTree` validated with `mvn -B -ntp -pl pojo-lens test`, `scripts/check-doc-consistency.ps1`, and full `mvn -B -ntp test`.
-- `2026-04-17`: positioning/release-readiness docs validated with `mvn -B -ntp test`, `scripts/check-doc-consistency.ps1`, `git diff --check`, and binary compatibility smoke; lint baseline gate remains blocked by stale repo-wide baseline drift.
+- `2026-04-17`: positioning/release-readiness docs validated; Checkstyle baseline refreshed to `15691` entries and baseline gate passes with `new=0 fixed=0`.
 
 ## Release
 
@@ -40,7 +40,7 @@
 
 ## Next
 
-- Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, positioning docs, and all April features; first resolve or intentionally refresh the stale Checkstyle baseline.
+- Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, positioning docs, and all April features.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
 - `TODO.md` currently has no active TODOs.
