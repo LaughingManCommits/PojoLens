@@ -78,12 +78,19 @@ jobs:
           TAG="$(git tag --list 'release-*' --sort=-v:refname | head -n 1)"
           if [ -z "$TAG" ]; then
             echo "No public release tag found; skipping binary compatibility check until the first release-* baseline exists."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            if [ -z "$TAG" ]; then
+              echo "skip=true"
+            else
+              echo "skip=false"
+              echo "baseline_tag=$TAG"
+              echo "baseline_version=${TAG#release-}"
+            fi
+          } >> "$GITHUB_OUTPUT"
+          if [ -z "$TAG" ]; then
             exit 0
           fi
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "baseline_tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "baseline_version=${TAG#release-}" >> "$GITHUB_OUTPUT"
       - name: Build and install baseline artifact
         if: steps.baseline.outputs.skip != 'true'
         shell: bash
@@ -103,14 +110,16 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "## Binary Compatibility" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.baseline.outputs.skip }}" = "true" ]; then
-            echo "- Skipped: no \`release-*\` baseline tag exists yet." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- Baseline tag: \`${{ steps.baseline.outputs.baseline_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Baseline version: \`${{ steps.baseline.outputs.baseline_version }}\`" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## Binary Compatibility"
+            echo ""
+            if [ "${{ steps.baseline.outputs.skip }}" = "true" ]; then
+              echo "- Skipped: no \`release-*\` baseline tag exists yet."
+            else
+              echo "- Baseline tag: \`${{ steps.baseline.outputs.baseline_tag }}\`"
+              echo "- Baseline version: \`${{ steps.baseline.outputs.baseline_version }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   lint-java:
     if: github.ref == 'refs/heads/main'
@@ -146,15 +155,17 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "## SpotBugs Report" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f target/spotbugsXml.xml ]; then
-            COUNT=$(grep -o "<BugInstance" target/spotbugsXml.xml | wc -l | tr -d ' ')
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Bug instances: ${COUNT}" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "- SpotBugs XML report not found." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## SpotBugs Report"
+            if [ -f target/spotbugsXml.xml ]; then
+              COUNT=$(grep -o "<BugInstance" target/spotbugsXml.xml | wc -l | tr -d ' ')
+              echo ""
+              echo "- Bug instances: ${COUNT}"
+            else
+              echo ""
+              echo "- SpotBugs XML report not found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload SpotBugs artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -202,17 +213,19 @@ jobs:
       - name: Publish benchmark summary
         if: always()
         run: |
-          echo "## Benchmark Delta Report" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f target/benchmark-report.csv ]; then
-            echo "| Benchmark | Score | Limit | Delta | Status |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---|---:|---:|---:|---|" >> "$GITHUB_STEP_SUMMARY"
-            tail -n +2 target/benchmark-report.csv | while IFS=, read -r key score limit delta status; do
-              echo "| ${key} | ${score:-} | ${limit:-} | ${delta:-} | ${status:-} |" >> "$GITHUB_STEP_SUMMARY"
-            done
-          else
-            echo "Benchmark report file was not generated." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## Benchmark Delta Report"
+            echo ""
+            if [ -f target/benchmark-report.csv ]; then
+              echo "| Benchmark | Score | Limit | Delta | Status |"
+              echo "|---|---:|---:|---:|---|"
+              tail -n +2 target/benchmark-report.csv | while IFS=, read -r key score limit delta status; do
+                echo "| ${key} | ${score:-} | ${limit:-} | ${delta:-} | ${status:-} |"
+              done
+            else
+              echo "Benchmark report file was not generated."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload benchmark artifact
         uses: actions/upload-artifact@v4
         with:

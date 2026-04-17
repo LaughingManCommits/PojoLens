@@ -24,6 +24,8 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **CI workflow lint** - grouped repeated GitHub output and step-summary
+  redirects in the CI workflow to satisfy ShellCheck `SC2129`.
 - **Release guardrails** - binary compatibility checks now include the stable
   `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
 - **Lint baseline** - refreshed `scripts/checkstyle-baseline.txt` from the
