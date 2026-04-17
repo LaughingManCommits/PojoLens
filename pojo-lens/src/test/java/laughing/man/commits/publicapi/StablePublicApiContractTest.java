@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensCsv;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
+import laughing.man.commits.PojoLensTree;
 
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
@@ -38,6 +39,8 @@ import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.tree.TreeEntry;
+import laughing.man.commits.tree.TreeTraversalBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -46,6 +49,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,6 +72,8 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(PojoLensCsv.class, "readWithReport", Path.class, Class.class);
         requirePublicStaticMethod(PojoLensCsv.class, "readWithReport", Path.class, Class.class, CsvOptions.class);
         requirePublicStaticMethod(PojoLensChart.class, "toChartData", List.class, ChartSpec.class);
+        requirePublicStaticMethod(PojoLensTree.class, "fromFlat", List.class, Function.class, Function.class);
+        requirePublicStaticMethod(PojoLensTree.class, "subtreeOf", List.class, Function.class, Function.class, Object.class);
         requirePublicStaticMethod(PojoLensRuntime.class, "ofPreset", PojoLensRuntimePreset.class);
         requirePublicMethod(PojoLensRuntime.class, "natural");
         requirePublicMethod(PojoLensRuntime.class, "csv");
@@ -90,6 +97,19 @@ public class StablePublicApiContractTest {
         requirePublicMethod(CsvLoadException.class, "report");
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class);
         requirePublicStaticMethod(DatasetBundle.class, "of", List.class, JoinBindings.class);
+    }
+
+    @Test
+    public void stableTreeContractsShouldRemainAvailable() throws Exception {
+        requirePublicMethod(TreeTraversalBuilder.class, "subtree", Object.class);
+        requirePublicMethod(TreeTraversalBuilder.class, "maxDepth", int.class);
+        requirePublicMethod(TreeTraversalBuilder.class, "prune", Predicate.class);
+        requirePublicMethod(TreeTraversalBuilder.class, "leavesOnly");
+        requirePublicMethod(TreeTraversalBuilder.class, "toList");
+        requirePublicMethod(TreeTraversalBuilder.class, "toEntries");
+        requirePublicMethod(TreeEntry.class, "node");
+        requirePublicMethod(TreeEntry.class, "depth");
+        requirePublicMethod(TreeEntry.class, "parent");
     }
 
     @Test

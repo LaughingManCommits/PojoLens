@@ -18,6 +18,7 @@ Core execution model:
 | Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
 | Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim/coercion needs. |
+| Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal fluent, SQL-like, or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
 | CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and split header diagnostics; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
 | Runtime-scoped CSV onboarding defaults | `runtime.csv().read(path, rowType)` | Uses the same bounded adapter while letting delimiter/header/trim/coercion defaults live on `PojoLensRuntime`. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
@@ -49,6 +50,10 @@ Core execution model:
   in-memory rows before normal fluent, SQL-like, or natural execution;
   see [docs/csv.md](csv.md) for options, runtime defaults, type mapping, and
   error model.
+- Use `PojoLensTree` when rows are already in memory but need subtree selection
+  from flat ID/parent-ID fields before entering `PojoLensCore`, `PojoLensSql`,
+  or `PojoLensNatural`; see [docs/tree.md](tree.md) for traversal options,
+  validation, and boundaries.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
   policy instead of the default direct-entry behavior.
 - Use `PojoLensChart` when you already have rows and only need deterministic
@@ -99,6 +104,7 @@ types instead of on a facade:
 - `ReportDefinition.fluent(...)`
 - `DatasetBundle.of(...)`
 - `SnapshotComparison.builder(...)`
+- `PojoLensTree.fromFlat(...)` / `PojoLensTree.subtreeOf(...)`
 
 This keeps the public story narrower: direct engine entry points first, helper
 types only where the use case actually needs them.

@@ -50,11 +50,13 @@ This page is an artifact and packaging reference, not the main onboarding path.
   scoped runtime/configuration surface over the same engine
 - `PojoLensChart`:
   chart-mapping workflow helper over query results
+- `PojoLensTree`:
+  flat parent-ID row-shaping helper before normal query execution
 
 Additional workflow helpers such as `ReportDefinition`, chart presets,
-stats presets, `DatasetBundle`, and schema metadata stay in the runtime
-artifact as convenience layers on top of the core engine; they are not
-separate modules.
+stats presets, `DatasetBundle`, tree traversal, and schema metadata stay in
+the runtime artifact as convenience layers on top of the core engine; they are
+not separate modules.
 
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T15:25:43.587424+02:00",
+  "generatedAt": "2026-04-17T11:28:22.777298+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 117,
-    "testClasses": 117
+    "testJavaFiles": 119,
+    "testClasses": 119
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 105
+      "testJavaFiles": 107
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -124,6 +124,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/testutil/TestDateFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/TimeBucketTestFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/WindowTestFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/tree/PojoLensTreeTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/tree/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/CollectionUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/GroupKeyUtilTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/util/ObjectUtilTest.java",

@@ -57,6 +57,8 @@ The default first-read story stays centered on the core engine:
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `PojoLensTree.fromFlat(List<T>, Function<T,K>, Function<T,K>)`
+- `PojoLensTree.subtreeOf(List<T>, Function<T,K>, Function<T,K>, K)`
 - `PojoLensRuntime`
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
@@ -89,6 +91,14 @@ The default first-read story stays centered on the core engine:
   - `of`, `rows`, `schema`, `explain`, `reportDefinition`
 - `Filter`:
   - `filter`, `iterator`, `stream`, `chart`, `join`
+
+### Tree Row-Shaping Contracts
+
+- `TreeTraversalBuilder<T,K>`:
+  - `subtree`, `maxDepth`, `prune`, `leavesOnly`
+  - `toList`, `toEntries`
+- `TreeEntry<T>`:
+  - `node`, `depth`, `parent`
 
 ### SQL-like Contracts
 
