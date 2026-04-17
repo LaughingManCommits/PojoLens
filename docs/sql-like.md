@@ -132,6 +132,15 @@ Guardrails:
 - max order fields: `20`
 - max select fields: `100`
 
+Input-safety guidance:
+- prefer named parameters over string concatenation for user-provided values
+- expose only approved fields, computed fields, and join sources to callers
+  that author query text
+- keep lint mode and strict parameter typing enabled in paths where query text
+  comes from configuration, request input, or tenant-owned templates
+- treat parse/validation errors as user-facing diagnostics, not as permission
+  checks; authorization should happen before query execution
+
 Sort limitation:
 - `ORDER BY` must use one global direction (all `ASC` or all `DESC`)
 

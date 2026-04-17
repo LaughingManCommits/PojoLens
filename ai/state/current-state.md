@@ -12,6 +12,7 @@
 - `2026-04-15`: `ReflectionUtil` cleanup complete (RU-WP1 through RU-WP5).
 - `2026-04-16`: `FastArrayQuerySupport` cleanup complete; FA-WP1, FA-WP2, FA-WP5, FA-WP6 done; FA-WP4 dropped (HashMap intentional for performance).
 - `2026-04-17`: `PojoLensTree` complete (TREE-WP1 through TREE-WP3): flat parent-ID row shaping, tests, docs, and public surface updates.
+- `2026-04-17`: ecosystem-positioning follow-up complete: binary-compat guardrails cover tree contracts; README, benchmarking, SQL-like, natural, and release docs now state usage boundaries and input-safety guidance.
 
 ## Verified
 
@@ -23,6 +24,7 @@
 - `2026-04-15`: core guardrail suite passed clean after all cleanup changes.
 - `2026-04-16`: `FastArrayQuerySupport` FA-WP5/WP6 - `mvn test` + core guardrail suite + threshold checker all passed clean.
 - `2026-04-17`: `PojoLensTree` validated with `mvn -B -ntp -pl pojo-lens test`, `scripts/check-doc-consistency.ps1`, and full `mvn -B -ntp test`.
+- `2026-04-17`: positioning/release-readiness docs validated with `mvn -B -ntp test`, `scripts/check-doc-consistency.ps1`, `git diff --check`, and binary compatibility smoke; lint baseline gate remains blocked by stale repo-wide baseline drift.
 
 ## Release
 
@@ -34,10 +36,11 @@
 - Bounded subquery/existence parity user-facing complete; SQL-like binding uses shared fluent/core path.
 - Natural remains controlled grammar; static parse/template stay vocabulary-free.
 - `PojoLensTree` is row shaping only; it must not grow parser syntax, graph algorithms, ORM behavior, or a second query engine.
+- User-authored SQL-like/natural text should use params, approved field/source exposure, lint mode, strict typing, and separate authorization before execution.
 
 ## Next
 
-- Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, and all April features.
+- Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, positioning docs, and all April features; first resolve or intentionally refresh the stale Checkstyle baseline.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
 - `TODO.md` currently has no active TODOs.

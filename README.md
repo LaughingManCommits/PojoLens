@@ -68,6 +68,19 @@ Runnable example project:
 - Use [docs/advanced-features.md](docs/advanced-features.md) only after the
   core query path is already in place.
 
+## When Not To Use PojoLens
+
+- Use a database query layer such as jOOQ, Spring Data, JPA Criteria, or raw
+  SQL when the data should be filtered, joined, paged, locked, or aggregated by
+  the database before it is loaded into memory.
+- Use an indexed collection/search library when the main problem is repeated
+  large-scale lookup over a mutable indexed store.
+- Use plain Java Streams when the query is a tiny code-owned transformation
+  that does not need reusable query contracts, text queries, diagnostics,
+  grouping/window helpers, or report/chart output.
+- Use object-mapping libraries when the goal is DTO/entity conversion rather
+  than querying already-loaded rows.
+
 ## Start Here
 
 - Need to choose the default query/runtime entry path:

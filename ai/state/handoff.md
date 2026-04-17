@@ -10,20 +10,19 @@
 
 ## Focus
 
-- `ReflectionUtil` cleanup complete: RU-WP1 through RU-WP5 done.
-- `FastArrayQuerySupport` cleanup complete: FA-WP1, FA-WP2, FA-WP5, FA-WP6 done; FA-WP3 dropped (child values must be stored); FA-WP4 dropped (HashMap intentional on hot lookup index).
-- Scatter allocation concern retired: warmed `10k`/`100k` GC checks passed clean; baselines recorded.
 - `PojoLensTree` complete: TREE-WP1 through TREE-WP3 implemented and documented; `TODO.md` has no active TODOs.
+- Ecosystem-positioning follow-up complete: README says when not to use PojoLens, benchmarking docs define honest comparison boundaries, SQL-like/natural docs include input-safety guidance, and binary-compat includes tree contracts.
+- Release is next: ship April feature/docs work after resolving or intentionally refreshing the stale Checkstyle baseline.
 
 ## Facts
 
 - `2026-04-17`: `PojoLensTree` root facade added with `fromFlat(...)` and `subtreeOf(...)`.
 - `2026-04-17`: `TreeTraversalBuilder` supports subtree, maxDepth, prune, leavesOnly, toList, and toEntries.
-- `2026-04-17`: `TreeEntry<T>` exposes node/depth/parent traversal metadata.
-- `2026-04-17`: Tree semantics are ID-based and deterministic: non-null unique IDs, orphan roots, parent-ID cycle failure, source-order roots/siblings, BFS output.
-- `2026-04-15`: `ReflectionUtil` - `isPlatformType` renamed to `isUserDefinedType`; dead `extractQueryFields`/`buildSchema` removed; final fields included in `DirectFieldReadPlan`; `collectFieldGraph` uses array-backed path stack; `buildMutableFieldByNameMap` uses `LinkedHashMap`.
-- `2026-04-15`: `FastArrayQuerySupport` - stream `findFirst()` replaced with direct iterator; `visitingComputedNames` allocated once per `compileJoinPlan` call.
-- `2026-04-16`: `FastArrayQuerySupport` - dead 3-arg `orderRows` deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed`.
+- `2026-04-17`: Tree semantics are deterministic: non-null unique IDs, orphan roots, cycle failure, source-order roots/siblings, BFS output, and optional `TreeEntry<T>` metadata.
+- `2026-04-17`: `pojo-lens/pom.xml` binary-compat includes `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry`.
+- `2026-04-17`: SQL-like/natural user-authored query guidance is params first, approved field/source exposure, lint mode, strict typing, and external authorization.
+- `2026-04-15`: `ReflectionUtil` cleanup complete; direct field reads include final fields and field-graph traversal allocates less.
+- `2026-04-16`: `FastArrayQuerySupport` cleanup complete; hot-path iterator/allocation cleanup and dead overload deletion done.
 - `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
 - Correlated/scalar subqueries and broad SQL planning stay opt-in only.
@@ -33,7 +32,7 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-17` full `mvn -B -ntp test` and `scripts/check-doc-consistency.ps1` passed.
+- Last validation: `2026-04-17` `mvn -B -ntp test`, `scripts/check-doc-consistency.ps1`, `git diff --check`, and quoted binary-compat smoke passed; lint profile ran but baseline gate still fails from stale repo-wide baseline drift.
 
 ## Cold Pointers
 

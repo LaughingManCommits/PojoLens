@@ -24,6 +24,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **Release guardrails** - binary compatibility checks now include the stable
+  `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
+- **Positioning guidance** - README and benchmarking docs now state when to use
+  PojoLens, when not to use it, and how to keep external performance
+  comparisons reproducible and honest.
+- **Input-safety guidance** - SQL-like and natural docs now call out parameter
+  binding, allowed-field exposure, lint mode, strict typing, and authorization
+  boundaries for user-authored query text.
 - **`ReflectionUtil` cleanup** — renamed `isPlatformType` → `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
 - **`FastArrayQuerySupport` cleanup** — replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
 
