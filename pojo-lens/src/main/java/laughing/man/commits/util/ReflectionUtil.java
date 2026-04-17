@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,7 +19,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,6 +36,7 @@ public final class ReflectionUtil {
 
     private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
@@ -407,6 +408,25 @@ public final class ReflectionUtil {
         );
     }
 
+    public static DirectFieldReadPlan compileDirectFieldReadPlan(Class<?> root,
+                                                                 Collection<String> selectedFieldNames) {
+        if (root == null) {
+            throw new IllegalArgumentException("root must not be null");
+        }
+        List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
+        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
+        for (String fieldName : normalizedSelection) {
+            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
+                continue;
+            }
+            Field field = findReadableField(root, fieldName);
+            if (field != null) {
+                selectedFields.put(fieldName, field);
+            }
+        }
+        return new DirectFieldReadPlan(root, selectedFields);
+    }
+
     public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
         if (bean == null || plan == null) {
             return new Object[0];
@@ -465,13 +485,33 @@ public final class ReflectionUtil {
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
         List<Field> fields = getMutableFields(clazz);
-        Map<String, Field> byName = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
 
         for (int i = 0; i < fields.size(); i++) {
             Field field = fields.get(i);
             byName.put(field.getName(), field);
         }
 
+        return byName;
+    }
+
+    private static Field findReadableField(Class<?> clazz, String fieldName) {
+        return READABLE_FIELD_BY_NAME_CACHE
+                .computeIfAbsent(clazz, ReflectionUtil::buildReadableFieldByNameMap)
+                .get(fieldName);
+    }
+
+    private static Map<String, Field> buildReadableFieldByNameMap(Class<?> clazz) {
+        Field[] declaredFields = clazz.getDeclaredFields();
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY, declaredFields.length * 2));
+        for (int i = 0; i < declaredFields.length; i++) {
+            Field field = declaredFields[i];
+            int mods = field.getModifiers();
+            if (!Modifier.isStatic(mods) && !field.isAnnotationPresent(Exclude.class)) {
+                field.setAccessible(true);
+                byName.put(field.getName(), field);
+            }
+        }
         return byName;
     }
 
@@ -494,7 +534,7 @@ public final class ReflectionUtil {
                 || wrapped == ZonedDateTime.class;
     }
 
-    private static boolean isPlatformType(Class<?> type) {
+    private static boolean isUserDefinedType(Class<?> type) {
         Package pkg = type.getPackage();
         if (pkg == null) {
             return true;
@@ -507,7 +547,7 @@ public final class ReflectionUtil {
     }
 
     private static boolean isTraversableType(Class<?> type) {
-        return type != null && !isSimpleType(type) && !type.isEnum() && isPlatformType(type);
+        return type != null && !isSimpleType(type) && !type.isEnum() && isUserDefinedType(type);
     }
 
     private static FieldGraphDescriptor fieldGraph(Class<?> root) {
@@ -516,7 +556,8 @@ public final class ReflectionUtil {
 
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
         ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
-        collectFieldGraph(root, "", List.of(), new LinkedHashSet<>(), 0, flattenedFields);
+        Field[] pathStack = new Field[MAX_FIELD_GRAPH_DEPTH + 1];
+        collectFieldGraph(root, "", pathStack, 0, new LinkedHashSet<>(), flattenedFields);
         LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
         ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
         for (int i = 0; i < flattenedFields.size(); i++) {
@@ -529,9 +570,9 @@ public final class ReflectionUtil {
 
     private static void collectFieldGraph(Class<?> type,
                                           String prefix,
-                                          List<Field> path,
-                                          Set<Class<?>> activePath,
+                                          Field[] pathStack,
                                           int depth,
+                                          Set<Class<?>> activePath,
                                           List<FlattenedFieldDescriptor> flattenedFields) {
         if (type == null) {
             return;
@@ -555,41 +596,20 @@ public final class ReflectionUtil {
                 Field field = fields.get(i);
                 String qualifiedName = qualify(prefix, field.getName());
                 Class<?> fieldType = wrapPrimitive(field.getType());
-                List<Field> fieldPath = appendPath(path, field);
+                pathStack[depth] = field;
 
                 if (isSimpleType(fieldType) || fieldType.isEnum()) {
                     flattenedFields.add(new FlattenedFieldDescriptor(
                             qualifiedName,
-                            new ResolvedFieldPath(fieldPath, fieldType, true)
+                            new ResolvedFieldPath(List.of(Arrays.copyOf(pathStack, depth + 1)), fieldType, true)
                     ));
                 } else if (isTraversableType(fieldType)) {
-                    collectFieldGraph(fieldType, qualifiedName, fieldPath, activePath, depth + 1, flattenedFields);
+                    collectFieldGraph(fieldType, qualifiedName, pathStack, depth + 1, activePath, flattenedFields);
                 }
             }
         } finally {
             activePath.remove(type);
         }
-    }
-
-    private static List<String> buildSchema(List<FlattenedFieldDescriptor> flattenedFields) {
-        List<String> names = new ArrayList<>(flattenedFields.size());
-        for (int i = 0; i < flattenedFields.size(); i++) {
-            names.add(flattenedFields.get(i).fieldName());
-        }
-        return Collections.unmodifiableList(names);
-    }
-
-    private static List<QueryField> extractQueryFields(Object bean,
-                                                       List<FlattenedFieldDescriptor> flattenedFields) throws IllegalAccessException {
-        List<QueryField> fields = new ArrayList<>(flattenedFields.size());
-        for (int i = 0; i < flattenedFields.size(); i++) {
-            FlattenedFieldDescriptor flattenedField = flattenedFields.get(i);
-            QueryField field = new QueryField();
-            field.setFieldName(flattenedField.fieldName());
-            field.setValue(readResolvedFieldValue(bean, flattenedField.fieldPath()));
-            fields.add(field);
-        }
-        return fields;
     }
 
     private static List<FlattenedFieldDescriptor> selectedFlattenedFields(FieldGraphDescriptor descriptor,
@@ -636,13 +656,6 @@ public final class ReflectionUtil {
             return null;
         }
         return fieldPath.read(bean);
-    }
-
-    private static List<Field> appendPath(List<Field> path, Field field) {
-        ArrayList<Field> fieldPath = new ArrayList<>(path.size() + 1);
-        fieldPath.addAll(path);
-        fieldPath.add(field);
-        return fieldPath;
     }
 
     private static ResolvedFieldPath resolveFieldPath(Class<?> rootType, String fieldName) {
@@ -1067,6 +1080,108 @@ public final class ReflectionUtil {
 
         private ResolvedFieldPath[] fieldPaths() {
             return fieldPaths;
+        }
+    }
+
+    public static final class DirectFieldReadPlan {
+        private final Class<?> rootType;
+        private final Map<String, Field> fields;
+
+        private DirectFieldReadPlan(Class<?> rootType, Map<String, Field> fields) {
+            this.rootType = rootType;
+            this.fields = Collections.unmodifiableMap(new LinkedHashMap<>(fields));
+        }
+
+        public boolean canRead(Object row) {
+            return row != null && rootType.isInstance(row);
+        }
+
+        public boolean hasField(String fieldName) {
+            return fields.containsKey(fieldName);
+        }
+
+        public boolean isPrimitiveField(String fieldName) {
+            Field field = fields.get(fieldName);
+            return field != null && field.getType().isPrimitive();
+        }
+
+        public boolean isNumericPrimitiveField(String fieldName) {
+            Field field = fields.get(fieldName);
+            return field != null && isNumericPrimitive(field.getType());
+        }
+
+        public Object readValue(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            return field == null ? null : field.get(row);
+        }
+
+        public String readPrimitiveAsString(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            if (field == null || !field.getType().isPrimitive()) {
+                return null;
+            }
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return String.valueOf(field.getInt(row));
+            }
+            if (fieldType == long.class) {
+                return String.valueOf(field.getLong(row));
+            }
+            if (fieldType == double.class) {
+                return String.valueOf(field.getDouble(row));
+            }
+            if (fieldType == float.class) {
+                return String.valueOf(field.getFloat(row));
+            }
+            if (fieldType == short.class) {
+                return String.valueOf(field.getShort(row));
+            }
+            if (fieldType == byte.class) {
+                return String.valueOf(field.getByte(row));
+            }
+            if (fieldType == boolean.class) {
+                return String.valueOf(field.getBoolean(row));
+            }
+            if (fieldType == char.class) {
+                return String.valueOf(field.getChar(row));
+            }
+            return null;
+        }
+
+        public Double readNumericPrimitiveAsDouble(Object row, String fieldName) throws IllegalAccessException {
+            Field field = fields.get(fieldName);
+            if (field == null) {
+                return null;
+            }
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return (double) field.getInt(row);
+            }
+            if (fieldType == long.class) {
+                return (double) field.getLong(row);
+            }
+            if (fieldType == double.class) {
+                return field.getDouble(row);
+            }
+            if (fieldType == float.class) {
+                return (double) field.getFloat(row);
+            }
+            if (fieldType == short.class) {
+                return (double) field.getShort(row);
+            }
+            if (fieldType == byte.class) {
+                return (double) field.getByte(row);
+            }
+            return null;
+        }
+
+        private static boolean isNumericPrimitive(Class<?> fieldType) {
+            return fieldType == int.class
+                    || fieldType == long.class
+                    || fieldType == double.class
+                    || fieldType == float.class
+                    || fieldType == short.class
+                    || fieldType == byte.class;
         }
     }
 }

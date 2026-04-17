@@ -41,7 +41,7 @@ final class FastArrayQuerySupport {
             return null;
         }
 
-        Integer joinIndex = builder.getJoinSourceBeansForExecution().keySet().stream().findFirst().orElse(null);
+        Integer joinIndex = builder.getJoinSourceBeansForExecution().keySet().iterator().next();
         if (joinIndex == null) {
             return null;
         }
@@ -152,7 +152,7 @@ final class FastArrayQuerySupport {
                 || !builder.getWindows().isEmpty()) {
             return false;
         }
-        Join joinMethod = builder.getJoinMethods().values().stream().findFirst().orElse(null);
+        Join joinMethod = builder.getJoinMethods().values().iterator().next();
         return Join.LEFT_JOIN.equals(joinMethod) || Join.INNER_JOIN.equals(joinMethod);
     }
 
@@ -170,6 +170,7 @@ final class FastArrayQuerySupport {
         LinkedHashSet<String> parentSelected = new LinkedHashSet<>();
         LinkedHashSet<String> childSelected = new LinkedHashSet<>();
         LinkedHashSet<String> neededComputedNames = new LinkedHashSet<>();
+        LinkedHashSet<String> visitingComputedNames = new LinkedHashSet<>();
 
         if (!addFieldReference(builder.getJoinParentFields().get(joinIndex),
                 parentFieldTypes,
@@ -178,7 +179,7 @@ final class FastArrayQuerySupport {
                 parentSelected,
                 childSelected,
                 neededComputedNames,
-                new LinkedHashSet<>())) {
+                visitingComputedNames)) {
             return null;
         }
         if (!addFieldReference(builder.getJoinChildFields().get(joinIndex),
@@ -188,7 +189,7 @@ final class FastArrayQuerySupport {
                 parentSelected,
                 childSelected,
                 neededComputedNames,
-                new LinkedHashSet<>())) {
+                visitingComputedNames)) {
             return null;
         }
 
@@ -198,7 +199,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
         if (!addConfiguredFieldReferences(builder.getFilterFields().values(),
@@ -207,7 +209,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
         if (!addConfiguredFieldReferences(builder.getOrderFields().values(),
@@ -216,7 +219,8 @@ final class FastArrayQuerySupport {
                 builder.getComputedFieldRegistry(),
                 parentSelected,
                 childSelected,
-                neededComputedNames)) {
+                neededComputedNames,
+                visitingComputedNames)) {
             return null;
         }
 
@@ -312,7 +316,8 @@ final class FastArrayQuerySupport {
                                                         ComputedFieldRegistry registry,
                                                         Set<String> parentSelected,
                                                         Set<String> childSelected,
-                                                        Set<String> neededComputedNames) {
+                                                        Set<String> neededComputedNames,
+                                                        Set<String> visitingComputedNames) {
         for (String fieldName : configuredFields) {
             if (!addFieldReference(fieldName,
                     parentFieldTypes,
@@ -321,7 +326,7 @@ final class FastArrayQuerySupport {
                     parentSelected,
                     childSelected,
                     neededComputedNames,
-                    new LinkedHashSet<>())) {
+                    visitingComputedNames)) {
                 return false;
             }
         }
@@ -631,8 +636,8 @@ final class FastArrayQuerySupport {
         if (ruleGroups.length == 0) {
             return true;
         }
-        boolean andMatched = false;
-        boolean andFailed = false;
+        boolean andAnyPassed = false;
+        boolean andAnyFailed = false;
         boolean orMatched = false;
 
         outer:
@@ -646,19 +651,20 @@ final class FastArrayQuerySupport {
                 boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
                 if (Separator.AND.equals(rule.separator)) {
                     if (matched) {
-                        andMatched = true;
+                        andAnyPassed = true;
                     } else {
-                        andFailed = true;
+                        andAnyFailed = true;
                     }
                 } else if (Separator.OR.equals(rule.separator) && matched) {
                     orMatched = true;
                 }
-                if (andFailed && orMatched) {
+                if (andAnyFailed && orMatched) {
                     break outer;
                 }
             }
         }
-        return (andMatched && !andFailed) || orMatched;
+        // Row passes if all AND rules passed (none failed) OR any OR rule matched
+        return (andAnyPassed && !andAnyFailed) || orMatched;
     }
 
     private static boolean isNumericClause(Clauses clause) {
@@ -683,10 +689,6 @@ final class FastArrayQuerySupport {
             case SMALLER -> left < right;
             default -> false;
         };
-    }
-
-    private static List<Object[]> orderRows(List<Object[]> rows, Sort sortMethod, FilterExecutionPlan plan) {
-        return orderRows(rows, sortMethod, plan, null);
     }
 
     private static List<Object[]> orderRows(List<Object[]> rows,

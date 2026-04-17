@@ -6,45 +6,32 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
+5. Next likely task: cut a new release to ship FA/RU cleanup + all April features.
 
 ## Focus
 
-- The orchestration spike is complete through `WP18`.
-- CSV is complete through `CSV-WP5`; `CSV-WP6` remains deferred.
-- Engine limitation work done: bounded windows, aggregate `ORDER BY`, fluent
-  prepare, joined/`EXISTS` subqueries, natural cleanup, and SQL-like lowering.
+- `ReflectionUtil` cleanup complete: RU-WP1 through RU-WP5 done.
+- `FastArrayQuerySupport` cleanup complete: FA-WP1, FA-WP2, FA-WP5, FA-WP6 done; FA-WP3 dropped (child values must be stored); FA-WP4 dropped (HashMap intentional — hot lookup index, LinkedHashMap overhead not acceptable).
+- Scatter allocation concern retired: warmed `10k`/`100k` GC checks passed clean; baselines recorded.
 
 ## Facts
 
+- `2026-04-15`: `ReflectionUtil` — `isPlatformType` → `isUserDefinedType`; dead `extractQueryFields`/`buildSchema` removed; `final` fields included in `DirectFieldReadPlan` via `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses array-backed path stack; `HashMap` → `LinkedHashMap` in `buildMutableFieldByNameMap`.
+- `2026-04-15`: `FastArrayQuerySupport` — stream `findFirst()` → direct iterator; `visitingComputedNames` allocated once per `compileJoinPlan` call.
+- `2026-04-16`: `FastArrayQuerySupport` — dead 3-arg `orderRows` deleted; `andMatched`/`andFailed` → `andAnyPassed`/`andAnyFailed` with clarifying comment.
+- `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
 - `2026-04-13`: `PojoLensCore.prepare(...)` returns immutable `FluentQueryDefinition<T>` with rows/schema/explain and `ReportDefinition` promotion.
-- `2026-04-13`: SQL-like bounded `IN`/`EXISTS` subqueries work for
-  self/named/joined sources; correlated/scalar/broad SQL remains unsupported.
-- `2026-04-13`: limitation policy requires fluent-led parity; SQL-like/natural
-  are facades, and precomputed user filters are not the parity answer.
-- `2026-04-13`: natural schema vocabulary, `qualify` windows, broader window
-  phrasing/frames, and resolved-delegate caching are done.
-- `2026-04-14`: bounded subquery/existence parity is closed across fluent,
-  SQL-like, and natural; natural uses bounded `query ... end query` grammar
-  with nested runtime-vocabulary resolution.
-- `2026-04-14`: SQL-like simple bounded `WHERE ... IN (select ...)` and
-  `WHERE [NOT] EXISTS (select ...)` predicates now lower onto fluent/core
-  subquery predicates.
-- `2026-04-14`: grouped fluent `QueryRule.inSubquery(...)`, `exists(...)`,
-  and `notExists(...)` are done; SQL-like boolean `OR`/DNF subqueries lower
-  onto fluent/core, and public docs are aligned.
-- No default bounded subquery parity slice remains; keep correlated/scalar
-  subqueries and broad SQL planning opt-in only.
+- No default bounded subquery parity slice remains; correlated/scalar subqueries and broad SQL planning stay opt-in only.
 
 ## Validate
 
-- After code changes: `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
 
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
-- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`, `pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java`
-- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`, `pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/CsvLoadJmhBenchmark.java`
+- CSV: `TODO.md`, `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`
+- benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`
 - orchestration: `ai/orchestrator/README.md`, `scripts/claude-orchestrator.py`
-- limitation spike: `SPIKE-LIMITATIONS.md`
