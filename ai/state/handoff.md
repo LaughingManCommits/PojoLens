@@ -6,13 +6,14 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: cut a new release to ship FA/RU cleanup + all April features.
+5. Next likely task: cut release, then start TREE-WP1.
 
 ## Focus
 
 - `ReflectionUtil` cleanup complete: RU-WP1 through RU-WP5 done.
 - `FastArrayQuerySupport` cleanup complete: FA-WP1, FA-WP2, FA-WP5, FA-WP6 done; FA-WP3 dropped (child values must be stored); FA-WP4 dropped (HashMap intentional — hot lookup index, LinkedHashMap overhead not acceptable).
 - Scatter allocation concern retired: warmed `10k`/`100k` GC checks passed clean; baselines recorded.
+- `PojoLensTree` feature designed: TREE-WP1 through TREE-WP4 in `TODO.md`; not started.
 
 ## Facts
 

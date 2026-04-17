@@ -34,11 +34,10 @@
 
 ## Next
 
-- No active engineering backlog; `TODO.md` is empty.
-- Orchestration: revisit only if a new product slice reveals an uncovered gap.
+- `PojoLensTree` feature planned: TREE-WP1 through TREE-WP4 in `TODO.md`.
+- Release: cut next version to ship FA/RU cleanup and all April features before starting tree work.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
-- Release: consider cutting next version to ship FA/RU cleanup and all April features.
 
 ## Housekeeping (2026-04-16)
 
