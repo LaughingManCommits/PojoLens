@@ -118,7 +118,7 @@ Representative core budgets from `benchmarks/thresholds.json`:
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeft` | `JOIN` | `182.4 ms/op` | `243.5 ms/op` |
 | `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `JOIN` | `82.2 ms/op` | `205.7 ms/op` |
 | `CsvLoadJmhBenchmark.csvTypedLoad` | `LOAD` | `18.0 ms/op` | `65.0 ms/op` |
-| `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `4.0 ms/op` | `70.0 ms/op` |
+| `CsvLoadJmhBenchmark.csvTypedLoadMultiline` | `LOAD` | `8.0 ms/op` | `70.0 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseOnly` | `PARSE` | `0.2 ms/op` | `0.2 ms/op` |
 | `SqlLikePipelineJmhBenchmark.parseAndFilter` | `FILTER` | `198.3 ms/op` | `235.3 ms/op` |
 | `SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead` | `CACHE` | `0.1 ms/op` | `0.1 ms/op` |
