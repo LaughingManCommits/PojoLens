@@ -132,6 +132,8 @@ marker.
 - [ ] Docs are synced (`README`, `MIGRATION`, `RELEASE`, `docs/*.md`).
 - [ ] If this is the first public `release-*` tag, binary compatibility
       enforcement is now expected to start from `release-*` baselines in CI.
+- [ ] Stable public entry points in `docs/public-api-stability.md` are covered
+      by the `binary-compat` profile include list in `pojo-lens/pom.xml`.
 - [ ] SQL-like limitations text is still accurate: supports uncorrelated
       `WHERE ... IN (select ...)` subqueries, bounded uncorrelated
       `WHERE [NOT] EXISTS (select ...)` subqueries, and subquery `JOIN`

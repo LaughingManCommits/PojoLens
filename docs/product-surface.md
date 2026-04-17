@@ -43,6 +43,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
+| Tree row shaping | `Workflow helper` | Deterministic subtree selection from flat parent-ID POJO lists before normal query execution | `PojoLensTree`, `TreeTraversalBuilder`, `TreeEntry` | `Stable` helper contracts | `docs/tree.md`, `docs/entry-points.md` |
 | Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reusable-wrappers.md`, `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
 | Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration, natural-query vocabulary, and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset`, `NaturalVocabulary` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
 | Spring Boot support | `Integration` | Optional framework wiring for Boot applications | `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter` | Optional integration surface | `README.md`, `docs/modules.md` |
@@ -69,6 +70,10 @@ what is core, what is convenience, and what is advanced/tooling surface.
   expanding query `explain(...)` into file-ingestion semantics.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered
   on top of query execution, not separate product pillars.
+- `PojoLensTree` is a workflow helper for flat ID/parent-ID row shaping before
+  query execution. It returns `List<T>` or `TreeEntry<T>` metadata and does not
+  add parser syntax, graph algorithms, persistence behavior, or a second query
+  engine.
 - `ReportDefinition` is the general reusable execution wrapper.
   `FluentQueryDefinition` is the fluent-only immutable prepared query shape for
   reusable code-owned builder recipes.

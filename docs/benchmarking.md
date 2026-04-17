@@ -9,6 +9,28 @@ The benchmark contract for this project is:
 - add conservative external baselines only where semantics are genuinely comparable
 - keep correctness parity in tests, but judge performance work by absolute latency/allocation rather than fluent-vs-SQL-like ratio checks
 
+## External Positioning
+
+Benchmark numbers should explain PojoLens tradeoffs, not claim a universal
+win over unrelated tools.
+
+Use these comparison boundaries:
+- compare with plain Java Streams only for directly equivalent in-memory
+  filter/group/time-bucket workloads
+- compare parser, diagnostics, reusable query contracts, chart/table/report
+  output, and controlled natural text as PojoLens features rather than
+  stream-equivalent operations
+- do not compare PojoLens scan paths against indexed collection libraries as
+  if they solve the same problem; indexed stores optimize repeated lookup at
+  the cost of collection/index setup and ownership
+- do not compare PojoLens against database query layers unless the dataset is
+  already loaded into memory before the query starts
+
+Record list size, query shape, cold versus warm setup, parse cost, projection
+type, allocation (`gc.alloc.rate.norm`), and whether execution includes full
+materialization or short-circuit streaming. Keep source data and commands with
+the benchmark output so release evidence can be reproduced.
+
 ## Benchmark Categories
 
 The current benchmark/reporting layer classifies workloads into these categories:

@@ -20,9 +20,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Aggregate ORDER BY diagnostics** — SQL-like queries now surface useful error messages distinguishing known-raw-field ORDER BY references from unknown-field typos and correctly scope HAVING wording.
 - **Natural joined-schema vocabulary** — runtime `schema(...)` resolves registered vocabulary aliases against projection/source type at explain time; new overloads accept `DatasetBundle` or `JoinBindings` for join-source schema resolution.
 - **Natural QUALIFY** — natural `qualify` accepts controlled inline window phrases, multiple partitions, and supported aggregate ROWS frames; `NaturalQuery` caches resolved delegates by execution shape.
+- **Tree row shaping** — `PojoLensTree` selects deterministic subtrees from flat parent-ID POJO lists before normal fluent or SQL-like execution, with optional depth metadata through `TreeEntry`.
 
 ### Changed
 
+- **Release guardrails** - binary compatibility checks now include the stable
+  `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
+- **Positioning guidance** - README and benchmarking docs now state when to use
+  PojoLens, when not to use it, and how to keep external performance
+  comparisons reproducible and honest.
+- **Input-safety guidance** - SQL-like and natural docs now call out parameter
+  binding, allowed-field exposure, lint mode, strict typing, and authorization
+  boundaries for user-authored query text.
 - **`ReflectionUtil` cleanup** — renamed `isPlatformType` → `isUserDefinedType`; removed dead `extractQueryFields` and `buildSchema` methods; `DirectFieldReadPlan` now includes `final` fields via a dedicated `READABLE_FIELD_BY_NAME_CACHE`; `collectFieldGraph` uses an array-backed path stack instead of per-node list allocation; `buildMutableFieldByNameMap` uses `LinkedHashMap` for consistent field ordering.
 - **`FastArrayQuerySupport` cleanup** — replaced `stream().findFirst()` with direct iterator in `canUseFastJoinPath`; `visitingComputedNames` allocated once per `compileJoinPlan` call instead of per field; dead 3-arg `orderRows` overload deleted; `andMatched`/`andFailed` renamed to `andAnyPassed`/`andAnyFailed` with clarifying comment.
 

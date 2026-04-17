@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes a bounded `PojoLensCsv` adapter for loading UTF-8 CSV files into typed rows before they enter the same engine.
+`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV files into typed rows and shaping flat parent-ID lists before they enter the same engine.
 
 Core execution model:
 `query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
@@ -68,6 +68,19 @@ Runnable example project:
 - Use [docs/advanced-features.md](docs/advanced-features.md) only after the
   core query path is already in place.
 
+## When Not To Use PojoLens
+
+- Use a database query layer such as jOOQ, Spring Data, JPA Criteria, or raw
+  SQL when the data should be filtered, joined, paged, locked, or aggregated by
+  the database before it is loaded into memory.
+- Use an indexed collection/search library when the main problem is repeated
+  large-scale lookup over a mutable indexed store.
+- Use plain Java Streams when the query is a tiny code-owned transformation
+  that does not need reusable query contracts, text queries, diagnostics,
+  grouping/window helpers, or report/chart output.
+- Use object-mapping libraries when the goal is DTO/entity conversion rather
+  than querying already-loaded rows.
+
 ## Start Here
 
 - Need to choose the default query/runtime entry path:
@@ -85,7 +98,7 @@ Runnable example project:
 ## Pick A Path
 
 For new code, prefer one default path per job:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
@@ -95,6 +108,7 @@ For new code, prefer one default path per job:
 | Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
 | Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
+| Flat parent-ID rows need subtree selection               | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
@@ -108,8 +122,8 @@ For new code, prefer one default path per job:
   fluent, SQL-like, and controlled plain-English querying over existing Java
   objects.
 - `Workflow helpers`:
-  chart mapping, reusable report/preset wrappers, dataset composition, and
-  schema metadata.
+  chart mapping, tree row shaping, reusable report/preset wrappers, dataset
+  composition, and schema metadata.
 - `Compatibility adapter`:
   boundary-only CSV loading into typed rows via `PojoLensCsv`.
 - `Runtime integration`:
@@ -171,12 +185,30 @@ List<Employee> filtered = PojoLensSql
     .filter(rows, Employee.class);
 ```
 
+### Tree row shaping
+
+```java
+List<Employee> subtree = PojoLensTree.subtreeOf(
+    employees,
+    Employee::getId,
+    Employee::getManagerId,
+    ceoId
+);
+
+List<Employee> rows = PojoLensCore.newQueryBuilder(subtree)
+    .addOrder("salary", 1)
+    .limit(10)
+    .initFilter()
+    .filter(Sort.DESC, Employee.class);
+```
+
 More examples:
 - Fluent queries, grouped predicates, and bounded subqueries:
   [docs/usecases.md](docs/usecases.md)
 - SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
 - Natural queries, joins, bounded subqueries, windows, and templates:
   [docs/natural.md](docs/natural.md)
+- Tree traversal from flat parent-ID rows: [docs/tree.md](docs/tree.md)
 - Charts, reports, and presets: [docs/charts.md](docs/charts.md), [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
 
 ## Capability Snapshot
@@ -204,7 +236,8 @@ rules live in the module docs linked beside each surface.
 ### Workflow helpers
 
 - Chart payload mapping, report definitions, chart presets, stats presets, and
-  tabular schema metadata. See [docs/charts.md](docs/charts.md),
+  tree row shaping, and tabular schema metadata. See [docs/charts.md](docs/charts.md),
+  [docs/tree.md](docs/tree.md),
   [docs/reports.md](docs/reports.md),
   [docs/stats-presets.md](docs/stats-presets.md), and
   [docs/tabular-schema.md](docs/tabular-schema.md).
@@ -239,6 +272,7 @@ rules live in the module docs linked beside each surface.
 - `PojoLensCore`: default for new service-owned fluent queries
 - `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensSql`: default for new SQL-like and template-driven queries
+- `PojoLensTree`: helper for selecting subtrees from flat parent-ID row lists
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
 - `ReportDefinition`: reusable business-query wrapper when the contract itself should be carried around
@@ -298,6 +332,7 @@ with the owning guide.
 ### Core Guides
 
 - CSV boundary adapter guide: [docs/csv.md](docs/csv.md)
+- Tree traversal guide: [docs/tree.md](docs/tree.md)
 - Natural query guide: [docs/natural.md](docs/natural.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Charts: [docs/charts.md](docs/charts.md)

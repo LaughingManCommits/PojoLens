@@ -180,9 +180,12 @@
                                     <include>laughing.man.commits.PojoLensCore</include>
                                     <include>laughing.man.commits.PojoLensSql</include>
                                     <include>laughing.man.commits.PojoLensChart</include>
+                                    <include>laughing.man.commits.PojoLensTree</include>
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>
+                                    <include>laughing.man.commits.tree.TreeTraversalBuilder</include>
+                                    <include>laughing.man.commits.tree.TreeEntry</include>
                                     <include>laughing.man.commits.builder.QueryBuilder</include>
                                     <include>laughing.man.commits.filter.Filter</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeQuery</include>

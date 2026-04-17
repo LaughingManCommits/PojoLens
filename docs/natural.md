@@ -108,6 +108,21 @@ Alias notes:
 - they are ignored only in bounded grammar slots, not stripped globally
 - connector lead-ins lower to `where`; a bare field after them means boolean `true`, and `not <field>` means boolean `false`
 
+## Input Safety
+
+Natural queries are controlled text, not arbitrary conversational execution.
+For user-authored or tenant-authored query text:
+
+- define an explicit `NaturalVocabulary` for approved user-facing field names
+  and aliases
+- prefer named parameters over embedding request values in the query text
+- expose only the source names, joined sources, computed fields, and chart
+  targets that the caller is allowed to use
+- keep lint mode and strict parameter typing enabled when query text comes
+  from configuration, request input, or reusable templates
+- handle parse/validation failures as diagnostics; authorization should happen
+  before query execution
+
 ## Non-goals
 
 - free-form conversational language
