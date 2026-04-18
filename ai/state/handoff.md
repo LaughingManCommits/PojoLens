@@ -6,16 +6,18 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: cut next date-based release.
+5. Next likely task: decide whether to cut a follow-up date-based release for post-`2026.04.17.1834` changes.
 
 ## Focus
 
 - Java 25 CI support and DOC-WP1 through DOC-WP10 are complete.
+- Latest release alignment is complete: docs, examples, release guide, changelog, and consistency checks track `2026.04.17.1834`.
 - `PojoLensTree`, ecosystem-positioning docs, CI warnings, and Checkstyle baseline are complete.
-- Release is next; `TODO.md` has no active TODOs.
+- `TODO.md` has no active TODOs.
 
 ## Facts
 
+- `2026-04-18`: Latest-release alignment updated README/modules snippets, starter example parents, RELEASE baseline, CHANGELOG release section, hot state, and doc consistency scripts to `2026.04.17.1834`.
 - `2026-04-18`: CI runs full Maven tests on Temurin Java `17`, `21`, and `25`.
 - `2026-04-18`: Benchmark docs use dynamic `BENCHMARK_JAR` resolution and doc consistency scripts forbid hardcoded versioned benchmark jar paths.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with optional `TreeEntry<T>` metadata.
@@ -31,7 +33,7 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-18` `git diff --check`, `scripts/check-doc-consistency.ps1`, `py -3 scripts/check-doc-consistency.py`, `py -3 -m py_compile scripts/check-doc-consistency.py`, and `mvn -B -ntp test` passed.
+- Last validation: `2026-04-18` latest-release alignment passed both doc consistency scripts, Python compile, full Maven tests, both starter example builds, and `git diff --check`.
 
 ## Cold Pointers
 

@@ -3,22 +3,38 @@ from __future__ import annotations
 
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+POM = ROOT / "pom.xml"
+README = ROOT / "README.md"
 CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 MIGRATION = ROOT / "MIGRATION.md"
 RELEASE = ROOT / "RELEASE.md"
+MODULES = ROOT / "docs/modules.md"
 SQL_LIKE = ROOT / "docs/sql-like.md"
 BENCHMARKING = ROOT / "docs/benchmarking.md"
 BENCHMARK_MAIN_ARGS = ROOT / "scripts/benchmark-suite-main.args"
+QUICKSTART_POM = ROOT / "examples/spring-boot-starter-quickstart/pom.xml"
+BASIC_POM = ROOT / "examples/spring-boot-starter-basic/pom.xml"
 
 
 def read_text(path: Path) -> str:
     if not path.exists():
         raise SystemExit(f"[doc-check] Missing required file: {path}")
     return path.read_text(encoding="utf-8")
+
+
+def pom_version() -> str:
+    ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+    root = ET.fromstring(read_text(POM))
+    version = root.findtext("m:version", namespaces=ns)
+    if not version:
+        raise SystemExit("[doc-check] Missing pom.xml version")
+    return version.strip()
 
 
 def require_substring(doc: str, path: Path, needle: str, errors: list[str]) -> None:
@@ -37,14 +53,28 @@ def forbid_regex(doc: str, path: Path, pattern: str, errors: list[str]) -> None:
 
 
 def main() -> int:
+    version = pom_version()
+    readme = read_text(README)
     contributing = read_text(CONTRIBUTING)
+    changelog = read_text(CHANGELOG)
     migration = read_text(MIGRATION)
     release = read_text(RELEASE)
+    modules = read_text(MODULES)
     sql_like = read_text(SQL_LIKE)
     benchmarking = read_text(BENCHMARKING)
     benchmark_main_args = read_text(BENCHMARK_MAIN_ARGS)
+    quickstart_pom = read_text(QUICKSTART_POM)
+    basic_pom = read_text(BASIC_POM)
 
     errors: list[str] = []
+
+    require_substring(readme, README, f"<version>{version}</version>", errors)
+    require_substring(modules, MODULES, f"<version>{version}</version>", errors)
+    require_substring(release, RELEASE, f"Maven version: `{version}`", errors)
+    require_substring(release, RELEASE, f"Git tag: `release-{version}`", errors)
+    require_substring(changelog, CHANGELOG, f"## [{version}]", errors)
+    require_substring(quickstart_pom, QUICKSTART_POM, f"<version>{version}</version>", errors)
+    require_substring(basic_pom, BASIC_POM, f"<version>{version}</version>", errors)
 
     require_regex(contributing, CONTRIBUTING, r"BENCHMARK_JAR=.*\*-benchmarks\.jar", errors)
     require_regex(release, RELEASE, r"target/\*-benchmarks\.jar", errors)
