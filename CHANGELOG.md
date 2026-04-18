@@ -22,6 +22,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   product-family names, cache docs, cross-links, and the docs landing page.
 - **CI chart artifacts** - corrected the chart artifact job to run the
   `ChartLibraryInteropTest` selector and upload the module-local PNG outputs.
+- **Backlog** - replaced the completed documentation TODO list with a
+  SQL-like-first public-surface reset that keeps natural as guided text and
+  demotes fluent to internal engine infrastructure.
 
 ---
 

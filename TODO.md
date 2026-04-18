@@ -1,137 +1,158 @@
 # TODO
 
-## DOC-WP1: Fix stale version references
+## SURFACE-WP1: Make SQL-like The Primary Public Query API
 
 **Priority:** High
-**Files:** `docs/public-api-stability.md`, `ai/core/repo-purpose.md`, `docs/benchmarking.md`
+**Goal:** Present SQL-like as the default user-facing query surface.
+
+Context:
+- Most users will prefer a familiar query string over a custom Java builder.
+- SQL-like should be the public face for filtering, ordering, grouping, joins,
+  windows, subqueries, time buckets, charts, schemas, explain, and templates.
+- Java-owned query composition should not require exposing the mutable fluent
+  builder as product API.
 
 Tasks:
-- [x] `public-api-stability.md`: Remove or rewrite "pre-first-release" conditional sections - the first public `release-*` tag has already shipped. Replace with present-tense post-release policy throughout.
-- [x] `repo-purpose.md`: Update version string after next release is cut; consider referencing pom.xml as source of truth rather than embedding the version in prose.
-- [x] `benchmarking.md`: Replace all hardcoded `2026.03.28.1919` jar filenames (~15 occurrences) with a variable or glob pattern (e.g. `target/*-benchmarks.jar`), consistent with the "do not hardcode a specific dated release filename" guidance already in that doc.
+- [ ] Rewrite the README quick start so the first query example is SQL-like.
+- [ ] Make `PojoLensSql.parse(...)`, `PojoLensSql.template(...)`, and runtime
+      SQL-like parsing the recommended default entry points.
+- [ ] Update `docs/entry-points.md`, `docs/usecases.md`, and
+      `docs/product-surface.md` so SQL-like is the primary query story.
+- [ ] Keep examples focused on parameter binding, typed execution, schema,
+      explain, streaming, chart output, and `DatasetBundle` / `JoinBindings`.
+- [ ] Replace public wording that says SQL-like binds into fluent with wording
+      that it lowers into the shared execution engine.
 
-Validate: `scripts/check-doc-consistency.ps1`
+Validate:
+- `scripts/check-doc-consistency.ps1`
+- `py -3 scripts/check-doc-consistency.py`
 
 ---
 
-## DOC-WP2: Fix entry-point omissions in summary sections
+## SURFACE-WP2: Keep Natural As The Guided Text Alternative
 
 **Priority:** High
-**Files:** `README.md`, `docs/usecases.md`, `docs/modules.md`
+**Goal:** Keep natural queries as a controlled non-SQL option without competing
+with SQL-like as the default technical API.
 
 Tasks:
-- [x] `README.md` - `API Entry Points` section: add `PojoLensCsv` entry (currently listed in "Pick A Path" table but absent from the summary).
-- [x] `docs/usecases.md` - Section 7 "Default Calls": add `PojoLensNatural` default call (present in Section 1 path-selection table but absent from the defaults summary).
-- [x] `docs/modules.md` - "Public Runtime Layering" section: add `PojoLensNatural` entry (the third first-class query entry point is missing from this list alongside `PojoLensCore` and `PojoLensSql`).
+- [ ] Position `PojoLensNatural` as guided plain-English query text for users
+      who should not author SQL-like syntax directly.
+- [ ] Keep natural docs explicit about controlled grammar, vocabulary, lint,
+      strict typing, parameter binding, and authorization boundaries.
+- [ ] Replace wording that says natural lowers into fluent with wording that it
+      lowers into the shared execution engine.
+- [ ] Keep natural examples after SQL-like examples in public docs unless the
+      page is specifically about natural queries.
 
-Validate: `scripts/check-doc-consistency.ps1`
+Validate:
+- `scripts/check-doc-consistency.ps1`
+- `py -3 scripts/check-doc-consistency.py`
 
 ---
 
-## DOC-WP3: Remove process text from user-facing docs
+## SURFACE-WP3: Demote Fluent To Internal Engine DSL
+
+**Priority:** High
+**Goal:** Make the fluent builder surface implementation infrastructure, not a
+public product surface.
+
+Context:
+- There are no public users yet, so this is a compatibility reset rather than
+  a staged deprecation.
+- Fluent remains valuable for internal lowering, engine tests, parity checks,
+  benchmarks, and programmatic execution planning.
+- Do not keep a public Java-native builder just because the current mutable
+  builder exists; add a future narrow API only if a real use case proves it.
+
+Tasks:
+- [ ] Remove fluent from the README quick start and recommended public
+      entry-point tables.
+- [ ] Move fluent authoring guidance into an internal engine doc for
+      maintainers.
+- [ ] Update `docs/public-api-stability.md` so `QueryBuilder`,
+      `FilterQueryBuilder`, `Filter`, `QueryRule`, and
+      `FluentQueryDefinition` are not stable public API.
+- [ ] Decide whether `PojoLensCore` disappears from user docs or remains only
+      as an internal-facing bridge.
+- [ ] Remove public `ReportDefinition.fluent(...)` positioning or replace it
+      with a non-builder public contract.
+
+Validate:
+- `scripts/check-doc-consistency.ps1`
+- `py -3 scripts/check-doc-consistency.py`
+
+---
+
+## SURFACE-WP4: Reset Compatibility Guards Around The New Surface
+
+**Priority:** High
+**Goal:** Make tests and binary compatibility enforce the simplified public API.
+
+Tasks:
+- [ ] Remove fluent builder classes from the `binary-compat` include list.
+- [ ] Replace stable public API tests that assert fluent availability with
+      tests for SQL-like, natural, runtime, reports, CSV, tree, chart,
+      cursor, schema, and join-binding surfaces.
+- [ ] Keep internal engine tests for fluent behavior, SQL-like lowering,
+      natural lowering, reports, streaming, joins, windows, and subqueries.
+- [ ] Remove or rewrite public fluent coverage tests so they are not
+      compatibility promises.
+- [ ] Add a guard that prevents `*.internal.*` APIs from being documented as
+      public entry points.
+
+Validate:
+- `mvn -B -ntp test`
+- `mvn -B -ntp -pl pojo-lens -Pbinary-compat "-Dcompat.baseline.version=2026.04.17.1834" -DskipTests verify` after the reset is intentionally reflected.
+- `git diff --check`
+
+---
+
+## SURFACE-WP5: Internalize Or Hide Builder Packages
 
 **Priority:** Medium
-**Files:** `docs/reusable-wrappers.md`, `docs/product-surface.md`
+**Goal:** Put fluent implementation types behind an internal boundary without
+destabilizing SQL-like and natural execution.
 
 Tasks:
-- [x] `reusable-wrappers.md` - "Overlap And Disposition" section: remove the final two sentences ("No wrapper is a current deprecation candidate. Further wrapper reduction remains a pre-first-release product decision, not a compatibility constraint.") - these are internal planning notes, not user guidance.
-- [x] `product-surface.md` - "Follow-On Work" section: remove entirely, or replace with a single sentence pointing to `public-api-stability.md` for stability guarantees.
+- [ ] Inventory imports of `laughing.man.commits.builder.*` across main code,
+      tests, docs, examples, and benchmarks.
+- [ ] Choose the target package shape for internal builder types.
+- [ ] Move or wrap builder types so public entry points do not expose mutable
+      internal builders.
+- [ ] Replace public factories that return `QueryBuilder` with public
+      contracts that return rows, reports, charts, schemas, or explain payloads.
+- [ ] Keep benchmarks able to measure the internal engine path without
+      implying it is public API.
 
-Validate: `scripts/check-doc-consistency.ps1`
+Validate:
+- `mvn -B -ntp test`
+- `mvn -B -ntp -pl pojo-lens-benchmarks -am test`
+- `scripts/check-doc-consistency.ps1`
 
 ---
 
-## DOC-WP4: Align product family names
+## SURFACE-WP6: Refresh Docs, Examples, And Release Readiness
 
 **Priority:** Medium
-**Files:** `README.md`, `docs/product-surface.md`
-
-The README "Product Shape" section uses different family names than the canonical `product-surface.md`:
-
-| README label | Canonical (`product-surface.md`) |
-|---|---|
-| `Workflow helpers` | `Workflow helper` |
-| `Runtime integration` | `Integration` |
-| `Advanced and tooling` | `Advanced` + `Tooling` (two families) |
+**Goal:** Prepare the next date-based release around the SQL-like-first public
+surface.
 
 Tasks:
-- [x] Decide canonical names and update the non-canonical file to match. Preferred: keep `product-surface.md` as the authority and update README to match.
+- [ ] Update `README.md`, `RELEASE.md`, `MIGRATION.md`,
+      `docs/product-surface.md`, `docs/entry-points.md`, `docs/usecases.md`,
+      `docs/reusable-wrappers.md`, `docs/reports.md`, and `docs/modules.md`.
+- [ ] Update docs that currently use fluent as the primary example: charts,
+      computed fields, time buckets, tabular schema, tree, telemetry,
+      metamodel, and caching.
+- [ ] Confirm examples do not teach fluent as user API.
+- [ ] Confirm benchmark docs and threshold checks still work after internal
+      package moves.
+- [ ] Update changelog with the SQL-like-first public-surface reset.
+- [ ] Cut a new date-based release only after the reset is validated.
 
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP5: Fix caching.md broken sentence and maxWeight clarity
-
-**Priority:** Medium
-**File:** `docs/caching.md`
-
-Tasks:
-- [x] Fix broken sentence at lines 3-5: move the two bullet-list items (`SQL-like parse cache`, `stats-plan cache`) to immediately follow the colon, before the "This is an advanced policy-tuning surface." line.
-- [x] Clarify `maxWeight=0` inline comment in the defaults table: change `(disabled)` to `(count-based eviction via maxEntries)` to avoid implying eviction is off.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP6: Consolidate natural.md Non-goals / Limitations overlap
-
-**Priority:** Medium
-**File:** `docs/natural.md`
-
-Tasks:
-- [x] Remove "free-form SQL window grammar beyond the supported natural window phrases" from the "Non-goals" section - it duplicates what is already covered in "Current Limitations". Keep it only in Limitations as a technical scope boundary.
-- [x] Verify remaining Non-goals are design-intent statements, not technical scope gaps (those belong in Limitations).
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP7: Add natural query diagnostics pointer to advanced-features.md
-
-**Priority:** Medium
-**File:** `docs/advanced-features.md`
-
-Tasks:
-- [x] In the "Diagnostics And Guardrails" section, add a bullet for natural query `explain()` pointing to `natural.md`. Currently the section only references `sql-like.md` for explain and lint mode, leaving natural query diagnostics undiscoverable from this guide.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP8: Add cross-references to thin docs
-
-**Priority:** Low
-**Files:** `docs/snapshot-comparison.md`, `docs/regression-fixtures.md`, `docs/tabular-schema.md`
-
-Tasks:
-- [x] `snapshot-comparison.md`: add `## See Also` section pointing to `reports.md`, `charts.md`, `entry-points.md`.
-- [x] `regression-fixtures.md`: add `## See Also` section pointing to `entry-points.md`, `sql-like.md`, `reports.md`.
-- [x] `tabular-schema.md`: add `## See Also` section pointing to `reports.md`, `stats-presets.md`, `entry-points.md`.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP9: Minor README fixes
-
-**Priority:** Low
-**File:** `README.md`
-
-Tasks:
-- [x] Fix double "and" in Capability Snapshot -> Workflow helpers bullet: "tree row shaping, and tabular schema metadata" -> "tree row shaping and tabular schema metadata" (remove one "and").
-- [x] Clarify `StatsViewPreset / StatsTable` row in "Pick A Path" table: note that `StatsTablePayload` is the projection-free dashboard variant, separate from the typed `StatsTable<T>`.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP10: Add docs/ landing file
-
-**Priority:** Low
-**File:** `docs/README.md` (new)
-
-Tasks:
-- [x] Create a thin `docs/README.md` that orients users who land directly in the `docs/` folder on GitHub. One sentence pointing to the root README's Documentation Map section is sufficient.
-
-Validate: `scripts/check-doc-consistency.ps1`
+Validate:
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `scripts/check-doc-consistency.ps1`
+- release benchmark guardrails from `docs/benchmarking.md`

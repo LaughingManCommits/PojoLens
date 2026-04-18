@@ -8,23 +8,17 @@
 ## Focus
 
 - `2026-04-18`: CI runtime matrix now tests Java `17`, `21`, and `25`; Maven compiler release remains `17`.
-- `2026-04-18`: Latest-release docs, examples, release guide, changelog, and consistency checks align to `2026.04.17.1834`.
-- `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete; `TODO.md` has no active TODOs.
+- `2026-04-18`: Latest-release docs/examples/checks align to `2026.04.17.1834`.
+- `2026-04-18`: `TODO.md` now tracks a SQL-like-first public-surface reset with fluent internal.
+- `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete.
 - `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
-- `2026-04-14`: limitation work done: bounded windows, aggregate ORDER BY, prepare, bounded subqueries/EXISTS, natural cleanup, SQL-like lowering.
-- `2026-04-16`: `ReflectionUtil` and `FastArrayQuerySupport` cleanup complete.
-- `2026-04-17`: `PojoLensTree` and ecosystem-positioning follow-up complete.
+- April feature work through `PojoLensTree`, FA/RU cleanup, docs, and limitations is complete.
 
 ## Verified
 
-- `2026-04-18`: Java 25 CI matrix update validated locally with `git diff --check`, `scripts/check-doc-consistency.ps1`, and `mvn -B -ntp test` on JDK 17; Java 25 executes in GitHub Actions via `actions/setup-java@v5`.
-- `2026-04-18`: Latest-release alignment validated with both doc consistency scripts, Python compile, full Maven tests, both starter example builds, and `git diff --check`.
-- `2026-04-18`: DOC-WP1 through DOC-WP10 validated with both doc consistency scripts, `git diff --check`, Python compile, and `mvn -B -ntp test`.
-- `2026-04-10`: CSV WP1-WP5 validated including guarded load benchmarks.
-- `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
-- `2026-04-17`: `PojoLensTree` validated with `mvn -B -ntp -pl pojo-lens test`, `scripts/check-doc-consistency.ps1`, and full `mvn -B -ntp test`.
-- `2026-04-17`: positioning/release-readiness docs validated; Checkstyle baseline refreshed to `15691` entries and baseline gate passes with `new=0 fixed=0`.
-- `2026-04-17`: CI workflow warnings addressed: Node 24 action majors, quoted deploy flags, validated chart PNG paths, and passing benchmark thresholds.
+- `2026-04-18`: Java 25 CI, DOC-WP1 through DOC-WP10, and release alignment passed doc checks and Maven tests.
+- `2026-04-17`: `PojoLensTree`, positioning docs, Checkstyle baseline, CI warnings, and benchmark thresholds validated.
+- `2026-04-10` to `2026-04-14`: CSV WP1-WP5 and bounded subquery/existence parity validated.
 
 ## Release
 
@@ -32,15 +26,16 @@
 
 ## Risks
 
-- Fluent/core should lead capability; SQL-like and natural are facades.
-- Bounded subquery/existence parity user-facing complete; SQL-like binding uses shared fluent/core path.
+- SQL-like is becoming the primary public query API; fluent is moving internal.
+- Bounded subquery/existence parity is user-facing complete.
 - Natural remains controlled grammar; static parse/template stay vocabulary-free.
 - `PojoLensTree` is row shaping only; it must not grow parser syntax, graph algorithms, ORM behavior, or a second query engine.
 - User-authored SQL-like/natural text should use params, approved field/source exposure, lint mode, strict typing, and separate authorization before execution.
 
 ## Next
 
-- Release: cut a later date-based version only for post-`2026.04.17.1834` changes.
+- Public API: execute `SURFACE-WP1` through `SURFACE-WP6`.
+- Release: cut a later version after the fluent reset is validated.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
-- `TODO.md` currently has no active TODOs.
+- `TODO.md` active backlog is the SQL-like-first public-surface reset.
