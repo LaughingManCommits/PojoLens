@@ -26,6 +26,7 @@
 - `docs/tabular-schema.md`
 - `docs/telemetry.md`
 - `docs/time-buckets.md`
+- `docs/internal-fluent-engine.md`
 
 ## Process Docs
 

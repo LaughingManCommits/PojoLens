@@ -6,7 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: start `SURFACE-WP3`.
+5. Next likely task: start `SURFACE-WP4`.
 
 ## Focus
 
@@ -16,6 +16,7 @@
 - `TODO.md` tracks `SURFACE-WP1` through `SURFACE-WP6`.
 - `SURFACE-WP1` is complete; SQL-like is now the README and path-selection default.
 - `SURFACE-WP2` is complete; natural is guided controlled text after SQL-like.
+- `SURFACE-WP3` is complete; fluent is documented as internal engine DSL only.
 
 ## Facts
 
@@ -23,6 +24,7 @@
 - `2026-04-18`: Product direction is SQL-like primary, natural guided, fluent internal.
 - `2026-04-18`: Public docs now say SQL-like/natural lower into the shared execution engine, not the fluent pipeline.
 - `2026-04-18`: Natural docs cover controlled grammar, vocabulary, params, diagnostics, lint, strict typing, and authorization.
+- `2026-04-18`: `PojoLensCore` remains an internal bridge pending guard/package reset.
 - `2026-04-18`: Latest-release docs/examples/checks align to `2026.04.17.1834`.
 - `2026-04-18`: CI runs full Maven tests on Temurin Java `17`, `21`, and `25`.
 - `2026-04-18`: Benchmark docs use dynamic `BENCHMARK_JAR` resolution and doc consistency scripts forbid hardcoded versioned benchmark jar paths.
@@ -35,7 +37,7 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-18` `SURFACE-WP2` passed doc checks, focused natural docs tests, memory refresh/check, and `git diff --check`.
+- Last validation: `2026-04-18` `SURFACE-WP3` passed doc checks, POM validate, memory refresh/check, and `git diff --check`.
 
 ## Cold Pointers
 

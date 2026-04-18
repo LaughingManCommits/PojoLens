@@ -6,7 +6,7 @@ repeated execution against different in-memory dataset snapshots.
 It also exposes deterministic table metadata through `schema()`.
 It is the general reusable wrapper in PojoLens and the default reusable-query
 contract for docs and new code.
-SQL-like, natural, and fluent queries can all promote into it.
+SQL-like and natural queries are the public paths into it.
 `ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and
 table-first wrappers that can bridge back to it.
 
@@ -84,50 +84,6 @@ DatasetBundle bundle = DatasetBundle.of(
 List<Company> rows = report.rows(bundle);
 ChartData chart = report.chart(bundle);
 ```
-
-## Fluent Report Definition
-
-Use `PojoLensCore.prepare(...)` when the reusable object should remain
-fluent-only while exposing `rows(...)`, `schema()`, and `explain()`:
-
-```java
-FluentQueryDefinition<DepartmentCount> prepared = PojoLensCore.prepare(
-    DepartmentCount.class,
-    builder -> builder
-        .addRule("active", true, Clauses.EQUAL)
-        .addGroup("department")
-        .addCount("total")
-        .addOrder("department", 1));
-
-List<DepartmentCount> rows = prepared.rows(snapshotA);
-TabularSchema schema = prepared.schema();
-```
-
-Promote it when the same fluent definition should become the general row/chart
-report contract:
-
-```java
-ReportDefinition<DepartmentCount> report = prepared.reportDefinition(
-    ChartSpec.of(ChartType.BAR, "department", "total"));
-```
-
-Use `ReportDefinition.fluent(...)` directly when the reusable business contract
-should start as a report definition:
-
-```java
-ReportDefinition<DepartmentCount> report = ReportDefinition.fluent(
-    DepartmentCount.class,
-    builder -> builder
-        .addRule("active", true, Clauses.EQUAL)
-        .addGroup("department")
-        .addCount("total")
-        .addOrder("department", 1),
-    ChartSpec.of(ChartType.BAR, "department", "total"));
-
-List<DepartmentCount> rows = report.rows(snapshotA);
-```
-
-Fluent report definitions build a fresh `QueryBuilder` for each execution, so the same definition can be reused safely across multiple dataset snapshots.
 
 If the underlying query depends on reusable derived fields, attach the registry at query/build time:
 

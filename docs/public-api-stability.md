@@ -41,16 +41,14 @@ The families and tiers are related, but not the same thing:
 - compatibility adapters are allowed, but they should not become a second
   product story
 
-The default first-read story stays centered on the core engine:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`,
-`PojoLensChart`, and `ReportDefinition<T>`.
+The default first-read story is SQL-like first:
+`PojoLensSql`, `PojoLensNatural`, `PojoLensRuntime`, `PojoLensChart`,
+`PojoLensTree`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
 ### Entry Points
 
-- `PojoLensCore.newQueryBuilder(List<?>)`
-- `PojoLensCore.prepare(Class<T>, Consumer<QueryBuilder>)`
 - `PojoLensNatural.parse(String)`
 - `PojoLensNatural.template(String, String...)`
 - `PojoLensSql.parse(String)`
@@ -62,7 +60,6 @@ The default first-read story stays centered on the core engine:
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
   - `natural()`
-  - `newQueryBuilder(List<?>)`
   - `parse(String)`
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
@@ -73,23 +70,6 @@ The default first-read story stays centered on the core engine:
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
   - `builder(List<?>)`
-
-### Fluent Query Contracts
-
-- `QueryBuilder`:
-  - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`
-  - `addHaving`, `addQualify`, `addJoinBeans`
-  - `addInSubquery`, `addExists`, `addNotExists`
-  - `limit`, `offset`
-  - `initFilter`, `explain`, `schema`
-- `QueryRule`:
-  - `of`
-  - `inSubquery` self-source and explicit-source overloads
-  - `exists` / `notExists` self-source and explicit-source overloads
-- `FluentQueryDefinition<T>`:
-  - `of`, `rows`, `schema`, `explain`, `reportDefinition`
-- `Filter`:
-  - `filter`, `iterator`, `stream`, `chart`, `join`
 
 ### Tree Row-Shaping Contracts
 
@@ -152,6 +132,25 @@ The following remain public, but are treated as advanced:
 - metamodel generation
 - benchmark tooling and threshold helpers
 
+## Internal Engine DSL
+
+The fluent builder surface is being moved out of the stable public API.
+It remains useful as implementation infrastructure while the reset is in
+progress, but it is no longer documented as a stable product surface.
+
+Internal / compatibility-reset candidates:
+
+- `PojoLensCore`
+- `PojoLensRuntime.newQueryBuilder(...)`
+- `QueryBuilder`
+- `FilterQueryBuilder`
+- `Filter`
+- `QueryRule`
+- `FluentQueryDefinition<T>`
+- `ReportDefinition.fluent(...)`
+
+Maintainer guidance lives in [internal-fluent-engine.md](internal-fluent-engine.md).
+
 Cross-module surface guidance is documented in
 [product-surface.md](product-surface.md) and
 [reusable-wrappers.md](reusable-wrappers.md).
@@ -189,3 +188,5 @@ cache. Adapt existing map-shaped join inputs at the boundary with
   baseline behavior.
 - CI binary compatibility checks start from the first `release-*` tag rather
   than from coarse major-version markers.
+- `SURFACE-WP4` will align the stable public API tests and binary compatibility
+  include list with the SQL-like-first surface.

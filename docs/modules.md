@@ -42,8 +42,6 @@ This page is an artifact and packaging reference, not the main onboarding path.
 
 ## Public Runtime Layering
 
-- `PojoLensCore`:
-  core fluent query-engine entry point
 - `PojoLensNatural`:
   core controlled plain-English query-engine entry point
 - `PojoLensSql`:
@@ -56,6 +54,10 @@ This page is an artifact and packaging reference, not the main onboarding path.
   chart-mapping workflow helper over query results
 - `PojoLensTree`:
   flat parent-ID row-shaping helper before normal query execution
+
+`PojoLensCore` remains an internal fluent engine bridge during the
+public-surface reset; do not use it as the public entry point for new docs or
+examples.
 
 Additional workflow helpers such as `ReportDefinition`, chart presets,
 stats presets, `DatasetBundle`, tree traversal, and schema metadata stay in
@@ -94,14 +96,15 @@ This writes `target/pojo-lens-<version>-benchmarks.jar` at repository root.
 The public surface no longer includes the `PojoLens` facade.
 Use the owning type directly:
 
-1. `PojoLens.newQueryBuilder(...)` -> `PojoLensCore.newQueryBuilder(...)`
+1. Prefer `PojoLensSql.parse(...)` or `PojoLensSql.template(...)` for public
+   query authoring.
 2. `PojoLens.parse(...)` -> `PojoLensSql.parse(...)`
 3. `PojoLens.template(...)` -> `PojoLensSql.template(...)`
 4. `PojoLens.toChartData(...)` -> `PojoLensChart.toChartData(...)`
 5. `PojoLens.newRuntime(...)` -> `new PojoLensRuntime()` or
    `PojoLensRuntime.ofPreset(...)`
-6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)`,
-   `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)`
+6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)` or
+   `ReportDefinition.natural(...)`
 7. `PojoLens.bundle(...)` -> `DatasetBundle.of(...)`
 8. `PojoLens.compareSnapshots(...)` -> `SnapshotComparison.builder(...)`
 

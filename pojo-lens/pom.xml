@@ -14,7 +14,7 @@
     <artifactId>pojo-lens</artifactId>
     <packaging>jar</packaging>
     <name>PojoLens</name>
-    <description>POJO-first in-memory query engine for Java with fluent and SQL-like APIs.</description>
+    <description>POJO-first in-memory query engine for Java with SQL-like and guided plain-English APIs.</description>
 
     <dependencies>
         <dependency>

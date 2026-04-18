@@ -41,7 +41,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | --- | --- | --- | --- | --- | --- |
 | SQL-like querying | `Core query engine` | Primary public query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Plain-English querying | `Core query engine` | Guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalTemplate`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
-| Fluent engine DSL | `Core query engine` | Internal execution-planning and parity infrastructure, not the primary public story | `PojoLensCore`, `QueryBuilder`, `QueryRule`, `FluentQueryDefinition`, `Filter` | Pending internal reset | internal engine docs |
+| Fluent engine DSL | `Core query engine` | Internal execution-planning and parity infrastructure, not the primary public story | `PojoLensCore`, `QueryBuilder`, `QueryRule`, `FluentQueryDefinition`, `Filter` | Pending internal reset | `docs/internal-fluent-engine.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
 | Tree row shaping | `Workflow helper` | Deterministic subtree selection from flat parent-ID POJO lists before normal query execution | `PojoLensTree`, `TreeTraversalBuilder`, `TreeEntry` | `Stable` helper contracts | `docs/tree.md`, `docs/entry-points.md` |

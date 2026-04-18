@@ -31,6 +31,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Natural query positioning** - completed `SURFACE-WP2` by documenting
   natural queries as controlled guided text after the SQL-like default, with
   explicit vocabulary, parameter, diagnostics, and authorization boundaries.
+- **Fluent surface reset** - completed `SURFACE-WP3` by moving fluent builder
+  guidance into maintainer-only docs, removing fluent report positioning from
+  public wrapper docs, and marking fluent contracts as internal reset
+  candidates instead of stable public API.
 
 ---
 

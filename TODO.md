@@ -66,16 +66,16 @@ Context:
   builder exists; add a future narrow API only if a real use case proves it.
 
 Tasks:
-- [ ] Remove fluent from the README quick start and recommended public
+- [x] Remove fluent from the README quick start and recommended public
       entry-point tables.
-- [ ] Move fluent authoring guidance into an internal engine doc for
+- [x] Move fluent authoring guidance into an internal engine doc for
       maintainers.
-- [ ] Update `docs/public-api-stability.md` so `QueryBuilder`,
+- [x] Update `docs/public-api-stability.md` so `QueryBuilder`,
       `FilterQueryBuilder`, `Filter`, `QueryRule`, and
       `FluentQueryDefinition` are not stable public API.
-- [ ] Decide whether `PojoLensCore` disappears from user docs or remains only
+- [x] Decide whether `PojoLensCore` disappears from user docs or remains only
       as an internal-facing bridge.
-- [ ] Remove public `ReportDefinition.fluent(...)` positioning or replace it
+- [x] Remove public `ReportDefinition.fluent(...)` positioning or replace it
       with a non-builder public contract.
 
 Validate:
