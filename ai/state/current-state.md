@@ -39,4 +39,4 @@
 - Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, positioning docs, and all April features.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
-- `TODO.md` has uncommitted DOC-WP backlog changes not authored in this session; confirm ownership before acting on them.
+- `TODO.md` has uncommitted DOC-WP backlog content from earlier plus ASCII punctuation cleanup from this session.
