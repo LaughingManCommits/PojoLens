@@ -2,12 +2,12 @@
 
 PojoLens currently has two internal caches behind its direct query paths:
 
+- SQL-like parse cache
+- stats-plan cache
+
 This is an advanced policy-tuning surface.
 Start with the default query path first, then come here when cache behavior
 needs to be tuned or isolated.
-
-- SQL-like parse cache
-- stats-plan cache
 
 Both caches use Caffeine-backed internals.
 For public policy tuning, use `PojoLensRuntime`; it is the public cache-policy
@@ -24,13 +24,13 @@ Current model:
   - `enabled=true`
   - `statsEnabled=true`
   - `maxEntries=256`
-  - `maxWeight=0` (disabled)
+  - `maxWeight=0` (count-based eviction via maxEntries)
   - `expireAfterWriteMillis=0` (disabled)
 - stats-plan cache:
   - `enabled=true`
   - `statsEnabled=true`
   - `maxEntries=512`
-  - `maxWeight=0` (disabled)
+  - `maxWeight=0` (count-based eviction via maxEntries)
   - `expireAfterWriteMillis=0` (disabled)
 
 `maxWeight=0` means size-based eviction by entry count (`maxEntries`).  

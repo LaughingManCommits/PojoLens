@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-18T09:21:24.987772+02:00",
+  "generatedAt": "2026-04-18T10:47:54.272178+02:00",
   "git": {
-    "headCommit": "a1ca930191aa53920a0dcf8b37c42dbded99c0e6",
+    "headCommit": "6fddf4c8c963ae3b738a796932f0c8f28c7ac651",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "af70010b784b1048636922a2f2e1245185bf07919e5d5edc6baa74a571523f33",
+  "inputsHash": "78f636f6a564e641dffd87902eb578accb78fd077767f161dac9077e42e64e76",
   "hotContext": {
     "files": [
       {
@@ -17,12 +17,12 @@
       {
         "path": "ai/core/repo-purpose.md",
         "lines": 23,
-        "bytes": 1700
+        "bytes": 1778
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 42,
-        "bytes": 2494,
+        "lines": 44,
+        "bytes": 2677,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 46,
-        "bytes": 3065,
+        "lines": 44,
+        "bytes": 2653,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,7 +103,7 @@
       }
     ],
     "totalLines": 117,
-    "totalBytes": 7897,
+    "totalBytes": 7746,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -141,14 +141,14 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "b1c0e75da430064727a11725584e1de3ecfff4eb2ce20b87cf802c81f8dc4c1a",
-        "inputFiles": 51
+        "inputHash": "3c3dc500f172baec131fbdf13e1d7c57b7e143959e22d9df4622465ca88c5a9e",
+        "inputFiles": 52
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "7ebde4bbb5484235d739611d7c72c522a9a30dcd3ea21e9b3b657400c7fedd35",
-        "inputFiles": 393
+        "inputHash": "67e1aeebae29bdb2ae8e0d289326b82ce58e777222c46f38383881cd63d520b7",
+        "inputFiles": 394
       },
       {
         "path": "ai/indexes/symbols-index.json",
@@ -173,10 +173,10 @@
       "status": "built",
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
-      "documents": 53,
-      "sections": 627,
-      "updatedFiles": 2,
-      "reusedFiles": 51,
+      "documents": 54,
+      "sections": 630,
+      "updatedFiles": 1,
+      "reusedFiles": 53,
       "removedFiles": 0,
       "mode": "incremental"
     }

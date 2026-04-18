@@ -128,7 +128,6 @@ For user-authored or tenant-authored query text:
 - free-form conversational language
 - fuzzy guessing
 - implicit business semantics such as `top performers` or `recent hires`
-- free-form SQL window grammar beyond the supported natural window phrases
 
 ## Execution Model
 

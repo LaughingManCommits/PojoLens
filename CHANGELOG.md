@@ -32,6 +32,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `actions/upload-artifact@v6`.
 - **Benchmark docs** - synced versioned benchmark runner examples to the
   current project version used by the documentation consistency gate.
+- **Documentation backlog** - cleared the DOC-WP1 through DOC-WP10 follow-up
+  list covering post-release stability wording, entry-point summaries,
+  product-family names, cache docs, cross-links, and the docs landing page.
 - **CI chart artifacts** - corrected the chart artifact job to run the
   `ChartLibraryInteropTest` selector and upload the module-local PNG outputs.
 - **Release guardrails** - binary compatibility checks now include the stable

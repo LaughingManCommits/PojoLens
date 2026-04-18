@@ -51,8 +51,9 @@ $errors = [System.Collections.Generic.List[string]]::new()
 # Benchmark command drift should use dynamic jar resolution in process docs.
 Require-Pattern $contributing "CONTRIBUTING.md" 'BENCHMARK_JAR=.*\*-benchmarks\.jar' $errors
 Require-Pattern $release "RELEASE.md" 'target/\*-benchmarks\.jar' $errors
-Forbid-Pattern $contributing "CONTRIBUTING.md" 'pojo-lens-\d+\.\d+\.\d+-benchmarks\.jar' $errors
+Forbid-Pattern $contributing "CONTRIBUTING.md" 'pojo-lens-\d+(?:\.\d+)+-benchmarks\.jar' $errors
 Forbid-Pattern $release "RELEASE.md" 'Release\s+\d+\.\d+\.\d+|v\d+\.\d+\.\d+' $errors
+Forbid-Pattern $release "RELEASE.md" 'pojo-lens-\d+(?:\.\d+)+-benchmarks\.jar' $errors
 
 # SQL-like capability drift checks.
 Require-Pattern $migration "MIGRATION.md" 'supports uncorrelated .*WHERE \.\.\. IN \(select \.\.\.\).*subqueries' $errors
@@ -76,7 +77,8 @@ Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "PojoLe
 Require-Substring $benchmarking "docs/benchmarking.md" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "BenchmarkThresholdChecker" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "benchmarks/chart-thresholds.json" $errors
-Require-Substring $benchmarking "docs/benchmarking.md" "target/pojo-lens-$projectVersion-benchmarks.jar" $errors
+Require-Pattern $benchmarking "docs/benchmarking.md" 'BENCHMARK_JAR=.*target/\*-benchmarks\.jar' $errors
+Forbid-Pattern $benchmarking "docs/benchmarking.md" 'target/pojo-lens-\d+(?:\.\d+)+-benchmarks\.jar' $errors
 
 if ($errors.Count -gt 0) {
     Write-Host "[doc-check] FAILED"

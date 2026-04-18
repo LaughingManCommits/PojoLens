@@ -44,8 +44,12 @@ This page is an artifact and packaging reference, not the main onboarding path.
 
 - `PojoLensCore`:
   core fluent query-engine entry point
+- `PojoLensNatural`:
+  core controlled plain-English query-engine entry point
 - `PojoLensSql`:
   core SQL-like query-engine entry point
+- `PojoLensCsv`:
+  boundary adapter for loading typed rows from UTF-8 CSV files
 - `PojoLensRuntime`:
   scoped runtime/configuration surface over the same engine
 - `PojoLensChart`:
