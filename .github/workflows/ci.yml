@@ -168,7 +168,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload SpotBugs artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: spotbugs-report
           path: |
@@ -227,7 +227,7 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload benchmark artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-results
           path: |
@@ -265,13 +265,15 @@ jobs:
           java-version: "17"
           cache: maven
       - name: Generate chart images from interop test
-        run: mvn -B -ntp "-Dtest=chart.ChartLibraryInteropTest" test
+        run: mvn -B -ntp -pl pojo-lens "-Dtest=ChartLibraryInteropTest" test
       - name: Upload generated chart images
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: generated-charts
-          path: target/generated-charts/*.png
+          path: |
+            pojo-lens/target/generated-charts/*.png
+            pojo-lens/target/benchmarks/charts/images/*.png
           if-no-files-found: warn
 
   benchmark-plot-artifacts:
@@ -308,7 +310,7 @@ jobs:
             target/benchmarks/charts/images
       - name: Upload benchmark plot artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-metric-plots
           path: |

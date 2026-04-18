@@ -90,7 +90,11 @@ jobs:
           if [ "${DRY_RUN}" = "true" ]; then
             DEPLOY_FLAGS="${DEPLOY_FLAGS} -DskipPublishing=true -Dgpg.skip=true"
           fi
-          echo "deploy_flags=${DEPLOY_FLAGS}" >> "$GITHUB_OUTPUT"
+          {
+            echo "deploy_flags=${DEPLOY_FLAGS}"
+            echo "dry_run=${DRY_RUN}"
+            echo "wait_until=${WAIT_UNTIL}"
+          } >> "$GITHUB_OUTPUT"
           echo "Deploy flags: ${DEPLOY_FLAGS}"
 
       - name: Set Maven project version
@@ -193,7 +197,16 @@ jobs:
         run: mvn -B -ntp test
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter -am -Prelease-central -DskipTests ${{ steps.deploy_options.outputs.deploy_flags }} deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_ARGS=("-DskipTests" "-DwaitUntil=${{ steps.deploy_options.outputs.wait_until }}")
+          if [ "${{ steps.deploy_options.outputs.dry_run }}" = "true" ]; then
+            DEPLOY_ARGS+=("-DskipPublishing=true" "-Dgpg.skip=true")
+          fi
+          mvn -B -ntp \
+            -pl pojo-lens,pojo-lens-spring-boot-autoconfigure,pojo-lens-spring-boot-starter \
+            -am -Prelease-central "${DEPLOY_ARGS[@]}" deploy
 
       - name: Commit version bump and push release tag
         if: github.event.inputs.dry_run != 'true'

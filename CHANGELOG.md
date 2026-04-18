@@ -27,7 +27,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **CI workflow lint** - grouped repeated GitHub output and step-summary
   redirects in the CI workflow to satisfy ShellCheck `SC2129`.
 - **CI runtime** - updated first-party `actions/checkout` and
-  `actions/setup-java` workflow pins to their Node 24 major versions.
+  `actions/setup-java` workflow pins to their Node 24 major versions, and
+  moved artifact uploads to `actions/upload-artifact@v6`.
+- **CI chart artifacts** - corrected the chart artifact job to run the
+  `ChartLibraryInteropTest` selector and upload the module-local PNG outputs.
 - **Release guardrails** - binary compatibility checks now include the stable
   `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
 - **Lint baseline** - refreshed `scripts/checkstyle-baseline.txt` from the

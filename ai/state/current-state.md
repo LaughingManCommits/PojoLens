@@ -25,6 +25,7 @@
 - `2026-04-16`: `FastArrayQuerySupport` FA-WP5/WP6 - `mvn test` + core guardrail suite + threshold checker all passed clean.
 - `2026-04-17`: `PojoLensTree` validated with `mvn -B -ntp -pl pojo-lens test`, `scripts/check-doc-consistency.ps1`, and full `mvn -B -ntp test`.
 - `2026-04-17`: positioning/release-readiness docs validated; Checkstyle baseline refreshed to `15691` entries and baseline gate passes with `new=0 fixed=0`.
+- `2026-04-17`: CI workflow warnings addressed: Node 24 action majors, quoted deploy flags, validated chart PNG paths, and passing benchmark thresholds.
 
 ## Release
 

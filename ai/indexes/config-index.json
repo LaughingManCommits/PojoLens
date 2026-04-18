@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T20:22:44.174695+02:00",
+  "generatedAt": "2026-04-17T21:13:57.806925+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -87,11 +87,7 @@
           "v*"
         ],
         "manualDispatch": true,
-        "releaseModules": [
-          "pojo-lens",
-          "pojo-lens-spring-boot-autoconfigure",
-          "pojo-lens-spring-boot-starter"
-        ]
+        "releaseModules": []
       }
     ]
   },

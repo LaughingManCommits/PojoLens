@@ -12,7 +12,7 @@
 
 - `PojoLensTree` complete: TREE-WP1 through TREE-WP3 implemented and documented; `TODO.md` has no active TODOs.
 - Ecosystem-positioning follow-up complete: README says when not to use PojoLens, benchmarking docs define honest comparison boundaries, SQL-like/natural docs include input-safety guidance, and binary-compat includes tree contracts.
-- Release is next: ship April feature/docs work; Checkstyle baseline is refreshed and gate-clean.
+- Release is next: ship April feature/docs work; CI workflow warnings and Checkstyle baseline are refreshed and gate-clean.
 
 ## Facts
 
@@ -32,7 +32,7 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-17` `mvn -B -ntp -Plint verify -DskipTests` and `scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .` passed after baseline refresh (`15691` entries, `new=0 fixed=0`).
+- Last validation: `2026-04-17` `git diff --check`, `scripts/check-doc-consistency.ps1`, `mvn -B -ntp -pl pojo-lens "-Dtest=ChartLibraryInteropTest" test`, PNG path checks, and strict benchmark checker passed. `actionlint`/`shellcheck` unavailable locally.
 
 ## Cold Pointers
 
