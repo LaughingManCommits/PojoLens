@@ -7,9 +7,9 @@ PojoLens uses date-based releases.
 - Maven version: `YYYY.MM.DD.HHmm`
 - Git tag: `release-<version>`
 
-Example:
-- `pom.xml`: `2026.03.28.1919`
-- git tag: `release-2026.03.28.1919`
+Latest release baseline:
+- Maven version: `2026.04.17.1834`
+- Git tag: `release-2026.04.17.1834`
 
 ## 1) Pre-Release Validation
 

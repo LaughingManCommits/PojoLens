@@ -9,6 +9,24 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Changed
+
+- **CI runtime** - added Java 25 to the CI test matrix, moved artifact uploads
+  to `actions/upload-artifact@v6`, and kept published bytecode targeting Java
+  17.
+- **Benchmark docs** - replaced versioned benchmark runner examples with
+  dynamic `BENCHMARK_JAR` resolution and updated the documentation consistency
+  gate to reject hardcoded benchmark jar versions.
+- **Documentation backlog** - cleared the DOC-WP1 through DOC-WP10 follow-up
+  list covering post-release stability wording, entry-point summaries,
+  product-family names, cache docs, cross-links, and the docs landing page.
+- **CI chart artifacts** - corrected the chart artifact job to run the
+  `ChartLibraryInteropTest` selector and upload the module-local PNG outputs.
+
+---
+
+## [2026.04.17.1834] - 2026-04-17
+
 ### Added
 
 - **Natural language query surface** — `PojoLensNatural`, `NaturalQuery`, `NaturalBoundQuery`, and `PojoLensRuntime.natural()` provide a controlled plain-English query path (`show`, `where`, `sort by`, `group by`, `having`, `limit`, `bucket by`, `as chart`) that lowers deterministically into the shared engine. Includes runtime-scoped `NaturalVocabulary` for field aliases, reusable `NaturalTemplate` parameter schemas, and parity with fluent/SQL-like for aggregates, joins, window analytics, time buckets, and chart output.
@@ -27,16 +45,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **CI workflow lint** - grouped repeated GitHub output and step-summary
   redirects in the CI workflow to satisfy ShellCheck `SC2129`.
 - **CI runtime** - updated first-party `actions/checkout` and
-  `actions/setup-java` workflow pins to their Node 24 major versions, added
-  Java 25 to the CI test matrix, and moved artifact uploads to
-  `actions/upload-artifact@v6`.
-- **Benchmark docs** - synced versioned benchmark runner examples to the
-  current project version used by the documentation consistency gate.
-- **Documentation backlog** - cleared the DOC-WP1 through DOC-WP10 follow-up
-  list covering post-release stability wording, entry-point summaries,
-  product-family names, cache docs, cross-links, and the docs landing page.
-- **CI chart artifacts** - corrected the chart artifact job to run the
-  `ChartLibraryInteropTest` selector and upload the module-local PNG outputs.
+  `actions/setup-java` workflow pins to their Node 24 major versions.
 - **Release guardrails** - binary compatibility checks now include the stable
   `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry` contracts.
 - **Lint baseline** - refreshed `scripts/checkstyle-baseline.txt` from the

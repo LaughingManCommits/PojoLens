@@ -2,12 +2,17 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $pomPath = Join-Path $root "pom.xml"
+$readmePath = Join-Path $root "README.md"
 $contributingPath = Join-Path $root "CONTRIBUTING.md"
+$changelogPath = Join-Path $root "CHANGELOG.md"
 $migrationPath = Join-Path $root "MIGRATION.md"
 $releasePath = Join-Path $root "RELEASE.md"
+$modulesPath = Join-Path $root "docs/modules.md"
 $sqlLikePath = Join-Path $root "docs/sql-like.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
 $benchmarkMainArgsPath = Join-Path $root "scripts/benchmark-suite-main.args"
+$quickstartPomPath = Join-Path $root "examples/spring-boot-starter-quickstart/pom.xml"
+$basicPomPath = Join-Path $root "examples/spring-boot-starter-basic/pom.xml"
 
 function Require-File([string]$path) {
     if (-not (Test-Path $path)) {
@@ -40,13 +45,27 @@ function Forbid-Pattern([string]$doc, [string]$name, [string]$pattern, [System.C
 
 [xml]$pom = Get-Content -Raw -Path $pomPath
 $projectVersion = $pom.project.version
+$readme = Require-File $readmePath
 $contributing = Require-File $contributingPath
+$changelog = Require-File $changelogPath
 $migration = Require-File $migrationPath
 $release = Require-File $releasePath
+$modules = Require-File $modulesPath
 $sqlLike = Require-File $sqlLikePath
 $benchmarking = Require-File $benchmarkingPath
 $benchmarkMainArgs = Require-File $benchmarkMainArgsPath
+$quickstartPom = Require-File $quickstartPomPath
+$basicPom = Require-File $basicPomPath
 $errors = [System.Collections.Generic.List[string]]::new()
+
+# Current release/version examples should track the root POM version.
+Require-Substring $readme "README.md" "<version>$projectVersion</version>" $errors
+Require-Substring $modules "docs/modules.md" "<version>$projectVersion</version>" $errors
+Require-Substring $release "RELEASE.md" "Maven version: ``$projectVersion``" $errors
+Require-Substring $release "RELEASE.md" "Git tag: ``release-$projectVersion``" $errors
+Require-Substring $changelog "CHANGELOG.md" "## [$projectVersion]" $errors
+Require-Substring $quickstartPom "examples/spring-boot-starter-quickstart/pom.xml" "<version>$projectVersion</version>" $errors
+Require-Substring $basicPom "examples/spring-boot-starter-basic/pom.xml" "<version>$projectVersion</version>" $errors
 
 # Benchmark command drift should use dynamic jar resolution in process docs.
 Require-Pattern $contributing "CONTRIBUTING.md" 'BENCHMARK_JAR=.*\*-benchmarks\.jar' $errors

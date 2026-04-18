@@ -3,11 +3,12 @@
 ## Repo
 
 - Java 17 library with runtime, Spring Boot, and JMH modules.
-- Current date-based release is `2026.03.28.1919`.
+- Current date-based release is `2026.04.17.1834`.
 
 ## Focus
 
 - `2026-04-18`: CI runtime matrix now tests Java `17`, `21`, and `25`; Maven compiler release remains `17`.
+- `2026-04-18`: Latest-release docs, examples, release guide, changelog, and consistency checks align to `2026.04.17.1834`.
 - `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete; `TODO.md` has no active TODOs.
 - `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
 - `2026-04-14`: limitation work done: bounded windows, aggregate ORDER BY, prepare, bounded subqueries/EXISTS, natural cleanup, SQL-like lowering.
@@ -17,6 +18,7 @@
 ## Verified
 
 - `2026-04-18`: Java 25 CI matrix update validated locally with `git diff --check`, `scripts/check-doc-consistency.ps1`, and `mvn -B -ntp test` on JDK 17; Java 25 executes in GitHub Actions via `actions/setup-java@v5`.
+- `2026-04-18`: Latest-release alignment validated with both doc consistency scripts, Python compile, full Maven tests, both starter example builds, and `git diff --check`.
 - `2026-04-18`: DOC-WP1 through DOC-WP10 validated with both doc consistency scripts, `git diff --check`, Python compile, and `mvn -B -ntp test`.
 - `2026-04-10`: CSV WP1-WP5 validated including guarded load benchmarks.
 - `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
@@ -26,7 +28,7 @@
 
 ## Release
 
-- `2026.03.28.1919` is complete.
+- `2026.04.17.1834` is complete.
 
 ## Risks
 
@@ -38,7 +40,7 @@
 
 ## Next
 
-- Release: cut next version to ship FA/RU cleanup, `PojoLensTree`, positioning docs, and all April features.
+- Release: cut a later date-based version only for post-`2026.04.17.1834` changes.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
 - `TODO.md` currently has no active TODOs.

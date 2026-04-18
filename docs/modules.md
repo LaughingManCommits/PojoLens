@@ -73,7 +73,7 @@ Consumer dependency remains:
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
-  <version>2026.03.28.1919</version>
+  <version>2026.04.17.1834</version>
 </dependency>
 ```
 
