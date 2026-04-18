@@ -10,15 +10,17 @@
 
 ## Focus
 
-- `PojoLensTree` complete: TREE-WP1 through TREE-WP3 implemented and documented; `TODO.md` has no active TODOs.
+- Java 25 CI support complete; test matrix is `17`, `21`, `25`, while bytecode target remains Java `17`.
+- `PojoLensTree` complete: TREE-WP1 through TREE-WP3 implemented and documented.
 - Ecosystem-positioning follow-up complete: README says when not to use PojoLens, benchmarking docs define honest comparison boundaries, SQL-like/natural docs include input-safety guidance, and binary-compat includes tree contracts.
-- Release is next: ship April feature/docs work; CI workflow warnings and Checkstyle baseline are refreshed and gate-clean.
+- Release is next; CI workflow warnings and Checkstyle baseline are refreshed and gate-clean.
 
 ## Facts
 
+- `2026-04-18`: CI runs full Maven tests on Temurin Java `17`, `21`, and `25`.
 - `2026-04-17`: `PojoLensTree` root facade added with `fromFlat(...)` and `subtreeOf(...)`.
 - `2026-04-17`: `TreeTraversalBuilder` supports subtree, maxDepth, prune, leavesOnly, toList, and toEntries.
-- `2026-04-17`: Tree semantics are deterministic: non-null unique IDs, orphan roots, cycle failure, source-order roots/siblings, BFS output, and optional `TreeEntry<T>` metadata.
+- `2026-04-17`: Tree semantics are deterministic and expose optional `TreeEntry<T>` metadata.
 - `2026-04-17`: `pojo-lens/pom.xml` binary-compat includes `PojoLensTree`, `TreeTraversalBuilder`, and `TreeEntry`.
 - `2026-04-17`: SQL-like/natural user-authored query guidance is params first, approved field/source exposure, lint mode, strict typing, and external authorization.
 - `2026-04-15`: `ReflectionUtil` cleanup complete; direct field reads include final fields and field-graph traversal allocates less.
@@ -32,11 +34,12 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-17` `git diff --check`, `scripts/check-doc-consistency.ps1`, `mvn -B -ntp -pl pojo-lens "-Dtest=ChartLibraryInteropTest" test`, PNG path checks, and strict benchmark checker passed. `actionlint`/`shellcheck` unavailable locally.
+- Last validation: `2026-04-18` `git diff --check`, `scripts/check-doc-consistency.ps1`, and `mvn -B -ntp test` passed. Java 25 was not run locally because only JDK 17 is installed.
 
 ## Cold Pointers
 
 - routing/process: `AGENTS.md`, `ai/AGENTS.md`, `TODO.md`
+- CI: `.github/workflows/ci.yml`, `CHANGELOG.md`
 - tree: `docs/tree.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensTree.java`, `pojo-lens/src/main/java/laughing/man/commits/tree/*`
 - CSV: `docs/csv.md`, `pojo-lens/src/main/java/laughing/man/commits/PojoLensCsv.java`
 - benchmarks: `docs/benchmarking.md`, `benchmarks/thresholds.json`, `scripts/benchmark-suite-main.args`
