@@ -8,10 +8,11 @@ what is core, what is convenience, and what is advanced/tooling surface.
 ## Canonical Product Story
 
 - PojoLens is an in-memory POJO query engine.
-- Its first-class surface is fluent, controlled plain-English, and SQL-like
-  querying over existing Java objects.
-- New query capability should normally land in fluent/core first; SQL-like and
-  natural are syntax facades that should lower to the same engine behavior.
+- Its first-class public query surface is SQL-like text over existing Java
+  objects, with controlled plain-English as the guided non-SQL alternative.
+- New query capability should land in the shared execution engine, then be
+  exposed through SQL-like first and natural where the controlled grammar can
+  express it clearly.
 - Boundary adapters may load external representations into typed rows, but
   they do not change the POJO-first engine story.
 - Chart/table/report helpers, runtime wiring, and tooling layer on top of that
@@ -38,9 +39,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
 
 | Surface | Family | Positioning | Primary contracts | Current classification | Primary docs |
 | --- | --- | --- | --- | --- | --- |
-| Fluent querying | `Core query engine` | First-class query authoring path | `PojoLensCore`, `QueryBuilder`, `QueryRule`, `FluentQueryDefinition`, `Filter` | `Stable` core | `README.md`, `docs/usecases.md` |
-| Plain-English querying | `Core query engine` | First-class guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalTemplate`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
-| SQL-like querying | `Core query engine` | First-class dynamic query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
+| SQL-like querying | `Core query engine` | Primary public query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
+| Plain-English querying | `Core query engine` | Guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalTemplate`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
+| Fluent engine DSL | `Core query engine` | Internal execution-planning and parity infrastructure, not the primary public story | `PojoLensCore`, `QueryBuilder`, `QueryRule`, `FluentQueryDefinition`, `Filter` | Pending internal reset | internal engine docs |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
 | Tree row shaping | `Workflow helper` | Deterministic subtree selection from flat parent-ID POJO lists before normal query execution | `PojoLensTree`, `TreeTraversalBuilder`, `TreeEntry` | `Stable` helper contracts | `docs/tree.md`, `docs/entry-points.md` |
@@ -75,8 +76,8 @@ what is core, what is convenience, and what is advanced/tooling surface.
   add parser syntax, graph algorithms, persistence behavior, or a second query
   engine.
 - `ReportDefinition` is the general reusable execution wrapper.
-  `FluentQueryDefinition` is the fluent-only immutable prepared query shape for
-  reusable code-owned builder recipes.
+  SQL-like and natural report definitions are the public first-read path;
+  fluent-backed definitions are pending internalization with the builder DSL.
   `ChartQueryPreset` and `StatsViewPreset` are specialized convenience wrappers
   built for chart-first and table-first flows.
 - Raw map-shaped join execution is no longer public surface. Convert once with

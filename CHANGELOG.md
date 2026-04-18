@@ -25,6 +25,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Backlog** - replaced the completed documentation TODO list with a
   SQL-like-first public-surface reset that keeps natural as guided text and
   demotes fluent to internal engine infrastructure.
+- **Public query surface** - started `SURFACE-WP1` by making SQL-like the
+  README and path-selection default while moving fluent wording out of the
+  first-read public query story.
 
 ---
 

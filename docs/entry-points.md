@@ -11,19 +11,17 @@ Core execution model:
 
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
-| Service-owned fluent query | `PojoLensCore.newQueryBuilder(rows)` | Makes the fluent path explicit and keeps new code on the core engine surface. |
-| Reusable fluent query shape | `PojoLensCore.prepare(projectionClass, builder -> ...)` | Keeps fluent authoring in code while avoiding mutable builder reuse across snapshots or threads. |
+| Default query authoring over in-memory rows | `PojoLensSql.parse(queryText)` | Keeps the primary public query path on familiar SQL-like text while executing against existing POJOs. |
+| Reusable SQL-like query shape | `PojoLensSql.template(queryText, params...)` | Keeps repeated query shapes on a fixed parameter schema. |
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
 | Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
-| Dynamic or config-driven SQL-like query | `PojoLensSql.parse(queryText)` | Keeps dynamic query text on the explicit SQL-like surface. |
-| Reusable SQL-like template | `PojoLensSql.template(queryText, params...)` | Keeps parameter-schema-driven SQL flows on the SQL-like surface. |
 | Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim/coercion needs. |
-| Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal fluent, SQL-like, or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
+| Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal SQL-like or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
 | CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and split header diagnostics; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
 | Runtime-scoped CSV onboarding defaults | `runtime.csv().read(path, rowType)` | Uses the same bounded adapter while letting delimiter/header/trim/coercion defaults live on `PojoLensRuntime`. |
 | Runtime-scoped policy, DI, or multi-tenant execution | `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` | Keeps lint mode, strict typing, telemetry, caches, computed fields, and natural-query vocabulary instance-scoped. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
-| Reusable business query contract | `ReportDefinition.sql(...)`, `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)` | Makes reusable row/chart workflows explicit without hiding the underlying engine choice. |
+| Reusable business query contract | `ReportDefinition.sql(...)` or `ReportDefinition.natural(...)` | Makes reusable row/chart workflows explicit without exposing mutable engine builders. |
 | One-off named secondary sources | `JoinBindings.of(...)` or `JoinBindings.builder()` | Makes multi-source SQL-like execution explicit and typed. |
 | Reused multi-source snapshot | `DatasetBundle.of(primaryRows, joinBindings)` | Packages primary rows plus named secondary sources for repeated execution. |
 | Snapshot diffing | `SnapshotComparison.builder(currentRows, previousRows)` | Keeps snapshot comparison on its own workflow type. |
@@ -31,11 +29,11 @@ Core execution model:
 
 ## Decision Rules
 
-- Use `PojoLensCore` when the query shape is owned by application code and you
-  are composing it through fluent builder calls.
-- Use `PojoLensCore.prepare(...)` when that fluent query shape should be carried
-  as an immutable prepared object with `rows(...)`, `schema()`, `explain()`,
-  and an optional bridge to `ReportDefinition`.
+- Use `PojoLensSql` as the default public query entry point for in-memory rows,
+  including service-owned query text, config-driven queries, templates, joins,
+  pagination, charts, schemas, and explain payloads.
+- Use `PojoLensSql.template(...)` when a SQL-like query is reused with a fixed
+  named-parameter schema.
 - Use `PojoLensNatural` when the query should stay text-driven but the author
   should not have to learn SQL-like clause syntax, including grouped aggregate
   phrases such as `count of ...`, `group by`, `having`, deterministic window
@@ -44,15 +42,13 @@ Core execution model:
   phrases.
 - Use `PojoLensNatural.template(...)` when that guided-text query is reused
   with a fixed named-parameter schema.
-- Use `PojoLensSql` when the query is stored in config, assembled dynamically,
-  or otherwise represented as SQL-like text.
 - Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
-  in-memory rows before normal fluent, SQL-like, or natural execution;
+  in-memory rows before normal SQL-like or natural execution;
   see [docs/csv.md](csv.md) for options, runtime defaults, type mapping, and
   error model.
 - Use `PojoLensTree` when rows are already in memory but need subtree selection
-  from flat ID/parent-ID fields before entering `PojoLensCore`, `PojoLensSql`,
-  or `PojoLensNatural`; see [docs/tree.md](tree.md) for traversal options,
+  from flat ID/parent-ID fields before entering `PojoLensSql` or
+  `PojoLensNatural`; see [docs/tree.md](tree.md) for traversal options,
   validation, and boundaries.
 - Use `PojoLensRuntime` when query behavior should follow instance-scoped
   policy instead of the default direct-entry behavior.
@@ -75,7 +71,7 @@ environment, tenant, request path, or test harness:
 - computed field registry
 - natural vocabulary for plain-English field aliases
 - CSV adapter defaults for repeated file-boundary loads
-- SQL-like parse cache and fluent execution-plan cache behavior
+- SQL-like parse cache and engine execution-plan cache behavior
 
 Two public construction patterns remain:
 
@@ -101,7 +97,6 @@ types instead of on a facade:
 - `SqlLikeCursor.builder()` / `SqlLikeCursor.fromToken(...)`
 - `ReportDefinition.sql(...)`
 - `ReportDefinition.natural(...)`
-- `ReportDefinition.fluent(...)`
 - `DatasetBundle.of(...)`
 - `SnapshotComparison.builder(...)`
 - `PojoLensTree.fromFlat(...)` / `PojoLensTree.subtreeOf(...)`

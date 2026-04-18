@@ -189,7 +189,7 @@ If runtime vocabulary or computed fields should apply, parse through
 `runtime.natural()` first and then wrap that `NaturalQuery` in
 `ReportDefinition.natural(...)`.
 
-Natural queries lower into the same shared engine used by fluent and SQL-like execution.
+Natural queries lower into the same shared execution engine used by SQL-like execution.
 
 ## Joins and Multi-source Queries
 
@@ -221,7 +221,7 @@ Join guidance:
 
 Natural bounded subqueries use `query ... end query` instead of SQL parentheses.
 The inner query is another controlled natural query and lowers into the same
-bounded subquery engine used by fluent and SQL-like execution.
+bounded subquery engine used by SQL-like execution.
 
 Self-source `is in query` example:
 
@@ -505,4 +505,4 @@ Common validation/runtime failures:
 - invalid inferred chart shape:
   `Natural chart inference requires exactly 2 SHOW outputs (x,y) or 3 SHOW outputs (x,series,y)`
 
-When a phrase becomes too advanced or too exact for the natural surface, prefer [docs/sql-like.md](sql-like.md) or fluent queries.
+When a phrase becomes too advanced or too exact for the natural surface, prefer [docs/sql-like.md](sql-like.md).

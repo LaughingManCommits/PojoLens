@@ -58,7 +58,7 @@ List<WeeklyHeadcount> rows = PojoLensNatural
 ```
 
 Notes:
-- the natural bucket phrase lowers to the same `TimeBucketPreset` path used by fluent and SQL-like queries
+- the natural bucket phrase lowers to the same `TimeBucketPreset` path used by SQL-like queries
 - bucket outputs should use `as <alias>`
 - grouped natural queries must include the bucket alias in `group by`
 - timezone defaults to `UTC`

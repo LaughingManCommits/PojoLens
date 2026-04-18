@@ -4,8 +4,8 @@ If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
 For new code, keep one default path per job:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`,
-`PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or `ReportDefinition<T>`.
+`PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`,
+`PojoLensRuntime`, `PojoLensChart`, or `ReportDefinition<T>`.
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
@@ -17,9 +17,9 @@ Source guides:
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| Service-owned query logic in code | `PojoLensCore.newQueryBuilder(...)` | Default fluent path for application-owned query composition. |
+| Default query authoring over in-memory rows | `PojoLensSql.parse(...).params(...)` | Primary public path for filtering, ordering, grouping, joins, windows, subqueries, charts, schemas, and explain payloads. |
+| Reusable SQL-like query shapes | `PojoLensSql.template(...)` | Keeps repeated query shapes on a fixed named-parameter schema. |
 | Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax, including explicit joins, bounded subquery/existence phrases, grouped aggregates, deterministic window phrases with `qualify`, time buckets, and chart phrases; see [docs/natural.md](natural.md). |
-| Config-driven or dynamic query strings | `PojoLensSql.parse(...).params(...)` | Default SQL-like path for text-driven query authoring. |
 | Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, computed fields, and natural-query vocabulary scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 
@@ -43,7 +43,7 @@ Source guides:
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| One shared app-level default policy | explicit entry points (`PojoLensCore` / `PojoLensNatural` / `PojoLensSql`) | Keeps the main query path simple. |
+| One shared app-level default policy | explicit entry points (`PojoLensSql` / `PojoLensNatural`) | Keeps the main query path simple. |
 | Environment-, tenant-, or test-scoped policy | `PojoLensRuntime` | Instance-scoped configuration and execution. |
 | Optional diagnostics, cache tuning, telemetry, regression tooling, or build-time helpers | [docs/advanced-features.md](advanced-features.md) | Follow-on public surface after the main path is chosen. |
 
@@ -51,11 +51,11 @@ Source guides:
 
 | If you need... | Go to | Default path |
 | --- | --- | --- |
-| A service-owned search endpoint | Scenario 1 | `PojoLensCore.newQueryBuilder(...)` |
+| A service-owned search endpoint | Scenario 1 | `PojoLensSql.parse(...).params(...)` |
 | Config-driven dynamic queries | Scenario 2 | `PojoLensSql.parse(...).params(SqlParams)` |
 | Deterministic API pagination | Scenario 2B | `LIMIT/OFFSET` + `keysetAfter(...)` |
 | Large data, first-page consumers | Scenario 2C | `.stream(...)` / `.iterator(...)` |
-| Repeated hot equality filters | Scenario 2D | `.addIndex(...)` + normal rules |
+| Repeated query shape on one endpoint | Scenario 2D | `PojoLensSql.template(...)` |
 | Time-based finance/product summaries | Scenario 3 | `bucket(...) + group by + having` |
 | Multi-source views with joins | Scenario 4 | `JoinBindings`, promoted to `DatasetBundle` for repeated execution |
 | Chart payloads for frontend/reporting | Scenario 5 | `.chart(...)` + `ChartData` |
@@ -73,30 +73,27 @@ Problem:
 Use:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
-    .addRule("active", true, Clauses.EQUAL)
-    .addRule("department", "Engineering", Clauses.EQUAL)
-    .addRule("level", 5, Clauses.BIGGER_EQUAL)
-    .addOrder("salary", 1)
-    .limit(25)
-    .initFilter()
-    .filter(Sort.DESC, EmployeeDirectoryRow.class);
+List<EmployeeDirectoryRow> rows = PojoLensSql
+    .parse("select name, department, level, salary "
+        + "where active = :active and department = :dept and level >= :minLevel "
+        + "order by salary desc limit 25")
+    .params(SqlParams.builder()
+        .put("active", true)
+        .put("dept", "Engineering")
+        .put("minLevel", 5)
+        .build())
+    .filter(employees, EmployeeDirectoryRow.class);
 ```
 
 Outcome:
-- Stable top-N API payload with type-safe query construction.
+- Stable top-N API payload with query text, typed parameters, and deterministic
+  ordering.
 
-Builder reuse:
-- `PojoLensCore.newQueryBuilder(...)` returns a mutable configuration object.
-- Do not mutate one builder concurrently from multiple threads.
-- Configure once, then call `initFilter()`.
-- Keep the default `copyOnBuild(true)` behavior when a configured builder is
-  reused across executions or threads.
-- Use `PojoLensCore.prepare(...)` when the reusable object should stay
-  fluent-only but immutable and expose `rows(...)`, `schema()`, and `explain()`.
-- Use `ReportDefinition.fluent(...)` when the reusable object should be a stable
-  business-query contract with row/chart workflow methods instead of a mutable
-  builder.
+Reuse:
+- Use `PojoLensSql.template(...)` when the same query shape runs repeatedly
+  with different named parameter values.
+- Use `ReportDefinition.sql(...)` when the query contract itself should be
+  carried around with row/chart workflow methods.
 
 ### Scenario 2: Admin-Configurable Queries
 
@@ -168,27 +165,33 @@ List<EmployeeCompRow> firstPage = PojoLensSql
 Outcome:
 - Low-allocation first-page extraction via lazy streaming/iteration.
 
-### Scenario 2D: Repeated Filter Endpoint on the Same Snapshot
+### Scenario 2D: Repeated Query Shape on the Same Endpoint
 
 Problem:
-- A service executes the same equality-heavy filters repeatedly over one in-memory snapshot.
+- A service executes the same query shape repeatedly with different parameter
+  values.
 
 Use:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
-    .addIndex("department")
-    .addIndex("active")
-    .addRule("department", "Engineering", Clauses.EQUAL)
-    .addRule("active", true, Clauses.EQUAL)
-    .initFilter()
-    .filter(EmployeeDirectoryRow.class);
+SqlLikeTemplate template = PojoLensSql.template(
+    "where department = :dept and active = :active order by salary desc",
+    "dept",
+    "active"
+);
+
+List<EmployeeDirectoryRow> rows = template
+    .bind(SqlParams.builder()
+        .put("dept", "Engineering")
+        .put("active", true)
+        .build())
+    .filter(employees, EmployeeDirectoryRow.class);
 ```
 
 Outcome:
-- Optional index hints narrow candidate rows for compatible equality filters, with automatic fallback to scan when inapplicable.
+- One validated query shape can be reused with explicit parameter binding.
 
-### Scenario 2E: Bounded Subquery Filter in Fluent Code
+### Scenario 2E: Bounded Subquery Filter in SQL-like Code
 
 Problem:
 - A service-owned query needs departments that have at least one active row,
@@ -197,52 +200,40 @@ Problem:
 Use:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
-    .addInSubquery("department", "department",
-        subquery -> subquery.addRule("active", true, Clauses.EQUAL))
-    .initFilter()
-    .filter(EmployeeDirectoryRow.class);
+List<EmployeeDirectoryRow> rows = PojoLensSql
+    .parse("where department in (select department where active = true)")
+    .filter(employees, EmployeeDirectoryRow.class);
 ```
 
 Explicit source:
 
 ```java
-List<CompanyRow> rows = PojoLensCore.newQueryBuilder(companies)
-    .addInSubquery("id", employees, "companyId",
-        subquery -> subquery.addRule("active", true, Clauses.EQUAL))
-    .addExists(employees,
-        subquery -> subquery.addRule("title", "Engineer", Clauses.EQUAL))
-    .initFilter()
-    .filter(CompanyRow.class);
+JoinBindings joinBindings = JoinBindings.of("employees", employees);
+
+List<CompanyRow> rows = PojoLensSql
+    .parse("where id in (select companyId from employees where active = true) "
+        + "and exists (select * from employees where title = 'Engineer')")
+    .filter(companies, joinBindings, CompanyRow.class);
 ```
 
 Outcome:
-- The subquery is configured as a normal fluent query and resolved when the
-  execution snapshot is built. `addExists(...)` and `addNotExists(...)` cover
-  bounded existence checks without caller-side existence flags.
+- The bounded subquery is resolved by the shared execution engine.
+  `EXISTS` and `NOT EXISTS` cover bounded existence checks without caller-side
+  flags.
 
 Grouped predicates:
 
 ```java
-List<EmployeeDirectoryRow> rows = PojoLensCore.newQueryBuilder(employees)
-    .allOf(
-        QueryRule.inSubquery("department", "department",
-            subquery -> subquery.addRule("active", true, Clauses.EQUAL)),
-        QueryRule.of("region", "EMEA", Clauses.EQUAL)
-    )
-    .anyOf(
-        QueryRule.exists(assignments,
-            subquery -> subquery.addRule("priority", "Critical", Clauses.EQUAL)),
-        QueryRule.of("tier", "Gold", Clauses.EQUAL)
-    )
-    .initFilter()
-    .filter(EmployeeDirectoryRow.class);
+List<EmployeeDirectoryRow> rows = PojoLensSql
+    .parse("where (department in (select department where active = true) "
+        + "and region = 'EMEA') "
+        + "or tier = 'Gold'")
+    .filter(employees, EmployeeDirectoryRow.class);
 ```
 
 Outcome:
-- `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
-  `QueryRule.notExists(...)` can participate in `allOf(...)` and `anyOf(...)`
-  groups. Subqueries remain uncorrelated and bounded.
+- Supported subqueries can participate in grouped `AND` / `OR` expressions.
+  Subqueries remain uncorrelated and bounded.
 
 ### Scenario 3: Monthly Payroll Trend
 
@@ -370,11 +361,10 @@ Use:
 
 ```java
 QueryRegressionFixture<EmployeeApiRow> fixture = QueryRegressionFixture
-    .builder("employee-api", EmployeeApiRow.class)
-    .fluent(builder -> builder
-        .addRule("active", true, Clauses.EQUAL)
-        .addOrder("salary", 1))
-    .build();
+    .sql(
+        QuerySnapshotFixture.of("employee-api", employees),
+        PojoLensSql.parse("where active = true order by salary desc"),
+        EmployeeApiRow.class);
 ```
 
 Outcome:
@@ -398,7 +388,7 @@ Outcome:
 
 ## 7. Default Calls
 
-- Use `PojoLensCore` for service-owned fluent queries.
+- Use `PojoLensSql` for the default public query path and templates.
 - Use `PojoLensNatural` for guided plain-English text queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
 - Use `PojoLensCsv` for typed CSV loading at the file boundary.

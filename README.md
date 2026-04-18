@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. It supports fluent queries, SQL-like query strings, and a controlled plain-English query surface. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV files into typed rows and shaping flat parent-ID lists before they enter the same engine.
+`PojoLens` is a POJO-first in-memory query engine for Java. Its primary public query surface is SQL-like text over already-loaded Java objects, with a controlled plain-English surface for guided non-SQL authoring. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV files into typed rows and shaping flat parent-ID lists before they enter the same engine.
 
 Core execution model:
 `query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
@@ -57,10 +57,8 @@ Runnable example project:
 ## Why PojoLens
 
 - Query existing domain classes directly (no ORM model rewrite).
-- Choose query style per use case:
-  - fluent API for type-safe Java composition
-  - SQL-like strings for dynamic/user-authored queries
-  - controlled plain-English queries for guided non-SQL text authoring
+- Use SQL-like strings as the default public query surface.
+- Use controlled plain-English queries when authors need guided non-SQL text.
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
@@ -85,6 +83,8 @@ Runnable example project:
 
 - Need to choose the default query/runtime entry path:
   [docs/entry-points.md](docs/entry-points.md)
+- Need SQL-like grammar, templates, joins, windows, and bounded subqueries:
+  [docs/sql-like.md](docs/sql-like.md)
 - Need the controlled plain-English grammar and recipes:
   [docs/natural.md](docs/natural.md)
 - Need to choose between reusable report/chart/table wrappers:
@@ -98,15 +98,14 @@ Runnable example project:
 ## Pick A Path
 
 For new code, prefer one default path per job:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or
+`PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or
 `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| Service-owned query logic in code                         | `PojoLensCore`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/usecases.md](docs/usecases.md)                     |
-| A reusable fluent query shape                             | `PojoLensCore.prepare(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/reusable-wrappers.md](docs/reusable-wrappers.md)   |
-| Guided text queries for non-SQL users                    | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
-| Config-driven or dynamic query strings                    | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Default query authoring over in-memory rows               | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Reusable SQL-like query templates                         | `PojoLensSql.template(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Guided text queries for non-SQL users                     | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
 | Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
 | Flat parent-ID rows need subtree selection               | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
@@ -122,8 +121,7 @@ For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
 ## Product Shape
 
 - `Core query engine`:
-  fluent, SQL-like, and controlled plain-English querying over existing Java
-  objects.
+  SQL-like and controlled plain-English querying over existing Java objects.
 - `Workflow helper`:
   chart mapping, tree row shaping, reusable report/preset wrappers, dataset
   composition, and schema metadata.
@@ -144,19 +142,8 @@ Advanced/optional follow-on guide:
 
 ## Quick Start
 
-Three short examples, one per query style.
+Short examples for the primary public query paths.
 Broader recipes for joins, grouping, windows, templates, charts, and presets live in the docs linked below.
-
-### Fluent query
-
-```java
-List<Employee> rows = PojoLensCore.newQueryBuilder(source)
-    .addRule("department", "Engineering", Clauses.EQUAL)
-    .addOrder("salary", 1)
-    .limit(10)
-    .initFilter()
-    .filter(Sort.DESC, Employee.class);
-```
 
 ### SQL-like query
 
@@ -199,17 +186,14 @@ List<Employee> subtree = PojoLensTree.subtreeOf(
     ceoId
 );
 
-List<Employee> rows = PojoLensCore.newQueryBuilder(subtree)
-    .addOrder("salary", 1)
-    .limit(10)
-    .initFilter()
-    .filter(Sort.DESC, Employee.class);
+List<Employee> rows = PojoLensSql
+    .parse("order by salary desc limit 10")
+    .filter(subtree, Employee.class);
 ```
 
 More examples:
-- Fluent queries, grouped predicates, and bounded subqueries:
-  [docs/usecases.md](docs/usecases.md)
-- SQL-like queries and templates: [docs/sql-like.md](docs/sql-like.md)
+- SQL-like queries, templates, joins, windows, bounded subqueries, and charts:
+  [docs/sql-like.md](docs/sql-like.md)
 - Natural queries, joins, bounded subqueries, windows, and templates:
   [docs/natural.md](docs/natural.md)
 - Tree traversal from flat parent-ID rows: [docs/tree.md](docs/tree.md)
@@ -222,10 +206,7 @@ rules live in the module docs linked beside each surface.
 
 ### Core query engine
 
-- Fluent query composition over existing Java objects. See
-  [docs/usecases.md](docs/usecases.md) and
-  [docs/entry-points.md](docs/entry-points.md).
-- SQL-like text queries for config-driven or user-authored flows. See
+- SQL-like text queries for public query authoring. See
   [docs/sql-like.md](docs/sql-like.md).
 - Controlled natural query text for guided non-SQL authoring. See
   [docs/natural.md](docs/natural.md).
@@ -278,9 +259,8 @@ rules live in the module docs linked beside each surface.
 
 ## API Entry Points
 
-- `PojoLensCore`: default for new service-owned fluent queries
-- `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensSql`: default for new SQL-like and template-driven queries
+- `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensCsv`: boundary adapter for loading typed rows from UTF-8 CSV files
 - `PojoLensTree`: helper for selecting subtrees from flat parent-ID row lists
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
@@ -328,8 +308,8 @@ with the owning guide.
 - Natural queries use controlled grammar, not free-form language; bounded
   subquery phrases are documented with that grammar. See
   [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
-- Fluent builders are mutable configuration objects; reuse guidance belongs with
-  the code-owned query path. See [docs/usecases.md](docs/usecases.md).
+- Java builder internals are not the first-read public API; use SQL-like
+  templates or report definitions for reusable public query contracts.
 
 ## Documentation Map
 

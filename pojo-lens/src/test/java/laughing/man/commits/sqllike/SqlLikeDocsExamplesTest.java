@@ -1,6 +1,5 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.PojoLensRuntime;
@@ -10,8 +9,6 @@ import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
@@ -42,27 +39,6 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 public class SqlLikeDocsExamplesTest {
 
     @Test
-    public void readmeFluentQuickStartExampleShouldWork() {
-        Date now = new Date();
-        List<Employee> source = Arrays.asList(
-                new Employee(1, "Alice", "Engineering", 120000, now, true),
-                new Employee(2, "Bob", "Finance", 90000, now, true),
-                new Employee(3, "Cara", "Engineering", 130000, now, true)
-        );
-
-        List<Employee> results = PojoLensCore.newQueryBuilder(source)
-                .addRule("department", "Engineering", Clauses.EQUAL)
-                .addOrder("salary", 1)
-                .limit(10)
-                .initFilter()
-                .filter(Sort.ASC, Employee.class);
-
-        assertEquals(2, results.size());
-        assertEquals(120000, results.get(0).salary);
-        assertEquals(130000, results.get(1).salary);
-    }
-
-    @Test
     public void readmeSqlLikeQuickStartExampleShouldWork() {
         Date now = new Date();
         List<Employee> source = Arrays.asList(
@@ -72,7 +48,11 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        List<Employee> rows = PojoLensSql.parse("select name, salary where department = 'Engineering' and active = true order by salary desc limit 10")
+        List<Employee> rows = PojoLensSql
+                .parse("select name, salary "
+                        + "where department = :dept and salary >= :minSalary "
+                        + "order by salary desc limit 10")
+                .params(Map.of("dept", "Engineering", "minSalary", 120000))
                 .filter(source, Employee.class);
 
         assertEquals(2, rows.size());

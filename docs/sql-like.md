@@ -100,7 +100,7 @@ The old `PojoLens.parse(...)` facade alias is removed.
 
 `PojoLensSql.parse(...)` produces a SQL-like query contract that:
 - parses and validates query text
-- binds into the fluent pipeline
+- lowers into the shared execution engine
 - executes against in-memory rows
 
 Bind-first typed execution:
@@ -149,9 +149,8 @@ Sort limitation:
 - SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`
   and `WHERE [NOT] EXISTS (select ...)` predicates.
 - Supported subquery predicates can participate in `AND`/`OR` boolean `WHERE`
-  expressions. They lower through the same grouped fluent/core predicate path
-  used by `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
-  `QueryRule.notExists(...)`.
+  expressions. They lower through the same grouped predicate engine used by
+  the internal execution planner.
 - `IN` subqueries must select exactly one explicit output field, grouped
   alias, or aggregate alias.
 - `EXISTS` subqueries ignore selected output and may use `SELECT *` or

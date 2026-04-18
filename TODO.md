@@ -13,14 +13,14 @@ Context:
   builder as product API.
 
 Tasks:
-- [ ] Rewrite the README quick start so the first query example is SQL-like.
-- [ ] Make `PojoLensSql.parse(...)`, `PojoLensSql.template(...)`, and runtime
+- [x] Rewrite the README quick start so the first query example is SQL-like.
+- [x] Make `PojoLensSql.parse(...)`, `PojoLensSql.template(...)`, and runtime
       SQL-like parsing the recommended default entry points.
-- [ ] Update `docs/entry-points.md`, `docs/usecases.md`, and
+- [x] Update `docs/entry-points.md`, `docs/usecases.md`, and
       `docs/product-surface.md` so SQL-like is the primary query story.
-- [ ] Keep examples focused on parameter binding, typed execution, schema,
+- [x] Keep examples focused on parameter binding, typed execution, schema,
       explain, streaming, chart output, and `DatasetBundle` / `JoinBindings`.
-- [ ] Replace public wording that says SQL-like binds into fluent with wording
+- [x] Replace public wording that says SQL-like binds into fluent with wording
       that it lowers into the shared execution engine.
 
 Validate:

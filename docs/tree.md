@@ -4,7 +4,7 @@
 can be queried by the existing PojoLens engine.
 
 Use it when your data already exists as Java objects and the only missing step
-is selecting a subtree before normal fluent or SQL-like execution.
+is selecting a subtree before normal SQL-like or natural execution.
 
 ## Basic Subtree
 
@@ -16,11 +16,9 @@ List<Employee> subtree = PojoLensTree.subtreeOf(
     ceoId
 );
 
-List<Employee> rows = PojoLensCore.newQueryBuilder(subtree)
-    .addOrder("salary", 1)
-    .limit(10)
-    .initFilter()
-    .filter(Sort.DESC, Employee.class);
+List<Employee> rows = PojoLensSql
+    .parse("order by salary desc limit 10")
+    .filter(subtree, Employee.class);
 ```
 
 `subtreeOf(...)` is equivalent to:

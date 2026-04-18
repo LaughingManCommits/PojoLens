@@ -3,8 +3,8 @@
 `PojoLensCsv` is a boundary adapter that loads UTF-8 CSV files into typed rows
 before they enter the existing in-memory engine.
 
-It is not a second query engine. Once the rows are loaded, all fluent, SQL-like,
-and plain-English query features work on them exactly as they do on any other
+It is not a second query engine. Once the rows are loaded, SQL-like and
+plain-English query features work on them exactly as they do on any other
 `List<T>`.
 
 ## When To Use
@@ -12,8 +12,8 @@ and plain-English query features work on them exactly as they do on any other
 Use `PojoLensCsv` only at the file boundary - when data starts as a CSV file
 and you need to bring it into the engine as typed rows.
 
-For data that is already in Java objects or collections, use `PojoLensCore`,
-`PojoLensSql`, or `PojoLensNatural` directly.
+For data that is already in Java objects or collections, use `PojoLensSql` or
+`PojoLensNatural` directly.
 
 ## Basic Usage
 
