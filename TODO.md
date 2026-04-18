@@ -36,13 +36,13 @@ Validate:
 with SQL-like as the default technical API.
 
 Tasks:
-- [ ] Position `PojoLensNatural` as guided plain-English query text for users
+- [x] Position `PojoLensNatural` as guided plain-English query text for users
       who should not author SQL-like syntax directly.
-- [ ] Keep natural docs explicit about controlled grammar, vocabulary, lint,
+- [x] Keep natural docs explicit about controlled grammar, vocabulary, lint,
       strict typing, parameter binding, and authorization boundaries.
-- [ ] Replace wording that says natural lowers into fluent with wording that it
+- [x] Replace wording that says natural lowers into fluent with wording that it
       lowers into the shared execution engine.
-- [ ] Keep natural examples after SQL-like examples in public docs unless the
+- [x] Keep natural examples after SQL-like examples in public docs unless the
       page is specifically about natural queries.
 
 Validate:

@@ -113,7 +113,7 @@ For new code, prefer one default path per job:
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
 | A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTablePayload` / `StatsTable<T>` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
-| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/natural.md](docs/natural.md), [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md) |
+| Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/natural.md](docs/natural.md), [docs/reports.md](docs/reports.md) |
 
 For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
 `StatsTable<T>` keeps typed rows.
@@ -324,8 +324,8 @@ with the owning guide.
 
 - CSV boundary adapter guide: [docs/csv.md](docs/csv.md)
 - Tree traversal guide: [docs/tree.md](docs/tree.md)
-- Natural query guide: [docs/natural.md](docs/natural.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
+- Natural query guide: [docs/natural.md](docs/natural.md)
 - Charts: [docs/charts.md](docs/charts.md)
 - Reports and presets: [docs/reports.md](docs/reports.md)
 - Stats view presets: [docs/stats-presets.md](docs/stats-presets.md)

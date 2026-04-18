@@ -2,9 +2,9 @@
 
 ## Confirmed Alignment
 
-- `README.md` positions the repository correctly as a POJO-first in-memory query library with fluent, SQL-like, plain-English, and bounded CSV boundary-adapter surfaces.
-- README quick starts for fluent queries, SQL-like queries, plain-English queries, optional CSV boundary loading, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are covered by tests.
-- Public entry points in README (`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`, `PojoLensChart`, `PojoLensRuntime`) match current code.
+- `README.md` positions the repository correctly as a POJO-first in-memory query library with SQL-like as the primary public query surface, controlled plain-English as the guided text alternative, and bounded CSV/tree helpers before normal query execution.
+- README quick starts for SQL-like queries, plain-English queries, optional CSV boundary loading, tree row shaping, charts, reports, dataset bundles, computed fields, snapshot comparison, runtime presets, and typed join bindings are covered by tests.
+- Public entry points in README (`PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `PojoLensRuntime`, `ReportDefinition`) match the current SQL-like-first docs direction.
 
 ## Process-Doc Alignment
 
@@ -14,4 +14,4 @@
 
 ## Current Gap
 
-- No known high-impact README drift is currently open.
+- `SURFACE-WP2` keeps natural positioned as guided plain-English text after SQL-like in general public docs.

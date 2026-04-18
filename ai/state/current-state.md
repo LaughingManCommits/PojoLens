@@ -11,6 +11,7 @@
 - `2026-04-18`: Latest-release docs/examples/checks align to `2026.04.17.1834`.
 - `2026-04-18`: `TODO.md` now tracks a SQL-like-first public-surface reset with fluent internal.
 - `2026-04-18`: `SURFACE-WP1` complete; README/path-selection docs now make SQL-like the public default.
+- `2026-04-18`: `SURFACE-WP2` complete; natural is positioned as guided controlled text after SQL-like.
 - `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete.
 - `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
 - April feature work through `PojoLensTree`, FA/RU cleanup, docs, and limitations is complete.
@@ -36,7 +37,7 @@
 
 ## Next
 
-- Public API: execute `SURFACE-WP2` through `SURFACE-WP6`.
+- Public API: execute `SURFACE-WP3` through `SURFACE-WP6`.
 - Release: cut a later version after the fluent reset is validated.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.

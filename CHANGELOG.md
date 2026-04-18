@@ -28,6 +28,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Public query surface** - started `SURFACE-WP1` by making SQL-like the
   README and path-selection default while moving fluent wording out of the
   first-read public query story.
+- **Natural query positioning** - completed `SURFACE-WP2` by documenting
+  natural queries as controlled guided text after the SQL-like default, with
+  explicit vocabulary, parameter, diagnostics, and authorization boundaries.
 
 ---
 

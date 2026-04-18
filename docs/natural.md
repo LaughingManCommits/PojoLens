@@ -1,5 +1,16 @@
 # Natural Query Guide
 
+Natural queries are a guided plain-English option for callers who should not
+author SQL-like syntax directly. They are controlled query text over the same
+in-memory execution engine, not a free-form chatbot or business-rule inference
+layer.
+
+Use SQL-like queries when the author can work with explicit query syntax or
+needs the most exact technical surface. Use natural queries when the product
+needs readable, vocabulary-scoped query text with deterministic parsing,
+parameter binding, diagnostics, and the same authorization boundary as any
+other user-authored query.
+
 ## Canonical Grammar
 
 - optional leading source clause: `from <source> [as <label>]`
