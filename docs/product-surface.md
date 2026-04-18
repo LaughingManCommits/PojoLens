@@ -16,7 +16,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
   they do not change the POJO-first engine story.
 - Chart/table/report helpers, runtime wiring, and tooling layer on top of that
   same engine.
-- Compatibility-only facade overlap has been removed ahead of the first public release.
+- Compatibility-only facade overlap is not part of the public surface.
 
 ## Family Definitions
 
@@ -84,14 +84,5 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - Telemetry, cache policy controls, lint mode, regression fixtures, metamodel
   generation, and benchmarking are useful public features, but they belong to
   advanced/tooling surface rather than the first-read product story.
-
-## Follow-On Work
-
-This classification remains the input for:
-
-- entry-point guidance
-- reusable wrapper guidance
-- advanced-feature containment in README/docs
-- post-first-release compatibility enforcement
 
 

@@ -65,7 +65,3 @@ Current wrapper guidance:
 - keep `StatsViewPreset<T>` as specialized table-first convenience
 - de-emphasize the idea that these are separate product identities
 
-No wrapper is a current deprecation candidate.
-Further wrapper reduction remains a pre-first-release product decision, not a
-compatibility constraint.
-

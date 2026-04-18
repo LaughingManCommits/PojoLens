@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-17T20:22:44.174695+02:00",
+  "generatedAt": "2026-04-18T10:47:54.272178+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
     "mainJavaFiles": 207,
     "testJavaFiles": 119,
-    "markdownDocs": 50,
+    "markdownDocs": 51,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
     "orchestratorTaskPlans": 3

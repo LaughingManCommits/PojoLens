@@ -4,8 +4,8 @@ If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
 For new code, keep one default path per job:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`, `PojoLensChart`, or
-`ReportDefinition<T>`.
+`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensCsv`,
+`PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or `ReportDefinition<T>`.
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
@@ -399,7 +399,10 @@ Outcome:
 ## 7. Default Calls
 
 - Use `PojoLensCore` for service-owned fluent queries.
+- Use `PojoLensNatural` for guided plain-English text queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
+- Use `PojoLensCsv` for typed CSV loading at the file boundary.
+- Use `PojoLensTree` for subtree selection from flat parent-ID row lists.
 - Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, computed fields, or natural-query vocabulary should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.
 - Use `SqlLikeCursor`, `ReportDefinition`, `DatasetBundle`, and `SnapshotComparison` directly for those helper workflows.

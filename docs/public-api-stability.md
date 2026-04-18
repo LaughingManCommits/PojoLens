@@ -6,18 +6,17 @@ Release format:
 - Maven version: `YYYY.MM.DD.HHmm`
 - Git tag: `release-<version>`
 
-The repo is still in an explicit pre-first-release surface-reduction phase.
-The intended stable surface is already documented and tested, but
-compatibility-only wrappers and adapter overloads are still allowed to shrink
-before the first public `release-*` tag.
+The first public `release-*` baseline has shipped. Stable APIs are documented,
+covered by contract tests, and checked against public release baselines for
+binary/source compatibility.
 
 ## Tier Definitions
 
 - `Stable`:
   - intended long-lived product surface
   - covered by contract tests now
-  - covered by binary/source compatibility checks starting from the first
-    public `release-*` tag
+  - covered by binary/source compatibility checks against public `release-*`
+    baselines
 - `Advanced`:
   - public and supported, but expected to evolve faster
   - best-effort compatibility only
@@ -37,7 +36,7 @@ Product-surface families are defined in [product-surface.md](product-surface.md)
 
 The families and tiers are related, but not the same thing:
 
-- `Stable` means "part of the intended dated-release stable surface"
+- `Stable` means "part of the dated-release stable surface"
 - `Advanced` means "public, but not part of the narrow core promise"
 - compatibility adapters are allowed, but they should not become a second
   product story
@@ -157,29 +156,9 @@ Cross-module surface guidance is documented in
 [product-surface.md](product-surface.md) and
 [reusable-wrappers.md](reusable-wrappers.md).
 
-## Pre-First-Release Cleanup Policy
+## Compatibility Policy
 
-Before the first public `release-*` tag:
-
-- compatibility-only wrappers, execution overloads, and public default-cache
-  facades may be removed directly
-- migration notes must be explicit
-- contract tests should be updated in the same change
-
-This rule is why the following were removed before the first public release:
-
-- the `PojoLens` facade
-- public raw `Map<String, List<?>>` execution overloads on SQL-like and wrapper
-  APIs
-- the public `FilterExecutionPlanCache` compatibility facade around the
-  default stats-plan cache
-
-If you need to adapt existing map-shaped join inputs, convert once at the
-boundary with `JoinBindings.from(map)` and continue on the typed surface.
-
-## Post-First-Release Compatibility Policy
-
-After the first public `release-*` tag:
+For `Stable` APIs:
 
 - do not remove stable methods/classes in later dated releases
 - do not change stable method signatures incompatibly in later dated releases
@@ -192,14 +171,14 @@ For `Advanced` APIs:
   maintainability/performance
 - release notes must call out notable advanced-surface changes
 
+Compatibility-only surfaces removed before the first public baseline include
+the old `PojoLens` facade, public raw `Map<String, List<?>>` execution
+overloads on SQL-like and wrapper APIs, and the public
+`FilterExecutionPlanCache` compatibility facade around the default stats-plan
+cache. Adapt existing map-shaped join inputs at the boundary with
+`JoinBindings.from(map)` and continue on the typed surface.
+
 ## Deprecation Policy
-
-Before the first public release:
-
-- compatibility-only surfaces can be removed without a deprecation window
-- migration guidance must land in `MIGRATION.md`
-
-After the first public release:
 
 - stable APIs deprecate first, remove only after an explicit compatibility reset
 - every deprecation includes migration guidance

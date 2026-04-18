@@ -113,24 +113,28 @@ For new code, prefer one default path per job:
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
-| A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTable`                 | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
+| A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTablePayload` / `StatsTable<T>` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
 | Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/natural.md](docs/natural.md), [docs/sql-like.md](docs/sql-like.md), [docs/reports.md](docs/reports.md) |
+
+For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
+`StatsTable<T>` keeps typed rows.
 
 ## Product Shape
 
 - `Core query engine`:
   fluent, SQL-like, and controlled plain-English querying over existing Java
   objects.
-- `Workflow helpers`:
+- `Workflow helper`:
   chart mapping, tree row shaping, reusable report/preset wrappers, dataset
   composition, and schema metadata.
 - `Compatibility adapter`:
   boundary-only CSV loading into typed rows via `PojoLensCsv`.
-- `Runtime integration`:
+- `Integration`:
   runtime-scoped configuration and optional Spring Boot wiring.
-- `Advanced and tooling`:
-  diagnostics, policy tuning, regression helpers, metamodel generation, and
-  benchmarks.
+- `Tooling`:
+  diagnostics, regression helpers, metamodel generation, and benchmarks.
+- `Advanced`:
+  optional policy tuning and faster-evolving public helper surfaces.
 
 Canonical surface classification:
 - [docs/product-surface.md](docs/product-surface.md)
@@ -233,22 +237,21 @@ rules live in the module docs linked beside each surface.
   See [docs/sql-like.md](docs/sql-like.md),
   [docs/natural.md](docs/natural.md), and [docs/reports.md](docs/reports.md).
 
-### Workflow helpers
+### Workflow Helper
 
-- Chart payload mapping, report definitions, chart presets, stats presets, and
+- Chart payload mapping, report definitions, chart presets, stats presets,
   tree row shaping, and tabular schema metadata. See [docs/charts.md](docs/charts.md),
   [docs/tree.md](docs/tree.md),
   [docs/reports.md](docs/reports.md),
   [docs/stats-presets.md](docs/stats-presets.md), and
   [docs/tabular-schema.md](docs/tabular-schema.md).
 
-### Runtime integration
+### Integration
 
-- Runtime-scoped policy, diagnostics, caching, CSV defaults, computed fields,
-  and natural vocabulary. See [docs/entry-points.md](docs/entry-points.md),
+- Runtime-scoped policy, CSV defaults, computed fields, and natural
+  vocabulary. See [docs/entry-points.md](docs/entry-points.md),
   [docs/advanced-features.md](docs/advanced-features.md),
-  [docs/caching.md](docs/caching.md), and
-  [docs/telemetry.md](docs/telemetry.md).
+  and [docs/telemetry.md](docs/telemetry.md).
 - Optional Spring Boot starter and autoconfigure modules. See
   [docs/modules.md](docs/modules.md).
 
@@ -257,21 +260,28 @@ rules live in the module docs linked beside each surface.
 - CSV file-boundary loading into typed rows before normal query execution. See
   [docs/csv.md](docs/csv.md).
 
-### Advanced and tooling
+### Tooling
 
 - Snapshot comparison, regression fixtures, metamodel generation, benchmarks,
-  and optional production diagnostics. See
-  [docs/advanced-features.md](docs/advanced-features.md),
+  and diagnostics. See [docs/advanced-features.md](docs/advanced-features.md),
   [docs/snapshot-comparison.md](docs/snapshot-comparison.md),
   [docs/regression-fixtures.md](docs/regression-fixtures.md),
   [docs/metamodel.md](docs/metamodel.md), and
   [docs/benchmarking.md](docs/benchmarking.md).
+
+### Advanced
+
+- Optional policy tuning and faster-evolving public helper surfaces. See
+  [docs/advanced-features.md](docs/advanced-features.md),
+  [docs/caching.md](docs/caching.md), and
+  [docs/reusable-wrappers.md](docs/reusable-wrappers.md).
 
 ## API Entry Points
 
 - `PojoLensCore`: default for new service-owned fluent queries
 - `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensSql`: default for new SQL-like and template-driven queries
+- `PojoLensCsv`: boundary adapter for loading typed rows from UTF-8 CSV files
 - `PojoLensTree`: helper for selecting subtrees from flat parent-ID row lists
 - `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
 - `PojoLensChart`: chart-only helper when rows already exist
@@ -291,10 +301,11 @@ PojoLens uses three API tiers:
 These tiers are orthogonal to the product-surface families in
 [docs/product-surface.md](docs/product-surface.md):
 - core query engine
-- workflow helpers
+- workflow helper
 - integration
 - compatibility adapters
 - tooling
+- advanced
 
 The explicit stable-surface contract and deprecation policy are documented in
 [docs/public-api-stability.md](docs/public-api-stability.md).

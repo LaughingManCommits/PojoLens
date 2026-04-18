@@ -34,6 +34,8 @@ Use these when you need operational visibility or stricter query hygiene:
 
 - `explain()` and SQL-like diagnostics:
   [sql-like.md](sql-like.md)
+- Natural query `explain()`:
+  [natural.md](natural.md)
 - Lint mode and strict parameter typing:
   [sql-like.md](sql-like.md)
 - Benchmark and threshold tooling:
