@@ -8,6 +8,7 @@ import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
@@ -274,6 +275,25 @@ public class NaturalQueryContractTest {
                 "select name, salary where department = 'Engineering' order by salary desc limit 2",
                 explain.get("resolvedEquivalentSqlLike")
         );
+    }
+
+    @Test
+    public void runtimeNaturalVocabularyShouldResolveAliasesForDiagnostics() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay")
+                .field("department", "team")
+                .build());
+
+        QueryDiagnostics diagnostics = runtime.natural()
+                .parse("show name, annual pay where team is Engineering sort by annual pay descending")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+        assertTrue(diagnostics.referencedFields().contains("salary"));
+        assertTrue(diagnostics.referencedFields().contains("department"));
+        assertTrue(diagnostics.outputFields().contains("salary"));
     }
 
     @Test

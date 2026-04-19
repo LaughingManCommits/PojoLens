@@ -141,6 +141,16 @@ Input-safety guidance:
 - treat parse/validation errors as user-facing diagnostics, not as permission
   checks; authorization should happen before query execution
 
+Pre-execution diagnostics:
+- `diagnostics()` returns parse-level structural metadata without source-class
+  validation.
+- `diagnostics(Source.class, Projection.class)` adds field/projection
+  validation without executing rows.
+- `diagnostics(Source.class, Projection.class, joinBindings)` validates
+  queries that reference named join or subquery sources.
+- Diagnostics are for tooling, config screens, tests, and CI guardrails. Use
+  `explain(...)` when you need execution-stage row counts.
+
 Sort limitation:
 - `ORDER BY` must use one global direction (all `ASC` or all `DESC`)
 
@@ -383,6 +393,45 @@ PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.setLintMode(true);
 
 SqlLikeQuery query = runtime.parse("select * from companies limit 5");
+```
+
+### Recipe: Pre-Execution Diagnostics
+
+Use diagnostics when a config screen, test, or CI check needs to inspect a
+query before executing rows.
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("select name, salary where department = :dept order by salary desc")
+    .diagnostics(Employee.class, Employee.class);
+
+boolean valid = diagnostics.valid();
+List<String> requiredParams = diagnostics.requiredParams();     // ["dept"]
+List<String> referencedFields = diagnostics.referencedFields(); // name, salary, department
+List<String> outputFields = diagnostics.outputFields();         // name, salary
+```
+
+For invalid queries, inspect all reported errors instead of catching a thrown
+execution exception:
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("where departmnt = :dept and salry > :min")
+    .diagnostics(Employee.class, Employee.class);
+
+List<QueryDiagnosticsError> errors = diagnostics.errors();
+```
+
+Join-aware diagnostics use the same typed binding model as execution:
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("select name from employees where companyId in "
+        + "(select id from companies where name = :company)")
+    .diagnostics(
+        Employee.class,
+        Employee.class,
+        JoinBindings.of("companies", companies));
 ```
 
 ### Recipe: Runtime Policy Presets

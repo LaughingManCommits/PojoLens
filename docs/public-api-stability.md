@@ -84,8 +84,13 @@ The default first-read story is SQL-like first:
 - `SqlLikeQuery`:
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `diagnostics`, `explain`
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `QueryDiagnostics`:
+  - `valid`, `errors`, `lintWarnings`, `requiredParams`, `referencedFields`,
+    `outputFields`, `joinSources`, `hasSubqueries`
+- `QueryDiagnosticsError`:
+  - `code`, `message`
 - `SqlLikeBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`
 - `SqlLikeTemplate`:
@@ -103,7 +108,7 @@ The default first-read story is SQL-like first:
   - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `diagnostics`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalTemplate`:

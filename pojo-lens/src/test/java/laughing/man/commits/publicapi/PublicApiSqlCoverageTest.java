@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -169,6 +170,19 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertTrue(lintQuery.isLintModeEnabled());
         assertEquals(1, lintQuery.suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD).lintWarnings().size());
         assertFalse(PojoLensSql.parse("select * from companies limit 1").lintMode(false).isLintModeEnabled());
+    }
+
+    @Test
+    public void diagnosticsShouldBeUsableFromPublicApi() {
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = :dept order by salary desc")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+        assertEquals(List.of("dept"), diagnostics.requiredParams());
+        assertTrue(diagnostics.referencedFields().contains("department"));
+        assertTrue(diagnostics.outputFields().contains("salary"));
     }
 }
 

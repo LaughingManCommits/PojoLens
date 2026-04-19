@@ -19,6 +19,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   usage, lint warnings, and validation findings before execution.
   `NaturalQuery.diagnostics()` and `diagnostics(Class, Class)` delegate
   through the equivalent SQL-like representation.
+- **Query diagnostics hardening** - completed WP1 review fixes so diagnostics
+  report nested subquery fields/sources, join child fields, multiple unknown
+  `WHERE` field findings, runtime natural-vocabulary resolution, and stable
+  public API/docs coverage.
 
 ### Changed
 

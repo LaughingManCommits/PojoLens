@@ -22,6 +22,8 @@ import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryDiagnosticsError;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -146,6 +148,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "chart", List.class, Class.class, ChartSpec.class);
         requirePublicMethod(SqlLikeQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(SqlLikeQuery.class, "schema", Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "diagnostics");
+        requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class, JoinBindings.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "sort");
@@ -164,6 +169,17 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(SqlParams.class, "builder");
         requirePublicStaticMethod(SqlParams.class, "empty");
         requirePublicMethod(SqlParams.class, "asMap");
+
+        requirePublicMethod(QueryDiagnostics.class, "valid");
+        requirePublicMethod(QueryDiagnostics.class, "errors");
+        requirePublicMethod(QueryDiagnostics.class, "lintWarnings");
+        requirePublicMethod(QueryDiagnostics.class, "requiredParams");
+        requirePublicMethod(QueryDiagnostics.class, "referencedFields");
+        requirePublicMethod(QueryDiagnostics.class, "outputFields");
+        requirePublicMethod(QueryDiagnostics.class, "joinSources");
+        requirePublicMethod(QueryDiagnostics.class, "hasSubqueries");
+        requirePublicMethod(QueryDiagnosticsError.class, "code");
+        requirePublicMethod(QueryDiagnosticsError.class, "message");
     }
 
     @Test
@@ -198,6 +214,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(NaturalQuery.class, "diagnostics");
+        requirePublicMethod(NaturalQuery.class, "diagnostics", Class.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "explain", List.class, JoinBindings.class, Class.class);

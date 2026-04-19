@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T21:25:13.671909+02:00",
+  "generatedAt": "2026-04-19T12:20:24.910325+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 119,
-    "testClasses": 119
+    "testJavaFiles": 120,
+    "testClasses": 120
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 107
+      "testJavaFiles": 108
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -170,6 +170,7 @@
       "files": [
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeAliasTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeDiagnosticsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeErrorCodesContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeJoinBindingsContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeJoinTest.java",

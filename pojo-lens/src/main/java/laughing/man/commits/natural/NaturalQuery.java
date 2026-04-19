@@ -131,8 +131,8 @@ public final class NaturalQuery {
     public QueryDiagnostics diagnostics(Class<?> sourceClass, Class<?> projectionClass) {
         Objects.requireNonNull(sourceClass, "sourceClass must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
-        return SqlLikeQuery.of(equivalentSqlLike)
-                .computedFields(state.computedFieldRegistry())
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolveForDiagnostics(sourceClass);
+        return createDelegate(resolved.ast())
                 .diagnostics(sourceClass, projectionClass);
     }
 
@@ -393,6 +393,26 @@ public final class NaturalQuery {
         String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
         if (rootSourceName != null) {
             addQualifiedVocabularyTargets(allowedFields, rootSourceName, state.vocabulary());
+        }
+        return NaturalQueryResolutionSupport.resolve(
+                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
+                allowedFields,
+                state.vocabulary()
+        );
+    }
+
+    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolveForDiagnostics(Class<?> sourceClass) {
+        if (state.ast().hasJoins()) {
+            return NaturalQueryResolutionSupport.passthrough(state.ast(), equivalentSqlLike);
+        }
+        Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
+        allowedFields.addAll(state.computedFieldRegistry().names());
+        addVocabularyTargets(allowedFields, state.vocabulary());
+        addUnaliasedSourcePhraseFields(allowedFields, state.sourceFieldPhrases(), state.vocabulary());
+        String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
+        if (rootSourceName != null) {
+            addQualifiedVocabularyTargets(allowedFields, rootSourceName, state.vocabulary());
+            addQualifiedFields(allowedFields, rootSourceName, sourceClass);
         }
         return NaturalQueryResolutionSupport.resolve(
                 new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),

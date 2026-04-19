@@ -31,9 +31,20 @@ Tasks:
       SQL-like parsing.
 - [x] Include required named params, referenced fields, output fields, joins,
       subquery usage, lint warnings, and validation failures.
-- [ ] Add docs and examples for config-screen validation and CI query checks.
+- [x] Add docs and examples for config-screen validation and CI query checks.
 - [x] Add contract tests for success, missing params, unknown fields, joins,
       subqueries, and lint warnings.
+
+Review hardening findings fixed:
+- [x] Document `QueryDiagnostics` with executable SQL-like examples.
+- [x] Include diagnostics in public API stability docs and contract tests.
+- [x] Include parent fields, child join fields, and nested subquery fields in
+      `referencedFields()`.
+- [x] Include named subquery sources in `joinSources()`.
+- [x] Collect multiple unknown `WHERE` field diagnostics instead of reporting
+      only the first thrown validator error.
+- [x] Resolve runtime natural vocabulary before class-backed natural
+      diagnostics.
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Diagnostics*Test,SqlLike*Test" test`
@@ -199,6 +210,9 @@ reset and any chosen QoL package are validated.
 
 Tasks:
 - [ ] Decide whether to release immediately or include one QoL package first.
+- [ ] Investigate or refresh the stale Checkstyle baseline comparator; the
+      current `scripts/check-lint-baseline.ps1` run reports repo-wide baseline
+      drift before release.
 - [ ] Run the final release guardrails from `RELEASE.md`.
 - [ ] Update release notes for the selected shipped scope.
 - [ ] Cut the next date-based release.

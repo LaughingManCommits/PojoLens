@@ -3,7 +3,6 @@ package laughing.man.commits.sqllike;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
-import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 
 import org.junit.jupiter.api.Test;
@@ -72,6 +71,8 @@ public class SqlLikeDiagnosticsTest {
                 "select id from Employee join companies on id = companyId").diagnostics();
         assertTrue(d.valid());
         assertTrue(d.joinSources().contains("companies"));
+        assertTrue(d.referencedFields().contains("id"));
+        assertTrue(d.referencedFields().contains("companyId"));
     }
 
     @Test
@@ -80,6 +81,20 @@ public class SqlLikeDiagnosticsTest {
                 "select id from Employee where department in (select department from Employee)").diagnostics();
         assertTrue(d.valid());
         assertTrue(d.hasSubqueries());
+    }
+
+    @Test
+    public void subqueryDiagnosticsShouldIncludeNestedFieldsAndSources() {
+        QueryDiagnostics d = PojoLensSql.parse(
+                "where id in (select companyId from employees where title = :title)").diagnostics();
+
+        assertTrue(d.valid());
+        assertTrue(d.hasSubqueries());
+        assertTrue(d.referencedFields().contains("id"));
+        assertTrue(d.referencedFields().contains("companyId"));
+        assertTrue(d.referencedFields().contains("title"));
+        assertTrue(d.joinSources().contains("employees"));
+        assertTrue(d.requiredParams().contains("title"));
     }
 
     @Test
@@ -151,6 +166,17 @@ public class SqlLikeDiagnosticsTest {
                 .diagnostics(Foo.class, Foo.class);
         assertFalse(d.valid());
         assertTrue(d.errors().get(0).code().startsWith("EQ-SQL-"));
+    }
+
+    @Test
+    public void diagnosticsShouldCollectMultipleUnknownWhereFields() {
+        QueryDiagnostics d = PojoLensSql.parse(
+                        "where missingOne = 'abc' and missingTwo = 'def'")
+                .diagnostics(Foo.class, Foo.class);
+
+        assertFalse(d.valid());
+        assertTrue(d.errors().stream().anyMatch(error -> error.message().contains("missingOne")));
+        assertTrue(d.errors().stream().anyMatch(error -> error.message().contains("missingTwo")));
     }
 
     @Test

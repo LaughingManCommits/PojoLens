@@ -322,6 +322,39 @@ public class SqlLikeDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipePreExecutionDiagnosticsShouldWork() {
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = :dept order by salary desc")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertEquals(List.of("dept"), diagnostics.requiredParams());
+        assertTrue(diagnostics.referencedFields().contains("name"));
+        assertTrue(diagnostics.referencedFields().contains("salary"));
+        assertTrue(diagnostics.referencedFields().contains("department"));
+        assertEquals(List.of("name", "salary"), diagnostics.outputFields());
+
+        QueryDiagnostics invalid = PojoLensSql
+                .parse("where departmnt = :dept and salry > :min")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertFalse(invalid.valid());
+        assertTrue(invalid.errors().stream().anyMatch(error -> error.message().contains("departmnt")));
+        assertTrue(invalid.errors().stream().anyMatch(error -> error.message().contains("salry")));
+
+        QueryDiagnostics joinAware = PojoLensSql
+                .parse("where id in (select companyId from employees where title = :title)")
+                .diagnostics(
+                        Company.class,
+                        Company.class,
+                        JoinBindings.of("employees", sampleCompanyEmployees()));
+
+        assertTrue(joinAware.valid());
+        assertTrue(joinAware.joinSources().contains("employees"));
+        assertTrue(joinAware.hasSubqueries());
+    }
+
+    @Test
     public void docsRecipeRuntimePolicyPresetsShouldWork() {
         PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
         PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);

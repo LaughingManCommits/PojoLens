@@ -11,6 +11,7 @@ import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -111,6 +112,24 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
                 .filter(sampleEmployees(), Employee.class);
 
         assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
+    public void naturalDiagnosticsShouldBeUsableFromPublicApi() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay")
+                .field("department", "team")
+                .build());
+
+        QueryDiagnostics diagnostics = runtime.natural()
+                .parse("show name, annual pay where team is Engineering")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+        assertTrue(diagnostics.referencedFields().contains("salary"));
+        assertTrue(diagnostics.referencedFields().contains("department"));
     }
 
     @Test
