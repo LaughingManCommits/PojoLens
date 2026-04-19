@@ -11,6 +11,7 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
 import laughing.man.commits.sqllike.internal.diagnostics.SqlLikeDiagnosticsSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePlanPreviewSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
@@ -445,6 +446,22 @@ public final class SqlLikeQuery {
                 joinBindings.asMap(), computedFieldRegistry);
         return QueryExposurePolicySupport.apply(
                 diagnostics, ast, exposurePolicy, sourceClass, joinBindings.asMap());
+    }
+
+    /**
+     * Returns a structural plan preview for this SQL-like query based on the
+     * parsed AST. The preview describes selected fields, filters, grouping,
+     * ordering, joins, subqueries, paging, and required parameters without
+     * executing the query against rows.
+     * <p>
+     * Use the preview for admin tooling, CI query inspection, and generated
+     * query review. For validation findings and lint warnings, use
+     * {@link #diagnostics()} instead.
+     *
+     * @return plan preview with execution shape metadata
+     */
+    public SqlLikePlanPreview planPreview() {
+        return SqlLikePlanPreviewSupport.buildFromAst(ast, source);
     }
 
     /**

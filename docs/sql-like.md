@@ -476,6 +476,85 @@ QueryDiagnostics diagnostics = PojoLensSql
         JoinBindings.of("companies", companies));
 ```
 
+### Recipe: Plan Preview
+
+Use `planPreview()` to inspect a query's structural execution shape before running it against rows.
+The preview describes selected fields, filters, grouping, ordering, joins, subqueries, paging, and
+required parameters. It does not validate field existence, produce row counts, or require a source
+class. Use it for admin tooling, CI query inspection, and generated query review.
+
+```java
+SqlLikePlanPreview preview = PojoLensSql.parse(
+        "select name, salary from Employee " +
+        "where department = :dept and salary >= :min " +
+        "order by salary desc limit :top")
+    .planPreview();
+
+List<String> params   = preview.requiredParams();  // ["dept", "min", "top"]
+boolean paged         = preview.hasPaging();        // true
+boolean grouped       = preview.hasGrouping();      // false
+List<PlanPreviewField>  fields   = preview.selectFields();  // name, salary
+List<PlanPreviewFilter> filters  = preview.filters();       // department=, salary>=
+List<PlanPreviewOrder>  ordering = preview.orderFields();   // salary DESC
+PlanPreviewPaging       paging   = preview.paging();        // limit = :top
+```
+
+Use `filterExpression()` when boolean grouping matters:
+
+```java
+SqlLikePlanPreview grouped = PojoLensSql.parse(
+        "where (department = :dept or department = :backup) and active = true")
+    .planPreview();
+
+PlanPreviewPredicate root = grouped.filterExpression();
+String op = root.operator();                         // "AND"
+PlanPreviewPredicate left = root.children().get(0);  // "OR" group
+```
+
+Inspect individual filter predicates for parameter-driven WHERE clauses:
+
+```java
+for (PlanPreviewFilter f : preview.filters()) {
+    String field    = f.field();       // e.g. "department"
+    String operator = f.operator();    // e.g. "="
+    String kind     = f.valueKind();   // "LITERAL", "PARAMETER", "SUBQUERY", "EXISTS_SUBQUERY"
+    String param    = f.parameterName(); // non-null when kind == "PARAMETER"
+}
+```
+
+Inspect subqueries through the nested preview:
+
+```java
+SqlLikePlanPreview outer = PojoLensSql.parse(
+        "where id in (select companyId from employees " +
+        "where title = :title order by companyId desc limit 2)")
+    .planPreview();
+
+SqlLikePlanPreview inner = outer.filters().get(0).subqueryPreview();
+String source = inner.source();                  // "employees"
+List<String> subParams = inner.requiredParams(); // ["title"]
+boolean subPaged = inner.hasPaging();            // true
+```
+
+Inspect window function fields:
+
+```java
+SqlLikePlanPreview wp = PojoLensSql.parse(
+        "select row_number() over (partition by department order by salary desc) as rank " +
+        "from Employee qualify rank <= 3")
+    .planPreview();
+
+boolean hasWindows = wp.hasWindows();  // true
+PlanPreviewField wf = wp.selectFields().get(0);
+String fn        = wf.windowFunction();          // "ROW_NUMBER"
+List<String> par = wf.windowPartitionFields();   // ["department"]
+List<String> ord = wf.windowOrderFields();       // ["salary"]
+String frame     = wf.windowFrame();             // "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+```
+
+For validation findings and lint warnings, use `diagnostics()` instead. The two entry points are
+complementary: diagnostics validates correctness; preview describes execution shape.
+
 ### Recipe: Runtime Policy Presets
 
 Use presets when you want a preconfigured runtime and still keep manual overrides available afterward.

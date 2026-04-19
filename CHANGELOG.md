@@ -11,6 +11,21 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **SQL-like plan preview** (`QOL-WP3`) - added `SqlLikePlanPreview` and six
+  companion types (`PlanPreviewField`, `PlanPreviewFilter`, `PlanPreviewJoin`,
+  `PlanPreviewOrder`, `PlanPreviewPaging`, `PlanPreviewPredicate`) in the
+  `sqllike` package. New
+  `SqlLikeQuery.planPreview()` entry point returns a deterministic structural
+  description of a query's execution shape — selected fields with aliases,
+  metrics, time buckets, and window function details; WHERE/HAVING/QUALIFY
+  predicates with operator and value-kind; JOIN clauses; ORDER BY fields; paging
+  config; and required parameters — all without executing against rows or
+  requiring a source class. Does not include cost estimates or row counts.
+- **Grouped plan preview predicates** (`QOL-WP3` hardening) - added
+  `PlanPreviewPredicate` plus `filterExpression()`, `havingExpression()`, and
+  `qualifyExpression()` so preview tooling can retain `AND`/`OR` grouping.
+  `PlanPreviewFilter.subqueryPreview()` now exposes nested subquery shape, and
+  repeated literal predicates are preserved in preview filter lists.
 - **Query diagnostics API** (`QOL-WP1`) - added `QueryDiagnostics` and
   `QueryDiagnosticsError` public types in the `sqllike` package. New
   `SqlLikeQuery.diagnostics()` (AST-level), `diagnostics(Class, Class)`, and

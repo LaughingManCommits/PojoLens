@@ -86,7 +86,7 @@ The default first-read story is SQL-like first:
 - `SqlLikeQuery`:
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`, `planPreview`
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `QueryExposurePolicy`:
   - `unrestricted`, `builder`, `toBuilder`
@@ -98,6 +98,25 @@ The default first-read story is SQL-like first:
     `outputFields`, `joinSources`, `hasSubqueries`
 - `QueryDiagnosticsError`:
   - `code`, `message`
+- `SqlLikePlanPreview`:
+  - `source`, `isWildcard`, `selectFields`, `filters`, `filterExpression`, `groupByFields`,
+    `havingFilters`, `havingExpression`, `qualifyFilters`, `qualifyExpression`, `orderFields`,
+    `joins`, `paging`, `requiredParams`, `hasSubqueries`
+  - `hasGrouping`, `hasJoins`, `hasWindows`, `hasPaging`, `hasAggregation`
+- `PlanPreviewField`:
+  - `field`, `outputName`, `alias`, `metric`, `timeBucket`, `windowFunction`,
+    `windowPartitionFields`, `windowOrderFields`, `windowFrame`
+  - `isComputed`, `isCountAll`, `isWindow`, `isMetric`, `isTimeBucket`
+- `PlanPreviewFilter`:
+  - `field`, `operator`, `valueKind`, `parameterName`, `subqueryPreview`
+- `PlanPreviewPredicate`:
+  - `isLeaf`, `filter`, `operator`, `children`
+- `PlanPreviewJoin`:
+  - `type`, `source`, `parentField`, `childField`
+- `PlanPreviewOrder`:
+  - `field`, `direction`
+- `PlanPreviewPaging`:
+  - `limit`, `limitParameter`, `offset`, `offsetParameter`, `hasLimit`, `hasOffset`
 - `SqlLikeBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`
 - `SqlLikeTemplate`:

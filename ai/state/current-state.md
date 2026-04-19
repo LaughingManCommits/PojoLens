@@ -16,19 +16,18 @@
 - `2026-04-19`: `TODO.md` tracks `QOL-WP1` through `QOL-WP5`.
 - `2026-04-19`: `QOL-WP1` query diagnostics is implemented and review-hardened.
 - `2026-04-19`: `QOL-WP2` query exposure policy is implemented.
+- `2026-04-19`: `QOL-WP3` SQL-like dry-run plan preview is implemented and review-hardened.
 - `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete.
 - `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
 - April feature work through `PojoLensTree`, FA/RU cleanup, docs, and limitations is complete.
 
 ## Verified
 
-- `2026-04-19`: QOL-WP1 diagnostics hardening passed full Maven tests, doc consistency, diff check, and memory refresh/check.
-- `2026-04-19`: QOL-WP2 passed focused SQL-like/natural/public API/docs tests.
+- `2026-04-19`: QOL-WP1 (diagnostics) and QOL-WP2 (exposure) passed full Maven tests, doc consistency, diff check, and memory refresh/check.
+- `2026-04-19`: QOL-WP3 hardening passed 28 preview tests, full 799-test Maven suite, doc consistency, and diff check.
 - `2026-04-19`: Internal fluent docs passed doc consistency and diff whitespace checks.
-- `2026-04-18`: Java 25 CI, DOC-WP1 through DOC-WP10, and release alignment passed doc checks and Maven tests.
-- `2026-04-18`: SQL-like-first public-surface reset passed doc checks, full Maven tests, benchmark module tests, lint baseline verify, binary compatibility reset verify, and `git diff --check`.
+- `2026-04-18`: Java 25 CI, DOC-WP1–WP10, surface reset, and release alignment passed full Maven tests, doc checks, lint, and binary compat verify.
 - `2026-04-17`: `PojoLensTree`, positioning docs, Checkstyle baseline, CI warnings, and benchmark thresholds validated.
-- `2026-04-10` to `2026-04-14`: CSV WP1-WP5 and bounded subquery/existence parity validated.
 
 ## Release
 
@@ -45,6 +44,6 @@
 ## Next
 
 - Release: cut a later version after final release guardrails are run.
-- QoL: `QOL-WP3` SQL-like dry run / plan preview is next.
+- QoL: `QOL-WP4` page result helper is next.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.

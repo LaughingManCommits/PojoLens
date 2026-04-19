@@ -114,14 +114,24 @@ Scope:
 - Keep preview deterministic and serializable enough for logging/tests.
 
 Tasks:
-- [ ] Decide whether preview is part of `QueryDiagnostics` or a separate
+- [x] Decide whether preview is part of `QueryDiagnostics` or a separate
       `SqlLikePlanPreview`.
-- [ ] Reuse parser/AST metadata instead of rebuilding query inspection by hand.
-- [ ] Add preview output for joins, grouped predicates, windows, time buckets,
+- [x] Reuse parser/AST metadata instead of rebuilding query inspection by hand.
+- [x] Add preview output for joins, grouped predicates, windows, time buckets,
       subqueries, and paging.
-- [ ] Add docs showing preview before executing config-owned queries.
-- [ ] Add tests that lock stable preview fields without overfitting internal
+- [x] Add docs showing preview before executing config-owned queries.
+- [x] Add tests that lock stable preview fields without overfitting internal
       AST implementation details.
+
+Review hardening findings fixed:
+- [x] Preserve grouped predicate shape through `PlanPreviewPredicate` instead
+      of exposing only a flattened predicate list.
+- [x] Keep repeated literal predicates in preview output instead of collapsing
+      same-field/same-operator entries.
+- [x] Expose nested `subqueryPreview()` details for `IN`, `EXISTS`, and
+      `NOT EXISTS` predicates.
+- [x] Add stable public API contract coverage for `planPreview()` and preview
+      companion types.
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Preview*Test,SqlLikeParserTest,SqlLikeQueryContractTest" test`

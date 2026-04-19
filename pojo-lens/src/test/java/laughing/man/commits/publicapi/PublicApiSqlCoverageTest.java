@@ -5,8 +5,10 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PlanPreviewPredicate;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
+import laughing.man.commits.sqllike.SqlLikePlanPreview;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -201,6 +203,23 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertTrue(policy.allowsField("salary"));
         assertTrue(diagnostics.valid());
         assertTrue(diagnostics.errors().isEmpty());
+    }
+
+    @Test
+    public void planPreviewShouldBeUsableFromPublicApi() {
+        SqlLikePlanPreview preview = PojoLensSql
+                .parse("select name from Employee where department = :dept and active = true order by name asc")
+                .planPreview();
+
+        assertEquals("Employee", preview.source());
+        assertEquals(List.of("dept"), preview.requiredParams());
+        assertEquals("name", preview.selectFields().get(0).field());
+        assertEquals("name", preview.orderFields().get(0).field());
+
+        PlanPreviewPredicate expression = preview.filterExpression();
+        assertEquals("AND", expression.operator());
+        assertEquals("department", expression.children().get(0).filter().field());
+        assertEquals("active", expression.children().get(1).filter().field());
     }
 }
 
