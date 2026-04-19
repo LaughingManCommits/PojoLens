@@ -1,155 +1,207 @@
 # TODO
 
-## SURFACE-WP1: Make SQL-like The Primary Public Query API
+## QOL-WP1: Query Diagnostics Report API
 
 **Priority:** High
-**Goal:** Present SQL-like as the default user-facing query surface.
+**Goal:** Give developers a non-executing way to inspect query requirements,
+validation findings, and lint guidance before running against rows.
 
 Context:
-- Most users will prefer a familiar query string over a custom Java builder.
-- SQL-like should be the public face for filtering, ordering, grouping, joins,
-  windows, subqueries, time buckets, charts, schemas, explain, and templates.
-- Java-owned query composition should not require exposing the mutable fluent
-  builder as product API.
+- SQL-like is the primary public query surface, and config/admin-driven query
+  text needs better preflight tooling.
+- Existing parse, validation, lint, schema, and explain behavior already know
+  most of the information developers need.
+- Diagnostics should improve developer experience without creating a new query
+  style or exposing internal fluent planning types.
+
+Scope:
+- Add a public diagnostics result for SQL-like queries with referenced fields,
+  required parameters, selected output fields, joins/sources, warnings, and
+  validation errors.
+- Prefer a non-throwing diagnostics path so tooling can show multiple findings
+  at once.
+- Keep execution `explain(...)` separate from pre-execution diagnostics.
+- Add natural-query diagnostics only if it can reuse the SQL-like equivalent
+  safely through `equivalentSqlLike()`.
 
 Tasks:
-- [x] Rewrite the README quick start so the first query example is SQL-like.
-- [x] Make `PojoLensSql.parse(...)`, `PojoLensSql.template(...)`, and runtime
-      SQL-like parsing the recommended default entry points.
-- [x] Update `docs/entry-points.md`, `docs/usecases.md`, and
-      `docs/product-surface.md` so SQL-like is the primary query story.
-- [x] Keep examples focused on parameter binding, typed execution, schema,
-      explain, streaming, chart output, and `DatasetBundle` / `JoinBindings`.
-- [x] Replace public wording that says SQL-like binds into fluent with wording
-      that it lowers into the shared execution engine.
+- [ ] Inventory existing validation, lint, schema, and parse-error metadata.
+- [ ] Design a small public `QueryDiagnostics` contract.
+- [ ] Add `diagnostics(...)` entry points on `SqlLikeQuery` and runtime-owned
+      SQL-like parsing.
+- [ ] Include required named params, referenced fields, output fields, joins,
+      subquery usage, lint warnings, and validation failures.
+- [ ] Add docs and examples for config-screen validation and CI query checks.
+- [ ] Add contract tests for success, missing params, unknown fields, joins,
+      subqueries, and lint warnings.
 
 Validate:
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Diagnostics*Test,SqlLike*Test" test`
 - `scripts/check-doc-consistency.ps1`
-- `py -3 scripts/check-doc-consistency.py`
-
----
-
-## SURFACE-WP2: Keep Natural As The Guided Text Alternative
-
-**Priority:** High
-**Goal:** Keep natural queries as a controlled non-SQL option without competing
-with SQL-like as the default technical API.
-
-Tasks:
-- [x] Position `PojoLensNatural` as guided plain-English query text for users
-      who should not author SQL-like syntax directly.
-- [x] Keep natural docs explicit about controlled grammar, vocabulary, lint,
-      strict typing, parameter binding, and authorization boundaries.
-- [x] Replace wording that says natural lowers into fluent with wording that it
-      lowers into the shared execution engine.
-- [x] Keep natural examples after SQL-like examples in public docs unless the
-      page is specifically about natural queries.
-
-Validate:
-- `scripts/check-doc-consistency.ps1`
-- `py -3 scripts/check-doc-consistency.py`
-
----
-
-## SURFACE-WP3: Demote Fluent To Internal Engine DSL
-
-**Priority:** High
-**Goal:** Make the fluent builder surface implementation infrastructure, not a
-public product surface.
-
-Context:
-- There are no public users yet, so this is a compatibility reset rather than
-  a staged deprecation.
-- Fluent remains valuable for internal lowering, engine tests, parity checks,
-  benchmarks, and programmatic execution planning.
-- Do not keep a public Java-native builder just because the current mutable
-  builder exists; add a future narrow API only if a real use case proves it.
-
-Tasks:
-- [x] Remove fluent from the README quick start and recommended public
-      entry-point tables.
-- [x] Move fluent authoring guidance into an internal engine doc for
-      maintainers.
-- [x] Update `docs/public-api-stability.md` so `QueryBuilder`,
-      `FilterQueryBuilder`, `Filter`, `QueryRule`, and
-      `FluentQueryDefinition` are not stable public API.
-- [x] Decide whether `PojoLensCore` disappears from user docs or remains only
-      as an internal-facing bridge.
-- [x] Remove public `ReportDefinition.fluent(...)` positioning or replace it
-      with a non-builder public contract.
-
-Validate:
-- `scripts/check-doc-consistency.ps1`
-- `py -3 scripts/check-doc-consistency.py`
-
----
-
-## SURFACE-WP4: Reset Compatibility Guards Around The New Surface
-
-**Priority:** High
-**Goal:** Make tests and binary compatibility enforce the simplified public API.
-
-Tasks:
-- [x] Remove fluent builder classes from the `binary-compat` include list.
-- [x] Replace stable public API tests that assert fluent availability with
-      tests for SQL-like, natural, runtime, reports, CSV, tree, chart,
-      cursor, schema, and join-binding surfaces.
-- [x] Keep internal engine tests for fluent behavior, SQL-like lowering,
-      natural lowering, reports, streaming, joins, windows, and subqueries.
-- [x] Remove or rewrite public fluent coverage tests so they are not
-      compatibility promises.
-- [x] Add a guard that prevents `*.internal.*` APIs from being documented as
-      public entry points.
-
-Validate:
-- `mvn -B -ntp test`
-- `mvn -B -ntp -pl pojo-lens -Pbinary-compat "-Dcompat.baseline.version=2026.04.17.1834" -DskipTests verify` after the reset is intentionally reflected.
 - `git diff --check`
 
 ---
 
-## SURFACE-WP5: Internalize Or Hide Builder Packages
+## QOL-WP2: Field And Source Exposure Policy
 
-**Priority:** Medium
-**Goal:** Put fluent implementation types behind an internal boundary without
-destabilizing SQL-like and natural execution.
+**Priority:** High
+**Goal:** Turn the existing "approved fields/sources" safety guidance into a
+bounded validation feature for user-authored query text.
+
+Context:
+- Public docs already tell users to restrict exposed fields/sources before
+  executing SQL-like or natural text.
+- This should be query exposure validation only, not authentication,
+  authorization, row-level security, or a policy framework.
+- The feature should work with SQL-like first and natural where natural lowers
+  to the same referenced-field/source model.
+
+Scope:
+- Add a small public policy type for allowlisted fields and named sources.
+- Validate referenced fields and sources before execution.
+- Support explicit deny rules only if they keep the API clearer than separate
+  allowlists.
+- Keep row visibility and tenant authorization outside PojoLens.
 
 Tasks:
-- [x] Inventory imports of `laughing.man.commits.builder.*` across main code,
-      tests, docs, examples, and benchmarks.
-- [x] Choose the target package shape for internal builder types.
-- [x] Move or wrap builder types so public entry points do not expose mutable
-      internal builders.
-- [x] Replace public factories that return `QueryBuilder` with public
-      contracts that return rows, reports, charts, schemas, or explain payloads.
-- [x] Keep benchmarks able to measure the internal engine path without
-      implying it is public API.
+- [ ] Design `QueryExposurePolicy` or equivalent with field and source
+      allowlists.
+- [ ] Add runtime-scoped policy wiring without making runtime a third query
+      style.
+- [ ] Apply policy checks to SQL-like parse/bind/execute paths.
+- [ ] Apply policy checks to natural queries through the lowered SQL-like
+      representation where practical.
+- [ ] Document security boundaries and non-goals clearly.
+- [ ] Add tests for allowed fields, blocked fields, blocked sources, joins,
+      subqueries, and natural vocabulary aliases.
 
 Validate:
-- `mvn -B -ntp test`
-- `mvn -B -ntp -pl pojo-lens-benchmarks -am test`
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Exposure*Test,*Policy*Test,SqlLike*Test,Natural*Test" test`
 - `scripts/check-doc-consistency.ps1`
+- `git diff --check`
 
 ---
 
-## SURFACE-WP6: Refresh Docs, Examples, And Release Readiness
+## QOL-WP3: SQL-like Dry Run / Plan Preview
 
 **Priority:** Medium
-**Goal:** Prepare the next date-based release around the SQL-like-first public
-surface.
+**Goal:** Let developers inspect a query's structural shape without executing
+against rows.
+
+Context:
+- `explain(...)` is execution-oriented and can include row/stage behavior.
+- A dry run should answer "what will this query try to do?" rather than "what
+  happened while it ran?"
+- This is useful for admin tooling, CI validation, and generated query review.
+
+Scope:
+- Add a structural preview for SQL-like queries: selected fields, filters,
+  grouping, ordering, windows, joins, subqueries, limit/offset, and required
+  params.
+- Do not add cost estimation, optimizer hints, row-count estimates, database
+  semantics, or fluent API exposure.
+- Keep preview deterministic and serializable enough for logging/tests.
 
 Tasks:
-- [x] Update `README.md`, `RELEASE.md`, `MIGRATION.md`,
-      `docs/product-surface.md`, `docs/entry-points.md`, `docs/usecases.md`,
-      `docs/reusable-wrappers.md`, `docs/reports.md`, and `docs/modules.md`.
-- [x] Update docs that currently use fluent as the primary example: charts,
-      computed fields, time buckets, tabular schema, tree, telemetry,
-      metamodel, and caching.
-- [x] Confirm examples do not teach fluent as user API.
-- [x] Confirm benchmark docs and threshold checks still work after internal
-      package moves.
-- [x] Update changelog with the SQL-like-first public-surface reset.
-- [ ] Cut a new date-based release only after the reset is validated.
+- [ ] Decide whether preview is part of `QueryDiagnostics` or a separate
+      `SqlLikePlanPreview`.
+- [ ] Reuse parser/AST metadata instead of rebuilding query inspection by hand.
+- [ ] Add preview output for joins, grouped predicates, windows, time buckets,
+      subqueries, and paging.
+- [ ] Add docs showing preview before executing config-owned queries.
+- [ ] Add tests that lock stable preview fields without overfitting internal
+      AST implementation details.
+
+Validate:
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Preview*Test,SqlLikeParserTest,SqlLikeQueryContractTest" test`
+- `scripts/check-doc-consistency.ps1`
+- `git diff --check`
+
+---
+
+## QOL-WP4: Page Result Helper
+
+**Priority:** Medium
+**Goal:** Make common API pagination easier by returning rows plus cursor
+metadata in one public helper.
+
+Context:
+- `SqlLikeCursor` and keyset pagination already exist, but service authors must
+  assemble response metadata manually.
+- The helper should sit on top of existing SQL-like execution and cursor
+  contracts.
+- It must not change core query semantics or invent a new pagination language.
+
+Scope:
+- Add a `PageResult<T>` style contract with rows, optional next cursor, and
+  `hasMore`.
+- Support deterministic keyset pagination when the query has a stable
+  `ORDER BY`.
+- Define exact behavior around `LIMIT`, `limit + 1` lookahead, and empty pages.
+- Keep offset pagination as normal query behavior unless a small helper is
+  clearly useful.
+
+Tasks:
+- [ ] Design `PageResult<T>` and page execution methods for SQL-like queries.
+- [ ] Enforce stable ordering requirements for cursor generation.
+- [ ] Implement lookahead behavior without leaking the extra row.
+- [ ] Document API endpoint usage and edge cases.
+- [ ] Add tests for first page, next page, no more rows, composite sort keys,
+      missing order, and ties.
+
+Validate:
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Page*Test,*Cursor*Test,SqlLikeQueryContractTest" test`
+- `scripts/check-doc-consistency.ps1`
+- `git diff --check`
+
+---
+
+## QOL-WP5: Better Error Suggestions
+
+**Priority:** Medium
+**Goal:** Make common query mistakes easier to fix by suggesting nearby fields,
+params, and source names in deterministic error messages.
+
+Context:
+- Unknown field and parameter errors are frequent during adoption.
+- Suggestions improve developer experience without changing query semantics.
+- Suggestions must be deterministic, bounded, and safe for lint/strict modes.
+
+Scope:
+- Add nearest-name suggestions for unknown fields, params, aliases, and named
+  sources where candidate sets are already known.
+- Keep suggestions short; avoid noisy "maybe" lists.
+- Do not expose denied fields when an exposure policy blocks them.
+- Reuse the same suggestion helper from SQL-like and natural diagnostics where
+  possible.
+
+Tasks:
+- [ ] Inventory current unknown-field, unknown-param, and unknown-source errors.
+- [ ] Add a deterministic bounded name-suggestion helper.
+- [ ] Wire suggestions into SQL-like validation errors.
+- [ ] Wire suggestions into natural vocabulary/field errors where safe.
+- [ ] Add docs examples only where they help troubleshooting.
+- [ ] Add tests for typos, no close match, multiple close matches, case
+      differences, and blocked-policy fields.
+
+Validate:
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Validation*Test,*Diagnostics*Test,Natural*Test" test`
+- `scripts/check-doc-consistency.ps1`
+- `git diff --check`
+
+---
+
+## Release Follow-Up
+
+**Priority:** High
+**Goal:** Cut a new date-based release after the SQL-like-first public surface
+reset and any chosen QoL package are validated.
+
+Tasks:
+- [ ] Decide whether to release immediately or include one QoL package first.
+- [ ] Run the final release guardrails from `RELEASE.md`.
+- [ ] Update release notes for the selected shipped scope.
+- [ ] Cut the next date-based release.
 
 Validate:
 - `mvn -B -ntp test`
