@@ -1,6 +1,8 @@
 package laughing.man.commits;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.FluentEngine;
+
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -18,7 +20,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void fluentStreamShouldSupportLazySimpleFilterWithOffsetAndLimit() {
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleEmployees())
+        QueryBuilder builder = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .offset(1)
                 .limit(2);
@@ -33,7 +35,7 @@ public class StreamingExecutionOutputTest {
 
     @Test
     public void fluentIteratorShouldExposeRows() {
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleEmployees())
+        QueryBuilder builder = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .limit(1);
 

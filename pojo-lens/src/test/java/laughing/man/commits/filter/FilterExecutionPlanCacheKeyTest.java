@@ -1,6 +1,6 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import org.junit.jupiter.api.Test;

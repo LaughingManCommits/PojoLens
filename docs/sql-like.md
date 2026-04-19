@@ -575,26 +575,11 @@ List<Employee> rows = query
     .filter();
 ```
 
-### Recipe: Fluent vs SQL-like Parity Assertions
+### Recipe: Internal SQL-like Engine Parity Assertions
 
-Use `FluentSqlLikeParity` in migration tests when you want to compare a fluent query and its SQL-like equivalent with either exact-order or order-agnostic assertions.
-
-```java
-List<DepartmentHeadcount> fluentRows = PojoLensCore.newQueryBuilder(source)
-    .addGroup("department")
-    .addCount("headcount")
-    .initFilter()
-    .filter(DepartmentHeadcount.class);
-
-List<DepartmentHeadcount> sqlLikeRows = PojoLensSql
-    .parse("select department, count(*) as headcount group by department")
-    .filter(source, DepartmentHeadcount.class);
-
-FluentSqlLikeParity.assertUnorderedEquals(
-    fluentRows,
-    sqlLikeRows,
-    row -> row.department + ":" + row.headcount);
-```
+Use `FluentSqlLikeParity` in maintainer migration tests when you want to
+compare the internal engine DSL and its SQL-like equivalent with either
+exact-order or order-agnostic assertions.
 
 Fixture-backed parity uses the same named immutable snapshot for both executions:
 

@@ -1,12 +1,8 @@
 package laughing.man.commits.fluent;
 
-import laughing.man.commits.PojoLensCore;
-import laughing.man.commits.builder.FluentQueryDefinition;
-import laughing.man.commits.chart.ChartData;
-import laughing.man.commits.chart.ChartSpec;
-import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.builder.FluentQueryDefinition;
 import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCountRow;
 import org.junit.jupiter.api.Test;
@@ -22,7 +18,7 @@ public class FluentQueryDefinitionTest {
 
     @Test
     public void preparedFluentDefinitionShouldReuseQueryShapeAcrossSnapshots() {
-        FluentQueryDefinition<DepartmentCountRow> definition = PojoLensCore.prepare(
+        FluentQueryDefinition<DepartmentCountRow> definition = FluentEngine.prepare(
                 DepartmentCountRow.class,
                 builder -> builder
                         .addRule("active", true, Clauses.EQUAL)
@@ -52,29 +48,8 @@ public class FluentQueryDefinitionTest {
     }
 
     @Test
-    public void preparedFluentDefinitionShouldPromoteToReportDefinition() {
-        FluentQueryDefinition<DepartmentCountRow> definition = FluentQueryDefinition.of(
-                DepartmentCountRow.class,
-                builder -> builder
-                        .addRule("active", true, Clauses.EQUAL)
-                        .addGroup("department")
-                        .addCount("total")
-                        .addOrder("department", 1)
-        );
-
-        ReportDefinition<DepartmentCountRow> report = definition.reportDefinition(
-                ChartSpec.of(ChartType.BAR, "department", "total")
-        );
-        ChartData chart = report.chart(sampleEmployees());
-
-        assertEquals("fluent", report.source());
-        assertEquals(List.of("department", "total"), report.schema().names());
-        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
-    }
-
-    @Test
     public void preparedFluentDefinitionShouldRejectNullSourceRows() {
-        FluentQueryDefinition<DepartmentCountRow> definition = PojoLensCore.prepare(
+        FluentQueryDefinition<DepartmentCountRow> definition = FluentEngine.prepare(
                 DepartmentCountRow.class,
                 builder -> builder.addGroup("department").addCount("total")
         );

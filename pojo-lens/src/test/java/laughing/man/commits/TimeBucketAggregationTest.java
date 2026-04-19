@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.testutil.TimeBucketTestFixtures.DepartmentPeriodAgg;
@@ -28,7 +30,7 @@ public class TimeBucketAggregationTest {
     public void fluentTimeBucketShouldGroupByMonthWithRegularGroupFields() {
         List<EmployeePoint> rows = sampleRows();
 
-        List<DepartmentPeriodAgg> result = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> result = FluentEngine.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                 .addCount("total")
@@ -50,7 +52,7 @@ public class TimeBucketAggregationTest {
         TimeZone original = TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"));
-            List<DepartmentPeriodAgg> honolulu = PojoLensCore.newQueryBuilder(rows)
+            List<DepartmentPeriodAgg> honolulu = FluentEngine.newQueryBuilder(rows)
                     .addGroup("department")
                     .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                     .addCount("total")
@@ -58,7 +60,7 @@ public class TimeBucketAggregationTest {
                     .filter(DepartmentPeriodAgg.class);
 
             TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"));
-            List<DepartmentPeriodAgg> berlin = PojoLensCore.newQueryBuilder(rows)
+            List<DepartmentPeriodAgg> berlin = FluentEngine.newQueryBuilder(rows)
                     .addGroup("department")
                     .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                     .addCount("total")
@@ -91,7 +93,7 @@ public class TimeBucketAggregationTest {
     public void fluentTimeBucketShouldAcceptInstantInputFields() {
         List<InstantEmployeePoint> rows = sampleInstantRows();
 
-        List<DepartmentPeriodAgg> result = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> result = FluentEngine.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                 .addCount("total")
@@ -129,7 +131,7 @@ public class TimeBucketAggregationTest {
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 31, 23, 30), 100));
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.FEBRUARY, 1, 0, 30), 200));
 
-        List<DepartmentPeriodAgg> fluent = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> fluent = FluentEngine.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucketPreset.month().withZone("Europe/Amsterdam"), "period")
                 .addCount("total")
@@ -150,7 +152,7 @@ public class TimeBucketAggregationTest {
         rows.add(new LocalDateTimeEmployeePoint("Engineering", LocalDateTime.of(2025, 1, 31, 23, 30), 100));
         rows.add(new LocalDateTimeEmployeePoint("Engineering", LocalDateTime.of(2025, 2, 1, 0, 30), 200));
 
-        List<DepartmentPeriodAgg> fluent = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> fluent = FluentEngine.newQueryBuilder(rows)
                 .addGroup("department")
                 .addTimeBucket("hireDate", TimeBucketPreset.month().withZone("Europe/Amsterdam"), "period")
                 .addCount("total")
@@ -166,13 +168,13 @@ public class TimeBucketAggregationTest {
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 5, 10, 0), 100));
         rows.add(new EmployeePoint("Engineering", utcDate(2025, Calendar.JANUARY, 6, 10, 0), 200));
 
-        List<DepartmentPeriodAgg> mondayStart = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> mondayStart = FluentEngine.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.WEEK, "period")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentPeriodAgg.class);
 
-        List<DepartmentPeriodAgg> sundayStart = PojoLensCore.newQueryBuilder(rows)
+        List<DepartmentPeriodAgg> sundayStart = FluentEngine.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucketPreset.week().withWeekStart(DayOfWeek.SUNDAY), "period")
                 .addCount("total")
                 .initFilter()
@@ -188,7 +190,7 @@ public class TimeBucketAggregationTest {
                 new NullableHireDatePoint("Engineering", null, 100)
         );
 
-        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(rows)
+        assertDoesNotThrow(() -> FluentEngine.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
     }
 
@@ -198,7 +200,7 @@ public class TimeBucketAggregationTest {
                 new NullableInstantHireDatePoint("Engineering", null, 100)
         );
 
-        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(rows)
+        assertDoesNotThrow(() -> FluentEngine.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period"));
     }
 

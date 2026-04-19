@@ -177,23 +177,34 @@
                                 <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
                                 <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
                                 <includes>
-                                    <include>laughing.man.commits.PojoLensCore</include>
                                     <include>laughing.man.commits.PojoLensSql</include>
+                                    <include>laughing.man.commits.PojoLensNatural</include>
+                                    <include>laughing.man.commits.PojoLensCsv</include>
                                     <include>laughing.man.commits.PojoLensChart</include>
                                     <include>laughing.man.commits.PojoLensTree</include>
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>
+                                    <include>laughing.man.commits.report.ReportDefinition</include>
                                     <include>laughing.man.commits.tree.TreeTraversalBuilder</include>
                                     <include>laughing.man.commits.tree.TreeEntry</include>
-                                    <include>laughing.man.commits.builder.QueryBuilder</include>
-                                    <include>laughing.man.commits.filter.Filter</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeQuery</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeBoundQuery</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeTemplate</include>
                                     <include>laughing.man.commits.sqllike.SqlParams</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeCursor</include>
                                     <include>laughing.man.commits.sqllike.JoinBindings</include>
+                                    <include>laughing.man.commits.natural.NaturalRuntime</include>
+                                    <include>laughing.man.commits.natural.NaturalQuery</include>
+                                    <include>laughing.man.commits.natural.NaturalBoundQuery</include>
+                                    <include>laughing.man.commits.natural.NaturalTemplate</include>
+                                    <include>laughing.man.commits.natural.NaturalVocabulary</include>
+                                    <include>laughing.man.commits.csv.CsvOptions</include>
+                                    <include>laughing.man.commits.csv.CsvCoercionPolicy</include>
+                                    <include>laughing.man.commits.csv.CsvLoadResult</include>
+                                    <include>laughing.man.commits.csv.CsvLoadReport</include>
+                                    <include>laughing.man.commits.csv.CsvLoadException</include>
+                                    <include>laughing.man.commits.csv.CsvRuntime</include>
                                     <include>laughing.man.commits.enums.Clauses</include>
                                     <include>laughing.man.commits.enums.Join</include>
                                     <include>laughing.man.commits.enums.Metric</include>

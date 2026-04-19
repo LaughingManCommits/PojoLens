@@ -1,6 +1,6 @@
 package laughing.man.commits.natural;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.ast.OrderAst;
 
 import java.util.List;

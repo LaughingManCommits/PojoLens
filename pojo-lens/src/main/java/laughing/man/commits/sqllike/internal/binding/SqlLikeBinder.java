@@ -1,11 +1,11 @@
 package laughing.man.commits.sqllike.internal.binding;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.internal.builder.QueryRule;
+import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Sort;
@@ -88,7 +88,7 @@ public final class SqlLikeBinder {
                                     FilterExecutionPlanCacheStore executionPlanCache) {
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
+        QueryBuilder builder = FluentEngine.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
         return configureBoundBuilder(builder, normalizedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
     }
 

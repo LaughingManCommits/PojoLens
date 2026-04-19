@@ -3,6 +3,8 @@ package laughing.man.commits;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,19 +88,19 @@ public class CacheConcurrencyTest {
             int mode = threadIndex % 3;
             for (int i = 0; i < perThreadOps; i++) {
                 if (mode == 0) {
-                    runtime.newQueryBuilder(employees)
+                    newRuntimeBuilder(employees)
                             .addGroup("department")
                             .addCount("total")
                             .initFilter()
                             .filter(DepartmentCount.class);
                 } else if (mode == 1) {
-                    runtime.newQueryBuilder(employees)
+                    newRuntimeBuilder(employees)
                             .addGroup("active")
                             .addCount("total")
                             .initFilter()
                             .filter(ActiveCount.class);
                 } else {
-                    runtime.newQueryBuilder(employees)
+                    newRuntimeBuilder(employees)
                             .addGroup("department")
                             .addMetric("salary", Metric.SUM, "totalSalary")
                             .initFilter()
@@ -122,14 +124,14 @@ public class CacheConcurrencyTest {
     public void statsPlanCacheShouldHitForEquivalentRuleShapesAcrossBuilders() {
         List<Employee> employees = sampleEmployees();
 
-        runtime.newQueryBuilder(employees)
+        newRuntimeBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
                 .initFilter()
                 .filter(DepartmentCount.class);
 
-        runtime.newQueryBuilder(employees)
+        newRuntimeBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
@@ -169,6 +171,10 @@ public class CacheConcurrencyTest {
             pool.shutdownNow();
             assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS), "Executor termination timeout");
         }
+    }
+
+    private QueryBuilder newRuntimeBuilder(List<Employee> employees) {
+        return FluentEngine.newQueryBuilder(employees, runtime.statsPlanCache());
     }
 
     @FunctionalInterface

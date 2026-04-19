@@ -1,6 +1,6 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;

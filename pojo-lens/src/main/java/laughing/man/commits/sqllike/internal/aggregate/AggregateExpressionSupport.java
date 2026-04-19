@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.internal.aggregate;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;

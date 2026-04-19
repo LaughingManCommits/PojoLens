@@ -134,19 +134,23 @@ The following remain public, but are treated as advanced:
 
 ## Internal Engine DSL
 
-The fluent builder surface is being moved out of the stable public API.
-It remains useful as implementation infrastructure while the reset is in
-progress, but it is no longer documented as a stable product surface.
+The fluent builder surface has moved out of the stable public API.
+It remains useful as implementation infrastructure, but it is not documented
+as a public product surface.
 
-Internal / compatibility-reset candidates:
+Internal implementation entry points:
+
+- `laughing.man.commits.internal.FluentEngine`
+- `laughing.man.commits.internal.builder.QueryBuilder`
+- `laughing.man.commits.internal.builder.FilterQueryBuilder`
+- `Filter`
+- `laughing.man.commits.internal.builder.QueryRule`
+- `laughing.man.commits.internal.builder.FluentQueryDefinition<T>`
+
+Removed public fluent bridge methods:
 
 - `PojoLensCore`
 - `PojoLensRuntime.newQueryBuilder(...)`
-- `QueryBuilder`
-- `FilterQueryBuilder`
-- `Filter`
-- `QueryRule`
-- `FluentQueryDefinition<T>`
 - `ReportDefinition.fluent(...)`
 
 Maintainer guidance lives in [internal-fluent-engine.md](internal-fluent-engine.md).
@@ -188,5 +192,5 @@ cache. Adapt existing map-shaped join inputs at the boundary with
   baseline behavior.
 - CI binary compatibility checks start from the first `release-*` tag rather
   than from coarse major-version markers.
-- `SURFACE-WP4` will align the stable public API tests and binary compatibility
-  include list with the SQL-like-first surface.
+- stable public API tests and binary compatibility include lists track the
+  SQL-like-first surface.

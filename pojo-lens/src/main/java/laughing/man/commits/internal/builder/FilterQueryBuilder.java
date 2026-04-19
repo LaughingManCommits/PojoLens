@@ -1,8 +1,10 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import laughing.man.commits.computed.ComputedFieldDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
+import laughing.man.commits.builder.FieldSelector;
+import laughing.man.commits.builder.FieldSelectors;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;

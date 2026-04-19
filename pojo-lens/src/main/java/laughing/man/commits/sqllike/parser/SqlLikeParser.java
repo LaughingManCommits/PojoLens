@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.parser;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;

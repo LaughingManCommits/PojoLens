@@ -1,14 +1,9 @@
 {
-  "generatedAt": "2026-04-17T18:35:23.537970+02:00",
+  "generatedAt": "2026-04-18T21:25:13.671909+02:00",
   "groups": [
     {
       "component": "facades",
       "symbols": [
-        {
-          "name": "PojoLensCore",
-          "kind": "class",
-          "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java"
-        },
         {
           "name": "PojoLensSql",
           "kind": "class",
@@ -37,12 +32,12 @@
         {
           "name": "QueryBuilder",
           "kind": "interface",
-          "path": "pojo-lens/src/main/java/laughing/man/commits/builder/QueryBuilder.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/internal/builder/QueryBuilder.java"
         },
         {
           "name": "FilterQueryBuilder",
           "kind": "class",
-          "path": "pojo-lens/src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java"
+          "path": "pojo-lens/src/main/java/laughing/man/commits/internal/builder/FilterQueryBuilder.java"
         },
         {
           "name": "FilterImpl",

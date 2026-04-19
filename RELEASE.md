@@ -134,6 +134,8 @@ marker.
       enforcement is now expected to start from `release-*` baselines in CI.
 - [ ] Stable public entry points in `docs/public-api-stability.md` are covered
       by the `binary-compat` profile include list in `pojo-lens/pom.xml`.
+- [ ] SQL-like and natural remain the public query surfaces; fluent engine
+      DSL references stay internal and out of first-read docs.
 - [ ] SQL-like limitations text is still accurate: supports uncorrelated
       `WHERE ... IN (select ...)` subqueries, bounded uncorrelated
       `WHERE [NOT] EXISTS (select ...)` subqueries, and subquery `JOIN`

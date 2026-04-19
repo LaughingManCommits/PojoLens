@@ -7,6 +7,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.report.ReportDefinition;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +44,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        List<DepartmentAdjustedPayrollRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<DepartmentAdjustedPayrollRow> rows = FluentEngine.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addRule("adjustedSalary", 120000.0, Clauses.BIGGER_EQUAL)
                 .addGroup("department")
@@ -69,7 +70,9 @@ public class ComputedFieldRegistryTest {
                 .parse("select name, salaryDelta where salaryDelta > 0 order by salaryDelta desc")
                 .filter(sampleEmployees(), SalaryDeltaRow.class);
 
-        List<SalaryDeltaRow> fluentRows = runtime.newQueryBuilder(sampleEmployees())
+        List<SalaryDeltaRow> fluentRows = FluentEngine.newQueryBuilder(sampleEmployees(), runtime.statsPlanCache())
+                .computedFields(runtime.getComputedFieldRegistry())
+                .telemetry(runtime.getTelemetryListener())
                 .addRule("salaryDelta", 0.0, Clauses.BIGGER, Separator.AND)
                 .addField("name")
                 .addField("salaryDelta")
@@ -88,7 +91,7 @@ public class ComputedFieldRegistryTest {
                 .add("adjustedSalary", "salary * 1.1", Double.class)
                 .build();
 
-        assertDoesNotThrow(() -> PojoLensCore.newQueryBuilder(List.of())
+        assertDoesNotThrow(() -> FluentEngine.newQueryBuilder(List.of())
                 .computedFields(registry)
                 .addMetric("adjustedSalary", Metric.SUM, "totalAdjustedPayroll"));
     }
@@ -122,7 +125,7 @@ public class ComputedFieldRegistryTest {
                 .add("roundedAdjustedSalary", "ROUND(adjustedSalary)", Integer.class)
                 .build();
 
-        List<RoundedAdjustedSalaryRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<RoundedAdjustedSalaryRow> rows = FluentEngine.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addField("name")
                 .addField("roundedAdjustedSalary")

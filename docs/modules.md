@@ -55,9 +55,8 @@ This page is an artifact and packaging reference, not the main onboarding path.
 - `PojoLensTree`:
   flat parent-ID row-shaping helper before normal query execution
 
-`PojoLensCore` remains an internal fluent engine bridge during the
-public-surface reset; do not use it as the public entry point for new docs or
-examples.
+The fluent engine DSL now lives under `laughing.man.commits.internal`.
+Do not use it as the public entry point for docs or examples.
 
 Additional workflow helpers such as `ReportDefinition`, chart presets,
 stats presets, `DatasetBundle`, tree traversal, and schema metadata stay in

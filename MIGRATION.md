@@ -18,7 +18,7 @@ explicit owning types below as the supported path now.
 
 Replacement map:
 - `PojoLens.newQueryBuilder(rows)` ->
-  `PojoLensCore.newQueryBuilder(rows)`
+  `PojoLensSql.parse(queryText).filter(rows, Projection.class)`
 - `PojoLens.parse(queryText)` ->
   `PojoLensSql.parse(queryText)`
 - `PojoLens.template(queryText, params...)` ->
@@ -36,7 +36,7 @@ Replacement map:
 - `PojoLens.report(sqlQuery, projectionClass, ...)` ->
   `ReportDefinition.sql(sqlQuery, projectionClass, ...)`
 - `PojoLens.report(projectionClass, configurer, ...)` ->
-  `ReportDefinition.fluent(projectionClass, configurer, ...)`
+  `ReportDefinition.sql(...)` or `ReportDefinition.natural(...)`
 - `PojoLens.bundle(...)` ->
   `DatasetBundle.of(...)`
 - `PojoLens.compareSnapshots(currentRows, previousRows)` ->
@@ -72,8 +72,8 @@ Migration direction:
 
 ## Runtime-First Cache Policy
 
-If you were tuning caches through `PojoLens`, `PojoLensCore`, or
-`PojoLensSql`, move that code onto a `PojoLensRuntime`.
+If you were tuning caches through static/global entry points, move that code
+onto a `PojoLensRuntime`.
 
 Before:
 
@@ -99,51 +99,15 @@ Replacement direction:
 Current cache-policy state:
 - public static/global cache policy methods are removed from `PojoLens`
 - public static/global cache policy methods are removed from `PojoLensSql`
-- public static/global cache policy methods are removed from `PojoLensCore`
 - the public `FilterExecutionPlanCache` compatibility facade is removed
 - the default singleton caches remain internal implementation details for the
   direct non-runtime entry points
 
-## Typed Selector API
-
-You can replace string field names with method references for compile-time safety.
-
-Before:
-
-```java
-PojoLensCore.newQueryBuilder(rows)
-    .addRule("stringField", "abc", Clauses.EQUAL)
-    .addOrder("integerField", 1)
-    .addField("stringField")
-    .initFilter()
-    .filter(Foo.class);
-```
-
-After:
-
-```java
-PojoLensCore.newQueryBuilder(rows)
-    .addRule(Foo::getStringField, "abc", Clauses.EQUAL)
-    .addOrder(Foo::getIntegerField)
-    .addField(Foo::getStringField)
-    .initFilter()
-    .filter(Foo.class);
-```
-
-`addOrder(...)` and `addGroup(...)` now support optional indexless overloads.
-When no index is provided, priority follows insertion order.
-
-Additional typed overloads now available:
-- `addDistinct(Foo::getField)`
-- `addRule(Foo::getDateField, value, clause, separator, dateFormat)`
-- `addHaving(ResultRow::getMetricAlias, value, clause, separator, dateFormat)`
-- `addJoinBeans(Parent::getId, children, Child::getParentId, Join.LEFT_JOIN)`
-
 ## Explicit Entry Points (Core / SQL / Chart)
 
 Query and chart entry live on explicit types:
-- `PojoLensCore.newQueryBuilder(...)`
 - `PojoLensSql.parse(...)`
+- `PojoLensNatural.parse(...)`
 - `PojoLensChart.toChartData(...)`
 
 Use these directly if you want explicit dependency boundaries in your application modules.
@@ -168,69 +132,7 @@ Runtime logging moved from `commons-logging` to `slf4j`:
 - remove `commons-logging` adapters from app-level dependency management if they were only present for PojoLens
 - wire your preferred SLF4J backend (`logback-classic`, `slf4j-simple`, etc.) at application level
 
-## Explicit Rule Groups
-
-For clearer semantics on complex boolean logic, prefer grouped rules:
-
-```java
-import static laughing.man.commits.builder.QueryRule.of;
-
-PojoLensCore.newQueryBuilder(rows)
-    .allOf(
-        of(Foo::getStringField, "abc", Clauses.EQUAL),
-        of(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
-    )
-    .anyOf(
-        of(Foo::getIntegerField, 20, Clauses.EQUAL),
-        of(Foo::getIntegerField, 30, Clauses.EQUAL)
-    )
-    .initFilter()
-    .filter(Foo.class);
-```
-
-Evaluation model:
-- `allOf` groups: each group uses AND across its rules, and any one matching group satisfies the allOf side.
-- `anyOf` groups: each group uses OR across its rules, and any one matching group satisfies the anyOf side.
-- Final match: `(allOf satisfied) AND (anyOf satisfied)`.
-- Bounded fluent subquery predicates can be grouped with
-  `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
-  `QueryRule.notExists(...)`.
-
-## Join API
-
-Use:
-- `addJoinBeans(parentField, childBeans, childField, Join.LEFT_JOIN|RIGHT_JOIN|INNER_JOIN)`
-
-Removed API:
-- `addJoin(String, List<QueryRow>, String, Join)` is no longer available (internal row type API).
-
-## Thread-Safe Execution Snapshot
-
-You can safely reuse a configured template builder across threads by enabling
-copy-on-build snapshots:
-
-```java
-QueryBuilder template = PojoLensCore.newQueryBuilder(rows)
-    .addRule(Foo::getIntegerField, 10, Clauses.BIGGER_EQUAL)
-    .copyOnBuild(true);
-
-List<Foo> result = template.initFilter().filter(Foo.class);
-```
-
-## Fluent API and SQL-like API
-
-You can now choose either style for currently supported operations (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`).
-
-Fluent:
-
-```java
-List<Foo> rows = PojoLensCore.newQueryBuilder(source)
-    .addRule("stringField", "abc", Clauses.EQUAL)
-    .addOrder("integerField", 1)
-    .limit(2)
-    .initFilter()
-    .filter(Sort.DESC, Foo.class);
-```
+## SQL-like Public Query API
 
 SQL-like:
 
@@ -242,7 +144,9 @@ List<Foo> rows = PojoLensSql
 
 Migration guidance:
 - For user-authored/config-defined queries, prefer SQL-like input.
-- For compile-time safety and complex Java-side composition, keep fluent API.
+- For guided non-SQL text, use `PojoLensNatural`.
+- For reusable flows, use `ReportDefinition.sql(...)` or
+  `ReportDefinition.natural(...)`.
 - SQL-like validation is strict: unknown or `@Exclude` fields are rejected.
 - Current SQL-like support includes a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
 - Current SQL-like support includes `HAVING` for grouped/aggregated queries (`AND`/`OR`).
@@ -345,7 +249,7 @@ Policy:
 
 Current scope:
 - chart types: `BAR`, `LINE`, `PIE`, `AREA`, `SCATTER`
-- source paths: fluent results and SQL-like results
+- source paths: existing rows and SQL-like or natural query results
 - output: typed chart payload (`ChartData` + datasets)
 
 Public models:
@@ -370,14 +274,14 @@ Validation expectations:
 
 API entry points:
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
-- `Filter.chart(Class<T>, ChartSpec)`
-- `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
+- `NaturalQuery.chart(List<?>, Class<T>, ChartSpec)`
 
 ## Builder Public Surface Cleanup
 
-`FilterQueryBuilder` internal state mutator methods were removed from the public surface:
+Mutable builder implementation types were removed from the public surface.
+The old internal state mutator methods are not public API:
 - `setLimit`
 - `setGroupFields`
 - `setOrderFields`
@@ -394,5 +298,6 @@ API entry points:
 - `setJoinChildFields`
 - `setReturnFields`
 
-Use the fluent `QueryBuilder` methods instead (`addRule`, `addGroup`, `addOrder`, `addDistinct`, `addField`, `limit`, joins, metrics, time buckets). Internal pipeline state is now managed only inside the execution engine.
+Use SQL-like, natural, report, chart, schema, and runtime APIs instead.
+Internal pipeline state is managed only inside the execution engine.
 

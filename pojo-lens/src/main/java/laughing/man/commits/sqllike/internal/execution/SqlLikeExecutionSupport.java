@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.internal.execution;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Sort;

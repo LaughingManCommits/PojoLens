@@ -1,6 +1,6 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
@@ -18,7 +18,7 @@ public class StreamsBenchmarkParityTest {
     @Test
     public void streamsFilterProjectionShouldMatchFluentFilterProjection() {
         List<BenchmarkFoo> source = sampleRows(1000);
-        List<StreamsBaselineSupport.FilterProjectionRow> fluent = PojoLensCore.newQueryBuilder(source)
+        List<StreamsBaselineSupport.FilterProjectionRow> fluent = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "dept3", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 100, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
@@ -40,7 +40,7 @@ public class StreamsBenchmarkParityTest {
     @Test
     public void streamsGroupedMetricsShouldMatchFluentGroupedMetrics() {
         List<BenchmarkFoo> source = sampleRows(1000);
-        List<StreamsBaselineSupport.GroupedStatsRow> fluent = PojoLensCore.newQueryBuilder(source)
+        List<StreamsBaselineSupport.GroupedStatsRow> fluent = FluentEngine.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
@@ -60,7 +60,7 @@ public class StreamsBenchmarkParityTest {
     @Test
     public void streamsTimeBucketMetricsShouldMatchFluentTimeBucketMetrics() {
         List<BenchmarkFoo> source = sampleRows(1000);
-        List<StreamsBaselineSupport.BucketedStatsRow> fluent = PojoLensCore.newQueryBuilder(source)
+        List<StreamsBaselineSupport.BucketedStatsRow> fluent = FluentEngine.newQueryBuilder(source)
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")

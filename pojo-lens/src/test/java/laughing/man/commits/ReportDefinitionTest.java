@@ -6,7 +6,6 @@ import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.chartjs.ChartJsPayload;
-import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
@@ -48,34 +47,6 @@ public class ReportDefinitionTest {
         assertEquals(3L, fullRows.get(0).total);
         assertEquals(2, filteredRows.size());
         assertEquals(2L, filteredRows.get(0).total);
-        assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
-    }
-
-    @Test
-    public void fluentReportDefinitionShouldRebuildQueryPerExecution() {
-        ReportDefinition<DepartmentCountRow> report = ReportDefinition.fluent(
-                DepartmentCountRow.class,
-                builder -> builder
-                        .addRule("active", true, Clauses.EQUAL)
-                        .addGroup("department")
-                        .addCount("total")
-                        .addOrder("department", 1),
-                ChartSpec.of(ChartType.BAR, "department", "total")
-        );
-
-        List<DepartmentCountRow> rows = report.rows(sampleEmployees());
-        List<DepartmentCountRow> subsetRows = report.rows(List.of(
-                new Employee(10, "X", "Support", 50000, null, true),
-                new Employee(11, "Y", "Support", 51000, null, true)
-        ));
-        ChartData chart = report.chart(sampleEmployees());
-
-        assertEquals(2, rows.size());
-        assertEquals("Engineering", rows.get(0).department);
-        assertEquals(2L, rows.get(0).total);
-        assertEquals(1, subsetRows.size());
-        assertEquals("Support", subsetRows.get(0).department);
-        assertEquals(2L, subsetRows.get(0).total);
         assertEquals(List.of("Engineering", "Finance"), chart.getLabels());
     }
 

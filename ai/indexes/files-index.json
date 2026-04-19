@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T17:58:58.620766+02:00",
+  "generatedAt": "2026-04-18T21:36:01.711707+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
@@ -248,20 +248,12 @@
       "kind": "validation-script"
     },
     {
-      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java",
-      "kind": "public-entry"
-    },
-    {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",
       "kind": "public-entry"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntime.java",
       "kind": "public-entry"
-    },
-    {
-      "path": "pojo-lens/src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
-      "kind": "engine"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java",

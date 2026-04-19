@@ -1,6 +1,8 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.builder.FieldSelector;
+import laughing.man.commits.builder.FieldSelectors;
 
 import java.util.List;
 import java.util.function.Consumer;

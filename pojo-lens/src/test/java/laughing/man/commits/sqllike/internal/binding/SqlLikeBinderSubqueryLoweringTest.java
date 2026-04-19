@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.internal.binding;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;

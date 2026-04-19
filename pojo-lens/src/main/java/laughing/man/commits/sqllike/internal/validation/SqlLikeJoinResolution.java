@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.internal.validation;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;

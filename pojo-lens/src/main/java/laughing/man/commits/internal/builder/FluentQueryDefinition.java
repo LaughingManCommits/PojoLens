@@ -1,8 +1,6 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
-import laughing.man.commits.PojoLensCore;
-import laughing.man.commits.chart.ChartSpec;
-import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.table.TabularSchema;
 
 import java.util.List;
@@ -53,16 +51,8 @@ public final class FluentQueryDefinition<T> {
         return configuredBuilder(sourceRows).initFilter().filter(projectionClass);
     }
 
-    public ReportDefinition<T> reportDefinition() {
-        return ReportDefinition.fluent(projectionClass, configurer).withSchema(schema);
-    }
-
-    public ReportDefinition<T> reportDefinition(ChartSpec chartSpec) {
-        return reportDefinition().withChartSpec(chartSpec);
-    }
-
     private QueryBuilder configuredBuilder(List<?> sourceRows) {
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(sourceRows);
+        QueryBuilder builder = FluentEngine.newQueryBuilder(sourceRows);
         configurer.accept(builder);
         return builder;
     }

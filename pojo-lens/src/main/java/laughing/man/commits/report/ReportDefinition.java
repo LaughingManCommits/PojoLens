@@ -1,9 +1,6 @@
 package laughing.man.commits.report;
 
-import laughing.man.commits.PojoLensCore;
-
 import laughing.man.commits.DatasetBundle;
-import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartResultMapper;
 import laughing.man.commits.chart.ChartSpec;
@@ -14,19 +11,17 @@ import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 /**
  * General reusable row-query contract for repeated execution over different
  * in-memory dataset snapshots.
  *
- * <p>SQL-like, fluent, and natural queries can all be promoted into this
- * abstraction. Specialized workflow helpers such as {@code ChartQueryPreset}
- * and {@code StatsViewPreset} can bridge into it when a more general reusable
+ * <p>SQL-like and natural queries can be promoted into this abstraction.
+ * Specialized workflow helpers such as {@code ChartQueryPreset} and
+ * {@code StatsViewPreset} can bridge into it when a more general reusable
  * contract is needed.
  *
  * @param <T> projection row type
@@ -86,35 +81,6 @@ public final class ReportDefinition<T> {
 
     public static <T> ReportDefinition<T> natural(NaturalQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
         return natural(query, projectionClass).withChartSpec(chartSpec);
-    }
-
-    public static <T> ReportDefinition<T> fluent(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {
-        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
-        Objects.requireNonNull(configurer, "configurer must not be null");
-        return new ReportDefinition<>(
-                "fluent",
-                projectionClass,
-                null,
-                deriveFluentSchema(projectionClass, configurer),
-                (sourceRows, joinBindings) -> {
-                    if (!joinBindings.isEmpty()) {
-                        throw new IllegalArgumentException(
-                                "joinBindings are not supported for fluent report definitions; "
-                                        + "capture joined rows in the fluent configurer or use a SQL-like report definition"
-                        );
-                    }
-                    QueryBuilder builder = PojoLensCore.newQueryBuilder(sourceRows);
-                    configurer.accept(builder);
-                    return builder.initFilter().filter(projectionClass);
-                },
-                false
-        );
-    }
-
-    public static <T> ReportDefinition<T> fluent(Class<T> projectionClass,
-                                                 Consumer<QueryBuilder> configurer,
-                                                 ChartSpec chartSpec) {
-        return fluent(projectionClass, configurer).withChartSpec(chartSpec);
     }
 
     public String source() {
@@ -221,10 +187,5 @@ public final class ReportDefinition<T> {
         List<T> rows(List<?> sourceRows, JoinBindings joinBindings);
     }
 
-    private static <T> TabularSchema deriveFluentSchema(Class<T> projectionClass, Consumer<QueryBuilder> configurer) {
-        QueryBuilder schemaBuilder = PojoLensCore.newQueryBuilder(Collections.emptyList());
-        configurer.accept(schemaBuilder);
-        return schemaBuilder.schema(projectionClass);
-    }
 }
 

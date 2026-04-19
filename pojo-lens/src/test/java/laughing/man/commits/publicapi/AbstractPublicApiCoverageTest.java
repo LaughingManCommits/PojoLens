@@ -3,12 +3,12 @@ package laughing.man.commits.publicapi;
 import laughing.man.commits.PojoLensRuntime;
 import org.junit.jupiter.api.BeforeEach;
 
-abstract class AbstractPublicApiCoverageTest {
+public abstract class AbstractPublicApiCoverageTest {
 
     protected PojoLensRuntime runtime;
 
     @BeforeEach
-    void setUpRuntimeDefaults() {
+    protected void setUpRuntimeDefaults() {
         runtime = new PojoLensRuntime();
         runtime.sqlLikeCache().setEnabled(true);
         runtime.sqlLikeCache().setStatsEnabled(true);

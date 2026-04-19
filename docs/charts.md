@@ -69,9 +69,8 @@ Wrapper choice:
 ## API Entry Points
 
 Recommended defaults:
-- start from `PojoLensCore.newQueryBuilder(...)` for fluent query-owned chart flows
-- start from `PojoLensNatural.parse(...)` for guided non-SQL chart flows when the query text already carries `as <type> chart`
 - start from `PojoLensSql.parse(...)` for SQL-like chart flows
+- start from `PojoLensNatural.parse(...)` for guided non-SQL chart flows when the query text already carries `as <type> chart`
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
 - for multi-source SQL-like chart execution, start with `JoinBindings` and
   promote to `DatasetBundle` when the same snapshot is reused
@@ -80,8 +79,6 @@ Recommended defaults:
 - `NaturalQuery.chart(List<?>, Class<T>)`
 - `NaturalQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `ChartJsAdapter.toPayload(ChartData)`
-- `Filter.chart(Class<T>, ChartSpec)`
-- `Filter.chart(Sort, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
@@ -100,23 +97,12 @@ Recommended defaults:
 
 ## Examples
 
-Fluent chart:
-
-```java
-ChartData chart = PojoLensCore.newQueryBuilder(employees)
-    .addGroup("department")
-    .addMetric("salary", Metric.SUM, "payroll")
-    .addOrder("payroll")
-    .initFilter()
-    .chart(Sort.DESC, DepartmentPayrollRow.class, ChartSpec.of(ChartType.BAR, "department", "payroll"));
-```
-
 SQL-like chart:
 
 ```java
 ChartData chart = PojoLensSql
-    .parse("select department, count(*) as headcount group by department order by headcount desc")
-    .chart(source, DepartmentHeadcount.class, ChartSpec.of(ChartType.BAR, "department", "headcount"));
+    .parse("select department, sum(salary) as payroll group by department order by payroll desc")
+    .chart(source, DepartmentPayrollRow.class, ChartSpec.of(ChartType.BAR, "department", "payroll"));
 ```
 
 Natural chart phrase with inferred mapping:

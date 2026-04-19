@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.chart.ChartData;
@@ -33,7 +33,7 @@ public class SqlLikeChartIntegrationTest {
     public void sqlLikeGroupedMetricChartShouldMatchFluentChart() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData fluent = PojoLensCore.newQueryBuilder(employees)
+        ChartData fluent = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()

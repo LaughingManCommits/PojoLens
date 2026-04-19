@@ -1,6 +1,8 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.builder.FieldSelector;
+import laughing.man.commits.builder.FieldSelectors;
 import laughing.man.commits.util.StringUtil;
 
 /**

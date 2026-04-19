@@ -1,4 +1,4 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import java.util.ArrayList;
 import java.util.List;

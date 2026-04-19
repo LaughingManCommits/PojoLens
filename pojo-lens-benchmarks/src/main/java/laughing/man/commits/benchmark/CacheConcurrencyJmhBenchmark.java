@@ -2,6 +2,8 @@ package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -71,24 +73,28 @@ public class CacheConcurrencyJmhBenchmark {
     public List<GroupedStatsRow> statsPlanBuildHotSetConcurrent() {
         int mode = ThreadLocalRandom.current().nextInt(3);
         if (mode == 0) {
-            return runtime.newQueryBuilder(source)
+            return newRuntimeBuilder()
                     .addGroup("stringField")
                     .addCount("total")
                     .initFilter()
                     .filter(GroupedStatsRow.class);
         }
         if (mode == 1) {
-            return runtime.newQueryBuilder(source)
+            return newRuntimeBuilder()
                     .addGroup("stringField")
                     .addMetric("integerField", Metric.SUM, "sumValue")
                     .initFilter()
                     .filter(GroupedStatsRow.class);
         }
-        return runtime.newQueryBuilder(source)
+        return newRuntimeBuilder()
                 .addGroup("stringField")
                 .addMetric("integerField", Metric.MAX, "sumValue")
                 .initFilter()
                 .filter(GroupedStatsRow.class);
+    }
+
+    private QueryBuilder newRuntimeBuilder() {
+        return FluentEngine.newQueryBuilder(source, runtime.statsPlanCache());
     }
 
     public static class GroupedStatsRow {

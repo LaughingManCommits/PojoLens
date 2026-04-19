@@ -90,15 +90,15 @@ Validate:
 **Goal:** Make tests and binary compatibility enforce the simplified public API.
 
 Tasks:
-- [ ] Remove fluent builder classes from the `binary-compat` include list.
-- [ ] Replace stable public API tests that assert fluent availability with
+- [x] Remove fluent builder classes from the `binary-compat` include list.
+- [x] Replace stable public API tests that assert fluent availability with
       tests for SQL-like, natural, runtime, reports, CSV, tree, chart,
       cursor, schema, and join-binding surfaces.
-- [ ] Keep internal engine tests for fluent behavior, SQL-like lowering,
+- [x] Keep internal engine tests for fluent behavior, SQL-like lowering,
       natural lowering, reports, streaming, joins, windows, and subqueries.
-- [ ] Remove or rewrite public fluent coverage tests so they are not
+- [x] Remove or rewrite public fluent coverage tests so they are not
       compatibility promises.
-- [ ] Add a guard that prevents `*.internal.*` APIs from being documented as
+- [x] Add a guard that prevents `*.internal.*` APIs from being documented as
       public entry points.
 
 Validate:
@@ -115,14 +115,14 @@ Validate:
 destabilizing SQL-like and natural execution.
 
 Tasks:
-- [ ] Inventory imports of `laughing.man.commits.builder.*` across main code,
+- [x] Inventory imports of `laughing.man.commits.builder.*` across main code,
       tests, docs, examples, and benchmarks.
-- [ ] Choose the target package shape for internal builder types.
-- [ ] Move or wrap builder types so public entry points do not expose mutable
+- [x] Choose the target package shape for internal builder types.
+- [x] Move or wrap builder types so public entry points do not expose mutable
       internal builders.
-- [ ] Replace public factories that return `QueryBuilder` with public
+- [x] Replace public factories that return `QueryBuilder` with public
       contracts that return rows, reports, charts, schemas, or explain payloads.
-- [ ] Keep benchmarks able to measure the internal engine path without
+- [x] Keep benchmarks able to measure the internal engine path without
       implying it is public API.
 
 Validate:
@@ -139,16 +139,16 @@ Validate:
 surface.
 
 Tasks:
-- [ ] Update `README.md`, `RELEASE.md`, `MIGRATION.md`,
+- [x] Update `README.md`, `RELEASE.md`, `MIGRATION.md`,
       `docs/product-surface.md`, `docs/entry-points.md`, `docs/usecases.md`,
       `docs/reusable-wrappers.md`, `docs/reports.md`, and `docs/modules.md`.
-- [ ] Update docs that currently use fluent as the primary example: charts,
+- [x] Update docs that currently use fluent as the primary example: charts,
       computed fields, time buckets, tabular schema, tree, telemetry,
       metamodel, and caching.
-- [ ] Confirm examples do not teach fluent as user API.
-- [ ] Confirm benchmark docs and threshold checks still work after internal
+- [x] Confirm examples do not teach fluent as user API.
+- [x] Confirm benchmark docs and threshold checks still work after internal
       package moves.
-- [ ] Update changelog with the SQL-like-first public-surface reset.
+- [x] Update changelog with the SQL-like-first public-surface reset.
 - [ ] Cut a new date-based release only after the reset is validated.
 
 Validate:

@@ -1,6 +1,5 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensCsv;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
@@ -10,10 +9,6 @@ import laughing.man.commits.PojoLensTree;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
-import laughing.man.commits.builder.FluentQueryDefinition;
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvLoadException;
@@ -21,17 +16,12 @@ import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
-import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Join;
-import laughing.man.commits.enums.Metric;
-import laughing.man.commits.enums.Sort;
-import laughing.man.commits.enums.WindowFunction;
-import laughing.man.commits.filter.Filter;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.natural.NaturalVocabulary;
+import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -48,7 +38,6 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -61,8 +50,6 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableEntryPointFactoryMethodsShouldRemainAvailable() throws Exception {
-        requirePublicStaticMethod(PojoLensCore.class, "newQueryBuilder", List.class);
-        requirePublicStaticMethod(PojoLensCore.class, "prepare", Class.class, Consumer.class);
         requirePublicStaticMethod(PojoLensNatural.class, "parse", String.class);
         requirePublicStaticMethod(PojoLensNatural.class, "template", String.class, String[].class);
         requirePublicStaticMethod(PojoLensSql.class, "parse", String.class);
@@ -121,57 +108,23 @@ public class StablePublicApiContractTest {
     }
 
     @Test
-    public void stableQueryBuilderAndFilterMethodsShouldRemainAvailable() throws Exception {
-        requirePublicMethod(QueryBuilder.class, "addRule", String.class, Object.class, Clauses.class);
-        requirePublicMethod(QueryBuilder.class, "addOrder", String.class);
-        requirePublicMethod(QueryBuilder.class, "addGroup", String.class);
-        requirePublicMethod(QueryBuilder.class, "addField", String.class);
-        requirePublicMethod(QueryBuilder.class, "addMetric", String.class, Metric.class, String.class);
-        requirePublicMethod(QueryBuilder.class, "addCount", String.class);
-        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, List.class, List.class);
-        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class);
-        requirePublicMethod(QueryBuilder.class, "addWindow", String.class, WindowFunction.class, String.class, boolean.class, List.class, List.class, QueryWindowFrame.class);
-        requirePublicMethod(QueryBuilder.class, "addHaving", String.class, Object.class, Clauses.class);
-        requirePublicMethod(QueryBuilder.class, "addQualify", String.class, Object.class, Clauses.class);
-        requirePublicMethod(QueryBuilder.class, "addInSubquery", String.class, String.class, Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addInSubquery", String.class, List.class, String.class, Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addExists", Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addExists", List.class, Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addNotExists", Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addNotExists", List.class, Consumer.class);
-        requirePublicMethod(QueryBuilder.class, "addJoinBeans", String.class, List.class, String.class, Join.class);
-        requirePublicMethod(QueryBuilder.class, "limit", int.class);
-        requirePublicMethod(QueryBuilder.class, "offset", int.class);
-        requirePublicMethod(QueryBuilder.class, "initFilter");
-        requirePublicMethod(QueryBuilder.class, "explain");
-        requirePublicMethod(QueryBuilder.class, "schema", Class.class);
-        requirePublicStaticMethod(QueryRule.class, "inSubquery", String.class, String.class, Consumer.class);
-        requirePublicStaticMethod(QueryRule.class, "inSubquery", String.class, List.class, String.class, Consumer.class);
-        requirePublicStaticMethod(QueryRule.class, "exists", Consumer.class);
-        requirePublicStaticMethod(QueryRule.class, "exists", List.class, Consumer.class);
-        requirePublicStaticMethod(QueryRule.class, "notExists", Consumer.class);
-        requirePublicStaticMethod(QueryRule.class, "notExists", List.class, Consumer.class);
-
-        requirePublicMethod(Filter.class, "filter", Class.class);
-        requirePublicMethod(Filter.class, "iterator", Class.class);
-        requirePublicMethod(Filter.class, "stream", Class.class);
-        requirePublicMethod(Filter.class, "chart", Class.class, ChartSpec.class);
-        requirePublicMethod(Filter.class, "join");
-
-        requirePublicStaticMethod(FluentQueryDefinition.class, "of", Class.class, Consumer.class);
-        requirePublicMethod(FluentQueryDefinition.class, "source");
-        requirePublicMethod(FluentQueryDefinition.class, "projectionClass");
-        requirePublicMethod(FluentQueryDefinition.class, "schema");
-        requirePublicMethod(FluentQueryDefinition.class, "explain");
-        requirePublicMethod(FluentQueryDefinition.class, "rows", List.class);
-        requirePublicMethod(FluentQueryDefinition.class, "reportDefinition");
-        requirePublicMethod(FluentQueryDefinition.class, "reportDefinition", ChartSpec.class);
-
-        requirePublicStaticMethod(QueryWindowFrame.class, "running");
-        requirePublicStaticMethod(QueryWindowFrame.class, "unboundedPrecedingToCurrentRow");
-        requirePublicStaticMethod(QueryWindowFrame.class, "rowsPrecedingToCurrentRow", int.class);
-        requirePublicStaticMethod(QueryWindowFrame.class, "fullPartition");
-        requirePublicMethod(QueryWindowFrame.class, "sqlExpression");
+    public void stableReportDefinitionContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(ReportDefinition.class, "sql", SqlLikeQuery.class, Class.class);
+        requirePublicStaticMethod(ReportDefinition.class, "sql", SqlLikeQuery.class, Class.class, ChartSpec.class);
+        requirePublicStaticMethod(ReportDefinition.class, "natural", NaturalQuery.class, Class.class);
+        requirePublicStaticMethod(ReportDefinition.class, "natural", NaturalQuery.class, Class.class, ChartSpec.class);
+        requirePublicMethod(ReportDefinition.class, "source");
+        requirePublicMethod(ReportDefinition.class, "projectionClass");
+        requirePublicMethod(ReportDefinition.class, "chartSpec");
+        requirePublicMethod(ReportDefinition.class, "schema");
+        requirePublicMethod(ReportDefinition.class, "supportsJoinSources");
+        requirePublicMethod(ReportDefinition.class, "withChartSpec", ChartSpec.class);
+        requirePublicMethod(ReportDefinition.class, "rows", List.class);
+        requirePublicMethod(ReportDefinition.class, "rows", List.class, JoinBindings.class);
+        requirePublicMethod(ReportDefinition.class, "rows", DatasetBundle.class);
+        requirePublicMethod(ReportDefinition.class, "chart", List.class);
+        requirePublicMethod(ReportDefinition.class, "chart", List.class, JoinBindings.class);
+        requirePublicMethod(ReportDefinition.class, "chart", DatasetBundle.class);
     }
 
     @Test
@@ -267,16 +220,7 @@ public class StablePublicApiContractTest {
     }
 
     @Test
-    public void stableFluentAndSqlLikeFlowsShouldExecute() {
-        List<Employee> fluentRows = PojoLensCore.newQueryBuilder(sampleEmployees())
-                .addRule("active", true, Clauses.EQUAL)
-                .addOrder("salary")
-                .limit(2)
-                .initFilter()
-                .filter(Sort.DESC, Employee.class);
-
-        assertEquals(List.of("Cara", "Alice"), fluentRows.stream().map(row -> row.name).toList());
-
+    public void stableSqlLikeAndNaturalFlowsShouldExecute() {
         List<Employee> sqlRows = new PojoLensRuntime()
                 .parse("where active = true order by salary desc limit 2")
                 .filter(sampleEmployees(), Employee.class);

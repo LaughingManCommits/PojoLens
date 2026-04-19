@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;

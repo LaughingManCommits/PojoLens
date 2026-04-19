@@ -1,6 +1,6 @@
 package laughing.man.commits.tree;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensTree;
 import laughing.man.commits.enums.Clauses;
@@ -160,7 +160,7 @@ public class PojoLensTreeTest {
     public void subtreeRowsShouldFeedExistingFluentAndSqlLikeEngines() {
         List<OrgNode> subtree = PojoLensTree.subtreeOf(sampleOrg(), node -> node.id, node -> node.managerId, 1);
 
-        List<OrgNode> fluent = PojoLensCore.newQueryBuilder(subtree)
+        List<OrgNode> fluent = FluentEngine.newQueryBuilder(subtree)
                 .addRule("department", "Engineering", Clauses.EQUAL)
                 .addOrder("salary", 1)
                 .limit(3)

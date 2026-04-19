@@ -1,4 +1,4 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.util.StringUtil;

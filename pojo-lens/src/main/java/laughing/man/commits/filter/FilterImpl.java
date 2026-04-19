@@ -5,7 +5,7 @@ import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;

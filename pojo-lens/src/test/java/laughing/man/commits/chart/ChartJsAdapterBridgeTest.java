@@ -3,7 +3,7 @@ package laughing.man.commits.chart;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import laughing.man.commits.PojoLensChart;
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.chartjs.ChartJsAdapter;
 import laughing.man.commits.chartjs.ChartJsDataset;
 import laughing.man.commits.chartjs.ChartJsPayload;
@@ -35,7 +35,7 @@ public class ChartJsAdapterBridgeTest {
                 new EmployeeEvent("HR", 80)
         );
 
-        ChartData chartData = PojoLensCore.newQueryBuilder(events)
+        ChartData chartData = FluentEngine.newQueryBuilder(events)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()

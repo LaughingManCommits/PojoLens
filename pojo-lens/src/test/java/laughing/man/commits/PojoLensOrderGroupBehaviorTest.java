@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Sort;
 import org.junit.jupiter.api.Test;
@@ -29,7 +31,7 @@ public class PojoLensOrderGroupBehaviorTest {
                 new Foo("c", now, 2)
         );
 
-        List<Foo> results = PojoLensCore.newQueryBuilder(source)
+        List<Foo> results = FluentEngine.newQueryBuilder(source)
                 .addOrder("integerField", 1)
                 .initFilter()
                 .filter(sort, Foo.class);
@@ -46,7 +48,7 @@ public class PojoLensOrderGroupBehaviorTest {
                 new Foo("a", now, 1)
         );
 
-        List<Foo> stringThenInteger = PojoLensCore.newQueryBuilder(source)
+        List<Foo> stringThenInteger = FluentEngine.newQueryBuilder(source)
                 .addOrder("stringField")
                 .addOrder("integerField")
                 .initFilter()
@@ -57,7 +59,7 @@ public class PojoLensOrderGroupBehaviorTest {
         assertEquals(2, stringThenInteger.get(1).getIntegerField());
         assertEquals("b", stringThenInteger.get(2).getStringField());
 
-        List<Foo> integerThenString = PojoLensCore.newQueryBuilder(source)
+        List<Foo> integerThenString = FluentEngine.newQueryBuilder(source)
                 .addOrder("integerField")
                 .addOrder("stringField")
                 .initFilter()
@@ -78,7 +80,7 @@ public class PojoLensOrderGroupBehaviorTest {
                 new Foo("b", now, 2)
         );
 
-        List<Foo> results = PojoLensCore.newQueryBuilder(source)
+        List<Foo> results = FluentEngine.newQueryBuilder(source)
                 .addDistinct("stringField", 1)
                 .addOrder("integerField", 1)
                 .initFilter()
@@ -98,7 +100,7 @@ public class PojoLensOrderGroupBehaviorTest {
                 new Foo("b", now, 1)
         );
 
-        Map<String, List<Foo>> grouped = PojoLensCore.newQueryBuilder(source)
+        Map<String, List<Foo>> grouped = FluentEngine.newQueryBuilder(source)
                 .addGroup("stringField", 1)
                 .addGroup("integerField", 2)
                 .initFilter()
@@ -116,7 +118,7 @@ public class PojoLensOrderGroupBehaviorTest {
                 new Foo("b", now, 1)
         );
 
-        Map<String, List<Foo>> groupedStringThenInteger = PojoLensCore.newQueryBuilder(source)
+        Map<String, List<Foo>> groupedStringThenInteger = FluentEngine.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addGroup("integerField")
                 .initFilter()
@@ -125,7 +127,7 @@ public class PojoLensOrderGroupBehaviorTest {
         assertTrue(groupedStringThenInteger.containsKey("a,2,"));
         assertTrue(groupedStringThenInteger.containsKey("b,1,"));
 
-        Map<String, List<Foo>> groupedIntegerThenString = PojoLensCore.newQueryBuilder(source)
+        Map<String, List<Foo>> groupedIntegerThenString = FluentEngine.newQueryBuilder(source)
                 .addGroup("integerField")
                 .addGroup("stringField")
                 .initFilter()

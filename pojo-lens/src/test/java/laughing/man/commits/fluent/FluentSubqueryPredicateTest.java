@@ -1,9 +1,9 @@
 package laughing.man.commits.fluent;
 
-import laughing.man.commits.PojoLensCore;
-import laughing.man.commits.builder.FluentQueryDefinition;
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.builder.QueryRule;
+import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.builder.FluentQueryDefinition;
+import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
@@ -33,7 +33,7 @@ public class FluentSubqueryPredicateTest {
                 new DepartmentActive("HR", false)
         );
 
-        List<DepartmentActive> results = PojoLensCore.newQueryBuilder(source)
+        List<DepartmentActive> results = FluentEngine.newQueryBuilder(source)
                 .addInSubquery("department", "department",
                         query -> query.addRule("active", true, Clauses.EQUAL))
                 .initFilter()
@@ -45,7 +45,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void inSubqueryShouldSupportExplicitSourceFiltering() {
-        List<Company> results = PojoLensCore.newQueryBuilder(sampleCompanies())
+        List<Company> results = FluentEngine.newQueryBuilder(sampleCompanies())
                 .addInSubquery("id", sampleCompanyEmployees(), "companyId",
                         query -> query.addRule("title", "Engineer", Clauses.EQUAL))
                 .initFilter()
@@ -72,7 +72,7 @@ public class FluentSubqueryPredicateTest {
                 new ProductRow(20, "Game")
         );
 
-        List<OrderRow> results = PojoLensCore.newQueryBuilder(orders)
+        List<OrderRow> results = FluentEngine.newQueryBuilder(orders)
                 .addInSubquery("id", lines, "orderId",
                         query -> query.addJoinBeans("productId", products, "id", Join.INNER_JOIN)
                                 .addRule("category", "Book", Clauses.EQUAL))
@@ -85,7 +85,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void inSubqueryShouldSupportAggregateOutput() {
-        List<Employee> results = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<Employee> results = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addInSubquery("id", "total",
                         query -> query.addCount("total")
                                 .addRule("active", true, Clauses.EQUAL))
@@ -100,16 +100,16 @@ public class FluentSubqueryPredicateTest {
     public void existsSubqueryShouldFilterByUncorrelatedPresence() {
         List<Employee> employees = sampleEmployees();
 
-        List<Employee> present = PojoLensCore.newQueryBuilder(employees)
+        List<Employee> present = FluentEngine.newQueryBuilder(employees)
                 .addExists(query -> query.addRule("department", "Engineering", Clauses.EQUAL))
                 .initFilter()
                 .filter(Employee.class);
-        List<Employee> missing = PojoLensCore.newQueryBuilder(employees)
+        List<Employee> missing = FluentEngine.newQueryBuilder(employees)
                 .addRule("department", "Finance", Clauses.EQUAL)
                 .addExists(query -> query.addRule("department", "Missing", Clauses.EQUAL))
                 .initFilter()
                 .filter(Employee.class);
-        List<Employee> inverted = PojoLensCore.newQueryBuilder(employees)
+        List<Employee> inverted = FluentEngine.newQueryBuilder(employees)
                 .addNotExists(query -> query.addRule("department", "Missing", Clauses.EQUAL))
                 .initFilter()
                 .filter(Employee.class);
@@ -128,7 +128,7 @@ public class FluentSubqueryPredicateTest {
                 new DepartmentActive("HR", false)
         );
 
-        List<DepartmentActive> results = PojoLensCore.newQueryBuilder(source)
+        List<DepartmentActive> results = FluentEngine.newQueryBuilder(source)
                 .allOf(
                         QueryRule.of("active", true, Clauses.EQUAL),
                         QueryRule.inSubquery("department", "department",
@@ -143,7 +143,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void groupedExistsShouldParticipateInAnyOfGroups() {
-        List<Employee> results = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<Employee> results = FluentEngine.newQueryBuilder(sampleEmployees())
                 .anyOf(
                         QueryRule.exists(query -> query.addRule("department", "Missing", Clauses.EQUAL)),
                         QueryRule.of("department", "Finance", Clauses.EQUAL)
@@ -157,7 +157,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void groupedExistsShouldAllowDnfStyleAllOfAlternatives() {
-        List<Employee> results = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<Employee> results = FluentEngine.newQueryBuilder(sampleEmployees())
                 .allOf(
                         QueryRule.exists(query -> query.addRule("department", "Missing", Clauses.EQUAL)),
                         QueryRule.of("department", "Finance", Clauses.EQUAL)
@@ -172,7 +172,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void existsSubqueryShouldRebindInsidePreparedFluentDefinition() {
-        FluentQueryDefinition<Employee> definition = PojoLensCore.prepare(Employee.class,
+        FluentQueryDefinition<Employee> definition = FluentEngine.prepare(Employee.class,
                 query -> query.addExists(subquery -> subquery.addRule("department", "Engineering", Clauses.EQUAL)));
 
         List<Employee> first = definition.rows(List.of(
@@ -188,7 +188,7 @@ public class FluentSubqueryPredicateTest {
 
     @Test
     public void explainShouldReportPendingSubqueries() {
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleEmployees())
+        QueryBuilder builder = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addInSubquery("id", "total",
                         query -> query.addCount("total")
                                 .addRule("active", true, Clauses.EQUAL));

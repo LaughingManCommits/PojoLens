@@ -44,7 +44,12 @@ Useful internal cases:
 
 ## Current Bridge
 
-`PojoLensCore`, `PojoLensRuntime.newQueryBuilder(...)`,
-`FluentQueryDefinition`, and `ReportDefinition.fluent(...)` may still exist
-while the codebase is reset. Treat them as compatibility-reset candidates until
-`SURFACE-WP4` and `SURFACE-WP5` finish the guard and package work.
+Internal fluent entry points now live under:
+
+- `laughing.man.commits.internal.FluentEngine`
+- `laughing.man.commits.internal.builder.QueryBuilder`
+- `laughing.man.commits.internal.builder.FilterQueryBuilder`
+- `laughing.man.commits.internal.builder.FluentQueryDefinition`
+
+`PojoLensCore`, `PojoLensRuntime.newQueryBuilder(...)`, and
+`ReportDefinition.fluent(...)` are no longer public entry points.

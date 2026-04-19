@@ -1,6 +1,6 @@
 # Field Metamodel Generator
 
-`PojoLens` already supports lambda selectors in many fluent APIs, but some flows still need string field names:
+Some PojoLens flows use string field names:
 
 This is optional authoring/build-time tooling.
 Use it when generated field constants are worth the extra build step.
@@ -8,7 +8,7 @@ Use it when generated field constants are worth the extra build step.
 - chart specs
 - alias/result row projections
 - shared constants across modules
-- fluent code paths that prefer generated constants over inline strings
+- SQL-like query builders that assemble controlled query text
 
 Use `FieldMetamodelGenerator` to generate a Java constants class for a model or projection type.
 
@@ -78,15 +78,15 @@ The generator includes queryable instance fields that are:
 
 Field names are sorted alphabetically so generated output is deterministic in tests and build pipelines.
 
-## Fluent Builder Usage
+## SQL-like Query Usage
 
 ```java
-List<Employee> rows = PojoLensCore.newQueryBuilder(source)
-    .addRule(EmployeeFields.DEPARTMENT, "Engineering", Clauses.EQUAL)
-    .addOrder(EmployeeFields.SALARY, 1)
-    .limit(10)
-    .initFilter()
-    .filter(Sort.DESC, Employee.class);
+String query = "where " + EmployeeFields.DEPARTMENT
+    + " = :department order by " + EmployeeFields.SALARY + " desc limit 10";
+
+List<Employee> rows = PojoLensSql.parse(query)
+    .params(Map.of("department", "Engineering"))
+    .filter(source, Employee.class);
 ```
 
 ## Chart Spec Usage

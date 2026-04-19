@@ -1,22 +1,23 @@
-package laughing.man.commits;
+package laughing.man.commits.internal;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.FluentQueryDefinition;
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.EngineDefaults;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FluentQueryDefinition;
+import laughing.man.commits.internal.builder.QueryBuilder;
 
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Core fluent-query entry points without SQL-like parser concerns.
+ * Internal factory for the fluent execution-planning DSL.
  */
-public final class PojoLensCore {
+public final class FluentEngine {
 
     public static final String SDF = EngineDefaults.SDF;
     public static final String EMPTY_GROUPING = EngineDefaults.EMPTY_GROUPING;
 
-    private PojoLensCore() {
+    private FluentEngine() {
     }
 
     public static QueryBuilder newQueryBuilder(List<?> pojos) {
@@ -31,4 +32,3 @@ public final class PojoLensCore {
         return FluentQueryDefinition.of(projectionClass, configurer);
     }
 }
-

@@ -1,9 +1,9 @@
-package laughing.man.commits.publicapi;
+package laughing.man.commits.fluent;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -33,17 +33,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
+public class FluentEngineCoverageTest extends laughing.man.commits.publicapi.AbstractPublicApiCoverageTest {
 
     @Test
-    public void optionalIndexControlsShouldBeUsableFromPublicApi() {
-        List<Employee> baseline = PojoLensCore.newQueryBuilder(sampleEmployees())
+    public void optionalIndexControlsShouldWorkInEngineDsl() {
+        List<Employee> baseline = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addRule("department", "Engineering", Clauses.EQUAL)
                 .addRule("active", true, Clauses.EQUAL)
                 .initFilter()
                 .filter(Employee.class);
 
-        List<Employee> indexed = PojoLensCore.newQueryBuilder(sampleEmployees())
+        List<Employee> indexed = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addIndex("department")
                 .addIndex("active")
                 .addRule("department", "Engineering", Clauses.EQUAL)
@@ -57,14 +57,14 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
         assertEquals(
                 List.of("department", "active"),
-                PojoLensCore.newQueryBuilder(sampleEmployees())
+                FluentEngine.newQueryBuilder(sampleEmployees())
                         .addIndex("department")
                         .addIndex("active")
                         .explain()
                         .get("indexes")
         );
 
-        Object typedIndexes = PojoLensCore.newQueryBuilder(Arrays.asList(
+        Object typedIndexes = FluentEngine.newQueryBuilder(Arrays.asList(
                         new Foo("a", new Date(), 1),
                         new Foo("b", new Date(), 2)))
                 .addIndex(Foo::getStringField)
@@ -74,8 +74,8 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
     }
 
     @Test
-    public void fluentWindowAndQualifyControlsShouldBeUsableFromPublicApi() {
-        List<WindowRankRow> rows = PojoLensCore.newQueryBuilder(sampleEmployees())
+    public void fluentWindowAndQualifyControlsShouldWorkInEngineDsl() {
+        List<WindowRankRow> rows = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .addWindow(
                         "rn",
@@ -95,14 +95,14 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
     }
 
     @Test
-    public void fluentAggregateWindowOverloadShouldBeUsableFromPublicApi() {
+    public void fluentAggregateWindowOverloadShouldWorkInEngineDsl() {
         List<WindowAggregateInput> source = Arrays.asList(
                 new WindowAggregateInput("A", 1, 10),
                 new WindowAggregateInput("A", 2, 5),
                 new WindowAggregateInput("B", 1, 3)
         );
 
-        List<WindowAggregateApiRow> rows = PojoLensCore.newQueryBuilder(source)
+        List<WindowAggregateApiRow> rows = FluentEngine.newQueryBuilder(source)
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,
@@ -134,8 +134,8 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
     }
 
     @Test
-    public void fluentStreamingControlsShouldBeUsableFromPublicApi() {
-        List<String> fluentNames = PojoLensCore.newQueryBuilder(sampleEmployees())
+    public void fluentStreamingControlsShouldWorkInEngineDsl() {
+        List<String> fluentNames = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addRule("active", true, Clauses.EQUAL)
                 .limit(2)
                 .initFilter()
@@ -154,26 +154,26 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
 
         try {
-            PojoLensCore.newQueryBuilder(source).limit(-1);
+            FluentEngine.newQueryBuilder(source).limit(-1);
             fail("Expected IllegalArgumentException for negative limit");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("maxRows must be >= 0"));
         }
 
         try {
-            PojoLensCore.newQueryBuilder(source).offset(-1);
+            FluentEngine.newQueryBuilder(source).offset(-1);
             fail("Expected IllegalArgumentException for negative offset");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("rowOffset must be >= 0"));
         }
 
-        List<Foo> empty = PojoLensCore.newQueryBuilder(source)
+        List<Foo> empty = FluentEngine.newQueryBuilder(source)
                 .limit(0)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(0, empty.size());
 
-        List<Foo> offsetRows = PojoLensCore.newQueryBuilder(source)
+        List<Foo> offsetRows = FluentEngine.newQueryBuilder(source)
                 .offset(1)
                 .initFilter()
                 .filter(Foo.class);
@@ -188,7 +188,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new Foo("b", new Date(), 2)
         );
 
-        QueryBuilder isolated = PojoLensCore.newQueryBuilder(source)
+        QueryBuilder isolated = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(true);
         Filter isolatedFilter = isolated.initFilter();
@@ -200,7 +200,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals(1, isolatedRowsAgain.size());
         assertEquals("a", isolatedRowsAgain.get(0).getStringField());
 
-        QueryBuilder shared = PojoLensCore.newQueryBuilder(source)
+        QueryBuilder shared = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(false);
         Filter sharedFilter = shared.initFilter();
@@ -219,9 +219,9 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new Foo("b", now, 30)
         );
 
-        List<Foo> distinctRows = PojoLensCore.newQueryBuilder(source)
+        List<Foo> distinctRows = FluentEngine.newQueryBuilder(source)
                 .addDistinct(Foo::getStringField)
-                .addRule(Foo::getDateField, now, Clauses.EQUAL, Separator.AND, PojoLensCore.SDF)
+                .addRule(Foo::getDateField, now, Clauses.EQUAL, Separator.AND, FluentEngine.SDF)
                 .initFilter()
                 .filter(Foo.class);
         assertEquals(2, distinctRows.size());
@@ -232,7 +232,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
                 new DepartmentMetricInput("sales", 30)
         );
 
-        List<DepartmentMetricResult> grouped = PojoLensCore.newQueryBuilder(metrics)
+        List<DepartmentMetricResult> grouped = FluentEngine.newQueryBuilder(metrics)
                 .addGroup(DepartmentMetricInput::getDepartment)
                 .addMetric(DepartmentMetricInput::getAmount, Metric.SUM, "totalAmount")
                 .addHaving(DepartmentMetricResult::getTotalAmount, 120, Clauses.BIGGER_EQUAL, Separator.AND, null)
@@ -247,7 +247,7 @@ public class PublicApiFluentCoverageTest extends AbstractPublicApiCoverageTest {
         );
         List<JoinChild> children = Collections.singletonList(new JoinChild(1, "c1"));
 
-        List<JoinProjection> joined = PojoLensCore.newQueryBuilder(parents)
+        List<JoinProjection> joined = FluentEngine.newQueryBuilder(parents)
                 .addJoinBeans(JoinParent::getId, children, JoinChild::getParentId, Join.LEFT_JOIN)
                 .initFilter()
                 .join()

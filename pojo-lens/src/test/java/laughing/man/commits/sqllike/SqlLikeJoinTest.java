@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.enums.Clauses;
@@ -42,7 +42,7 @@ public class SqlLikeJoinTest {
                 new ChildBean(1, "c1")
         );
 
-        List<ParentBean> fluent = PojoLensCore.newQueryBuilder(parents)
+        List<ParentBean> fluent = FluentEngine.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .addRule("tag", null, Clauses.EQUAL, Separator.AND)
                 .initFilter()

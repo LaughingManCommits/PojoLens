@@ -1,6 +1,5 @@
 package laughing.man.commits;
 
-import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
@@ -13,8 +12,6 @@ import laughing.man.commits.sqllike.internal.cache.SqlLikeQueryCache;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
-
-import java.util.List;
 
 /**
  * Instance-scoped runtime for DI and multi-tenant cache isolation.
@@ -54,12 +51,6 @@ public final class PojoLensRuntime {
 
     public static PojoLensRuntime ofPreset(PojoLensRuntimePreset preset) {
         return new PojoLensRuntime().applyPreset(preset);
-    }
-
-    public QueryBuilder newQueryBuilder(List<?> pojos) {
-        return PojoLensCore.newQueryBuilder(pojos, statsPlanCache)
-                .computedFields(computedFieldRegistry)
-                .telemetry(telemetryListener);
     }
 
     public NaturalRuntime natural() {

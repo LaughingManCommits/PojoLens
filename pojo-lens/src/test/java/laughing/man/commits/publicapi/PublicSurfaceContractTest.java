@@ -1,85 +1,65 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.filter.Filter;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.HashSet;
-import java.util.Set;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PublicSurfaceContractTest {
 
     @Test
-    public void queryBuilderInterfaceShouldExposeStatsMethods() {
-        Set<String> methods = publicMethodNames(QueryBuilder.class);
-        assertTrue(methods.contains("addMetric"));
-        assertTrue(methods.contains("addCount"));
-        assertTrue(methods.contains("addTimeBucket"));
-        assertTrue(methods.contains("copyOnBuild"));
-        assertTrue(methods.contains("limit"));
-        assertTrue(methods.contains("explain"));
-        assertTrue(methods.contains("schema"));
-        assertTrue(methods.contains("computedFields"));
-        assertTrue(methods.contains("addDistinct"));
-        assertTrue(methods.contains("addJoinBeans"));
-        assertTrue(methods.contains("addInSubquery"));
-        assertTrue(methods.contains("addExists"));
-        assertTrue(methods.contains("addNotExists"));
-    }
-
-    @Test
-    public void filterQueryBuilderShouldNotExposeRemovedStateMutators() {
-        Set<String> methods = declaredPublicMethodNames(FilterQueryBuilder.class);
-        assertFalse(methods.contains("setLimit"));
-        assertFalse(methods.contains("setGroupFields"));
-        assertFalse(methods.contains("setOrderFields"));
-        assertFalse(methods.contains("setDistinctFields"));
-        assertFalse(methods.contains("setFilterValues"));
-        assertFalse(methods.contains("setFilterFields"));
-        assertFalse(methods.contains("setFilterClause"));
-        assertFalse(methods.contains("setFilterSeparator"));
-        assertFalse(methods.contains("setFilterDateFormats"));
-        assertFalse(methods.contains("setFilterIDs"));
-        assertFalse(methods.contains("setJoinClasses"));
-        assertFalse(methods.contains("setJoinMethods"));
-        assertFalse(methods.contains("setJoinParentFields"));
-        assertFalse(methods.contains("setJoinChildFields"));
-        assertFalse(methods.contains("setReturnFields"));
-    }
-
-    @Test
-    public void filterJoinShouldReturnFilterContract() throws Exception {
-        Method method = Filter.class.getMethod("join");
-        assertEquals(Filter.class, method.getReturnType());
-    }
-
-    private static Set<String> publicMethodNames(Class<?> type) {
-        Set<String> names = new HashSet<>();
-        for (Method method : type.getMethods()) {
-            if (Modifier.isPublic(method.getModifiers())) {
-                names.add(method.getName());
-            }
+    public void firstReadDocsShouldNotExposeFluentAsPublicEntryPoint() throws IOException {
+        for (Path path : publicEntryDocs()) {
+            String text = Files.readString(path);
+            assertFalse(containsWord(text, "PojoLensCore"),
+                    () -> path + " should not document PojoLensCore as a public entry point");
+            assertFalse(containsWord(text, "QueryBuilder"),
+                    () -> path + " should not document QueryBuilder as a public entry point");
+            assertFalse(containsWord(text, "FluentQueryDefinition"),
+                    () -> path + " should not document FluentQueryDefinition as a public entry point");
+            assertFalse(text.contains("ReportDefinition.fluent"),
+                    () -> path + " should not document fluent reports as a public entry point");
+            assertFalse(text.contains("laughing.man.commits.internal"),
+                    () -> path + " should not document internal packages as public entry points");
         }
-        return names;
     }
 
-    private static Set<String> declaredPublicMethodNames(Class<?> type) {
-        Set<String> names = new HashSet<>();
-        for (Method method : type.getDeclaredMethods()) {
-            if (Modifier.isPublic(method.getModifiers())) {
-                names.add(method.getName());
+    private static boolean containsWord(String text, String word) {
+        return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(text).find();
+    }
+
+    private static List<Path> publicEntryDocs() {
+        Path root = repoRoot();
+        return List.of(
+                root.resolve("README.md"),
+                root.resolve("MIGRATION.md"),
+                root.resolve("docs/entry-points.md"),
+                root.resolve("docs/usecases.md"),
+                root.resolve("docs/reusable-wrappers.md"),
+                root.resolve("docs/reports.md"),
+                root.resolve("docs/charts.md"),
+                root.resolve("docs/computed-fields.md"),
+                root.resolve("docs/time-buckets.md"),
+                root.resolve("docs/tabular-schema.md"),
+                root.resolve("docs/telemetry.md"),
+                root.resolve("docs/caching.md"),
+                root.resolve("docs/metamodel.md")
+        );
+    }
+
+    private static Path repoRoot() {
+        Path current = Path.of("").toAbsolutePath();
+        while (current != null) {
+            if (Files.exists(current.resolve("pom.xml")) && Files.exists(current.resolve("pojo-lens"))) {
+                return current;
             }
+            current = current.getParent();
         }
-        return names;
+        throw new IllegalStateException("Could not locate repository root");
     }
 }
-
-
-

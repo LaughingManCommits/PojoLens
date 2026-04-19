@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -66,7 +68,7 @@ public class FieldMetamodelGeneratorTest {
             List<String> allFields = (List<String>) fieldsClass.getField("ALL").get(null);
             assertEquals(Arrays.asList("active", "department", "payroll"), allFields);
 
-            List<DepartmentPayrollRow> filtered = PojoLensCore.newQueryBuilder(sampleRows())
+            List<DepartmentPayrollRow> filtered = FluentEngine.newQueryBuilder(sampleRows())
                     .addRule(activeField, true, Clauses.EQUAL)
                     .addOrder(payrollField, 1)
                     .initFilter()

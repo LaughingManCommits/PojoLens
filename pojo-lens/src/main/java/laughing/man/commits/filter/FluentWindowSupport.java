@@ -1,7 +1,7 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.QueryWindow;
-import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.internal.builder.QueryWindow;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Sort;

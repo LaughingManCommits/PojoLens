@@ -2,6 +2,7 @@ package laughing.man.commits;
 
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -126,7 +127,7 @@ public class CachePolicyConfigTest {
     }
 
     private void runStatsPlanQuery(List<Employee> employees) {
-        runtime.newQueryBuilder(employees)
+        FluentEngine.newQueryBuilder(employees, runtime.statsPlanCache())
                 .addGroup("department")
                 .addCount("total")
                 .initFilter()

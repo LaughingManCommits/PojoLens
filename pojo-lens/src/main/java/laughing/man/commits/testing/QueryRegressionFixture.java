@@ -1,8 +1,8 @@
 package laughing.man.commits.testing;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -81,7 +81,7 @@ public final class QueryRegressionFixture<T> {
                 snapshot,
                 "fluent",
                 current -> {
-                    QueryBuilder builder = PojoLensCore.newQueryBuilder(current.primaryRows());
+                    QueryBuilder builder = FluentEngine.newQueryBuilder(current.primaryRows());
                     configurer.accept(builder);
                     return builder.initFilter().filter(projectionClass);
                 },

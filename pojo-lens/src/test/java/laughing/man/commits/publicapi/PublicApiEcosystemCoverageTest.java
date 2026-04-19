@@ -1,6 +1,5 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensCsv;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
@@ -14,9 +13,7 @@ import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
-import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -256,20 +253,8 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals("show department, count of employees as total group by department sort by department ascending",
                 naturalReport.source());
 
-        ReportDefinition<StatsRow> fluentReport = ReportDefinition.fluent(
-                StatsRow.class,
-                builder -> builder.addGroup("department").addCount("total")
-        );
-        assertEquals(2, fluentReport.rows(sampleEmployees()).size());
-        assertEquals("fluent", fluentReport.source());
-
-        FluentQueryDefinition<StatsRow> fluentDefinition = PojoLensCore.prepare(
-                StatsRow.class,
-                builder -> builder.addGroup("department").addCount("total")
-        );
-        assertEquals(2, fluentDefinition.rows(sampleEmployees()).size());
-        assertEquals(List.of("department", "total"), fluentDefinition.schema().names());
-        assertEquals("fluent", fluentDefinition.reportDefinition().source());
+        assertTrue(sqlReport.supportsJoinSources());
+        assertTrue(naturalReport.supportsJoinSources());
     }
 
     @Test
@@ -297,11 +282,9 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertFalse(events.isEmpty());
 
         events.clear();
-        PojoLensCore.newQueryBuilder(sampleEmployees())
-                .telemetry(events::add)
-                .addRule("active", true, Clauses.EQUAL)
-                .initFilter()
-                .filter(Employee.class);
+        runtime.natural()
+                .parse("show employees where active is true")
+                .filter(sampleEmployees(), Employee.class);
         assertFalse(events.isEmpty());
     }
 
@@ -339,22 +322,13 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .withWeekStart("sunday");
 
         assertEquals("WEEK", preset.bucket().name());
-        assertTrue(PojoLensCore.newQueryBuilder(sampleEmployees())
-                .addTimeBucket("hireDate", preset, "period")
-                .addCount("total")
-                .explain()
-                .get("timeBuckets")
-                .toString()
-                .contains("Europe/Amsterdam"));
+        assertEquals("Europe/Amsterdam", preset.zoneId().getId());
+        assertEquals("SUNDAY", preset.weekStart().name());
+        assertTrue(preset.sqlArgumentList().contains("Europe/Amsterdam"));
     }
 
     @Test
     public void tabularSchemaMetadataShouldBeUsableFromPublicApi() {
-        TabularSchema fluentSchema = PojoLensCore.newQueryBuilder(sampleEmployees())
-                .addGroup("department")
-                .addCount("total")
-                .schema(StatsRow.class);
-
         TabularSchema sqlSchema = PojoLensSql.parse("select department, count(*) as total group by department")
                 .schema(StatsRow.class);
 
@@ -363,7 +337,6 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 StatsRow.class
         );
 
-        assertEquals(List.of("department", "total"), fluentSchema.names());
         assertEquals(List.of("department", "total"), sqlSchema.names());
         assertEquals(List.of("department", "total"), report.schema().names());
         assertEquals("metric:COUNT", report.schema().column("total").formatHint());

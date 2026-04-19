@@ -35,6 +35,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   guidance into maintainer-only docs, removing fluent report positioning from
   public wrapper docs, and marking fluent contracts as internal reset
   candidates instead of stable public API.
+- **Public API compatibility reset** - completed `SURFACE-WP4` by narrowing
+  binary compatibility checks to the SQL-like, natural, runtime, reports, CSV,
+  tree, chart, cursor, schema, and join-binding surfaces while keeping fluent
+  coverage as internal engine tests.
+- **Fluent engine boundary** - completed `SURFACE-WP5` by moving mutable
+  fluent planning types under `laughing.man.commits.internal.builder`,
+  replacing public builder factories with the internal `FluentEngine` factory,
+  and keeping benchmark coverage on the internal engine path.
 
 ---
 

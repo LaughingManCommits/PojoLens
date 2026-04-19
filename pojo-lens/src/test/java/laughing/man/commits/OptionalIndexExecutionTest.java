@@ -1,6 +1,8 @@
 package laughing.man.commits;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.FluentEngine;
+
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -20,13 +22,13 @@ public class OptionalIndexExecutionTest {
     public void indexedEqualityHintShouldNotChangeFilterResults() {
         List<Foo> source = sampleRows(2_000);
 
-        List<Foo> baseline = PojoLensCore.newQueryBuilder(source)
+        List<Foo> baseline = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "group-3", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 500, Clauses.BIGGER_EQUAL, Separator.AND)
                 .initFilter()
                 .filter(Foo.class);
 
-        List<Foo> indexed = PojoLensCore.newQueryBuilder(source)
+        List<Foo> indexed = FluentEngine.newQueryBuilder(source)
                 .addIndex("stringField")
                 .addRule("stringField", "group-3", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 500, Clauses.BIGGER_EQUAL, Separator.AND)
@@ -40,12 +42,12 @@ public class OptionalIndexExecutionTest {
     public void missingIndexedFieldShouldFallbackToNormalScan() {
         List<Foo> source = sampleRows(500);
 
-        List<Foo> baseline = PojoLensCore.newQueryBuilder(source)
+        List<Foo> baseline = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "group-1", Clauses.EQUAL, Separator.AND)
                 .initFilter()
                 .filter(Foo.class);
 
-        List<Foo> indexed = PojoLensCore.newQueryBuilder(source)
+        List<Foo> indexed = FluentEngine.newQueryBuilder(source)
                 .addIndex("missingField")
                 .addRule("stringField", "group-1", Clauses.EQUAL, Separator.AND)
                 .initFilter()
@@ -56,7 +58,7 @@ public class OptionalIndexExecutionTest {
 
     @Test
     public void explainShouldExposeConfiguredIndexFields() {
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(sampleRows(10))
+        QueryBuilder builder = FluentEngine.newQueryBuilder(sampleRows(10))
                 .addIndex("stringField");
 
         Map<String, Object> explain = builder.explain();

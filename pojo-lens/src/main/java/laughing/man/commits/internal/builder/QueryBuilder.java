@@ -1,6 +1,7 @@
-package laughing.man.commits.builder;
+package laughing.man.commits.internal.builder;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.builder.FieldSelector;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;

@@ -39,20 +39,6 @@ QueryTelemetryListener current = runtime.getTelemetryListener();
 runtime.setTelemetryListener(null); // disables telemetry callbacks
 ```
 
-## Fluent Hook
-
-Attach a listener directly to a fluent builder:
-
-```java
-List<DepartmentCount> rows = PojoLensCore.newQueryBuilder(snapshot)
-    .telemetry(listener)
-    .addRule("active", true, Clauses.EQUAL)
-    .addGroup("department")
-    .addCount("total")
-    .initFilter()
-    .filter(DepartmentCount.class);
-```
-
 ## SQL-like Hook
 
 Attach a listener directly to a SQL-like query when you want bind/execution telemetry:
@@ -70,7 +56,7 @@ List<Employee> rows = query.filter(snapshot, Employee.class);
 Each `QueryTelemetryEvent` contains:
 
 - `stage()`
-- `queryType()` such as `fluent` or `sql-like`
+- `queryType()` such as `sql-like` or `natural`
 - `source()` for the originating query/source label
 - `durationNanos()`
 - `rowCountBefore()`

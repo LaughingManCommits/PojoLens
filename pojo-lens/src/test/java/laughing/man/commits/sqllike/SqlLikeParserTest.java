@@ -2,7 +2,7 @@ package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;

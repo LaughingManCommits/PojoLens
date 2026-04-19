@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartMapper;
 import laughing.man.commits.chart.ChartResultMapper;

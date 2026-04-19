@@ -1,10 +1,10 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.internal.builder.QueryRule;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -40,7 +40,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fluent = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "abc", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 1, Clauses.BIGGER, Separator.AND)
                 .addOrder("integerField", 1)
@@ -65,7 +65,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fluent = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "abc", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 1, Clauses.BIGGER, Separator.AND)
                 .addOrder("integerField", 1)
@@ -91,7 +91,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fluent = FluentEngine.newQueryBuilder(source)
                 .addRule("integerField", 1, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
                 .initFilter()
@@ -124,7 +124,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeGroupedAggregationShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
@@ -143,7 +143,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeGroupedOrderByMetricAliasShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "totalSalary")
@@ -167,7 +167,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeHavingAggregateExpressionShouldMatchFluentAliasBasedHaving() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentAgg> fluent = PojoLensCore.newQueryBuilder(employees)
+        List<DepartmentAgg> fluent = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addCount("employeeCount")
                 .addMetric("salary", Metric.SUM, "hiddenTotalSalary")
@@ -194,7 +194,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 2)
         );
 
-        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fluent = FluentEngine.newQueryBuilder(source)
                 .allOf(
                         QueryRule.of("stringField", "abc", Clauses.EQUAL),
                         QueryRule.of("integerField", 5, Clauses.BIGGER_EQUAL)
@@ -221,7 +221,7 @@ public class SqlLikeMappingParityTest {
                 new Foo("xyz", new Date(), 7)
         );
 
-        List<Foo> fluent = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fluent = FluentEngine.newQueryBuilder(source)
                 .addRule("integerField", 4, Clauses.BIGGER_EQUAL, Separator.AND)
                 .initFilter()
                 .filter(Foo.class);
@@ -237,7 +237,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeWindowQualifyShouldMatchFluentPipeline() {
         List<Employee> employees = sampleEmployees();
 
-        List<DepartmentRank> fluent = PojoLensCore.newQueryBuilder(employees)
+        List<DepartmentRank> fluent = FluentEngine.newQueryBuilder(employees)
                 .addRule("active", true, Clauses.EQUAL)
                 .addWindow(
                         "rn",
@@ -264,7 +264,7 @@ public class SqlLikeMappingParityTest {
     public void sqlLikeAggregateWindowsShouldMatchFluentPipeline() {
         List<WindowMetricInput> source = sampleWindowMetricInputs();
 
-        List<WindowMetricProjection> fluent = PojoLensCore.newQueryBuilder(source)
+        List<WindowMetricProjection> fluent = FluentEngine.newQueryBuilder(source)
                 .addWindow(
                         "runningSum",
                         WindowFunction.SUM,

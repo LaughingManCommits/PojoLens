@@ -14,7 +14,6 @@ Each column includes:
 - optional `formatHint`
 
 Entry points:
-- `QueryBuilder.schema(Projection.class)`
 - `SqlLikeQuery.schema(Projection.class)`
 - `NaturalQuery.schema(Projection.class)`
 - `NaturalQuery.schema(rows, Projection.class)`
@@ -22,15 +21,6 @@ Entry points:
 - `NaturalQuery.schema(datasetBundle, Projection.class)`
 - `ReportDefinition.schema()`
 - `ChartQueryPreset.schema()`
-
-Fluent example:
-
-```java
-TabularSchema schema = PojoLensCore.newQueryBuilder(source)
-    .addGroup("department")
-    .addCount("total")
-    .schema(DepartmentCount.class);
-```
 
 SQL-like example:
 
