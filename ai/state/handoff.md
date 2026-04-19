@@ -6,7 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: implement `QOL-WP1` query diagnostics or decide whether to cut the next date-based release first.
+5. Next likely task: implement `QOL-WP2` field/source exposure policy or decide whether to cut the next date-based release first.
 
 ## Focus
 
@@ -27,6 +27,7 @@
 - `2026-04-18`: Public-surface guards reject internal APIs in public entry-point docs.
 - `2026-04-19`: `docs/internal-fluent-engine.md` is the maintainer reference for fluent lifecycle, method groups, and usage examples.
 - `2026-04-19`: `TODO.md` replaced completed surface-reset work with scoped QoL packages: diagnostics, exposure policy, dry-run preview, page result helper, and error suggestions.
+- `2026-04-19`: `QOL-WP1` complete — `QueryDiagnostics`, `QueryDiagnosticsError` public; `SqlLikeDiagnosticsSupport` internal; diagnostics entry points on `SqlLikeQuery` (3 overloads) and `NaturalQuery` (2 overloads); 18 tests pass.
 - `2026-04-18`: Latest-release docs/examples/checks align to `2026.04.17.1834`.
 - `2026-04-18`: CI runs full Maven tests on Temurin Java `17`, `21`, and `25`.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with optional `TreeEntry<T>` metadata.

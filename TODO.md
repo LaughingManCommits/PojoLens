@@ -25,14 +25,14 @@ Scope:
   safely through `equivalentSqlLike()`.
 
 Tasks:
-- [ ] Inventory existing validation, lint, schema, and parse-error metadata.
-- [ ] Design a small public `QueryDiagnostics` contract.
-- [ ] Add `diagnostics(...)` entry points on `SqlLikeQuery` and runtime-owned
+- [x] Inventory existing validation, lint, schema, and parse-error metadata.
+- [x] Design a small public `QueryDiagnostics` contract.
+- [x] Add `diagnostics(...)` entry points on `SqlLikeQuery` and runtime-owned
       SQL-like parsing.
-- [ ] Include required named params, referenced fields, output fields, joins,
+- [x] Include required named params, referenced fields, output fields, joins,
       subquery usage, lint warnings, and validation failures.
 - [ ] Add docs and examples for config-screen validation and CI query checks.
-- [ ] Add contract tests for success, missing params, unknown fields, joins,
+- [x] Add contract tests for success, missing params, unknown fields, joins,
       subqueries, and lint warnings.
 
 Validate:

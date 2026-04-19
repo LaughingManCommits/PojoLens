@@ -9,6 +9,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Added
+
+- **Query diagnostics API** (`QOL-WP1`) - added `QueryDiagnostics` and
+  `QueryDiagnosticsError` public types in the `sqllike` package. New
+  `SqlLikeQuery.diagnostics()` (AST-level), `diagnostics(Class, Class)`, and
+  `diagnostics(Class, Class, JoinBindings)` entry points let tooling inspect
+  required params, referenced fields, output fields, join sources, subquery
+  usage, lint warnings, and validation findings before execution.
+  `NaturalQuery.diagnostics()` and `diagnostics(Class, Class)` delegate
+  through the equivalent SQL-like representation.
+
 ### Changed
 
 - **CI runtime** - added Java 25 to the CI test matrix, moved artifact uploads

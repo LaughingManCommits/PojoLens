@@ -11,6 +11,7 @@ import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSuppo
 import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -104,6 +105,35 @@ public final class NaturalQuery {
 
     public boolean isLintModeEnabled() {
         return state.lintMode();
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this natural query by inspecting the
+     * equivalent SQL-like representation. No source class is required; field
+     * existence is not validated.
+     *
+     * @return diagnostics with structural metadata and lint warnings
+     */
+    public QueryDiagnostics diagnostics() {
+        return SqlLikeQuery.of(equivalentSqlLike)
+                .computedFields(state.computedFieldRegistry())
+                .diagnostics();
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this natural query including field
+     * and source validation against the provided classes.
+     *
+     * @param sourceClass     class whose fields are queryable
+     * @param projectionClass class that receives query output
+     * @return diagnostics with validation findings, structural metadata, and lint warnings
+     */
+    public QueryDiagnostics diagnostics(Class<?> sourceClass, Class<?> projectionClass) {
+        Objects.requireNonNull(sourceClass, "sourceClass must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return SqlLikeQuery.of(equivalentSqlLike)
+                .computedFields(state.computedFieldRegistry())
+                .diagnostics(sourceClass, projectionClass);
     }
 
     public NaturalQuery telemetry(QueryTelemetryListener listener) {
