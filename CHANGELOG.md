@@ -43,6 +43,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   fluent planning types under `laughing.man.commits.internal.builder`,
   replacing public builder factories with the internal `FluentEngine` factory,
   and keeping benchmark coverage on the internal engine path.
+- **Internal fluent docs** - expanded maintainer-only fluent engine guidance
+  with method groups, execution lifecycle notes, and examples for filters,
+  joins, aggregates, windows, subqueries, and prepared internal definitions.
 
 ---
 

@@ -24,6 +24,7 @@
 - `2026-04-18`: `PojoLensCore`, `PojoLensRuntime.newQueryBuilder(...)`, and `ReportDefinition.fluent(...)` were removed from public entry points.
 - `2026-04-18`: Mutable fluent planning types live under `laughing.man.commits.internal.builder`.
 - `2026-04-18`: Public-surface guards reject internal APIs in public entry-point docs.
+- `2026-04-19`: `docs/internal-fluent-engine.md` is the maintainer reference for fluent lifecycle, method groups, and usage examples.
 - `2026-04-18`: Latest-release docs/examples/checks align to `2026.04.17.1834`.
 - `2026-04-18`: CI runs full Maven tests on Temurin Java `17`, `21`, and `25`.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with optional `TreeEntry<T>` metadata.
@@ -34,7 +35,7 @@
 - After code changes: `mvn -B -ntp test`, then core guardrail suite + threshold checker (see `docs/benchmarking.md`)
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-18` `SURFACE-WP4` through `SURFACE-WP6` passed doc checks, full Maven tests, benchmark module tests, lint baseline verify, binary compatibility reset verify, and `git diff --check`.
+- Last validation: `2026-04-19` internal fluent docs passed `scripts/check-doc-consistency.ps1` and `git diff --check`.
 
 ## Cold Pointers
 
