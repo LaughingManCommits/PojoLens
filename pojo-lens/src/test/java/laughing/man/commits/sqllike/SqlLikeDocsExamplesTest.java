@@ -355,6 +355,31 @@ public class SqlLikeDocsExamplesTest {
     }
 
     @Test
+    public void docsRecipeQueryExposurePolicyShouldWork() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department", "salary", "active")
+                .allowSources("employees", "companies")
+                .build();
+
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary from employees where department = :dept")
+                .exposurePolicy(policy)
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setQueryExposurePolicy(policy);
+
+        List<Employee> rows = runtime
+                .parse("select name, salary where department = :dept and active = true")
+                .params(Map.of("dept", "Engineering"))
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Alice", "Cara"), rows.stream().map(row -> row.name).toList());
+    }
+
+    @Test
     public void docsRecipeRuntimePolicyPresetsShouldWork() {
         PojoLensRuntime devRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.DEV);
         PojoLensRuntime prodRuntime = PojoLensRuntime.ofPreset(PojoLensRuntimePreset.PROD);

@@ -24,6 +24,7 @@ import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -70,6 +71,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(PojoLensRuntime.class, "statsPlanCache");
         requirePublicMethod(PojoLensRuntime.class, "setNaturalVocabulary", NaturalVocabulary.class);
         requirePublicMethod(PojoLensRuntime.class, "getNaturalVocabulary");
+        requirePublicMethod(PojoLensRuntime.class, "setQueryExposurePolicy", QueryExposurePolicy.class);
+        requirePublicMethod(PojoLensRuntime.class, "getQueryExposurePolicy");
         requirePublicMethod(PojoLensRuntime.class, "setCsvDefaults", CsvOptions.class);
         requirePublicMethod(PojoLensRuntime.class, "getCsvDefaults");
         requirePublicStaticMethod(CsvCoercionPolicy.class, "builder");
@@ -148,6 +151,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "chart", List.class, Class.class, ChartSpec.class);
         requirePublicMethod(SqlLikeQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(SqlLikeQuery.class, "schema", Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "exposurePolicy", QueryExposurePolicy.class);
+        requirePublicMethod(SqlLikeQuery.class, "exposurePolicy");
         requirePublicMethod(SqlLikeQuery.class, "diagnostics");
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class, JoinBindings.class);
@@ -180,6 +185,15 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryDiagnostics.class, "hasSubqueries");
         requirePublicMethod(QueryDiagnosticsError.class, "code");
         requirePublicMethod(QueryDiagnosticsError.class, "message");
+        requirePublicStaticMethod(QueryExposurePolicy.class, "unrestricted");
+        requirePublicStaticMethod(QueryExposurePolicy.class, "builder");
+        requirePublicMethod(QueryExposurePolicy.class, "toBuilder");
+        requirePublicMethod(QueryExposurePolicy.class, "allowedFields");
+        requirePublicMethod(QueryExposurePolicy.class, "allowedSources");
+        requirePublicMethod(QueryExposurePolicy.class, "restrictsFields");
+        requirePublicMethod(QueryExposurePolicy.class, "restrictsSources");
+        requirePublicMethod(QueryExposurePolicy.class, "allowsField", String.class);
+        requirePublicMethod(QueryExposurePolicy.class, "allowsSource", String.class);
     }
 
     @Test
@@ -211,6 +225,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "chart", List.class, JoinBindings.class, Class.class, ChartSpec.class);
         requirePublicMethod(NaturalQuery.class, "schema", Class.class);
+        requirePublicMethod(NaturalQuery.class, "exposurePolicy", QueryExposurePolicy.class);
+        requirePublicMethod(NaturalQuery.class, "exposurePolicy");
         requirePublicMethod(NaturalQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", List.class, JoinBindings.class, Class.class);

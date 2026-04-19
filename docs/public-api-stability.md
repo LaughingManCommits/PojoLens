@@ -66,6 +66,8 @@ The default first-read story is SQL-like first:
   - strict/lint toggles
   - `setNaturalVocabulary(NaturalVocabulary)`
   - `getNaturalVocabulary()`
+  - `setQueryExposurePolicy(QueryExposurePolicy)`
+  - `getQueryExposurePolicy()`
 - `DatasetBundle`
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
@@ -84,8 +86,13 @@ The default first-read story is SQL-like first:
 - `SqlLikeQuery`:
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `diagnostics`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `QueryExposurePolicy`:
+  - `unrestricted`, `builder`, `toBuilder`
+  - `allowedFields`, `allowedSources`
+  - `restrictsFields`, `restrictsSources`
+  - `allowsField`, `allowsSource`
 - `QueryDiagnostics`:
   - `valid`, `errors`, `lintWarnings`, `requiredParams`, `referencedFields`,
     `outputFields`, `joinSources`, `hasSubqueries`
@@ -108,7 +115,7 @@ The default first-read story is SQL-like first:
   - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `diagnostics`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalTemplate`:

@@ -128,7 +128,9 @@ For user-authored or tenant-authored query text:
   and aliases
 - prefer named parameters over embedding request values in the query text
 - expose only the source names, joined sources, computed fields, and chart
-  targets that the caller is allowed to use
+  targets that the caller is allowed to use; runtime-owned
+  `QueryExposurePolicy` applies after natural text lowers to SQL-like query
+  metadata
 - keep lint mode and strict parameter typing enabled when query text comes
   from configuration, request input, or reusable templates
 - handle parse/validation failures as diagnostics; authorization should happen

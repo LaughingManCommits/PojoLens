@@ -12,6 +12,7 @@ import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -115,9 +116,7 @@ public final class NaturalQuery {
      * @return diagnostics with structural metadata and lint warnings
      */
     public QueryDiagnostics diagnostics() {
-        return SqlLikeQuery.of(equivalentSqlLike)
-                .computedFields(state.computedFieldRegistry())
-                .diagnostics();
+        return createDelegate(state.ast()).diagnostics();
     }
 
     /**
@@ -153,6 +152,15 @@ public final class NaturalQuery {
 
     public ComputedFieldRegistry computedFieldRegistry() {
         return state.computedFieldRegistry();
+    }
+
+    public NaturalQuery exposurePolicy(QueryExposurePolicy policy) {
+        Objects.requireNonNull(policy, "policy must not be null");
+        return state.exposurePolicy() == policy ? this : withState(state.withExposurePolicy(policy));
+    }
+
+    public QueryExposurePolicy exposurePolicy() {
+        return state.exposurePolicy();
     }
 
     public NaturalQuery executionPlanCache(FilterExecutionPlanCacheStore executionPlanCache) {
@@ -470,6 +478,7 @@ public final class NaturalQuery {
                 .strictParameterTypes(state.strictParameterTypes())
                 .lintMode(state.lintMode())
                 .computedFields(state.computedFieldRegistry())
+                .exposurePolicy(state.exposurePolicy())
                 .executionPlanCache(state.executionPlanCache())
                 .telemetry(state.telemetryListener());
     }
@@ -520,6 +529,7 @@ public final class NaturalQuery {
                               QueryTelemetryListener telemetryListener,
                               ComputedFieldRegistry computedFieldRegistry,
                               FilterExecutionPlanCacheStore executionPlanCache,
+                              QueryExposurePolicy exposurePolicy,
                               NaturalVocabulary vocabulary,
                               ChartType chartType) {
 
@@ -530,6 +540,7 @@ public final class NaturalQuery {
             ));
             computedFieldRegistry = computedFieldRegistry == null ? ComputedFieldRegistry.empty() : computedFieldRegistry;
             executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
+            exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
             vocabulary = vocabulary == null ? NaturalVocabulary.empty() : vocabulary;
         }
 
@@ -542,6 +553,7 @@ public final class NaturalQuery {
                     null,
                     ComputedFieldRegistry.empty(),
                     DefaultFilterExecutionPlanCacheSupport.defaultStore(),
+                    QueryExposurePolicy.unrestricted(),
                     NaturalVocabulary.empty(),
                     parseResult.chartType()
             );
@@ -556,6 +568,7 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
                     chartType
             );
@@ -570,6 +583,7 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
                     chartType
             );
@@ -584,6 +598,7 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
                     chartType
             );
@@ -598,6 +613,7 @@ public final class NaturalQuery {
                     listener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
                     chartType
             );
@@ -612,6 +628,7 @@ public final class NaturalQuery {
                     telemetryListener,
                     registry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
                     chartType
             );
@@ -626,6 +643,22 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     cache,
+                    exposurePolicy,
+                    vocabulary,
+                    chartType
+            );
+        }
+
+        private QueryState withExposurePolicy(QueryExposurePolicy policy) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    policy,
                     vocabulary,
                     chartType
             );
@@ -640,6 +673,7 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     updatedVocabulary,
                     chartType
             );

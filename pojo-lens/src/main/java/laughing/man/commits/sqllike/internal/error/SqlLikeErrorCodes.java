@@ -44,6 +44,9 @@ public final class SqlLikeErrorCodes {
     public static final String JOIN_DUPLICATE_SOURCE_BINDING = "EQ-SQL-JOIN-001";
     public static final String JOIN_SOURCE_NAME_INVALID = "EQ-SQL-JOIN-002";
 
+    public static final String EXPOSURE_FIELD_BLOCKED = "EQ-SQL-EXP-001";
+    public static final String EXPOSURE_SOURCE_BLOCKED = "EQ-SQL-EXP-002";
+
     public static final String RUNTIME_ALIASED_PROJECTION_FAILED = "EQ-SQL-RUN-001";
     public static final String RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED = "EQ-SQL-RUN-002";
 

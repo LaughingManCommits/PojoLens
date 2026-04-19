@@ -135,11 +135,53 @@ Guardrails:
 Input-safety guidance:
 - prefer named parameters over string concatenation for user-provided values
 - expose only approved fields, computed fields, and join sources to callers
-  that author query text
+  that author query text; use `QueryExposurePolicy` to enforce that boundary
 - keep lint mode and strict parameter typing enabled in paths where query text
   comes from configuration, request input, or tenant-owned templates
 - treat parse/validation errors as user-facing diagnostics, not as permission
   checks; authorization should happen before query execution
+
+Exposure policy:
+- `QueryExposurePolicy.builder().allowFields(...)` restricts queryable field
+  names. Empty field allowlists are unrestricted.
+- `QueryExposurePolicy.builder().allowSources(...)` restricts named `FROM`,
+  `JOIN`, and subquery sources. Empty source allowlists are unrestricted.
+- Attach a policy per query with `query.exposurePolicy(policy)` or per runtime
+  with `runtime.setQueryExposurePolicy(policy)`.
+- The policy runs before execution and is also reflected in `diagnostics(...)`.
+- Policy checks are query exposure checks only. They do not replace
+  authentication, tenant authorization, or row-level filtering.
+
+```java
+QueryExposurePolicy policy = QueryExposurePolicy.builder()
+        .allowFields("name", "department", "salary")
+        .allowSources("employees")
+        .build();
+
+QueryDiagnostics diagnostics = PojoLensSql
+        .parse("select name, salary from employees where department = :dept")
+        .exposurePolicy(policy)
+        .diagnostics(Employee.class, Employee.class);
+
+if (!diagnostics.valid()) {
+    throw new IllegalArgumentException(diagnostics.errors().toString());
+}
+```
+
+Runtime-owned policy:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setQueryExposurePolicy(QueryExposurePolicy.builder()
+        .allowFields("name", "department", "salary", "active")
+        .allowSources("employees", "companies")
+        .build());
+
+List<Employee> rows = runtime
+        .parse("select name, salary where department = :dept and active = true")
+        .params(Map.of("dept", "Engineering"))
+        .filter(employees, Employee.class);
+```
 
 Pre-execution diagnostics:
 - `diagnostics()` returns parse-level structural metadata without source-class
@@ -830,6 +872,8 @@ Parse errors include deterministic location text:
 | `EQ-SQL-BIND-002` | Boolean expression exploded during normalization. | Simplify nested `AND`/`OR` logic. |
 | `EQ-SQL-JOIN-001` | Duplicate typed JOIN binding name. | Register each JOIN source once. |
 | `EQ-SQL-JOIN-002` | Typed JOIN binding name was blank. | Use a non-blank JOIN source name. |
+| `EQ-SQL-EXP-001` | Query referenced a field outside `QueryExposurePolicy`. | Add the field to the allowlist or reject the query. |
+| `EQ-SQL-EXP-002` | Query referenced a named source outside `QueryExposurePolicy`. | Add the source to the allowlist or reject the query. |
 | `EQ-SQL-RUN-001` | Aliased/computed projection failed at runtime. | Ensure projection fields exist and accept the projected values. |
 | `EQ-SQL-RUN-002` | Runtime expression identifier resolution failed. | Verify computed expressions reference valid source fields. |
 
@@ -1059,6 +1103,26 @@ Meaning:
 
 Fix:
 - Use a non-blank source name when building `JoinBindings`.
+
+### Error Code EQ-SQL-EXP-001
+
+Meaning:
+- The query referenced a field outside the configured `QueryExposurePolicy`.
+
+Fix:
+- Use diagnostics to show the blocked field list, then either add the field to
+  the allowlist or reject the user-authored query before execution.
+
+### Error Code EQ-SQL-EXP-002
+
+Meaning:
+- The query referenced a named source outside the configured
+  `QueryExposurePolicy`.
+
+Fix:
+- Add the source to the allowlist or reject the query. Source checks cover
+  explicit `FROM`, `JOIN`, and subquery source names; row authorization still
+  belongs in application code.
 
 ### Error Code EQ-SQL-RUN-001
 

@@ -6,6 +6,7 @@ import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -183,6 +184,23 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals(List.of("dept"), diagnostics.requiredParams());
         assertTrue(diagnostics.referencedFields().contains("department"));
         assertTrue(diagnostics.outputFields().contains("salary"));
+    }
+
+    @Test
+    public void exposurePolicyShouldBeUsableFromPublicApi() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department", "salary")
+                .build();
+
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = 'Engineering'")
+                .exposurePolicy(policy)
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(policy.restrictsFields());
+        assertTrue(policy.allowsField("salary"));
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
     }
 }
 

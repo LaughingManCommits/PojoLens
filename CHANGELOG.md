@@ -23,6 +23,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   report nested subquery fields/sources, join child fields, multiple unknown
   `WHERE` field findings, runtime natural-vocabulary resolution, and stable
   public API/docs coverage.
+- **Query exposure policy** (`QOL-WP2`) - added public `QueryExposurePolicy`
+  allowlists for query fields and named sources. SQL-like and natural queries
+  can attach a policy directly or inherit one from `PojoLensRuntime`, and
+  blocked field/source references now appear in diagnostics and fail before
+  execution.
 
 ### Changed
 

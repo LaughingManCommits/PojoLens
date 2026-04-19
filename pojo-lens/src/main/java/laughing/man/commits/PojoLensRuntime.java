@@ -6,6 +6,7 @@ import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalRuntime;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.internal.cache.SqlLikeQueryCache;
@@ -31,6 +32,7 @@ public final class PojoLensRuntime {
     private volatile QueryTelemetryListener telemetryListener;
     private volatile ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
     private volatile NaturalVocabulary naturalVocabulary = NaturalVocabulary.empty();
+    private volatile QueryExposurePolicy queryExposurePolicy = QueryExposurePolicy.unrestricted();
     private volatile CsvOptions csvDefaults = CsvOptions.defaults();
 
     public PojoLensRuntime() {
@@ -67,6 +69,7 @@ public final class PojoLensRuntime {
                 .strictParameterTypes(strictParameterTypes)
                 .lintMode(lintMode)
                 .computedFields(computedFieldRegistry)
+                .exposurePolicy(queryExposurePolicy)
                 .telemetry(telemetryListener);
         QueryTelemetrySupport.emit(
                 telemetryListener,
@@ -140,6 +143,17 @@ public final class PojoLensRuntime {
 
     public NaturalVocabulary getNaturalVocabulary() {
         return naturalVocabulary;
+    }
+
+    public void setQueryExposurePolicy(QueryExposurePolicy queryExposurePolicy) {
+        if (queryExposurePolicy == null) {
+            throw new IllegalArgumentException("queryExposurePolicy must not be null");
+        }
+        this.queryExposurePolicy = queryExposurePolicy;
+    }
+
+    public QueryExposurePolicy getQueryExposurePolicy() {
+        return queryExposurePolicy;
     }
 
     public void setCsvDefaults(CsvOptions csvDefaults) {

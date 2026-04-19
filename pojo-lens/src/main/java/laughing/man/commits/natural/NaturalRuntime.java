@@ -24,6 +24,7 @@ public final class NaturalRuntime {
                 .lintMode(runtime.isLintMode())
                 .computedFields(runtime.getComputedFieldRegistry())
                 .vocabulary(runtime.getNaturalVocabulary())
+                .exposurePolicy(runtime.getQueryExposurePolicy())
                 .executionPlanCache(runtime.statsPlanCache())
                 .telemetry(runtime.getTelemetryListener());
         QueryTelemetrySupport.emit(

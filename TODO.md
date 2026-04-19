@@ -75,15 +75,15 @@ Scope:
 - Keep row visibility and tenant authorization outside PojoLens.
 
 Tasks:
-- [ ] Design `QueryExposurePolicy` or equivalent with field and source
+- [x] Design `QueryExposurePolicy` or equivalent with field and source
       allowlists.
-- [ ] Add runtime-scoped policy wiring without making runtime a third query
+- [x] Add runtime-scoped policy wiring without making runtime a third query
       style.
-- [ ] Apply policy checks to SQL-like parse/bind/execute paths.
-- [ ] Apply policy checks to natural queries through the lowered SQL-like
+- [x] Apply policy checks to SQL-like parse/bind/execute paths.
+- [x] Apply policy checks to natural queries through the lowered SQL-like
       representation where practical.
-- [ ] Document security boundaries and non-goals clearly.
-- [ ] Add tests for allowed fields, blocked fields, blocked sources, joins,
+- [x] Document security boundaries and non-goals clearly.
+- [x] Add tests for allowed fields, blocked fields, blocked sources, joins,
       subqueries, and natural vocabulary aliases.
 
 Validate:

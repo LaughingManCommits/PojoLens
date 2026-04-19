@@ -13,7 +13,9 @@ import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
 import laughing.man.commits.sqllike.internal.diagnostics.SqlLikeDiagnosticsSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
 import laughing.man.commits.sqllike.internal.explain.SqlLikeExplainSupport;
+import laughing.man.commits.sqllike.internal.exposure.QueryExposurePolicySupport;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
@@ -55,6 +57,7 @@ public final class SqlLikeQuery {
     private final QueryTelemetryListener telemetryListener;
     private final ComputedFieldRegistry computedFieldRegistry;
     private final FilterExecutionPlanCacheStore executionPlanCache;
+    private final QueryExposurePolicy exposurePolicy;
     private final ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions;
 
     private SqlLikeQuery(String source, String normalizedQuery, String queryType, QueryAst ast) {
@@ -82,6 +85,21 @@ public final class SqlLikeQuery {
                          QueryTelemetryListener telemetryListener,
                          ComputedFieldRegistry computedFieldRegistry,
                          FilterExecutionPlanCacheStore executionPlanCache) {
+        this(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes,
+                telemetryListener, computedFieldRegistry, executionPlanCache, QueryExposurePolicy.unrestricted());
+    }
+
+    private SqlLikeQuery(String source,
+                         String normalizedQuery,
+                         String queryType,
+                         QueryAst ast,
+                         boolean strictParameterTypes,
+                         boolean lintMode,
+                         Set<String> suppressedLintCodes,
+                         QueryTelemetryListener telemetryListener,
+                         ComputedFieldRegistry computedFieldRegistry,
+                         FilterExecutionPlanCacheStore executionPlanCache,
+                         QueryExposurePolicy exposurePolicy) {
         this.source = source;
         this.normalizedQuery = normalizedQuery;
         this.queryType = queryType;
@@ -92,6 +110,7 @@ public final class SqlLikeQuery {
         this.telemetryListener = telemetryListener;
         this.computedFieldRegistry = computedFieldRegistry == null ? ComputedFieldRegistry.empty() : computedFieldRegistry;
         this.executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
+        this.exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
         this.preparedExecutions = new ConcurrentHashMap<>();
     }
 
@@ -169,7 +188,8 @@ public final class SqlLikeQuery {
                 suppressedLintCodes,
                 telemetryListener,
                 computedFieldRegistry,
-                executionPlanCache);
+                executionPlanCache,
+                exposurePolicy);
     }
 
     /**
@@ -202,7 +222,8 @@ public final class SqlLikeQuery {
                 suppressedLintCodes,
                 telemetryListener,
                 computedFieldRegistry,
-                executionPlanCache
+                executionPlanCache,
+                exposurePolicy
         );
     }
 
@@ -225,7 +246,8 @@ public final class SqlLikeQuery {
                 suppressedLintCodes,
                 telemetryListener,
                 computedFieldRegistry,
-                executionPlanCache
+                executionPlanCache,
+                exposurePolicy
         );
     }
 
@@ -248,8 +270,8 @@ public final class SqlLikeQuery {
         if (strictParameterTypes == enabled) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, enabled, lintMode, suppressedLintCodes, telemetryListener, computedFieldRegistry,
-                executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, enabled, lintMode, suppressedLintCodes,
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
     }
 
     /**
@@ -280,8 +302,8 @@ public final class SqlLikeQuery {
         if (lintMode == enabled) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, enabled, suppressedLintCodes, telemetryListener,
-                computedFieldRegistry, executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, enabled,
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
     }
 
     /**
@@ -297,8 +319,8 @@ public final class SqlLikeQuery {
         if (telemetryListener == listener) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, listener,
-                computedFieldRegistry, executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
+                suppressedLintCodes, listener, computedFieldRegistry, executionPlanCache, exposurePolicy);
     }
 
     public QueryTelemetryListener telemetryListener() {
@@ -312,12 +334,25 @@ public final class SqlLikeQuery {
         if (computedFieldRegistry == registry) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
-                registry, executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
+                suppressedLintCodes, telemetryListener, registry, executionPlanCache, exposurePolicy);
     }
 
     public ComputedFieldRegistry computedFieldRegistry() {
         return computedFieldRegistry;
+    }
+
+    public SqlLikeQuery exposurePolicy(QueryExposurePolicy policy) {
+        Objects.requireNonNull(policy, "policy must not be null");
+        if (exposurePolicy == policy) {
+            return this;
+        }
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, policy);
+    }
+
+    public QueryExposurePolicy exposurePolicy() {
+        return exposurePolicy;
     }
 
     public SqlLikeQuery executionPlanCache(FilterExecutionPlanCacheStore executionPlanCache) {
@@ -325,8 +360,8 @@ public final class SqlLikeQuery {
         if (this.executionPlanCache == executionPlanCache) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes, telemetryListener,
-                computedFieldRegistry, executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
     }
 
     /**
@@ -356,8 +391,8 @@ public final class SqlLikeQuery {
         if (normalized.equals(suppressedLintCodes)) {
             return this;
         }
-        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized, telemetryListener,
-                computedFieldRegistry, executionPlanCache);
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized,
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
     }
 
     /**
@@ -369,7 +404,8 @@ public final class SqlLikeQuery {
      * @return diagnostics with structural metadata and lint warnings
      */
     public QueryDiagnostics diagnostics() {
-        return SqlLikeDiagnosticsSupport.buildFromAst(ast, suppressedLintCodes);
+        QueryDiagnostics diagnostics = SqlLikeDiagnosticsSupport.buildFromAst(ast, suppressedLintCodes);
+        return QueryExposurePolicySupport.apply(diagnostics, ast, exposurePolicy, null, Collections.emptyMap());
     }
 
     /**
@@ -383,9 +419,10 @@ public final class SqlLikeQuery {
     public QueryDiagnostics diagnostics(Class<?> sourceClass, Class<?> projectionClass) {
         Objects.requireNonNull(sourceClass, "sourceClass must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
-        return SqlLikeDiagnosticsSupport.buildWithValidation(
+        QueryDiagnostics diagnostics = SqlLikeDiagnosticsSupport.buildWithValidation(
                 ast, suppressedLintCodes, sourceClass, projectionClass,
                 Collections.emptyMap(), computedFieldRegistry);
+        return QueryExposurePolicySupport.apply(diagnostics, ast, exposurePolicy, sourceClass, Collections.emptyMap());
     }
 
     /**
@@ -403,9 +440,11 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(sourceClass, "sourceClass must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return SqlLikeDiagnosticsSupport.buildWithValidation(
+        QueryDiagnostics diagnostics = SqlLikeDiagnosticsSupport.buildWithValidation(
                 ast, suppressedLintCodes, sourceClass, projectionClass,
                 joinBindings.asMap(), computedFieldRegistry);
+        return QueryExposurePolicySupport.apply(
+                diagnostics, ast, exposurePolicy, sourceClass, joinBindings.asMap());
     }
 
     /**
@@ -746,6 +785,14 @@ public final class SqlLikeQuery {
                                                   List<?> pojos,
                                                   Map<String, List<?>> joinSources,
                                                   Class<T> projectionClass) {
+        Class<?> sourceClass = SqlLikeExecutionSupport.inferSourceClass(pojos, projectionClass);
+        QueryExposurePolicySupport.requireAllowed(
+                executionAst,
+                exposurePolicy,
+                sourceClass,
+                joinSources,
+                suppressedLintCodes
+        );
         return SqlLikePreparedExecutionSupport.prepareExecution(
                 queryType,
                 source,

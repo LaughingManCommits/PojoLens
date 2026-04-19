@@ -12,6 +12,7 @@ import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -48,11 +49,15 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         runtime.setLintMode(true);
         NaturalVocabulary vocabulary = NaturalVocabulary.builder().field("salary", "pay").build();
         runtime.setNaturalVocabulary(vocabulary);
+        runtime.setQueryExposurePolicy(QueryExposurePolicy.builder()
+                .allowFields("salary")
+                .build());
 
         NaturalQuery query = runtime.natural().parse("show employees where salary is at least :minSalary");
         assertTrue(query.isStrictParameterTypesEnabled());
         assertTrue(query.isLintModeEnabled());
         assertEquals(vocabulary, runtime.getNaturalVocabulary());
+        assertTrue(query.exposurePolicy().allowsField("salary"));
     }
 
     @Test
@@ -130,6 +135,25 @@ public class PublicApiNaturalCoverageTest extends AbstractPublicApiCoverageTest 
         assertTrue(diagnostics.errors().isEmpty());
         assertTrue(diagnostics.referencedFields().contains("salary"));
         assertTrue(diagnostics.referencedFields().contains("department"));
+    }
+
+    @Test
+    public void naturalExposurePolicyShouldBeUsableFromPublicApi() {
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setNaturalVocabulary(NaturalVocabulary.builder()
+                .field("salary", "annual pay")
+                .build());
+        runtime.setQueryExposurePolicy(QueryExposurePolicy.builder()
+                .allowFields("name", "salary")
+                .build());
+
+        QueryDiagnostics diagnostics = runtime.natural()
+                .parse("show name, annual pay")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+        assertTrue(runtime.getQueryExposurePolicy().allowsField("salary"));
     }
 
     @Test
