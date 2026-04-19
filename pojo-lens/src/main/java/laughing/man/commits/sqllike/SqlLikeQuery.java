@@ -10,6 +10,7 @@ import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSuppo
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
+import laughing.man.commits.sqllike.internal.diagnostics.SqlLikeDiagnosticsSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.explain.SqlLikeExplainSupport;
@@ -357,6 +358,54 @@ public final class SqlLikeQuery {
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized, telemetryListener,
                 computedFieldRegistry, executionPlanCache);
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this SQL-like query based on the
+     * parsed AST only. No source class is required; field existence is not validated.
+     * <p>
+     * Use {@link #diagnostics(Class, Class)} to include field and source validation.
+     *
+     * @return diagnostics with structural metadata and lint warnings
+     */
+    public QueryDiagnostics diagnostics() {
+        return SqlLikeDiagnosticsSupport.buildFromAst(ast, suppressedLintCodes);
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this SQL-like query including
+     * field and source validation against the provided classes.
+     *
+     * @param sourceClass     class whose fields are queryable
+     * @param projectionClass class that receives query output
+     * @return diagnostics with validation findings, structural metadata, and lint warnings
+     */
+    public QueryDiagnostics diagnostics(Class<?> sourceClass, Class<?> projectionClass) {
+        Objects.requireNonNull(sourceClass, "sourceClass must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        return SqlLikeDiagnosticsSupport.buildWithValidation(
+                ast, suppressedLintCodes, sourceClass, projectionClass,
+                Collections.emptyMap(), computedFieldRegistry);
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this SQL-like query including
+     * field and source validation with JOIN source data.
+     *
+     * @param sourceClass     class whose fields are queryable
+     * @param projectionClass class that receives query output
+     * @param joinBindings    typed join source bindings
+     * @return diagnostics with validation findings, structural metadata, and lint warnings
+     */
+    public QueryDiagnostics diagnostics(Class<?> sourceClass,
+                                        Class<?> projectionClass,
+                                        JoinBindings joinBindings) {
+        Objects.requireNonNull(sourceClass, "sourceClass must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return SqlLikeDiagnosticsSupport.buildWithValidation(
+                ast, suppressedLintCodes, sourceClass, projectionClass,
+                joinBindings.asMap(), computedFieldRegistry);
     }
 
     /**

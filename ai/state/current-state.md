@@ -14,12 +14,14 @@
 - `2026-04-18`: Fluent planning is internal engine infrastructure under `laughing.man.commits.internal`.
 - `2026-04-19`: `docs/internal-fluent-engine.md` now documents maintainer-only fluent method groups and usage examples.
 - `2026-04-19`: `TODO.md` now tracks `QOL-WP1` through `QOL-WP5` for developer-experience improvements.
+- `2026-04-19`: `QOL-WP1` complete — `QueryDiagnostics` and `QueryDiagnosticsError` added to `sqllike` package; `SqlLikeDiagnosticsSupport` added to `internal.diagnostics`; `SqlLikeQuery.diagnostics()`, `diagnostics(Class,Class)`, `diagnostics(Class,Class,JoinBindings)` and `NaturalQuery.diagnostics()`, `diagnostics(Class,Class)` added; 18 contract tests pass.
 - `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete.
 - `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
 - April feature work through `PojoLensTree`, FA/RU cleanup, docs, and limitations is complete.
 
 ## Verified
 
+- `2026-04-19`: QOL-WP1 diagnostics passed full Maven tests, doc consistency, and diff whitespace checks.
 - `2026-04-19`: Internal fluent docs passed doc consistency and diff whitespace checks.
 - `2026-04-18`: Java 25 CI, DOC-WP1 through DOC-WP10, and release alignment passed doc checks and Maven tests.
 - `2026-04-18`: SQL-like-first public-surface reset passed doc checks, full Maven tests, benchmark module tests, lint baseline verify, binary compatibility reset verify, and `git diff --check`.
@@ -41,7 +43,7 @@
 ## Next
 
 - Release: cut a later version after final release guardrails are run.
-- QoL: `QOL-WP1` query diagnostics report API is the recommended first developer-experience package.
+- QoL: `QOL-WP2` field/source exposure policy is the recommended next developer-experience package.
 - CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
 - Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
 - `TODO.md` active backlog is the developer-experience QoL roadmap plus release follow-up.
