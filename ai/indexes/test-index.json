@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-19T17:34:16.630681+02:00",
+  "generatedAt": "2026-04-19T20:36:26.639218+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 122,
-    "testClasses": 122
+    "testJavaFiles": 123,
+    "testClasses": 123
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 110
+      "testJavaFiles": 111
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -178,6 +178,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeKeysetCursorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeLintModeTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeMappingParityTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePageResultTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePaginationParameterSupportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParametersContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParserTest.java",

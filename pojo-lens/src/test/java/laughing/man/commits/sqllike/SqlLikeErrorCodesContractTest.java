@@ -121,6 +121,19 @@ public class SqlLikeErrorCodesContractTest {
         }
     }
 
+    @Test
+    public void pageResultErrorsShouldExposeStableCodeAndTroubleshootingLink() {
+        try {
+            PojoLensSql.parse("where active = true limit 10")
+                    .filterPage(sampleEmployees(), Employee.class);
+            fail("Expected page result error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED));
+            assertTrue(ex.getMessage().contains(
+                    SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED)));
+        }
+    }
+
     public static class BrokenProjection {
         public String employeeName;
 

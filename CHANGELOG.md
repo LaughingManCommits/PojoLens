@@ -11,6 +11,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Page result helper** (`QOL-WP4`) - added `PageResult<T>` in the `sqllike`
+  package with `rows()`, `hasMore()`, and `nextCursor()`. New
+  `SqlLikeQuery.filterPage(List, Class)`, `filterPage(DatasetBundle, Class)`,
+  and `filterPage(List, JoinBindings, Class)` entry points execute with
+  `limit + 1` lookahead, trim the extra row, and build a keyset cursor from the
+  last visible row's `ORDER BY` field values. Requires a static `LIMIT` clause
+  and at least one `ORDER BY` field. Cursor is built via
+  `ReflectionUtil.DirectFieldReadPlan` so it works with any field visibility.
+  Three new error codes: `EQ-SQL-PAG-001` (missing `ORDER BY`),
+  `EQ-SQL-PAG-002` (missing static `LIMIT`), `EQ-SQL-PAG-003` (null or
+  unreadable `ORDER BY` field value).
 - **SQL-like plan preview** (`QOL-WP3`) - added `SqlLikePlanPreview` and six
   companion types (`PlanPreviewField`, `PlanPreviewFilter`, `PlanPreviewJoin`,
   `PlanPreviewOrder`, `PlanPreviewPaging`, `PlanPreviewPredicate`) in the

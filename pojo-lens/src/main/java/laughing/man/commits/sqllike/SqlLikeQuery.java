@@ -7,6 +7,7 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
 import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSupport;
+import laughing.man.commits.sqllike.ast.OrderAst;
 import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
@@ -23,11 +24,13 @@ import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
+import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionContext;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.ExecutionShapeKey;
 import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.PreparedExecution;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -628,6 +631,129 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
         return executeStream(context, cls);
+    }
+
+    /**
+     * Executes this SQL-like query and returns a page result with rows, overflow
+     * indicator, and an optional keyset cursor for the next page.
+     * <p>
+     * The query must have a static {@code LIMIT} clause and at least one
+     * {@code ORDER BY} field. The helper executes with {@code limit + 1}
+     * lookahead and trims the extra row from the returned rows.
+     * <p>
+     * Use {@link PageResult#nextCursor()} with {@link #keysetAfter} to fetch
+     * the next page.
+     *
+     * @param pojos input data
+     * @param cls   projection class
+     * @param <T>   projection type
+     * @return page result with rows, hasMore, and optional next cursor
+     */
+    public <T> PageResult<T> filterPage(List<?> pojos, Class<T> cls) {
+        return executeFilterPage(pojos, Collections.emptyMap(), cls);
+    }
+
+    /**
+     * Executes this SQL-like query against a dataset bundle and returns a page
+     * result with rows, overflow indicator, and an optional keyset cursor for
+     * the next page.
+     *
+     * @param datasetBundle execution dataset bundle
+     * @param cls           projection class
+     * @param <T>           projection type
+     * @return page result with rows, hasMore, and optional next cursor
+     */
+    public <T> PageResult<T> filterPage(DatasetBundle datasetBundle, Class<T> cls) {
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return filterPage(datasetBundle.primaryRows(), datasetBundle.joinBindings(), cls);
+    }
+
+    /**
+     * Executes this SQL-like query with typed JOIN source bindings and returns
+     * a page result with rows, overflow indicator, and an optional keyset cursor
+     * for the next page.
+     *
+     * @param pojos        parent/source rows
+     * @param joinBindings typed join source bindings
+     * @param cls          projection class
+     * @param <T>          projection type
+     * @return page result with rows, hasMore, and optional next cursor
+     */
+    public <T> PageResult<T> filterPage(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        return executeFilterPage(pojos, joinBindings.asMap(), cls);
+    }
+
+    private <T> PageResult<T> executeFilterPage(List<?> pojos,
+                                                Map<String, List<?>> joinSources,
+                                                Class<T> cls) {
+        if (ast.orders().isEmpty()) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED,
+                    "filterPage requires ORDER BY fields for cursor generation");
+        }
+        if (ast.limit() == null) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_LIMIT_REQUIRED,
+                    "filterPage requires a static LIMIT clause to determine page size"
+                            + (ast.limitParameter() != null
+                               ? "; bind params before calling filterPage"
+                               : "; add a LIMIT clause to the query"));
+        }
+        int pageSize = ast.limit();
+        QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
+        ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
+        List<T> lookaheadRows = executeFilter(context, cls);
+        if (lookaheadRows.size() <= pageSize) {
+            return new PageResult<>(lookaheadRows, false, null);
+        }
+        List<T> pageRows = List.copyOf(lookaheadRows.subList(0, pageSize));
+        T lastRow = pageRows.get(pageSize - 1);
+        SqlLikeCursor cursor = buildPageCursor(lastRow, cls);
+        return new PageResult<>(pageRows, true, cursor);
+    }
+
+    private <T> SqlLikeCursor buildPageCursor(T lastRow, Class<T> cls) {
+        List<OrderAst> orders = ast.orders();
+        List<String> fieldNames = new ArrayList<>(orders.size());
+        for (OrderAst order : orders) {
+            fieldNames.add(order.field());
+        }
+        ReflectionUtil.DirectFieldReadPlan plan = ReflectionUtil.compileDirectFieldReadPlan(cls, fieldNames);
+        SqlLikeCursor.Builder builder = SqlLikeCursor.builder();
+        for (OrderAst order : orders) {
+            String field = order.field();
+            Object value;
+            try {
+                value = plan.readValue(lastRow, field);
+            } catch (IllegalAccessException e) {
+                throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_CURSOR_FIELD_UNREADABLE,
+                        "Cannot read ORDER BY field '" + field + "' from '" + cls.getSimpleName() + "'");
+            }
+            if (value == null) {
+                throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_CURSOR_FIELD_UNREADABLE,
+                        "ORDER BY field '" + field + "' is null in last row; cursor cannot be built");
+            }
+            builder.put(field, value);
+        }
+        return builder.build();
+    }
+
+    private static QueryAst withLookaheadLimit(QueryAst ast, int pageSize) {
+        return new QueryAst(
+                ast.select(),
+                ast.joins(),
+                ast.filters(),
+                ast.whereExpression(),
+                ast.groupByFields(),
+                ast.havingFilters(),
+                ast.havingExpression(),
+                ast.qualifyFilters(),
+                ast.qualifyExpression(),
+                ast.orders(),
+                pageSize + 1,
+                null,
+                ast.offset(),
+                ast.offsetParameter()
+        );
     }
 
     private <T> List<T> executeFilter(ExecutionContext context, Class<T> projectionClass) {

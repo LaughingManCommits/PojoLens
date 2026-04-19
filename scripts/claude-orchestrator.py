@@ -42,13 +42,16 @@ WORKER_VALIDATION_MODES = {"intents-only"}
 LEGACY_WORKER_VALIDATION_MODES = {"compat", *WORKER_VALIDATION_MODES}
 DEFAULT_WORKER_VALIDATION_MODE = "intents-only"
 WORKER_VALIDATION_MODE_SOURCES = {"override", "task", "agent", "default"}
+ANALYST_AGENT_NAME = "analyst"
+IMPLEMENTER_AGENT_NAME = "implementer"
+REVIEWER_AGENT_NAME = "reviewer"
 RUN_POLICY_BEHAVIORS = {"warn", "stop"}
 DEFAULT_RUN_BUDGET_BEHAVIOR = "stop"
 DEFAULT_ARTIFACT_BEHAVIOR = "warn"
 MODEL_PROFILE_TO_MODEL = {
-    "simple": "claude-haiku-4-5",
+    "simple": "claude-haiku-4-5-20251001",
     "balanced": "claude-sonnet-4-6",
-    "complex": "claude-opus-4-6",
+    "complex": "claude-opus-4-7",
 }
 MODEL_TO_PROFILE = {value: key for key, value in MODEL_PROFILE_TO_MODEL.items()}
 MAX_HYDRATED_FILE_BYTES = 512 * 1024
@@ -946,6 +949,8 @@ def read_json(path: Path) -> Any:
         return json.loads(read_text(path))
     except JSONDecodeError as exc:
         raise OrchestratorError(f"Invalid JSON in {path}: {exc}") from exc
+    except OSError as exc:
+        raise OrchestratorError(f"Cannot read {path}: {exc}") from exc
 
 
 def write_text(path: Path, text: str | None) -> None:
@@ -962,7 +967,11 @@ def read_bytes(path: Path) -> bytes:
 
 
 def file_sha256(path: Path) -> str:
-    return hashlib.sha256(read_bytes(path)).hexdigest()
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def normalize_relative_path(path_value: str, *, location: str) -> str:
@@ -1408,12 +1417,12 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
     analyst_task_id_set: set[str] = set()
     for task in plan.tasks:
         agent_counts[task.agent] = agent_counts.get(task.agent, 0) + 1
-        if task.agent == "analyst":
+        if task.agent == ANALYST_AGENT_NAME:
             analyst_task_ids.append(task.id)
             analyst_task_id_set.add(task.id)
-        elif task.agent == "implementer":
+        elif task.agent == IMPLEMENTER_AGENT_NAME:
             implementer_task_ids.append(task.id)
-        elif task.agent == "reviewer":
+        elif task.agent == REVIEWER_AGENT_NAME:
             reviewer_task_ids.append(task.id)
         if task_may_write(plan, task, agents[task.agent]):
             write_task_ids.append(task.id)
@@ -1426,8 +1435,8 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
                 "kind": "read-only-review-optional",
                 "taskIds": sorted(reviewer_task_ids),
                 "message": (
-                    "Plan is read-only but includes reviewer tasks; prefer analyst-only execution "
-                    "unless independent review is required."
+                    f"Plan is read-only but includes {REVIEWER_AGENT_NAME} tasks; prefer "
+                    f"{ANALYST_AGENT_NAME}-only execution unless independent review is required."
                 ),
             }
         )
@@ -1497,10 +1506,12 @@ def selected_plan(plan: TaskPlan, selected_ids: list[str]) -> TaskPlan:
 
 
 def effective_allowed_tools(task: TaskDefinition, agent: AgentDefinition) -> list[str]:
-    allowed = list(task.allowed_tools or agent.allowed_tools)
-    if not allowed:
-        return []
-    denied = set(task.disallowed_tools or agent.disallowed_tools)
+    if task.allowed_tools:
+        allowed = list(task.allowed_tools)
+        denied = set(task.disallowed_tools)
+    else:
+        allowed = list(agent.allowed_tools)
+        denied = set(agent.disallowed_tools)
     return [tool for tool in allowed if tool not in denied]
 
 
@@ -1895,7 +1906,7 @@ def resolve_relative_path(root: Path, relative_path: str, *, location: str) -> t
 def hydrate_copy_workspace(workspace_path: Path, file_paths: list[str]) -> None:
     copied: set[Path] = set()
     workspace_path.mkdir(parents=True, exist_ok=True)
-    for hint in dedupe_strings(list(SPARSE_COPY_BASE_FILES) + file_paths):
+    for hint in dedupe_strings([*SPARSE_COPY_BASE_FILES, *file_paths]):
         relative = Path(hint)
         if relative.is_absolute():
             continue
@@ -2171,6 +2182,8 @@ def task_cost_usd(record: TaskRunRecord) -> float:
 def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
     if not isinstance(payload, dict):
         raise OrchestratorError(f"{location}: expected task record object")
+    _budget = payload.get("prompt_budget")
+    budget_payload: dict[str, Any] = _budget if isinstance(_budget, dict) else {}
     return TaskRunRecord(
         id=str(payload.get("id", "")),
         title=str(payload.get("title", "")),
@@ -2210,30 +2223,17 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         ],
         prompt_budget=PromptBudgetResult(
             max_chars=(
-                int(payload.get("prompt_budget", {}).get("max_chars"))
-                if isinstance(payload.get("prompt_budget"), dict)
-                and payload.get("prompt_budget", {}).get("max_chars") is not None
+                int(budget_payload["max_chars"])
+                if budget_payload.get("max_chars") is not None
                 else None
             ),
             max_estimated_tokens=(
-                int(payload.get("prompt_budget", {}).get("max_estimated_tokens"))
-                if isinstance(payload.get("prompt_budget"), dict)
-                and payload.get("prompt_budget", {}).get("max_estimated_tokens") is not None
+                int(budget_payload["max_estimated_tokens"])
+                if budget_payload.get("max_estimated_tokens") is not None
                 else None
             ),
-            exceeded=bool(
-                payload.get("prompt_budget", {}).get("exceeded", False)
-                if isinstance(payload.get("prompt_budget"), dict)
-                else False
-            ),
-            violations=[
-                str(item)
-                for item in (
-                    payload.get("prompt_budget", {}).get("violations", [])
-                    if isinstance(payload.get("prompt_budget"), dict)
-                    else []
-                )
-            ],
+            exceeded=bool(budget_payload.get("exceeded", False)),
+            violations=[str(item) for item in budget_payload.get("violations", [])],
         ),
         usage=payload.get("usage") if isinstance(payload.get("usage"), dict) else None,
         return_code=int(payload["return_code"]) if payload.get("return_code") is not None else None,
@@ -2541,7 +2541,9 @@ def export_patch(args: argparse.Namespace) -> dict[str, Any]:
         manifest_path,
         exported_task_ids or [record.id for record in records],
     )
-    write_text(output_path, "".join(patch_chunks))
+    patch_text = "".join(patch_chunks)
+    if patch_text:
+        write_text(output_path, patch_text)
     return {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
@@ -3162,7 +3164,7 @@ def dependency_handoff(record: TaskRunRecord) -> str:
     elif worker_field_unknown(record, "notes"):
         parts.append("key notes: unknown")
     follow_ups = dedupe_strings(record.follow_ups)
-    if follow_ups and not notes:
+    if follow_ups:
         visible_follow_ups: list[str] = []
         for follow_up in follow_ups[:1]:
             follow_up_text, _ = truncate_text(follow_up, DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT)
@@ -3179,7 +3181,7 @@ def dependency_handoff(record: TaskRunRecord) -> str:
 def dependency_summary(records: dict[str, TaskRunRecord], task: TaskDefinition) -> str:
     if not task.depends_on:
         return "- none"
-    include_review_context = task.agent == "reviewer"
+    include_review_context = task.agent == REVIEWER_AGENT_NAME
     blocks: list[str] = []
     for dependency_id in task.depends_on:
         record = records[dependency_id]
@@ -3768,17 +3770,13 @@ def extract_json_payload(text: str) -> Any:
     if not stripped:
         raise OrchestratorError("Claude returned empty output")
     decoder = json.JSONDecoder()
-    for index, char in enumerate(stripped):
-        if char not in "[{":
-            continue
+    for match in re.finditer(r"[{\[]", stripped):
         try:
-            payload, end = decoder.raw_decode(stripped[index:])
+            payload, end = decoder.raw_decode(stripped[match.start():])
         except JSONDecodeError:
             continue
-        trailing = stripped[index + end :].strip()
-        if trailing:
-            continue
-        return payload
+        if not stripped[match.start() + end:].strip():
+            return payload
     raise OrchestratorError("Claude output did not contain a standalone JSON payload")
 
 
@@ -4472,6 +4470,8 @@ def execute_task(
         max_chars=resolved_max_prompt_chars(task, agent),
         max_estimated_tokens=resolved_max_prompt_estimated_tokens(task, agent),
     )
+    _task_allowed = task.allowed_tools if task.allowed_tools else agent.allowed_tools
+    _task_disallowed = task.disallowed_tools if task.allowed_tools else agent.disallowed_tools
     command = claude_command(
         claude_bin,
         agents_json,
@@ -4481,8 +4481,8 @@ def execute_task(
         model=model_name,
         effort=task.effort or agent.effort,
         permission_mode=task.permission_mode or agent.permission_mode,
-        allowed_tools=task.allowed_tools or agent.allowed_tools,
-        disallowed_tools=task.disallowed_tools or agent.disallowed_tools,
+        allowed_tools=_task_allowed,
+        disallowed_tools=_task_disallowed,
         max_budget_usd=task.max_budget_usd if task.max_budget_usd is not None else agent.max_budget_usd,
     )
     prompt_path = task_dir / "prompt.txt"
@@ -5813,13 +5813,27 @@ def run_shell_command_text(
     timeout_sec: int,
     progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    try:
+        tokens = shlex.split(command_text, posix=(os.name != "nt"))
+    except ValueError:
+        tokens = None
+    timeout_error = f"Validation command timed out after {timeout_sec} seconds: {command_text}"
+    if tokens:
+        return run_process(
+            tokens,
+            cwd=cwd,
+            timeout_sec=timeout_sec,
+            shell=False,
+            progress_action=progress_action,
+            timeout_error=timeout_error,
+        )
     return run_process(
         command_text,
         cwd=cwd,
         timeout_sec=timeout_sec,
         shell=True,
         progress_action=progress_action,
-        timeout_error=f"Validation command timed out after {timeout_sec} seconds: {command_text}",
+        timeout_error=timeout_error,
     )
 
 
@@ -6075,6 +6089,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
         task_models = effective_plan_models(plan, agents)
         complex_model_tasks = complex_model_task_ids(task_model_profiles)
         topology = analyze_plan_topology(plan, agents)
+        plan_batches = topological_batches(plan.tasks)
         payload.update(
             {
                 "taskPlanPath": str(plan_path),
@@ -6103,7 +6118,7 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                     }
                     for task in plan.tasks
                 ],
-                "batches": [[task.id for task in batch] for batch in topological_batches(plan.tasks)],
+                "batches": [[task.id for task in batch] for batch in plan_batches],
                 "parallelConflicts": detect_parallel_scope_conflicts(plan, agents),
             }
         )
@@ -6112,9 +6127,9 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
 
 def print_payload(payload: dict[str, Any], *, as_json: bool) -> None:
     if as_json:
+        print(json.dumps(payload))
+    else:
         print(json.dumps(payload, indent=2))
-        return
-    print(json.dumps(payload, indent=2))
 
 
 def main() -> int:

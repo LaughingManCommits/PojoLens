@@ -47,6 +47,10 @@ public final class SqlLikeErrorCodes {
     public static final String EXPOSURE_FIELD_BLOCKED = "EQ-SQL-EXP-001";
     public static final String EXPOSURE_SOURCE_BLOCKED = "EQ-SQL-EXP-002";
 
+    public static final String PAGE_ORDER_REQUIRED = "EQ-SQL-PAG-001";
+    public static final String PAGE_LIMIT_REQUIRED = "EQ-SQL-PAG-002";
+    public static final String PAGE_CURSOR_FIELD_UNREADABLE = "EQ-SQL-PAG-003";
+
     public static final String RUNTIME_ALIASED_PROJECTION_FAILED = "EQ-SQL-RUN-001";
     public static final String RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED = "EQ-SQL-RUN-002";
 

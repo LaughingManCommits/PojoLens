@@ -23,8 +23,10 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SqlLikeQueryContractTest {
 
@@ -658,6 +660,41 @@ public class SqlLikeQueryContractTest {
         public CustomerInterest(String category) {
             this.category = category;
         }
+    }
+
+    @Test
+    public void filterPageShouldReturnPageResultWithRowsHasMoreAndCursor() {
+        List<Employee> source = sampleEmployees();
+
+        PageResult<Employee> page = PojoLensSql
+                .parse("order by salary desc, id desc limit 2")
+                .filterPage(source, Employee.class);
+
+        assertNotNull(page);
+        assertEquals(2, page.rows().size());
+        assertTrue(page.hasMore());
+        assertTrue(page.nextCursor().isPresent());
+    }
+
+    @Test
+    public void filterPageShouldReturnEmptyNextCursorWhenAllRowsFit() {
+        List<Employee> source = sampleEmployees();
+
+        PageResult<Employee> page = PojoLensSql
+                .parse("order by salary desc, id desc limit 100")
+                .filterPage(source, Employee.class);
+
+        assertNotNull(page);
+        assertEquals(source.size(), page.rows().size());
+        assertFalse(page.hasMore());
+        assertFalse(page.nextCursor().isPresent());
+    }
+
+    @Test
+    public void filterPageShouldRejectNullJoinBindings() {
+        assertThrows(NullPointerException.class, () ->
+                PojoLensSql.parse("order by salary desc limit 5")
+                        .filterPage(sampleEmployees(), (JoinBindings) null, Employee.class));
     }
 
     private static JoinBindings sampleOrderJoinBindings() {

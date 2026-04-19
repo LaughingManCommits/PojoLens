@@ -354,6 +354,40 @@ Cursor contract:
 - `keysetBefore(...)` resolves the "previous page" window
 - token format is opaque Base64URL (current format) and preserves common scalar value types
 
+### Recipe: Page Result Helper
+
+`filterPage(...)` combines execution, lookahead, and cursor generation in one call.
+The query must have a static `LIMIT` clause and at least one `ORDER BY` field.
+
+```java
+// First page — no cursor needed
+PageResult<Employee> page = PojoLensSql
+    .parse("where active = true order by salary desc, id desc limit 20")
+    .filterPage(source, Employee.class);
+
+List<Employee> rows = page.rows();     // up to 20 rows
+boolean more       = page.hasMore();   // true when more rows exist
+
+// Next page — apply cursor from previous result
+page.nextCursor().ifPresent(cursor -> {
+    PageResult<Employee> nextPage = PojoLensSql
+        .parse("where active = true order by salary desc, id desc limit 20")
+        .keysetAfter(cursor)
+        .filterPage(source, Employee.class);
+});
+```
+
+Page result contract:
+- `rows()` contains at most `LIMIT` rows (the extra lookahead row is never returned)
+- `hasMore()` is `true` when at least one row exists beyond the current page
+- `nextCursor()` is empty when `hasMore()` is `false`
+- the cursor contains one entry per `ORDER BY` field taken from the last visible row
+- all `ORDER BY` field values in the last visible row must be non-null; null values
+  prevent cursor generation and throw `EQ-SQL-PAG-003`
+- `filterPage(...)` requires a static `LIMIT` clause; parameterized limits
+  (`LIMIT :n`) must be bound via `params(...)` before calling `filterPage(...)`
+- `filterPage(...)` can be combined with `keysetAfter(...)` for multi-page traversal
+
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
 ```java
@@ -953,6 +987,9 @@ Parse errors include deterministic location text:
 | `EQ-SQL-JOIN-002` | Typed JOIN binding name was blank. | Use a non-blank JOIN source name. |
 | `EQ-SQL-EXP-001` | Query referenced a field outside `QueryExposurePolicy`. | Add the field to the allowlist or reject the query. |
 | `EQ-SQL-EXP-002` | Query referenced a named source outside `QueryExposurePolicy`. | Add the source to the allowlist or reject the query. |
+| `EQ-SQL-PAG-001` | `filterPage(...)` was called on a query without `ORDER BY`. | Add deterministic `ORDER BY` fields for cursor generation. |
+| `EQ-SQL-PAG-002` | `filterPage(...)` was called on a query without a static `LIMIT`. | Add a static `LIMIT` clause, or bind parameterized limits before calling `filterPage(...)`. |
+| `EQ-SQL-PAG-003` | An `ORDER BY` field value is null or unreadable in the last row. | Ensure all `ORDER BY` fields are non-null in the result rows and exist on the projection class. |
 | `EQ-SQL-RUN-001` | Aliased/computed projection failed at runtime. | Ensure projection fields exist and accept the projected values. |
 | `EQ-SQL-RUN-002` | Runtime expression identifier resolution failed. | Verify computed expressions reference valid source fields. |
 

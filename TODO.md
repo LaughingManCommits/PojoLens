@@ -163,11 +163,11 @@ Scope:
   clearly useful.
 
 Tasks:
-- [ ] Design `PageResult<T>` and page execution methods for SQL-like queries.
-- [ ] Enforce stable ordering requirements for cursor generation.
-- [ ] Implement lookahead behavior without leaking the extra row.
-- [ ] Document API endpoint usage and edge cases.
-- [ ] Add tests for first page, next page, no more rows, composite sort keys,
+- [x] Design `PageResult<T>` and page execution methods for SQL-like queries.
+- [x] Enforce stable ordering requirements for cursor generation.
+- [x] Implement lookahead behavior without leaking the extra row.
+- [x] Document API endpoint usage and edge cases.
+- [x] Add tests for first page, next page, no more rows, composite sort keys,
       missing order, and ties.
 
 Validate:
