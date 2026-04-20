@@ -18,6 +18,7 @@ import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
@@ -468,17 +469,10 @@ public final class SqlLikeValidator {
         }
         List<?> sourceRows = joinSources.get(select.sourceName());
         if (sourceRows == null) {
-            List<String> suggestions = NameSuggestions.suggest(select.sourceName(), joinSources.keySet());
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Missing subquery source binding for '" + select.sourceName() + "'"
-                            + NameSuggestions.formatFragment(suggestions)
-                            + availableSourceBindingsFragment(joinSources));
+                    SqlLikeSourceBindingMessages.missingSubquerySourceBinding(select.sourceName(), joinSources.keySet()));
         }
         return inferListElementClass(sourceRows);
-    }
-
-    private static String availableSourceBindingsFragment(Map<String, List<?>> joinSources) {
-        return joinSources.isEmpty() ? "" : " Available source binding(s): " + new TreeSet<>(joinSources.keySet());
     }
 
     private static void validateExpressionIdentifiers(String expression,

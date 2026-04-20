@@ -17,6 +17,7 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
@@ -336,7 +337,7 @@ public final class SqlLikeDiagnosticsSupport {
             if (!joinSources.containsKey(join.childSource())) {
                 addError(errors, new QueryDiagnosticsError(
                         SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        missingSourceMessage("JOIN", join.childSource(), candidateSources)
+                        SqlLikeSourceBindingMessages.missingJoinSourceBinding(join.childSource(), candidateSources)
                 ));
             }
         }
@@ -555,16 +556,6 @@ public final class SqlLikeDiagnosticsSupport {
 
     private static String allowedFieldsFragment(Set<String> allowedFields) {
         return allowedFields.isEmpty() ? "" : " Allowed fields: " + new TreeSet<>(allowedFields);
-    }
-
-    private static String missingSourceMessage(String kind, String source, Set<String> candidateSources) {
-        List<String> suggestions = NameSuggestions.suggest(source, candidateSources);
-        String message = "Missing " + kind + " source binding for '" + source + "'"
-                + NameSuggestions.formatFragment(suggestions);
-        if (candidateSources.isEmpty()) {
-            return message;
-        }
-        return message + " Available source binding(s): " + new TreeSet<>(candidateSources);
     }
 
     private static LinkedHashSet<String> filterAllowedFields(Set<String> candidates,

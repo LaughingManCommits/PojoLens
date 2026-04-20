@@ -1,7 +1,6 @@
 package laughing.man.commits.sqllike.internal.binding;
 
 import laughing.man.commits.internal.FluentEngine;
-import laughing.man.commits.internal.NameSuggestions;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.internal.builder.QueryRule;
@@ -28,6 +27,7 @@ import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSuppor
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.expression.BooleanExpressionNormalizer;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.Consumer;
 
 /**
@@ -179,7 +178,9 @@ public final class SqlLikeBinder {
             List<?> children = joinSources.get(join.join().childSource());
             if (children == null) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        missingJoinSourceBindingMessage(join.join().childSource(), joinSources));
+                        SqlLikeSourceBindingMessages.missingJoinSourceBinding(
+                                join.join().childSource(),
+                                joinSources.keySet()));
             }
             builder.addJoinBeans(join.parentField(), children, join.childField(), join.join().joinType());
         }
@@ -757,25 +758,11 @@ public final class SqlLikeBinder {
         List<?> rows = joinSources.get(select.sourceName());
         if (rows == null) {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    missingSubquerySourceBindingMessage(select.sourceName(), joinSources));
+                    SqlLikeSourceBindingMessages.missingSubquerySourceBinding(
+                            select.sourceName(),
+                            joinSources.keySet()));
         }
         return rows;
-    }
-
-    private static String missingJoinSourceBindingMessage(String source, Map<String, List<?>> joinSources) {
-        return "Missing JOIN source binding for '" + source + "'"
-                + NameSuggestions.formatFragment(NameSuggestions.suggest(source, joinSources.keySet()))
-                + availableSourceBindingsFragment(joinSources);
-    }
-
-    private static String missingSubquerySourceBindingMessage(String source, Map<String, List<?>> joinSources) {
-        return "Missing subquery source binding for '" + source + "'"
-                + NameSuggestions.formatFragment(NameSuggestions.suggest(source, joinSources.keySet()))
-                + availableSourceBindingsFragment(joinSources);
-    }
-
-    private static String availableSourceBindingsFragment(Map<String, List<?>> joinSources) {
-        return joinSources.isEmpty() ? "" : " Available source binding(s): " + new TreeSet<>(joinSources.keySet());
     }
 
     private static Class<?> inferSourceClass(List<?> rows) {
