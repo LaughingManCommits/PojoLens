@@ -197,12 +197,12 @@ Scope:
   possible.
 
 Tasks:
-- [ ] Inventory current unknown-field, unknown-param, and unknown-source errors.
-- [ ] Add a deterministic bounded name-suggestion helper.
-- [ ] Wire suggestions into SQL-like validation errors.
-- [ ] Wire suggestions into natural vocabulary/field errors where safe.
-- [ ] Add docs examples only where they help troubleshooting.
-- [ ] Add tests for typos, no close match, multiple close matches, case
+- [x] Inventory current unknown-field, unknown-param, and unknown-source errors.
+- [x] Add a deterministic bounded name-suggestion helper.
+- [x] Wire suggestions into SQL-like validation errors.
+- [x] Wire suggestions into natural vocabulary/field errors where safe.
+- [x] Add docs examples only where they help troubleshooting.
+- [x] Add tests for typos, no close match, multiple close matches, case
       differences, and blocked-policy fields.
 
 Validate:

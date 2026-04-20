@@ -6,7 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: `QOL-WP5` better error suggestions or next release.
+5. Next likely task: cut next release.
 
 ## Focus
 
@@ -14,7 +14,7 @@
 - Latest release alignment is complete for `2026.04.17.1834`.
 - `SURFACE-WP1` through `SURFACE-WP6` are complete except the release cut.
 - SQL-like is public default; natural is guided text; fluent is internal engine DSL.
-- Active backlog is `QOL-WP5` plus release (`QOL-WP1`–`WP4` complete).
+- All `QOL-WP1`–`WP5` complete. Active backlog is the release cut.
 
 ## Facts
 
@@ -25,6 +25,7 @@
 - `2026-04-19`: `QueryExposurePolicy` allowlists fields/sources for SQL-like, natural lowering, and runtime defaults.
 - `2026-04-19`: `SqlLikePlanPreview` from `planPreview()`: grouped predicates via `PlanPreviewPredicate`, nested subquery via `subqueryPreview()`.
 - `2026-04-20`: `PageResult<T>` from `filterPage(...)`: rows, hasMore, nextCursor; requires positive static LIMIT + ORDER BY, rejects OFFSET, uses limit+1 lookahead.
+- `2026-04-20`: `NameSuggestions` (internal) provides Levenshtein+prefix suggestions; wired into SQL-like field/param/JOIN errors and natural field term errors. Policy-blocked fields not exposed in suggestions (policy runs first).
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with `TreeEntry<T>` metadata.
 - User-authored query text needs params, approved fields/sources, lint, strict typing, and external authorization.
 
@@ -33,7 +34,7 @@
 - After code changes: `mvn -B -ntp test`, then benchmark guardrails when performance changes.
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-20` QOL-WP4 review hardening passed targeted page/API tests, full Maven suite, doc consistency, diff check, and memory refresh/check.
+- Last validation: `2026-04-20` QOL-WP5 better error suggestions passed 843-test Maven suite, doc consistency, and diff check.
 
 ## Cold Pointers
 

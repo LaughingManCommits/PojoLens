@@ -1,5 +1,6 @@
 package laughing.man.commits.sqllike.internal.params;
 
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
 import laughing.man.commits.sqllike.ast.FilterExpressionAst;
@@ -45,7 +46,7 @@ public final class SqlLikeParameterSupport {
         unknown.removeAll(used);
         if (!unknown.isEmpty()) {
             throw parameter(SqlLikeErrorCodes.PARAM_UNKNOWN,
-                    "Unknown SQL-like parameter(s): " + unknown);
+                    formatUnknownParamMessage("SQL-like", unknown, used));
         }
 
         List<FilterAst> resolvedFilters = resolveFilters(ast.filters(), normalized);
@@ -195,6 +196,24 @@ public final class SqlLikeParameterSupport {
             );
         }
         return new FilterAst(filter.field(), filter.clause(), value, filter.separator());
+    }
+
+    public static String formatUnknownParamMessage(String queryType, Set<String> unknown, Set<String> expected) {
+        StringBuilder message = new StringBuilder("Unknown ")
+                .append(queryType)
+                .append(" parameter(s): ")
+                .append(unknown)
+                .append(".");
+        if (unknown.size() == 1) {
+            List<String> suggestions = NameSuggestions.suggest(unknown.iterator().next(), expected);
+            if (!suggestions.isEmpty()) {
+                message.append(NameSuggestions.formatFragment(suggestions));
+            }
+        }
+        if (!expected.isEmpty()) {
+            message.append(" Expected parameter(s): ").append(new TreeSet<>(expected));
+        }
+        return message.toString();
     }
 
     private static IllegalArgumentException parameter(String code, String message) {

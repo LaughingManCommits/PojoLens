@@ -1,5 +1,6 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -93,9 +94,11 @@ final class NaturalQueryResolutionSupport {
         }
         TreeSet<String> allowed = new TreeSet<>(sourceFields);
         allowed.addAll(exactReferences);
+        List<String> suggestions = NameSuggestions.suggest(originalPhrase, allowed);
         throw new IllegalArgumentException(
-                "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
-                        + allowed
+                "Unknown natural field term '" + originalPhrase + "' in natural query."
+                        + NameSuggestions.formatFragment(suggestions)
+                        + " Allowed fields: " + allowed
         );
     }
 
@@ -129,9 +132,11 @@ final class NaturalQueryResolutionSupport {
         }
         TreeSet<String> allowed = new TreeSet<>(sourceFields);
         allowed.addAll(exactReferences);
+        List<String> suggestions = NameSuggestions.suggest(originalPhrase, allowed);
         throw new IllegalArgumentException(
-                "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
-                        + allowed
+                "Unknown natural field term '" + originalPhrase + "' in natural query."
+                        + NameSuggestions.formatFragment(suggestions)
+                        + " Allowed fields: " + allowed
         );
     }
 

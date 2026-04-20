@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Better error suggestions** (`QOL-WP5`) - extracted `NameSuggestions` helper
+  (Levenshtein ≤ 2 + prefix match, up to 3 candidates, case-normalised) into
+  `laughing.man.commits.internal`. Wired deterministic "Did you mean" suggestions
+  into SQL-like unknown-field errors (WHERE/SELECT/ORDER BY/QUALIFY/HAVING
+  aggregate/JOIN child/JOIN flexible resolve), SQL-like and template unknown
+  parameter errors, and natural-query unknown field term errors. Blocked
+  exposure-policy fields are not exposed as suggestions because the policy check
+  runs before validation and terminates with a policy error rather than an
+  unknown-field suggestion.
+
 - **Page result helper** (`QOL-WP4`) - added `PageResult<T>` in the `sqllike`
   package with `rows()`, `hasMore()`, and `nextCursor()`. New
   `SqlLikeQuery.filterPage(List, Class)`, `filterPage(DatasetBundle, Class)`,

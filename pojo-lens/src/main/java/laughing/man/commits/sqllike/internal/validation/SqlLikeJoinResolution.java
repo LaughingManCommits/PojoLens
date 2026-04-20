@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.validation;
 
 import laughing.man.commits.internal.builder.QueryWindowFrame;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -22,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Resolves SQL-like JOIN field references to the deterministic merged-field names
@@ -66,8 +68,11 @@ public final class SqlLikeJoinResolution {
             String parentField = state.resolveStrict(join.parentField(), "JOIN");
             String childField = normalizeChildReference(join.childSource(), join.childField());
             if (!childFields.contains(childField)) {
+                List<String> suggestions = NameSuggestions.suggest(childField, childFields);
                 throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
-                        "Unknown field '" + childField + "' in JOIN clause. Allowed fields: " + childFields);
+                        "Unknown field '" + childField + "' in JOIN clause."
+                                + NameSuggestions.formatFragment(suggestions)
+                                + " Allowed fields: " + new TreeSet<>(childFields));
             }
 
             resolvedJoins.add(new ResolvedJoin(join, parentField, childField));
@@ -423,9 +428,11 @@ public final class SqlLikeJoinResolution {
             if (unique != null) {
                 return unique;
             }
+            List<String> suggestions = NameSuggestions.suggest(reference, directReferences.keySet());
             throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
-                    "Unknown field '" + reference + "' in " + clauseName + " clause. Allowed fields: "
-                            + new LinkedHashSet<>(directReferences.keySet()));
+                    "Unknown field '" + reference + "' in " + clauseName + " clause."
+                            + NameSuggestions.formatFragment(suggestions)
+                            + " Allowed fields: " + new TreeSet<>(directReferences.keySet()));
         }
 
         private void addChild(String childSource, Set<String> fields, Map<String, Class<?>> types) {

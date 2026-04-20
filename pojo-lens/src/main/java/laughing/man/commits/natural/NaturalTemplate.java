@@ -87,7 +87,8 @@ public final class NaturalTemplate {
         TreeSet<String> unknown = new TreeSet<>(provided);
         unknown.removeAll(expectedParams);
         if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("Unknown natural template parameter(s): " + unknown);
+            throw new IllegalArgumentException(
+                    SqlLikeParameterSupport.formatUnknownParamMessage("natural template", unknown, expectedParams));
         }
     }
 

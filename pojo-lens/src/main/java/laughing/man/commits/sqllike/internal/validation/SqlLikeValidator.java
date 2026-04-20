@@ -5,6 +5,7 @@ import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -24,7 +25,6 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -39,8 +39,6 @@ import java.util.TreeSet;
  * Internal query validation for SQL-like execution.
  */
 public final class SqlLikeValidator {
-
-    private static final int MAX_SUGGESTIONS = 3;
 
     private SqlLikeValidator() {
     }
@@ -792,22 +790,10 @@ public final class SqlLikeValidator {
     }
 
     private static String formatUnknownFieldMessage(String field, Set<String> allowedFields, String clauseName) {
-        StringBuilder message = new StringBuilder()
-                .append("Unknown field '")
-                .append(field)
-                .append("' in ")
-                .append(clauseName)
-                .append(" clause.");
-        List<String> suggestions = suggestFields(field, allowedFields);
-        if (!suggestions.isEmpty()) {
-            if (suggestions.size() == 1) {
-                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
-            } else {
-                message.append(" Did you mean one of ").append(suggestions).append("?");
-            }
-        }
-        message.append(" Allowed fields: ").append(new TreeSet<>(allowedFields));
-        return message.toString();
+        List<String> suggestions = NameSuggestions.suggest(field, allowedFields);
+        return "Unknown field '" + field + "' in " + clauseName + " clause."
+                + NameSuggestions.formatFragment(suggestions)
+                + " Allowed fields: " + new TreeSet<>(allowedFields);
     }
 
     private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {
@@ -820,52 +806,10 @@ public final class SqlLikeValidator {
     private static String formatUnknownAggregateOrderArgumentMessage(String expression,
                                                                     String argument,
                                                                     Set<String> sourceFields) {
-        StringBuilder message = new StringBuilder()
-                .append("Unknown field '")
-                .append(argument)
-                .append("' in ORDER BY aggregate expression '")
-                .append(expression)
-                .append("'.");
-        List<String> suggestions = suggestFields(argument, sourceFields);
-        if (!suggestions.isEmpty()) {
-            if (suggestions.size() == 1) {
-                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
-            } else {
-                message.append(" Did you mean one of ").append(suggestions).append("?");
-            }
-        }
-        message.append(" Allowed source fields: ").append(new TreeSet<>(sourceFields));
-        return message.toString();
-    }
-
-    private static List<String> suggestFields(String unknownField, Set<String> allowedFields) {
-        if (unknownField == null || unknownField.isBlank() || allowedFields.isEmpty()) {
-            return java.util.Collections.emptyList();
-        }
-        String normalizedUnknown = normalizeIdentifier(unknownField);
-        int threshold = 2;
-        List<FieldSuggestion> ranked = new ArrayList<>();
-        for (String allowedField : allowedFields) {
-            String normalizedAllowed = normalizeIdentifier(allowedField);
-            int distance = levenshteinDistance(normalizedUnknown, normalizedAllowed);
-            boolean prefixMatch = normalizedAllowed.startsWith(normalizedUnknown)
-                    || normalizedUnknown.startsWith(normalizedAllowed);
-            if (distance <= threshold || prefixMatch) {
-                ranked.add(new FieldSuggestion(allowedField, distance));
-            }
-        }
-        ranked.sort(Comparator
-                .comparingInt(FieldSuggestion::distance)
-                .thenComparing(FieldSuggestion::name));
-        List<String> suggestions = new ArrayList<>();
-        for (int i = 0; i < ranked.size() && i < MAX_SUGGESTIONS; i++) {
-            suggestions.add(ranked.get(i).name());
-        }
-        return suggestions;
-    }
-
-    private static String normalizeIdentifier(String value) {
-        return value.toLowerCase(Locale.ROOT);
+        List<String> suggestions = NameSuggestions.suggest(argument, sourceFields);
+        return "Unknown field '" + argument + "' in ORDER BY aggregate expression '" + expression + "'."
+                + NameSuggestions.formatFragment(suggestions)
+                + " Allowed source fields: " + new TreeSet<>(sourceFields);
     }
 
     private static String canonicalWindowExpression(String value) {
@@ -889,55 +833,6 @@ public final class SqlLikeValidator {
                 || "AVG".equalsIgnoreCase(functionName)
                 || "MIN".equalsIgnoreCase(functionName)
                 || "MAX".equalsIgnoreCase(functionName);
-    }
-
-    private static int levenshteinDistance(String left, String right) {
-        int leftLength = left.length();
-        int rightLength = right.length();
-        if (leftLength == 0) {
-            return rightLength;
-        }
-        if (rightLength == 0) {
-            return leftLength;
-        }
-        int[] previous = new int[rightLength + 1];
-        int[] current = new int[rightLength + 1];
-        for (int j = 0; j <= rightLength; j++) {
-            previous[j] = j;
-        }
-        for (int i = 1; i <= leftLength; i++) {
-            current[0] = i;
-            char leftChar = left.charAt(i - 1);
-            for (int j = 1; j <= rightLength; j++) {
-                int cost = leftChar == right.charAt(j - 1) ? 0 : 1;
-                int deletion = previous[j] + 1;
-                int insertion = current[j - 1] + 1;
-                int substitution = previous[j - 1] + cost;
-                current[j] = Math.min(Math.min(deletion, insertion), substitution);
-            }
-            int[] swap = previous;
-            previous = current;
-            current = swap;
-        }
-        return previous[rightLength];
-    }
-
-    private static final class FieldSuggestion {
-        private final String name;
-        private final int distance;
-
-        private FieldSuggestion(String name, int distance) {
-            this.name = name;
-            this.distance = distance;
-        }
-
-        private String name() {
-            return name;
-        }
-
-        private int distance() {
-            return distance;
-        }
     }
 
     static Set<String> collectFields(Class<?> root) {

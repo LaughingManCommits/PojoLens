@@ -86,7 +86,8 @@ public final class SqlLikeTemplate {
         TreeSet<String> unknown = new TreeSet<>(provided);
         unknown.removeAll(expectedParams);
         if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("Unknown SQL-like template parameter(s): " + unknown);
+            throw new IllegalArgumentException(
+                    SqlLikeParameterSupport.formatUnknownParamMessage("SQL-like template", unknown, expectedParams));
         }
     }
 

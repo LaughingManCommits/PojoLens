@@ -30,6 +30,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.TimeBucketTestFixtures.sampleRows;
 import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -536,6 +537,28 @@ public class NaturalQueryContractTest {
         );
 
         assertTrue(error.getMessage().contains("Unknown natural field term 'bonus'"));
+    }
+
+    @Test
+    public void unknownNaturalFieldTermShouldIncludeSuggestionWhenCloseMatchExists() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensNatural.parse("show salry").filter(sampleEmployees(), Employee.class)
+        );
+
+        assertTrue(error.getMessage().contains("Unknown natural field term 'salry'"));
+        assertTrue(error.getMessage().contains("Did you mean 'salary'"));
+    }
+
+    @Test
+    public void unknownNaturalFieldTermShouldNotIncludeSuggestionWhenNoCloseMatchExists() {
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> PojoLensNatural.parse("show qzxvwp").filter(sampleEmployees(), Employee.class)
+        );
+
+        assertTrue(error.getMessage().contains("Unknown natural field term 'qzxvwp'"));
+        assertFalse(error.getMessage().contains("Did you mean"));
     }
 
     @Test
