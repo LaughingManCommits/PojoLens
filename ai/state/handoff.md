@@ -24,7 +24,7 @@
 - `2026-04-19`: `QueryDiagnostics`: params, fields, sources, lint, multi-unknown WHERE, natural vocabulary resolution.
 - `2026-04-19`: `QueryExposurePolicy` allowlists fields/sources for SQL-like, natural lowering, and runtime defaults.
 - `2026-04-19`: `SqlLikePlanPreview` from `planPreview()`: grouped predicates via `PlanPreviewPredicate`, nested subquery via `subqueryPreview()`.
-- `2026-04-19`: `PageResult<T>` from `filterPage(...)`: rows, hasMore, nextCursor; requires static LIMIT + ORDER BY; limit+1 lookahead.
+- `2026-04-20`: `PageResult<T>` from `filterPage(...)`: rows, hasMore, nextCursor; requires positive static LIMIT + ORDER BY, rejects OFFSET, uses limit+1 lookahead.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with `TreeEntry<T>` metadata.
 - User-authored query text needs params, approved fields/sources, lint, strict typing, and external authorization.
 
@@ -33,7 +33,7 @@
 - After code changes: `mvn -B -ntp test`, then benchmark guardrails when performance changes.
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-19` QOL-WP4 page result passed 16 page tests + full Maven suite, doc consistency, diff check.
+- Last validation: `2026-04-20` QOL-WP4 review hardening passed targeted page/API tests, full Maven suite, doc consistency, diff check, and memory refresh/check.
 
 ## Cold Pointers
 

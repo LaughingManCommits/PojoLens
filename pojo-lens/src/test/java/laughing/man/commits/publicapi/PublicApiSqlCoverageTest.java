@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.PlanPreviewPredicate;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -107,6 +108,17 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
 
         assertEquals(1, rows.size());
         assertEquals("Bob", rows.get(0).name);
+    }
+
+    @Test
+    public void pageResultHelperShouldBeUsableFromPublicApi() {
+        PageResult<Employee> page = PojoLensSql
+                .parse("where active = true order by salary desc, id desc limit 2")
+                .filterPage(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertTrue(page.nextCursor().isPresent());
     }
 
     @Test

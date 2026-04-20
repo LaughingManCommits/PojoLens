@@ -691,6 +691,11 @@ public final class SqlLikeQuery {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED,
                     "filterPage requires ORDER BY fields for cursor generation");
         }
+        if (ast.offset() != null || ast.offsetParameter() != null) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_OFFSET_UNSUPPORTED,
+                    "filterPage does not support OFFSET because cursor paging uses keyset boundaries; "
+                            + "remove OFFSET and apply keysetAfter(...) with the returned cursor");
+        }
         if (ast.limit() == null) {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_LIMIT_REQUIRED,
                     "filterPage requires a static LIMIT clause to determine page size"
@@ -699,6 +704,10 @@ public final class SqlLikeQuery {
                                : "; add a LIMIT clause to the query"));
         }
         int pageSize = ast.limit();
+        if (pageSize <= 0) {
+            throw SqlLikeErrors.argument(SqlLikeErrorCodes.PAGE_LIMIT_INVALID,
+                    "filterPage requires LIMIT to be greater than zero");
+        }
         QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
         ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
         List<T> lookaheadRows = executeFilter(context, cls);

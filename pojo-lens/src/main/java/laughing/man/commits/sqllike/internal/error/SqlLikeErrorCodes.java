@@ -50,6 +50,8 @@ public final class SqlLikeErrorCodes {
     public static final String PAGE_ORDER_REQUIRED = "EQ-SQL-PAG-001";
     public static final String PAGE_LIMIT_REQUIRED = "EQ-SQL-PAG-002";
     public static final String PAGE_CURSOR_FIELD_UNREADABLE = "EQ-SQL-PAG-003";
+    public static final String PAGE_LIMIT_INVALID = "EQ-SQL-PAG-004";
+    public static final String PAGE_OFFSET_UNSUPPORTED = "EQ-SQL-PAG-005";
 
     public static final String RUNTIME_ALIASED_PROJECTION_FAILED = "EQ-SQL-RUN-001";
     public static final String RUNTIME_EXPRESSION_IDENTIFIER_RESOLUTION_FAILED = "EQ-SQL-RUN-002";

@@ -19,9 +19,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   last visible row's `ORDER BY` field values. Requires a static `LIMIT` clause
   and at least one `ORDER BY` field. Cursor is built via
   `ReflectionUtil.DirectFieldReadPlan` so it works with any field visibility.
-  Three new error codes: `EQ-SQL-PAG-001` (missing `ORDER BY`),
+  Five new error codes: `EQ-SQL-PAG-001` (missing `ORDER BY`),
   `EQ-SQL-PAG-002` (missing static `LIMIT`), `EQ-SQL-PAG-003` (null or
-  unreadable `ORDER BY` field value).
+  unreadable `ORDER BY` field value), `EQ-SQL-PAG-004` (non-positive page
+  size), and `EQ-SQL-PAG-005` (`OFFSET` with cursor-backed page result).
 - **SQL-like plan preview** (`QOL-WP3`) - added `SqlLikePlanPreview` and six
   companion types (`PlanPreviewField`, `PlanPreviewFilter`, `PlanPreviewJoin`,
   `PlanPreviewOrder`, `PlanPreviewPaging`, `PlanPreviewPredicate`) in the

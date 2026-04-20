@@ -31,6 +31,7 @@ import laughing.man.commits.sqllike.PlanPreviewJoin;
 import laughing.man.commits.sqllike.PlanPreviewOrder;
 import laughing.man.commits.sqllike.PlanPreviewPaging;
 import laughing.man.commits.sqllike.PlanPreviewPredicate;
+import laughing.man.commits.sqllike.PageResult;
 import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -151,6 +152,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "bindTyped", List.class, Class.class, JoinBindings.class);
         requirePublicMethod(SqlLikeQuery.class, "filter", List.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "filterPage", List.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "filterPage", DatasetBundle.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "filterPage", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "iterator", List.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "iterator", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "stream", List.class, Class.class);
@@ -202,6 +206,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryExposurePolicy.class, "restrictsSources");
         requirePublicMethod(QueryExposurePolicy.class, "allowsField", String.class);
         requirePublicMethod(QueryExposurePolicy.class, "allowsSource", String.class);
+        requirePublicMethod(PageResult.class, "rows");
+        requirePublicMethod(PageResult.class, "hasMore");
+        requirePublicMethod(PageResult.class, "nextCursor");
 
         requirePublicMethod(SqlLikePlanPreview.class, "source");
         requirePublicMethod(SqlLikePlanPreview.class, "isWildcard");

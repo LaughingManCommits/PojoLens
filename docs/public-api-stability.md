@@ -86,7 +86,7 @@ The default first-read story is SQL-like first:
 - `SqlLikeQuery`:
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`, `planPreview`
+  - `bindTyped`, `filter`, `filterPage`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`, `planPreview`
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `QueryExposurePolicy`:
   - `unrestricted`, `builder`, `toBuilder`
@@ -125,6 +125,8 @@ The default first-read story is SQL-like first:
   - `builder`, `empty`, `asMap`
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
+- `PageResult<T>`:
+  - `rows`, `hasMore`, `nextCursor`
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
 

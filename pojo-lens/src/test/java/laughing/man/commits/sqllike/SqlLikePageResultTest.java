@@ -223,6 +223,51 @@ public class SqlLikePageResultTest {
         assertTrue(page.hasMore());
     }
 
+    @Test
+    public void zeroLimitThrowsPageLimitInvalid() {
+        try {
+            PojoLensSql.parse("order by salary desc, id desc limit 0")
+                    .filterPage(source(), BusinessFixtures.Employee.class);
+            fail("Expected PAGE_LIMIT_INVALID failure");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_LIMIT_INVALID));
+        }
+    }
+
+    @Test
+    public void parameterizedLimitBoundToZeroThrowsPageLimitInvalid() {
+        try {
+            PojoLensSql.parse("order by salary desc, id desc limit :n")
+                    .params(java.util.Map.of("n", 0))
+                    .filterPage(source(), BusinessFixtures.Employee.class);
+            fail("Expected PAGE_LIMIT_INVALID failure");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_LIMIT_INVALID));
+        }
+    }
+
+    @Test
+    public void offsetThrowsPageOffsetUnsupported() {
+        try {
+            PojoLensSql.parse("order by salary desc, id desc limit 2 offset 1")
+                    .filterPage(source(), BusinessFixtures.Employee.class);
+            fail("Expected PAGE_OFFSET_UNSUPPORTED failure");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_OFFSET_UNSUPPORTED));
+        }
+    }
+
+    @Test
+    public void parameterizedOffsetThrowsPageOffsetUnsupportedBeforeCursorCreation() {
+        try {
+            PojoLensSql.parse("order by salary desc, id desc limit 2 offset :offset")
+                    .filterPage(source(), BusinessFixtures.Employee.class);
+            fail("Expected PAGE_OFFSET_UNSUPPORTED failure");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_OFFSET_UNSUPPORTED));
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Error: null ORDER BY field value
     // -----------------------------------------------------------------------
