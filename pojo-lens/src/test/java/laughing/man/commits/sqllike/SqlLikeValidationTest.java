@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 
 public class SqlLikeValidationTest {
@@ -112,6 +113,19 @@ public class SqlLikeValidationTest {
             assertTrue(ex.getMessage().contains("Unknown field"));
             assertTrue(ex.getMessage().contains("in JOIN clause"));
             assertTrue(ex.getMessage().contains("Did you mean 'id'"));
+        }
+    }
+
+    @Test
+    public void missingJoinSourceShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("select * from companies join employes on id = companyId")
+                    .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+            fail("Expected missing JOIN source validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'employes'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'employees'"));
         }
     }
 
@@ -480,6 +494,19 @@ public class SqlLikeValidationTest {
             fail("Expected missing subquery source binding error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
+        }
+    }
+
+    @Test
+    public void missingSubquerySourceShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("where id in (select companyId from employes where title = 'Engineer')")
+                    .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+            fail("Expected missing subquery source binding error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employes'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'employees'"));
         }
     }
 

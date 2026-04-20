@@ -151,6 +151,17 @@ public class SqlLikeDiagnosticsTest {
     }
 
     @Test
+    public void unknownWhereFieldDiagnosticsShouldIncludeSuggestion() {
+        QueryDiagnostics d = PojoLensSql.parse("where integeField >= 1")
+                .diagnostics(Foo.class, Foo.class);
+
+        assertFalse(d.valid());
+        assertTrue(d.errors().stream()
+                .anyMatch(error -> error.message().contains("Did you mean")
+                        && error.message().contains("integerField")));
+    }
+
+    @Test
     public void validationErrorDoesNotSuppressLintWarnings() {
         QueryDiagnostics d = PojoLensSql.parse(
                 "select * from Foo where missingField = 'abc'")
@@ -195,6 +206,19 @@ public class SqlLikeDiagnosticsTest {
                 .diagnostics(Employee.class, Employee.class);
         assertFalse(d.valid());
         assertFalse(d.errors().isEmpty());
+    }
+
+    @Test
+    public void missingJoinSourceDiagnosticsShouldIncludeSuggestion() {
+        QueryDiagnostics d = PojoLensSql.parse(
+                "select name from Employee join employes on id = companyId")
+                .diagnostics(Employee.class, Employee.class,
+                        JoinBindings.of("employees", List.of(new CompanyEmployee(1, "Engineer"))));
+
+        assertFalse(d.valid());
+        assertTrue(d.errors().stream()
+                .anyMatch(error -> error.message().contains("Missing JOIN source binding for 'employes'")
+                        && error.message().contains("Did you mean 'employees'")));
     }
 
     @Test

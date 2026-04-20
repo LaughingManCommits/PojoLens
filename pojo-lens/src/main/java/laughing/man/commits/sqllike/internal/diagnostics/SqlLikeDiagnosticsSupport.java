@@ -1,8 +1,10 @@
 package laughing.man.commits.sqllike.internal.diagnostics;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -27,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Internal helpers for building {@link QueryDiagnostics} from SQL-like AST metadata.
@@ -61,6 +64,24 @@ public final class SqlLikeDiagnosticsSupport {
                                                        Class<?> projectionClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry) {
+        return buildWithValidation(
+                ast,
+                suppressedLintCodes,
+                sourceClass,
+                projectionClass,
+                joinSources,
+                computedFieldRegistry,
+                QueryExposurePolicy.unrestricted());
+    }
+
+    public static QueryDiagnostics buildWithValidation(QueryAst ast,
+                                                       Set<String> suppressedLintCodes,
+                                                       Class<?> sourceClass,
+                                                       Class<?> projectionClass,
+                                                       Map<String, List<?>> joinSources,
+                                                       ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy) {
+        QueryExposurePolicy policy = effectivePolicy(exposurePolicy);
         List<SqlLikeLintWarning> lintWarnings = SqlLikeLintSupport.warnings(ast, suppressedLintCodes);
         List<String> requiredParams = new ArrayList<>(SqlLikeParameterSupport.collectParameterNames(ast));
         List<String> referencedFields = collectReferencedFields(ast);
@@ -68,13 +89,15 @@ public final class SqlLikeDiagnosticsSupport {
         List<String> joinSourceNames = collectJoinSources(ast);
         boolean subqueries = hasSubqueries(ast);
 
-        List<QueryDiagnosticsError> errors = collectStructuralErrors(ast, sourceClass, joinSources, computedFieldRegistry);
+        List<QueryDiagnosticsError> errors = collectStructuralErrors(
+                ast, sourceClass, joinSources, computedFieldRegistry, policy);
         try {
             SqlLikeValidator.validateForFilter(ast, sourceClass, projectionClass, joinSources, false, computedFieldRegistry);
         } catch (IllegalArgumentException ex) {
             QueryDiagnosticsError error = extractError(ex);
-            if (!SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD.equals(error.code())
-                    || !hasErrorCode(errors, SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD)) {
+            if (!shouldSkipValidatorError(error, policy)
+                    && (!SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD.equals(error.code())
+                    || !hasErrorCode(errors, SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD))) {
                 addError(errors, error);
             }
         }
@@ -296,59 +319,65 @@ public final class SqlLikeDiagnosticsSupport {
     private static List<QueryDiagnosticsError> collectStructuralErrors(QueryAst ast,
                                                                        Class<?> sourceClass,
                                                                        Map<String, List<?>> joinSources,
-                                                                       ComputedFieldRegistry computedFieldRegistry) {
+                                                                       ComputedFieldRegistry computedFieldRegistry,
+                                                                       QueryExposurePolicy exposurePolicy) {
         ArrayList<QueryDiagnosticsError> errors = new ArrayList<>();
-        collectMissingJoinSourceErrors(ast, joinSources, errors);
-        collectUnknownWhereFieldErrors(ast, sourceClass, joinSources, computedFieldRegistry, errors);
+        collectMissingJoinSourceErrors(ast, joinSources, exposurePolicy, errors);
+        collectUnknownWhereFieldErrors(ast, sourceClass, joinSources, computedFieldRegistry, exposurePolicy, errors);
         return errors;
     }
 
     private static void collectMissingJoinSourceErrors(QueryAst ast,
                                                        Map<String, List<?>> joinSources,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        List<QueryDiagnosticsError> errors) {
+        Set<String> candidateSources = filterAllowedSources(joinSources.keySet(), exposurePolicy);
         for (JoinAst join : ast.joins()) {
             if (!joinSources.containsKey(join.childSource())) {
                 addError(errors, new QueryDiagnosticsError(
                         SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        "Missing JOIN source binding for '" + join.childSource() + "'"
+                        missingSourceMessage("JOIN", join.childSource(), candidateSources)
                 ));
             }
         }
-        collectNestedMissingJoinSourceErrors(ast.filters(), joinSources, errors);
-        collectNestedMissingJoinSourceErrors(ast.whereExpression(), joinSources, errors);
+        collectNestedMissingJoinSourceErrors(ast.filters(), joinSources, exposurePolicy, errors);
+        collectNestedMissingJoinSourceErrors(ast.whereExpression(), joinSources, exposurePolicy, errors);
     }
 
     private static void collectNestedMissingJoinSourceErrors(List<FilterAst> filters,
                                                             Map<String, List<?>> joinSources,
+                                                            QueryExposurePolicy exposurePolicy,
                                                             List<QueryDiagnosticsError> errors) {
         for (FilterAst filter : filters) {
-            collectNestedMissingJoinSourceErrors(filter, joinSources, errors);
+            collectNestedMissingJoinSourceErrors(filter, joinSources, exposurePolicy, errors);
         }
     }
 
     private static void collectNestedMissingJoinSourceErrors(FilterExpressionAst expression,
                                                             Map<String, List<?>> joinSources,
+                                                            QueryExposurePolicy exposurePolicy,
                                                             List<QueryDiagnosticsError> errors) {
         if (expression == null) {
             return;
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
-            collectNestedMissingJoinSourceErrors(predicateAst.filter(), joinSources, errors);
+            collectNestedMissingJoinSourceErrors(predicateAst.filter(), joinSources, exposurePolicy, errors);
             return;
         }
         FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectNestedMissingJoinSourceErrors(binary.left(), joinSources, errors);
-        collectNestedMissingJoinSourceErrors(binary.right(), joinSources, errors);
+        collectNestedMissingJoinSourceErrors(binary.left(), joinSources, exposurePolicy, errors);
+        collectNestedMissingJoinSourceErrors(binary.right(), joinSources, exposurePolicy, errors);
     }
 
     private static void collectNestedMissingJoinSourceErrors(FilterAst filter,
                                                             Map<String, List<?>> joinSources,
+                                                            QueryExposurePolicy exposurePolicy,
                                                             List<QueryDiagnosticsError> errors) {
         Object value = filter.value();
         if (value instanceof SubqueryValueAst subqueryValueAst) {
-            collectMissingJoinSourceErrors(subqueryValueAst.query(), joinSources, errors);
+            collectMissingJoinSourceErrors(subqueryValueAst.query(), joinSources, exposurePolicy, errors);
         } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            collectMissingJoinSourceErrors(existsSubqueryValueAst.query(), joinSources, errors);
+            collectMissingJoinSourceErrors(existsSubqueryValueAst.query(), joinSources, exposurePolicy, errors);
         }
     }
 
@@ -356,6 +385,7 @@ public final class SqlLikeDiagnosticsSupport {
                                                        Class<?> sourceClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        List<QueryDiagnosticsError> errors) {
         LinkedHashSet<String> allowed = allowedFieldNames(sourceClass, computedFieldRegistry);
         String sourceName = ast.select() == null ? null : ast.select().sourceName();
@@ -369,27 +399,39 @@ public final class SqlLikeDiagnosticsSupport {
                 addQualifiedFields(allowed, entry.getKey(), joinClass);
             }
         }
-        collectUnknownWhereFieldErrors(ast, sourceClass, joinSources, computedFieldRegistry, allowed, errors);
+        collectUnknownWhereFieldErrors(
+                ast,
+                sourceClass,
+                joinSources,
+                computedFieldRegistry,
+                exposurePolicy,
+                filterAllowedFields(allowed, exposurePolicy),
+                errors);
     }
 
     private static void collectUnknownWhereFieldErrors(QueryAst ast,
                                                        Class<?> sourceClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
-        collectUnknownWhereFieldErrors(ast.filters(), sourceClass, joinSources, computedFieldRegistry, allowed, errors);
-        collectUnknownWhereFieldErrors(ast.whereExpression(), sourceClass, joinSources, computedFieldRegistry, allowed, errors);
+        collectUnknownWhereFieldErrors(ast.filters(), sourceClass, joinSources, computedFieldRegistry,
+                exposurePolicy, allowed, errors);
+        collectUnknownWhereFieldErrors(ast.whereExpression(), sourceClass, joinSources, computedFieldRegistry,
+                exposurePolicy, allowed, errors);
     }
 
     private static void collectUnknownWhereFieldErrors(List<FilterAst> filters,
                                                        Class<?> sourceClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
         for (FilterAst filter : filters) {
-            collectUnknownWhereFieldErrors(filter, sourceClass, joinSources, computedFieldRegistry, allowed, errors);
+            collectUnknownWhereFieldErrors(filter, sourceClass, joinSources, computedFieldRegistry,
+                    exposurePolicy, allowed, errors);
         }
     }
 
@@ -397,31 +439,36 @@ public final class SqlLikeDiagnosticsSupport {
                                                        Class<?> sourceClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
         if (expression == null) {
             return;
         }
         if (expression instanceof FilterPredicateAst predicateAst) {
-            collectUnknownWhereFieldErrors(predicateAst.filter(), sourceClass, joinSources, computedFieldRegistry, allowed, errors);
+            collectUnknownWhereFieldErrors(predicateAst.filter(), sourceClass, joinSources, computedFieldRegistry,
+                    exposurePolicy, allowed, errors);
             return;
         }
         FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectUnknownWhereFieldErrors(binary.left(), sourceClass, joinSources, computedFieldRegistry, allowed, errors);
-        collectUnknownWhereFieldErrors(binary.right(), sourceClass, joinSources, computedFieldRegistry, allowed, errors);
+        collectUnknownWhereFieldErrors(binary.left(), sourceClass, joinSources, computedFieldRegistry,
+                exposurePolicy, allowed, errors);
+        collectUnknownWhereFieldErrors(binary.right(), sourceClass, joinSources, computedFieldRegistry,
+                exposurePolicy, allowed, errors);
     }
 
     private static void collectUnknownWhereFieldErrors(FilterAst filter,
                                                        Class<?> sourceClass,
                                                        Map<String, List<?>> joinSources,
                                                        ComputedFieldRegistry computedFieldRegistry,
+                                                       QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
         Object value = filter.value();
-        if (!(value instanceof ExistsSubqueryValueAst) && !allowed.contains(filter.field())) {
+        if (!(value instanceof ExistsSubqueryValueAst) && !fieldAllowed(allowed, filter.field())) {
             addError(errors, new QueryDiagnosticsError(
                     SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
-                    "Unknown field '" + filter.field() + "' in WHERE clause"
+                    unknownWhereFieldMessage(filter.field(), allowed)
             ));
         }
         if (value instanceof SubqueryValueAst subqueryValueAst) {
@@ -433,7 +480,8 @@ public final class SqlLikeDiagnosticsSupport {
                     subquerySourceClass,
                     joinSources,
                     computedFieldRegistry,
-                    allowedFieldNames(subquerySourceClass, computedFieldRegistry),
+                    exposurePolicy,
+                    allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
                     errors
             );
         } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
@@ -445,7 +493,8 @@ public final class SqlLikeDiagnosticsSupport {
                     subquerySourceClass,
                     joinSources,
                     computedFieldRegistry,
-                    allowedFieldNames(subquerySourceClass, computedFieldRegistry),
+                    exposurePolicy,
+                    allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
                     errors
             );
         }
@@ -456,6 +505,12 @@ public final class SqlLikeDiagnosticsSupport {
         LinkedHashSet<String> allowed = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
         allowed.addAll(computedFieldRegistry.names());
         return allowed;
+    }
+
+    private static LinkedHashSet<String> allowedFieldNames(Class<?> sourceClass,
+                                                          ComputedFieldRegistry computedFieldRegistry,
+                                                          QueryExposurePolicy exposurePolicy) {
+        return filterAllowedFields(allowedFieldNames(sourceClass, computedFieldRegistry), exposurePolicy);
     }
 
     private static void addQualifiedFields(Set<String> allowed, String sourceName, Class<?> sourceClass) {
@@ -489,6 +544,89 @@ public final class SqlLikeDiagnosticsSupport {
             }
         }
         return null;
+    }
+
+    private static String unknownWhereFieldMessage(String field, Set<String> allowedFields) {
+        List<String> suggestions = NameSuggestions.suggest(field, allowedFields);
+        return "Unknown field '" + field + "' in WHERE clause."
+                + NameSuggestions.formatFragment(suggestions)
+                + allowedFieldsFragment(allowedFields);
+    }
+
+    private static String allowedFieldsFragment(Set<String> allowedFields) {
+        return allowedFields.isEmpty() ? "" : " Allowed fields: " + new TreeSet<>(allowedFields);
+    }
+
+    private static String missingSourceMessage(String kind, String source, Set<String> candidateSources) {
+        List<String> suggestions = NameSuggestions.suggest(source, candidateSources);
+        String message = "Missing " + kind + " source binding for '" + source + "'"
+                + NameSuggestions.formatFragment(suggestions);
+        if (candidateSources.isEmpty()) {
+            return message;
+        }
+        return message + " Available source binding(s): " + new TreeSet<>(candidateSources);
+    }
+
+    private static LinkedHashSet<String> filterAllowedFields(Set<String> candidates,
+                                                             QueryExposurePolicy exposurePolicy) {
+        QueryExposurePolicy policy = effectivePolicy(exposurePolicy);
+        if (!policy.restrictsFields()) {
+            return new LinkedHashSet<>(candidates);
+        }
+        LinkedHashSet<String> filtered = new LinkedHashSet<>();
+        for (String candidate : candidates) {
+            if (fieldAllowed(policy.allowedFields(), candidate)) {
+                filtered.add(candidate);
+            }
+        }
+        return filtered;
+    }
+
+    private static Set<String> filterAllowedSources(Set<String> candidates, QueryExposurePolicy exposurePolicy) {
+        QueryExposurePolicy policy = effectivePolicy(exposurePolicy);
+        if (!policy.restrictsSources()) {
+            return new LinkedHashSet<>(candidates);
+        }
+        LinkedHashSet<String> filtered = new LinkedHashSet<>();
+        for (String candidate : candidates) {
+            if (policy.allowsSource(candidate)) {
+                filtered.add(candidate);
+            }
+        }
+        return filtered;
+    }
+
+    private static boolean fieldAllowed(Set<String> allowedFields, String field) {
+        if (allowedFields.contains(field)) {
+            return true;
+        }
+        int dotIndex = field.lastIndexOf('.');
+        if (dotIndex >= 0 && allowedFields.contains(field.substring(dotIndex + 1))) {
+            return true;
+        }
+        for (String allowedField : allowedFields) {
+            if (allowedField.endsWith("." + field)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean shouldSkipValidatorError(QueryDiagnosticsError error, QueryExposurePolicy exposurePolicy) {
+        QueryExposurePolicy policy = effectivePolicy(exposurePolicy);
+        if (policy.restrictsFields() && SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD.equals(error.code())) {
+            return true;
+        }
+        if (policy.restrictsSources() && SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE.equals(error.code())) {
+            return true;
+        }
+        return policy.restrictsSources()
+                && SqlLikeErrorCodes.VALIDATION_SUBQUERY.equals(error.code())
+                && error.message().startsWith("Missing subquery source binding");
+    }
+
+    private static QueryExposurePolicy effectivePolicy(QueryExposurePolicy policy) {
+        return policy == null ? QueryExposurePolicy.unrestricted() : policy;
     }
 
     private static void addError(List<QueryDiagnosticsError> errors, QueryDiagnosticsError error) {

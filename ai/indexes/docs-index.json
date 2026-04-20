@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T13:07:54.100318+02:00",
+  "generatedAt": "2026-04-20T15:25:37.227066+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -169,7 +169,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 50,
-      "byteCount": 2818,
+      "byteCount": 2867,
       "coldSearchEligible": true
     },
     {
@@ -178,7 +178,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 44,
-      "byteCount": 2800,
+      "byteCount": 2835,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +186,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 151,
-      "byteCount": 78830,
+      "lineCount": 152,
+      "byteCount": 79339,
       "coldSearchEligible": true
     },
     {

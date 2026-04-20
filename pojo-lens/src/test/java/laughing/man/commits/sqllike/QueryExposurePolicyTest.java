@@ -60,6 +60,22 @@ public class QueryExposurePolicyTest {
     }
 
     @Test
+    public void diagnosticsShouldNotSuggestDeniedFields() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department")
+                .build();
+
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("where salaery > 50000")
+                .exposurePolicy(policy)
+                .diagnostics(Employee.class, Employee.class);
+
+        assertFalse(diagnostics.valid());
+        assertTrue(diagnostics.errors().stream()
+                .noneMatch(error -> error.message().contains("salary")));
+    }
+
+    @Test
     public void wildcardSelectShouldHonorFieldExposurePolicy() {
         QueryExposurePolicy policy = QueryExposurePolicy.builder()
                 .allowFields("name")

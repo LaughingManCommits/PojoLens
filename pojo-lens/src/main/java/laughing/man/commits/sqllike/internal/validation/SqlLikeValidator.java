@@ -468,10 +468,17 @@ public final class SqlLikeValidator {
         }
         List<?> sourceRows = joinSources.get(select.sourceName());
         if (sourceRows == null) {
+            List<String> suggestions = NameSuggestions.suggest(select.sourceName(), joinSources.keySet());
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Missing subquery source binding for '" + select.sourceName() + "'");
+                    "Missing subquery source binding for '" + select.sourceName() + "'"
+                            + NameSuggestions.formatFragment(suggestions)
+                            + availableSourceBindingsFragment(joinSources));
         }
         return inferListElementClass(sourceRows);
+    }
+
+    private static String availableSourceBindingsFragment(Map<String, List<?>> joinSources) {
+        return joinSources.isEmpty() ? "" : " Available source binding(s): " + new TreeSet<>(joinSources.keySet());
     }
 
     private static void validateExpressionIdentifiers(String expression,

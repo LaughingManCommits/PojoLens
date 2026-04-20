@@ -4,6 +4,7 @@ import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.filter.FastStatsQuerySupport;
 import laughing.man.commits.filter.FilterCore;
 import laughing.man.commits.filter.FilterExecutionPlan;
@@ -33,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 
 final class SqlLikePreparedExecutionSupport {
@@ -391,7 +393,7 @@ final class SqlLikePreparedExecutionSupport {
                 List<?> rows = joinSources.get(joinSourceName);
                 if (rows == null) {
                     throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + joinSourceName + "'");
+                            missingJoinSourceMessage(joinSourceName, joinSources));
                 }
                 byIndex.put(i + 1, rows);
             }
@@ -431,7 +433,7 @@ final class SqlLikePreparedExecutionSupport {
                 List<?> rows = joinSources.get(join.childSource());
                 if (rows == null) {
                     throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + join.childSource() + "'");
+                            missingJoinSourceMessage(join.childSource(), joinSources));
                 }
                 joinShapes.add(new JoinSourceShape(join.childSource(), inferJoinSourceClass(rows)));
             });
@@ -440,5 +442,14 @@ final class SqlLikePreparedExecutionSupport {
     }
 
     private record JoinSourceShape(String sourceName, Class<?> rowClass) {
+    }
+
+    private static String missingJoinSourceMessage(String source, Map<String, List<?>> joinSources) {
+        String message = "Missing JOIN source binding for '" + source + "'"
+                + NameSuggestions.formatFragment(NameSuggestions.suggest(source, joinSources.keySet()));
+        if (joinSources.isEmpty()) {
+            return message;
+        }
+        return message + " Available source binding(s): " + new TreeSet<>(joinSources.keySet());
     }
 }

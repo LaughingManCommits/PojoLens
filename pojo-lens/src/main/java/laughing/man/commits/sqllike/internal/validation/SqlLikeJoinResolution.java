@@ -58,8 +58,11 @@ public final class SqlLikeJoinResolution {
         for (JoinAst join : joins) {
             List<?> childRows = joinSources.get(join.childSource());
             if (childRows == null) {
+                List<String> suggestions = NameSuggestions.suggest(join.childSource(), joinSources.keySet());
                 throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        "Missing JOIN source binding for '" + join.childSource() + "'");
+                        "Missing JOIN source binding for '" + join.childSource() + "'"
+                                + NameSuggestions.formatFragment(suggestions)
+                                + availableSourceBindingsFragment(joinSources));
             }
             Class<?> childClass = SqlLikeValidator.inferListElementClass(childRows);
             LinkedHashSet<String> childFields = new LinkedHashSet<>(SqlLikeValidator.collectFields(childClass));
@@ -80,6 +83,10 @@ public final class SqlLikeJoinResolution {
         }
 
         return new Plan(resolvedJoins, state.directReferences(), state.fieldTypes(), state.ambiguousReferences());
+    }
+
+    private static String availableSourceBindingsFragment(Map<String, List<?>> joinSources) {
+        return joinSources.isEmpty() ? "" : " Available source binding(s): " + new TreeSet<>(joinSources.keySet());
     }
 
     public static QueryAst canonicalize(QueryAst ast, Plan plan) {

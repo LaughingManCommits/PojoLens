@@ -425,7 +425,7 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
         QueryDiagnostics diagnostics = SqlLikeDiagnosticsSupport.buildWithValidation(
                 ast, suppressedLintCodes, sourceClass, projectionClass,
-                Collections.emptyMap(), computedFieldRegistry);
+                Collections.emptyMap(), computedFieldRegistry, exposurePolicy);
         return QueryExposurePolicySupport.apply(diagnostics, ast, exposurePolicy, sourceClass, Collections.emptyMap());
     }
 
@@ -446,7 +446,7 @@ public final class SqlLikeQuery {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         QueryDiagnostics diagnostics = SqlLikeDiagnosticsSupport.buildWithValidation(
                 ast, suppressedLintCodes, sourceClass, projectionClass,
-                joinBindings.asMap(), computedFieldRegistry);
+                joinBindings.asMap(), computedFieldRegistry, exposurePolicy);
         return QueryExposurePolicySupport.apply(
                 diagnostics, ast, exposurePolicy, sourceClass, joinBindings.asMap());
     }

@@ -25,7 +25,7 @@
 - `2026-04-19`: `QueryExposurePolicy` allowlists fields/sources for SQL-like, natural lowering, and runtime defaults.
 - `2026-04-19`: `SqlLikePlanPreview` from `planPreview()`: grouped predicates via `PlanPreviewPredicate`, nested subquery via `subqueryPreview()`.
 - `2026-04-20`: `PageResult<T>` from `filterPage(...)`: rows, hasMore, nextCursor; requires positive static LIMIT + ORDER BY, rejects OFFSET, uses limit+1 lookahead.
-- `2026-04-20`: `NameSuggestions` (internal) provides Levenshtein+prefix suggestions; wired into SQL-like field/param/JOIN errors and natural field term errors. Policy-blocked fields not exposed in suggestions (policy runs first).
+- `2026-04-20`: `NameSuggestions` (internal) provides Levenshtein+prefix suggestions; wired into SQL-like field/param/JOIN/source errors and natural field term errors. Diagnostics filter candidates through exposure policy.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with `TreeEntry<T>` metadata.
 - User-authored query text needs params, approved fields/sources, lint, strict typing, and external authorization.
 
@@ -34,7 +34,7 @@
 - After code changes: `mvn -B -ntp test`, then benchmark guardrails when performance changes.
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-20` QOL-WP5 better error suggestions passed 843-test Maven suite, doc consistency, and diff check.
+- Last validation: `2026-04-20` QOL-WP5 review hardening passed targeted suggestion/policy diagnostics tests, full 869-test Maven suite, doc consistency, and diff check.
 
 ## Cold Pointers
 
