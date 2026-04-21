@@ -451,6 +451,22 @@ class TaskRunRecord:
     worker_validation_mode_source: str | None = None
 
 
+def _add_claude_bin_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--claude-bin", default=DEFAULT_CLAUDE_BIN, help="Claude CLI executable to invoke.")
+
+
+def _add_max_parallel_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--max-parallel", type=int, default=2, help="Maximum number of ready tasks to run concurrently.")
+
+
+def _add_continue_on_error_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue running independent tasks after a worker fails or reports blocked.",
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Coordinate local Claude Code workers from tracked repo task specs."
@@ -523,11 +539,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Validation command hint. Repeatable.",
     )
-    plan_parser.add_argument(
-        "--claude-bin",
-        default=DEFAULT_CLAUDE_BIN,
-        help="Claude CLI executable to invoke.",
-    )
+    _add_claude_bin_arg(plan_parser)
     plan_parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -549,22 +561,13 @@ def parse_args() -> argparse.Namespace:
         default=str(DEFAULT_AGENTS_PATH),
         help="Path to the tracked agents JSON file.",
     )
-    run_parser.add_argument(
-        "--claude-bin",
-        default=DEFAULT_CLAUDE_BIN,
-        help="Claude CLI executable to invoke.",
-    )
+    _add_claude_bin_arg(run_parser)
     run_parser.add_argument(
         "--runtime-root",
         default=str(DEFAULT_RUNTIME_ROOT),
         help="Runtime root for generated manifests, logs, and isolated workspaces.",
     )
-    run_parser.add_argument(
-        "--max-parallel",
-        type=int,
-        default=2,
-        help="Maximum number of ready tasks to run concurrently.",
-    )
+    _add_max_parallel_arg(run_parser)
     run_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -572,11 +575,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Restrict execution to a task id and its prerequisites. Repeatable.",
     )
-    run_parser.add_argument(
-        "--continue-on-error",
-        action="store_true",
-        help="Continue running independent tasks after a worker fails or reports blocked.",
-    )
+    _add_continue_on_error_arg(run_parser)
     run_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -607,17 +606,8 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
     )
-    resume_parser.add_argument(
-        "--claude-bin",
-        default=DEFAULT_CLAUDE_BIN,
-        help="Claude CLI executable to invoke.",
-    )
-    resume_parser.add_argument(
-        "--max-parallel",
-        type=int,
-        default=2,
-        help="Maximum number of ready tasks to run concurrently.",
-    )
+    _add_claude_bin_arg(resume_parser)
+    _add_max_parallel_arg(resume_parser)
     resume_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -625,11 +615,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Restrict resume to one or more task ids. Defaults to all non-completed or missing tasks in the run snapshot.",
     )
-    resume_parser.add_argument(
-        "--continue-on-error",
-        action="store_true",
-        help="Continue running independent tasks after a worker fails or reports blocked.",
-    )
+    _add_continue_on_error_arg(resume_parser)
     resume_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -660,22 +646,13 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
     )
-    retry_parser.add_argument(
-        "--claude-bin",
-        default=DEFAULT_CLAUDE_BIN,
-        help="Claude CLI executable to invoke.",
-    )
+    _add_claude_bin_arg(retry_parser)
     retry_parser.add_argument(
         "--runtime-root",
         default="",
         help="Override runtime root for the retry run. Defaults to the original run manifest runtimeRoot.",
     )
-    retry_parser.add_argument(
-        "--max-parallel",
-        type=int,
-        default=2,
-        help="Maximum number of ready tasks to run concurrently.",
-    )
+    _add_max_parallel_arg(retry_parser)
     retry_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -683,11 +660,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Restrict retry to one or more task ids. Defaults to failed or blocked tasks.",
     )
-    retry_parser.add_argument(
-        "--continue-on-error",
-        action="store_true",
-        help="Continue running independent tasks after a worker fails or reports blocked.",
-    )
+    _add_continue_on_error_arg(retry_parser)
     retry_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -1072,14 +1045,10 @@ def ensure_context_mode(value: str | None, *, location: str) -> str | None:
     return value
 
 
-def normalize_run_policy_behavior(value: str | None, *, location: str, key: str) -> str:
+def normalize_run_policy_behavior(value: str | None, *, location: str, key: str, default: str) -> str:
     normalized = (value or "").strip()
     if not normalized:
-        return (
-            DEFAULT_RUN_BUDGET_BEHAVIOR
-            if key == "budgetBehavior"
-            else DEFAULT_ARTIFACT_BEHAVIOR
-        )
+        return default
     if normalized not in RUN_POLICY_BEHAVIORS:
         raise OrchestratorError(
             f"{location}:{key}: expected one of {sorted(RUN_POLICY_BEHAVIORS)}"
@@ -1123,6 +1092,7 @@ def load_run_policy(payload: Any, *, location: str) -> RunPolicy:
             require_optional_string(payload, "budgetBehavior", location=location),
             location=location,
             key="budgetBehavior",
+            default=DEFAULT_RUN_BUDGET_BEHAVIOR,
         ),
         max_task_stdout_bytes=require_optional_int(payload, "maxTaskStdoutBytes", location=location),
         max_task_stderr_bytes=require_optional_int(payload, "maxTaskStderrBytes", location=location),
@@ -1131,6 +1101,7 @@ def load_run_policy(payload: Any, *, location: str) -> RunPolicy:
             require_optional_string(payload, "artifactBehavior", location=location),
             location=location,
             key="artifactBehavior",
+            default=DEFAULT_ARTIFACT_BEHAVIOR,
         ),
     )
 
@@ -1505,14 +1476,15 @@ def selected_plan(plan: TaskPlan, selected_ids: list[str]) -> TaskPlan:
     )
 
 
-def effective_allowed_tools(task: TaskDefinition, agent: AgentDefinition) -> list[str]:
+def _effective_tool_lists(task: TaskDefinition, agent: AgentDefinition) -> tuple[list[str], list[str]]:
     if task.allowed_tools:
-        allowed = list(task.allowed_tools)
-        denied = set(task.disallowed_tools)
-    else:
-        allowed = list(agent.allowed_tools)
-        denied = set(agent.disallowed_tools)
-    return [tool for tool in allowed if tool not in denied]
+        return list(task.allowed_tools), list(task.disallowed_tools)
+    return list(agent.allowed_tools), list(agent.disallowed_tools)
+
+
+def effective_allowed_tools(task: TaskDefinition, agent: AgentDefinition) -> list[str]:
+    allowed, denied = _effective_tool_lists(task, agent)
+    return [tool for tool in allowed if tool not in set(denied)]
 
 
 def task_may_write(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition) -> bool:
@@ -2092,6 +2064,29 @@ def apply_workspace_audit(
                 or ("out-of-scope" in follow_up and scope_violations)
             ):
                 record.follow_ups.insert(0, follow_up)
+    return record
+
+
+def apply_repository_isolation_audit(
+    record: TaskRunRecord,
+    *,
+    workspace_mode: str,
+    changed_repo_files: list[str],
+) -> TaskRunRecord:
+    if workspace_mode == "repo" or not changed_repo_files:
+        return record
+    summary = (
+        "Repository isolation violation: worker modified live repo while running in "
+        f"workspaceMode='{workspace_mode}': {summarize_paths(changed_repo_files)}"
+    )
+    record.status = "failed"
+    record.summary = summary + f". Original outcome: {record.summary}"
+    follow_up = (
+        "Discard or restore live repo mutations, then rerun the task and promote only "
+        "workspace-reviewed changes."
+    )
+    if follow_up not in record.follow_ups:
+        record.follow_ups.insert(0, follow_up)
     return record
 
 
@@ -2972,14 +2967,7 @@ def planner_prompt(
 
 
 def dedupe_strings(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for value in values:
-        if value in seen:
-            continue
-        seen.add(value)
-        ordered.append(value)
-    return ordered
+    return list(dict.fromkeys(values))
 
 
 def estimate_tokens(text: str) -> int:
@@ -4407,6 +4395,83 @@ def artifact_file_size(path: Path | None) -> int:
     return int(path.stat().st_size)
 
 
+def _make_execute_record(
+    task: TaskDefinition,
+    workspace_mode: str,
+    prepared_workspace: Path,
+    started_at: str,
+    model_name: str | None,
+    model_profile: str | None,
+    prompt_chars: int,
+    prompt_estimated_tokens: int,
+    prompt_render: PromptRenderResult,
+    prompt_budget: PromptBudgetResult,
+    prompt_path: Path,
+    command_path: Path,
+    dependency_materialization_mode: str,
+    prepared_dependency_layers: list[DependencyLayerRecord],
+    effective_validation_mode: str,
+    validation_resolution: WorkerValidationModeResolution,
+    *,
+    status: str,
+    summary: str,
+    files_touched: list[str] = (),
+    validation_intents: list[ValidationIntent] = (),
+    validation_commands: list[str] = (),
+    follow_ups: list[str] = (),
+    notes: list[str] = (),
+    usage: dict[str, Any] | None = None,
+    return_code: int | None = None,
+    stdout_path: str | None = None,
+    stderr_path: str | None = None,
+    result_path: str | None = None,
+    stdout_bytes: int = 0,
+    stderr_bytes: int = 0,
+    result_bytes: int = 0,
+    unknown_fields: list[str] = (),
+) -> TaskRunRecord:
+    return TaskRunRecord(
+        id=task.id,
+        title=task.title,
+        agent=task.agent,
+        status=status,
+        summary=summary,
+        workspace_mode=workspace_mode,
+        workspace_path=str(prepared_workspace),
+        started_at=started_at,
+        finished_at=iso_now(),
+        files_touched=list(files_touched),
+        actual_files_touched=[],
+        protected_path_violations=[],
+        write_scope_violations=[],
+        validation_intents=list(validation_intents),
+        validation_commands=list(validation_commands),
+        follow_ups=list(follow_ups),
+        notes=list(notes),
+        model=model_name,
+        model_profile=model_profile,
+        prompt_chars=prompt_chars,
+        prompt_estimated_tokens=prompt_estimated_tokens,
+        prompt_sections=prompt_render.sections,
+        prompt_budget=prompt_budget,
+        usage=usage,
+        return_code=return_code,
+        prompt_path=str(prompt_path),
+        command_path=str(command_path),
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        result_path=result_path,
+        stdout_bytes=stdout_bytes,
+        stderr_bytes=stderr_bytes,
+        result_bytes=result_bytes,
+        unknown_fields=list(unknown_fields),
+        dependency_materialization_mode=dependency_materialization_mode,
+        dependency_layers_applied=prepared_dependency_layers,
+        worker_validation_mode=effective_validation_mode,
+        worker_validation_mode_source=validation_resolution.source,
+    )
+
+
 def execute_task(
     run_dir: Path,
     runtime_root: Path,
@@ -4470,8 +4535,7 @@ def execute_task(
         max_chars=resolved_max_prompt_chars(task, agent),
         max_estimated_tokens=resolved_max_prompt_estimated_tokens(task, agent),
     )
-    _task_allowed = task.allowed_tools if task.allowed_tools else agent.allowed_tools
-    _task_disallowed = task.disallowed_tools if task.allowed_tools else agent.disallowed_tools
+    _task_allowed, _task_disallowed = _effective_tool_lists(task, agent)
     command = claude_command(
         claude_bin,
         agents_json,
@@ -4493,84 +4557,27 @@ def execute_task(
     started_at = iso_now()
     result_path = task_dir / "result.json"
     if prompt_budget.exceeded:
-        record = TaskRunRecord(
-            id=task.id,
-            title=task.title,
-            agent=task.agent,
+        record = _make_execute_record(
+            task, workspace_mode, prepared_workspace, started_at,
+            model_name, model_profile, prompt_chars, prompt_estimated_tokens,
+            prompt_render, prompt_budget, prompt_path, command_path,
+            dependency_materialization_mode, prepared_dependency_layers,
+            effective_validation_mode, validation_resolution,
             status="failed",
             summary=prompt_budget_failure_summary(prompt_budget),
-            workspace_mode=workspace_mode,
-            workspace_path=str(prepared_workspace),
-            started_at=started_at,
-            finished_at=iso_now(),
-            files_touched=[],
-            actual_files_touched=[],
-            protected_path_violations=[],
-            write_scope_violations=[],
-            validation_commands=[],
             follow_ups=["Reduce the task prompt scope, dependency summary, or validation hints."],
-            notes=[],
-            model=model_name,
-            model_profile=model_profile,
-            prompt_chars=prompt_chars,
-            prompt_estimated_tokens=prompt_estimated_tokens,
-            prompt_sections=prompt_render.sections,
-            prompt_budget=prompt_budget,
-            usage=None,
-            return_code=None,
-            prompt_path=str(prompt_path),
-            command_path=str(command_path),
-            stdout_path=None,
-            stderr_path=None,
-            result_path=None,
-            stdout_bytes=0,
-            stderr_bytes=0,
-            result_bytes=0,
-            dependency_materialization_mode=dependency_materialization_mode,
-            dependency_layers_applied=prepared_dependency_layers,
-            worker_validation_mode=effective_validation_mode,
-            worker_validation_mode_source=validation_resolution.source,
         )
         write_json(result_path, asdict(record))
         return record
     if dry_run:
-        record = TaskRunRecord(
-            id=task.id,
-            title=task.title,
-            agent=task.agent,
+        record = _make_execute_record(
+            task, workspace_mode, prepared_workspace, started_at,
+            model_name, model_profile, prompt_chars, prompt_estimated_tokens,
+            prompt_render, prompt_budget, prompt_path, command_path,
+            dependency_materialization_mode, prepared_dependency_layers,
+            effective_validation_mode, validation_resolution,
             status="planned",
             summary="Dry run only; Claude was not invoked.",
-            workspace_mode=workspace_mode,
-            workspace_path=str(prepared_workspace),
-            started_at=started_at,
-            finished_at=iso_now(),
-            files_touched=[],
-            actual_files_touched=[],
-            protected_path_violations=[],
-            write_scope_violations=[],
-            validation_commands=[],
-            follow_ups=[],
-            notes=[],
-            model=model_name,
-            model_profile=model_profile,
-            prompt_chars=prompt_chars,
-            prompt_estimated_tokens=prompt_estimated_tokens,
-            prompt_sections=prompt_render.sections,
-            prompt_budget=prompt_budget,
-            usage=None,
-            return_code=None,
-            prompt_path=str(prompt_path),
-            command_path=str(command_path),
-            stdout_path=None,
-            stderr_path=None,
-            result_path=None,
-            stdout_bytes=0,
-            stderr_bytes=0,
-            result_bytes=0,
-            dependency_materialization_mode=dependency_materialization_mode,
-            dependency_layers_applied=prepared_dependency_layers,
-            worker_validation_mode=effective_validation_mode,
-            worker_validation_mode_source=validation_resolution.source,
         )
         write_json(result_path, asdict(record))
         return record
@@ -4581,7 +4588,13 @@ def execute_task(
     return_code: int | None = None
     usage: dict[str, Any] | None = None
     workspace_snapshot_before = snapshot_workspace_files(prepared_workspace)
+    repo_snapshot_before = (
+        snapshot_workspace_files(ROOT)
+        if workspace_mode != "repo"
+        else {}
+    )
     actual_changed_files: list[str] = []
+    changed_repo_files: list[str] = []
     try:
         completed = run_subprocess(
             command,
@@ -4596,6 +4609,11 @@ def execute_task(
             workspace_snapshot_before,
             snapshot_workspace_files(prepared_workspace),
         )
+        if workspace_mode != "repo":
+            changed_repo_files = diff_workspace_snapshots(
+                repo_snapshot_before,
+                snapshot_workspace_files(ROOT),
+            )
         raw_payload: Any | None = None
         try:
             raw_payload = extract_json_payload(completed.stdout)
@@ -4603,49 +4621,32 @@ def execute_task(
         except OrchestratorError:
             raw_payload = None
         if completed.returncode != 0:
-            record = TaskRunRecord(
-                id=task.id,
-                title=task.title,
-                agent=task.agent,
+            record = _make_execute_record(
+                task, workspace_mode, prepared_workspace, started_at,
+                model_name, model_profile, prompt_chars, prompt_estimated_tokens,
+                prompt_render, prompt_budget, prompt_path, command_path,
+                dependency_materialization_mode, prepared_dependency_layers,
+                effective_validation_mode, validation_resolution,
                 status="failed",
                 summary=completed.stderr.strip() or completed.stdout.strip() or "Claude failed",
-                workspace_mode=workspace_mode,
-                workspace_path=str(prepared_workspace),
-                started_at=started_at,
-                finished_at=iso_now(),
-                files_touched=[],
-                actual_files_touched=[],
-                protected_path_violations=[],
-                write_scope_violations=[],
-                validation_commands=[],
                 follow_ups=["Inspect stderr/stdout artifacts for details."],
-                notes=[],
-                model=model_name,
-                model_profile=model_profile,
-                prompt_chars=prompt_chars,
-                prompt_estimated_tokens=prompt_estimated_tokens,
-                prompt_sections=prompt_render.sections,
-                prompt_budget=prompt_budget,
                 usage=usage,
                 return_code=return_code,
-                prompt_path=str(prompt_path),
-                command_path=str(command_path),
                 stdout_path=str(stdout_path),
                 stderr_path=str(stderr_path),
-                result_path=None,
                 stdout_bytes=artifact_file_size(stdout_path),
                 stderr_bytes=artifact_file_size(stderr_path),
-                result_bytes=0,
-                dependency_materialization_mode=dependency_materialization_mode,
-                dependency_layers_applied=prepared_dependency_layers,
-                worker_validation_mode=effective_validation_mode,
-                worker_validation_mode_source=validation_resolution.source,
             )
             apply_workspace_audit(
                 record,
                 reported_files=[],
                 actual_files=actual_changed_files,
                 declared_write_scope=declared_write_scope,
+            )
+            apply_repository_isolation_audit(
+                record,
+                workspace_mode=workspace_mode,
+                changed_repo_files=changed_repo_files,
             )
             write_json(result_path, asdict(record))
             return record
@@ -4657,20 +4658,15 @@ def execute_task(
             worker_validation_mode=effective_validation_mode,
         )
         write_json(worker_result_path, payload)
-        record = TaskRunRecord(
-            id=task.id,
-            title=task.title,
-            agent=task.agent,
+        record = _make_execute_record(
+            task, workspace_mode, prepared_workspace, started_at,
+            model_name, model_profile, prompt_chars, prompt_estimated_tokens,
+            prompt_render, prompt_budget, prompt_path, command_path,
+            dependency_materialization_mode, prepared_dependency_layers,
+            effective_validation_mode, validation_resolution,
             status=str(payload["status"]),
             summary=str(payload["summary"]),
-            workspace_mode=workspace_mode,
-            workspace_path=str(prepared_workspace),
-            started_at=started_at,
-            finished_at=iso_now(),
             files_touched=[str(item) for item in payload["filesTouched"]],
-            actual_files_touched=[],
-            protected_path_violations=[],
-            write_scope_violations=[],
             validation_intents=[
                 coerce_validation_intent_payload(
                     item,
@@ -4681,16 +4677,8 @@ def execute_task(
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
             notes=[str(item) for item in payload["notes"]],
-            model=model_name,
-            model_profile=model_profile,
-            prompt_chars=prompt_chars,
-            prompt_estimated_tokens=prompt_estimated_tokens,
-            prompt_sections=prompt_render.sections,
-            prompt_budget=prompt_budget,
             usage=usage,
             return_code=return_code,
-            prompt_path=str(prompt_path),
-            command_path=str(command_path),
             stdout_path=str(stdout_path),
             stderr_path=str(stderr_path),
             result_path=str(worker_result_path),
@@ -4698,16 +4686,17 @@ def execute_task(
             stderr_bytes=artifact_file_size(stderr_path),
             result_bytes=artifact_file_size(worker_result_path),
             unknown_fields=[str(item) for item in payload.get("unknownFields", [])],
-            dependency_materialization_mode=dependency_materialization_mode,
-            dependency_layers_applied=prepared_dependency_layers,
-            worker_validation_mode=effective_validation_mode,
-            worker_validation_mode_source=validation_resolution.source,
         )
         apply_workspace_audit(
             record,
             reported_files=[str(item) for item in payload["filesTouched"]],
             actual_files=actual_changed_files,
             declared_write_scope=declared_write_scope,
+        )
+        apply_repository_isolation_audit(
+            record,
+            workspace_mode=workspace_mode,
+            changed_repo_files=changed_repo_files,
         )
         write_json(result_path, asdict(record))
         return record
@@ -4717,49 +4706,37 @@ def execute_task(
             workspace_snapshot_before,
             snapshot_workspace_files(prepared_workspace),
         )
-        record = TaskRunRecord(
-            id=task.id,
-            title=task.title,
-            agent=task.agent,
+        if workspace_mode != "repo":
+            changed_repo_files = diff_workspace_snapshots(
+                repo_snapshot_before,
+                snapshot_workspace_files(ROOT),
+            )
+        record = _make_execute_record(
+            task, workspace_mode, prepared_workspace, started_at,
+            model_name, model_profile, prompt_chars, prompt_estimated_tokens,
+            prompt_render, prompt_budget, prompt_path, command_path,
+            dependency_materialization_mode, prepared_dependency_layers,
+            effective_validation_mode, validation_resolution,
             status="failed",
             summary=str(exc),
-            workspace_mode=workspace_mode,
-            workspace_path=str(prepared_workspace),
-            started_at=started_at,
-            finished_at=iso_now(),
-            files_touched=[],
-            actual_files_touched=[],
-            protected_path_violations=[],
-            write_scope_violations=[],
-            validation_commands=[],
             follow_ups=["Retry after fixing the worker failure."],
-            notes=[],
-            model=model_name,
-            model_profile=model_profile,
-            prompt_chars=prompt_chars,
-            prompt_estimated_tokens=prompt_estimated_tokens,
-            prompt_sections=prompt_render.sections,
-            prompt_budget=prompt_budget,
             usage=usage,
             return_code=return_code,
-            prompt_path=str(prompt_path),
-            command_path=str(command_path),
             stdout_path=str(stdout_path) if stdout_path.exists() else None,
             stderr_path=str(stderr_path),
-            result_path=None,
             stdout_bytes=artifact_file_size(stdout_path) if stdout_path.exists() else 0,
             stderr_bytes=artifact_file_size(stderr_path),
-            result_bytes=0,
-            dependency_materialization_mode=dependency_materialization_mode,
-            dependency_layers_applied=prepared_dependency_layers,
-            worker_validation_mode=effective_validation_mode,
-            worker_validation_mode_source=validation_resolution.source,
         )
         apply_workspace_audit(
             record,
             reported_files=[],
             actual_files=actual_changed_files,
             declared_write_scope=declared_write_scope,
+        )
+        apply_repository_isolation_audit(
+            record,
+            workspace_mode=workspace_mode,
+            changed_repo_files=changed_repo_files,
         )
         write_json(result_path, asdict(record))
         return record

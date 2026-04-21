@@ -2706,6 +2706,96 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertIn("must not include raw validationCommands", record.summary)
         self.assertIn("must not include raw validationCommands", stderr_text)
 
+    def test_execute_task_fails_when_copy_mode_worker_mutates_live_repo(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_run_subprocess = orchestrator.run_subprocess
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            runtime_root = temp_path / "runtime"
+            workspaces_dir = temp_path / "workspaces"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            runtime_root.mkdir()
+            workspaces_dir.mkdir()
+            orchestrator.ROOT = repo_root
+
+            def fake_run_subprocess(command, *, cwd, timeout_sec, progress_action=None):
+                (repo_root / "leaked.txt").write_text("leak", encoding="utf-8")
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    json.dumps(
+                        {
+                            "status": "completed",
+                            "summary": "Done.",
+                            "filesTouched": [],
+                            "validationIntents": [],
+                            "followUps": [],
+                            "notes": [],
+                        }
+                    ),
+                    "",
+                )
+
+            orchestrator.run_subprocess = fake_run_subprocess
+            try:
+                agent = orchestrator.AgentDefinition(
+                    name="implementer",
+                    description="implementation",
+                    prompt="Return JSON only.",
+                    model_profile="simple",
+                    effort="high",
+                    permission_mode="dontAsk",
+                    workspace_mode="copy",
+                    context_mode="minimal",
+                    timeout_sec=30,
+                    allowed_tools=["Read", "Write"],
+                    disallowed_tools=[],
+                )
+                task = orchestrator.TaskDefinition(
+                    id="isolated-write",
+                    title="Isolated write",
+                    agent="implementer",
+                    prompt="Write only inside workspace.",
+                    workspace_mode="copy",
+                    write_paths=["out/**"],
+                )
+                plan = orchestrator.TaskPlan(
+                    version=1,
+                    name="repo-isolation-failure",
+                    goal="Ensure copy mode cannot mutate repo root.",
+                    shared_context=orchestrator.SharedContext(
+                        summary="Repo isolation test.",
+                        constraints=[],
+                        read_paths=[],
+                        validation=[],
+                    ),
+                    tasks=[task],
+                )
+
+                record = orchestrator.execute_task(
+                    run_dir,
+                    runtime_root,
+                    workspaces_dir,
+                    plan,
+                    {"implementer": agent},
+                    task,
+                    {},
+                    claude_bin="claude",
+                    agents_json="{}",
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("failed", record.status)
+        self.assertIn("Repository isolation violation", record.summary)
+        self.assertIn("workspaceMode='copy'", record.summary)
+
     def test_run_loaded_plan_fail_fast_blocks_remaining_ready_tasks(self):
         orchestrator = self.orchestrator
         old_ensure_claude_available = orchestrator.ensure_claude_available
