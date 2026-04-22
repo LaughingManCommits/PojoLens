@@ -41,6 +41,54 @@ Use these when you need operational visibility or stricter query hygiene:
 - Benchmark and threshold tooling:
   [benchmarking.md](benchmarking.md)
 
+## Execution Governance
+
+Use `QueryExecutionGuard` when user-authored queries need bounded execution.
+The guard enforces complexity, row-scan, row-return, and duration limits and
+blocks non-compliant queries with a machine-readable code and human-readable
+reason. It is attached to a query with the fluent `.executionGuard(guard)` call
+and applies to both SQL-like and natural query paths.
+
+```java
+QueryExecutionGuard guard = QueryExecutionGuard.builder()
+    .maxRowsScanned(10_000)
+    .maxRowsReturned(500)
+    .maxComplexityScore(8)
+    .maxDurationMillis(2_000)
+    .build();
+
+try {
+    List<Row> rows = PojoLensSql.parse(userQuery)
+        .executionGuard(guard)
+        .filter(snapshot, Row.class);
+} catch (QueryExecutionGuardException ex) {
+    QueryGuardOutcome outcome = ex.outcome();
+    log.warn("Query blocked [{}]: {}", outcome.blockCode(), outcome.blockReason());
+    // emit outcome.auditMetadata() to telemetry
+}
+```
+
+**Block codes:**
+
+| Code | When |
+|------|------|
+| `GUARD_ROWS_SCANNED_EXCEEDED` | Input rows exceed `maxRowsScanned` (pre-execution) |
+| `GUARD_COMPLEXITY_EXCEEDED` | Complexity score exceeds `maxComplexityScore` (pre-execution) |
+| `GUARD_ROWS_RETURNED_EXCEEDED` | Result rows exceed `maxRowsReturned` (post-execution) |
+| `GUARD_DURATION_EXCEEDED` | Wall-clock time exceeds `maxDurationMillis` (post-execution) |
+
+**Complexity scoring:** `QueryComplexitySummary` derives an additive integer score
+from the parsed query shape (1 per filter, 3 per join, +2 grouping, +2 aggregation,
++4 windows, +3 subqueries). Inspect it via `QueryExecutionGuard.checkPreExecution()`
+or retrieve from `QueryGuardOutcome.complexitySummary()`.
+
+**Telemetry:** When a guard blocks, `QueryTelemetryStage.GUARD_REJECTED` is emitted
+via `QueryTelemetryListener` before throwing, carrying `auditMetadata()` fields.
+
+**Security boundary:** The guard provides bounded execution governance. Authentication,
+RBAC, and tenant-level authorization remain host-application responsibilities. Pair
+with `QueryExposurePolicy` to restrict which fields and sources are visible.
+
 ## Regression And Snapshot Tooling
 
 Use these when you need safety rails around changing query behavior:

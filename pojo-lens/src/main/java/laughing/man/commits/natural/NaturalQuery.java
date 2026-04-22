@@ -12,6 +12,7 @@ import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlParams;
@@ -166,6 +167,26 @@ public final class NaturalQuery {
     public NaturalQuery executionPlanCache(FilterExecutionPlanCacheStore executionPlanCache) {
         Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
         return state.executionPlanCache() == executionPlanCache ? this : withState(state.withExecutionPlanCache(executionPlanCache));
+    }
+
+    /**
+     * Returns a query with the given execution guard applied.
+     *
+     * @param guard execution guard; must not be null
+     * @return query with guard attached
+     */
+    public NaturalQuery executionGuard(QueryExecutionGuard guard) {
+        Objects.requireNonNull(guard, "guard must not be null");
+        return state.executionGuard() == guard ? this : withState(state.withExecutionGuard(guard));
+    }
+
+    /**
+     * Returns the execution guard attached to this query.
+     *
+     * @return execution guard
+     */
+    public QueryExecutionGuard executionGuard() {
+        return state.executionGuard();
     }
 
     NaturalQuery vocabulary(NaturalVocabulary vocabulary) {
@@ -480,7 +501,8 @@ public final class NaturalQuery {
                 .computedFields(state.computedFieldRegistry())
                 .exposurePolicy(state.exposurePolicy())
                 .executionPlanCache(state.executionPlanCache())
-                .telemetry(state.telemetryListener());
+                .telemetry(state.telemetryListener())
+                .executionGuard(state.executionGuard());
     }
 
     private Map<String, Object> addExplainMetadata(Map<String, Object> explain,
@@ -531,7 +553,8 @@ public final class NaturalQuery {
                               FilterExecutionPlanCacheStore executionPlanCache,
                               QueryExposurePolicy exposurePolicy,
                               NaturalVocabulary vocabulary,
-                              ChartType chartType) {
+                              ChartType chartType,
+                              QueryExecutionGuard executionGuard) {
 
         private QueryState {
             Objects.requireNonNull(ast, "ast must not be null");
@@ -542,6 +565,7 @@ public final class NaturalQuery {
             executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
             exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
             vocabulary = vocabulary == null ? NaturalVocabulary.empty() : vocabulary;
+            executionGuard = executionGuard == null ? QueryExecutionGuard.unrestricted() : executionGuard;
         }
 
         private static QueryState of(NaturalQueryParseResult parseResult) {
@@ -555,7 +579,8 @@ public final class NaturalQuery {
                     DefaultFilterExecutionPlanCacheSupport.defaultStore(),
                     QueryExposurePolicy.unrestricted(),
                     NaturalVocabulary.empty(),
-                    parseResult.chartType()
+                    parseResult.chartType(),
+                    QueryExecutionGuard.unrestricted()
             );
         }
 
@@ -570,7 +595,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -585,7 +611,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -600,7 +627,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -615,7 +643,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -630,7 +659,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -645,7 +675,8 @@ public final class NaturalQuery {
                     cache,
                     exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -660,7 +691,8 @@ public final class NaturalQuery {
                     executionPlanCache,
                     policy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -675,7 +707,24 @@ public final class NaturalQuery {
                     executionPlanCache,
                     exposurePolicy,
                     updatedVocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
+            );
+        }
+
+        private QueryState withExecutionGuard(QueryExecutionGuard guard) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    exposurePolicy,
+                    vocabulary,
+                    chartType,
+                    guard
             );
         }
     }

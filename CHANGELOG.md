@@ -11,6 +11,23 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Production query governance and audit** (`STRAT-WP2`) — added
+  `QueryExecutionGuard`, `QueryGuardOutcome`, `QueryComplexitySummary`, and
+  `QueryExecutionGuardException` to the `sqllike` package. `QueryExecutionGuard`
+  enforces bounded execution via pre-execution checks (max rows scanned, max
+  complexity score) and post-execution checks (max rows returned, max duration).
+  `QueryComplexitySummary` derives an additive score from the parsed query shape
+  (1/filter, 3/join, +2 grouping, +2 aggregation, +4 windows, +3 subqueries).
+  `QueryGuardOutcome` carries machine-readable block codes, human-readable reasons,
+  and structured `auditMetadata()` for telemetry and logging. Known block codes:
+  `GUARD_ROWS_SCANNED_EXCEEDED`, `GUARD_COMPLEXITY_EXCEEDED`,
+  `GUARD_ROWS_RETURNED_EXCEEDED`, `GUARD_DURATION_EXCEEDED`. Guard wired into
+  `SqlLikeQuery.executionGuard(guard)` and `NaturalQuery.executionGuard(guard)`.
+  `QueryTelemetryStage.GUARD_REJECTED` emitted via `QueryTelemetryListener` on
+  block. Security boundary documented: exposure control and execution governance
+  are in-scope; auth/RBAC/tenant policy remain host-application responsibilities.
+  Contract coverage added to `StablePublicApiContractTest`.
+
 - **Stable embedded reporting contract** (`STRAT-WP1`) — added `SavedReport`
   and `SavedReportKind` to the `report` package. `SavedReport` is a versioned,
   serialization-friendly contract carrying query text, default parameters,

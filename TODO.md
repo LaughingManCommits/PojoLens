@@ -32,6 +32,19 @@ puts it into direct competition with stronger database-first tools.
 
 ---
 
+## Status Overview
+
+| WP  | Title                                  | Status            | Key deliverables                                                           |
+|-----|----------------------------------------|-------------------|----------------------------------------------------------------------------|
+| WP1 | Stable Embedded Reporting Contract     | Done              | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests           |
+| WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
+| WP3 | Stable Public Typed DSL               | Not started       | —                                                                          |
+| WP4 | Hybrid Adapters And Pushdown           | Not started       | —                                                                          |
+| WP5 | Repeated-Workload Performance Upgrade  | Not started       | —                                                                          |
+| —   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
+
+---
+
 ## STRAT-WP1: Stable Embedded Reporting Contract
 
 **Priority:** High
@@ -105,14 +118,28 @@ Scope:
   control point for safe execution.
 
 Tasks:
-- [ ] Design a public execution-guard contract for max complexity, max rows
+- [x] Design a public execution-guard contract for max complexity, max rows
       scanned, max rows returned, deadline, and cancellation.
-- [ ] Add pre-execution complexity summaries from the parsed query shape.
-- [ ] Apply guard checks to SQL-like and natural execution paths.
-- [ ] Emit audit-friendly telemetry/explain metadata for blocked or aborted
+      Delivered: QueryExecutionGuard (builder API), QueryGuardOutcome (allowed/blocked
+      with audit metadata), QueryComplexitySummary (from SqlLikePlanPreview), and
+      QueryExecutionGuardException (carries full outcome). Block codes:
+      GUARD_ROWS_SCANNED_EXCEEDED, GUARD_COMPLEXITY_EXCEEDED, GUARD_ROWS_RETURNED_EXCEEDED,
+      GUARD_DURATION_EXCEEDED.
+- [x] Add pre-execution complexity summaries from the parsed query shape.
+      Delivered: QueryComplexitySummary.from(SqlLikePlanPreview) computes additive score
+      (1/filter, 3/join, +2 group, +2 agg, +4 windows, +3 subqueries).
+- [x] Apply guard checks to SQL-like and natural execution paths.
+      Delivered: SqlLikeQuery.executionGuard(guard) + NaturalQuery.executionGuard(guard).
+      Pre-execution check in prepareExecution (rows scanned + complexity), post-execution
+      check in filter/chart methods (rows returned + duration). NaturalQuery propagates
+      guard through createDelegate(). QueryTelemetryStage.GUARD_REJECTED emitted on block.
+- [x] Emit audit-friendly telemetry/explain metadata for blocked or aborted
       queries.
-- [ ] Document the security boundary clearly: exposure control and execution
+      Delivered: QueryGuardOutcome.auditMetadata() returns structured map; GUARD_REJECTED
+      telemetry events fired via QueryTelemetryListener before throwing.
+- [x] Document the security boundary clearly: exposure control and execution
       governance are in scope; auth and tenant policy remain host-owned.
+      Documented in QueryExecutionGuard Javadoc and docs/advanced-features.md.
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Policy*Test,*Exposure*Test,*Telemetry*Test,*Natural*Test,*SqlLike*Test" test`
@@ -237,8 +264,10 @@ Validate:
 ships in a way that strengthens the product story, not just the feature count.
 
 Tasks:
-- [ ] Decide the first strategic package to ship: reporting contract,
-      governance, typed DSL, pushdown bridge, or performance upgrade.
+- [x] Decide the first strategic packages to ship — WP1 (reporting contract)
+      and WP2 (governance) are complete and strengthen the product story.
+- [ ] Decide whether WP3, WP4, or WP5 ships next before cutting the release,
+      or cut based on WP1+WP2 alone.
 - [ ] Update release notes around the product direction, not just the API
       delta.
 - [ ] Run final release guardrails from `RELEASE.md`.

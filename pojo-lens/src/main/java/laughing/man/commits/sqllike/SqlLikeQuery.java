@@ -21,7 +21,9 @@ import laughing.man.commits.sqllike.internal.exposure.QueryExposurePolicySupport
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
 import laughing.man.commits.sqllike.parser.SqlLikeParser;
+import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
+import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
 import laughing.man.commits.util.ReflectionUtil;
@@ -62,6 +64,7 @@ public final class SqlLikeQuery {
     private final ComputedFieldRegistry computedFieldRegistry;
     private final FilterExecutionPlanCacheStore executionPlanCache;
     private final QueryExposurePolicy exposurePolicy;
+    private final QueryExecutionGuard executionGuard;
     private final ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions;
 
     private SqlLikeQuery(String source, String normalizedQuery, String queryType, QueryAst ast) {
@@ -90,7 +93,8 @@ public final class SqlLikeQuery {
                          ComputedFieldRegistry computedFieldRegistry,
                          FilterExecutionPlanCacheStore executionPlanCache) {
         this(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, suppressedLintCodes,
-                telemetryListener, computedFieldRegistry, executionPlanCache, QueryExposurePolicy.unrestricted());
+                telemetryListener, computedFieldRegistry, executionPlanCache, QueryExposurePolicy.unrestricted(),
+                QueryExecutionGuard.unrestricted());
     }
 
     private SqlLikeQuery(String source,
@@ -103,7 +107,8 @@ public final class SqlLikeQuery {
                          QueryTelemetryListener telemetryListener,
                          ComputedFieldRegistry computedFieldRegistry,
                          FilterExecutionPlanCacheStore executionPlanCache,
-                         QueryExposurePolicy exposurePolicy) {
+                         QueryExposurePolicy exposurePolicy,
+                         QueryExecutionGuard executionGuard) {
         this.source = source;
         this.normalizedQuery = normalizedQuery;
         this.queryType = queryType;
@@ -115,6 +120,7 @@ public final class SqlLikeQuery {
         this.computedFieldRegistry = computedFieldRegistry == null ? ComputedFieldRegistry.empty() : computedFieldRegistry;
         this.executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
         this.exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
+        this.executionGuard = executionGuard == null ? QueryExecutionGuard.unrestricted() : executionGuard;
         this.preparedExecutions = new ConcurrentHashMap<>();
     }
 
@@ -193,7 +199,8 @@ public final class SqlLikeQuery {
                 telemetryListener,
                 computedFieldRegistry,
                 executionPlanCache,
-                exposurePolicy);
+                exposurePolicy,
+                executionGuard);
     }
 
     /**
@@ -227,7 +234,8 @@ public final class SqlLikeQuery {
                 telemetryListener,
                 computedFieldRegistry,
                 executionPlanCache,
-                exposurePolicy
+                exposurePolicy,
+                executionGuard
         );
     }
 
@@ -251,7 +259,8 @@ public final class SqlLikeQuery {
                 telemetryListener,
                 computedFieldRegistry,
                 executionPlanCache,
-                exposurePolicy
+                exposurePolicy,
+                executionGuard
         );
     }
 
@@ -275,7 +284,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, enabled, lintMode, suppressedLintCodes,
-                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard);
     }
 
     /**
@@ -307,7 +316,8 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, enabled,
-                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
+                executionGuard);
     }
 
     /**
@@ -324,7 +334,8 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
-                suppressedLintCodes, listener, computedFieldRegistry, executionPlanCache, exposurePolicy);
+                suppressedLintCodes, listener, computedFieldRegistry, executionPlanCache, exposurePolicy,
+                executionGuard);
     }
 
     public QueryTelemetryListener telemetryListener() {
@@ -339,7 +350,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
-                suppressedLintCodes, telemetryListener, registry, executionPlanCache, exposurePolicy);
+                suppressedLintCodes, telemetryListener, registry, executionPlanCache, exposurePolicy, executionGuard);
     }
 
     public ComputedFieldRegistry computedFieldRegistry() {
@@ -352,7 +363,8 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
-                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, policy);
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, policy,
+                executionGuard);
     }
 
     public QueryExposurePolicy exposurePolicy() {
@@ -365,7 +377,33 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
-                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
+                executionGuard);
+    }
+
+    /**
+     * Returns a query with the given execution guard applied.
+     *
+     * @param guard execution guard; must not be null
+     * @return query with guard attached
+     */
+    public SqlLikeQuery executionGuard(QueryExecutionGuard guard) {
+        Objects.requireNonNull(guard, "guard must not be null");
+        if (this.executionGuard == guard) {
+            return this;
+        }
+        return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode,
+                suppressedLintCodes, telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy,
+                guard);
+    }
+
+    /**
+     * Returns the execution guard attached to this query.
+     *
+     * @return execution guard
+     */
+    public QueryExecutionGuard executionGuard() {
+        return executionGuard;
     }
 
     /**
@@ -396,7 +434,7 @@ public final class SqlLikeQuery {
             return this;
         }
         return new SqlLikeQuery(source, normalizedQuery, queryType, ast, strictParameterTypes, lintMode, normalized,
-                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy);
+                telemetryListener, computedFieldRegistry, executionPlanCache, exposurePolicy, executionGuard);
     }
 
     /**
@@ -520,7 +558,10 @@ public final class SqlLikeQuery {
      */
     public <T> List<T> filter(List<?> pojos, Class<T> cls) {
         ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), cls);
-        return executeFilter(context, cls);
+        long start = System.currentTimeMillis();
+        List<T> result = executeFilter(context, cls);
+        checkPostExecution(result.size(), System.currentTimeMillis() - start);
+        return result;
     }
 
     /**
@@ -548,7 +589,10 @@ public final class SqlLikeQuery {
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
-        return executeFilter(context, cls);
+        long start = System.currentTimeMillis();
+        List<T> result = executeFilter(context, cls);
+        checkPostExecution(result.size(), System.currentTimeMillis() - start);
+        return result;
     }
 
     /**
@@ -710,7 +754,11 @@ public final class SqlLikeQuery {
         }
         QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
         ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
+        long start = System.currentTimeMillis();
         List<T> lookaheadRows = executeFilter(context, cls);
+        long durationMillis = System.currentTimeMillis() - start;
+        int resultSize = Math.min(lookaheadRows.size(), pageSize);
+        checkPostExecution(resultSize, durationMillis);
         if (lookaheadRows.size() <= pageSize) {
             return new PageResult<>(lookaheadRows, false, null);
         }
@@ -784,7 +832,10 @@ public final class SqlLikeQuery {
      */
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
         ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), projectionClass);
-        return executeChart(context, projectionClass, spec);
+        long start = System.currentTimeMillis();
+        ChartData result = executeChart(context, projectionClass, spec);
+        checkPostExecution(result.getLabels().size(), System.currentTimeMillis() - start);
+        return result;
     }
 
     /**
@@ -818,7 +869,10 @@ public final class SqlLikeQuery {
                                ChartSpec spec) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), projectionClass);
-        return executeChart(context, projectionClass, spec);
+        long start = System.currentTimeMillis();
+        ChartData result = executeChart(context, projectionClass, spec);
+        checkPostExecution(result.getLabels().size(), System.currentTimeMillis() - start);
+        return result;
     }
 
     /**
@@ -945,6 +999,18 @@ public final class SqlLikeQuery {
                 joinSources,
                 suppressedLintCodes
         );
+        if (!executionGuard.isUnrestricted()) {
+            SqlLikePlanPreview preview = SqlLikePlanPreviewSupport.buildFromAst(executionAst, source);
+            QueryGuardOutcome preOutcome = executionGuard.checkPreExecution(preview, pojos.size());
+            if (preOutcome.blocked()) {
+                if (executionTelemetryListener != null) {
+                    executionTelemetryListener.onTelemetry(new QueryTelemetryEvent(
+                            QueryTelemetryStage.GUARD_REJECTED, queryType, source,
+                            0L, pojos.size(), null, preOutcome.auditMetadata()));
+                }
+                throw new QueryExecutionGuardException(preOutcome);
+            }
+        }
         return SqlLikePreparedExecutionSupport.prepareExecution(
                 queryType,
                 source,
@@ -980,6 +1046,21 @@ public final class SqlLikeQuery {
                 null,
                 null
         );
+    }
+
+    private void checkPostExecution(int rowsReturned, long durationMillis) {
+        if (executionGuard.isUnrestricted()) {
+            return;
+        }
+        QueryGuardOutcome outcome = executionGuard.checkPostExecution(rowsReturned, durationMillis);
+        if (outcome.blocked()) {
+            if (telemetryListener != null) {
+                telemetryListener.onTelemetry(new QueryTelemetryEvent(
+                        QueryTelemetryStage.GUARD_REJECTED, queryType, source,
+                        0L, null, rowsReturned, outcome.auditMetadata()));
+            }
+            throw new QueryExecutionGuardException(outcome);
+        }
     }
 
     private final class DefaultSqlLikeBoundQuery<T> implements SqlLikeBoundQuery<T> {

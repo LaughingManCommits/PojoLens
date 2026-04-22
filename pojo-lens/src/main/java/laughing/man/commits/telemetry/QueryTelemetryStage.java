@@ -9,6 +9,7 @@ public enum QueryTelemetryStage {
     FILTER,
     AGGREGATE,
     ORDER,
-    CHART
+    CHART,
+    GUARD_REJECTED
 }
 

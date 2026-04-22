@@ -25,9 +25,13 @@ import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.report.SavedReport;
 import laughing.man.commits.report.SavedReportKind;
 import laughing.man.commits.table.TabularColumn;
+import laughing.man.commits.sqllike.QueryComplexitySummary;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
+import laughing.man.commits.sqllike.QueryExecutionGuard;
+import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
+import laughing.man.commits.sqllike.QueryGuardOutcome;
 import laughing.man.commits.sqllike.PlanPreviewField;
 import laughing.man.commits.sqllike.PlanPreviewFilter;
 import laughing.man.commits.sqllike.PlanPreviewJoin;
@@ -167,6 +171,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "schema", Class.class);
         requirePublicMethod(SqlLikeQuery.class, "exposurePolicy", QueryExposurePolicy.class);
         requirePublicMethod(SqlLikeQuery.class, "exposurePolicy");
+        requirePublicMethod(SqlLikeQuery.class, "executionGuard", QueryExecutionGuard.class);
+        requirePublicMethod(SqlLikeQuery.class, "executionGuard");
         requirePublicMethod(SqlLikeQuery.class, "diagnostics");
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class, JoinBindings.class);
@@ -301,6 +307,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(NaturalQuery.class, "schema", Class.class);
         requirePublicMethod(NaturalQuery.class, "exposurePolicy", QueryExposurePolicy.class);
         requirePublicMethod(NaturalQuery.class, "exposurePolicy");
+        requirePublicMethod(NaturalQuery.class, "executionGuard", QueryExecutionGuard.class);
+        requirePublicMethod(NaturalQuery.class, "executionGuard");
         requirePublicMethod(NaturalQuery.class, "schema", List.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", DatasetBundle.class, Class.class);
         requirePublicMethod(NaturalQuery.class, "schema", List.class, JoinBindings.class, Class.class);
@@ -415,6 +423,41 @@ public class StablePublicApiContractTest {
     @Test
     public void stableTabularColumnTypeNameContractShouldRemainAvailable() throws Exception {
         requirePublicMethod(TabularColumn.class, "typeName");
+    }
+
+    @Test
+    public void stableQueryExecutionGuardContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(QueryExecutionGuard.class, "unrestricted");
+        requirePublicStaticMethod(QueryExecutionGuard.class, "builder");
+        requirePublicMethod(QueryExecutionGuard.class, "isUnrestricted");
+        requirePublicMethod(QueryExecutionGuard.class, "maxRowsScanned");
+        requirePublicMethod(QueryExecutionGuard.class, "maxRowsReturned");
+        requirePublicMethod(QueryExecutionGuard.class, "maxComplexityScore");
+        requirePublicMethod(QueryExecutionGuard.class, "maxDurationMillis");
+        requirePublicMethod(QueryExecutionGuard.class, "checkPreExecution", SqlLikePlanPreview.class, int.class);
+        requirePublicMethod(QueryExecutionGuard.class, "checkPostExecution", int.class, long.class);
+
+        requirePublicStaticMethod(QueryGuardOutcome.class, "allowed", QueryComplexitySummary.class);
+        requirePublicStaticMethod(QueryGuardOutcome.class, "blocked",
+                String.class, String.class, QueryComplexitySummary.class);
+        requirePublicMethod(QueryGuardOutcome.class, "allowed");
+        requirePublicMethod(QueryGuardOutcome.class, "blocked");
+        requirePublicMethod(QueryGuardOutcome.class, "blockCode");
+        requirePublicMethod(QueryGuardOutcome.class, "blockReason");
+        requirePublicMethod(QueryGuardOutcome.class, "complexitySummary");
+        requirePublicMethod(QueryGuardOutcome.class, "auditMetadata");
+
+        requirePublicStaticMethod(QueryComplexitySummary.class, "from", SqlLikePlanPreview.class);
+        requirePublicMethod(QueryComplexitySummary.class, "filterCount");
+        requirePublicMethod(QueryComplexitySummary.class, "joinCount");
+        requirePublicMethod(QueryComplexitySummary.class, "hasGrouping");
+        requirePublicMethod(QueryComplexitySummary.class, "hasAggregation");
+        requirePublicMethod(QueryComplexitySummary.class, "hasWindows");
+        requirePublicMethod(QueryComplexitySummary.class, "hasSubqueries");
+        requirePublicMethod(QueryComplexitySummary.class, "hasPaging");
+        requirePublicMethod(QueryComplexitySummary.class, "estimatedComplexityScore");
+
+        requirePublicMethod(QueryExecutionGuardException.class, "outcome");
     }
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... parameterTypes)
