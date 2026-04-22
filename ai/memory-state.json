@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-20T15:25:37.227066+02:00",
+  "generatedAt": "2026-04-22T20:37:18.243636+02:00",
   "git": {
-    "headCommit": "c10ee6bab4be3d42dec4f91cc3a22ea77542f6a3",
+    "headCommit": "9646ff09cb9cd338d690e84edac3b20f8d3fdc76",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "974e78b9a03e13457aaf0c0875b4b99bc3afd0fe2f07e5608ce29bb905a9f0af",
+  "inputsHash": "5042eaebc36553aab20120179e23501be0aefe3d469d74ef1d8cc440826dfaf8",
   "hotContext": {
     "files": [
       {
@@ -21,8 +21,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 50,
-        "bytes": 2867,
+        "lines": 41,
+        "bytes": 1939,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 44,
-        "bytes": 2835,
+        "lines": 43,
+        "bytes": 2442,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 123,
-    "totalBytes": 8118,
+    "totalLines": 113,
+    "totalBytes": 6797,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -141,31 +141,31 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "03ec6776214eb2bac22ed4965f63f85cf722a79ed54e3ff34e9fbbe12b1d2060",
+        "inputHash": "f698d566f2a5df5b281939eba32c865789226833b4c5ff4483c0b81eb92a0dbe",
         "inputFiles": 53
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "d8c991b5e9678f83bad97edc5506a3c4e41a750f1048ac36d72fb5eed2a095d1",
-        "inputFiles": 415
+        "inputHash": "d66fd030340f5e9e9392bbce251180439e0470c417e44e39977aa65e03c34b0c",
+        "inputFiles": 417
       },
       {
         "path": "ai/indexes/symbols-index.json",
-        "status": "rebuilt",
-        "inputHash": "4fa88a9a295920d52ef694edf71c76a896efebc334ff87aedcc826578bb491cd",
-        "inputFiles": 223
+        "status": "reused",
+        "inputHash": "743ecd66976a85be4fc48ccb1e07c3bf51a0998e89cce2f2aaf9e8adfb79cd6c",
+        "inputFiles": 224
       },
       {
         "path": "ai/indexes/test-index.json",
-        "status": "rebuilt",
-        "inputHash": "66931b3fc3d3f78629316787171e6f816e85d0f686032a3ad67ad0f7bbf78b63",
-        "inputFiles": 125
+        "status": "reused",
+        "inputHash": "7d5ea147a72a2440f20f60c31035110f4c5952d4fc79c34606d51ead0525ce45",
+        "inputFiles": 126
       },
       {
         "path": "ai/indexes/config-index.json",
         "status": "reused",
-        "inputHash": "c6e43152b3cc883d15e6c1e13cf7b5c936a3d159c24fc3308ec5ff9f22563837",
+        "inputHash": "ec47c3888f0e543cd3f316ca77fba4b28fc1beae4236026cf9b336d687765e2b",
         "inputFiles": 19
       }
     ],
@@ -174,9 +174,9 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 55,
-      "sections": 638,
-      "updatedFiles": 3,
-      "reusedFiles": 52,
+      "sections": 639,
+      "updatedFiles": 2,
+      "reusedFiles": 53,
       "removedFiles": 0,
       "mode": "incremental"
     }

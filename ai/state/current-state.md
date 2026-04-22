@@ -3,32 +3,24 @@
 ## Repo
 
 - Java 17 library with runtime, Spring Boot, and JMH modules.
-- Current date-based release is `2026.04.17.1834`.
+- Current release is `2026.04.17.1834`.
 
 ## Focus
 
-- `2026-04-18`: CI, docs, and surface reset complete; SQL-like primary, natural guided, fluent internal.
-- `2026-04-18`: `SURFACE-WP1` through `SURFACE-WP6` complete except release cut.
-- `2026-04-19`: `docs/internal-fluent-engine.md` documents maintainer-only fluent method groups and examples.
-- `2026-04-19`: `TODO.md` tracks `QOL-WP1` through `QOL-WP5`.
-- `2026-04-19`: `QOL-WP1` query diagnostics is implemented and review-hardened.
-- `2026-04-19`: `QOL-WP2` query exposure policy is implemented.
-- `2026-04-19`: `QOL-WP3` SQL-like dry-run plan preview is implemented and review-hardened.
-- `2026-04-20`: `QOL-WP4` page result helper is implemented and review-hardened.
-- `2026-04-20`: `QOL-WP5` better error suggestions is implemented and review-hardened.
-- `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete.
-- `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
-- April feature work through `PojoLensTree`, FA/RU cleanup, docs, and limitations is complete.
+- `2026-04-18`: SQL-like is the primary public API; natural is guided text; fluent is internal.
+- `2026-04-18`: `SURFACE-WP1` through `SURFACE-WP6` and the docs reset are complete except the release cut.
+- `2026-04-22`: Product direction is embedded reporting plus governed in-memory query execution, not a general Java query stack.
+- `2026-04-22`: `TODO.md` now tracks `STRAT-WP1` through `STRAT-WP5` plus a release gate.
+- `2026-04-20`: `QOL-WP1` through `QOL-WP5` are complete and review-hardened.
+- `2026-04-10`: CSV is complete through `CSV-WP5`; `CSV-WP6` stays deferred.
+- `2026-04-17`: `PojoLensTree` and April docs/cleanup work are complete.
 
 ## Verified
 
-- `2026-04-19`: QOL-WP1 (diagnostics) and QOL-WP2 (exposure) passed full Maven tests, doc consistency, diff check, and memory refresh/check.
-- `2026-04-19`: QOL-WP3 hardening passed 28 preview tests, full 799-test Maven suite, doc consistency, and diff check.
-- `2026-04-20`: QOL-WP4 review hardening passed targeted page/API tests, full Maven suite, doc consistency, and diff check.
-- `2026-04-20`: QOL-WP5 review hardening passed targeted suggestion/policy diagnostics tests, full 869-test Maven suite, doc consistency, and diff check.
-- `2026-04-19`: Internal fluent docs passed doc consistency and diff whitespace checks.
-- `2026-04-18`: Java 25 CI, DOC-WP1–WP10, surface reset, and release alignment passed full Maven tests, doc checks, lint, and binary compat verify.
-- `2026-04-17`: `PojoLensTree`, positioning docs, Checkstyle baseline, CI warnings, and benchmark thresholds validated.
+- `2026-04-22`: Repo-vs-value review passed `mvn -B -ntp test`; the strategic `TODO.md` rewrite was diff-reviewed.
+- `2026-04-20`: `QOL-WP1` through `QOL-WP5` passed Maven, docs, and diff validation across their hardening work.
+- `2026-04-18`: Java 25 CI, docs reset, release alignment, lint, and binary compat verify passed.
+- `2026-04-17`: `PojoLensTree`, positioning docs, Checkstyle baseline, and benchmark thresholds validated.
 
 ## Release
 
@@ -36,15 +28,14 @@
 
 ## Risks
 
-- SQL-like is the primary public query API; fluent is internal.
-- Bounded subquery/existence parity is user-facing complete.
+- SQL-like is the primary public API; fluent is internal.
 - Natural remains controlled grammar; static parse/template stay vocabulary-free.
-- `PojoLensTree` is row shaping only; it must not grow parser syntax, graph algorithms, ORM behavior, or a second query engine.
-- User-authored query text needs params, exposure policy, lint, strict typing, and external authorization.
+- `PojoLensTree` is row shaping only, not a second query engine.
+- User-authored query text still needs params, exposure policy, lint, strict typing, and host-owned authorization.
 
 ## Next
 
-- Release: cut a later version after final release guardrails are run.
-- QoL: `QOL-WP5` complete. All `QOL-WP1`–`WP5` done.
-- CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
+- Choose the first shippable strategic package from `STRAT-WP1` or `STRAT-WP2`.
+- Do not cut the next release until at least one strategic package lands.
+- Keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
+- Keep correlated/scalar subqueries and broad window-frame parity out of scope for now.

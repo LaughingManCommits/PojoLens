@@ -6,7 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: cut next release.
+5. Next likely task: choose and scope `STRAT-WP1` or `STRAT-WP2`; do not default to cutting a release first.
 
 ## Focus
 
@@ -14,27 +14,26 @@
 - Latest release alignment is complete for `2026.04.17.1834`.
 - `SURFACE-WP1` through `SURFACE-WP6` are complete except the release cut.
 - SQL-like is public default; natural is guided text; fluent is internal engine DSL.
-- All `QOL-WP1`–`WP5` complete. Active backlog is the release cut.
+- `QOL-WP1` through `QOL-WP5` are complete.
+- Active backlog is now `STRAT-WP1` through `STRAT-WP5`; release is gated behind at least one strategic package.
+- Product direction is embedded reporting plus governed query execution over in-memory snapshots.
 
 ## Facts
 
-- `2026-04-18`: No public users; SQL-like primary, natural guided, fluent internal. `PojoLensCore` removed from public surface.
-- `2026-04-18`: Fluent planning types under `laughing.man.commits.internal.builder`; public-surface guards reject internal APIs.
-- `2026-04-19`: `docs/internal-fluent-engine.md` is the maintainer reference for fluent lifecycle and usage.
-- `2026-04-19`: `QueryDiagnostics`: params, fields, sources, lint, multi-unknown WHERE, natural vocabulary resolution.
-- `2026-04-19`: `QueryExposurePolicy` allowlists fields/sources for SQL-like, natural lowering, and runtime defaults.
-- `2026-04-19`: `SqlLikePlanPreview` from `planPreview()`: grouped predicates via `PlanPreviewPredicate`, nested subquery via `subqueryPreview()`.
-- `2026-04-20`: `PageResult<T>` from `filterPage(...)`: rows, hasMore, nextCursor; requires positive static LIMIT + ORDER BY, rejects OFFSET, uses limit+1 lookahead.
-- `2026-04-20`: `NameSuggestions` (internal) provides Levenshtein+prefix suggestions; wired into SQL-like field/param/JOIN/source errors and natural field term errors. Diagnostics filter candidates through exposure policy.
+- `2026-04-18`: No public users are recorded in repo memory.
+- `2026-04-18`: `PojoLensCore` is gone from the public surface; fluent planning stays under `laughing.man.commits.internal.builder`.
+- `2026-04-19`: `QueryDiagnostics`, `QueryExposurePolicy`, and `SqlLikePlanPreview` are implemented on the public surface.
+- `2026-04-20`: `PageResult<T>` and name suggestions are implemented.
+- `2026-04-22`: `TODO.md` now tracks the strategic roadmap: stable reporting contract, governance, typed DSL, hybrid adapters, and performance.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with `TreeEntry<T>` metadata.
-- User-authored query text needs params, approved fields/sources, lint, strict typing, and external authorization.
+- User-authored query text needs params, approved fields/sources, lint, strict typing, and host-owned authorization.
 
 ## Validate
 
 - After code changes: `mvn -B -ntp test`, then benchmark guardrails when performance changes.
 - After docs or process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-20` QOL-WP5 review hardening passed targeted suggestion/policy diagnostics tests, full 869-test Maven suite, doc consistency, and diff check.
+- Last validation: `2026-04-22` repo-vs-value review passed `mvn -B -ntp test`; strategic `TODO.md` rewrite was diff-reviewed.
 
 ## Cold Pointers
 

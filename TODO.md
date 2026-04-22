@@ -1,231 +1,236 @@
 # TODO
 
-## QOL-WP1: Query Diagnostics Report API
+## Product Direction
+
+**Conclusion:** PojoLens should be the embedded reporting and governed query
+layer for Java apps working over already-materialized object snapshots.
+It should stop reading like a general-purpose Java query stack, because that
+puts it into direct competition with stronger database-first tools.
+
+**Why this direction fits the repo:**
+- The current strengths are text-first in-memory querying, diagnostics,
+  explain/preview tooling, chart/report shaping, and Spring-friendly runtime
+  wiring.
+- The current weaknesses are broad production adoption, type-safe code-owned
+  query composition, database pushdown, and large-workload execution limits.
+- The winning niche is safe configurable reporting over data the application
+  already owns in memory.
+
+**Major wins to preserve while moving forward:**
+- SQL-like and controlled natural query text over the same engine.
+- Strong diagnostics, plan preview, explain payloads, keyset pagination, and
+  telemetry hooks.
+- Reusable report/chart/schema helpers and optional Spring Boot wiring.
+- Strong executable docs and public-surface contract coverage.
+
+**Non-goals for this roadmap:**
+- Do not position PojoLens as a replacement for jOOQ, Querydsl, or Spring Data
+  for normal database-backed application queries.
+- Do not expand natural queries into a free-form AI/chatbot feature.
+- Do not build a full authentication, RBAC, or tenant-security framework into
+  the core engine.
+
+---
+
+## STRAT-WP1: Stable Embedded Reporting Contract
 
 **Priority:** High
-**Goal:** Give developers a non-executing way to inspect query requirements,
-validation findings, and lint guidance before running against rows.
+**Goal:** Turn the repo's best current niche into a stable product surface for
+saved reports, admin screens, and chart/table workflows.
 
 Context:
-- SQL-like is the primary public query surface, and config/admin-driven query
-  text needs better preflight tooling.
-- Existing parse, validation, lint, schema, and explain behavior already know
-  most of the information developers need.
-- Diagnostics should improve developer experience without creating a new query
-  style or exposing internal fluent planning types.
+- The repo already has `ReportDefinition`, chart presets, stats presets,
+  schema output, and explain/preview metadata.
+- Those helpers are useful, but several of them still live on the advanced
+  surface instead of the clear stable product path.
+- If PojoLens is going to win anywhere, it should win here first.
 
 Scope:
-- Add a public diagnostics result for SQL-like queries with referenced fields,
-  required parameters, selected output fields, joins/sources, warnings, and
-  validation errors.
-- Prefer a non-throwing diagnostics path so tooling can show multiple findings
-  at once.
-- Keep execution `explain(...)` separate from pre-execution diagnostics.
-- Add natural-query diagnostics only if it can reuse the SQL-like equivalent
-  safely through `equivalentSqlLike()`.
+- Decide which reporting helpers become stable public API versus which should
+  be redesigned before stabilization.
+- Define a versioned report/query contract that can be saved, reviewed, and
+  replayed safely.
+- Expose UI-friendly schema and plan metadata for report builders and admin
+  tooling.
+- Keep the core centered on reporting/query workflows, not a general workflow
+  engine.
 
 Tasks:
-- [x] Inventory existing validation, lint, schema, and parse-error metadata.
-- [x] Design a small public `QueryDiagnostics` contract.
-- [x] Add `diagnostics(...)` entry points on `SqlLikeQuery` and runtime-owned
-      SQL-like parsing.
-- [x] Include required named params, referenced fields, output fields, joins,
-      subquery usage, lint warnings, and validation failures.
-- [x] Add docs and examples for config-screen validation and CI query checks.
-- [x] Add contract tests for success, missing params, unknown fields, joins,
-      subqueries, and lint warnings.
-
-Review hardening findings fixed:
-- [x] Document `QueryDiagnostics` with executable SQL-like examples.
-- [x] Include diagnostics in public API stability docs and contract tests.
-- [x] Include parent fields, child join fields, and nested subquery fields in
-      `referencedFields()`.
-- [x] Include named subquery sources in `joinSources()`.
-- [x] Collect multiple unknown `WHERE` field diagnostics instead of reporting
-      only the first thrown validator error.
-- [x] Resolve runtime natural vocabulary before class-backed natural
-      diagnostics.
+- [ ] Audit advanced reporting helpers and decide which ones move to the stable
+      surface.
+- [ ] Define a versioned saved-report contract covering query text, parameters,
+      schema, and chart/table configuration.
+- [ ] Expose serializable field/column metadata for UI builders and saved
+      report review.
+- [ ] Add examples for saved reports, runtime-owned presets, and migration-safe
+      replay.
+- [ ] Add public API and binary-compat coverage for every promoted type.
 
 Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Diagnostics*Test,SqlLike*Test" test`
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Report*Test,*Preset*Test,*Schema*Test,*PublicApi*Test" test`
 - `scripts/check-doc-consistency.ps1`
 - `git diff --check`
 
 ---
 
-## QOL-WP2: Field And Source Exposure Policy
+## STRAT-WP2: Production Query Governance And Audit
 
 **Priority:** High
-**Goal:** Turn the existing "approved fields/sources" safety guidance into a
-bounded validation feature for user-authored query text.
+**Goal:** Make user-authored SQL-like and natural queries safe enough for real
+admin/config/reporting usage.
 
 Context:
-- Public docs already tell users to restrict exposed fields/sources before
-  executing SQL-like or natural text.
-- This should be query exposure validation only, not authentication,
-  authorization, row-level security, or a policy framework.
-- The feature should work with SQL-like first and natural where natural lowers
-  to the same referenced-field/source model.
+- Current exposure policy only allowlists fields and named sources.
+- That is useful, but it is not enough for production query governance.
+- Real-world adoption needs bounded execution, rejection reasons, and audit
+  visibility for user-authored query text.
 
 Scope:
-- Add a small public policy type for allowlisted fields and named sources.
-- Validate referenced fields and sources before execution.
-- Support explicit deny rules only if they keep the API clearer than separate
-  allowlists.
-- Keep row visibility and tenant authorization outside PojoLens.
+- Add bounded query governance for complexity, row budgets, deadlines, and
+  cooperative cancellation.
+- Surface deterministic audit metadata for accepted, rejected, and aborted
+  queries.
+- Keep auth/RBAC outside the library, but give host applications a credible
+  control point for safe execution.
 
 Tasks:
-- [x] Design `QueryExposurePolicy` or equivalent with field and source
-      allowlists.
-- [x] Add runtime-scoped policy wiring without making runtime a third query
-      style.
-- [x] Apply policy checks to SQL-like parse/bind/execute paths.
-- [x] Apply policy checks to natural queries through the lowered SQL-like
-      representation where practical.
-- [x] Document security boundaries and non-goals clearly.
-- [x] Add tests for allowed fields, blocked fields, blocked sources, joins,
-      subqueries, and natural vocabulary aliases.
+- [ ] Design a public execution-guard contract for max complexity, max rows
+      scanned, max rows returned, deadline, and cancellation.
+- [ ] Add pre-execution complexity summaries from the parsed query shape.
+- [ ] Apply guard checks to SQL-like and natural execution paths.
+- [ ] Emit audit-friendly telemetry/explain metadata for blocked or aborted
+      queries.
+- [ ] Document the security boundary clearly: exposure control and execution
+      governance are in scope; auth and tenant policy remain host-owned.
 
 Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Exposure*Test,*Policy*Test,SqlLike*Test,Natural*Test" test`
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Policy*Test,*Exposure*Test,*Telemetry*Test,*Natural*Test,*SqlLike*Test" test`
 - `scripts/check-doc-consistency.ps1`
 - `git diff --check`
 
 ---
 
-## QOL-WP3: SQL-like Dry Run / Plan Preview
-
-**Priority:** Medium
-**Goal:** Let developers inspect a query's structural shape without executing
-against rows.
-
-Context:
-- `explain(...)` is execution-oriented and can include row/stage behavior.
-- A dry run should answer "what will this query try to do?" rather than "what
-  happened while it ran?"
-- This is useful for admin tooling, CI validation, and generated query review.
-
-Scope:
-- Add a structural preview for SQL-like queries: selected fields, filters,
-  grouping, ordering, windows, joins, subqueries, limit/offset, and required
-  params.
-- Do not add cost estimation, optimizer hints, row-count estimates, database
-  semantics, or fluent API exposure.
-- Keep preview deterministic and serializable enough for logging/tests.
-
-Tasks:
-- [x] Decide whether preview is part of `QueryDiagnostics` or a separate
-      `SqlLikePlanPreview`.
-- [x] Reuse parser/AST metadata instead of rebuilding query inspection by hand.
-- [x] Add preview output for joins, grouped predicates, windows, time buckets,
-      subqueries, and paging.
-- [x] Add docs showing preview before executing config-owned queries.
-- [x] Add tests that lock stable preview fields without overfitting internal
-      AST implementation details.
-
-Review hardening findings fixed:
-- [x] Preserve grouped predicate shape through `PlanPreviewPredicate` instead
-      of exposing only a flattened predicate list.
-- [x] Keep repeated literal predicates in preview output instead of collapsing
-      same-field/same-operator entries.
-- [x] Expose nested `subqueryPreview()` details for `IN`, `EXISTS`, and
-      `NOT EXISTS` predicates.
-- [x] Add stable public API contract coverage for `planPreview()` and preview
-      companion types.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Preview*Test,SqlLikeParserTest,SqlLikeQueryContractTest" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## QOL-WP4: Page Result Helper
-
-**Priority:** Medium
-**Goal:** Make common API pagination easier by returning rows plus cursor
-metadata in one public helper.
-
-Context:
-- `SqlLikeCursor` and keyset pagination already exist, but service authors must
-  assemble response metadata manually.
-- The helper should sit on top of existing SQL-like execution and cursor
-  contracts.
-- It must not change core query semantics or invent a new pagination language.
-
-Scope:
-- Add a `PageResult<T>` style contract with rows, optional next cursor, and
-  `hasMore`.
-- Support deterministic keyset pagination when the query has a stable
-  `ORDER BY`.
-- Define exact behavior around `LIMIT`, `limit + 1` lookahead, and empty pages.
-- Keep offset pagination as normal query behavior unless a small helper is
-  clearly useful.
-
-Tasks:
-- [x] Design `PageResult<T>` and page execution methods for SQL-like queries.
-- [x] Enforce stable ordering requirements for cursor generation.
-- [x] Implement lookahead behavior without leaking the extra row.
-- [x] Document API endpoint usage and edge cases.
-- [x] Add tests for first page, next page, no more rows, composite sort keys,
-      missing order, and ties.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Page*Test,*Cursor*Test,SqlLikeQueryContractTest" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## QOL-WP5: Better Error Suggestions
-
-**Priority:** Medium
-**Goal:** Make common query mistakes easier to fix by suggesting nearby fields,
-params, and source names in deterministic error messages.
-
-Context:
-- Unknown field and parameter errors are frequent during adoption.
-- Suggestions improve developer experience without changing query semantics.
-- Suggestions must be deterministic, bounded, and safe for lint/strict modes.
-
-Scope:
-- Add nearest-name suggestions for unknown fields, params, aliases, and named
-  sources where candidate sets are already known.
-- Keep suggestions short; avoid noisy "maybe" lists.
-- Do not expose denied fields when an exposure policy blocks them.
-- Reuse the same suggestion helper from SQL-like and natural diagnostics where
-  possible.
-
-Tasks:
-- [x] Inventory current unknown-field, unknown-param, and unknown-source errors.
-- [x] Add a deterministic bounded name-suggestion helper.
-- [x] Wire suggestions into SQL-like validation errors.
-- [x] Wire suggestions into natural vocabulary/field errors where safe.
-- [x] Add docs examples only where they help troubleshooting.
-- [x] Add tests for typos, no close match, multiple close matches, case
-      differences, and blocked-policy fields.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Validation*Test,*Diagnostics*Test,Natural*Test" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## Release Follow-Up
+## STRAT-WP3: Stable Public Typed DSL
 
 **Priority:** High
-**Goal:** Cut a new date-based release after the SQL-like-first public surface
-reset and any chosen QoL package are validated.
+**Goal:** Remove the biggest adoption blocker for code-owned queries without
+backing away from the SQL-like-first public story.
+
+Context:
+- The current public path is strong for text-authored queries.
+- The current public path is weak for teams that want compile-time-safe query
+  composition in normal Java code.
+- The old/internal fluent builder proves there is engine support here, but it
+  is not the right public answer in its current form.
+
+Scope:
+- Design a stable typed DSL that lowers into the shared engine/AST.
+- Reuse metamodel generation instead of exposing internal builder machinery.
+- Keep SQL-like and natural as first-class text surfaces; the typed DSL is for
+  code-owned composition.
 
 Tasks:
-- [ ] Decide whether to release immediately or include one QoL package first.
-- [ ] Investigate or refresh the stale Checkstyle baseline comparator; the
-      current `scripts/check-lint-baseline.ps1` run reports repo-wide baseline
-      drift before release.
-- [ ] Run the final release guardrails from `RELEASE.md`.
-- [ ] Update release notes for the selected shipped scope.
-- [ ] Cut the next date-based release.
+- [ ] Design a stable typed builder API for projection, filters, ordering,
+      grouping, joins, and paging.
+- [ ] Reuse or extend metamodel generation so typed queries do not depend on
+      string field names.
+- [ ] Ensure typed queries interoperate with explain, diagnostics, schema, and
+      report helpers.
+- [ ] Add migration guidance explaining when to use typed DSL versus SQL-like
+      versus natural.
+- [ ] Add contract tests that lock the typed DSL to stable public behavior
+      rather than internal builder details.
+
+Validate:
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Metamodel*Test,*PublicApi*Test,*QueryContractTest,*Fluent*Parity*Test" test`
+- `scripts/check-doc-consistency.ps1`
+- `git diff --check`
+
+---
+
+## STRAT-WP4: Hybrid Adapters And Pushdown
+
+**Priority:** High
+**Goal:** Make PojoLens viable when the source data is not already sitting in a
+small-to-moderate in-memory list.
+
+Context:
+- Pure in-memory execution is fine for snapshots and bounded internal tooling.
+- It is a dead end for broader adoption if every serious workload must fully
+  materialize first.
+- The repo needs a credible bridge story for database-backed or streaming
+  source data.
+
+Scope:
+- Start with a bounded pushdown story, not a giant adapter matrix.
+- Classify query shapes into "pushable", "split execution", and
+  "in-memory only".
+- Make fallback behavior explicit in explain/telemetry output.
+
+Tasks:
+- [ ] Define the supported query subset for first-phase pushdown.
+- [ ] Add a first bridge path for JDBC/`ResultSet` ingestion or a jOOQ/Spring
+      Data integration point for simple filter/order/page workloads.
+- [ ] Support split execution where simple stages push down and unsupported
+      stages finish in memory.
+- [ ] Surface pushdown/fallback decisions in explain and telemetry.
+- [ ] Benchmark pushed, split, and pure in-memory paths on representative
+      workloads.
+
+Validate:
+- `mvn -B -ntp test`
+- targeted adapter integration tests
+- benchmark guardrails from `docs/benchmarking.md`
+- `git diff --check`
+
+---
+
+## STRAT-WP5: Repeated-Workload Performance Upgrade
+
+**Priority:** Medium
+**Goal:** Make repeated reporting workloads materially cheaper on latency and
+allocation, especially around joins, windows, and typed projection.
+
+Context:
+- The repo already tracks performance seriously and documents real overheads.
+- That is good engineering discipline, but it also exposes where the engine is
+  still too allocation-heavy for a stronger product story.
+- Better performance is a multiplier once the product direction is clear.
+
+Scope:
+- Improve hot paths without changing the public mental model.
+- Focus on repeated workloads, not microbench bragging.
+- Keep benchmark claims tied to explicit workloads and budgets.
+
+Tasks:
+- [ ] Reduce reflection hot-path cost with cached or generated accessors where
+      safe.
+- [ ] Improve repeated join execution with reusable indexes/hash structures.
+- [ ] Reduce window-stage allocation overhead.
+- [ ] Evaluate a batch/columnar execution path for heavy report workloads.
+- [ ] Promote a small set of stable JMH budgets for the hottest supported
+      workloads.
+
+Validate:
+- `mvn -B -ntp -pl pojo-lens-benchmarks test`
+- benchmark guardrails from `docs/benchmarking.md`
+- `mvn -B -ntp test`
+- `git diff --check`
+
+---
+
+## Release Gate
+
+**Priority:** High
+**Goal:** Do not cut another release until at least one strategic package above
+ships in a way that strengthens the product story, not just the feature count.
+
+Tasks:
+- [ ] Decide the first strategic package to ship: reporting contract,
+      governance, typed DSL, pushdown bridge, or performance upgrade.
+- [ ] Update release notes around the product direction, not just the API
+      delta.
+- [ ] Run final release guardrails from `RELEASE.md`.
 
 Validate:
 - `mvn -B -ntp test`
