@@ -6,7 +6,7 @@
 2. Check `git status --short`.
 3. Use `ai/state/benchmark-state.md` only for benchmark work.
 4. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
-5. Next likely task: choose and scope `STRAT-WP1` or `STRAT-WP2`; do not default to cutting a release first.
+5. Next likely task: `STRAT-WP1` is done; scope and execute `STRAT-WP2` (production query governance and audit).
 
 ## Focus
 
@@ -15,7 +15,8 @@
 - `SURFACE-WP1` through `SURFACE-WP6` are complete except the release cut.
 - SQL-like is public default; natural is guided text; fluent is internal engine DSL.
 - `QOL-WP1` through `QOL-WP5` are complete.
-- Active backlog is now `STRAT-WP1` through `STRAT-WP5`; release is gated behind at least one strategic package.
+- `STRAT-WP1` complete: SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests, contract coverage.
+- Active backlog: `STRAT-WP2` through `STRAT-WP5`; release is gated behind at least one strategic package.
 - Product direction is embedded reporting plus governed query execution over in-memory snapshots.
 
 ## Facts
@@ -25,6 +26,7 @@
 - `2026-04-19`: `QueryDiagnostics`, `QueryExposurePolicy`, and `SqlLikePlanPreview` are implemented on the public surface.
 - `2026-04-20`: `PageResult<T>` and name suggestions are implemented.
 - `2026-04-22`: `TODO.md` now tracks the strategic roadmap: stable reporting contract, governance, typed DSL, hybrid adapters, and performance.
+- `2026-04-22`: `STRAT-WP1` shipped — SavedReport (versioned saved-report contract), SavedReportKind, TabularColumn.typeName(); full suite clean.
 - `2026-04-17`: `PojoLensTree` supports deterministic flat parent-ID subtree shaping with `TreeEntry<T>` metadata.
 - User-authored query text needs params, approved fields/sources, lint, strict typing, and host-owned authorization.
 

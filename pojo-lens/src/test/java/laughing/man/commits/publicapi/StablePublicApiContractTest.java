@@ -22,6 +22,9 @@ import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.report.SavedReport;
+import laughing.man.commits.report.SavedReportKind;
+import laughing.man.commits.table.TabularColumn;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -383,6 +386,35 @@ public class StablePublicApiContractTest {
         SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
         assertNotNull(decoded);
         assertEquals(cursor, decoded);
+    }
+
+    @Test
+    public void stableSavedReportContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(SavedReport.class, "sqlLike", String.class, String.class, String.class);
+        requirePublicStaticMethod(SavedReport.class, "natural", String.class, String.class, String.class);
+        requirePublicMethod(SavedReport.class, "id");
+        requirePublicMethod(SavedReport.class, "name");
+        requirePublicMethod(SavedReport.class, "version");
+        requirePublicMethod(SavedReport.class, "kind");
+        requirePublicMethod(SavedReport.class, "queryText");
+        requirePublicMethod(SavedReport.class, "source");
+        requirePublicMethod(SavedReport.class, "defaultParams");
+        requirePublicMethod(SavedReport.class, "chartSpec");
+        requirePublicMethod(SavedReport.class, "schema");
+        requirePublicMethod(SavedReport.class, "withDefaultParam", String.class, Object.class);
+        requirePublicMethod(SavedReport.class, "withDefaultParams", java.util.Map.class);
+        requirePublicMethod(SavedReport.class, "withChartSpec", ChartSpec.class);
+        requirePublicMethod(SavedReport.class, "withSchema", laughing.man.commits.table.TabularSchema.class);
+        requirePublicMethod(SavedReport.class, "planPreview");
+        requirePublicMethod(SavedReport.class, "diagnostics");
+        requirePublicMethod(SavedReport.class, "toQuery");
+        requirePublicMethod(SavedReport.class, "toNaturalQuery");
+        requirePublicMethod(SavedReport.class, "toDefinition", Class.class);
+    }
+
+    @Test
+    public void stableTabularColumnTypeNameContractShouldRemainAvailable() throws Exception {
+        requirePublicMethod(TabularColumn.class, "typeName");
     }
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... parameterTypes)

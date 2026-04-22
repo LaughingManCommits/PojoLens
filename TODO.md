@@ -56,15 +56,26 @@ Scope:
   engine.
 
 Tasks:
-- [ ] Audit advanced reporting helpers and decide which ones move to the stable
-      surface.
-- [ ] Define a versioned saved-report contract covering query text, parameters,
+- [x] Audit advanced reporting helpers and decide which ones move to the stable
+      surface. Finding: all current helpers (ReportDefinition, ChartQueryPreset,
+      StatsViewPreset, TabularSchema, ChartSpec, SqlLikePlanPreview, etc.) are
+      already on the public surface and stable; no redesign required.
+- [x] Define a versioned saved-report contract covering query text, parameters,
       schema, and chart/table configuration.
-- [ ] Expose serializable field/column metadata for UI builders and saved
+      Delivered: SavedReport + SavedReportKind in report/ package. FORMAT_VERSION="1".
+      Supports sqlLike() and natural() factories, immutable builders, planPreview(),
+      diagnostics(), toQuery(), toNaturalQuery(), toDefinition(Class<T>).
+- [x] Expose serializable field/column metadata for UI builders and saved
       report review.
-- [ ] Add examples for saved reports, runtime-owned presets, and migration-safe
+      Delivered: TabularColumn.typeName() returns type().getSimpleName() for
+      JSON-friendly column metadata.
+- [x] Add examples for saved reports, runtime-owned presets, and migration-safe
       replay.
-- [ ] Add public API and binary-compat coverage for every promoted type.
+      Delivered: SavedReportTest covers full create→configure→review→replay workflow
+      and both SQL-like and natural replay paths.
+- [x] Add public API and binary-compat coverage for every promoted type.
+      Delivered: StablePublicApiContractTest.stableSavedReportContractsShouldRemainAvailable()
+      and stableTabularColumnTypeNameContractShouldRemainAvailable().
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Report*Test,*Preset*Test,*Schema*Test,*PublicApi*Test" test`

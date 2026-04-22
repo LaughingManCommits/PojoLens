@@ -47,6 +47,10 @@ public final class TabularColumn {
         return formatHint;
     }
 
+    public String typeName() {
+        return type.getSimpleName();
+    }
+
     private static String requireText(String value, String label) {
         if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " must not be null/blank");

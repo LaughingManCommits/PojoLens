@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Stable embedded reporting contract** (`STRAT-WP1`) — added `SavedReport`
+  and `SavedReportKind` to the `report` package. `SavedReport` is a versioned,
+  serialization-friendly contract carrying query text, default parameters,
+  optional chart spec, and optional schema. Supports SQL-like and natural
+  query kinds. Provides `planPreview()` and `diagnostics()` for data-free
+  review, and `toQuery()` / `toNaturalQuery()` / `toDefinition(Class<T>)` for
+  replay. Added `TabularColumn.typeName()` returning the column's Java simple
+  type name for JSON-friendly UI-builder metadata. Contract coverage added to
+  `StablePublicApiContractTest`.
+
 - **Better error suggestions** (`QOL-WP5`) - extracted `NameSuggestions` helper
   (Levenshtein ≤ 2 + prefix match, up to 3 candidates, case-normalised) into
   `laughing.man.commits.internal`. Wired deterministic "Did you mean" suggestions

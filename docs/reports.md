@@ -118,6 +118,122 @@ ReportDefinition<DepartmentCount> chartReady = rowsOnly.withChartSpec(
     ChartSpec.of(ChartType.BAR, "department", "total"));
 ```
 
+---
+
+## SavedReport — Versioned Saved-Report Contract
+
+`SavedReport` carries query text, default parameters, optional chart spec, and
+optional schema as plain serialization-friendly data — no lambdas or live
+executors. It is designed to be stored, reviewed without executing, and replayed
+on demand against live data snapshots.
+
+Use it when a report must be:
+- persisted to a database, file, or config store and replayed later
+- reviewed by an admin before execution
+- shared across services or processes as a versioned contract
+- migrated safely when query text evolves
+
+When the report is only executed in-process and reuse across requests is enough,
+a plain `ReportDefinition<T>` is simpler.
+
+### Create
+
+```java
+SavedReport report = SavedReport
+    .sqlLike("active-by-dept", "Active employees by department",
+             "select department, count(*) as total "
+             + "where active = :active group by department order by department asc")
+    .withDefaultParam("active", true)
+    .withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+```
+
+Natural query:
+
+```java
+SavedReport report = SavedReport
+    .natural("active-by-dept-natural", "Active employees by department",
+             "show department, count of employees as total "
+             + "where active is true group by department sort by department ascending");
+```
+
+The query is parsed at creation time. Invalid query text throws immediately.
+
+### Configure
+
+All builder methods return a new `SavedReport` instance — the original is unchanged:
+
+```java
+SavedReport withParams = report.withDefaultParam("active", true);
+SavedReport withChart  = report.withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+SavedReport withSchema = report.withSchema(mySchema);
+SavedReport withBulk   = report.withDefaultParams(Map.of("active", true, "dept", "Engineering"));
+```
+
+### Review Without Data
+
+Both methods are safe to call without any row data:
+
+```java
+// structural query shape — fields, grouping, paging, joins, required params
+SqlLikePlanPreview preview = report.planPreview();
+List<String> requiredParams = preview.requiredParams();   // ["active"]
+boolean hasGrouping         = preview.hasGrouping();      // true
+
+// field references, lint warnings, output fields, required params
+QueryDiagnostics diag = report.diagnostics();
+boolean valid            = diag.valid();
+List<String> required    = diag.requiredParams();
+```
+
+### Replay
+
+```java
+// Full replay — builds a live ReportDefinition with default params, chart spec, and schema applied
+ReportDefinition<DeptRow> def = report.toDefinition(DeptRow.class);
+List<DeptRow> rows = def.rows(employeeSnapshot);
+ChartData chart   = def.chart(employeeSnapshot);
+
+// Raw query replay — for callers that need the SqlLikeQuery directly
+SqlLikeQuery query = report.toQuery();          // SQL_LIKE reports only
+NaturalQuery nq    = report.toNaturalQuery();   // NATURAL reports only
+```
+
+### Versioned Contract Metadata
+
+```java
+String version = report.version();        // "1" — format version for deserialization checks
+String id      = report.id();
+String name    = report.name();
+SavedReportKind kind = report.kind();     // SQL_LIKE or NATURAL
+String source  = report.source();         // derived from query at creation
+Map<String, Object> defaults = report.defaultParams();
+ChartSpec spec = report.chartSpec();      // null if not set
+TabularSchema schema = report.schema();   // null if not set
+```
+
+### Full Workflow Example
+
+```java
+// 1. Define once and store
+SavedReport report = SavedReport
+    .sqlLike("rpt-001", "High earners by department",
+             "select department, count(*) as total "
+             + "where active = :active and salary >= :minSalary "
+             + "group by department order by total desc")
+    .withDefaultParam("active", true)
+    .withDefaultParam("minSalary", 100000)
+    .withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+
+// 2. Admin review before running
+SqlLikePlanPreview preview = report.planPreview();
+// preview.requiredParams() → ["active", "minSalary"]
+
+// 3. Replay against a live snapshot
+ReportDefinition<DeptCountRow> def = report.toDefinition(DeptCountRow.class);
+List<DeptCountRow> rows = def.rows(currentEmployees);
+ChartData chart         = def.chart(currentEmployees);
+```
+
 ## Relation To ChartQueryPreset
 
 `ChartQueryPreset<T>` remains the lightweight preset API for chart-first SQL-like flows.
