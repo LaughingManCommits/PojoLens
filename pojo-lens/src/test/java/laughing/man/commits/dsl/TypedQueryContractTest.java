@@ -125,6 +125,25 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void nestedAndOrPreservesPredicateTreeSemantics() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(DEPT.eq("Engineering").and(NAME.eq("Alice").or(NAME.eq("Bob"))))
+                .filter(sampleEmployees());
+
+        assertEquals(List.of("Alice"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
+    void nestedOrAndPreservesPredicateTreeSemantics() {
+        List<Employee> result = TypedQuery.from(Employee.class)
+                .where(NAME.eq("Bob").or(DEPT.eq("Engineering").and(ACTIVE.eq(false))))
+                .orderBy(NAME)
+                .filter(sampleEmployees());
+
+        assertEquals(List.of("Bob", "Dan"), result.stream().map(e -> e.name).toList());
+    }
+
+    @Test
     void limitCapsResultSize() {
         List<Employee> result = TypedQuery.from(Employee.class)
                 .limit(2)

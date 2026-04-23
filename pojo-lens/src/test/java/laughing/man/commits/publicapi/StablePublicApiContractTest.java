@@ -16,6 +16,10 @@ import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
+import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedPredicate;
+import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.natural.NaturalRuntime;
@@ -426,6 +430,52 @@ public class StablePublicApiContractTest {
     }
 
     @Test
+    public void stableTypedDslContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(TypedField.class, "of", String.class, Class.class);
+        requirePublicMethod(TypedField.class, "fieldName");
+        requirePublicMethod(TypedField.class, "valueType");
+        requirePublicMethod(TypedField.class, "eq", Object.class);
+        requirePublicMethod(TypedField.class, "ne", Object.class);
+        requirePublicMethod(TypedField.class, "gt", Object.class);
+        requirePublicMethod(TypedField.class, "gte", Object.class);
+        requirePublicMethod(TypedField.class, "lt", Object.class);
+        requirePublicMethod(TypedField.class, "lte", Object.class);
+        requirePublicMethod(TypedField.class, "in", java.util.Collection.class);
+        requirePublicMethod(TypedField.class, "isNull");
+        requirePublicMethod(TypedField.class, "isNotNull");
+
+        requirePublicMethod(TypedPredicate.class, "operator");
+        requirePublicMethod(TypedPredicate.class, "field");
+        requirePublicMethod(TypedPredicate.class, "value");
+        requirePublicMethod(TypedPredicate.class, "values");
+        requirePublicMethod(TypedPredicate.class, "children");
+        requirePublicMethod(TypedPredicate.class, "isLeaf");
+        requirePublicMethod(TypedPredicate.class, "and", TypedPredicate.class);
+        requirePublicMethod(TypedPredicate.class, "or", TypedPredicate.class);
+        requirePublicMethod(TypedPredicate.class, "not");
+        requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
+        requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
+
+        requirePublicStaticMethod(TypedQuery.class, "from", Class.class);
+        requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "limit", int.class);
+        requirePublicMethod(TypedQuery.class, "offset", int.class);
+        requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "explain", List.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
+
+        requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
+        requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",
+                Class.class, String.class, String.class);
+    }
+
+    @Test
     public void stableQueryExecutionGuardContractsShouldRemainAvailable() throws Exception {
         requirePublicStaticMethod(QueryExecutionGuard.class, "unrestricted");
         requirePublicStaticMethod(QueryExecutionGuard.class, "builder");
@@ -457,6 +507,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(QueryComplexitySummary.class, "hasPaging");
         requirePublicMethod(QueryComplexitySummary.class, "estimatedComplexityScore");
 
+        requirePublicStaticMethod(QueryExecutionGuardException.class, "of", QueryGuardOutcome.class);
         requirePublicMethod(QueryExecutionGuardException.class, "outcome");
     }
 

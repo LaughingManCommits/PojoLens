@@ -9,8 +9,10 @@ Use it when generated field constants are worth the extra build step.
 - alias/result row projections
 - shared constants across modules
 - SQL-like query builders that assemble controlled query text
+- typed DSL field constants
 
 Use `FieldMetamodelGenerator` to generate a Java constants class for a model or projection type.
+Use `generateTyped(...)` when code-owned typed queries should avoid hand-written field strings.
 
 ## Generate Source
 
@@ -99,6 +101,36 @@ ChartSpec spec = ChartSpec.of(
 
 ChartData chart = PojoLensChart.toChartData(rows, spec);
 ```
+
+## Typed DSL Usage
+
+`generateTyped(...)` emits `TypedField<T,V>` constants for the stable typed DSL.
+Primitive model fields are boxed in the generated generic type, so an `int`
+field is emitted as `TypedField<Employee, Integer>`.
+
+```java
+FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(
+    Employee.class,
+    "com.acme.generated",
+    "EmployeeTypedFields");
+Path javaFile = metamodel.writeTo(Path.of("target/generated-sources/pojo-lens"));
+```
+
+Generated typed constants can be used with `TypedQuery`:
+
+```java
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.ACTIVE.eq(true)))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(10)
+    .filter(employees);
+```
+
+The current typed DSL foundation covers projection, filters, ordering, offset,
+limit, explain, schema, and execution guards. Keep SQL-like or natural queries
+for grouping, aggregation, joins, windows, subqueries, and user-authored query
+text until those typed shapes are stabilized.
 
 ## Build Integration
 

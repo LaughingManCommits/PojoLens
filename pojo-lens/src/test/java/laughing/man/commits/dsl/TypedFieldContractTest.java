@@ -4,9 +4,16 @@ import laughing.man.commits.metamodel.FieldMetamodel;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,6 +130,32 @@ public class TypedFieldContractTest {
                 "source must import java.util.Date for hireDate field");
     }
 
+    @Test
+    void generateTypedSourceUsesBoxedPrimitiveFieldTypes() {
+        FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(Employee.class);
+
+        assertTrue(metamodel.source().contains("TypedField<Employee, Integer> ID"),
+                "primitive int id field must be generated as Integer");
+        assertTrue(metamodel.source().contains("TypedField<Employee, Boolean> ACTIVE"),
+                "primitive boolean active field must be generated as Boolean");
+        assertFalse(metamodel.source().contains("TypedField<Employee, int>"));
+        assertFalse(metamodel.source().contains("TypedField<Employee, boolean>"));
+    }
+
+    @Test
+    void generateTypedSourceForNestedModelCompiles(@TempDir Path tempDir) throws Exception {
+        FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(
+                Employee.class,
+                "laughing.man.commits.generated",
+                "EmployeeTypedFields");
+
+        Path sourceRoot = tempDir.resolve("src");
+        Path classesRoot = tempDir.resolve("classes");
+        Path javaFile = metamodel.writeTo(sourceRoot);
+
+        compile(javaFile, classesRoot);
+    }
+
     // --- helpers ---
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... params)
@@ -139,5 +172,25 @@ public class TypedFieldContractTest {
         assertTrue(Modifier.isStatic(m.getModifiers()),
                 () -> "Expected static method: " + type.getSimpleName() + "." + name);
         return m;
+    }
+
+    private static void compile(Path javaFile, Path classesRoot) throws Exception {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        assertNotNull(compiler, "JDK compiler is required for metamodel generator tests");
+
+        try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null)) {
+            Iterable<? extends JavaFileObject> units = fileManager.getJavaFileObjects(javaFile.toFile());
+            boolean compiled = compiler.getTask(
+                    null,
+                    fileManager,
+                    null,
+                    List.of(
+                            "-classpath", System.getProperty("java.class.path"),
+                            "-d", classesRoot.toString()),
+                    null,
+                    units
+            ).call();
+            assertTrue(compiled, "Generated typed metamodel source should compile");
+        }
     }
 }

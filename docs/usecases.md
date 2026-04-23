@@ -4,7 +4,7 @@ If you are new to PojoLens, start here.
 Use this page to choose one path first, then jump to the deeper guide for that
 path.
 For new code, keep one default path per job:
-`PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`,
+`PojoLensSql`, `PojoLensNatural`, `TypedQuery`, `PojoLensCsv`, `PojoLensTree`,
 `PojoLensRuntime`, `PojoLensChart`, or `ReportDefinition<T>`.
 
 Source guides:
@@ -21,6 +21,7 @@ Source guides:
 | Default query authoring over in-memory rows | `PojoLensSql.parse(...).params(...)` | Primary public path for filtering, ordering, grouping, joins, windows, subqueries, charts, schemas, and explain payloads. |
 | Reusable SQL-like query shapes | `PojoLensSql.template(...)` | Keeps repeated query shapes on a fixed named-parameter schema. |
 | Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax, including explicit joins, bounded subquery/existence phrases, grouped aggregates, deterministic window phrases with `qualify`, time buckets, and chart phrases; see [docs/natural.md](natural.md). |
+| Code-owned typed filters and ordering | `TypedQuery.from(rowType)` | Stable Java-owned foundation for generated `TypedField<T,V>` constants, projection, filters, ordering, offset, limit, explain/schema, and execution guards. |
 | Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, computed fields, and natural-query vocabulary scoped to a runtime instance. |
 | Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 

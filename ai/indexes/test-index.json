@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T09:17:37.223908+02:00",
+  "generatedAt": "2026-04-23T13:48:56.725966+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 127,
-    "testClasses": 127
+    "testJavaFiles": 130,
+    "testClasses": 130
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 115
+      "testJavaFiles": 118
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -103,6 +103,9 @@
         "pojo-lens/src/test/java/laughing/man/commits/StreamingExecutionOutputTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/TimeBucketAggregationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/domain/Foo.java",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FastPojoFilterSupportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FilterCoreTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",

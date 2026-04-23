@@ -1,11 +1,11 @@
 package laughing.man.commits.dsl;
 
 import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.sqllike.QueryGuardOutcome;
@@ -29,11 +29,12 @@ import java.util.Objects;
  *       .filter(employees);
  * }</pre>
  *
- * <p>Phase 3 limitations:
+ * <p>Current limitations:
  * <ul>
  *   <li>Sort direction is global — the last {@code orderByDesc} or {@code orderBy} call wins.</li>
  *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
  *       {@code isNotNull}) instead.</li>
+ *   <li>Typed grouping, aggregation, and joins are not part of this foundation surface.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
@@ -286,7 +287,10 @@ public final class TypedQuery<T> {
 
     private void applyWhere(QueryBuilder builder) {
         if (wherePredicate != null) {
-            lowerPredicate(wherePredicate, builder, Separator.AND);
+            List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(wherePredicate);
+            for (List<QueryRule> conjunction : disjunction) {
+                builder.allOf(conjunction.toArray(new QueryRule[0]));
+            }
         }
     }
 
@@ -308,47 +312,63 @@ public final class TypedQuery<T> {
         }
     }
 
-    private static <T> void lowerPredicate(TypedPredicate<T> node,
-                                            QueryBuilder builder,
-                                            Separator firstChildSep) {
+    private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node) {
         switch (node.operator()) {
             case AND -> {
-                List<TypedPredicate<T>> children = node.children();
-                for (int i = 0; i < children.size(); i++) {
-                    lowerPredicate(children.get(i), builder,
-                            i == 0 ? firstChildSep : Separator.AND);
-                }
+                return combineAnd(node.children());
             }
             case OR -> {
-                List<TypedPredicate<T>> children = node.children();
-                for (int i = 0; i < children.size(); i++) {
-                    lowerPredicate(children.get(i), builder,
-                            i == 0 ? firstChildSep : Separator.OR);
-                }
+                return combineOr(node.children());
             }
             case NOT -> throw new UnsupportedOperationException(
                     "NOT predicates are not supported in TypedQuery. "
                     + "Use negated operators (ne, lte, gte, isNotNull) instead.");
-            default -> lowerLeaf(node, builder, firstChildSep);
+            default -> {
+                return List.of(List.of(toQueryRule(node)));
+            }
         }
     }
 
-    private static <T> void lowerLeaf(TypedPredicate<T> leaf,
-                                       QueryBuilder builder,
-                                       Separator sep) {
+    private static <T> List<List<QueryRule>> combineAnd(List<TypedPredicate<T>> children) {
+        List<List<QueryRule>> result = List.of(List.of());
+        for (TypedPredicate<T> child : children) {
+            List<List<QueryRule>> childGroups = toDisjunctiveNormalForm(child);
+            List<List<QueryRule>> combined = new ArrayList<>(result.size() * childGroups.size());
+            for (List<QueryRule> left : result) {
+                for (List<QueryRule> right : childGroups) {
+                    List<QueryRule> conjunction = new ArrayList<>(left.size() + right.size());
+                    conjunction.addAll(left);
+                    conjunction.addAll(right);
+                    combined.add(List.copyOf(conjunction));
+                }
+            }
+            result = List.copyOf(combined);
+        }
+        return result;
+    }
+
+    private static <T> List<List<QueryRule>> combineOr(List<TypedPredicate<T>> children) {
+        List<List<QueryRule>> result = new ArrayList<>();
+        for (TypedPredicate<T> child : children) {
+            result.addAll(toDisjunctiveNormalForm(child));
+        }
+        return List.copyOf(result);
+    }
+
+    private static <T> QueryRule toQueryRule(TypedPredicate<T> leaf) {
         String field = leaf.field().fieldName();
-        switch (leaf.operator()) {
-            case EQ -> builder.addRule(field, leaf.value(), Clauses.EQUAL, sep);
-            case NE -> builder.addRule(field, leaf.value(), Clauses.NOT_EQUAL, sep);
-            case GT -> builder.addRule(field, leaf.value(), Clauses.BIGGER, sep);
-            case GTE -> builder.addRule(field, leaf.value(), Clauses.BIGGER_EQUAL, sep);
-            case LT -> builder.addRule(field, leaf.value(), Clauses.SMALLER, sep);
-            case LTE -> builder.addRule(field, leaf.value(), Clauses.SMALLER_EQUAL, sep);
-            case IN -> builder.addRule(field, leaf.values(), Clauses.IN, sep);
-            case IS_NULL -> builder.addRule(field, null, Clauses.EQUAL, sep);
-            case IS_NOT_NULL -> builder.addRule(field, null, Clauses.NOT_EQUAL, sep);
+        return switch (leaf.operator()) {
+            case EQ -> QueryRule.of(field, leaf.value(), Clauses.EQUAL);
+            case NE -> QueryRule.of(field, leaf.value(), Clauses.NOT_EQUAL);
+            case GT -> QueryRule.of(field, leaf.value(), Clauses.BIGGER);
+            case GTE -> QueryRule.of(field, leaf.value(), Clauses.BIGGER_EQUAL);
+            case LT -> QueryRule.of(field, leaf.value(), Clauses.SMALLER);
+            case LTE -> QueryRule.of(field, leaf.value(), Clauses.SMALLER_EQUAL);
+            case IN -> QueryRule.of(field, leaf.values(), Clauses.IN);
+            case IS_NULL -> QueryRule.of(field, null, Clauses.EQUAL);
+            case IS_NOT_NULL -> QueryRule.of(field, null, Clauses.NOT_EQUAL);
             default -> throw new UnsupportedOperationException(
                     "Unexpected leaf operator: " + leaf.operator());
-        }
+        };
     }
 }

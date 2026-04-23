@@ -185,6 +185,11 @@
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>
+                                    <include>laughing.man.commits.dsl.TypedField</include>
+                                    <include>laughing.man.commits.dsl.TypedPredicate</include>
+                                    <include>laughing.man.commits.dsl.TypedPredicate.Operator</include>
+                                    <include>laughing.man.commits.dsl.TypedQuery</include>
+                                    <include>laughing.man.commits.metamodel.FieldMetamodelGenerator</include>
                                     <include>laughing.man.commits.report.ReportDefinition</include>
                                     <include>laughing.man.commits.tree.TreeTraversalBuilder</include>
                                     <include>laughing.man.commits.tree.TreeEntry</include>
@@ -194,6 +199,7 @@
                                     <include>laughing.man.commits.sqllike.SqlParams</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeCursor</include>
                                     <include>laughing.man.commits.sqllike.JoinBindings</include>
+                                    <include>laughing.man.commits.sqllike.QueryExecutionGuardException</include>
                                     <include>laughing.man.commits.natural.NaturalRuntime</include>
                                     <include>laughing.man.commits.natural.NaturalQuery</include>
                                     <include>laughing.man.commits.natural.NaturalBoundQuery</include>

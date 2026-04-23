@@ -43,7 +43,7 @@ The families and tiers are related, but not the same thing:
 
 The default first-read story is SQL-like first:
 `PojoLensSql`, `PojoLensNatural`, `PojoLensRuntime`, `PojoLensChart`,
-`PojoLensTree`, and `ReportDefinition<T>`.
+`TypedQuery<T>`, `PojoLensTree`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
@@ -130,6 +130,22 @@ The default first-read story is SQL-like first:
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
 
+### Typed DSL Contracts
+
+- `TypedField<T,V>`:
+  - `of`, `fieldName`, `valueType`
+  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `isNull`, `isNotNull`
+- `TypedPredicate<T>`:
+  - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
+  - combinators: `and`, `or`, `not`, `allOf`, `anyOf`
+- `TypedQuery<T>`:
+  - `from`, `select`, `where`, `orderBy`, `orderByDesc`, `limit`, `offset`
+  - `executionGuard`, `filter`, `explain`, `schema`
+  - current stable foundation covers projection, filters, ordering, offset, limit,
+    explain/schema, and row-scan/row-return/duration guard checks
+  - typed grouping, aggregation, joins, windows, and subqueries are deferred
+- `FieldMetamodelGenerator.generateTyped(...)`
+
 ### Plain-English Contracts
 
 - `NaturalRuntime`:
@@ -162,7 +178,7 @@ The following remain public, but are treated as advanced:
   `StatsViewPreset`, and related helper types
 - `SnapshotComparison`, regression fixtures, parity helpers, and other testing
   support
-- metamodel generation
+- metamodel generation beyond the stable typed-field generator entry point
 - benchmark tooling and threshold helpers
 
 ## Internal Engine DSL
