@@ -39,11 +39,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * SQL-like query API contract.
@@ -558,9 +561,9 @@ public final class SqlLikeQuery {
      */
     public <T> List<T> filter(List<?> pojos, Class<T> cls) {
         ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), cls);
-        long start = System.currentTimeMillis();
+        long startedNanos = System.nanoTime();
         List<T> result = executeFilter(context, cls);
-        checkPostExecution(result.size(), System.currentTimeMillis() - start);
+        checkPostExecution(result.size(), startedNanos);
         return result;
     }
 
@@ -589,9 +592,9 @@ public final class SqlLikeQuery {
     public <T> List<T> filter(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
-        long start = System.currentTimeMillis();
+        long startedNanos = System.nanoTime();
         List<T> result = executeFilter(context, cls);
-        checkPostExecution(result.size(), System.currentTimeMillis() - start);
+        checkPostExecution(result.size(), startedNanos);
         return result;
     }
 
@@ -644,7 +647,8 @@ public final class SqlLikeQuery {
      */
     public <T> Stream<T> stream(List<?> pojos, Class<T> cls) {
         ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), cls);
-        return executeStream(context, cls);
+        long startedNanos = System.nanoTime();
+        return guardStream(executeStream(context, cls), startedNanos);
     }
 
     /**
@@ -674,7 +678,8 @@ public final class SqlLikeQuery {
     public <T> Stream<T> stream(List<?> pojos, JoinBindings joinBindings, Class<T> cls) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), cls);
-        return executeStream(context, cls);
+        long startedNanos = System.nanoTime();
+        return guardStream(executeStream(context, cls), startedNanos);
     }
 
     /**
@@ -754,11 +759,10 @@ public final class SqlLikeQuery {
         }
         QueryAst lookaheadAst = withLookaheadLimit(ast, pageSize);
         ExecutionContext context = prepareExecution(lookaheadAst, telemetryListener, pojos, joinSources, cls);
-        long start = System.currentTimeMillis();
+        long startedNanos = System.nanoTime();
         List<T> lookaheadRows = executeFilter(context, cls);
-        long durationMillis = System.currentTimeMillis() - start;
         int resultSize = Math.min(lookaheadRows.size(), pageSize);
-        checkPostExecution(resultSize, durationMillis);
+        checkPostExecution(resultSize, startedNanos);
         if (lookaheadRows.size() <= pageSize) {
             return new PageResult<>(lookaheadRows, false, null);
         }
@@ -832,9 +836,9 @@ public final class SqlLikeQuery {
      */
     public <T> ChartData chart(List<?> pojos, Class<T> projectionClass, ChartSpec spec) {
         ExecutionContext context = prepareExecution(pojos, Collections.emptyMap(), projectionClass);
-        long start = System.currentTimeMillis();
+        long startedNanos = System.nanoTime();
         ChartData result = executeChart(context, projectionClass, spec);
-        checkPostExecution(result.getLabels().size(), System.currentTimeMillis() - start);
+        checkPostExecution(result.getLabels().size(), startedNanos);
         return result;
     }
 
@@ -869,9 +873,9 @@ public final class SqlLikeQuery {
                                ChartSpec spec) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         ExecutionContext context = prepareExecution(pojos, joinBindings.asMap(), projectionClass);
-        long start = System.currentTimeMillis();
+        long startedNanos = System.nanoTime();
         ChartData result = executeChart(context, projectionClass, spec);
-        checkPostExecution(result.getLabels().size(), System.currentTimeMillis() - start);
+        checkPostExecution(result.getLabels().size(), startedNanos);
         return result;
     }
 
@@ -1001,12 +1005,13 @@ public final class SqlLikeQuery {
         );
         if (!executionGuard.isUnrestricted()) {
             SqlLikePlanPreview preview = SqlLikePlanPreviewSupport.buildFromAst(executionAst, source);
-            QueryGuardOutcome preOutcome = executionGuard.checkPreExecution(preview, pojos.size());
+            int rowsScanned = rowsScanned(pojos, joinSources);
+            QueryGuardOutcome preOutcome = executionGuard.checkPreExecution(preview, rowsScanned);
             if (preOutcome.blocked()) {
                 if (executionTelemetryListener != null) {
                     executionTelemetryListener.onTelemetry(new QueryTelemetryEvent(
                             QueryTelemetryStage.GUARD_REJECTED, queryType, source,
-                            0L, pojos.size(), null, preOutcome.auditMetadata()));
+                            0L, rowsScanned, null, preOutcome.auditMetadata()));
                 }
                 throw new QueryExecutionGuardException(preOutcome);
             }
@@ -1048,19 +1053,47 @@ public final class SqlLikeQuery {
         );
     }
 
-    private void checkPostExecution(int rowsReturned, long durationMillis) {
+    private <T> Stream<T> guardStream(Stream<T> stream, long startedNanos) {
+        if (executionGuard.isUnrestricted()) {
+            return stream;
+        }
+        GuardedIterator<T> iterator = new GuardedIterator<>(stream.iterator(), startedNanos, stream::close);
+        Spliterator<T> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED);
+        return StreamSupport.stream(spliterator, false).onClose(iterator::close);
+    }
+
+    private void checkPostExecution(int rowsReturned, long startedNanos) {
         if (executionGuard.isUnrestricted()) {
             return;
         }
+        long durationNanos = Math.max(0L, System.nanoTime() - startedNanos);
+        long durationMillis = durationNanos / 1_000_000L;
         QueryGuardOutcome outcome = executionGuard.checkPostExecution(rowsReturned, durationMillis);
         if (outcome.blocked()) {
             if (telemetryListener != null) {
                 telemetryListener.onTelemetry(new QueryTelemetryEvent(
                         QueryTelemetryStage.GUARD_REJECTED, queryType, source,
-                        0L, null, rowsReturned, outcome.auditMetadata()));
+                        durationNanos, null, rowsReturned, outcome.auditMetadata()));
             }
             throw new QueryExecutionGuardException(outcome);
         }
+    }
+
+    private static int rowsScanned(List<?> pojos, Map<String, List<?>> joinSources) {
+        long rows = rowCount(pojos);
+        if (joinSources != null) {
+            for (List<?> joinRows : joinSources.values()) {
+                rows += rowCount(joinRows);
+                if (rows >= Integer.MAX_VALUE) {
+                    return Integer.MAX_VALUE;
+                }
+            }
+        }
+        return (int) rows;
+    }
+
+    private static int rowCount(List<?> rows) {
+        return rows == null ? 0 : rows.size();
     }
 
     private final class DefaultSqlLikeBoundQuery<T> implements SqlLikeBoundQuery<T> {
@@ -1074,7 +1107,10 @@ public final class SqlLikeQuery {
 
         @Override
         public List<T> filter() {
-            return executeFilter(context, projectionClass);
+            long startedNanos = System.nanoTime();
+            List<T> result = executeFilter(context, projectionClass);
+            checkPostExecution(result.size(), startedNanos);
+            return result;
         }
 
         @Override
@@ -1084,12 +1120,98 @@ public final class SqlLikeQuery {
 
         @Override
         public Stream<T> stream() {
-            return executeStream(context, projectionClass);
+            long startedNanos = System.nanoTime();
+            return guardStream(executeStream(context, projectionClass), startedNanos);
         }
 
         @Override
         public ChartData chart(ChartSpec spec) {
-            return executeChart(context, projectionClass, spec);
+            long startedNanos = System.nanoTime();
+            ChartData result = executeChart(context, projectionClass, spec);
+            checkPostExecution(result.getLabels().size(), startedNanos);
+            return result;
+        }
+    }
+
+    private final class GuardedIterator<T> implements Iterator<T>, AutoCloseable {
+        private final Iterator<T> delegate;
+        private final long startedNanos;
+        private final Runnable closeAction;
+        private int rowsReturned;
+        private boolean completed;
+        private boolean closed;
+
+        private GuardedIterator(Iterator<T> delegate, long startedNanos, Runnable closeAction) {
+            this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
+            this.startedNanos = startedNanos;
+            this.closeAction = Objects.requireNonNull(closeAction, "closeAction must not be null");
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (completed) {
+                return false;
+            }
+            boolean hasNext = delegate.hasNext();
+            if (!hasNext) {
+                complete();
+                return false;
+            }
+            try {
+                if (executionGuard.maxRowsReturned() >= 0 && rowsReturned >= executionGuard.maxRowsReturned()) {
+                    checkPostExecution(rowsReturned + 1, startedNanos);
+                }
+                checkPostExecution(rowsReturned, startedNanos);
+            } catch (QueryExecutionGuardException ex) {
+                throw fail(ex);
+            }
+            return true;
+        }
+
+        @Override
+        public T next() {
+            T value = delegate.next();
+            rowsReturned++;
+            try {
+                checkPostExecution(rowsReturned, startedNanos);
+            } catch (QueryExecutionGuardException ex) {
+                throw fail(ex);
+            }
+            return value;
+        }
+
+        @Override
+        public void close() {
+            complete();
+        }
+
+        private void complete() {
+            if (completed) {
+                closeUnderlying();
+                return;
+            }
+            completed = true;
+            try {
+                checkPostExecution(rowsReturned, startedNanos);
+            } catch (QueryExecutionGuardException ex) {
+                throw fail(ex);
+            } finally {
+                closeUnderlying();
+            }
+        }
+
+        private QueryExecutionGuardException fail(QueryExecutionGuardException ex) {
+            completed = true;
+            closeUnderlying();
+            return ex;
+        }
+
+        private void closeUnderlying() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            closeAction.run();
         }
     }
 

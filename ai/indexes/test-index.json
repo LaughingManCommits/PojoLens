@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T20:26:09.941419+02:00",
+  "generatedAt": "2026-04-23T09:17:37.223908+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 125,
-    "testClasses": 125
+    "testJavaFiles": 127,
+    "testClasses": 127
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 113
+      "testJavaFiles": 115
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -70,6 +70,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/chart/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentChartIntegrationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/QueryRegressionFixtureTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/report/SavedReportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/ChartTestFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/CommonStatsProjections.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java"
@@ -169,6 +170,7 @@
     {
       "category": "sql-like",
       "files": [
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryExecutionGuardTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryExposurePolicyTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeAliasTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeChartIntegrationTest.java",

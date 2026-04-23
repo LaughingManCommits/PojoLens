@@ -1,13 +1,22 @@
 package laughing.man.commits.sqllike;
 
 import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.chart.ChartSpec;
+import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.natural.NaturalQuery;
+import laughing.man.commits.telemetry.QueryTelemetryEvent;
+import laughing.man.commits.telemetry.QueryTelemetryStage;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -195,6 +204,107 @@ public class QueryExecutionGuardTest {
         assertEquals(3, result.size());
     }
 
+    @Test
+    void guardShouldBlockStreamWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("where active = true")
+                        .executionGuard(guard)
+                        .stream(sampleEmployees(), Employee.class)
+                        .toList());
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    @Test
+    void guardShouldBlockIteratorWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> {
+                    var iterator = PojoLensSql.parse("where active = true")
+                            .executionGuard(guard)
+                            .iterator(sampleEmployees(), Employee.class);
+                    while (iterator.hasNext()) {
+                        iterator.next();
+                    }
+                });
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    @Test
+    void boundQueryGuardShouldBlockFilterWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("where active = true")
+                        .executionGuard(guard)
+                        .bindTyped(sampleEmployees(), Employee.class)
+                        .filter());
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    @Test
+    void boundQueryGuardShouldBlockStreamWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("where active = true")
+                        .executionGuard(guard)
+                        .bindTyped(sampleEmployees(), Employee.class)
+                        .stream()
+                        .toList());
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    @Test
+    void guardShouldCountJoinRowsInRowsScannedBudget() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsScanned(3)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("select * from companies left join employees on id = companyId")
+                        .executionGuard(guard)
+                        .filter(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()), Company.class));
+
+        assertEquals("GUARD_ROWS_SCANNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    @Test
+    void guardShouldEmitTelemetryWhenLazyExecutionIsRejected() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+        List<QueryTelemetryEvent> events = new ArrayList<>();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("where active = true")
+                        .telemetry(events::add)
+                        .executionGuard(guard)
+                        .stream(sampleEmployees(), Employee.class)
+                        .toList());
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+        List<QueryTelemetryEvent> guardEvents = events.stream()
+                .filter(event -> event.stage() == QueryTelemetryStage.GUARD_REJECTED)
+                .toList();
+        assertEquals(1, guardEvents.size());
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", guardEvents.get(0).metadata().get("guardBlockCode"));
+    }
+
     // --- QueryExecutionGuardException ---
 
     @Test
@@ -244,6 +354,21 @@ public class QueryExecutionGuardTest {
                 .filter(sampleEmployees(), Employee.class);
 
         assertFalse(result.isEmpty());
+    }
+
+    @Test
+    void naturalBoundQueryGuardShouldBlockWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> NaturalQuery.of("show employees where active is true")
+                        .executionGuard(guard)
+                        .bindTyped(sampleEmployees(), Employee.class)
+                        .filter());
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
     }
 
     // --- Guard outcome: pre-execution check internals ---
@@ -299,5 +424,26 @@ public class QueryExecutionGuardTest {
         QueryGuardOutcome outcome = guard.checkPostExecution(10, 50L);
 
         assertTrue(outcome.allowed());
+    }
+
+    @Test
+    void boundChartGuardShouldBlockWhenRowsReturnedExceedsLimit() {
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .maxRowsReturned(1)
+                .build();
+        ChartSpec spec = ChartSpec.of(ChartType.BAR, "department", "total");
+
+        QueryExecutionGuardException ex = assertThrows(QueryExecutionGuardException.class,
+                () -> PojoLensSql.parse("select department, count(*) as total group by department")
+                        .executionGuard(guard)
+                        .bindTyped(sampleEmployees(), DepartmentCount.class)
+                        .chart(spec));
+
+        assertEquals("GUARD_ROWS_RETURNED_EXCEEDED", ex.outcome().blockCode());
+    }
+
+    public static class DepartmentCount {
+        public String department;
+        public long total;
     }
 }
