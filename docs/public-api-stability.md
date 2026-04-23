@@ -93,6 +93,22 @@ The default first-read story is SQL-like first:
   - `allowedFields`, `allowedSources`
   - `restrictsFields`, `restrictsSources`
   - `allowsField`, `allowsSource`
+- `QueryCancellationToken`:
+  - `ofAtomic`, `ofThread`, `isCancelled`
+- `QueryExecutionGuard`:
+  - `unrestricted`, `builder`, `isUnrestricted`, `hasPreExecutionLimits`
+  - `maxRowsScanned`, `maxRowsReturned`, `maxComplexityScore`,
+    `maxDurationMillis`, `cancellationToken`
+  - `checkPreExecution`, `checkPostExecution`, `checkCancellation`
+- `QueryExecutionGuard.Builder`:
+  - `maxRowsScanned`, `maxRowsReturned`, `maxComplexityScore`,
+    `maxDurationMillis`, `cancellationToken`, `build`
+- `QueryGuardOutcome`:
+  - `allowed`, `blocked`, `cancelled`
+  - `allowed`, `blocked`, `blockCode`, `blockReason`, `complexitySummary`,
+    `rowsReturnedBeforeAbort`, `auditMetadata`
+- `QueryExecutionGuardException`:
+  - `of`, `outcome`
 - `QueryDiagnostics`:
   - `valid`, `errors`, `lintWarnings`, `requiredParams`, `referencedFields`,
     `outputFields`, `joinSources`, `hasSubqueries`
@@ -142,7 +158,7 @@ The default first-read story is SQL-like first:
   - `from`, `select`, `where`, `orderBy`, `orderByDesc`, `limit`, `offset`
   - `executionGuard`, `filter`, `explain`, `schema`
   - current stable foundation covers projection, filters, ordering, offset, limit,
-    explain/schema, and row-scan/row-return/duration guard checks
+    explain/schema, and row-scan/row-return/duration/cancellation guard checks
   - typed grouping, aggregation, joins, windows, and subqueries are deferred
 - `FieldMetamodelGenerator.generateTyped(...)`
 

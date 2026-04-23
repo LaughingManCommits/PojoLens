@@ -187,11 +187,11 @@ public final class TypedQuery<T> {
     public <P> List<P> filter(List<T> rows, Class<P> projectionClass) {
         Objects.requireNonNull(rows, "rows must not be null");
         Objects.requireNonNull(projectionClass, "projectionClass must not be null");
-        if (rows.isEmpty()) {
-            return List.of();
-        }
         if (executionGuard != null) {
             applyPreExecutionGuard(rows.size());
+        }
+        if (rows.isEmpty()) {
+            return List.of();
         }
         QueryBuilder builder = FluentEngine.newQueryBuilder(rows);
         applySelect(builder);
@@ -267,6 +267,10 @@ public final class TypedQuery<T> {
     // --- Guard helpers ---
 
     private void applyPreExecutionGuard(int rowCount) {
+        QueryGuardOutcome cancelOutcome = executionGuard.checkCancellation(0);
+        if (cancelOutcome.blocked()) {
+            throw QueryExecutionGuardException.of(cancelOutcome);
+        }
         int scanLimit = executionGuard.maxRowsScanned();
         if (scanLimit >= 0 && rowCount > scanLimit) {
             QueryGuardOutcome outcome = QueryGuardOutcome.blocked(

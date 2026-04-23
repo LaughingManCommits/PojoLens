@@ -142,15 +142,35 @@ Tasks:
       Documented in QueryExecutionGuard Javadoc and docs/advanced-features.md.
 
 Review follow-up (`2026-04-23`):
-- [ ] Harden guard enforcement across `stream(...)`, `iterator()`, and bound
+- [x] Harden guard enforcement across `stream(...)`, `iterator()`, and bound
       query execution so `maxRowsReturned` and `maxDurationMillis` cannot be
       bypassed by switching execution entry points.
-- [ ] Count bound JOIN source rows in the pre-execution row-scan budget instead
+- [x] Count bound JOIN source rows in the pre-execution row-scan budget instead
       of only the primary root rows.
-- [ ] Add explicit tests for lazy execution, bound execution, telemetry
+- [x] Add explicit tests for lazy execution, bound execution, telemetry
       rejection, and join-backed row-scan budgets.
-- [ ] Re-scope or implement the still-missing WP2 contract pieces:
+- [x] Re-scope or implement the still-missing WP2 contract pieces:
       cooperative cancellation plus deterministic aborted-query metadata.
+      Delivered (`2026-04-23`): `QueryCancellationToken` (@FunctionalInterface,
+      `ofAtomic`, `ofThread` factories); `QueryExecutionGuard.Builder#cancellationToken`;
+      `QueryExecutionGuard#checkCancellation`; `QueryGuardOutcome#cancelled` factory
+      with `rowsReturnedBeforeAbort`; polled in `GuardedIterator#hasNext` (lazy paths)
+      and `prepareExecution` (eager paths) for SqlLikeQuery and TypedQuery;
+      block code `GUARD_CANCELLED`; 30 tests in `QueryCancellationTest` after
+      senior-review hardening.
+
+Senior review follow-up (`2026-04-23`):
+- [x] Fix bound eager cancellation so `SqlLikeBoundQuery.filter()` and
+      `SqlLikeBoundQuery.chart(...)` re-check cancellation when execution starts,
+      not only when the query is first bound.
+- [x] Add stable public API contract coverage for `QueryCancellationToken`,
+      cancellation-aware `QueryExecutionGuard` methods, cancellation outcomes,
+      and external-package public API usage.
+- [x] Make `TypedQuery` honor pre-execution cancellation even for empty input.
+- [x] Document `GUARD_CANCELLED`, `QueryCancellationToken`, and
+      `rowsReturnedBeforeAbort` in public execution-governance/stability docs.
+- [x] Add regression tests for bound eager cancellation, empty typed input
+      cancellation, and invalid cancellation row counts.
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Policy*Test,*Exposure*Test,*Telemetry*Test,*Natural*Test,*SqlLike*Test" test`

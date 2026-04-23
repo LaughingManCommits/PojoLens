@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /**
  * Configurable execution guard that bounds query complexity, rows scanned,
- * rows returned, and execution duration.
+ * rows returned, execution duration, and supports cooperative cancellation.
  *
  * <p>Attach a guard to a query with
  * {@link SqlLikeQuery#executionGuard(QueryExecutionGuard)} or
@@ -22,11 +22,13 @@ import java.util.Objects;
  *
  * <h3>Usage example</h3>
  * <pre>{@code
+ * AtomicBoolean cancel = new AtomicBoolean();
  * QueryExecutionGuard guard = QueryExecutionGuard.builder()
  *     .maxRowsScanned(10_000)
  *     .maxRowsReturned(500)
  *     .maxComplexityScore(8)
  *     .maxDurationMillis(2_000)
+ *     .cancellationToken(QueryCancellationToken.ofAtomic(cancel))
  *     .build();
  *
  * try {
@@ -41,21 +43,25 @@ import java.util.Objects;
  */
 public final class QueryExecutionGuard {
 
-    private static final QueryExecutionGuard UNRESTRICTED = new QueryExecutionGuard(-1, -1, -1, -1L);
+    private static final QueryExecutionGuard UNRESTRICTED =
+            new QueryExecutionGuard(-1, -1, -1, -1L, null);
 
     private final int maxRowsScanned;
     private final int maxRowsReturned;
     private final int maxComplexityScore;
     private final long maxDurationMillis;
+    private final QueryCancellationToken cancellationToken;
 
     private QueryExecutionGuard(int maxRowsScanned,
                                 int maxRowsReturned,
                                 int maxComplexityScore,
-                                long maxDurationMillis) {
+                                long maxDurationMillis,
+                                QueryCancellationToken cancellationToken) {
         this.maxRowsScanned = maxRowsScanned;
         this.maxRowsReturned = maxRowsReturned;
         this.maxComplexityScore = maxComplexityScore;
         this.maxDurationMillis = maxDurationMillis;
+        this.cancellationToken = cancellationToken;
     }
 
     /**
@@ -77,13 +83,25 @@ public final class QueryExecutionGuard {
     }
 
     /**
-     * Returns true when no limits are set and every query is allowed.
+     * Returns true when no limits are set, no cancellation token is attached,
+     * and every query is allowed unconditionally.
      *
      * @return true when unrestricted
      */
     public boolean isUnrestricted() {
         return maxRowsScanned < 0 && maxRowsReturned < 0
-                && maxComplexityScore < 0 && maxDurationMillis < 0;
+                && maxComplexityScore < 0 && maxDurationMillis < 0
+                && cancellationToken == null;
+    }
+
+    /**
+     * Returns true when this guard has pre-execution limits (rows scanned or
+     * complexity score) that require a plan preview to evaluate.
+     *
+     * @return true when pre-execution limits are configured
+     */
+    public boolean hasPreExecutionLimits() {
+        return maxRowsScanned >= 0 || maxComplexityScore >= 0;
     }
 
     /** Maximum allowed input rows scanned; {@code -1} means unlimited. */
@@ -108,6 +126,15 @@ public final class QueryExecutionGuard {
      */
     public long maxDurationMillis() {
         return maxDurationMillis;
+    }
+
+    /**
+     * Returns the cooperative cancellation token, or {@code null} when none is set.
+     *
+     * @return cancellation token or null
+     */
+    public QueryCancellationToken cancellationToken() {
+        return cancellationToken;
     }
 
     /**
@@ -139,7 +166,7 @@ public final class QueryExecutionGuard {
     /**
      * Checks output-row budget and wall-clock duration after query execution.
      *
-     * @param rowsReturned  number of rows produced by the query
+     * @param rowsReturned   number of rows produced by the query
      * @param durationMillis wall-clock time the query took in milliseconds
      * @return allowed or blocked outcome with audit metadata
      */
@@ -160,8 +187,34 @@ public final class QueryExecutionGuard {
     }
 
     /**
+     * Checks whether the attached cancellation token has fired.
+     *
+     * <p>When the token is cancelled, returns a {@link QueryGuardOutcome} with
+     * block code {@code GUARD_CANCELLED} and the deterministic
+     * {@code rowsReturnedBeforeAbort} count. When no token is attached or the
+     * token has not fired, returns an allowed outcome.
+     *
+     * @param rowsReturnedSoFar rows already yielded to the caller at the time of this check
+     * @return allowed outcome or cancelled outcome with abort metadata
+     */
+    public QueryGuardOutcome checkCancellation(int rowsReturnedSoFar) {
+        if (rowsReturnedSoFar < 0) {
+            throw new IllegalArgumentException(
+                    "rowsReturnedSoFar must be >= 0, got " + rowsReturnedSoFar);
+        }
+        if (cancellationToken != null && cancellationToken.isCancelled()) {
+            return QueryGuardOutcome.cancelled(
+                    "GUARD_CANCELLED",
+                    "Query execution was cancelled by the caller",
+                    rowsReturnedSoFar,
+                    null);
+        }
+        return QueryGuardOutcome.allowed(null);
+    }
+
+    /**
      * Builder for {@link QueryExecutionGuard}.
-     * All limits default to unrestricted ({@code -1}).
+     * All limits default to unrestricted ({@code -1}); no cancellation token by default.
      */
     public static final class Builder {
 
@@ -169,6 +222,7 @@ public final class QueryExecutionGuard {
         private int maxRowsReturned = -1;
         private int maxComplexityScore = -1;
         private long maxDurationMillis = -1L;
+        private QueryCancellationToken cancellationToken = null;
 
         private Builder() {
         }
@@ -233,13 +287,26 @@ public final class QueryExecutionGuard {
         }
 
         /**
+         * Attaches a cooperative cancellation token. When the token fires,
+         * a {@link QueryExecutionGuardException} is thrown with block code
+         * {@code GUARD_CANCELLED} and the count of rows already returned.
+         *
+         * @param token cancellation signal; must not be null
+         * @return this builder
+         */
+        public Builder cancellationToken(QueryCancellationToken token) {
+            this.cancellationToken = Objects.requireNonNull(token, "token must not be null");
+            return this;
+        }
+
+        /**
          * Builds the guard.
          *
          * @return configured execution guard
          */
         public QueryExecutionGuard build() {
             return new QueryExecutionGuard(maxRowsScanned, maxRowsReturned,
-                    maxComplexityScore, maxDurationMillis);
+                    maxComplexityScore, maxDurationMillis, cancellationToken);
         }
     }
 }

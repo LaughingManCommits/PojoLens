@@ -32,6 +32,7 @@ import laughing.man.commits.table.TabularColumn;
 import laughing.man.commits.sqllike.QueryComplexitySummary;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
+import laughing.man.commits.sqllike.QueryCancellationToken;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -60,6 +61,7 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -477,24 +479,35 @@ public class StablePublicApiContractTest {
 
     @Test
     public void stableQueryExecutionGuardContractsShouldRemainAvailable() throws Exception {
+        requirePublicStaticMethod(QueryCancellationToken.class, "ofAtomic", AtomicBoolean.class);
+        requirePublicStaticMethod(QueryCancellationToken.class, "ofThread", Thread.class);
+        requirePublicMethod(QueryCancellationToken.class, "isCancelled");
+
         requirePublicStaticMethod(QueryExecutionGuard.class, "unrestricted");
         requirePublicStaticMethod(QueryExecutionGuard.class, "builder");
         requirePublicMethod(QueryExecutionGuard.class, "isUnrestricted");
+        requirePublicMethod(QueryExecutionGuard.class, "hasPreExecutionLimits");
         requirePublicMethod(QueryExecutionGuard.class, "maxRowsScanned");
         requirePublicMethod(QueryExecutionGuard.class, "maxRowsReturned");
         requirePublicMethod(QueryExecutionGuard.class, "maxComplexityScore");
         requirePublicMethod(QueryExecutionGuard.class, "maxDurationMillis");
+        requirePublicMethod(QueryExecutionGuard.class, "cancellationToken");
         requirePublicMethod(QueryExecutionGuard.class, "checkPreExecution", SqlLikePlanPreview.class, int.class);
         requirePublicMethod(QueryExecutionGuard.class, "checkPostExecution", int.class, long.class);
+        requirePublicMethod(QueryExecutionGuard.class, "checkCancellation", int.class);
+        requirePublicMethod(QueryExecutionGuard.Builder.class, "cancellationToken", QueryCancellationToken.class);
 
         requirePublicStaticMethod(QueryGuardOutcome.class, "allowed", QueryComplexitySummary.class);
         requirePublicStaticMethod(QueryGuardOutcome.class, "blocked",
                 String.class, String.class, QueryComplexitySummary.class);
+        requirePublicStaticMethod(QueryGuardOutcome.class, "cancelled",
+                String.class, String.class, int.class, QueryComplexitySummary.class);
         requirePublicMethod(QueryGuardOutcome.class, "allowed");
         requirePublicMethod(QueryGuardOutcome.class, "blocked");
         requirePublicMethod(QueryGuardOutcome.class, "blockCode");
         requirePublicMethod(QueryGuardOutcome.class, "blockReason");
         requirePublicMethod(QueryGuardOutcome.class, "complexitySummary");
+        requirePublicMethod(QueryGuardOutcome.class, "rowsReturnedBeforeAbort");
         requirePublicMethod(QueryGuardOutcome.class, "auditMetadata");
 
         requirePublicStaticMethod(QueryComplexitySummary.class, "from", SqlLikePlanPreview.class);
@@ -509,6 +522,25 @@ public class StablePublicApiContractTest {
 
         requirePublicStaticMethod(QueryExecutionGuardException.class, "of", QueryGuardOutcome.class);
         requirePublicMethod(QueryExecutionGuardException.class, "outcome");
+    }
+
+    @Test
+    public void queryCancellationGuardShouldBeUsableFromPublicApi() {
+        AtomicBoolean cancel = new AtomicBoolean(false);
+        QueryCancellationToken token = QueryCancellationToken.ofAtomic(cancel);
+        QueryExecutionGuard guard = QueryExecutionGuard.builder()
+                .cancellationToken(token)
+                .build();
+
+        assertEquals(token, guard.cancellationToken());
+        assertTrue(!guard.isUnrestricted());
+        assertTrue(guard.checkCancellation(0).allowed());
+
+        cancel.set(true);
+        QueryGuardOutcome outcome = guard.checkCancellation(3);
+
+        assertEquals("GUARD_CANCELLED", outcome.blockCode());
+        assertEquals(3, outcome.rowsReturnedBeforeAbort());
     }
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... parameterTypes)

@@ -22,6 +22,22 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   semantics, and generated typed-source compilation. Typed grouping,
   aggregation, joins, windows, and subqueries are deferred.
 
+- **Cooperative query cancellation** (`STRAT-WP2` completion) — added
+  `QueryCancellationToken` (@FunctionalInterface) to the `sqllike` package with
+  `ofAtomic(AtomicBoolean)` and `ofThread(Thread)` static factories. Attach via
+  `QueryExecutionGuard.Builder#cancellationToken(token)`. The library polls the
+  token at execution start (eager paths) and between every row in lazy
+  (stream/iterator) paths. When the token fires, a `QueryExecutionGuardException`
+  is thrown with block code `GUARD_CANCELLED`. `QueryGuardOutcome#cancelled()`
+  factory carries `rowsReturnedBeforeAbort` — the exact number of rows the caller
+  already received before the abort, providing deterministic aborted-query
+  metadata. `auditMetadata()` includes `rowsReturnedBeforeAbort` for telemetry
+  and structured logging. `QueryExecutionGuard#hasPreExecutionLimits()` added to
+  skip unnecessary plan-preview builds for cancel-only guards. Senior-review
+  hardening closes bound eager `filter`/`chart` cancellation, TypedQuery empty
+  input cancellation, stable public API contract coverage, and public docs
+  alignment.
+
 - **Production query governance and audit** (`STRAT-WP2`) — added
   `QueryExecutionGuard`, `QueryGuardOutcome`, `QueryComplexitySummary`, and
   `QueryExecutionGuardException` to the `sqllike` package. `QueryExecutionGuard`
@@ -32,12 +48,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `QueryGuardOutcome` carries machine-readable block codes, human-readable reasons,
   and structured `auditMetadata()` for telemetry and logging. Known block codes:
   `GUARD_ROWS_SCANNED_EXCEEDED`, `GUARD_COMPLEXITY_EXCEEDED`,
-  `GUARD_ROWS_RETURNED_EXCEEDED`, `GUARD_DURATION_EXCEEDED`. Guard wired into
-  `SqlLikeQuery.executionGuard(guard)` and `NaturalQuery.executionGuard(guard)`.
-  `QueryTelemetryStage.GUARD_REJECTED` emitted via `QueryTelemetryListener` on
-  block. Security boundary documented: exposure control and execution governance
-  are in-scope; auth/RBAC/tenant policy remain host-application responsibilities.
-  Contract coverage added to `StablePublicApiContractTest`.
+  `GUARD_ROWS_RETURNED_EXCEEDED`, `GUARD_DURATION_EXCEEDED`, `GUARD_CANCELLED`.
+  Guard wired into `SqlLikeQuery.executionGuard(guard)` and
+  `NaturalQuery.executionGuard(guard)`. `QueryTelemetryStage.GUARD_REJECTED`
+  emitted via `QueryTelemetryListener` on block. Security boundary documented:
+  exposure control and execution governance are in-scope; auth/RBAC/tenant policy
+  remain host-application responsibilities. Contract coverage added to
+  `StablePublicApiContractTest`.
 
 - **Stable embedded reporting contract** (`STRAT-WP1`) — added `SavedReport`
   and `SavedReportKind` to the `report` package. `SavedReport` is a versioned,

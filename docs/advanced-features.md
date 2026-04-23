@@ -44,17 +44,21 @@ Use these when you need operational visibility or stricter query hygiene:
 ## Execution Governance
 
 Use `QueryExecutionGuard` when user-authored queries need bounded execution.
-The guard enforces complexity, row-scan, row-return, and duration limits and
-blocks non-compliant queries with a machine-readable code and human-readable
-reason. It is attached to a query with the fluent `.executionGuard(guard)` call
-and applies to both SQL-like and natural query paths.
+The guard enforces complexity, row-scan, row-return, duration, and cooperative
+cancellation limits and blocks non-compliant queries with a machine-readable code
+and human-readable reason. It is attached to a query with the fluent
+`.executionGuard(guard)` call and applies to SQL-like and natural query paths;
+`TypedQuery` supports row limits, duration limits, and pre-execution
+cancellation.
 
 ```java
+AtomicBoolean cancel = new AtomicBoolean(false);
 QueryExecutionGuard guard = QueryExecutionGuard.builder()
     .maxRowsScanned(10_000)
     .maxRowsReturned(500)
     .maxComplexityScore(8)
     .maxDurationMillis(2_000)
+    .cancellationToken(QueryCancellationToken.ofAtomic(cancel))
     .build();
 
 try {
@@ -64,6 +68,7 @@ try {
 } catch (QueryExecutionGuardException ex) {
     QueryGuardOutcome outcome = ex.outcome();
     log.warn("Query blocked [{}]: {}", outcome.blockCode(), outcome.blockReason());
+    Integer rowsReturnedBeforeAbort = outcome.rowsReturnedBeforeAbort();
     // emit outcome.auditMetadata() to telemetry
 }
 ```
@@ -76,11 +81,20 @@ try {
 | `GUARD_COMPLEXITY_EXCEEDED` | Complexity score exceeds `maxComplexityScore` (pre-execution) |
 | `GUARD_ROWS_RETURNED_EXCEEDED` | Result rows exceed `maxRowsReturned` (post-execution) |
 | `GUARD_DURATION_EXCEEDED` | Wall-clock time exceeds `maxDurationMillis` (post-execution) |
+| `GUARD_CANCELLED` | Attached `QueryCancellationToken` fired before or during execution |
 
 **Complexity scoring:** `QueryComplexitySummary` derives an additive integer score
 from the parsed query shape (1 per filter, 3 per join, +2 grouping, +2 aggregation,
 +4 windows, +3 subqueries). Inspect it via `QueryExecutionGuard.checkPreExecution()`
 or retrieve from `QueryGuardOutcome.complexitySummary()`.
+
+**Cancellation:** Attach a `QueryCancellationToken` with
+`QueryExecutionGuard.Builder#cancellationToken(...)`. Tokens can be backed by an
+`AtomicBoolean` (`QueryCancellationToken.ofAtomic(...)`) or a thread interrupt
+state (`QueryCancellationToken.ofThread(...)`). Cancellation is cooperative:
+eager paths check at execution start, and lazy stream/iterator paths also check
+between returned rows. Cancellation outcomes include
+`rowsReturnedBeforeAbort`, the exact number of rows yielded before the abort.
 
 **Telemetry:** When a guard blocks, `QueryTelemetryStage.GUARD_REJECTED` is emitted
 via `QueryTelemetryListener` before throwing, carrying `auditMetadata()` fields.

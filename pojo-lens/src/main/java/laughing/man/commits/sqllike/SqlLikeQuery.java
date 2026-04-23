@@ -1004,16 +1004,27 @@ public final class SqlLikeQuery {
                 suppressedLintCodes
         );
         if (!executionGuard.isUnrestricted()) {
-            SqlLikePlanPreview preview = SqlLikePlanPreviewSupport.buildFromAst(executionAst, source);
-            int rowsScanned = rowsScanned(pojos, joinSources);
-            QueryGuardOutcome preOutcome = executionGuard.checkPreExecution(preview, rowsScanned);
-            if (preOutcome.blocked()) {
+            QueryGuardOutcome cancelOutcome = executionGuard.checkCancellation(0);
+            if (cancelOutcome.blocked()) {
                 if (executionTelemetryListener != null) {
                     executionTelemetryListener.onTelemetry(new QueryTelemetryEvent(
                             QueryTelemetryStage.GUARD_REJECTED, queryType, source,
-                            0L, rowsScanned, null, preOutcome.auditMetadata()));
+                            0L, null, null, cancelOutcome.auditMetadata()));
                 }
-                throw new QueryExecutionGuardException(preOutcome);
+                throw new QueryExecutionGuardException(cancelOutcome);
+            }
+            if (executionGuard.hasPreExecutionLimits()) {
+                SqlLikePlanPreview preview = SqlLikePlanPreviewSupport.buildFromAst(executionAst, source);
+                int rowsScanned = rowsScanned(pojos, joinSources);
+                QueryGuardOutcome preOutcome = executionGuard.checkPreExecution(preview, rowsScanned);
+                if (preOutcome.blocked()) {
+                    if (executionTelemetryListener != null) {
+                        executionTelemetryListener.onTelemetry(new QueryTelemetryEvent(
+                                QueryTelemetryStage.GUARD_REJECTED, queryType, source,
+                                0L, rowsScanned, null, preOutcome.auditMetadata()));
+                    }
+                    throw new QueryExecutionGuardException(preOutcome);
+                }
             }
         }
         return SqlLikePreparedExecutionSupport.prepareExecution(
@@ -1079,6 +1090,22 @@ public final class SqlLikeQuery {
         }
     }
 
+    private void checkCancellation(int rowsReturned, long startedNanos) {
+        if (executionGuard.isUnrestricted()) {
+            return;
+        }
+        QueryGuardOutcome outcome = executionGuard.checkCancellation(rowsReturned);
+        if (outcome.blocked()) {
+            long durationNanos = Math.max(0L, System.nanoTime() - startedNanos);
+            if (telemetryListener != null) {
+                telemetryListener.onTelemetry(new QueryTelemetryEvent(
+                        QueryTelemetryStage.GUARD_REJECTED, queryType, source,
+                        durationNanos, null, rowsReturned, outcome.auditMetadata()));
+            }
+            throw new QueryExecutionGuardException(outcome);
+        }
+    }
+
     private static int rowsScanned(List<?> pojos, Map<String, List<?>> joinSources) {
         long rows = rowCount(pojos);
         if (joinSources != null) {
@@ -1108,6 +1135,7 @@ public final class SqlLikeQuery {
         @Override
         public List<T> filter() {
             long startedNanos = System.nanoTime();
+            checkCancellation(0, startedNanos);
             List<T> result = executeFilter(context, projectionClass);
             checkPostExecution(result.size(), startedNanos);
             return result;
@@ -1127,6 +1155,7 @@ public final class SqlLikeQuery {
         @Override
         public ChartData chart(ChartSpec spec) {
             long startedNanos = System.nanoTime();
+            checkCancellation(0, startedNanos);
             ChartData result = executeChart(context, projectionClass, spec);
             checkPostExecution(result.getLabels().size(), startedNanos);
             return result;
@@ -1151,6 +1180,16 @@ public final class SqlLikeQuery {
         public boolean hasNext() {
             if (completed) {
                 return false;
+            }
+            QueryGuardOutcome cancelOutcome = executionGuard.checkCancellation(rowsReturned);
+            if (cancelOutcome.blocked()) {
+                long durationNanos = Math.max(0L, System.nanoTime() - startedNanos);
+                if (telemetryListener != null) {
+                    telemetryListener.onTelemetry(new QueryTelemetryEvent(
+                            QueryTelemetryStage.GUARD_REJECTED, queryType, source,
+                            durationNanos, null, rowsReturned, cancelOutcome.auditMetadata()));
+                }
+                throw fail(new QueryExecutionGuardException(cancelOutcome));
             }
             boolean hasNext = delegate.hasNext();
             if (!hasNext) {

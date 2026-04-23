@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T13:48:56.725966+02:00",
+  "generatedAt": "2026-04-23T15:20:22.911972+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 130,
-    "testClasses": 130
+    "testJavaFiles": 131,
+    "testClasses": 131
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 118
+      "testJavaFiles": 119
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -173,6 +173,7 @@
     {
       "category": "sql-like",
       "files": [
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryCancellationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryExecutionGuardTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryExposurePolicyTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeAliasTest.java",
