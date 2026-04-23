@@ -1,6 +1,9 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLensRuntime;
+import laughing.man.commits.sqllike.SqlLikePushdownAdapter;
+import laughing.man.commits.sqllike.SqlLikePushdownRequest;
+import laughing.man.commits.sqllike.SqlLikePushdownResult;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -33,6 +36,7 @@ public class SqlLikePipelineJmhBenchmark {
     private String booleanDepthQuery;
     private String havingComputedQuery;
     private String baselineNonWindowQuery;
+    private String splitPushdownQuery;
     private String windowRankQuery;
     private String windowRunningTotalQuery;
     private SqlLikeQuery parsedQuery;
@@ -41,8 +45,13 @@ public class SqlLikePipelineJmhBenchmark {
     private SqlLikeQuery parsedBooleanDepthQuery;
     private SqlLikeQuery parsedHavingComputedQuery;
     private SqlLikeQuery parsedBaselineNonWindowQuery;
+    private SqlLikeQuery parsedSplitPushdownQuery;
     private SqlLikeQuery parsedWindowRankQuery;
     private SqlLikeQuery parsedWindowRunningTotalQuery;
+    private List<BenchmarkFoo> fullyPushedRows;
+    private List<BenchmarkFoo> splitPushedRows;
+    private SqlLikePushdownAdapter fullPushdownAdapter;
+    private SqlLikePushdownAdapter splitPushdownAdapter;
     private PojoLensRuntime runtime;
 
     @Setup
@@ -77,6 +86,10 @@ public class SqlLikePipelineJmhBenchmark {
         baselineNonWindowQuery = "select stringField, integerField "
                 + "where integerField >= 100 "
                 + "order by integerField asc limit 200";
+        splitPushdownQuery = "select stringField, count(*) as total "
+                + "where integerField >= 100 "
+                + "group by stringField "
+                + "order by total desc limit 20";
         windowRankQuery = "select stringField, integerField, "
                 + "row_number() over (partition by stringField order by integerField asc) as rn "
                 + "where integerField >= 100 "
@@ -92,8 +105,15 @@ public class SqlLikePipelineJmhBenchmark {
         parsedBooleanDepthQuery = runtime.parse(booleanDepthQuery);
         parsedHavingComputedQuery = runtime.parse(havingComputedQuery);
         parsedBaselineNonWindowQuery = runtime.parse(baselineNonWindowQuery);
+        parsedSplitPushdownQuery = runtime.parse(splitPushdownQuery);
         parsedWindowRankQuery = runtime.parse(windowRankQuery);
         parsedWindowRunningTotalQuery = runtime.parse(windowRunningTotalQuery);
+        fullyPushedRows = parsedQuery.filter(source, BenchmarkFoo.class);
+        splitPushedRows = source.stream()
+                .filter(row -> row.getIntegerField() >= 100)
+                .toList();
+        fullPushdownAdapter = new StaticRowsPushdownAdapter<>(fullyPushedRows, source.size());
+        splitPushdownAdapter = new StaticRowsPushdownAdapter<>(splitPushedRows, source.size());
     }
 
     @Benchmark
@@ -134,6 +154,30 @@ public class SqlLikePipelineJmhBenchmark {
     @Benchmark
     public List<BenchmarkFoo> parseAndFilterWindowBaseline() {
         return parsedBaselineNonWindowQuery.filter(source, BenchmarkFoo.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkFoo> pureInMemoryPushdownCandidate() {
+        return parsedQuery.filter(source, BenchmarkFoo.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkFoo> pushedFirstPhaseCandidate() {
+        return parsedQuery.filterWithPushdown(fullPushdownAdapter, BenchmarkFoo.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkGroupRow> pureInMemorySplitCandidate() {
+        return parsedSplitPushdownQuery.filter(source, BenchmarkGroupRow.class);
+    }
+
+    @Benchmark
+    public List<BenchmarkGroupRow> splitPushdownCandidate() {
+        return parsedSplitPushdownQuery.filterWithPushdown(
+                splitPushdownAdapter,
+                BenchmarkFoo.class,
+                BenchmarkGroupRow.class
+        );
     }
 
     @Benchmark
@@ -183,6 +227,30 @@ public class SqlLikePipelineJmhBenchmark {
         long runningTotal;
 
         public BenchmarkWindowRunningTotalRow() {
+        }
+    }
+
+    private static final class StaticRowsPushdownAdapter<T> implements SqlLikePushdownAdapter {
+
+        private final List<T> rows;
+        private final int sourceRowCount;
+
+        private StaticRowsPushdownAdapter(List<T> rows, int sourceRowCount) {
+            this.rows = List.copyOf(rows);
+            this.sourceRowCount = sourceRowCount;
+        }
+
+        @Override
+        public <R> SqlLikePushdownResult<R> fetch(SqlLikePushdownRequest request, Class<R> rowClass) {
+            List<R> typedRows = rows.stream()
+                    .map(rowClass::cast)
+                    .toList();
+            return SqlLikePushdownResult.of(
+                    typedRows,
+                    request.requestedStages(),
+                    sourceRowCount,
+                    Map.of("adapter", "static-jmh")
+            );
         }
     }
 }

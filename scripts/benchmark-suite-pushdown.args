@@ -1,0 +1,4 @@
+laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.pureInMemoryPushdownCandidate
+laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.pushedFirstPhaseCandidate
+laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.pureInMemorySplitCandidate
+laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.splitPushdownCandidate

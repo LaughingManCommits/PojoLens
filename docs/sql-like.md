@@ -628,6 +628,42 @@ List<String> reasons = preview.fallbackReasons(); // GROUPING_UNSUPPORTED, AGGRE
 telemetry includes `pushdownMode`, `pushdownPushableStages`,
 `pushdownInMemoryStages`, and `pushdownFallbackReasons`.
 
+When the host has an adapter, use `filterWithPushdown(...)` to fetch the
+first-phase rows and let PojoLens finish the query in memory:
+
+```java
+SqlLikePushdownAdapter adapter = new SqlLikePushdownAdapter() {
+    @Override
+    public <T> SqlLikePushdownResult<T> fetch(SqlLikePushdownRequest request, Class<T> rowClass) {
+        // Host code owns SQL rendering, authorization, connection handling, and execution.
+        ResultSet resultSet = executeHostQuery(request);
+        return SqlLikeResultSetAdapter.readPushed(resultSet, rowClass, request.requestedStages());
+    }
+};
+
+List<DepartmentTotal> rows = PojoLensSql
+    .parse("select department, count(*) as total where active = true group by department")
+    .filterWithPushdown(adapter, Employee.class, DepartmentTotal.class);
+```
+
+Split execution contract:
+
+- the adapter receives `SqlLikePushdownRequest` with normalized query text,
+  pushdown preview, and requested stages
+- the adapter returns `SqlLikePushdownResult` with materialized rows and audit
+  metadata
+- `SqlLikeResultSetAdapter` maps JDBC column labels to mutable row fields, but
+  it does not create SQL, execute JDBC, or authorize access
+- PojoLens reruns the SQL-like query over returned rows, so unsupported stages
+  and correctness verification stay inside the in-memory engine
+- for grouped, aggregate, window, join, `HAVING`, or `QUALIFY` queries, adapters
+  should return source-shaped rows needed by the remaining in-memory stages
+
+`filterWithPushdown(...)` emits a `PUSHDOWN` telemetry event when telemetry is
+attached. The event includes requested stages, stages the adapter reports as
+pushed, source row count when known, materialized row count, fallback reasons,
+and adapter metadata.
+
 ### Recipe: Runtime Policy Presets
 
 Use presets when you want a preconfigured runtime and still keep manual overrides available afterward.

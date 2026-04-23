@@ -10,6 +10,7 @@ Supported stages:
 
 - `PARSE`
 - `BIND`
+- `PUSHDOWN`
 - `FILTER`
 - `AGGREGATE`
 - `ORDER`
@@ -72,6 +73,10 @@ Examples of metadata:
 - `pushdownPushableStages`
 - `pushdownInMemoryStages`
 - `pushdownFallbackReasons`
+- `requestedStages`
+- `pushedStages`
+- `materializedRowCount`
+- `adapterMetadata`
 - `orderFieldCount`
 - `chartType`
 - `labelCount`
@@ -80,6 +85,11 @@ Examples of metadata:
 SQL-like `BIND` events include pushdown-readiness metadata. This is advisory
 host-adapter planning data only; it does not mean PojoLens executed a pushed
 query outside the in-memory engine.
+
+`filterWithPushdown(...)` emits a `PUSHDOWN` event after the host adapter
+returns materialized rows. The event describes what PojoLens requested and what
+the adapter reported, while database execution, authorization, and SQL rendering
+remain host-owned.
 
 ## Low-Overhead Behavior
 

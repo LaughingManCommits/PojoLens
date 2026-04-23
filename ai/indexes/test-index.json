@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T18:20:37.471574+02:00",
+  "generatedAt": "2026-04-23T18:44:39.171199+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 132,
-    "testClasses": 132
+    "testJavaFiles": 134,
+    "testClasses": 134
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 120
+      "testJavaFiles": 121
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -29,7 +29,7 @@
     },
     {
       "path": "pojo-lens-benchmarks",
-      "testJavaFiles": 8
+      "testJavaFiles": 9
     },
     {
       "path": "examples/spring-boot-starter-basic",
@@ -51,6 +51,7 @@
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/ChartPayloadJsonExporterTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/IndexHintJmhBenchmarkParityTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/PojoLensJoinJmhBenchmarkParityTest.java",
+        "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/SqlLikePushdownBenchmarkParityTest.java",
         "pojo-lens-benchmarks/src/test/java/laughing/man/commits/benchmark/StreamsBenchmarkParityTest.java"
       ]
     },
@@ -190,6 +191,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParametersContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePlanPreviewTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownAdapterTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownPreviewTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryCacheTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java",

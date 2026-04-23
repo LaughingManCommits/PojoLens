@@ -215,6 +215,28 @@ Interpretation:
 - Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
 
+## SQL-like Pushdown Bridge Overhead
+
+Pushdown bridge benchmarks compare pure in-memory execution with host-adapter
+materialization paths. They do not measure database latency or SQL rendering;
+the adapter used by the benchmark returns deterministic pre-materialized rows so
+the suite isolates PojoLens completion overhead.
+
+Dedicated suite:
+
+```bash
+java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-pushdown.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/pushdown-bridge-forked.json
+```
+
+Benchmarks (`SqlLikePipelineJmhBenchmark`):
+- `pureInMemoryPushdownCandidate`
+- `pushedFirstPhaseCandidate`
+- `pureInMemorySplitCandidate`
+- `splitPushdownCandidate`
+
+Use this suite to compare full pushed-first-phase completion, split completion,
+and pure in-memory execution for the same query shapes.
+
 ## Execution-Path Spot Checks
 
 A recent execution-path cleanup changed three hot internal areas:

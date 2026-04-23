@@ -10,8 +10,11 @@ import laughing.man.commits.sqllike.PlanPreviewPredicate;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikePlanPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownAdapter;
 import laughing.man.commits.sqllike.SqlLikePushdownMode;
 import laughing.man.commits.sqllike.SqlLikePushdownPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownRequest;
+import laughing.man.commits.sqllike.SqlLikePushdownResult;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -247,6 +250,29 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals(List.of("WHERE"), preview.pushableStages());
         assertTrue(preview.inMemoryStages().contains("GROUP_BY"));
         assertTrue(preview.fallbackReasons().contains("GROUPING_UNSUPPORTED"));
+    }
+
+    @Test
+    public void pushdownAdapterBridgeShouldBeUsableFromPublicApi() {
+        List<Employee> sourceRows = sampleEmployees();
+        SqlLikePushdownAdapter adapter = new SqlLikePushdownAdapter() {
+            @Override
+            public <T> SqlLikePushdownResult<T> fetch(SqlLikePushdownRequest request, Class<T> rowClass) {
+                assertEquals("where active = true order by salary desc limit 2", request.queryText());
+                assertTrue(request.requestsStage("WHERE"));
+                List<T> rows = sourceRows.stream()
+                        .filter(row -> row.active)
+                        .map(rowClass::cast)
+                        .toList();
+                return SqlLikePushdownResult.of(rows, request.requestedStages(), sourceRows.size(), Map.of());
+            }
+        };
+
+        List<Employee> rows = PojoLensSql
+                .parse("where active = true order by salary desc limit 2")
+                .filterWithPushdown(adapter, Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
     }
 }
 

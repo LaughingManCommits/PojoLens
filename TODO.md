@@ -39,7 +39,7 @@ puts it into direct competition with stronger database-first tools.
 | WP1 | Stable Embedded Reporting Contract     | Done              | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests           |
 | WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
 | WP3 | Stable Public Typed DSL               | Done              | TypedField, TypedPredicate, TypedQuery foundation, typed metamodel, 61 tests |
-| WP4 | Hybrid Adapters And Pushdown           | In progress       | Pushdown-readiness preview metadata                                        |
+| WP4 | Hybrid Adapters And Pushdown           | Done              | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution, benchmarks |
 | WP5 | Repeated-Workload Performance Upgrade  | Not started       | Ã¢â‚¬â€                                                                          |
 | Ã¢â‚¬â€   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
 
@@ -270,18 +270,30 @@ Tasks:
       `LIMIT`, and `OFFSET`. Joins, grouping, aggregation, windows, subqueries,
       `HAVING`, `QUALIFY`, computed selects, time buckets, and unsupported
       filter operators remain in-memory with stable fallback reason codes.
-- [ ] Add a first bridge path for JDBC/`ResultSet` ingestion or a jOOQ/Spring
+- [x] Add a first bridge path for JDBC/`ResultSet` ingestion or a jOOQ/Spring
       Data integration point for simple filter/order/page workloads.
-- [ ] Support split execution where simple stages push down and unsupported
+      Delivered (`2026-04-23`): `SqlLikePushdownAdapter`,
+      `SqlLikePushdownRequest`, `SqlLikePushdownResult`, and
+      `SqlLikeResultSetAdapter` provide a host-owned adapter contract and JDBC
+      `ResultSet` materialization helper without SQL rendering or database
+      execution inside PojoLens.
+- [x] Support split execution where simple stages push down and unsupported
       stages finish in memory.
+      Delivered (`2026-04-23`): `SqlLikeQuery.filterWithPushdown(...)` fetches
+      first-phase materialized rows through the adapter and then completes the
+      SQL-like query in memory.
 - [x] Surface pushdown/fallback decisions in explain and telemetry.
       Delivered (`2026-04-23`): `explain()` includes `pushdownPreview`, and
       SQL-like BIND telemetry includes pushdown mode, pushable stages,
       in-memory stages, and fallback reasons. This slice remains advisory
       planning metadata only because current repository boundaries still keep
       database execution, SQL rendering, and adapter authorization host-owned.
-- [ ] Benchmark pushed, split, and pure in-memory paths on representative
+- [x] Benchmark pushed, split, and pure in-memory paths on representative
       workloads.
+      Delivered (`2026-04-23`): `SqlLikePipelineJmhBenchmark` includes
+      `pureInMemoryPushdownCandidate`, `pushedFirstPhaseCandidate`,
+      `pureInMemorySplitCandidate`, and `splitPushdownCandidate`; the dedicated
+      suite is `scripts/benchmark-suite-pushdown.args`.
 
 Validate:
 - `mvn -B -ntp test`

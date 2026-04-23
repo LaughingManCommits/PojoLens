@@ -1,6 +1,9 @@
 # Recent Validations
 
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikePushdownPreviewTest,PublicApiSqlCoverageTest,StablePublicApiContractTest" test` passed after STRAT-WP4 first-slice pushdown-readiness metadata: 34 tests, 0 failures.
+- `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikePushdown*Test,PublicApiSqlCoverageTest,StablePublicApiContractTest" test` passed after completing STRAT-WP4 bridge contracts, ResultSet ingestion, split completion, and `PUSHDOWN` telemetry: 39 tests, 0 failures.
+- `2026-04-23`: `mvn -B -ntp -pl pojo-lens-benchmarks -am test` passed after adding STRAT-WP4 pushdown benchmark paths and parity coverage: 1016 core tests and 16 benchmark-module tests, 0 failures.
+- `2026-04-23`: `scripts/check-doc-consistency.ps1`, `git diff --check`, `mvn -B -ntp test`, `scripts/refresh-ai-memory.ps1`, and `scripts/refresh-ai-memory.ps1 -Check` passed after completing STRAT-WP4 bridge/docs/benchmark work: 1039 tests across all modules, 0 failures.
 - `2026-04-23`: `scripts/check-doc-consistency.ps1`, `git diff --check`, and `mvn -B -ntp test` passed after STRAT-WP4 first-slice pushdown-readiness metadata and docs/memory alignment: 1032 tests across all modules, 0 failures.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=QueryCancellationTest,QueryExecutionGuardTest,StablePublicApiContractTest" test` passed after WP2 cancellation senior-review fixes: bound eager `filter`/`chart` cancellation, empty-input TypedQuery cancellation, cancellation public API contracts, and invalid abort-row-count coverage; 74 tests, 0 failures.
 - `2026-04-23`: `scripts/check-doc-consistency.ps1` and `mvn -B -ntp test` passed after WP2 cancellation senior-review fixes and public docs alignment: 1024 tests across all modules, 0 failures.

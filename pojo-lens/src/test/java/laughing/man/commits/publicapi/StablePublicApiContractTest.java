@@ -48,9 +48,14 @@ import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikePlanPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownAdapter;
+import laughing.man.commits.sqllike.SqlLikePushdownException;
 import laughing.man.commits.sqllike.SqlLikePushdownMode;
 import laughing.man.commits.sqllike.SqlLikePushdownPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownRequest;
+import laughing.man.commits.sqllike.SqlLikePushdownResult;
 import laughing.man.commits.sqllike.SqlLikeQuery;
+import laughing.man.commits.sqllike.SqlLikeResultSetAdapter;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
@@ -58,6 +63,7 @@ import laughing.man.commits.tree.TreeEntry;
 import laughing.man.commits.tree.TreeTraversalBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.Path;
@@ -186,6 +192,9 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class, JoinBindings.class);
         requirePublicMethod(SqlLikeQuery.class, "planPreview");
         requirePublicMethod(SqlLikeQuery.class, "pushdownPreview");
+        requirePublicMethod(SqlLikeQuery.class, "pushdownRequest");
+        requirePublicMethod(SqlLikeQuery.class, "filterWithPushdown", SqlLikePushdownAdapter.class, Class.class);
+        requirePublicMethod(SqlLikeQuery.class, "filterWithPushdown", SqlLikePushdownAdapter.class, Class.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "sort");
@@ -294,6 +303,24 @@ public class StablePublicApiContractTest {
         assertEquals(SqlLikePushdownMode.FULL, SqlLikePushdownMode.valueOf("FULL"));
         assertEquals(SqlLikePushdownMode.SPLIT, SqlLikePushdownMode.valueOf("SPLIT"));
         assertEquals(SqlLikePushdownMode.IN_MEMORY_ONLY, SqlLikePushdownMode.valueOf("IN_MEMORY_ONLY"));
+        requirePublicMethod(SqlLikePushdownAdapter.class, "fetch", SqlLikePushdownRequest.class, Class.class);
+        requirePublicMethod(SqlLikePushdownRequest.class, "source");
+        requirePublicMethod(SqlLikePushdownRequest.class, "queryText");
+        requirePublicMethod(SqlLikePushdownRequest.class, "preview");
+        requirePublicMethod(SqlLikePushdownRequest.class, "requestedStages");
+        requirePublicMethod(SqlLikePushdownRequest.class, "requestsStage", String.class);
+        requirePublicStaticMethod(SqlLikePushdownResult.class, "of", List.class);
+        requirePublicStaticMethod(SqlLikePushdownResult.class, "of", List.class, java.util.Collection.class);
+        requirePublicStaticMethod(SqlLikePushdownResult.class, "of", List.class, java.util.Collection.class, int.class, Map.class);
+        requirePublicMethod(SqlLikePushdownResult.class, "rows");
+        requirePublicMethod(SqlLikePushdownResult.class, "pushedStages");
+        requirePublicMethod(SqlLikePushdownResult.class, "sourceRowCount");
+        requirePublicMethod(SqlLikePushdownResult.class, "metadata");
+        requirePublicConstructor(SqlLikePushdownException.class, String.class);
+        requirePublicConstructor(SqlLikePushdownException.class, String.class, Throwable.class);
+        requirePublicStaticMethod(SqlLikeResultSetAdapter.class, "read", java.sql.ResultSet.class, Class.class);
+        requirePublicStaticMethod(SqlLikeResultSetAdapter.class, "readPushed",
+                java.sql.ResultSet.class, Class.class, java.util.Collection.class);
     }
 
     @Test
@@ -571,6 +598,14 @@ public class StablePublicApiContractTest {
         assertTrue(Modifier.isStatic(method.getModifiers()),
                 () -> "Expected static method: " + type.getSimpleName() + "." + name);
         return method;
+    }
+
+    private static Constructor<?> requirePublicConstructor(Class<?> type, Class<?>... parameterTypes)
+            throws NoSuchMethodException {
+        Constructor<?> constructor = type.getConstructor(parameterTypes);
+        assertTrue(Modifier.isPublic(constructor.getModifiers()),
+                () -> "Expected public constructor: " + type.getSimpleName());
+        return constructor;
     }
 }
 

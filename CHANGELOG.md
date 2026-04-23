@@ -24,6 +24,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   fallback reasons. This is advisory planning metadata only; PojoLens still
   does not own database execution or SQL rendering.
 
+- **SQL-like pushdown bridge** (`STRAT-WP4`) - added
+  `SqlLikePushdownAdapter`, `SqlLikePushdownRequest`,
+  `SqlLikePushdownResult`, `SqlLikeResultSetAdapter`, and
+  `SqlLikeQuery.filterWithPushdown(...)` so host-owned adapters can materialize
+  pushed first-phase rows and let PojoLens finish unsupported stages in memory.
+  Added `PUSHDOWN` telemetry and JMH coverage for pure in-memory, pushed, and
+  split completion paths.
+
 - **Stable public typed DSL foundation** (`STRAT-WP3`) - added
   `TypedField<T,V>`, `TypedPredicate<T>`, and `TypedQuery<T>` in the `dsl`
   package for code-owned projection, filtering, ordering, offset, and limit

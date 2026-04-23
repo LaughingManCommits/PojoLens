@@ -5,12 +5,14 @@ Owned capabilities:
 - in-memory fluent and SQL-like querying over Java object lists
 - filtering, ordering, grouping, HAVING, metrics, time buckets, joins, projection, explain, and schema metadata
 - chart payload mapping, reusable reports, dataset bundles, snapshot comparison, telemetry, metamodel generation, and benchmark tooling
-- advisory SQL-like pushdown-readiness metadata for host-owned adapters
+- advisory SQL-like pushdown-readiness metadata, host-adapter bridge contracts,
+  and JDBC `ResultSet` materialization into in-memory rows
 
 Explicit non-ownership:
 
 - no database execution, ORM layer, SQL rendering, adapter authorization, or persistence runtime
-- no repository-owned query pushdown beyond deterministic planning metadata
+- no repository-owned SQL rendering, database execution, adapter authorization,
+  or ORM/query-framework integration
 - no native chart renderer in the library runtime
 - no web framework, scheduler, auth stack, or deployment assets
 

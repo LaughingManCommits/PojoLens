@@ -25,6 +25,7 @@ import laughing.man.commits.sqllike.parser.SqlLikeParser;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
+import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
 import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.table.internal.TabularSchemaSupport;
 import laughing.man.commits.util.ReflectionUtil;
@@ -36,6 +37,7 @@ import laughing.man.commits.sqllike.SqlLikePreparedExecutionSupport.PreparedExec
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -524,6 +526,19 @@ public final class SqlLikeQuery {
     }
 
     /**
+     * Returns request metadata for a host-owned pushdown adapter.
+     * <p>
+     * The request is advisory. PojoLens does not execute external storage
+     * work; callers pass it to their own adapter and return materialized rows
+     * for in-memory completion.
+     *
+     * @return pushdown request metadata
+     */
+    public SqlLikePushdownRequest pushdownRequest() {
+        return new SqlLikePushdownRequest(source, normalizedQuery, pushdownPreview());
+    }
+
+    /**
      * Binds query to data and captures projection type for typed execution.
      *
      * @param pojos input data
@@ -580,6 +595,52 @@ public final class SqlLikeQuery {
         List<T> result = executeFilter(context, cls);
         checkPostExecution(result.size(), startedNanos);
         return result;
+    }
+
+    /**
+     * Fetches first-phase rows through a host-owned pushdown adapter, then
+     * finishes the SQL-like query in memory.
+     * <p>
+     * The adapter controls database access and SQL rendering. PojoLens always
+     * executes the SQL-like query over the materialized rows returned by the
+     * adapter so unsupported stages and verification remain in-process.
+     *
+     * @param adapter host-owned pushdown adapter
+     * @param rowClass materialized row class returned by the adapter
+     * @param projectionClass final projection class
+     * @param <S> materialized row type
+     * @param <T> projection type
+     * @return filtered rows
+     */
+    public <S, T> List<T> filterWithPushdown(SqlLikePushdownAdapter adapter,
+                                             Class<S> rowClass,
+                                             Class<T> projectionClass) {
+        Objects.requireNonNull(adapter, "adapter must not be null");
+        Objects.requireNonNull(rowClass, "rowClass must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        long startedNanos = System.nanoTime();
+        SqlLikePushdownRequest request = pushdownRequest();
+        SqlLikePushdownResult<S> pushed = Objects.requireNonNull(
+                adapter.fetch(request, rowClass),
+                "pushdown adapter returned null result"
+        );
+        emitPushdownTelemetry(startedNanos, request.preview(), pushed);
+        List<T> result = filter(pushed.rows(), projectionClass);
+        checkPostExecution(result.size(), startedNanos);
+        return result;
+    }
+
+    /**
+     * Fetches first-phase rows through a host-owned pushdown adapter when the
+     * materialized row class and final projection class are the same.
+     *
+     * @param adapter host-owned pushdown adapter
+     * @param rowClass row/projection class
+     * @param <T> row type
+     * @return filtered rows
+     */
+    public <T> List<T> filterWithPushdown(SqlLikePushdownAdapter adapter, Class<T> rowClass) {
+        return filterWithPushdown(adapter, rowClass, rowClass);
     }
 
     /**
@@ -1105,6 +1166,34 @@ public final class SqlLikeQuery {
             }
             throw new QueryExecutionGuardException(outcome);
         }
+    }
+
+    private <T> void emitPushdownTelemetry(long startedNanos,
+                                           SqlLikePushdownPreview preview,
+                                           SqlLikePushdownResult<T> pushed) {
+        if (telemetryListener == null) {
+            return;
+        }
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("mode", preview.mode().name());
+        metadata.put("requestedStages", preview.pushableStages());
+        metadata.put("pushedStages", pushed.pushedStages());
+        metadata.put("inMemoryStages", preview.inMemoryStages());
+        metadata.put("fallbackReasons", preview.fallbackReasons());
+        metadata.put("sourceRowCount", pushed.sourceRowCount());
+        metadata.put("materializedRowCount", pushed.rows().size());
+        metadata.put("adapterMetadata", pushed.metadata());
+        Integer sourceRows = pushed.sourceRowCount() >= 0 ? pushed.sourceRowCount() : null;
+        QueryTelemetrySupport.emit(
+                telemetryListener,
+                QueryTelemetryStage.PUSHDOWN,
+                queryType,
+                source,
+                startedNanos,
+                sourceRows,
+                pushed.rows().size(),
+                metadata
+        );
     }
 
     private void checkCancellation(int rowsReturned, long startedNanos) {
