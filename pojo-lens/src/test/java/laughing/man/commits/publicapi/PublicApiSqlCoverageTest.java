@@ -10,6 +10,8 @@ import laughing.man.commits.sqllike.PlanPreviewPredicate;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikePlanPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownMode;
+import laughing.man.commits.sqllike.SqlLikePushdownPreview;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -232,6 +234,19 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertEquals("AND", expression.operator());
         assertEquals("department", expression.children().get(0).filter().field());
         assertEquals("active", expression.children().get(1).filter().field());
+    }
+
+    @Test
+    public void pushdownPreviewShouldBeUsableFromPublicApi() {
+        SqlLikePushdownPreview preview = PojoLensSql
+                .parse("select department, count(*) as total where active = true group by department")
+                .pushdownPreview();
+
+        assertEquals(SqlLikePushdownMode.SPLIT, preview.mode());
+        assertTrue(preview.requiresSplitExecution());
+        assertEquals(List.of("WHERE"), preview.pushableStages());
+        assertTrue(preview.inMemoryStages().contains("GROUP_BY"));
+        assertTrue(preview.fallbackReasons().contains("GROUPING_UNSUPPORTED"));
     }
 }
 

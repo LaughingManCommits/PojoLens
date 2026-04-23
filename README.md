@@ -60,6 +60,8 @@ Runnable example project:
 - Use SQL-like strings as the default public query surface.
 - Use controlled plain-English queries when authors need guided non-SQL text.
 - Use typed DSL field constants when query logic is owned by Java code.
+- Inspect pushdown-readiness metadata when a host-owned adapter may prefilter
+  or page before materializing rows.
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
@@ -72,6 +74,8 @@ Runnable example project:
 - Use a database query layer such as jOOQ, Spring Data, JPA Criteria, or raw
   SQL when the data should be filtered, joined, paged, locked, or aggregated by
   the database before it is loaded into memory.
+  `pushdownPreview()` can help host adapters classify simple stages, but
+  PojoLens still does not execute database queries.
 - Use an indexed collection/search library when the main problem is repeated
   large-scale lookup over a mutable indexed store.
 - Use plain Java Streams when the query is a tiny code-owned transformation
@@ -258,7 +262,7 @@ rules live in the module docs linked beside each surface.
 ### Tooling
 
 - Snapshot comparison, regression fixtures, metamodel generation, benchmarks,
-  and diagnostics. See [docs/advanced-features.md](docs/advanced-features.md),
+  pushdown-readiness metadata, and diagnostics. See [docs/advanced-features.md](docs/advanced-features.md),
   [docs/snapshot-comparison.md](docs/snapshot-comparison.md),
   [docs/regression-fixtures.md](docs/regression-fixtures.md),
   [docs/metamodel.md](docs/metamodel.md), and

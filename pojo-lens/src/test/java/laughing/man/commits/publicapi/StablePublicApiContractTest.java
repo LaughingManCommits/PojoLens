@@ -48,6 +48,8 @@ import laughing.man.commits.sqllike.SqlLikeBoundQuery;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikePlanPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownMode;
+import laughing.man.commits.sqllike.SqlLikePushdownPreview;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.SqlParams;
@@ -183,6 +185,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "diagnostics", Class.class, Class.class, JoinBindings.class);
         requirePublicMethod(SqlLikeQuery.class, "planPreview");
+        requirePublicMethod(SqlLikeQuery.class, "pushdownPreview");
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "explain", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(SqlLikeQuery.class, "sort");
@@ -280,6 +283,17 @@ public class StablePublicApiContractTest {
         requirePublicMethod(PlanPreviewPaging.class, "offsetParameter");
         requirePublicMethod(PlanPreviewPaging.class, "hasLimit");
         requirePublicMethod(PlanPreviewPaging.class, "hasOffset");
+        requirePublicMethod(SqlLikePushdownPreview.class, "source");
+        requirePublicMethod(SqlLikePushdownPreview.class, "mode");
+        requirePublicMethod(SqlLikePushdownPreview.class, "pushableStages");
+        requirePublicMethod(SqlLikePushdownPreview.class, "inMemoryStages");
+        requirePublicMethod(SqlLikePushdownPreview.class, "fallbackReasons");
+        requirePublicMethod(SqlLikePushdownPreview.class, "isFullyPushable");
+        requirePublicMethod(SqlLikePushdownPreview.class, "requiresSplitExecution");
+        requirePublicMethod(SqlLikePushdownPreview.class, "isInMemoryOnly");
+        assertEquals(SqlLikePushdownMode.FULL, SqlLikePushdownMode.valueOf("FULL"));
+        assertEquals(SqlLikePushdownMode.SPLIT, SqlLikePushdownMode.valueOf("SPLIT"));
+        assertEquals(SqlLikePushdownMode.IN_MEMORY_ONLY, SqlLikePushdownMode.valueOf("IN_MEMORY_ONLY"));
     }
 
     @Test

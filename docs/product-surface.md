@@ -49,6 +49,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration, natural-query vocabulary, and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset`, `NaturalVocabulary` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
 | Spring Boot support | `Integration` | Optional framework wiring for Boot applications | `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter` | Optional integration surface | `README.md`, `docs/modules.md` |
 | Query diagnostics and policy controls | `Tooling` | Operational visibility and tuning around the core engine | `explain`, telemetry hooks, lint mode, cache stats and controls | Mixed: `explain` is core-adjacent, policy controls are largely `Advanced` | `docs/sql-like.md`, `docs/telemetry.md`, `docs/caching.md` |
+| Pushdown readiness metadata | `Tooling` | Advisory host-adapter classification for simple SQL-like stages; no database execution owned by PojoLens | `SqlLikeQuery.pushdownPreview()`, `SqlLikePushdownPreview`, `SqlLikePushdownMode` | `Stable` SQL-like planning metadata | `docs/sql-like.md`, `docs/telemetry.md` |
 | Schema metadata | `Workflow helper` | Deterministic table/chart column metadata for renderers | `schema()`, `TabularSchema`, `TabularColumn` | `Stable` support contract | `docs/tabular-schema.md`, `docs/reports.md`, `docs/stats-presets.md` |
 | Regression and snapshot support | `Tooling` | Regression safety and parity tooling | `QueryRegressionFixture`, `QuerySnapshotFixture`, `FluentSqlLikeParity`, `SnapshotComparison` | `Advanced` tooling surface | `docs/regression-fixtures.md`, `docs/snapshot-comparison.md` |
 | Field metamodel generation | `Tooling` | Typed field constants for query authoring support | `FieldMetamodel`, `FieldMetamodelGenerator` | `Advanced` tooling surface | `docs/metamodel.md` |
@@ -81,6 +82,10 @@ what is core, what is convenience, and what is advanced/tooling surface.
   built for chart-first and table-first flows.
 - Raw map-shaped join execution is no longer public surface. Convert once with
   `JoinBindings.from(map)` if a boundary already provides that shape.
+- Pushdown readiness is planning metadata for host-owned adapters. It may help
+  an application run simple filters/order/page stages before materializing rows,
+  but PojoLens still does not own database execution, ORM integration, SQL
+  rendering, or adapter authorization.
 - Telemetry, cache policy controls, lint mode, regression fixtures, metamodel
   generation, and benchmarking are useful public features, but they belong to
   advanced/tooling surface rather than the first-read product story.

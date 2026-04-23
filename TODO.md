@@ -1,4 +1,4 @@
-# TODO
+﻿# TODO
 
 ## Product Direction
 
@@ -39,9 +39,9 @@ puts it into direct competition with stronger database-first tools.
 | WP1 | Stable Embedded Reporting Contract     | Done              | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests           |
 | WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
 | WP3 | Stable Public Typed DSL               | Done              | TypedField, TypedPredicate, TypedQuery foundation, typed metamodel, 61 tests |
-| WP4 | Hybrid Adapters And Pushdown           | Not started       | â€”                                                                          |
-| WP5 | Repeated-Workload Performance Upgrade  | Not started       | â€”                                                                          |
-| â€”   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
+| WP4 | Hybrid Adapters And Pushdown           | In progress       | Pushdown-readiness preview metadata                                        |
+| WP5 | Repeated-Workload Performance Upgrade  | Not started       | Ã¢â‚¬â€                                                                          |
+| Ã¢â‚¬â€   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
 
 ---
 
@@ -84,7 +84,7 @@ Tasks:
       JSON-friendly column metadata.
 - [x] Add examples for saved reports, runtime-owned presets, and migration-safe
       replay.
-      Delivered: SavedReportTest covers full createâ†’configureâ†’reviewâ†’replay workflow
+      Delivered: SavedReportTest covers full createÃ¢â€ â€™configureÃ¢â€ â€™reviewÃ¢â€ â€™replay workflow
       and both SQL-like and natural replay paths.
 - [x] Add public API and binary-compat coverage for every promoted type.
       Delivered: StablePublicApiContractTest.stableSavedReportContractsShouldRemainAvailable()
@@ -261,12 +261,25 @@ Scope:
 - Make fallback behavior explicit in explain/telemetry output.
 
 Tasks:
-- [ ] Define the supported query subset for first-phase pushdown.
+- [x] Define the supported query subset for first-phase pushdown.
+      Delivered (`2026-04-23`): `SqlLikePushdownPreview`,
+      `SqlLikePushdownMode`, and `SqlLikeQuery.pushdownPreview()` classify
+      SQL-like query shapes as `FULL`, `SPLIT`, or `IN_MEMORY_ONLY`.
+      First-phase pushable stages are simple selected fields, comparison
+      `WHERE` predicates with literals or named parameters, `ORDER BY`,
+      `LIMIT`, and `OFFSET`. Joins, grouping, aggregation, windows, subqueries,
+      `HAVING`, `QUALIFY`, computed selects, time buckets, and unsupported
+      filter operators remain in-memory with stable fallback reason codes.
 - [ ] Add a first bridge path for JDBC/`ResultSet` ingestion or a jOOQ/Spring
       Data integration point for simple filter/order/page workloads.
 - [ ] Support split execution where simple stages push down and unsupported
       stages finish in memory.
-- [ ] Surface pushdown/fallback decisions in explain and telemetry.
+- [x] Surface pushdown/fallback decisions in explain and telemetry.
+      Delivered (`2026-04-23`): `explain()` includes `pushdownPreview`, and
+      SQL-like BIND telemetry includes pushdown mode, pushable stages,
+      in-memory stages, and fallback reasons. This slice remains advisory
+      planning metadata only because current repository boundaries still keep
+      database execution, SQL rendering, and adapter authorization host-owned.
 - [ ] Benchmark pushed, split, and pure in-memory paths on representative
       workloads.
 
@@ -319,7 +332,7 @@ Validate:
 ships in a way that strengthens the product story, not just the feature count.
 
 Tasks:
-- [x] Decide the first strategic packages to ship â€” WP1 (reporting contract)
+- [x] Decide the first strategic packages to ship Ã¢â‚¬â€ WP1 (reporting contract)
       and WP2 (governance) are complete and strengthen the product story.
 - [ ] Decide whether WP3, WP4, or WP5 ships next before cutting the release,
       or cut based on WP1+WP2 alone.

@@ -593,6 +593,41 @@ String frame     = wf.windowFrame();             // "ROWS BETWEEN UNBOUNDED PREC
 For validation findings and lint warnings, use `diagnostics()` instead. The two entry points are
 complementary: diagnostics validates correctness; preview describes execution shape.
 
+### Recipe: Pushdown Preview
+
+Use `pushdownPreview()` when a host application owns an external adapter and
+needs to decide which simple SQL-like stages can run before rows are handed to
+PojoLens. This is advisory metadata only: PojoLens does not execute database
+queries, translate vendor SQL, or own adapter authorization.
+
+First-phase pushable stages are deliberately narrow:
+
+- simple `SELECT` fields
+- `WHERE` predicates using `=`, `!=`, `<`, `<=`, `>`, or `>=` with literals or named parameters
+- `ORDER BY`
+- `LIMIT`
+- `OFFSET`
+
+Everything else falls back to the in-memory engine, including joins, grouping,
+aggregates, windows, subqueries, `HAVING`, `QUALIFY`, computed select
+expressions, time buckets, and unsupported filter operators such as
+`CONTAINS` or `MATCHES`.
+
+```java
+SqlLikePushdownPreview preview = PojoLensSql
+    .parse("select department, count(*) as total where active = true group by department")
+    .pushdownPreview();
+
+SqlLikePushdownMode mode = preview.mode();       // SPLIT
+List<String> pushable = preview.pushableStages(); // ["WHERE"]
+List<String> inMemory = preview.inMemoryStages(); // GROUP_BY, AGGREGATE
+List<String> reasons = preview.fallbackReasons(); // GROUPING_UNSUPPORTED, AGGREGATION_UNSUPPORTED
+```
+
+`explain()` includes the same data under `pushdownPreview`, and SQL-like BIND
+telemetry includes `pushdownMode`, `pushdownPushableStages`,
+`pushdownInMemoryStages`, and `pushdownFallbackReasons`.
+
 ### Recipe: Runtime Policy Presets
 
 Use presets when you want a preconfigured runtime and still keep manual overrides available afterward.

@@ -23,6 +23,8 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePlanPreviewSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePushdownPreviewSupport;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
@@ -93,13 +95,31 @@ final class SqlLikePreparedExecutionSupport {
                 bindStarted,
                 pojos.size(),
                 pojos.size(),
-                QueryTelemetrySupport.metadata(
-                        "projectionClass", projectionClass.getSimpleName(),
-                        "joinSourceCount", joinSources.size(),
-                        "applyJoin", prepared.applyJoin()
-                )
+                bindMetadata(telemetryListener, ast, source, projectionClass, joinSources, prepared)
         );
         return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source);
+    }
+
+    private static <T> Map<String, Object> bindMetadata(QueryTelemetryListener telemetryListener,
+                                                        QueryAst ast,
+                                                        String source,
+                                                        Class<T> projectionClass,
+                                                        Map<String, List<?>> joinSources,
+                                                        PreparedExecution prepared) {
+        if (telemetryListener == null) {
+            return Collections.emptyMap();
+        }
+        SqlLikePushdownPreview pushdownPreview = SqlLikePushdownPreviewSupport.buildFromPlan(
+                SqlLikePlanPreviewSupport.buildFromAst(ast, source));
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("projectionClass", projectionClass.getSimpleName());
+        metadata.put("joinSourceCount", joinSources.size());
+        metadata.put("applyJoin", prepared.applyJoin());
+        metadata.put("pushdownMode", pushdownPreview.mode().name());
+        metadata.put("pushdownPushableStages", pushdownPreview.pushableStages());
+        metadata.put("pushdownInMemoryStages", pushdownPreview.inMemoryStages());
+        metadata.put("pushdownFallbackReasons", pushdownPreview.fallbackReasons());
+        return Collections.unmodifiableMap(metadata);
     }
 
     private static <T> PreparedExecution buildPreparedExecution(QueryAst ast,

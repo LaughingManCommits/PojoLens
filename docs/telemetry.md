@@ -68,10 +68,18 @@ Examples of metadata:
 - `projectionClass`
 - `joinSourceCount`
 - `applyJoin`
+- `pushdownMode`
+- `pushdownPushableStages`
+- `pushdownInMemoryStages`
+- `pushdownFallbackReasons`
 - `orderFieldCount`
 - `chartType`
 - `labelCount`
 - `datasetCount`
+
+SQL-like `BIND` events include pushdown-readiness metadata. This is advisory
+host-adapter planning data only; it does not mean PojoLens executed a pushed
+query outside the in-memory engine.
 
 ## Low-Overhead Behavior
 

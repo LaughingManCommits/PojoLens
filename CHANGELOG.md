@@ -11,6 +11,19 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **SQL-like pushdown-readiness preview** (`STRAT-WP4` first slice) - added
+  `SqlLikePushdownPreview`, `SqlLikePushdownMode`, and
+  `SqlLikeQuery.pushdownPreview()` to classify query shapes as `FULL`, `SPLIT`,
+  or `IN_MEMORY_ONLY` for host-owned adapters. The first-phase subset covers
+  simple selected fields, comparison predicates with literals or parameters,
+  ordering, limit, and offset. Joins, grouping, aggregation, windows,
+  subqueries, `HAVING`, `QUALIFY`, computed selects, time buckets, and
+  unsupported filter operators stay in-memory with stable fallback reason
+  codes. `explain()` now includes `pushdownPreview`, and SQL-like BIND
+  telemetry includes pushdown mode, pushable stages, in-memory stages, and
+  fallback reasons. This is advisory planning metadata only; PojoLens still
+  does not own database execution or SQL rendering.
+
 - **Stable public typed DSL foundation** (`STRAT-WP3`) - added
   `TypedField<T,V>`, `TypedPredicate<T>`, and `TypedQuery<T>` in the `dsl`
   package for code-owned projection, filtering, ordering, offset, and limit

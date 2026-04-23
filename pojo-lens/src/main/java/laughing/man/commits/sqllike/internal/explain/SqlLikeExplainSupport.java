@@ -2,8 +2,10 @@ package laughing.man.commits.sqllike.internal.explain;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
+import laughing.man.commits.sqllike.SqlLikePushdownPreview;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePushdownPreviewSupport;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
@@ -43,6 +45,7 @@ public final class SqlLikeExplainSupport {
                                               QueryAst ast,
                                               Map<String, List<?>> joinSources,
                                               Map<String, Object> stageRowCounts,
+                                              SqlLikePushdownPreview pushdownPreview,
                                               boolean lintMode,
                                               List<SqlLikeLintWarning> lintWarnings,
                                               ComputedFieldRegistry computedFieldRegistry) {
@@ -65,6 +68,7 @@ public final class SqlLikeExplainSupport {
         explain.put("timeBuckets", timeBucketEntries(ast));
         explain.put("computedFields", ComputedFieldSupport.usedExplainEntries(computedFieldRegistry, usedComputedFieldNames(ast, computedFieldRegistry)));
         explain.put("joinSourceBindings", joinSourceBindings(ast, joinSources));
+        explain.put("pushdownPreview", SqlLikePushdownPreviewSupport.explainEntry(pushdownPreview));
         explain.put("parameterSnapshot", parameterSnapshot(ast));
         if (lintMode) {
             explain.put("lintWarnings", SqlLikeLintSupport.warningEntries(lintWarnings));

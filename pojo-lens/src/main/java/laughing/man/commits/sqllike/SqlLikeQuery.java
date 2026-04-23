@@ -13,6 +13,7 @@ import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.cursor.SqlLikeKeysetSupport;
 import laughing.man.commits.sqllike.internal.diagnostics.SqlLikeDiagnosticsSupport;
 import laughing.man.commits.sqllike.internal.preview.SqlLikePlanPreviewSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePushdownPreviewSupport;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
@@ -509,6 +510,20 @@ public final class SqlLikeQuery {
     }
 
     /**
+     * Returns advisory pushdown-readiness metadata for this SQL-like query.
+     * <p>
+     * This method does not execute against a database and does not translate
+     * the query into vendor SQL. It classifies the parsed query shape so a
+     * host-owned adapter can decide which first-phase stages are safe to run
+     * before returning rows to PojoLens.
+     *
+     * @return pushdown-readiness preview
+     */
+    public SqlLikePushdownPreview pushdownPreview() {
+        return SqlLikePushdownPreviewSupport.buildFromPlan(planPreview());
+    }
+
+    /**
      * Binds query to data and captures projection type for typed execution.
      *
      * @param pojos input data
@@ -951,6 +966,7 @@ public final class SqlLikeQuery {
 
     private Map<String, Object> buildExplainPayload(Map<String, List<?>> joinSources,
                                                     Map<String, Object> stageRowCounts) {
+        SqlLikePushdownPreview pushdownPreview = pushdownPreview();
         return SqlLikeExplainSupport.payload(
                 queryType,
                 source,
@@ -958,6 +974,7 @@ public final class SqlLikeQuery {
                 ast,
                 joinSources,
                 stageRowCounts,
+                pushdownPreview,
                 lintMode,
                 lintWarnings(),
                 computedFieldRegistry

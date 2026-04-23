@@ -1,5 +1,7 @@
 # Recent Validations
 
+- `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikePushdownPreviewTest,PublicApiSqlCoverageTest,StablePublicApiContractTest" test` passed after STRAT-WP4 first-slice pushdown-readiness metadata: 34 tests, 0 failures.
+- `2026-04-23`: `scripts/check-doc-consistency.ps1`, `git diff --check`, and `mvn -B -ntp test` passed after STRAT-WP4 first-slice pushdown-readiness metadata and docs/memory alignment: 1032 tests across all modules, 0 failures.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=QueryCancellationTest,QueryExecutionGuardTest,StablePublicApiContractTest" test` passed after WP2 cancellation senior-review fixes: bound eager `filter`/`chart` cancellation, empty-input TypedQuery cancellation, cancellation public API contracts, and invalid abort-row-count coverage; 74 tests, 0 failures.
 - `2026-04-23`: `scripts/check-doc-consistency.ps1` and `mvn -B -ntp test` passed after WP2 cancellation senior-review fixes and public docs alignment: 1024 tests across all modules, 0 failures.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=Typed*ContractTest,StablePublicApiContractTest" test` passed after WP3 review fixes: nested typed `AND`/`OR` predicates lower through explicit rule groups, typed metamodel generation boxes primitive field types and compiles nested-model output, and stable public API coverage includes the typed DSL plus `QueryExecutionGuardException.of(...)`.

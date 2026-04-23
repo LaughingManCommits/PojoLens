@@ -7,6 +7,7 @@
 
 ## Focus
 
+- `2026-04-23`: `STRAT-WP4` first slice complete: advisory pushdown-readiness metadata via `SqlLikePushdownPreview`, `SqlLikePushdownMode`, `SqlLikeQuery.pushdownPreview()`, explain payload, and BIND telemetry.
 - `2026-04-23`: `STRAT-WP3` typed DSL foundation complete: `TypedField<T,V>`, `TypedPredicate<T>`, `TypedQuery<T>`, and `FieldMetamodelGenerator.generateTyped(...)`.
 - `2026-04-23`: WP3 review fixes preserve nested mixed `AND`/`OR` semantics and compile generated typed metamodel source for primitive/nested-model fields.
 - `2026-04-23`: Typed DSL scope covers projection, filters, ordering, offset, limit, explain/schema, and guard interop; typed grouping/joins remain deferred.
@@ -19,6 +20,7 @@
 ## Verified
 
 - `2026-04-23`: WP2 cancellation review fixes passed targeted guard/public API slice: 74 tests, 0 failures.
+- `2026-04-23`: WP4 pushdown-readiness slice passed targeted public API tests, doc consistency, `git diff --check`, and full Maven suite: 1032 tests, 0 failures.
 - `2026-04-23`: Full Maven suite: 1024 tests across all modules, 0 failures.
 - `2026-04-23`: `scripts/check-doc-consistency.ps1` passed after cancellation docs updates.
 - `2026-04-23`: WP3 review fixes passed full Maven suite: 972 tests, 0 failures.
@@ -35,5 +37,5 @@
 
 ## Next
 
-- Release preparation or WP4/WP5.
+- Continue WP4 bridge execution path, benchmark path, or release preparation.
 - Keep `CSV-WP6`, correlated/scalar subqueries, and broad window-frame parity out of scope.
