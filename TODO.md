@@ -321,12 +321,12 @@ Scope:
 - Keep benchmark claims tied to explicit workloads and budgets.
 
 Tasks:
-- [ ] Reduce reflection hot-path cost with cached or generated accessors where
+- [x] Reduce reflection hot-path cost with cached or generated accessors where
       safe.
 - [ ] Improve repeated join execution with reusable indexes/hash structures.
 - [ ] Reduce window-stage allocation overhead.
 - [ ] Evaluate a batch/columnar execution path for heavy report workloads.
-- [ ] Promote a small set of stable JMH budgets for the hottest supported
+- [x] Promote a small set of stable JMH budgets for the hottest supported
       workloads.
 
 Validate:

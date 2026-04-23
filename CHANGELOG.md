@@ -32,6 +32,22 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   Added `PUSHDOWN` telemetry and JMH coverage for pure in-memory, pushed, and
   split completion paths.
 
+- **Reflection hotspot guardrails** (`STRAT-WP5` first slice) - added
+  `benchmarks/hotspot-thresholds.json` and
+  `scripts/benchmark-suite-hotspot-reflection.args` for warmed forked JMH
+  budgets on `HotspotMicroJmhBenchmark.reflectionToDomainRows` and
+  `reflectionToClassList`. The narrow guardrail keeps the broader hotspot suite
+  diagnostic-only while freezing the most stable reflection conversion paths
+  into conservative threshold checks.
+
+### Changed
+
+- **Reflection materialization hot path** (`STRAT-WP5` first slice) -
+  `ReflectionUtil` now reuses compiled direct-field read plans across
+  equivalent selections and uses cached nested field-path writes during
+  projection materialization. This trims repeated reflection setup work on
+  warmed conversion paths while preserving existing query semantics.
+
 - **Stable public typed DSL foundation** (`STRAT-WP3`) - added
   `TypedField<T,V>`, `TypedPredicate<T>`, and `TypedQuery<T>` in the `dsl`
   package for code-owned projection, filtering, ordering, offset, and limit

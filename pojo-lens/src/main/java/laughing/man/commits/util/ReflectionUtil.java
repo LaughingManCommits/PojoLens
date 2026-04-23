@@ -40,6 +40,7 @@ public final class ReflectionUtil {
     private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
     private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
+    private static final Map<DirectFieldReadPlanCacheKey, DirectFieldReadPlan> DIRECT_FIELD_READ_PLAN_CACHE = new ConcurrentHashMap<>();
     private static final Map<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
 
@@ -414,17 +415,10 @@ public final class ReflectionUtil {
             throw new IllegalArgumentException("root must not be null");
         }
         List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
-        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
-        for (String fieldName : normalizedSelection) {
-            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
-                continue;
-            }
-            Field field = findReadableField(root, fieldName);
-            if (field != null) {
-                selectedFields.put(fieldName, field);
-            }
-        }
-        return new DirectFieldReadPlan(root, selectedFields);
+        return DIRECT_FIELD_READ_PLAN_CACHE.computeIfAbsent(
+                new DirectFieldReadPlanCacheKey(root, normalizedSelection),
+                key -> buildDirectFieldReadPlan(key.rootType(), key.selectedFieldNames())
+        );
     }
 
     public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
@@ -705,6 +699,20 @@ public final class ReflectionUtil {
         return projectionWritePlanForSchema(projectionClass, SchemaIndexUtil.firstQueryRowFieldNames(rows));
     }
 
+    private static DirectFieldReadPlan buildDirectFieldReadPlan(Class<?> root, List<String> selectedFieldNames) {
+        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
+        for (String fieldName : selectedFieldNames) {
+            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
+                continue;
+            }
+            Field field = findReadableField(root, fieldName);
+            if (field != null) {
+                selectedFields.put(fieldName, field);
+            }
+        }
+        return new DirectFieldReadPlan(root, selectedFields);
+    }
+
     private static ProjectionWritePlan projectionWritePlanForSchema(Class<?> projectionClass, List<String> sourceFieldSchema) {
         return PROJECTION_WRITE_PLAN_CACHE.computeIfAbsent(
                 new ProjectionPlanCacheKey(projectionClass, sourceFieldSchema),
@@ -808,26 +816,7 @@ public final class ReflectionUtil {
                                               ResolvedFieldPath fieldPath,
                                               Object propertyValue,
                                               String propertyName) throws Exception {
-        Object current = javaBean;
-        List<Field> fields = fieldPath.fields();
-
-        for (int i = 0; i < fields.size() - 1; i++) {
-            Field field = fields.get(i);
-            Object nested = field.get(current);
-
-            if (nested == null) {
-                if (propertyValue == null) {
-                    return;
-                }
-                nested = instantiateNestedValue(field.getType(), propertyName);
-                field.set(current, nested);
-            }
-
-            current = nested;
-        }
-
-        Field leaf = fields.get(fields.size() - 1);
-        leaf.set(current, propertyValue);
+        fieldPath.write(javaBean, propertyValue, propertyName);
     }
 
     private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) throws Exception {
@@ -943,6 +932,13 @@ public final class ReflectionUtil {
         }
     }
 
+    private record DirectFieldReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+        private DirectFieldReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+            this.rootType = rootType;
+            this.selectedFieldNames = Collections.unmodifiableList(new ArrayList<>(selectedFieldNames));
+        }
+    }
+
     private record ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
         private ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
             this.projectionClass = projectionClass;
@@ -1007,6 +1003,62 @@ public final class ReflectionUtil {
                     yield current;
                 }
             };
+        }
+
+        private void write(Object bean, Object propertyValue, String propertyName) throws Exception {
+            if (bean == null || !resolvable) {
+                return;
+            }
+            switch (readFields.length) {
+                case 0 -> {
+                    return;
+                }
+                case 1 -> readFields[0].set(bean, propertyValue);
+                case 2 -> {
+                    Object nested = ensureNestedParent(bean, readFields[0], propertyValue, propertyName);
+                    if (nested != null) {
+                        readFields[1].set(nested, propertyValue);
+                    }
+                }
+                case INLINE_THREE_FIELD_PATH -> {
+                    Object nested = ensureNestedParent(bean, readFields[0], propertyValue, propertyName);
+                    if (nested == null) {
+                        return;
+                    }
+                    Object leafParent = ensureNestedParent(nested, readFields[1], propertyValue, propertyName);
+                    if (leafParent != null) {
+                        readFields[2].set(leafParent, propertyValue);
+                    }
+                }
+                default -> writeNested(bean, propertyValue, propertyName);
+            }
+        }
+
+        private Object ensureNestedParent(Object current,
+                                          Field field,
+                                          Object propertyValue,
+                                          String propertyName) throws Exception {
+            Object nested = field.get(current);
+            if (nested != null) {
+                return nested;
+            }
+            if (propertyValue == null) {
+                return null;
+            }
+            nested = instantiateNestedValue(field.getType(), propertyName);
+            field.set(current, nested);
+            return nested;
+        }
+
+        private void writeNested(Object bean, Object propertyValue, String propertyName) throws Exception {
+            Object current = bean;
+            for (int i = 0; i < readFields.length - 1; i++) {
+                current = ensureNestedParent(current, readFields[i], propertyValue, propertyName);
+                if (current == null) {
+                    return;
+                }
+            }
+            readFields[readFields.length - 1].set(current, propertyValue);
         }
 
     }

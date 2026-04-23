@@ -7,6 +7,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - Benchmark methodology is execution-only in benchmark methods (setup moved to `@Setup`).
 - Core guardrails: `benchmarks/thresholds.json` (rebaselined on 2026-03-19 from CI data; `2026-04-17` recalibrated CSV load budgets for CI cold temp-file I/O variance).
 - Chart guardrails: `benchmarks/chart-thresholds.json`.
+- Reflection hotspot guardrails: `benchmarks/hotspot-thresholds.json` for warmed `HotspotMicroJmhBenchmark.reflectionToDomainRows` and `reflectionToClassList`.
 - Strict benchmark checker remains the gate for threshold validation.
 
 ## AI Memory Benchmark
@@ -18,8 +19,10 @@ Load this file only for benchmark, threshold, or profiling tasks.
 
 ## Current Position
 
-- No active benchmark optimization work is open.
+- `2026-04-23`: WP5 reflection hot-path slice is complete; join/index reuse, window allocation work, and batch/columnar evaluation remain open.
 - `2026-04-17`: CI reported CSV guardrail misses at typed `1k = 13.655 ms`, multiline `1k = 5.709 ms`, and multiline `10k = 54.170 ms`; thresholds now allow `18.0 ms`, `8.0 ms`, and `70.0 ms` respectively.
+- `2026-04-23`: WP5 first slice reduced reflection hot-path cost by caching direct-field read plans across equivalent selections and reusing cached nested-path writes during projection materialization.
+- `2026-04-23`: warmed forked hotspot runs promoted conservative reflection guardrails at `45.0 us/op` and `450.0 us/op` for `reflectionToDomainRows`, plus `100.0 us/op` and `1000.0 us/op` for `reflectionToClassList`.
 - WP19 is intentionally parked; do not reopen without a materially different structural hypothesis.
 - Warmed profiler hotspots have repeatedly concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
 - `2026-04-15`: `ReflectionUtil.DirectFieldReadPlan` now backs direct POJO
@@ -42,6 +45,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - `docs/benchmarking.md`
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
+- `benchmarks/hotspot-thresholds.json`
 - `ai/indexes/memory-benchmark.json`
 - `scripts/benchmark-ai-memory.py`
 - `target/benchmarks/*.json` (generated artifacts, not source of truth)

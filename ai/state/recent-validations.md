@@ -1,5 +1,8 @@
 # Recent Validations
 
+- `2026-04-23`: `mvn -B -ntp -pl pojo-lens-benchmarks -am test`, `mvn -B -ntp test`, `scripts/check-doc-consistency.ps1`, `git diff --check`, `scripts/refresh-ai-memory.ps1`, and `scripts/refresh-ai-memory.ps1 -Check` passed after the WP5 reflection hot-path slice and warmed reflection threshold promotion: 1017 core tests + 16 benchmark tests green in the benchmark reactor, then 1040 tests green across the full reactor.
+- `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=ReflectionUtilTest,ReflectionUtilEnumFieldTest" test` passed after the WP5 reflection hot-path slice added direct-field read-plan caching reuse and cached nested-path writes: 14 tests, 0 failures.
+- `2026-04-23`: warmed forked `HotspotMicroJmhBenchmark.reflectionToDomainRows` / `reflectionToClassList` runs plus `BenchmarkThresholdChecker ... benchmarks/hotspot-thresholds.json --strict` passed after promoting narrow reflection hotspot guardrails.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikePushdownPreviewTest,PublicApiSqlCoverageTest,StablePublicApiContractTest" test` passed after STRAT-WP4 first-slice pushdown-readiness metadata: 34 tests, 0 failures.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikePushdown*Test,PublicApiSqlCoverageTest,StablePublicApiContractTest" test` passed after completing STRAT-WP4 bridge contracts, ResultSet ingestion, split completion, and `PUSHDOWN` telemetry: 39 tests, 0 failures.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens-benchmarks -am test` passed after adding STRAT-WP4 pushdown benchmark paths and parity coverage: 1016 core tests and 16 benchmark-module tests, 0 failures.

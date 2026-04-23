@@ -86,6 +86,13 @@ java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
 ```
 
+Stable warmed reflection hotspot guardrails:
+
+```bash
+java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspot-reflection.args -f 1 -wi 1 -i 3 -r 100ms -rf json -rff target/benchmarks/hotspot-reflection.json
+java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/hotspot-reflection.json benchmarks/hotspot-thresholds.json target/benchmarks/hotspot-reflection-report.csv --strict
+```
+
 Cache concurrency scenario:
 
 ```bash
@@ -103,6 +110,7 @@ java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 
 The budget files are the source of truth:
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
+- `benchmarks/hotspot-thresholds.json`
 
 **Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLensSql.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
 
@@ -329,18 +337,22 @@ java -jar "$BENCHMARK_JAR" laughing.man.commits.benchmark.HotspotMicroJmhBenchma
 java -jar "$BENCHMARK_JAR" laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 ```
 
-For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
+For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm`
+output from `-prof gc`. The broader hotspot suite remains diagnostic-only. The
+reflection conversion pair is the current exception: those two warmed workloads
+now have conservative guardrails through
+`scripts/benchmark-suite-hotspot-reflection.args` and
+`benchmarks/hotspot-thresholds.json`.
 
-Representative warmed `-prof gc` numbers as of `2026-03-17` (after `RawQueryRow` allocation reduction):
+Representative warmed `-prof gc` reflection numbers as of `2026-04-23` (after
+reusing cached direct-field plans and cached nested-path writes):
 
 | Benchmark | size | us/op | B/op |
 |---|---|---:|---:|
-| `reflectionToDomainRows` | 1k | ~39 us/op | 100,136 B/op |
-| `reflectionToDomainRows` | 10k | ~427 us/op | 1,000,122 B/op |
-| `reflectionToClassList` | 1k | ~87 us/op | 140,232 B/op |
-| `reflectionToClassList` | 10k | ~996 us/op | 1,400,236 B/op |
-| `groupedMultiMetricAggregation` | 1k | ~22 us/op | 73,120 B/op |
-| `groupedMultiMetricAggregation` | 10k | ~303 us/op | 1,043,042 B/op |
+| `reflectionToDomainRows` | 1k | ~31 us/op | 100,144 B/op |
+| `reflectionToDomainRows` | 10k | ~327 us/op | 1,000,130 B/op |
+| `reflectionToClassList` | 1k | ~79 us/op | 140,232 B/op |
+| `reflectionToClassList` | 10k | ~841 us/op | 1,400,236 B/op |
 
 As of the 2026-03-17 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `28.0 us/op` / `212,656 B/op` at `size=1000` and `256.0 us/op` / `2,012,761 B/op` at `size=10000` (down from `364,312 B/op` and `3,532,314 B/op` before the `RawQueryRow` allocation reduction), so the path is still too allocation-heavy to freeze into a strict merge gate.
 

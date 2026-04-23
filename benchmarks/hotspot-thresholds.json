@@ -1,0 +1,6 @@
+{
+  "laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows|size=1000": 45.0,
+  "laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToDomainRows|size=10000": 450.0,
+  "laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList|size=1000": 100.0,
+  "laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.reflectionToClassList|size=10000": 1000.0
+}
