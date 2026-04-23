@@ -141,6 +141,17 @@ Tasks:
       governance are in scope; auth and tenant policy remain host-owned.
       Documented in QueryExecutionGuard Javadoc and docs/advanced-features.md.
 
+Review follow-up (`2026-04-23`):
+- [ ] Harden guard enforcement across `stream(...)`, `iterator()`, and bound
+      query execution so `maxRowsReturned` and `maxDurationMillis` cannot be
+      bypassed by switching execution entry points.
+- [ ] Count bound JOIN source rows in the pre-execution row-scan budget instead
+      of only the primary root rows.
+- [ ] Add explicit tests for lazy execution, bound execution, telemetry
+      rejection, and join-backed row-scan budgets.
+- [ ] Re-scope or implement the still-missing WP2 contract pieces:
+      cooperative cancellation plus deterministic aborted-query metadata.
+
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Policy*Test,*Exposure*Test,*Telemetry*Test,*Natural*Test,*SqlLike*Test" test`
 - `scripts/check-doc-consistency.ps1`
