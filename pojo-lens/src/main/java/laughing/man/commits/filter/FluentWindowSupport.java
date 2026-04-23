@@ -33,26 +33,20 @@ final class FluentWindowSupport {
         }
         Map<String, Integer> sourceFieldIndexes = SchemaIndexUtil.indexFieldNames(sourceSchema);
 
-        Object[][] windowValues = new Object[windows.size()][rows.size()];
-        for (int i = 0; i < windows.size(); i++) {
-            windowValues[i] = evaluateWindow(rows, windows.get(i), sourceFieldIndexes);
-        }
-
         ArrayList<String> outputSchema = new ArrayList<>(sourceSchema);
         for (QueryWindow window : windows) {
             outputSchema.add(window.alias());
         }
 
         ArrayList<QueryRow> output = new ArrayList<>(rows.size());
+        Object[][] outputValues = new Object[rows.size()][];
         int baseFieldCount = sourceSchema.size();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             QueryRow sourceRow = rows.get(rowIndex);
             Object[] values = new Object[outputSchema.size()];
+            outputValues[rowIndex] = values;
             for (int fieldIndex = 0; fieldIndex < baseFieldCount; fieldIndex++) {
                 values[fieldIndex] = sourceRow == null ? null : sourceRow.getValueAt(fieldIndex);
-            }
-            for (int windowIndex = 0; windowIndex < windows.size(); windowIndex++) {
-                values[baseFieldCount + windowIndex] = windowValues[windowIndex][rowIndex];
             }
             RawQueryRow projected = new RawQueryRow(values, outputSchema);
             if (sourceRow != null) {
@@ -61,34 +55,38 @@ final class FluentWindowSupport {
             }
             output.add(projected);
         }
+
+        for (int windowIndex = 0; windowIndex < windows.size(); windowIndex++) {
+            evaluateWindow(rows, windows.get(windowIndex), sourceFieldIndexes, outputValues, baseFieldCount + windowIndex);
+        }
         return output;
     }
 
-    private static Object[] evaluateWindow(List<QueryRow> rows,
-                                           QueryWindow window,
-                                           Map<String, Integer> sourceFieldIndexes) {
+    private static void evaluateWindow(List<QueryRow> rows,
+                                       QueryWindow window,
+                                       Map<String, Integer> sourceFieldIndexes,
+                                       Object[][] outputValues,
+                                       int targetFieldIndex) {
         int[] partitionIndexes = resolveIndexes(window.partitionFields(), sourceFieldIndexes);
         int[] orderIndexes = resolveOrderIndexes(window.orderFields(), sourceFieldIndexes);
         Sort[] orderSorts = resolveOrderSorts(window.orderFields());
         int valueIndex = resolveValueIndex(window, sourceFieldIndexes);
 
-        Map<PartitionKey, List<Integer>> partitions = new LinkedHashMap<>();
+        Map<Object, List<Integer>> partitions = new LinkedHashMap<>();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             QueryRow row = rows.get(rowIndex);
             partitions.computeIfAbsent(partitionKey(row, partitionIndexes), ignored -> new ArrayList<>())
                     .add(rowIndex);
         }
 
-        Object[] values = new Object[rows.size()];
         for (List<Integer> partitionRows : partitions.values()) {
             partitionRows.sort((left, right) -> compareRowIndexes(rows, left, right, orderIndexes, orderSorts));
             if (window.function().isRankFunction()) {
-                assignRankValues(rows, window, partitionRows, orderIndexes, orderSorts, values);
+                assignRankValues(rows, window, partitionRows, orderIndexes, orderSorts, outputValues, targetFieldIndex);
             } else {
-                assignAggregateValues(rows, window, partitionRows, valueIndex, values);
+                assignAggregateValues(rows, window, partitionRows, valueIndex, outputValues, targetFieldIndex);
             }
         }
-        return values;
     }
 
     private static void assignRankValues(List<QueryRow> rows,
@@ -96,7 +94,8 @@ final class FluentWindowSupport {
                                          List<Integer> partitionRows,
                                          int[] orderIndexes,
                                          Sort[] orderSorts,
-                                         Object[] values) {
+                                         Object[][] outputValues,
+                                         int targetFieldIndex) {
         long rank = 1L;
         long denseRank = 1L;
         for (int position = 0; position < partitionRows.size(); position++) {
@@ -109,7 +108,7 @@ final class FluentWindowSupport {
                     denseRank++;
                 }
             }
-            values[rowIndex] = switch (window.function()) {
+            outputValues[rowIndex][targetFieldIndex] = switch (window.function()) {
                 case ROW_NUMBER -> position + 1L;
                 case RANK -> rank;
                 case DENSE_RANK -> denseRank;
@@ -123,7 +122,8 @@ final class FluentWindowSupport {
                                               QueryWindow window,
                                               List<Integer> partitionRows,
                                               int valueIndex,
-                                              Object[] values) {
+                                              Object[][] outputValues,
+                                              int targetFieldIndex) {
         AggregateWindowAccumulator accumulator = new AggregateWindowAccumulator(rows, window, valueIndex);
         if (window.frame().isFullPartition()) {
             for (int rowIndex : partitionRows) {
@@ -131,7 +131,7 @@ final class FluentWindowSupport {
             }
             Object frameValue = accumulator.value();
             for (int rowIndex : partitionRows) {
-                values[rowIndex] = frameValue;
+                outputValues[rowIndex][targetFieldIndex] = frameValue;
             }
             return;
         }
@@ -147,7 +147,7 @@ final class FluentWindowSupport {
                     frameStartPosition++;
                 }
             }
-            values[rowIndex] = accumulator.value();
+            outputValues[rowIndex][targetFieldIndex] = accumulator.value();
         }
     }
 
@@ -262,19 +262,34 @@ final class FluentWindowSupport {
         return resolveIndex(window.valueField(), sourceFieldIndexes);
     }
 
-    private static PartitionKey partitionKey(QueryRow row, int[] partitionIndexes) {
-        if (partitionIndexes.length == 0) {
-            return PartitionKey.EMPTY;
-        }
+    private static Object partitionKey(QueryRow row, int[] partitionIndexes) {
+        return switch (partitionIndexes.length) {
+            case 0 -> PartitionKey.EMPTY;
+            case 1 -> row == null ? null : row.getValueAt(partitionIndexes[0]);
+            case 2 -> new PairPartitionKey(
+                    row == null ? null : row.getValueAt(partitionIndexes[0]),
+                    row == null ? null : row.getValueAt(partitionIndexes[1])
+            );
+            default -> multiPartitionKey(row, partitionIndexes);
+        };
+    }
+
+    private static MultiPartitionKey multiPartitionKey(QueryRow row, int[] partitionIndexes) {
         ArrayList<Object> values = new ArrayList<>(partitionIndexes.length);
         for (int partitionIndex : partitionIndexes) {
             values.add(row == null ? null : row.getValueAt(partitionIndex));
         }
-        return new PartitionKey(List.copyOf(values));
+        return new MultiPartitionKey(List.copyOf(values));
     }
 
-    private record PartitionKey(List<Object> values) {
-        private static final PartitionKey EMPTY = new PartitionKey(List.of());
+    private enum PartitionKey {
+        EMPTY
+    }
+
+    private record PairPartitionKey(Object first, Object second) {
+    }
+
+    private record MultiPartitionKey(List<Object> values) {
     }
 
     private static final class AggregateWindowAccumulator {

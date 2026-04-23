@@ -38,6 +38,7 @@ public class FilterImpl implements Filter {
     private volatile FastArrayQuerySupport.FastArrayState fastArrayState;
     private volatile FastStatsQuerySupport.FastStatsState fastStatsState;
     private volatile SourceIndexCache sourceIndexCache;
+    private volatile ReusableFastJoinState reusableFastJoinState;
 
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
@@ -444,12 +445,25 @@ public class FilterImpl implements Filter {
         FilterQueryBuilder executionBuilder = builderState;
         this.fastStatsState = null;
         this.sourceIndexCache = null;
+        ReusableFastJoinState cachedFastJoinState = reusableFastJoinState;
+        if (cachedFastJoinState != null && cachedFastJoinState.matches(executionBuilder)) {
+            executionBuilder.setExecutionSchema(cachedFastJoinState.state().schemaTypes());
+            this.fastArrayState = cachedFastJoinState.state();
+            return this;
+        }
         FastArrayQuerySupport.FastArrayState fastState = FastArrayQuerySupport.tryBuildJoinedState(executionBuilder);
         if (fastState != null) {
             executionBuilder.setExecutionSchema(fastState.schemaTypes());
             this.fastArrayState = fastState;
+            this.reusableFastJoinState = new ReusableFastJoinState(
+                    executionBuilder.getExecutionPlanShapeVersion(),
+                    executionBuilder.getSourceBeansForExecution(),
+                    executionBuilder.getJoinSourceBeansForExecution(),
+                    fastState
+            );
             return this;
         }
+        this.reusableFastJoinState = null;
         this.fastArrayState = null;
         FilterCore core = new FilterCore(executionBuilder);
         try {
@@ -474,6 +488,7 @@ public class FilterImpl implements Filter {
             executionBuilder.setRows(FastStatsQuerySupport.toQueryRows(statsState));
             fastStatsState = null;
             sourceIndexCache = null;
+            reusableFastJoinState = null;
             return;
         }
         FilterQueryBuilder executionBuilder = builderState;
@@ -483,6 +498,7 @@ public class FilterImpl implements Filter {
         );
         fastArrayState = null;
         sourceIndexCache = null;
+        reusableFastJoinState = null;
     }
 
     private List<?> lookupIndexedSourceRows(FilterQueryBuilder builder, String fieldName, Object value) {
@@ -567,6 +583,19 @@ public class FilterImpl implements Filter {
                 return null;
             }
             return index;
+        }
+    }
+
+    private record ReusableFastJoinState(long shapeVersion,
+                                         List<?> sourceBeans,
+                                         Map<Integer, List<?>> joinSourceBeans,
+                                         FastArrayQuerySupport.FastArrayState state) {
+
+        private boolean matches(FilterQueryBuilder builder) {
+            return builder != null
+                    && builder.getExecutionPlanShapeVersion() == shapeVersion
+                    && builder.getSourceBeansForExecution() == sourceBeans
+                    && builder.getJoinSourceBeansForExecution() == joinSourceBeans;
         }
     }
 

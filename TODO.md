@@ -40,8 +40,8 @@ puts it into direct competition with stronger database-first tools.
 | WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
 | WP3 | Stable Public Typed DSL               | Done              | TypedField, TypedPredicate, TypedQuery foundation, typed metamodel, 61 tests |
 | WP4 | Hybrid Adapters And Pushdown           | Done              | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution, benchmarks |
-| WP5 | Repeated-Workload Performance Upgrade  | Not started       | Ã¢â‚¬â€                                                                          |
-| Ã¢â‚¬â€   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
+| WP5 | Repeated-Workload Performance Upgrade  | Done              | Reflection caching, repeated join reuse, lower window allocation, hotspot guardrails |
+| —   | Release Gate                           | Pending decision  | WP1+WP5 shipped; release cut not yet triggered                             |
 
 ---
 
@@ -323,9 +323,9 @@ Scope:
 Tasks:
 - [x] Reduce reflection hot-path cost with cached or generated accessors where
       safe.
-- [ ] Improve repeated join execution with reusable indexes/hash structures.
-- [ ] Reduce window-stage allocation overhead.
-- [ ] Evaluate a batch/columnar execution path for heavy report workloads.
+- [x] Improve repeated join execution with reusable indexes/hash structures.
+- [x] Reduce window-stage allocation overhead.
+- [x] Evaluate a batch/columnar execution path for heavy report workloads.
 - [x] Promote a small set of stable JMH budgets for the hottest supported
       workloads.
 

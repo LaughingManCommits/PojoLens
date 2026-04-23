@@ -16,6 +16,7 @@ import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class FilterImplFastPathTest {
 
@@ -132,6 +133,38 @@ class FilterImplFastPathTest {
         assertEquals("a", rows.get(0).tag);
         assertEquals("p1", rows.get(1).name);
         assertEquals("b", rows.get(1).tag);
+    }
+
+    @Test
+    void repeatedJoinShouldReusePreparedFastArrayState() throws Exception {
+        ArrayList<Parent> parents = new ArrayList<>(250);
+        ArrayList<Child> children = new ArrayList<>(250);
+        for (int i = 0; i < 250; i++) {
+            parents.add(new Parent(i, "parent-" + i, 90_000 + (i % 120)));
+            children.add(new Child(i, 3_000 + (i % 4_000)));
+        }
+
+        Filter filter = FluentEngine.newQueryBuilder(parents)
+                .computedFields(ComputedFieldRegistry.builder()
+                        .add("totalComp", "salary + bonus", Double.class)
+                        .build())
+                .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
+                .addRule("totalComp", 93_000.0, Clauses.BIGGER_EQUAL, Separator.AND)
+                .addField("name")
+                .addField("totalComp")
+                .initFilter();
+
+        Field fastArrayState = FilterImpl.class.getDeclaredField("fastArrayState");
+        fastArrayState.setAccessible(true);
+
+        filter.join();
+        Object first = fastArrayState.get(filter);
+
+        filter.join();
+        Object second = fastArrayState.get(filter);
+
+        assertNotNull(first);
+        assertSame(first, second);
     }
 
     static final class Parent {

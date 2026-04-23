@@ -210,18 +210,39 @@ Benchmarks (`SqlLikePipelineJmhBenchmark`):
 - `parseAndFilterWindowRank`
 - `parseAndFilterWindowRunningTotal`
 
-Representative `2026-03-23` forked results (`size=10000`):
+Representative `2026-04-23` forked results (`size=10000`):
 
 | Workload | ms/op | B/op (`gc.alloc.rate.norm`) |
 |---|---:|---:|
-| `parseAndFilterWindowBaseline` | `0.688` | `744,068` |
-| `parseAndFilterWindowRank` | `2.659` | `4,397,898` |
-| `parseAndFilterWindowRunningTotal` | `2.601` | `4,594,581` |
+| `parseAndFilterWindowBaseline` | `0.564` | `744,772` |
+| `parseAndFilterWindowRank` | `1.449` | `3,470,398` |
+| `parseAndFilterWindowRunningTotal` | `1.462` | `3,678,267` |
 
 Interpretation:
-- Window stages add meaningful overhead versus non-window SQL-like filtering for this workload (`~3.8x` slower, `~5.9x` to `6.2x` more allocation).
-- Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
+- Window stages still add meaningful overhead versus non-window SQL-like filtering for this workload (`~2.6x` slower, `~4.7x` to `4.9x` more allocation).
+- The current WP5 window slice reduced the warmed window allocation footprint by roughly `21%` for rank windows and `20%` for running totals versus the prior `2026-03-23` measurements by writing directly into the final row buffers and avoiding per-row partition-key wrapper churn in common cases.
+- Rank and running-total windows remain in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
+
+## Repeated Join Reuse
+
+The repeated computed-field join path now reuses prepared fast join state for
+stable repeated executions over the same filter snapshot instead of rebuilding
+the dense/hash join structure on every `.join()` call.
+
+Representative warmed `2026-04-23` forked results:
+
+| Workload | size | ms/op | B/op (`gc.alloc.rate.norm`) |
+|---|---|---:|---:|
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `1k` | `0.010` | `20,840` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `10k` | `0.104` | `182,529` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited` | `1k` | `0.014` | `10,912` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited` | `10k` | `0.063` | `46,840` |
+
+Interpretation:
+- These numbers are for repeated execution on the same prepared filter object and stable source snapshot.
+- The win comes from reusing the prepared join state rather than rebuilding the join structure on every call.
+- Treat this as a repeated-workload optimization, not as a claim about one-shot cold joins.
 
 ## SQL-like Pushdown Bridge Overhead
 
@@ -244,6 +265,28 @@ Benchmarks (`SqlLikePipelineJmhBenchmark`):
 
 Use this suite to compare full pushed-first-phase completion, split completion,
 and pure in-memory execution for the same query shapes.
+
+## Batch/Columnar Evaluation
+
+WP5 evaluated a broader batch or columnar execution mode for heavy report
+workloads and did not promote one into the runtime.
+
+Current decision:
+- keep the execution engine row-oriented
+- continue using the existing array-backed fast paths for the hottest repeated
+  workloads (`FastPojoFilterSupport`, `FastStatsQuerySupport`,
+  `FastArrayQuerySupport`)
+- revisit a broader columnar branch only if a future heavy-report workload
+  demonstrates a repeatable bottleneck that the current row-array paths cannot
+  cover
+
+Reasoning:
+- the public/runtime surface is built around rows, projection classes,
+  chart/report mapping, explain metadata, and telemetry
+- a separate columnar branch would duplicate join, metric, window, and mapping
+  logic across a large part of the engine
+- the current benchmark evidence supports targeted row-array acceleration more
+  strongly than a second execution model
 
 ## Execution-Path Spot Checks
 

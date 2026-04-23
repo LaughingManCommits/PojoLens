@@ -48,6 +48,19 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   projection materialization. This trims repeated reflection setup work on
   warmed conversion paths while preserving existing query semantics.
 
+- **Repeated join and window execution hot paths** (`STRAT-WP5`) - repeated
+  computed-field join execution now reuses prepared fast join state for stable
+  filter snapshots instead of rebuilding the fast join structure on every
+  `.join()` call. Window execution now writes directly into the final output
+  row buffers and uses cheaper partition-key shapes for common partition
+  layouts, reducing warmed SQL-like window allocation overhead.
+
+- **Batch/columnar evaluation outcome** (`STRAT-WP5`) - evaluated a broader
+  batch/columnar execution mode for heavy report workloads and kept the engine
+  row-oriented. Existing array-backed fast paths remain the chosen bounded
+  acceleration strategy until a future workload demonstrates that a second
+  execution model is justified.
+
 - **Stable public typed DSL foundation** (`STRAT-WP3`) - added
   `TypedField<T,V>`, `TypedPredicate<T>`, and `TypedQuery<T>` in the `dsl`
   package for code-owned projection, filtering, ordering, offset, and limit

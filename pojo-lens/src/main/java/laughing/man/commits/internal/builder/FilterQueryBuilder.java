@@ -220,8 +220,13 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public void setExecutionSchema(Map<String, Class<?>> sourceFieldTypes) {
+        Map<String, Class<?>> normalizedSourceFieldTypes =
+                sourceFieldTypes == null ? Map.of() : new LinkedHashMap<>(sourceFieldTypes);
+        if (spec.getSourceFieldTypes().equals(normalizedSourceFieldTypes)) {
+            return;
+        }
         markExecutionPlanShapeChanged();
-        spec.setSourceFieldTypes(new LinkedHashMap<>(sourceFieldTypes));
+        spec.setSourceFieldTypes(normalizedSourceFieldTypes);
         refreshFieldTypes();
     }
 
