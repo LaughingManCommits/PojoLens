@@ -32,6 +32,17 @@ public final class QueryExecutionGuardException extends RuntimeException {
     }
 
     /**
+     * Public factory — allows code outside the {@code sqllike} package to
+     * surface a guard block as this exception type.
+     *
+     * @param outcome blocked guard outcome; must not be null
+     * @return new exception
+     */
+    public static QueryExecutionGuardException of(QueryGuardOutcome outcome) {
+        return new QueryExecutionGuardException(outcome);
+    }
+
+    /**
      * Returns the full guard outcome including block code, reason, and
      * audit metadata.
      *

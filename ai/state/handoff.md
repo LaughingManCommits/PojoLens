@@ -4,7 +4,7 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Finish the remaining `STRAT-WP2` follow-up around cancellation/aborted-query scope, or move on to `STRAT-WP3` if that is deferred.
+3. Finish remaining `STRAT-WP2` follow-up: cooperative cancellation + deterministic aborted-query metadata.
 4. Use `ai/state/benchmark-state.md` only for benchmark work.
 5. Run `scripts/refresh-ai-memory.ps1 -Check` when memory freshness is uncertain.
 
@@ -15,7 +15,13 @@
 - `STRAT-WP1` is complete.
 - `STRAT-WP2` hardening fixed lazy/bound guard bypasses and join-row scan budgeting.
 - Remaining WP2 follow-up is cooperative cancellation plus deterministic aborted-query metadata.
-- Active roadmap after that is `STRAT-WP3` through `STRAT-WP5`.
+- `STRAT-WP3` is COMPLETE (all 4 phases):
+  - P1: `TypedField<T,V>` + `FieldMetamodelGenerator.generateTyped()`; 13 tests.
+  - P2: `TypedPredicate<T>` — leaf ops + AND/OR/NOT + `allOf`/`anyOf`; 20 tests.
+  - P3: `TypedQuery<T>` — immutable builder, lowers into `FluentEngine/QueryBuilder`; 16 tests.
+  - P4: guard/explain/schema interop; `QueryExecutionGuardException.of()` public factory; 24 tests.
+- Total: 967 tests green.
+- Active roadmap: WP2 cancellation follow-up, then WP4/WP5.
 
 ## Facts
 
@@ -23,6 +29,8 @@
 - `2026-04-20`: `PageResult<T>` and name suggestions are public.
 - `2026-04-23`: guard limits now apply to `filter`, `stream`, `iterator`, and bound-query execution.
 - `2026-04-23`: pre-execution row-scan budgeting now includes join-source rows.
+- `2026-04-23`: `TypedQuery.executionGuard(guard)` does pre-execution row-scan check + post-execution rows-returned/duration check. No complexity score (no plan preview in typed DSL path).
+- `2026-04-23`: `QueryExecutionGuardException.of(outcome)` is now a public static factory (was package-private constructor only).
 - User-authored query text still needs params, approved fields/sources, lint, strict typing, and host-owned authorization.
 
 ## Validate
@@ -30,7 +38,7 @@
 - After code changes: `mvn -B -ntp test`, then benchmark guardrails when performance changes.
 - After docs/process changes: `scripts/check-doc-consistency.ps1`
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `scripts/refresh-ai-memory.ps1 -Check`
-- Last validation: `2026-04-23` WP2 hardening passed targeted guard tests, the broad `*Policy*/*Exposure*/*Telemetry*/*Natural*/*SqlLike*` Maven slice, and `scripts/check-doc-consistency.ps1`.
+- Last validation: `2026-04-23` WP3 P4 passed full Maven suite (967 green).
 
 ## Cold Pointers
 
