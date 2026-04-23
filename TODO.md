@@ -38,10 +38,10 @@ puts it into direct competition with stronger database-first tools.
 |-----|----------------------------------------|-------------------|----------------------------------------------------------------------------|
 | WP1 | Stable Embedded Reporting Contract     | Done              | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests           |
 | WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
-| WP3 | Stable Public Typed DSL               | Not started       | —                                                                          |
-| WP4 | Hybrid Adapters And Pushdown           | Not started       | —                                                                          |
-| WP5 | Repeated-Workload Performance Upgrade  | Not started       | —                                                                          |
-| —   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
+| WP3 | Stable Public Typed DSL               | Done              | TypedField, TypedPredicate, TypedQuery foundation, typed metamodel, 61 tests |
+| WP4 | Hybrid Adapters And Pushdown           | Not started       | â€”                                                                          |
+| WP5 | Repeated-Workload Performance Upgrade  | Not started       | â€”                                                                          |
+| â€”   | Release Gate                           | Pending decision  | WP1+WP2 shipped; release cut not yet triggered                             |
 
 ---
 
@@ -84,7 +84,7 @@ Tasks:
       JSON-friendly column metadata.
 - [x] Add examples for saved reports, runtime-owned presets, and migration-safe
       replay.
-      Delivered: SavedReportTest covers full create→configure→review→replay workflow
+      Delivered: SavedReportTest covers full createâ†’configureâ†’reviewâ†’replay workflow
       and both SQL-like and natural replay paths.
 - [x] Add public API and binary-compat coverage for every promoted type.
       Delivered: StablePublicApiContractTest.stableSavedReportContractsShouldRemainAvailable()
@@ -173,22 +173,46 @@ Context:
   is not the right public answer in its current form.
 
 Scope:
-- Design a stable typed DSL that lowers into the shared engine/AST.
-- Reuse metamodel generation instead of exposing internal builder machinery.
+- Design an initial stable typed DSL foundation that lowers into the shared
+  engine without exposing internal builder machinery.
+- Reuse metamodel generation so typed queries do not depend on caller-authored
+  string field names.
 - Keep SQL-like and natural as first-class text surfaces; the typed DSL is for
-  code-owned composition.
+  code-owned filter/projection/order/page composition.
+- Keep typed grouping, aggregation, joins, windows, and subqueries deferred
+  until their API shape can be stabilized without leaking internal builder
+  concepts.
 
 Tasks:
-- [ ] Design a stable typed builder API for projection, filters, ordering,
-      grouping, joins, and paging.
-- [ ] Reuse or extend metamodel generation so typed queries do not depend on
+- [x] Design a stable typed builder API for projection, filters, ordering, and
+      paging.
+      Delivered: `TypedQuery<T>` with immutable `select`, `where`, `orderBy`,
+      `orderByDesc`, `limit`, `offset`, and `filter` methods.
+- [x] Reuse or extend metamodel generation so typed queries do not depend on
       string field names.
-- [ ] Ensure typed queries interoperate with explain, diagnostics, schema, and
-      report helpers.
-- [ ] Add migration guidance explaining when to use typed DSL versus SQL-like
+      Delivered: `FieldMetamodelGenerator.generateTyped(...)`, including boxed
+      primitive field types and compiler-backed generated-source tests.
+- [x] Add typed predicate composition.
+      Delivered: `TypedField<T,V>` and `TypedPredicate<T>` with leaf operators,
+      `AND`/`OR`/`NOT` descriptors, and execution lowering that preserves nested
+      mixed `AND`/`OR` semantics. `NOT` remains an explicit execution-time
+      unsupported shape.
+- [x] Ensure typed queries interoperate with explain and schema.
+      Delivered: `TypedQuery.explain(...)` and `schema(...)`. Guard interop is
+      limited to row-scan, row-return, and duration checks; typed queries do not
+      have plan-preview complexity scoring.
+- [x] Add migration guidance explaining when to use typed DSL versus SQL-like
       versus natural.
-- [ ] Add contract tests that lock the typed DSL to stable public behavior
+      Delivered: `docs/entry-points.md`, `docs/usecases.md`,
+      `docs/metamodel.md`, and `docs/public-api-stability.md`.
+- [x] Add contract tests that lock the typed DSL to stable public behavior
       rather than internal builder details.
+      Delivered: `TypedFieldContractTest`, `TypedPredicateContractTest`,
+      `TypedQueryContractTest`, and `StablePublicApiContractTest` coverage.
+
+Deferred:
+- [ ] Design stable typed grouping, aggregation, joins, windows, and subqueries
+      as a later DSL expansion.
 
 Validate:
 - `mvn -B -ntp -pl pojo-lens "-Dtest=*Metamodel*Test,*PublicApi*Test,*QueryContractTest,*Fluent*Parity*Test" test`
@@ -275,7 +299,7 @@ Validate:
 ships in a way that strengthens the product story, not just the feature count.
 
 Tasks:
-- [x] Decide the first strategic packages to ship — WP1 (reporting contract)
+- [x] Decide the first strategic packages to ship â€” WP1 (reporting contract)
       and WP2 (governance) are complete and strengthen the product story.
 - [ ] Decide whether WP3, WP4, or WP5 ships next before cutting the release,
       or cut based on WP1+WP2 alone.

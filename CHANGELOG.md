@@ -11,6 +11,17 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Stable public typed DSL foundation** (`STRAT-WP3`) - added
+  `TypedField<T,V>`, `TypedPredicate<T>`, and `TypedQuery<T>` in the `dsl`
+  package for code-owned projection, filtering, ordering, offset, and limit
+  composition. `TypedQuery` is immutable, lowers into the shared engine, supports
+  explain/schema interop, and applies execution guards for row-scan,
+  row-return, and duration limits. `FieldMetamodelGenerator.generateTyped(...)`
+  emits generated `TypedField<T,V>` constants, including boxed primitive field
+  types. Contract coverage locks public API shape, nested `AND`/`OR` predicate
+  semantics, and generated typed-source compilation. Typed grouping,
+  aggregation, joins, windows, and subqueries are deferred.
+
 - **Production query governance and audit** (`STRAT-WP2`) — added
   `QueryExecutionGuard`, `QueryGuardOutcome`, `QueryComplexitySummary`, and
   `QueryExecutionGuardException` to the `sqllike` package. `QueryExecutionGuard`

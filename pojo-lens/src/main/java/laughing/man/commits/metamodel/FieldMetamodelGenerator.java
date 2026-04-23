@@ -167,15 +167,14 @@ public final class FieldMetamodelGenerator {
         Map<String, String> constants = buildConstantMap(fieldNames);
         String source = renderTypedSource(
                 normalizedPackage, normalizedSimpleName,
-                modelClass.getSimpleName(), modelClass.getPackageName(), normalizedPackage,
+                modelClass, normalizedPackage,
                 constants, fieldTypes);
         return new FieldMetamodel(modelClass, normalizedPackage, normalizedSimpleName, fieldNames, constants, source);
     }
 
     private static String renderTypedSource(String packageName,
                                              String simpleName,
-                                             String modelSimpleName,
-                                             String modelPackage,
+                                             Class<?> modelClass,
                                              String generatedPackage,
                                              Map<String, String> constants,
                                              Map<String, Class<?>> fieldTypes) {
@@ -187,21 +186,18 @@ public final class FieldMetamodelGenerator {
         Set<String> imports = new LinkedHashSet<>();
         imports.add("laughing.man.commits.dsl.TypedField");
         imports.add("java.util.List");
-        if (!modelPackage.isEmpty() && !modelPackage.equals(generatedPackage)) {
-            imports.add(modelPackage + "." + modelSimpleName);
+        String modelTypeName = modelClass.getSimpleName();
+        String modelCanonicalName = modelClass.getCanonicalName();
+        if (modelCanonicalName != null
+                && (!modelClass.getPackageName().equals(generatedPackage) || modelClass.getEnclosingClass() != null)) {
+            imports.add(modelCanonicalName);
         }
         for (String fieldName : constants.values()) {
-            Class<?> vt = fieldTypes.get(fieldName);
-            if (vt == null) {
+            FieldTypeNames typeNames = fieldTypeNames(fieldTypes.get(fieldName));
+            if (typeNames.importName() == null) {
                 continue;
             }
-            String pkg = vt.getPackageName();
-            if (!pkg.isEmpty() && !pkg.equals("java.lang")) {
-                String canonical = vt.getCanonicalName();
-                if (canonical != null) {
-                    imports.add(canonical);
-                }
-            }
+            imports.add(typeNames.importName());
         }
         for (String imp : imports) {
             source.append("import ").append(imp).append(";\n");
@@ -212,18 +208,17 @@ public final class FieldMetamodelGenerator {
         for (Map.Entry<String, String> entry : constants.entrySet()) {
             String constantName = entry.getKey();
             String fieldName = entry.getValue();
-            Class<?> vt = fieldTypes.get(fieldName);
-            String vtName = vt != null ? vt.getSimpleName() : "Object";
+            FieldTypeNames typeNames = fieldTypeNames(fieldTypes.get(fieldName));
             source.append("    public static final TypedField<")
-                    .append(modelSimpleName).append(", ").append(vtName).append("> ")
+                    .append(modelTypeName).append(", ").append(typeNames.sourceName()).append("> ")
                     .append(constantName)
                     .append(" = TypedField.of(\"").append(escapeJava(fieldName)).append("\", ")
-                    .append(vtName).append(".class);\n");
+                    .append(typeNames.sourceName()).append(".class);\n");
         }
         source.append("\n");
-        source.append("    public static final List<TypedField<").append(modelSimpleName)
+        source.append("    public static final List<TypedField<").append(modelTypeName)
                 .append(", ?>> ALL =\n");
-        source.append("            List.<TypedField<").append(modelSimpleName).append(", ?>>of(\n");
+        source.append("            List.<TypedField<").append(modelTypeName).append(", ?>>of(\n");
         int index = 0;
         for (String constantName : constants.keySet()) {
             source.append("            ").append(constantName);
@@ -240,12 +235,71 @@ public final class FieldMetamodelGenerator {
         return source.toString();
     }
 
+    private static FieldTypeNames fieldTypeNames(Class<?> rawType) {
+        if (rawType == null) {
+            return new FieldTypeNames("Object", null);
+        }
+        if (rawType.isArray()) {
+            FieldTypeNames component = fieldTypeNames(rawType.getComponentType());
+            return new FieldTypeNames(component.sourceName() + "[]", component.importName());
+        }
+        Class<?> boxedType = boxPrimitive(rawType);
+        String importName = importName(boxedType);
+        return new FieldTypeNames(boxedType.getSimpleName(), importName);
+    }
+
+    private static String importName(Class<?> type) {
+        String canonicalName = type.getCanonicalName();
+        if (canonicalName == null) {
+            return null;
+        }
+        String packageName = type.getPackageName();
+        if (packageName.isEmpty() || "java.lang".equals(packageName)) {
+            return null;
+        }
+        return canonicalName;
+    }
+
+    private static Class<?> boxPrimitive(Class<?> type) {
+        if (!type.isPrimitive()) {
+            return type;
+        }
+        if (type == int.class) {
+            return Integer.class;
+        }
+        if (type == boolean.class) {
+            return Boolean.class;
+        }
+        if (type == long.class) {
+            return Long.class;
+        }
+        if (type == double.class) {
+            return Double.class;
+        }
+        if (type == float.class) {
+            return Float.class;
+        }
+        if (type == short.class) {
+            return Short.class;
+        }
+        if (type == byte.class) {
+            return Byte.class;
+        }
+        if (type == char.class) {
+            return Character.class;
+        }
+        return Void.class;
+    }
+
     // --- Shared helpers ---
 
     private static String escapeJava(String value) {
         return value
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"");
+    }
+
+    private record FieldTypeNames(String sourceName, String importName) {
     }
 }
 

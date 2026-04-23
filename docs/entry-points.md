@@ -15,6 +15,7 @@ Core execution model:
 | Reusable SQL-like query shape | `PojoLensSql.template(queryText, params...)` | Keeps repeated query shapes on a fixed parameter schema. |
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
 | Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
+| Code-owned typed query composition | `TypedQuery.from(rowType)` with generated `TypedField<T,V>` constants | Keeps field references and literal values type-checked for projection, filters, ordering, offset, and limit. |
 | Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim/coercion needs. |
 | Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal SQL-like or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
 | CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and split header diagnostics; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
@@ -42,6 +43,11 @@ Core execution model:
   phrases.
 - Use `PojoLensNatural.template(...)` when that guided-text query is reused
   with a fixed named-parameter schema.
+- Use `TypedQuery` when query logic is owned by Java code and should use
+  generated `TypedField<T,V>` constants instead of string field names. The
+  stable typed foundation covers projection, filters, ordering, offset, limit,
+  explain/schema, and execution guards; use SQL-like or natural queries for
+  grouping, aggregation, joins, windows, and subqueries.
 - Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
   in-memory rows before normal SQL-like or natural execution;
   see [docs/csv.md](csv.md) for options, runtime defaults, type mapping, and

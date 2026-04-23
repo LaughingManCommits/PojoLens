@@ -59,6 +59,7 @@ Runnable example project:
 - Query existing domain classes directly (no ORM model rewrite).
 - Use SQL-like strings as the default public query surface.
 - Use controlled plain-English queries when authors need guided non-SQL text.
+- Use typed DSL field constants when query logic is owned by Java code.
 - Keep query definition and execution in one in-memory engine.
 - Add chart/table/report helpers only when the use case needs them.
 - Keep runtime wiring and tooling optional instead of making them part of the
@@ -99,13 +100,14 @@ Runnable example project:
 
 For new code, prefer one default path per job:
 `PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or
-`ReportDefinition<T>`.
+`TypedQuery<T>`, or `ReportDefinition<T>`.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Default query authoring over in-memory rows               | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Reusable SQL-like query templates                         | `PojoLensSql.template(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Guided text queries for non-SQL users                     | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
+| Code-owned typed filters and ordering                     | `TypedQuery`                                     | [docs/entry-points.md](docs/entry-points.md), [docs/metamodel.md](docs/metamodel.md)                   |
 | Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
 | Flat parent-ID rows need subtree selection               | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
@@ -122,7 +124,7 @@ For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
 ## Product Shape
 
 - `Core query engine`:
-  SQL-like and controlled plain-English querying over existing Java objects.
+  SQL-like, typed DSL, and controlled plain-English querying over existing Java objects.
 - `Workflow helper`:
   chart mapping, tree row shaping, reusable report/preset wrappers, dataset
   composition, and schema metadata.
@@ -165,6 +167,17 @@ List<Employee> rows = PojoLensNatural
         + "sort by salary descending limit 10")
     .params(Map.of("dept", "Engineering", "minSalary", 120000))
     .filter(source, Employee.class);
+```
+
+### Typed Java-owned query
+
+```java
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.SALARY.gte(120000)))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(10)
+    .filter(source);
 ```
 
 ### CSV boundary load
@@ -261,6 +274,7 @@ rules live in the module docs linked beside each surface.
 ## API Entry Points
 
 - `PojoLensSql`: default for new SQL-like and template-driven queries
+- `TypedQuery`: default for Java-owned typed filter/order/page composition
 - `PojoLensNatural`: default for guided plain-English text queries
 - `PojoLensCsv`: boundary adapter for loading typed rows from UTF-8 CSV files
 - `PojoLensTree`: helper for selecting subtrees from flat parent-ID row lists
