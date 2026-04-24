@@ -45,9 +45,12 @@ public final class ChartJsAdapter {
         String borderColor = chartData.getType() == ChartType.PIE ? null : color;
         Boolean fill = chartData.getType() == ChartType.AREA ? Boolean.TRUE : null;
         Double tension = chartData.getType() == ChartType.AREA || chartData.getType() == ChartType.LINE ? 0.25d : null;
+        Object data = chartData.getType() == ChartType.SCATTER && dataset.getXValues() != null
+                ? scatterPoints(dataset.getXValues(), dataset.getValues())
+                : List.copyOf(dataset.getValues());
         return new ChartJsDataset(
                 dataset.getLabel(),
-                List.copyOf(dataset.getValues()),
+                data,
                 background,
                 borderColor,
                 dataset.getStackGroupId(),
@@ -57,9 +60,24 @@ public final class ChartJsAdapter {
         );
     }
 
+    private static List<Map<String, Double>> scatterPoints(List<Double> xValues, List<Double> yValues) {
+        int size = Math.min(xValues.size(), yValues.size());
+        List<Map<String, Double>> points = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            Map<String, Double> point = new LinkedHashMap<>(4);
+            point.put("x", xValues.get(i));
+            point.put("y", yValues.get(i));
+            points.add(point);
+        }
+        return points;
+    }
+
     private static String toChartJsType(ChartType type) {
         if (type == ChartType.AREA) {
             return "line";
+        }
+        if (type == ChartType.SCATTER) {
+            return "scatter";
         }
         return type == null ? "bar" : type.name().toLowerCase();
     }
@@ -76,10 +94,10 @@ public final class ChartJsAdapter {
         options.put("plugins", plugins);
         options.put("pojoLens", pojoLensMeta(chartData));
         if (chartData.getType() != ChartType.PIE) {
-            options.put("scales", Map.of(
-                    "x", axisOptions(chartData.isStacked(), chartData.getXLabel()),
-                    "y", numericAxisOptions(chartData)
-            ));
+            Map<String, Object> xAxis = chartData.getType() == ChartType.SCATTER
+                    ? scatterXAxisOptions(chartData.getXLabel())
+                    : axisOptions(chartData.isStacked(), chartData.getXLabel());
+            options.put("scales", Map.of("x", xAxis, "y", numericAxisOptions(chartData)));
         }
         return options;
     }
@@ -92,6 +110,16 @@ public final class ChartJsAdapter {
         meta.put("xLabel", chartData.getXLabel());
         meta.put("yLabel", chartData.getYLabel());
         return meta;
+    }
+
+    private static Map<String, Object> scatterXAxisOptions(String label) {
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put("type", "linear");
+        options.put("beginAtZero", false);
+        if (hasText(label)) {
+            options.put("title", Map.of("display", true, "text", label));
+        }
+        return options;
     }
 
     private static Map<String, Object> axisOptions(boolean stacked, String label) {

@@ -12,12 +12,15 @@ import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPeriodPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
 import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
+import laughing.man.commits.testutil.ChartTestFixtures.ScatterPoint;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -160,6 +163,40 @@ public class ChartJsAdapterBridgeTest {
         assertFalse(dataset.has("yAxisID"));
         assertFalse(dataset.has("fill"));
         assertFalse(dataset.has("tension"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void chartJsAdapterShouldEmitXYPointsForScatterChart() {
+        List<ScatterPoint> points = List.of(
+                new ScatterPoint(3, 30),
+                new ScatterPoint(1, 10),
+                new ScatterPoint(2, 20)
+        );
+
+        ChartData chartData = PojoLensChart.toChartData(
+                points,
+                ChartSpec.of(ChartType.SCATTER, "x", "y")
+                        .withSortedLabels(true)
+                        .withAxisLabels("X Axis", "Y Axis"));
+
+        ChartJsPayload payload = ChartJsAdapter.toPayload(chartData);
+
+        assertEquals("scatter", payload.type());
+        assertEquals(1, payload.data().datasets().size());
+        List<Map<String, Double>> data = (List<Map<String, Double>>) payload.data().datasets().get(0).data();
+        assertEquals(3, data.size());
+        assertEquals(1.0, data.get(0).get("x"));
+        assertEquals(10.0, data.get(0).get("y"));
+        assertEquals(2.0, data.get(1).get("x"));
+        assertEquals(20.0, data.get(1).get("y"));
+        assertEquals(3.0, data.get(2).get("x"));
+        assertEquals(30.0, data.get(2).get("y"));
+
+        Map<String, Object> scales = (Map<String, Object>) payload.options().get("scales");
+        Map<String, Object> xAxis = (Map<String, Object>) scales.get("x");
+        assertEquals("linear", xAxis.get("type"));
+        assertNotNull(xAxis.get("title"));
     }
 
     @SuppressWarnings("unchecked")

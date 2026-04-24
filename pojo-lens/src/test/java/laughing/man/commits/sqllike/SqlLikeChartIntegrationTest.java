@@ -26,6 +26,7 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static laughing.man.commits.testutil.ChartTestFixtures.departmentMonthlySalaryPoints;
 import static laughing.man.commits.testutil.TestDateFixtures.utcDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SqlLikeChartIntegrationTest {
 
@@ -119,9 +120,11 @@ public class SqlLikeChartIntegrationTest {
                 .chart(rows, ScatterPoint.class, ChartSpec.of(ChartType.SCATTER, "x", "y"));
 
         assertEquals(ChartType.SCATTER, chart.getType());
-        assertEquals(2, chart.getLabels().size());
-        assertEquals("1", chart.getLabels().get(0));
-        assertEquals("2", chart.getLabels().get(1));
+        assertTrue(chart.getLabels().isEmpty());
+        assertEquals(1d, chart.getDatasets().get(0).getXValues().get(0), 0.0001d);
+        assertEquals(2d, chart.getDatasets().get(0).getXValues().get(1), 0.0001d);
+        assertEquals(10d, chart.getDatasets().get(0).getValues().get(0), 0.0001d);
+        assertEquals(25d, chart.getDatasets().get(0).getValues().get(1), 0.0001d);
     }
 
     @Test
@@ -174,9 +177,11 @@ public class SqlLikeChartIntegrationTest {
 
         ChartData second = query.chart(rows, ScatterPoint.class, spec);
 
-        assertEquals(List.of("1", "2"), first.getLabels());
+        assertTrue(first.getLabels().isEmpty());
+        assertEquals(List.of(1d, 2d), first.getDatasets().get(0).getXValues());
         assertEquals(List.of(10d, 25d), first.getDatasets().get(0).getValues());
-        assertEquals(List.of("5", "7"), second.getLabels());
+        assertTrue(second.getLabels().isEmpty());
+        assertEquals(List.of(5d, 7d), second.getDatasets().get(0).getXValues());
         assertEquals(List.of(50d, 70d), second.getDatasets().get(0).getValues());
     }
 

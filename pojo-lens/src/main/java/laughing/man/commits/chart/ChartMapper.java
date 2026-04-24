@@ -91,6 +91,9 @@ public final class ChartMapper {
                                                  ChartSpec spec,
                                                  ChartData chartData,
                                                  DirectFieldReadPlan directReadPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterPoints(rows, spec, chartData, directReadPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (T row : rows) {
@@ -108,6 +111,29 @@ public final class ChartMapper {
         return chartData;
     }
 
+    private static <T> ChartData mapScatterPoints(List<T> rows,
+                                                   ChartSpec spec,
+                                                   ChartData chartData,
+                                                   DirectFieldReadPlan directReadPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (T row : rows) {
+            if (row == null) {
+                continue;
+            }
+            xValues.add(readYValue(row, spec.xField(), directReadPlan));
+            yValues.add(readYValue(row, spec.yField(), directReadPlan));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
+        return chartData;
+    }
+
     private static ChartData mapQueryRows(List<QueryRow> rows, ChartSpec spec, ChartData chartData) {
         IndexedRowReadPlan readPlan = queryRowReadPlan(rows, spec);
         if (!spec.multiSeries()) {
@@ -120,6 +146,9 @@ public final class ChartMapper {
                                                       ChartSpec spec,
                                                       ChartData chartData,
                                                       IndexedRowReadPlan readPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterQueryRows(rows, spec, chartData, readPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
@@ -139,10 +168,38 @@ public final class ChartMapper {
         return chartData;
     }
 
+    private static ChartData mapScatterQueryRows(List<QueryRow> rows,
+                                                  ChartSpec spec,
+                                                  ChartData chartData,
+                                                  IndexedRowReadPlan readPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (QueryRow row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object x = readQueryRowField(row, spec.xField(), readPlan.xFieldIndex());
+            Object y = readQueryRowField(row, spec.yField(), readPlan.yFieldIndex());
+            xValues.add(ChartValidation.validateYValueBoxed(x, spec.xField()));
+            yValues.add(ChartValidation.validateYValueBoxed(y, spec.yField()));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
+        return chartData;
+    }
+
     private static ChartData mapSingleSeriesArrayRows(List<Object[]> rows,
                                                       ChartSpec spec,
                                                       ChartData chartData,
                                                       IndexedRowReadPlan readPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterArrayRows(rows, spec, chartData, readPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
@@ -159,6 +216,31 @@ public final class ChartMapper {
         }
         chartData.setLabels(labels);
         chartData.setDatasets(List.of(newDataset(spec, spec.yField(), values)));
+        return chartData;
+    }
+
+    private static ChartData mapScatterArrayRows(List<Object[]> rows,
+                                                  ChartSpec spec,
+                                                  ChartData chartData,
+                                                  IndexedRowReadPlan readPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object x = readArrayRowField(row, readPlan.xFieldIndex());
+            Object y = readArrayRowField(row, readPlan.yFieldIndex());
+            xValues.add(ChartValidation.validateYValueBoxed(x, spec.xField()));
+            yValues.add(ChartValidation.validateYValueBoxed(y, spec.yField()));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
         return chartData;
     }
 
@@ -366,6 +448,27 @@ public final class ChartMapper {
 
     private static String stringSeriesValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private static void sortScatterPoints(List<Double> xValues, List<Double> yValues) {
+        List<Integer> indexes = new ArrayList<>(xValues.size());
+        for (int i = 0; i < xValues.size(); i++) {
+            indexes.add(i);
+        }
+        indexes.sort(Comparator.comparingDouble(i -> {
+            Double x = xValues.get(i);
+            return x == null ? Double.MAX_VALUE : x;
+        }));
+        List<Double> sortedX = new ArrayList<>(xValues.size());
+        List<Double> sortedY = new ArrayList<>(yValues.size());
+        for (Integer i : indexes) {
+            sortedX.add(xValues.get(i));
+            sortedY.add(yValues.get(i));
+        }
+        xValues.clear();
+        xValues.addAll(sortedX);
+        yValues.clear();
+        yValues.addAll(sortedY);
     }
 
     private static void sortSingleSeries(List<String> labels, List<Double> values) {

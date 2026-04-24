@@ -66,6 +66,10 @@ not separate modules.
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).
 
+## Spring/JDBC Bridge
+
+See [jdbc.md](jdbc.md) for `PojoLensJdbc` usage.
+
 ## Artifact Scope
 
 Consumer dependency remains:

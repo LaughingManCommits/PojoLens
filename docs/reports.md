@@ -271,4 +271,39 @@ ReportDefinition<DepartmentCount> report = StatsViewPresets
     .reportDefinition();
 ```
 
+## Period Comparison
+
+`ReportComparisons` computes current/previous metric deltas and wraps them in
+`PeriodComparison` for formatted output.
+
+Numeric pair (when aggregation is done outside):
+
+```java
+PeriodComparison c = ReportComparisons.of(currentCount, previousCount);
+c.percentageDelta();   // "+10%", "-5%", "flat", "new"
+c.absoluteDelta();     // numeric change
+```
+
+Row-based aggregation:
+
+```java
+// Compare SUM of a field across two filtered row lists
+PeriodComparison c = ReportComparisons.compare(
+    currentRows, previousRows, "amount", Metric.SUM);
+
+// Compare row counts
+PeriodComparison c = ReportComparisons.compareCount(currentRows, previousRows);
+```
+
+Rate/percentage field deltas (e.g. approval rates expressed as 0–1 fractions):
+
+```java
+PeriodComparison c = ReportComparisons.of(0.92, 0.87);
+c.ratePointDelta();    // "+5.0 pt"
+```
+
+`percentageDelta()` special values:
+- `"flat"` — both current and previous are zero
+- `"new"` — previous is zero, current is non-zero
+
 

@@ -9,9 +9,8 @@ import laughing.man.commits.examples.spring.boot.riskconsole.RiskConsoleTypes.Tr
 import laughing.man.commits.examples.spring.boot.riskconsole.RiskConsoleTypes.TransactionDetailHeader;
 import laughing.man.commits.examples.spring.boot.riskconsole.RiskConsoleTypes.TransactionRecord;
 import laughing.man.commits.examples.spring.boot.riskconsole.RiskConsoleTypes.TransactionTimelineEvent;
-import laughing.man.commits.sqllike.SqlLikeResultSetAdapter;
+import laughing.man.commits.spring.boot.autoconfigure.PojoLensJdbc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
@@ -360,8 +359,7 @@ class RiskConsoleJdbcRepository {
     }
 
     private <T> List<T> queryRows(String sql, Class<T> rowClass, Object... args) {
-        ResultSetExtractor<List<T>> extractor = resultSet -> SqlLikeResultSetAdapter.read(resultSet, rowClass);
-        return jdbcTemplate.query(sql, extractor, args);
+        return PojoLensJdbc.query(jdbcTemplate, sql, rowClass, args);
     }
 
     private List<TransactionRecord> enrichTransactionRecords(List<TransactionRecord> rows) {

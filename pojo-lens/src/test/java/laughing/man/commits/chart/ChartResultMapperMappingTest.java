@@ -165,8 +165,10 @@ public class ChartResultMapperMappingTest {
         ChartData data = ChartResultMapper.toChartData(rows, ChartSpec.of(ChartType.SCATTER, "x", "y"));
 
         assertEquals(ChartType.SCATTER, data.getType());
-        assertEquals("1", data.getLabels().get(0));
-        assertEquals("2", data.getLabels().get(1));
+        assertTrue(data.getLabels().isEmpty());
+        List<Double> xValues = data.getDatasets().get(0).getXValues();
+        assertEquals(1d, xValues.get(0), 0.0001d);
+        assertEquals(2d, xValues.get(1), 0.0001d);
         assertEquals(10d, data.getDatasets().get(0).getValues().get(0), 0.0001d);
         assertEquals(25d, data.getDatasets().get(0).getValues().get(1), 0.0001d);
     }

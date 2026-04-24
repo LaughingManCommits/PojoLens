@@ -13,6 +13,7 @@ public final class ChartDataset {
     private String colorHint;
     private String stackGroupId;
     private String axisId;
+    private List<Double> xValues;
 
     public ChartDataset() {
         this.values = new ArrayList<>();
@@ -72,6 +73,14 @@ public final class ChartDataset {
 
     public void setAxisId(String axisId) {
         this.axisId = axisId;
+    }
+
+    public List<Double> getXValues() {
+        return xValues;
+    }
+
+    public void setXValues(List<Double> xValues) {
+        this.xValues = xValues == null ? null : new ArrayList<>(xValues);
     }
 }
 

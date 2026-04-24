@@ -33,7 +33,8 @@ Typed chart spec helpers:
 - `ChartSpec.of(type, Row::getX, Row::getY, Row::getSeries)`
 
 Value type contract:
-- x-axis: `String`, `Number`, `Date` (formatted to string)
+- x-axis (categorical types — BAR, LINE, PIE, AREA): `String`, `Number`, `Date` (formatted to string)
+- x-axis (SCATTER): numeric only — stored in `ChartDataset.xValues`; string labels are not used
 - y-axis: numeric only
 
 Null/empty behavior:
@@ -206,6 +207,31 @@ ChartSpec percentStacked = ChartSpec.of(ChartType.AREA, "period", "payroll", "de
 ChartSpec zeroFill = ChartSpec.of(ChartType.BAR, "period", "payroll", "department")
     .withNullPointPolicy(NullPointPolicy.ZERO);
 ```
+
+## Scatter Charts
+
+Scatter charts require both `xField` and `yField` to be numeric. The x values
+are stored in `ChartDataset.xValues` (not in the categorical `labels` list).
+`ChartJsAdapter` zips them into `[{x: ..., y: ...}]` point arrays and sets the
+x-axis to `type: "linear"`.
+
+```java
+// Both x and y must be numeric fields
+ChartData chart = PojoLensChart.toChartData(
+    points,
+    ChartSpec.of(ChartType.SCATTER, "x", "y")
+        .withSortedLabels(true)          // sorts by x ascending
+        .withAxisLabels("X Axis", "Y Axis"));
+
+ChartJsPayload payload = ChartJsAdapter.toPayload(chart);
+// payload.type() == "scatter"
+// payload.data().datasets().get(0).data() == [{x: 1.0, y: 10.0}, ...]
+```
+
+Scatter constraints:
+- `xField` value must be numeric; non-numeric x fields throw `IllegalArgumentException`
+- stacking and percent-stacking are not supported on scatter
+- multi-series scatter uses categorical label grouping (unchanged from line/bar behavior)
 
 Natural chart inference contract:
 

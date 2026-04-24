@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Chart.js scatter bridge** - `ChartJsAdapter.toPayload()` now supports `ChartType.SCATTER`: emits `[{x, y}]` point arrays per dataset and a `type: "linear"` numeric x-axis instead of categorical labels. `ChartDataset` gains `xValues` (numeric x-coordinates populated by `ChartMapper` for scatter specs). `ChartJsDataset.data` widened to `Object` to support both numeric arrays and point-object arrays. 6 adapter bridge tests green.
+
+- **Facet option helper** - added `FacetOption(value, count)` record and `FacetPresets.distinctCounts(fieldName)` factory returning `FacetQuery<T>` in package `laughing.man.commits.facet`. Counts distinct field values in-memory from any POJO list; results sorted by count descending then value ascending. 5 tests green.
+
+- **Spring/JDBC bridge** (`PojoLensJdbc`) - added `PojoLensJdbc.query(jdbcTemplate, sql, rowClass, params...)`, `queryPushed(...)`, and `read(resultSet, rowClass)` to `pojo-lens-spring-boot-autoconfigure`. Wraps `JdbcTemplate` + `SqlLikeResultSetAdapter` so callers do not need to write `ResultSetExtractor` wrappers. `spring-jdbc` added as optional dependency to the autoconfigure module.
+
+- **Period comparison helper** - added `PeriodComparison` and `ReportComparisons` to `laughing.man.commits.report`. `ReportComparisons.of(current, previous)`, `compare(currentRows, previousRows, field, metric)`, and `compareCount(...)` produce a `PeriodComparison` with `percentageDelta()` (`"+5%"`, `"-3%"`, `"flat"`, `"new"`), `ratePointDelta()` (`"+0.5 pt"`), `absoluteDelta()`, and `relativeDelta()`. 10 tests green.
+
 - **Risk console showcase example** - added `examples/spring-boot-starter-risk-console`, a realistic Spring Boot dashboard that loads seeded payment-risk data from JDBC-backed tables, maps rows into POJOs, and uses PojoLens for dashboard summaries, trends, review queue ranking, merchant drilldowns, transaction detail views, saved reports, and report inspection. Includes Java Playwright browser coverage, screenshots, H2 test fallback, Docker Compose for MySQL-local runtime, and a core-library improvement-candidate log for showcase-driven gaps.
 
 - **SQL-like pushdown-readiness preview** (`STRAT-WP4` first slice) - added
