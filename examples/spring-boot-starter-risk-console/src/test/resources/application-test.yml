@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:riskconsole;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+
+risk-console:
+  seed:
+    enabled: true
+    seed: 4242
+    merchant-count: 24
+    customer-count: 120
+    transaction-count: 600

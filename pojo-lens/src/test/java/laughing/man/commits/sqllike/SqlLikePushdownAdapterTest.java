@@ -10,6 +10,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -39,6 +41,38 @@ public class SqlLikePushdownAdapterTest {
         assertEquals("Alice", rows.get(0).name);
         assertEquals(120000, rows.get(0).salary);
         assertTrue(rows.get(0).active);
+    }
+
+    @Test
+    void resultSetAdapterNormalizesSnakeCaseAndCaseDifferentLabels() {
+        ResultSet resultSet = resultSet(
+                List.of("ID", "name", "department", "salary", "hire_date", "active"),
+                Collections.singletonList(row(1, "Alice", "Engineering", 120000, new Date(1L), true))
+        );
+
+        List<Employee> rows = SqlLikeResultSetAdapter.read(resultSet, Employee.class);
+
+        assertEquals(1, rows.size());
+        assertEquals(1, rows.get(0).id);
+        assertEquals("Alice", rows.get(0).name);
+        assertEquals(120000, rows.get(0).salary);
+        assertEquals(new Date(1L), rows.get(0).hireDate);
+        assertTrue(rows.get(0).active);
+    }
+
+    @Test
+    void resultSetAdapterCoercesJdbcTimestampToLocalDateTime() {
+        LocalDateTime createdAt = LocalDateTime.of(2026, 4, 24, 10, 15, 30);
+        ResultSet resultSet = resultSet(
+                List.of("id", "created_at"),
+                Collections.singletonList(row("TX-1", Timestamp.valueOf(createdAt)))
+        );
+
+        List<TransactionSnapshotRow> rows = SqlLikeResultSetAdapter.read(resultSet, TransactionSnapshotRow.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("TX-1", rows.get(0).id);
+        assertEquals(createdAt, rows.get(0).createdAt);
     }
 
     @Test
@@ -154,6 +188,14 @@ public class SqlLikePushdownAdapterTest {
         public long total;
 
         public DepartmentTotal() {
+        }
+    }
+
+    public static class TransactionSnapshotRow {
+        public String id;
+        public LocalDateTime createdAt;
+
+        public TransactionSnapshotRow() {
         }
     }
 

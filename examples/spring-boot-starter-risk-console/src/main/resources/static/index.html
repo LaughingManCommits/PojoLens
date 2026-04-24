@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClearCharge Risk Console</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" data-testid="sidebar">
+        <div class="brand-block">
+            <div class="brand-mark">CC</div>
+            <div>
+                <div class="brand-title">ClearCharge</div>
+                <div class="brand-subtitle">Risk Console</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav" aria-label="Primary">
+            <button class="nav-link active" type="button" data-tab-target="overviewTab">Overview</button>
+            <button class="nav-link" type="button" data-tab-target="analyticsTab">Analytics</button>
+            <button class="nav-link" type="button" data-tab-target="operationsTab">Operations</button>
+            <button class="nav-link" type="button" data-tab-target="exploreTab">PojoLens</button>
+            <button class="nav-link" type="button" data-tab-target="reportsTab">Reports</button>
+        </nav>
+        <div class="sidebar-meta">
+            <div class="meta-label">Data Flow</div>
+            <div class="meta-value">MySQL -> POJO -> PojoLens -> API</div>
+        </div>
+    </aside>
+
+    <main class="main-content" data-testid="main-content">
+        <header class="topbar">
+            <div>
+                <h1>Payments Risk Operations</h1>
+                <p>Live internal view for approvals, reviews, and chargebacks.</p>
+            </div>
+            <div class="status-badge" id="statusBadge">Loading</div>
+        </header>
+
+        <section class="filters-panel" aria-label="Global Filters">
+            <div class="filter-grid">
+                <label>
+                    <span>Range</span>
+                    <select id="rangeFilter" aria-label="Range"></select>
+                </label>
+                <label>
+                    <span>Region</span>
+                    <select id="regionFilter" aria-label="Region"></select>
+                </label>
+                <label>
+                    <span>Status</span>
+                    <select id="statusFilter" aria-label="Status"></select>
+                </label>
+                <label>
+                    <span>Risk Band</span>
+                    <select id="riskBandFilter" aria-label="Risk Band"></select>
+                </label>
+                <label>
+                    <span>Segment</span>
+                    <select id="segmentFilter" aria-label="Segment"></select>
+                </label>
+                <label class="search-filter">
+                    <span>Search</span>
+                    <input id="searchFilter" type="search" placeholder="merchant, code, status">
+                </label>
+            </div>
+        </section>
+
+        <section class="scope-bar" id="scopeSummary" aria-live="polite"></section>
+
+        <section class="workspace-tabs" aria-label="Dashboard Sections">
+            <div class="tab-list" role="tablist" aria-label="Dashboard Sections">
+                <button class="tab-button active" id="overviewTabButton" type="button" role="tab" aria-selected="true" aria-controls="overviewTab" data-tab-target="overviewTab">Overview</button>
+                <button class="tab-button" id="analyticsTabButton" type="button" role="tab" aria-selected="false" aria-controls="analyticsTab" data-tab-target="analyticsTab">Analytics</button>
+                <button class="tab-button" id="operationsTabButton" type="button" role="tab" aria-selected="false" aria-controls="operationsTab" data-tab-target="operationsTab">Operations</button>
+                <button class="tab-button" id="exploreTabButton" type="button" role="tab" aria-selected="false" aria-controls="exploreTab" data-tab-target="exploreTab">PojoLens</button>
+                <button class="tab-button" id="reportsTabButton" type="button" role="tab" aria-selected="false" aria-controls="reportsTab" data-tab-target="reportsTab">Reports</button>
+            </div>
+        </section>
+
+        <section class="error-panel hidden" id="errorPanel" role="alert"></section>
+
+        <section class="tab-panel active" id="overviewTab" role="tabpanel" aria-labelledby="overviewTabButton" data-tab-panel>
+            <article class="panel full-width value-story-panel" id="valueStoryPanel" data-testid="value-story-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2 id="valueStoryTitle">Why PojoLens matters here</h2>
+                        <p id="valueStorySummary">Loading value story.</p>
+                    </div>
+                </div>
+                <div class="value-metrics" id="valueStoryMetrics"></div>
+                <div class="value-story-layout">
+                    <div>
+                        <h3>What PojoLens is doing</h3>
+                        <div class="value-evidence" id="valueStoryEvidence"></div>
+                    </div>
+                    <div>
+                        <h3>Feature surface</h3>
+                        <div class="value-feature-strip" id="valueStoryFeatures"></div>
+                    </div>
+                </div>
+            </article>
+
+            <section class="cards-grid" id="summaryCards" data-testid="summary-cards"></section>
+
+            <section class="content-grid">
+                <article class="panel" id="merchants">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Top Merchants</h2>
+                            <p>Highest processed amount in current filter set</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead id="topMerchantsHead"></thead>
+                            <tbody id="topMerchantsBody"></tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="panel full-width" id="merchantDetailPanel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Merchant Drilldown</h2>
+                            <p id="merchantDetailLabel">Select a merchant from the leaderboard</p>
+                        </div>
+                    </div>
+                    <div class="merchant-summary" id="merchantSummary"></div>
+                    <div class="content-grid compact-grid">
+                        <article class="panel inner-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Merchant Volume</h2>
+                                    <p>Trend for current range</p>
+                                </div>
+                            </div>
+                            <div class="chart-frame">
+                                <canvas id="merchantVolumeChart" aria-label="Merchant volume chart"></canvas>
+                            </div>
+                        </article>
+                        <article class="panel inner-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Recent Merchant Transactions</h2>
+                                    <p>Latest activity</p>
+                                </div>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead id="merchantTransactionsHead"></thead>
+                                    <tbody id="merchantTransactionsBody"></tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </div>
+                </article>
+            </section>
+        </section>
+
+        <section class="tab-panel" id="analyticsTab" role="tabpanel" aria-labelledby="analyticsTabButton" data-tab-panel hidden>
+            <section class="content-grid">
+                <article class="panel chart-panel" id="overview">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Volume Trend</h2>
+                            <p id="rangeLabel">Last 30 Days</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame">
+                        <canvas id="volumeChart" aria-label="Transaction volume chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel chart-panel" id="trends">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Decline Trend</h2>
+                            <p>Watch spikes fast</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame">
+                        <canvas id="declineChart" aria-label="Decline chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel chart-panel full-width">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Risk Band Mix</h2>
+                            <p>Grouped by transaction status</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame chart-frame-wide">
+                        <canvas id="riskBreakdownChart" aria-label="Risk mix chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel chart-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Payment Method Share</h2>
+                            <p>Channel mix in current scope</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame">
+                        <canvas id="paymentMethodShareChart" aria-label="Payment method share chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel chart-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Decline Reasons</h2>
+                            <p>Most common decline codes now</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame">
+                        <canvas id="declineReasonChart" aria-label="Decline reasons chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel chart-panel full-width">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Regional Status Mix</h2>
+                            <p>Stacked approvals, declines, and reviews by region</p>
+                        </div>
+                    </div>
+                    <div class="chart-frame chart-frame-wide">
+                        <canvas id="regionalStatusChart" aria-label="Regional status mix chart"></canvas>
+                    </div>
+                </article>
+            </section>
+        </section>
+
+        <section class="tab-panel" id="operationsTab" role="tabpanel" aria-labelledby="operationsTabButton" data-tab-panel hidden>
+            <section class="content-grid">
+                <article class="panel" id="reviewQueuePanel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Review Queue</h2>
+                            <p>Top open and escalated cases by risk rank</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead id="reviewQueueHead"></thead>
+                            <tbody id="reviewQueueBody"></tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="panel full-width" id="transactions">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Transactions</h2>
+                            <p>PojoLens filter, sort, and page flow</p>
+                        </div>
+                        <div class="report-actions">
+                            <select id="transactionSortField" aria-label="Transaction sort field">
+                                <option value="id">Newest Loaded</option>
+                                <option value="createdAt">Created At</option>
+                                <option value="amount">Amount</option>
+                                <option value="riskScore">Risk Score</option>
+                            </select>
+                            <select id="transactionSortDirection" aria-label="Transaction sort direction">
+                                <option value="desc">Descending</option>
+                                <option value="asc">Ascending</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead id="transactionsHead"></thead>
+                            <tbody id="transactionsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-bar" id="transactionsPaging" aria-live="polite">
+                        <div class="pagination-text">
+                            <div class="pagination-copy" id="transactionsPagingCopy">Loading transactions.</div>
+                            <div class="pagination-meta" id="transactionsPagingMeta">Keyset paging</div>
+                        </div>
+                        <div class="pager-actions" data-testid="transactions-pager">
+                            <button class="btn btn-sm pager-button pager-button-secondary" id="previousPageButton" type="button">Previous Page</button>
+                            <button class="btn btn-sm pager-button pager-button-primary" id="nextPageButton" type="button">Next Page</button>
+                        </div>
+                    </div>
+                    <div class="empty-state hidden" id="transactionsEmpty">
+                        No rows for current filter.
+                    </div>
+                </article>
+            </section>
+        </section>
+
+        <section class="tab-panel" id="exploreTab" role="tabpanel" aria-labelledby="exploreTabButton" data-tab-panel hidden>
+            <section class="subtab-shell">
+                <div class="subtab-list" role="tablist" aria-label="PojoLens Sections">
+                    <button class="subtab-button active" id="workbenchSubTabButton" type="button" role="tab" aria-selected="true" aria-controls="workbenchSubTab" data-subtab-target="workbenchSubTab" data-subtab-group="explore">Workbench</button>
+                    <button class="subtab-button" id="queryStudioSubTabButton" type="button" role="tab" aria-selected="false" aria-controls="queryStudioSubTab" data-subtab-target="queryStudioSubTab" data-subtab-group="explore">Query Studio</button>
+                </div>
+
+                <section class="subtab-panel active" id="workbenchSubTab" role="tabpanel" aria-labelledby="workbenchSubTabButton" data-subtab-panel data-subtab-group="explore">
+                    <section class="content-grid">
+                        <article class="panel full-width" id="workbenchPanel" data-testid="workbench-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>PojoLens Workbench</h2>
+                                    <p>Stats presets, computed fields, multi-source joins, guardrails, telemetry</p>
+                                </div>
+                            </div>
+                            <div class="content-grid compact-grid">
+                                <article class="panel inner-panel">
+                                    <div class="panel-header">
+                                        <div>
+                                            <h2>Risk Tier Stats Preset</h2>
+                                            <p>Built with `StatsViewPresets.by(...)`</p>
+                                        </div>
+                                    </div>
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead id="riskTierStatsHead"></thead>
+                                            <tbody id="riskTierStatsBody"></tbody>
+                                        </table>
+                                    </div>
+                                </article>
+                                <article class="panel inner-panel">
+                                    <div class="panel-header">
+                                        <div>
+                                            <h2>Analyst Workload Join</h2>
+                                            <p>Built with `DatasetBundle` and `JoinBindings`</p>
+                                        </div>
+                                    </div>
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead id="analystWorkloadHead"></thead>
+                                            <tbody id="analystWorkloadBody"></tbody>
+                                        </table>
+                                    </div>
+                                </article>
+                            </div>
+                            <details class="advanced-disclosure" id="workbenchAdvanced">
+                                <summary>
+                                    <span>Show PojoLens internals</span>
+                                    <span class="disclosure-hint">Computed fields, exposure policy, guard, telemetry, join explain</span>
+                                </summary>
+                                <div class="inspector-grid disclosure-body">
+                                    <section class="inspector-card">
+                                        <h3>Computed Fields</h3>
+                                        <pre id="workbenchComputedFields"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Exposure Policy</h3>
+                                        <pre id="workbenchExposurePolicy"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Execution Guard</h3>
+                                        <pre id="workbenchExecutionGuard"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Recent Telemetry</h3>
+                                        <pre id="workbenchTelemetry"></pre>
+                                    </section>
+                                    <section class="inspector-card inspector-card-wide">
+                                        <h3>Join Explain</h3>
+                                        <pre id="workbenchJoinExplain"></pre>
+                                    </section>
+                                </div>
+                            </details>
+                        </article>
+                    </section>
+                </section>
+
+                <section class="subtab-panel" id="queryStudioSubTab" role="tabpanel" aria-labelledby="queryStudioSubTabButton" data-subtab-panel data-subtab-group="explore" hidden>
+                    <section class="content-grid">
+                        <article class="panel full-width" id="queryStudio" data-testid="query-studio-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Query Studio</h2>
+                                    <p>One filtered snapshot. Guided text, typed DSL, and cancellation-aware streaming.</p>
+                                </div>
+                            </div>
+                            <div class="content-grid compact-grid">
+                                <article class="panel inner-panel">
+                                    <div class="panel-header">
+                                        <div>
+                                            <h2>Natural Query Contract</h2>
+                                            <p>`runtime.natural()` plus `ReportDefinition.natural(...)`</p>
+                                        </div>
+                                    </div>
+                                    <div class="report-meta" id="naturalQueryMeta"></div>
+                                    <div class="report-chart-wrap">
+                                        <canvas id="naturalQueryChart" aria-label="Natural query chart"></canvas>
+                                    </div>
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead id="naturalQueryHead"></thead>
+                                            <tbody id="naturalQueryBody"></tbody>
+                                        </table>
+                                    </div>
+                                    <details class="advanced-disclosure" id="naturalQueryAdvanced">
+                                        <summary>
+                                            <span>Show natural query internals</span>
+                                            <span class="disclosure-hint">Query text, schema, explain</span>
+                                        </summary>
+                                        <div class="inspector-grid disclosure-body">
+                                            <section class="inspector-card">
+                                                <h3>Query</h3>
+                                                <pre id="naturalQueryText"></pre>
+                                            </section>
+                                            <section class="inspector-card">
+                                                <h3>Schema</h3>
+                                                <pre id="naturalQuerySchema"></pre>
+                                            </section>
+                                            <section class="inspector-card inspector-card-wide">
+                                                <h3>Explain</h3>
+                                                <pre id="naturalQueryExplain"></pre>
+                                            </section>
+                                        </div>
+                                    </details>
+                                </article>
+                                <article class="panel inner-panel">
+                                    <div class="panel-header">
+                                        <div>
+                                            <h2>Typed DSL Queue</h2>
+                                            <p>`TypedQuery.from(...)` with code-owned fields and ordering</p>
+                                        </div>
+                                    </div>
+                                    <div class="report-meta" id="typedQueryMeta"></div>
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead id="typedQueryHead"></thead>
+                                            <tbody id="typedQueryBody"></tbody>
+                                        </table>
+                                    </div>
+                                    <details class="advanced-disclosure" id="typedQueryAdvanced">
+                                        <summary>
+                                            <span>Show typed query internals</span>
+                                            <span class="disclosure-hint">Schema and explain</span>
+                                        </summary>
+                                        <div class="inspector-grid disclosure-body">
+                                            <section class="inspector-card">
+                                                <h3>Schema</h3>
+                                                <pre id="typedQuerySchema"></pre>
+                                            </section>
+                                            <section class="inspector-card inspector-card-wide">
+                                                <h3>Explain</h3>
+                                                <pre id="typedQueryExplain"></pre>
+                                            </section>
+                                        </div>
+                                    </details>
+                                </article>
+                            </div>
+                            <article class="panel inner-panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <h2>Cancellation Guard Demo</h2>
+                                        <p>Cooperative cancel token aborts after first emitted row</p>
+                                    </div>
+                                </div>
+                                <div class="merchant-summary" id="cancellationDemoSummary"></div>
+                                <div class="table-wrap">
+                                    <table class="data-table">
+                                        <thead id="cancellationDemoHead"></thead>
+                                        <tbody id="cancellationDemoBody"></tbody>
+                                    </table>
+                                </div>
+                                <details class="advanced-disclosure" id="cancellationDemoAdvanced">
+                                    <summary>
+                                        <span>Show cancellation internals</span>
+                                        <span class="disclosure-hint">Query text and execution guard</span>
+                                    </summary>
+                                    <div class="inspector-grid disclosure-body">
+                                        <section class="inspector-card">
+                                            <h3>Query</h3>
+                                            <pre id="cancellationDemoQuery"></pre>
+                                        </section>
+                                        <section class="inspector-card inspector-card-wide">
+                                            <h3>Execution Guard</h3>
+                                            <pre id="cancellationDemoGuard"></pre>
+                                        </section>
+                                    </div>
+                                </details>
+                            </article>
+                        </article>
+                    </section>
+                </section>
+            </section>
+        </section>
+
+        <section class="tab-panel" id="reportsTab" role="tabpanel" aria-labelledby="reportsTabButton" data-tab-panel hidden>
+            <section class="content-grid">
+                <article class="panel full-width" id="reports" data-testid="reports-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Saved Reports</h2>
+                            <p>Review contract. Run report. Inspect query shape.</p>
+                        </div>
+                        <div class="report-actions">
+                            <select id="reportSelect" aria-label="Saved report"></select>
+                            <button class="btn btn-sm btn-outline-light" id="runReportButton" type="button">Run Report</button>
+                            <button class="btn btn-sm btn-outline-light" id="inspectReportButton" type="button">Inspect Shape</button>
+                        </div>
+                    </div>
+                    <div class="report-meta" id="reportMeta"></div>
+                    <div class="subtab-list subtab-list-inline" role="tablist" aria-label="Report Sections">
+                        <button class="subtab-button active" id="reportOutputSubTabButton" type="button" role="tab" aria-selected="true" aria-controls="reportOutputSubTab" data-subtab-target="reportOutputSubTab" data-subtab-group="reports">Run Output</button>
+                        <button class="subtab-button" id="reportInspectorSubTabButton" type="button" role="tab" aria-selected="false" aria-controls="reportInspectorSubTab" data-subtab-target="reportInspectorSubTab" data-subtab-group="reports">Inspector</button>
+                    </div>
+
+                    <section class="subtab-panel active" id="reportOutputSubTab" role="tabpanel" aria-labelledby="reportOutputSubTabButton" data-subtab-panel data-subtab-group="reports">
+                        <article class="panel inner-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Report Output</h2>
+                                    <p id="reportRunLabel">Choose saved report</p>
+                                </div>
+                            </div>
+                            <div class="report-chart-wrap">
+                                <canvas id="reportChart" aria-label="Saved report chart"></canvas>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead id="reportRowsHead"></thead>
+                                    <tbody id="reportRowsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="empty-state hidden" id="reportRowsEmpty">
+                                Report returned no rows.
+                            </div>
+                        </article>
+                    </section>
+
+                    <section class="subtab-panel" id="reportInspectorSubTab" role="tabpanel" aria-labelledby="reportInspectorSubTabButton" data-subtab-panel data-subtab-group="reports" hidden>
+                        <article class="panel inner-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Report Inspector</h2>
+                                    <p id="reportInspectLabel">Saved contract and runtime explain stay hidden until expanded</p>
+                                </div>
+                            </div>
+                            <details class="advanced-disclosure" id="reportAdvanced">
+                                <summary>
+                                    <span>Show query internals</span>
+                                    <span class="disclosure-hint">Query, defaults, schema, plan, diagnostics, pushdown, explain</span>
+                                </summary>
+                                <div class="inspector-grid disclosure-body">
+                                    <section class="inspector-card">
+                                        <h3>Query</h3>
+                                        <pre id="reportQueryText"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Default Params</h3>
+                                        <pre id="reportDefaultParams"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Schema</h3>
+                                        <pre id="reportSchema"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Plan Preview</h3>
+                                        <pre id="reportPlanPreview"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Diagnostics</h3>
+                                        <pre id="reportDiagnostics"></pre>
+                                    </section>
+                                    <section class="inspector-card">
+                                        <h3>Pushdown Preview</h3>
+                                        <pre id="reportPushdownPreview"></pre>
+                                    </section>
+                                    <section class="inspector-card inspector-card-wide">
+                                        <h3>Explain</h3>
+                                        <pre id="reportExplain"></pre>
+                                    </section>
+                                </div>
+                            </details>
+                        </article>
+                    </section>
+                </article>
+            </section>
+        </section>
+    </main>
+</div>
+
+<aside class="detail-drawer hidden" id="transactionDrawer" data-testid="transaction-drawer" aria-label="Transaction Detail">
+    <div class="drawer-header">
+        <div>
+            <h2>Transaction Detail</h2>
+            <p id="transactionDrawerLabel">Select a transaction row</p>
+        </div>
+        <button type="button" class="drawer-close" id="transactionDrawerClose" aria-label="Close transaction detail">Close</button>
+    </div>
+    <div class="drawer-summary" id="transactionDrawerSummary"></div>
+    <div class="drawer-panel">
+        <h3>Event Timeline</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead id="transactionTimelineHead"></thead>
+                <tbody id="transactionTimelineBody"></tbody>
+            </table>
+        </div>
+    </div>
+</aside>
+<div class="drawer-backdrop hidden" id="transactionDrawerBackdrop"></div>
+
+<script src="/webjars/chart.js/4.4.3/dist/chart.umd.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

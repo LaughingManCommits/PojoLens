@@ -654,6 +654,11 @@ Split execution contract:
   metadata
 - `SqlLikeResultSetAdapter` maps JDBC column labels to mutable row fields, but
   it does not create SQL, execute JDBC, or authorize access
+- `SqlLikeResultSetAdapter` accepts exact field names plus normalized JDBC-style
+  labels (`snake_case`, `kebab-case`, spaced labels, and case differences) and
+  coerces common JDBC temporal values (`Timestamp`, `java.sql.Date`) into
+  matching Java time fields like `LocalDateTime`, `LocalDate`, `Instant`,
+  `OffsetDateTime`, and `ZonedDateTime`
 - PojoLens reruns the SQL-like query over returned rows, so unsupported stages
   and correctness verification stay inside the in-memory engine
 - for grouped, aggregate, window, join, `HAVING`, or `QUALIFY` queries, adapters
