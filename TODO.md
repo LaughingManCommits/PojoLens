@@ -29,7 +29,7 @@ wiring.
 | WP6 | Expression Cache Contention Fix             | Done     | Replace synchronized LRU map; Caffeine in SqlExpressionEvaluator                    |
 | WP7 | Reflection Cache Bounds & Safety            | Done     | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
 | WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
-| WP9 | Allocation Reduction in Hot Paths           | Pending  | Array reuse, reduce boxing in ObjectUtil, GroupEngine key allocation                 |
+| WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
 | WP10| Cache Coherence Hardening                   | Pending  | rebuildCache() atomic swap; bound preparedExecutions/resolvedExecutions              |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
 | —   | Release Gate                                | Pending  | WP6–WP8 complete; release notes; final guardrails                                    |

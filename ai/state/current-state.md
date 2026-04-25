@@ -47,8 +47,15 @@
 - Confirmed: JoinEngine/AggregationEngine/GroupEngine/window already used pre-computed indexes; only `projectAliasedRows` had the per-row O(n) scan.
 - 1036/1036 tests green.
 
+## WP9 complete (2026-04-25)
+
+- `AggregationEngine.aggregateMetrics` (ungrouped): replaced `QueryField`/`QueryRow` construction with `Object[]` + `RawQueryRow` — saves `metricCount` QueryField allocations + ArrayList + QueryRow per call.
+- `AggregationEngine.aggregateGroupedMetrics`: changed `GroupAccumulator.groupProjection: List<QueryField>` to `Object[] groupValues`; output loop now builds `Object[]` + shared `outputSchema` + `RawQueryRow` per group — saves `columnCount + metricCount + 2` allocations per unique group.
+- Confirmed: `FastPojoFilterSupport.toQueryRow` clone is already only called on matched rows (not per-row); `ObjectUtil.castValue` boxing is not in the filter hot path; `GroupEngine.toExternalKey()` is called once per unique group at output time only.
+- 1036/1036 tests green.
+
 ## Next
 
-- Release gate: WP6+WP7+WP8 complete — draft release notes; run final guardrails.
-- WP9 (optional pre-release): allocation reduction in FastPojoFilterSupport, ObjectUtil boxing, GroupEngine key strings.
+- Release gate: WP6+WP7+WP8+WP9 complete — draft release notes; run final guardrails.
 - WP10 (optional): FilterExecutionPlanCacheStore.rebuildCache() atomic swap.
+- WP11 (optional): Java 25 modernization.

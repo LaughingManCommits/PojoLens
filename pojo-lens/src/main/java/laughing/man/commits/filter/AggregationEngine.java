@@ -1,14 +1,15 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.internal.builder.FilterQueryBuilder;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,22 +27,31 @@ final class AggregationEngine {
         if (!builder.getGroupFields().isEmpty()) {
             return aggregateGroupedMetrics(rows, plan.getGroupColumns(), metrics);
         }
-        List<QueryField> metricFields = new ArrayList<>(metrics.size());
-        for (FilterExecutionPlan.MetricPlan metric : metrics) {
-            QueryField field = new QueryField();
-            field.setFieldName(metric.alias());
-            field.setValue(calculateMetricValue(rows, metric));
-            metricFields.add(field);
+        Object[] values = new Object[metrics.size()];
+        ArrayList<String> schema = new ArrayList<>(metrics.size());
+        for (int i = 0; i < metrics.size(); i++) {
+            FilterExecutionPlan.MetricPlan metric = metrics.get(i);
+            values[i] = calculateMetricValue(rows, metric);
+            schema.add(metric.alias());
         }
-        QueryRow metricRow = new QueryRow();
-        metricRow.setFields(metricFields);
-        return List.of(metricRow);
+        return List.of(new RawQueryRow(values, schema));
     }
 
     private List<QueryRow> aggregateGroupedMetrics(List<QueryRow> rows,
                                                    List<FilterExecutionPlan.GroupColumn> columns,
                                                    List<FilterExecutionPlan.MetricPlan> metrics) {
         int columnCount = columns.size();
+        int metricCount = metrics.size();
+
+        // Build shared output schema once: group columns first, then metric aliases.
+        ArrayList<String> outputSchema = new ArrayList<>(columnCount + metricCount);
+        for (FilterExecutionPlan.GroupColumn column : columns) {
+            outputSchema.add(column.fieldName());
+        }
+        for (FilterExecutionPlan.MetricPlan metric : metrics) {
+            outputSchema.add(metric.alias());
+        }
+
         Map<QueryKey, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows == null ? 0 : rows.size()));
 
@@ -63,15 +73,7 @@ final class AggregationEngine {
                 lookupKey.refresh();
                 GroupAccumulator accumulator = grouped.get(lookupKey);
                 if (accumulator == null) {
-                    List<QueryField> groupProjection = new ArrayList<>(columnCount);
-                    for (int i = 0; i < columnCount; i++) {
-                        FilterExecutionPlan.GroupColumn column = columns.get(i);
-                        QueryField projectionField = new QueryField();
-                        projectionField.setFieldName(column.fieldName());
-                        projectionField.setValue(projectedValues[i]);
-                        groupProjection.add(projectionField);
-                    }
-                    accumulator = new GroupAccumulator(groupProjection, metrics);
+                    accumulator = new GroupAccumulator(projectedValues, columnCount, metrics);
                     grouped.put(new QueryKey(keyParts, columnCount), accumulator);
                 }
                 accumulator.accumulate(row);
@@ -80,18 +82,12 @@ final class AggregationEngine {
 
         List<QueryRow> aggregatedRows = new ArrayList<>(grouped.size());
         for (GroupAccumulator group : grouped.values()) {
-            List<QueryField> fields = new ArrayList<>(group.groupProjection.size() + metrics.size());
-            fields.addAll(group.groupProjection);
-            for (int i = 0; i < metrics.size(); i++) {
-                FilterExecutionPlan.MetricPlan metric = metrics.get(i);
-                QueryField metricField = new QueryField();
-                metricField.setFieldName(metric.alias());
-                metricField.setValue(group.metricAccumulators[i].result());
-                fields.add(metricField);
+            Object[] rowValues = new Object[columnCount + metricCount];
+            System.arraycopy(group.groupValues, 0, rowValues, 0, columnCount);
+            for (int i = 0; i < metricCount; i++) {
+                rowValues[columnCount + i] = group.metricAccumulators[i].result();
             }
-            QueryRow row = new QueryRow();
-            row.setFields(fields);
-            aggregatedRows.add(row);
+            aggregatedRows.add(new RawQueryRow(rowValues, outputSchema));
         }
         return aggregatedRows;
     }
@@ -184,11 +180,11 @@ final class AggregationEngine {
     }
 
     private static final class GroupAccumulator {
-        private final List<QueryField> groupProjection;
+        private final Object[] groupValues;
         private final MetricAccumulator[] metricAccumulators;
 
-        private GroupAccumulator(List<QueryField> groupProjection, List<FilterExecutionPlan.MetricPlan> metrics) {
-            this.groupProjection = groupProjection;
+        private GroupAccumulator(Object[] sourceValues, int columnCount, List<FilterExecutionPlan.MetricPlan> metrics) {
+            this.groupValues = Arrays.copyOf(sourceValues, columnCount);
             this.metricAccumulators = new MetricAccumulator[metrics.size()];
             for (int i = 0; i < metrics.size(); i++) {
                 this.metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
