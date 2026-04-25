@@ -1,5 +1,7 @@
 package laughing.man.commits.sqllike.internal.expression;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
@@ -8,7 +10,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -17,20 +18,10 @@ public final class SqlExpressionEvaluator {
     private static final int TOKEN_CACHE_MAX_ENTRIES = 512;
     private static final int COMPILED_CACHE_MAX_ENTRIES = 512;
     private static final double DIVISION_BY_ZERO_EPSILON = 1e-12;
-    private static final Map<String, List<Token>> TOKEN_CACHE =
-            Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, List<Token>> eldest) {
-                    return size() > TOKEN_CACHE_MAX_ENTRIES;
-                }
-            });
-    private static final Map<String, CompiledExpression> COMPILED_CACHE =
-            Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, CompiledExpression> eldest) {
-                    return size() > COMPILED_CACHE_MAX_ENTRIES;
-                }
-            });
+    private static final Cache<String, List<Token>> TOKEN_CACHE =
+            Caffeine.newBuilder().maximumSize(TOKEN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<String, CompiledExpression> COMPILED_CACHE =
+            Caffeine.newBuilder().maximumSize(COMPILED_CACHE_MAX_ENTRIES).build();
 
     private SqlExpressionEvaluator() {
     }
@@ -82,13 +73,7 @@ public final class SqlExpressionEvaluator {
     }
 
     public static CompiledExpression compileNumeric(String expression) {
-        CompiledExpression cached = COMPILED_CACHE.get(expression);
-        if (cached != null) {
-            return cached;
-        }
-        CompiledExpression compiled = new Compiler(tokensFor(expression)).compile();
-        COMPILED_CACHE.put(expression, compiled);
-        return compiled;
+        return COMPILED_CACHE.get(expression, expr -> new Compiler(tokensFor(expr)).compile());
     }
 
     private static boolean isFunctionCall(List<Token> tokens, int index) {
@@ -98,13 +83,7 @@ public final class SqlExpressionEvaluator {
     }
 
     private static List<Token> tokensFor(String expression) {
-        List<Token> cached = TOKEN_CACHE.get(expression);
-        if (cached != null) {
-            return cached;
-        }
-        List<Token> parsed = tokenize(expression);
-        TOKEN_CACHE.put(expression, parsed);
-        return parsed;
+        return TOKEN_CACHE.get(expression, SqlExpressionEvaluator::tokenize);
     }
 
     private static List<Token> tokenize(String expression) {

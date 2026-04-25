@@ -1,359 +1,345 @@
-﻿# TODO
+# TODO
 
 ## Product Direction
 
-**Conclusion:** PojoLens should be the embedded reporting and governed query
-layer for Java apps working over already-materialized object snapshots.
-It should stop reading like a general-purpose Java query stack, because that
-puts it into direct competition with stronger database-first tools.
+**Conclusion:** PojoLens is the embedded reporting and governed query layer for
+Java apps working over already-materialized object snapshots.
 
-**Why this direction fits the repo:**
-- The current strengths are text-first in-memory querying, diagnostics,
-  explain/preview tooling, chart/report shaping, and Spring-friendly runtime
-  wiring.
-- The current weaknesses are broad production adoption, type-safe code-owned
-  query composition, database pushdown, and large-workload execution limits.
-- The winning niche is safe configurable reporting over data the application
-  already owns in memory.
+**Winning niche:** Safe configurable reporting over data the application already
+owns in memory. Strong diagnostics, plan preview, explain, keyset pagination,
+telemetry hooks, reusable report/chart/schema helpers, and optional Spring Boot
+wiring.
 
-**Major wins to preserve while moving forward:**
-- SQL-like and controlled natural query text over the same engine.
-- Strong diagnostics, plan preview, explain payloads, keyset pagination, and
-  telemetry hooks.
-- Reusable report/chart/schema helpers and optional Spring Boot wiring.
-- Strong executable docs and public-surface contract coverage.
-
-**Non-goals for this roadmap:**
-- Do not position PojoLens as a replacement for jOOQ, Querydsl, or Spring Data
-  for normal database-backed application queries.
-- Do not expand natural queries into a free-form AI/chatbot feature.
-- Do not build a full authentication, RBAC, or tenant-security framework into
-  the core engine.
+**Non-goals:**
+- Not a replacement for jOOQ, Querydsl, or Spring Data for DB-backed queries.
+- No free-form AI/chatbot natural queries.
+- No auth, RBAC, or tenant-security framework in core.
 
 ---
 
 ## Status Overview
 
-| WP  | Title                                  | Status            | Key deliverables                                                           |
-|-----|----------------------------------------|-------------------|----------------------------------------------------------------------------|
-| WP1 | Stable Embedded Reporting Contract     | Done              | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests           |
-| WP2 | Production Query Governance And Audit  | Done              | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests   |
-| WP3 | Stable Public Typed DSL               | Done              | TypedField, TypedPredicate, TypedQuery foundation, typed metamodel, 61 tests |
-| WP4 | Hybrid Adapters And Pushdown           | Done              | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution, benchmarks |
-| WP5 | Repeated-Workload Performance Upgrade  | Done              | Reflection caching, repeated join reuse, lower window allocation, hotspot guardrails |
-| —   | Release Gate                           | Pending decision  | WP1+WP5 shipped; release cut not yet triggered                             |
+| WP  | Title                                       | Status   | Key deliverables                                                                     |
+|-----|---------------------------------------------|----------|--------------------------------------------------------------------------------------|
+| WP1 | Stable Embedded Reporting Contract          | Done     | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests                     |
+| WP2 | Production Query Governance And Audit       | Done     | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests             |
+| WP3 | Stable Public Typed DSL                     | Done     | TypedField, TypedPredicate, TypedQuery, metamodel, 61 tests                          |
+| WP4 | Hybrid Adapters And Pushdown                | Done     | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution          |
+| WP5 | Repeated-Workload Performance Upgrade       | Done     | Reflection caching, join reuse, window allocation, hotspot guardrails                |
+| WP6 | Expression Cache Contention Fix             | Done     | Replace synchronized LRU map; Caffeine in SqlExpressionEvaluator                    |
+| WP7 | Reflection Cache Bounds & Safety            | Pending  | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
+| WP8 | Filter Hot-Path Field Index Pre-computation | Pending  | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
+| WP9 | Allocation Reduction in Hot Paths           | Pending  | Array reuse, reduce boxing in ObjectUtil, GroupEngine key allocation                 |
+| WP10| Cache Coherence Hardening                   | Pending  | rebuildCache() atomic swap; bound preparedExecutions/resolvedExecutions              |
+| WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
+| —   | Release Gate                                | Pending  | WP6–WP8 complete; release notes; final guardrails                                    |
 
 ---
 
-## STRAT-WP1: Stable Embedded Reporting Contract
+## WP6: Expression Cache Contention Fix
 
-**Priority:** High
-**Goal:** Turn the repo's best current niche into a stable product surface for
-saved reports, admin screens, and chart/table workflows.
+**Priority:** Critical Performance
+**Goal:** Replace the global `Collections.synchronizedMap()` LRU in
+`SqlExpressionEvaluator` with a Caffeine cache to eliminate global lock
+contention on the expression evaluation hot path.
 
-Context:
-- The repo already has `ReportDefinition`, chart presets, stats presets,
-  schema output, and explain/preview metadata.
-- Those helpers are useful, but several of them still live on the advanced
-  surface instead of the clear stable product path.
-- If PojoLens is going to win anywhere, it should win here first.
+**Context:**
+- `SqlExpressionEvaluator` holds two static caches — `TOKEN_CACHE` and
+  `COMPILED_CACHE` — backed by `Collections.synchronizedMap(new LinkedHashMap(...))`
+  with a custom `removeEldestEntry` override (lines 20–33).
+- `Collections.synchronizedMap` wraps the entire map with a single monitor lock.
+  Every get, put, and eviction check serializes. Under concurrent query execution
+  (e.g. parallel report generation, virtual-thread workloads) all threads contend
+  on the same lock.
+- Expression evaluation is called per-row for computed columns, making this a
+  genuine hot-path bottleneck, not a cold startup cost.
+- Caffeine is already a compile dependency (`caffeine 3.x` in `pojo-lens/pom.xml`).
 
-Scope:
-- Decide which reporting helpers become stable public API versus which should
-  be redesigned before stabilization.
-- Define a versioned report/query contract that can be saved, reviewed, and
-  replayed safely.
-- Expose UI-friendly schema and plan metadata for report builders and admin
-  tooling.
-- Keep the core centered on reporting/query workflows, not a general workflow
-  engine.
+**Tasks:**
+- [ ] Replace `TOKEN_CACHE` and `COMPILED_CACHE` in `SqlExpressionEvaluator` with
+      `Caffeine.newBuilder().maximumSize(512).build()`.
+- [ ] Remove the `Collections.synchronizedMap` + `LinkedHashMap` + `removeEldestEntry`
+      pattern entirely.
+- [ ] Keep cache size limits (512 entries each) and confirm Caffeine handles
+      size-bounded eviction correctly without LRU override.
+- [ ] Add a micro-benchmark (JMH, 4 threads) confirming throughput improvement
+      under contention; add threshold to `benchmarks/thresholds.json`.
+- [ ] Verify all existing `SqlExpressionEvaluator`-touching tests still pass.
 
-Tasks:
-- [x] Audit advanced reporting helpers and decide which ones move to the stable
-      surface. Finding: all current helpers (ReportDefinition, ChartQueryPreset,
-      StatsViewPreset, TabularSchema, ChartSpec, SqlLikePlanPreview, etc.) are
-      already on the public surface and stable; no redesign required.
-- [x] Define a versioned saved-report contract covering query text, parameters,
-      schema, and chart/table configuration.
-      Delivered: SavedReport + SavedReportKind in report/ package. FORMAT_VERSION="1".
-      Supports sqlLike() and natural() factories, immutable builders, planPreview(),
-      diagnostics(), toQuery(), toNaturalQuery(), toDefinition(Class<T>).
-- [x] Expose serializable field/column metadata for UI builders and saved
-      report review.
-      Delivered: TabularColumn.typeName() returns type().getSimpleName() for
-      JSON-friendly column metadata.
-- [x] Add examples for saved reports, runtime-owned presets, and migration-safe
-      replay.
-      Delivered: SavedReportTest covers full createÃ¢â€ â€™configureÃ¢â€ â€™reviewÃ¢â€ â€™replay workflow
-      and both SQL-like and natural replay paths.
-- [x] Add public API and binary-compat coverage for every promoted type.
-      Delivered: StablePublicApiContractTest.stableSavedReportContractsShouldRemainAvailable()
-      and stableTabularColumnTypeNameContractShouldRemainAvailable().
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Report*Test,*Preset*Test,*Schema*Test,*PublicApi*Test" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## STRAT-WP2: Production Query Governance And Audit
-
-**Priority:** High
-**Goal:** Make user-authored SQL-like and natural queries safe enough for real
-admin/config/reporting usage.
-
-Context:
-- Current exposure policy only allowlists fields and named sources.
-- That is useful, but it is not enough for production query governance.
-- Real-world adoption needs bounded execution, rejection reasons, and audit
-  visibility for user-authored query text.
-
-Scope:
-- Add bounded query governance for complexity, row budgets, deadlines, and
-  cooperative cancellation.
-- Surface deterministic audit metadata for accepted, rejected, and aborted
-  queries.
-- Keep auth/RBAC outside the library, but give host applications a credible
-  control point for safe execution.
-
-Tasks:
-- [x] Design a public execution-guard contract for max complexity, max rows
-      scanned, max rows returned, deadline, and cancellation.
-      Delivered: QueryExecutionGuard (builder API), QueryGuardOutcome (allowed/blocked
-      with audit metadata), QueryComplexitySummary (from SqlLikePlanPreview), and
-      QueryExecutionGuardException (carries full outcome). Block codes:
-      GUARD_ROWS_SCANNED_EXCEEDED, GUARD_COMPLEXITY_EXCEEDED, GUARD_ROWS_RETURNED_EXCEEDED,
-      GUARD_DURATION_EXCEEDED.
-- [x] Add pre-execution complexity summaries from the parsed query shape.
-      Delivered: QueryComplexitySummary.from(SqlLikePlanPreview) computes additive score
-      (1/filter, 3/join, +2 group, +2 agg, +4 windows, +3 subqueries).
-- [x] Apply guard checks to SQL-like and natural execution paths.
-      Delivered: SqlLikeQuery.executionGuard(guard) + NaturalQuery.executionGuard(guard).
-      Pre-execution check in prepareExecution (rows scanned + complexity), post-execution
-      check in filter/chart methods (rows returned + duration). NaturalQuery propagates
-      guard through createDelegate(). QueryTelemetryStage.GUARD_REJECTED emitted on block.
-- [x] Emit audit-friendly telemetry/explain metadata for blocked or aborted
-      queries.
-      Delivered: QueryGuardOutcome.auditMetadata() returns structured map; GUARD_REJECTED
-      telemetry events fired via QueryTelemetryListener before throwing.
-- [x] Document the security boundary clearly: exposure control and execution
-      governance are in scope; auth and tenant policy remain host-owned.
-      Documented in QueryExecutionGuard Javadoc and docs/advanced-features.md.
-
-Review follow-up (`2026-04-23`):
-- [x] Harden guard enforcement across `stream(...)`, `iterator()`, and bound
-      query execution so `maxRowsReturned` and `maxDurationMillis` cannot be
-      bypassed by switching execution entry points.
-- [x] Count bound JOIN source rows in the pre-execution row-scan budget instead
-      of only the primary root rows.
-- [x] Add explicit tests for lazy execution, bound execution, telemetry
-      rejection, and join-backed row-scan budgets.
-- [x] Re-scope or implement the still-missing WP2 contract pieces:
-      cooperative cancellation plus deterministic aborted-query metadata.
-      Delivered (`2026-04-23`): `QueryCancellationToken` (@FunctionalInterface,
-      `ofAtomic`, `ofThread` factories); `QueryExecutionGuard.Builder#cancellationToken`;
-      `QueryExecutionGuard#checkCancellation`; `QueryGuardOutcome#cancelled` factory
-      with `rowsReturnedBeforeAbort`; polled in `GuardedIterator#hasNext` (lazy paths)
-      and `prepareExecution` (eager paths) for SqlLikeQuery and TypedQuery;
-      block code `GUARD_CANCELLED`; 30 tests in `QueryCancellationTest` after
-      senior-review hardening.
-
-Senior review follow-up (`2026-04-23`):
-- [x] Fix bound eager cancellation so `SqlLikeBoundQuery.filter()` and
-      `SqlLikeBoundQuery.chart(...)` re-check cancellation when execution starts,
-      not only when the query is first bound.
-- [x] Add stable public API contract coverage for `QueryCancellationToken`,
-      cancellation-aware `QueryExecutionGuard` methods, cancellation outcomes,
-      and external-package public API usage.
-- [x] Make `TypedQuery` honor pre-execution cancellation even for empty input.
-- [x] Document `GUARD_CANCELLED`, `QueryCancellationToken`, and
-      `rowsReturnedBeforeAbort` in public execution-governance/stability docs.
-- [x] Add regression tests for bound eager cancellation, empty typed input
-      cancellation, and invalid cancellation row counts.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Policy*Test,*Exposure*Test,*Telemetry*Test,*Natural*Test,*SqlLike*Test" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## STRAT-WP3: Stable Public Typed DSL
-
-**Priority:** High
-**Goal:** Remove the biggest adoption blocker for code-owned queries without
-backing away from the SQL-like-first public story.
-
-Context:
-- The current public path is strong for text-authored queries.
-- The current public path is weak for teams that want compile-time-safe query
-  composition in normal Java code.
-- The old/internal fluent builder proves there is engine support here, but it
-  is not the right public answer in its current form.
-
-Scope:
-- Design an initial stable typed DSL foundation that lowers into the shared
-  engine without exposing internal builder machinery.
-- Reuse metamodel generation so typed queries do not depend on caller-authored
-  string field names.
-- Keep SQL-like and natural as first-class text surfaces; the typed DSL is for
-  code-owned filter/projection/order/page composition.
-- Keep typed grouping, aggregation, joins, windows, and subqueries deferred
-  until their API shape can be stabilized without leaking internal builder
-  concepts.
-
-Tasks:
-- [x] Design a stable typed builder API for projection, filters, ordering, and
-      paging.
-      Delivered: `TypedQuery<T>` with immutable `select`, `where`, `orderBy`,
-      `orderByDesc`, `limit`, `offset`, and `filter` methods.
-- [x] Reuse or extend metamodel generation so typed queries do not depend on
-      string field names.
-      Delivered: `FieldMetamodelGenerator.generateTyped(...)`, including boxed
-      primitive field types and compiler-backed generated-source tests.
-- [x] Add typed predicate composition.
-      Delivered: `TypedField<T,V>` and `TypedPredicate<T>` with leaf operators,
-      `AND`/`OR`/`NOT` descriptors, and execution lowering that preserves nested
-      mixed `AND`/`OR` semantics. `NOT` remains an explicit execution-time
-      unsupported shape.
-- [x] Ensure typed queries interoperate with explain and schema.
-      Delivered: `TypedQuery.explain(...)` and `schema(...)`. Guard interop is
-      limited to row-scan, row-return, and duration checks; typed queries do not
-      have plan-preview complexity scoring.
-- [x] Add migration guidance explaining when to use typed DSL versus SQL-like
-      versus natural.
-      Delivered: `docs/entry-points.md`, `docs/usecases.md`,
-      `docs/metamodel.md`, and `docs/public-api-stability.md`.
-- [x] Add contract tests that lock the typed DSL to stable public behavior
-      rather than internal builder details.
-      Delivered: `TypedFieldContractTest`, `TypedPredicateContractTest`,
-      `TypedQueryContractTest`, and `StablePublicApiContractTest` coverage.
-
-Deferred:
-- [ ] Design stable typed grouping, aggregation, joins, windows, and subqueries
-      as a later DSL expansion.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens "-Dtest=*Metamodel*Test,*PublicApi*Test,*QueryContractTest,*Fluent*Parity*Test" test`
-- `scripts/check-doc-consistency.ps1`
-- `git diff --check`
-
----
-
-## STRAT-WP4: Hybrid Adapters And Pushdown
-
-**Priority:** High
-**Goal:** Make PojoLens viable when the source data is not already sitting in a
-small-to-moderate in-memory list.
-
-Context:
-- Pure in-memory execution is fine for snapshots and bounded internal tooling.
-- It is a dead end for broader adoption if every serious workload must fully
-  materialize first.
-- The repo needs a credible bridge story for database-backed or streaming
-  source data.
-
-Scope:
-- Start with a bounded pushdown story, not a giant adapter matrix.
-- Classify query shapes into "pushable", "split execution", and
-  "in-memory only".
-- Make fallback behavior explicit in explain/telemetry output.
-
-Tasks:
-- [x] Define the supported query subset for first-phase pushdown.
-      Delivered (`2026-04-23`): `SqlLikePushdownPreview`,
-      `SqlLikePushdownMode`, and `SqlLikeQuery.pushdownPreview()` classify
-      SQL-like query shapes as `FULL`, `SPLIT`, or `IN_MEMORY_ONLY`.
-      First-phase pushable stages are simple selected fields, comparison
-      `WHERE` predicates with literals or named parameters, `ORDER BY`,
-      `LIMIT`, and `OFFSET`. Joins, grouping, aggregation, windows, subqueries,
-      `HAVING`, `QUALIFY`, computed selects, time buckets, and unsupported
-      filter operators remain in-memory with stable fallback reason codes.
-- [x] Add a first bridge path for JDBC/`ResultSet` ingestion or a jOOQ/Spring
-      Data integration point for simple filter/order/page workloads.
-      Delivered (`2026-04-23`): `SqlLikePushdownAdapter`,
-      `SqlLikePushdownRequest`, `SqlLikePushdownResult`, and
-      `SqlLikeResultSetAdapter` provide a host-owned adapter contract and JDBC
-      `ResultSet` materialization helper without SQL rendering or database
-      execution inside PojoLens.
-- [x] Support split execution where simple stages push down and unsupported
-      stages finish in memory.
-      Delivered (`2026-04-23`): `SqlLikeQuery.filterWithPushdown(...)` fetches
-      first-phase materialized rows through the adapter and then completes the
-      SQL-like query in memory.
-- [x] Surface pushdown/fallback decisions in explain and telemetry.
-      Delivered (`2026-04-23`): `explain()` includes `pushdownPreview`, and
-      SQL-like BIND telemetry includes pushdown mode, pushable stages,
-      in-memory stages, and fallback reasons. This slice remains advisory
-      planning metadata only because current repository boundaries still keep
-      database execution, SQL rendering, and adapter authorization host-owned.
-- [x] Benchmark pushed, split, and pure in-memory paths on representative
-      workloads.
-      Delivered (`2026-04-23`): `SqlLikePipelineJmhBenchmark` includes
-      `pureInMemoryPushdownCandidate`, `pushedFirstPhaseCandidate`,
-      `pureInMemorySplitCandidate`, and `splitPushdownCandidate`; the dedicated
-      suite is `scripts/benchmark-suite-pushdown.args`.
-
-Validate:
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Expression*Test,*Sql*Test" test`
 - `mvn -B -ntp test`
-- targeted adapter integration tests
-- benchmark guardrails from `docs/benchmarking.md`
-- `git diff --check`
 
 ---
 
-## STRAT-WP5: Repeated-Workload Performance Upgrade
+## WP7: Reflection Cache Bounds & Safety
 
-**Priority:** Medium
-**Goal:** Make repeated reporting workloads materially cheaper on latency and
-allocation, especially around joins, windows, and typed projection.
+**Priority:** High Performance / Memory Safety
+**Goal:** Add size bounds to all 9 unbounded global `ConcurrentHashMap` caches in
+`ReflectionUtil` to prevent unbounded growth in long-running servers.
 
-Context:
-- The repo already tracks performance seriously and documents real overheads.
-- That is good engineering discipline, but it also exposes where the engine is
-  still too allocation-heavy for a stronger product story.
-- Better performance is a multiplier once the product direction is clear.
+**Context:**
+- `ReflectionUtil` declares 9 static `ConcurrentHashMap` instances (lines 37–45):
+  `MUTABLE_FIELD_CACHE`, `MUTABLE_FIELD_BY_NAME_CACHE`, `READABLE_FIELD_BY_NAME_CACHE`,
+  `FIELD_GRAPH_CACHE`, `FIELD_PATH_CACHE`, `FLAT_ROW_READ_PLAN_CACHE`,
+  `DIRECT_FIELD_READ_PLAN_CACHE`, `PROJECTION_WRITE_PLAN_CACHE`, `NO_ARG_CTOR_CACHE`.
+- None has a size limit. In a server loading many POJO classes over its lifetime
+  (hot reload, dynamic report schemas, multi-tenant class loading) these grow
+  unboundedly and can contribute to metaspace/heap pressure.
+- Additionally, `SqlLikeQuery.preparedExecutions` and
+  `NaturalQuery.resolvedExecutions` are per-instance `ConcurrentHashMap` caches
+  with no eviction. Queries that receive many distinct parameter sets accumulate
+  stale plans indefinitely.
 
-Scope:
-- Improve hot paths without changing the public mental model.
-- Focus on repeated workloads, not microbench bragging.
-- Keep benchmark claims tied to explicit workloads and budgets.
+**Tasks:**
+- [ ] Replace each of the 9 `ConcurrentHashMap` caches in `ReflectionUtil` with
+      Caffeine caches. Suggested max sizes per cache:
+      - `MUTABLE_FIELD_CACHE`, `MUTABLE_FIELD_BY_NAME_CACHE`,
+        `READABLE_FIELD_BY_NAME_CACHE`, `FIELD_GRAPH_CACHE`,
+        `NO_ARG_CTOR_CACHE`: 1 000 entries each (class-keyed, rare eviction).
+      - `FIELD_PATH_CACHE`, `FLAT_ROW_READ_PLAN_CACHE`,
+        `DIRECT_FIELD_READ_PLAN_CACHE`, `PROJECTION_WRITE_PLAN_CACHE`:
+        2 000 entries each (path/plan keyed, higher variety).
+- [ ] Replace `preparedExecutions` in `SqlLikeQuery` and `resolvedExecutions` in
+      `NaturalQuery` with Caffeine caches bounded at 256 entries each with
+      `expireAfterAccess(30, MINUTES)`.
+- [ ] Confirm `computeIfAbsent` call sites work with Caffeine's `get(key, loader)`
+      equivalent; update all 34 call sites in `ReflectionUtil`.
+- [ ] Add a test that loads 1 100 distinct classes and confirms the cache stays
+      within its bound (eviction occurs, no OOM).
+- [ ] Document the size choices in a comment in `ReflectionUtil`.
 
-Tasks:
-- [x] Reduce reflection hot-path cost with cached or generated accessors where
-      safe.
-- [x] Improve repeated join execution with reusable indexes/hash structures.
-- [x] Reduce window-stage allocation overhead.
-- [x] Evaluate a batch/columnar execution path for heavy report workloads.
-- [x] Promote a small set of stable JMH budgets for the hottest supported
-      workloads.
-
-Validate:
-- `mvn -B -ntp -pl pojo-lens-benchmarks test`
-- benchmark guardrails from `docs/benchmarking.md`
+**Validate:**
 - `mvn -B -ntp test`
-- `git diff --check`
+- Memory profile: confirm no unbounded growth after 1 000 class loads.
+
+---
+
+## WP8: Filter Hot-Path Field Index Pre-computation
+
+**Priority:** High Performance
+**Goal:** Eliminate per-row O(n) `QueryFieldLookupUtil.findFieldIndex()` calls
+from the join, group, aggregation, and window hot paths by pre-computing field
+index maps at plan-compilation time.
+
+**Context:**
+- `QueryFieldLookupUtil.findFieldIndex()` performs a linear scan over a
+  `List<QueryField>` by name on every call (lines 15–26).
+- It is invoked from `JoinEngine`, `AggregationEngine`, `GroupEngine`, and
+  window-stage paths — on every row for every field being accessed.
+- With 10 fields and 100 000 rows this is 1 000 000 scans that could be
+  1 000 000 array index lookups if field positions were resolved once at
+  plan time.
+- A `preferredIndex` fast-path already exists in `findFieldValue()` (line 36)
+  but is only used where callers happen to know the index. The structural fix is
+  to compute and cache a `Map<String, Integer>` field index at plan compilation
+  and pass it to the engine.
+
+**Tasks:**
+- [ ] Add a `FieldIndexMap` helper (or extend `FilterExecutionPlan`) that builds
+      a `String → int` index from a `List<QueryField>` once at plan time.
+- [ ] Update `JoinEngine` to resolve join-key field positions from `FieldIndexMap`
+      at plan init, not per-row.
+- [ ] Update `AggregationEngine` to resolve metric and group field positions at
+      plan init.
+- [ ] Update `GroupEngine` to use pre-indexed positions.
+- [ ] Update window-stage field resolution similarly.
+- [ ] Ensure `preferredIndex` fast-path in `findFieldValue()` is used consistently
+      throughout engine calls; remove direct `findFieldIndex()` calls from loops.
+- [ ] Add a JMH benchmark confirming join + group throughput improvement at
+      10 000 rows with 10 fields; add threshold entry.
+- [ ] Confirm all existing join, group, and aggregation tests still pass.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=*Join*Test,*Group*Test,*Agg*Test,*Window*Test" test`
+- `mvn -B -ntp test`
+- JMH join + group benchmark within threshold.
+
+---
+
+## WP9: Allocation Reduction in Hot Paths
+
+**Priority:** Moderate Performance
+**Goal:** Reduce unnecessary object allocation and boxing on the filter, projection,
+and group-key hot paths to lower GC pressure on large repeated workloads.
+
+**Context — three confirmed allocation hotspots:**
+
+1. **Array cloning in FastPojoFilterSupport/FastPojoStreamSupport** (lines ~224
+   and ~216 respectively): `values.clone()` is called per-row in the tight filter
+   loop. The clone allocates a new `Object[]` for every row that passes the filter.
+   Reusing a pre-allocated output buffer (written then immediately converted to
+   `QueryRow`) would eliminate these allocations.
+
+2. **Boxing wrappers in ObjectUtil** (lines ~143–172): `Integer.valueOf(n.intValue())`,
+   `Long.valueOf(n.longValue())`, and `Double.valueOf(n.doubleValue())` are called
+   for every numeric type cast in projection/compute. For numeric workloads with
+   many computed fields this creates significant boxing churn. Java's integer cache
+   covers [-128,127] but typical report values exceed this range.
+
+3. **GroupEngine `toExternalKey()` string allocation**: `QueryKey.toExternalKey()`
+   builds a new `String` for every group key during GROUP BY output serialization.
+   The `QueryKey` already implements `equals`/`hashCode` correctly and can be used
+   as a map key directly — the string form is only needed at serialization time.
+
+**Tasks:**
+- [ ] In `FastPojoFilterSupport.tryFilterRows()` and `FastPojoStreamSupport`,
+      pre-allocate a reusable `Object[]` scratch buffer per invocation (sized to
+      max field count) and write row values into it; create `QueryRow` from the
+      buffer view without cloning on each row.
+- [ ] In `ObjectUtil` numeric cast paths, verify whether the returned `Object` is
+      immediately stored or compared. Where the result feeds back into a numeric
+      comparison (not stored long-term), replace `Integer.valueOf` + `cls.cast`
+      with a direct comparison on the unboxed value to avoid wrapper allocation.
+- [ ] Audit `GroupEngine` result serialization — confirm `toExternalKey()` is only
+      called at output time, not during GROUP BY key building. If called during
+      building, switch to using `QueryKey` directly as the map key.
+- [ ] Add a JMH benchmark measuring allocation rate (via `-prof gc`) on a 50 000
+      row filter + group pipeline before and after; confirm improvement.
+
+**Validate:**
+- `mvn -B -ntp test`
+- JMH gc-profiled benchmark shows reduced `gc.alloc.rate` on filter+group path.
+
+---
+
+## WP10: Cache Coherence Hardening
+
+**Priority:** Moderate Correctness
+**Goal:** Fix two known cache coherence gaps: the `FilterExecutionPlanCacheStore`
+rebuild race window, and the lack of bounds on per-query execution caches.
+
+**Context:**
+
+1. **rebuildCache() race window** (`FilterExecutionPlanCacheStore.java` lines 169–175):
+   ```java
+   private void rebuildCache() {
+       synchronized (mutationLock) {
+           Map<...> entries = new LinkedHashMap<>(cache.asMap());
+           cache = newCache();        // ← new cache is empty here
+           cache.putAll(entries);     // ← entries restored after a gap
+       }
+   }
+   ```
+   Between `cache = newCache()` and `cache.putAll(entries)`, concurrent `getOrBuild`
+   calls see an empty cache and will all miss, triggering redundant plan rebuilds.
+   More critically, `getOrBuild` reads `cache` via the volatile field without
+   holding `mutationLock`, so it can observe the empty-cache state during rebuild.
+   `resetStats()` calls `rebuildCache()` which means a stats reset can cause a
+   transient plan-cache miss storm.
+
+2. **Unbounded preparedExecutions/resolvedExecutions** (`SqlLikeQuery` and
+   `NaturalQuery`): each instance caches prepared execution plans in an unbounded
+   `ConcurrentHashMap`. A query object reused across many different parameter sets
+   (e.g. in a long-lived Spring bean or test) accumulates stale entries. This is
+   partially addressed in WP7 but the per-instance concern is separate from the
+   global `ReflectionUtil` concern.
+
+**Tasks:**
+- [ ] Redesign `rebuildCache()` using an atomic-swap pattern: build the new cache
+      fully (including `putAll`) before swapping the `volatile` reference, so
+      readers never see an empty intermediate state.
+      ```java
+      private void rebuildCache() {
+          synchronized (mutationLock) {
+              Cache<...> next = newCache();
+              next.putAll(cache.asMap());   // populate before swap
+              cache = next;                 // atomic volatile write
+          }
+      }
+      ```
+- [ ] Verify that `getOrBuild` reading `cache` outside `mutationLock` is safe
+      after the atomic-swap fix (volatile read gives a fully-populated cache).
+- [ ] Separate `resetStats()` from `rebuildCache()`: stats reset should create a
+      new cache without copying existing entries (the point of a stats reset is to
+      start fresh, not to re-populate).
+- [ ] Bound `preparedExecutions` in `SqlLikeQuery` and `resolvedExecutions` in
+      `NaturalQuery` (coordinate with WP7 if that work package also covers these).
+- [ ] Add a concurrent test: multiple threads hit `getOrBuild` while a config
+      change triggers `rebuildCache()`; assert no thread ever gets a null plan.
+
+**Validate:**
+- `mvn -B -ntp test`
+- Stress test: concurrent plan cache read + `rebuildCache()` with 20 threads,
+  1 000 iterations; assert 0 null-plan results.
+
+---
+
+## WP11: Java 25 Modernization
+
+**Priority:** Quality / Maintainability
+**Goal:** Apply Java 25 language features to reduce boilerplate, improve
+readability, enable compiler-exhaustiveness checks, and modernize the style of
+the core engine internals.
+
+**Context — confirmed candidates:**
+
+1. **Records for internal value types** — several small final classes with all-final
+   fields and no business logic are record candidates:
+   - `CompiledRule` (4 fields: `compareValue`, `clause`, `separator`, `dateFormat`)
+   - `AggregationEngine.NumericStats` (accumulator fields, all primitives/Numbers)
+   - `AggregationEngine.GroupAccumulator` (2 fields)
+   - `OrderEngine.OrderColumn` / `GroupColumn` in `FilterExecutionPlan`
+
+2. **Sealed AST hierarchy** — `FilterAst`, `SelectFieldAst`, `OrderAst`, and
+   similar abstract base classes in `sqllike/ast/` have a fixed set of permitted
+   subtypes. Sealing them enables exhaustive `switch` expressions and removes the
+   `default` fallback defensive branches.
+
+3. **Pattern matching** — `instanceof` checks followed by explicit casts throughout
+   `FastPojoFilterSupport`, `ObjectUtil`, `SqlExpressionEvaluator`, and engine
+   internals can be replaced with binding patterns.
+
+4. **Stream.toList()** — `.collect(Collectors.toList())` calls throughout parser,
+   binder, and plan-builder paths should become `.toList()`.
+
+5. **Switch expressions** — multi-branch `if/else if` chains over enum/string
+   constants in `ObjectUtil`, `Clauses` dispatch, and filter-operator routing
+   should become switch expressions.
+
+**Tasks:**
+- [ ] Convert `CompiledRule`, `NumericStats`, `GroupAccumulator`, `OrderColumn`,
+      `GroupColumn` to records. Validate compact constructor validation where null
+      checks are currently in the constructor body.
+- [ ] Seal `FilterAst` and its concrete subtypes in `sqllike/ast/`; update all
+      `instanceof` dispatch sites to use exhaustive `switch` expressions.
+- [ ] Seal `SelectFieldAst` and `OrderAst` similarly if their subtype sets are
+      fully known.
+- [ ] Replace `instanceof X x2` pattern with binding patterns throughout engine
+      internals (search for `instanceof` + subsequent cast on the same variable).
+- [ ] Replace `.collect(Collectors.toList())` with `.toList()` throughout
+      `pojo-lens` main sources.
+- [ ] Replace multi-branch `if/else if` enum dispatches with switch expressions
+      where all branches are covered; remove unreachable `default` fallbacks.
+- [ ] Run full test suite to confirm no behavioural change.
+- [ ] Update `ai/core/agent-invariants.md` if any sealed hierarchy changes public
+      API shape (sealed interfaces on public types need careful compat review).
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `scripts/check-doc-consistency.ps1`
 
 ---
 
 ## Release Gate
 
 **Priority:** High
-**Goal:** Do not cut another release until at least one strategic package above
-ships in a way that strengthens the product story, not just the feature count.
+**Goal:** Cut the next release after the critical and high-priority performance
+work packages land.
 
-Tasks:
-- [x] Decide the first strategic packages to ship Ã¢â‚¬â€ WP1 (reporting contract)
-      and WP2 (governance) are complete and strengthen the product story.
-- [ ] Decide whether WP3, WP4, or WP5 ships next before cutting the release,
-      or cut based on WP1+WP2 alone.
-- [ ] Update release notes around the product direction, not just the API
-      delta.
+**Tasks:**
+- [ ] Complete WP6 (expression cache contention fix).
+- [ ] Complete WP7 (reflection cache bounds).
+- [ ] Complete WP8 (field index pre-computation).
+- [ ] Decide whether WP9 and WP10 land before or after the release cut.
+- [ ] Update release notes focusing on the Java 25 upgrade and performance
+      improvements (not just API delta).
 - [ ] Run final release guardrails from `RELEASE.md`.
+- [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after release.
 
-Validate:
+**Validate:**
 - `mvn -B -ntp test`
 - `mvn -B -ntp -Plint verify -DskipTests`
 - `scripts/check-doc-consistency.ps1`
-- release benchmark guardrails from `docs/benchmarking.md`
+- Release benchmark guardrails from `docs/benchmarking.md`.
