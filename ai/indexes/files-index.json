@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-24T17:21:20.753270+02:00",
+  "generatedAt": "2026-04-24T21:34:50.154557+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
-    "mainJavaFiles": 241,
-    "testJavaFiles": 134,
-    "markdownDocs": 53,
+    "mainJavaFiles": 247,
+    "testJavaFiles": 136,
+    "markdownDocs": 54,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
     "orchestratorTaskPlans": 3
@@ -81,8 +81,8 @@
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 203,
-      "testJavaFiles": 121,
+      "mainJavaFiles": 208,
+      "testJavaFiles": 123,
       "resourceFiles": 0
     },
     {
@@ -93,7 +93,7 @@
       "sourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/java",
       "testRoot": "pojo-lens-spring-boot-autoconfigure/src/test/java",
       "resourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/resources",
-      "mainJavaFiles": 3,
+      "mainJavaFiles": 4,
       "testJavaFiles": 1,
       "resourceFiles": 1
     },

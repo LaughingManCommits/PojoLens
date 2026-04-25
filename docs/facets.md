@@ -37,8 +37,10 @@ List<FacetOption> bands    = FacetPresets.distinctCounts("riskBand").options(row
 
 ## Notes
 
-- Field access uses reflection — the field must be a publicly accessible
-  instance field on the row type.
+- Field access uses reflection over declared instance fields. Fields do not
+  need public visibility, and dot-separated nested paths are supported when
+  each segment is readable.
+- `static` and `@Exclude` fields are not part of the readable field graph.
 - `null` rows in the list are skipped.
 - `null` field values are counted under key `null`.
 - Results are unmodifiable (`List.copyOf`).

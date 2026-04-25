@@ -45,9 +45,11 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
 | Tree row shaping | `Workflow helper` | Deterministic subtree selection from flat parent-ID POJO lists before normal query execution | `PojoLensTree`, `TreeTraversalBuilder`, `TreeEntry` | `Stable` helper contracts | `docs/tree.md`, `docs/entry-points.md` |
+| Facet option helpers | `Workflow helper` | Distinct-value snapshot summaries for filter bars and navigation facets | `FacetPresets`, `FacetQuery`, `FacetOption` | `Advanced` helper surface | `docs/facets.md` |
 | Reusable workflow wrappers | `Workflow helper` | Convenience wrappers for reusable row/chart/table flows | `ReportDefinition`, `ChartQueryPreset`, `ChartQueryPresets`, `StatsViewPreset`, `StatsViewPresets`, `StatsTable` | `Advanced` convenience surface | `docs/reusable-wrappers.md`, `docs/reports.md`, `docs/charts.md`, `docs/stats-presets.md` |
 | Runtime-scoped execution and policy | `Integration` | Scoped runtime configuration, natural-query vocabulary, and DI-friendly execution | `PojoLensRuntime`, `PojoLensRuntimePreset`, `NaturalVocabulary` | `Stable` runtime surface; policy tuning is partly `Advanced` | `README.md`, `docs/caching.md`, `docs/telemetry.md` |
 | Spring Boot support | `Integration` | Optional framework wiring for Boot applications | `pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter` | Optional integration surface | `README.md`, `docs/modules.md` |
+| Spring/JDBC row bridge | `Integration` | Optional Spring helper for materializing query-ready POJO rows from `JdbcTemplate` or `ResultSet` boundaries | `PojoLensJdbc` | `Advanced` integration helper | `docs/jdbc.md`, `docs/modules.md` |
 | Query diagnostics and policy controls | `Tooling` | Operational visibility and tuning around the core engine | `explain`, telemetry hooks, lint mode, cache stats and controls | Mixed: `explain` is core-adjacent, policy controls are largely `Advanced` | `docs/sql-like.md`, `docs/telemetry.md`, `docs/caching.md` |
 | Pushdown readiness and bridge metadata | `Tooling` | Advisory host-adapter classification for simple SQL-like stages plus materialized-row completion; no database execution or SQL rendering owned by PojoLens | `SqlLikeQuery.pushdownPreview()`, `pushdownRequest()`, `filterWithPushdown(...)`, `SqlLikePushdownPreview`, `SqlLikePushdownMode`, `SqlLikePushdownAdapter`, `SqlLikePushdownResult`, `SqlLikeResultSetAdapter` | `Stable` SQL-like planning and bridge surface | `docs/sql-like.md`, `docs/telemetry.md` |
 | Schema metadata | `Workflow helper` | Deterministic table/chart column metadata for renderers | `schema()`, `TabularSchema`, `TabularColumn` | `Stable` support contract | `docs/tabular-schema.md`, `docs/reports.md`, `docs/stats-presets.md` |
@@ -76,6 +78,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
   query execution. It returns `List<T>` or `TreeEntry<T>` metadata and does not
   add parser syntax, graph algorithms, persistence behavior, or a second query
   engine.
+- `FacetPresets` is a lightweight workflow helper for UI/filter-bar option
+  generation over an already materialized snapshot. It does not add a second
+  query language, aggregation engine, or persistence abstraction.
 - `ReportDefinition` is the general reusable execution wrapper.
   SQL-like and natural report definitions are the public path.
   `ChartQueryPreset` and `StatsViewPreset` are specialized convenience wrappers
@@ -86,6 +91,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
   an application run simple filters/order/page stages before materializing rows,
   but PojoLens still does not own database execution, ORM integration, SQL
   rendering, or adapter authorization.
+- `PojoLensJdbc` is a thin Spring integration bridge over `JdbcTemplate` and
+  `SqlLikeResultSetAdapter`. It helps materialize rows at a host-owned SQL
+  boundary; it does not make PojoLens a database access layer or SQL renderer.
 - Telemetry, cache policy controls, lint mode, regression fixtures, metamodel
   generation, and benchmarking are useful public features, but they belong to
   advanced/tooling surface rather than the first-read product story.

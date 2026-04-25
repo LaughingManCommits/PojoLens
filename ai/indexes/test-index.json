@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-24T15:26:02.491037+02:00",
+  "generatedAt": "2026-04-24T21:32:14.992588+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 134,
-    "testClasses": 134
+    "testJavaFiles": 136,
+    "testClasses": 136
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 121
+      "testJavaFiles": 123
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -71,6 +71,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/chart/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/fluent/FluentChartIntegrationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/QueryRegressionFixtureTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/report/ReportComparisonsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/report/SavedReportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/ChartTestFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/CommonStatsProjections.java",
@@ -107,6 +108,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedFieldContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedPredicateContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/dsl/TypedQueryContractTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/facet/FacetPresetsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FastPojoFilterSupportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FilterCoreTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/filter/FilterImplFastPathTest.java",

@@ -19,6 +19,7 @@ published as release artifacts.
 Current starter examples:
 - `examples/spring-boot-starter-quickstart`: minimal onboarding path
 - `examples/spring-boot-starter-basic`: advanced dashboard reference
+- `examples/spring-boot-starter-risk-console`: JDBC-backed reviewer/demo showcase with dashboard, reports, and Query Studio flows
 
 Canonical product-surface classification:
 - [product-surface.md](product-surface.md)

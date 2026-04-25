@@ -50,9 +50,10 @@ pojo-lens:
       enabled: true
 ```
 
-Runnable example project:
+Runnable example projects:
 - `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
 - `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
+- `examples/spring-boot-starter-risk-console` (JDBC-backed reviewer/demo app with dashboard, reports, and Query Studio showcase)
 
 ## Why PojoLens
 
@@ -356,6 +357,7 @@ with the owning guide.
 
 - Product surface map: [docs/product-surface.md](docs/product-surface.md)
 - Module boundaries: [docs/modules.md](docs/modules.md)
+- Spring/JDBC bridge: [docs/jdbc.md](docs/jdbc.md)
 - Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
 - Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
 - Migration notes: [MIGRATION.md](MIGRATION.md)
@@ -365,6 +367,7 @@ with the owning guide.
 ### Advanced Follow-On
 
 - Cache behavior: [docs/caching.md](docs/caching.md)
+- Facet options: [docs/facets.md](docs/facets.md)
 - Telemetry: [docs/telemetry.md](docs/telemetry.md)
 - Regression fixtures: [docs/regression-fixtures.md](docs/regression-fixtures.md)
 - Snapshot comparison: [docs/snapshot-comparison.md](docs/snapshot-comparison.md)

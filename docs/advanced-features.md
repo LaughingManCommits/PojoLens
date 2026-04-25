@@ -23,10 +23,20 @@ application framework:
   [entry-points.md](entry-points.md), [sql-like.md](sql-like.md)
 - Spring Boot starter/autoconfigure modules:
   [modules.md](modules.md)
+- Spring/JDBC bridge helper:
+  [jdbc.md](jdbc.md)
 - Cache policy tuning:
   [caching.md](caching.md)
 - Telemetry hooks:
   [telemetry.md](telemetry.md)
+
+## Workflow And UI Helpers
+
+Use these when you already have an in-memory snapshot and need lightweight
+dashboard-oriented helpers beyond the main query/report/chart path:
+
+- Facet option helpers for filter bars and navigation:
+  [facets.md](facets.md)
 
 ## Diagnostics And Guardrails
 

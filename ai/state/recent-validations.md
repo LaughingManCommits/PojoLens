@@ -1,5 +1,6 @@
 # Recent Validations
 
+- `2026-04-24`: `scripts/check-doc-consistency.ps1`, `scripts/refresh-ai-memory.ps1`, and `scripts/refresh-ai-memory.ps1 -Check` passed after the README/docs continuity patch surfaced `facets.md` and `jdbc.md`, corrected the facet reflection note, compacted hot state back under budget, and refreshed the AI documentation index.
 - `2026-04-23`: `mvn -B -ntp -pl pojo-lens "-Dtest=FilterImplFastPathTest,FluentWindowFunctionTest,SqlLikeWindowFunctionTest,ReflectionUtilTest,ReflectionUtilEnumFieldTest,OptionalIndexExecutionTest" test` passed after the WP5 repeated-join/window slice: 40 tests, 0 failures.
 - `2026-04-23`: warmed forked `PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|pojoLensJoinLeftComputedFieldOrderedLimited)` spot checks passed after reusing prepared fast join state for stable filter snapshots; `pojoLensJoinLeftComputedField` measured about `0.010 ms/op / 20,840 B/op` at `1k` and `0.104 ms/op / 182,529 B/op` at `10k`.
 - `2026-04-23`: warmed forked `@scripts/benchmark-suite-window.args` diagnostics passed after trimming window output-buffer and partition-key churn; `parseAndFilterWindowRank` measured about `1.449 ms/op / 3,470,398 B/op` and `parseAndFilterWindowRunningTotal` about `1.462 ms/op / 3,678,267 B/op` at `size=10000`.

@@ -709,7 +709,9 @@ async function fetchJson(url) {
 }
 
 function setStatus(text) {
-  document.getElementById("statusBadge").textContent = text;
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = text;
+  badge.dataset.status = text;
 }
 
 function renderError(error) {

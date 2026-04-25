@@ -198,6 +198,9 @@ The following remain public, but are treated as advanced:
 - fine-grained runtime cache tuning and observability on `PojoLensRuntime`
 - reusable workflow wrappers such as `ReportDefinition`, `ChartQueryPreset`,
   `StatsViewPreset`, and related helper types
+- facet helper contracts such as `FacetPresets`, `FacetQuery`, and
+  `FacetOption`
+- the Spring/JDBC bridge helper `PojoLensJdbc`
 - `SnapshotComparison`, regression fixtures, parity helpers, and other testing
   support
 - metamodel generation beyond the stable typed-field generator entry point

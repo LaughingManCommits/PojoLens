@@ -3,11 +3,14 @@
 ## Primary Product Docs
 
 - `README.md`
+- `docs/README.md`
 - `docs/entry-points.md`
+- `docs/sql-like.md`
 - `docs/natural.md`
 - `docs/reusable-wrappers.md`
 - `docs/usecases.md`
-- `docs/sql-like.md`
+- `docs/csv.md`
+- `docs/tree.md`
 - `docs/charts.md`
 - `docs/advanced-features.md`
 
@@ -15,6 +18,8 @@
 
 - `docs/caching.md`
 - `docs/computed-fields.md`
+- `docs/facets.md`
+- `docs/jdbc.md`
 - `docs/metamodel.md`
 - `docs/modules.md`
 - `docs/product-surface.md`
@@ -26,6 +31,7 @@
 - `docs/tabular-schema.md`
 - `docs/telemetry.md`
 - `docs/time-buckets.md`
+- `docs/benchmarking.md`
 - `docs/internal-fluent-engine.md`
 
 ## Process Docs
