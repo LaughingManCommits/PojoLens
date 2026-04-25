@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [17, 21, 25]
+        java: [25]
     name: Java ${{ matrix.java }}
     steps:
       - uses: actions/checkout@v5
@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Build runtime jar
         run: mvn -B -ntp -pl pojo-lens -am -DskipTests package
@@ -69,7 +69,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Resolve baseline release tag
         id: baseline
@@ -130,7 +130,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Run Java lint profile
         run: mvn -B -ntp -Plint verify -DskipTests
@@ -147,7 +147,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Run SpotBugs report profile
         run: mvn -B -ntp -Pstatic-analysis verify -DskipTests
@@ -194,7 +194,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Build benchmark runner
         run: mvn -B -ntp -Pbenchmark-runner -DskipTests package
@@ -243,7 +243,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Run cache concurrency stress loop
         shell: bash
@@ -262,7 +262,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Generate chart images from interop test
         run: mvn -B -ntp -pl pojo-lens "-Dtest=ChartLibraryInteropTest" test
@@ -285,7 +285,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
       - name: Build benchmark runner
         run: mvn -B -ntp -Pbenchmark-runner -DskipTests package

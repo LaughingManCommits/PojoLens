@@ -2,7 +2,7 @@
 
 ## Repo
 
-- Java 17 multi-module library with core runtime, Spring Boot integration, and JMH benchmark modules.
+- Java 25 multi-module library with core runtime, Spring Boot integration, and JMH benchmark modules.
 - Current release is `2026.04.17.1834`.
 
 ## Focus
