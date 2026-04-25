@@ -30,7 +30,7 @@ wiring.
 | WP7 | Reflection Cache Bounds & Safety            | Done     | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
 | WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
 | WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
-| WP10| Cache Coherence Hardening                   | Pending  | rebuildCache() atomic swap; bound preparedExecutions/resolvedExecutions              |
+| WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; resetStats() separated; concurrent test added            |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
 | —   | Release Gate                                | Pending  | WP6–WP8 complete; release notes; final guardrails                                    |
 

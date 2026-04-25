@@ -17,6 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -118,6 +119,46 @@ public class CacheConcurrencyTest {
         assertEquals(runtime.statsPlanCache().hits(), ((Number) snapshot.get("hits")).longValue());
         assertEquals(runtime.statsPlanCache().misses(), ((Number) snapshot.get("misses")).longValue());
         assertEquals(runtime.statsPlanCache().evictions(), ((Number) snapshot.get("evictions")).longValue());
+    }
+
+    @Test
+    public void statsPlanCacheRebuildShouldNeverExposEmptyStateToReaders() throws Exception {
+        List<Employee> employees = sampleEmployees();
+        runtime.statsPlanCache().setMaxEntries(64);
+
+        // Warm the cache with one plan before the race starts.
+        newRuntimeBuilder(employees)
+                .addGroup("department")
+                .addCount("total")
+                .initFilter()
+                .filter(DepartmentCount.class);
+
+        int readerThreads = 6;
+        int mutatorThreads = 2;
+        int totalThreads = readerThreads + mutatorThreads;
+        int perReaderOps = 200;
+        AtomicInteger nullPlanResults = new AtomicInteger(0);
+
+        runConcurrently(totalThreads, 30, threadIndex -> {
+            if (threadIndex < readerThreads) {
+                for (int i = 0; i < perReaderOps; i++) {
+                    List<DepartmentCount> result = newRuntimeBuilder(employees)
+                            .addGroup("department")
+                            .addCount("total")
+                            .initFilter()
+                            .filter(DepartmentCount.class);
+                    if (result == null) {
+                        nullPlanResults.incrementAndGet();
+                    }
+                }
+            } else {
+                for (int i = 0; i < 20; i++) {
+                    runtime.statsPlanCache().setMaxEntries(32 + (i % 4) * 8);
+                }
+            }
+        });
+
+        assertEquals(0, nullPlanResults.get(), "Readers saw null result during concurrent rebuildCache");
     }
 
     @Test

@@ -19,9 +19,9 @@ public final class SqlExpressionEvaluator {
     private static final int COMPILED_CACHE_MAX_ENTRIES = 512;
     private static final double DIVISION_BY_ZERO_EPSILON = 1e-12;
     private static final Cache<String, List<Token>> TOKEN_CACHE =
-            Caffeine.newBuilder().maximumSize(TOKEN_CACHE_MAX_ENTRIES).build();
+            Caffeine.newBuilder().maximumSize(TOKEN_CACHE_MAX_ENTRIES).recordStats().build();
     private static final Cache<String, CompiledExpression> COMPILED_CACHE =
-            Caffeine.newBuilder().maximumSize(COMPILED_CACHE_MAX_ENTRIES).build();
+            Caffeine.newBuilder().maximumSize(COMPILED_CACHE_MAX_ENTRIES).recordStats().build();
 
     private SqlExpressionEvaluator() {
     }

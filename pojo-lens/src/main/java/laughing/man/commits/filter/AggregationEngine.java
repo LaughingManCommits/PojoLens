@@ -10,6 +10,7 @@ import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,11 @@ final class AggregationEngine {
             String[] keyParts = new String[columnCount];
             Object[] projectedValues = new Object[columnCount];
             QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
+            @SuppressWarnings("unchecked")
+            HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
+            for (int i = 0; i < columnCount; i++) {
+                keyStringCaches[i] = new HashMap<>();
+            }
             for (QueryRow row : rows) {
                 if (row == null) {
                     continue;
@@ -67,8 +73,13 @@ final class AggregationEngine {
                     FilterExecutionPlan.GroupColumn column = columns.get(i);
                     Object rawValue = row.getValueAt(column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
-                    keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
                     projectedValues[i] = projectedValue;
+                    String keyStr = keyStringCaches[i].get(projectedValue);
+                    if (keyStr == null) {
+                        keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                        keyStringCaches[i].put(projectedValue, keyStr);
+                    }
+                    keyParts[i] = keyStr;
                 }
                 lookupKey.refresh();
                 GroupAccumulator accumulator = grouped.get(lookupKey);

@@ -54,8 +54,19 @@
 - Confirmed: `FastPojoFilterSupport.toQueryRow` clone is already only called on matched rows (not per-row); `ObjectUtil.castValue` boxing is not in the filter hot path; `GroupEngine.toExternalKey()` is called once per unique group at output time only.
 - 1036/1036 tests green.
 
+## WP10 complete (2026-04-25)
+
+- `FilterExecutionPlanCacheStore.rebuildCache()`: now builds new cache fully (`putAll`) before the volatile swap — readers never see an empty intermediate state.
+- `resetStats()`: separated from `rebuildCache()` — does a direct `cache = newCache()` under the lock, discarding entries intentionally (fresh-start semantics); no entry copy.
+- Added `statsPlanCacheRebuildShouldNeverExposEmptyStateToReaders` to `CacheConcurrencyTest`: 6 reader threads + 2 mutator threads trigger `setMaxEntries` (→ `rebuildCache`) concurrently; asserts zero null results.
+- 1037/1037 tests green.
+
+## Research findings fixed (2026-04-25)
+
+- `SqlExpressionEvaluator`: added `.recordStats()` to TOKEN_CACHE and COMPILED_CACHE for observability.
+- `AggregationEngine`, `GroupEngine`, `FastStatsQuerySupport` (both multi-column and single-column GROUP BY paths): added per-call `HashMap<Object,String>` key-string dedup cache — avoids `castToString` allocation per-row per-column for non-String GROUP BY fields; 1037/1037 tests green.
+
 ## Next
 
-- Release gate: WP6+WP7+WP8+WP9 complete — draft release notes; run final guardrails.
-- WP10 (optional): FilterExecutionPlanCacheStore.rebuildCache() atomic swap.
-- WP11 (optional): Java 25 modernization.
+- Release gate: WP6–WP10 + research fixes complete — draft release notes; run final guardrails.
+- WP11 (optional): Java 25 modernization (records, sealed AST, pattern matching, Stream.toList()).

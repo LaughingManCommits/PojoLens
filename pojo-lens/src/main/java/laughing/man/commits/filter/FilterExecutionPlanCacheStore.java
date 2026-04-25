@@ -168,9 +168,9 @@ public final class FilterExecutionPlanCacheStore {
 
     private void rebuildCache() {
         synchronized (mutationLock) {
-            Map<FilterExecutionPlanCacheKey, FilterExecutionPlan> entries = new LinkedHashMap<>(cache.asMap());
-            cache = newCache();
-            cache.putAll(entries);
+            Cache<FilterExecutionPlanCacheKey, FilterExecutionPlan> next = newCache();
+            next.putAll(cache.asMap());
+            cache = next;
         }
     }
 

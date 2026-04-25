@@ -10,6 +10,7 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -166,6 +167,11 @@ public final class FastStatsQuerySupport {
         String[] keyParts = new String[columnCount];
         Object[] projectedValues = new Object[columnCount];
         QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
+        @SuppressWarnings("unchecked")
+        HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            keyStringCaches[i] = new HashMap<>();
+        }
 
         for (Object bean : source) {
             if (bean == null) {
@@ -184,7 +190,12 @@ public final class FastStatsQuerySupport {
                         ? rawValue
                         : TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
                 projectedValues[i] = projectedValue;
-                keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                String keyStr = keyStringCaches[i].get(projectedValue);
+                if (keyStr == null) {
+                    keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                    keyStringCaches[i].put(projectedValue, keyStr);
+                }
+                keyParts[i] = keyStr;
             }
 
             lookupKey.refresh();
@@ -214,6 +225,7 @@ public final class FastStatsQuerySupport {
         LinkedHashMap<String, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
+        HashMap<Object, String> valueToKey = new HashMap<>();
 
         for (Object bean : source) {
             if (bean == null) {
@@ -229,7 +241,11 @@ public final class FastStatsQuerySupport {
             Object projectedValue = groupColumn.timeBucket() == null
                     ? rawValue
                     : TimeBucketUtil.bucketValue(rawValue, groupColumn.timeBucket());
-            String key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+            String key = valueToKey.get(projectedValue);
+            if (key == null) {
+                key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+                valueToKey.put(projectedValue, key);
+            }
             GroupAccumulator accumulator = grouped.get(key);
             if (accumulator == null) {
                 accumulator = new GroupAccumulator(new Object[]{projectedValue}, metricPlans);
