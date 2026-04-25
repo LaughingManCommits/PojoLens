@@ -32,8 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
 import java.util.stream.Stream;
 
 /**
@@ -44,13 +45,16 @@ public final class NaturalQuery {
     private final String source;
     private final String equivalentSqlLike;
     private final QueryState state;
-    private final ConcurrentMap<ResolutionShapeKey, ResolvedExecution> resolvedExecutions;
+    private final Cache<ResolutionShapeKey, ResolvedExecution> resolvedExecutions;
 
     private NaturalQuery(String source, String equivalentSqlLike, QueryState state) {
         this.source = Objects.requireNonNull(source, "source must not be null");
         this.equivalentSqlLike = Objects.requireNonNull(equivalentSqlLike, "equivalentSqlLike must not be null");
         this.state = Objects.requireNonNull(state, "state must not be null");
-        this.resolvedExecutions = new ConcurrentHashMap<>();
+        this.resolvedExecutions = Caffeine.newBuilder()
+                .maximumSize(256)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .build();
     }
 
     public static NaturalQuery of(String source) {
@@ -379,7 +383,7 @@ public final class NaturalQuery {
                                                 Class<?> projectionClass) {
         Map<String, List<?>> effectiveJoinSources = joinSources == null ? Map.of() : joinSources;
         ResolutionShapeKey shapeKey = ResolutionShapeKey.of(state.ast(), pojos, effectiveJoinSources, projectionClass);
-        return resolvedExecutions.computeIfAbsent(shapeKey, ignored -> {
+        return resolvedExecutions.get(shapeKey, ignored -> {
             NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved =
                     resolve(pojos, effectiveJoinSources, projectionClass);
             return new ResolvedExecution(resolved, createDelegate(resolved.ast()));

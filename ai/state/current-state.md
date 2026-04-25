@@ -24,15 +24,31 @@
 ## Verified
 
 - `2026-04-25`: `mvn -B -ntp -pl pojo-lens test` passed: 1036 tests, 0 failures (post WP6).
+- `2026-04-25`: `mvn -B -ntp -pl pojo-lens test` passed: 1036 tests, 0 failures (post WP7).
+
+## WP7 complete (2026-04-25)
+
+- Replaced all 9 static `ConcurrentHashMap` caches in `ReflectionUtil` with bounded Caffeine caches (1 000 / 2 000 entry limits).
+- Replaced `preparedExecutions` in `SqlLikeQuery` and `resolvedExecutions` in `NaturalQuery` with Caffeine caches (256 entries, 30-min expiry).
+- Updated `SqlLikePreparedExecutionSupport` parameter type from `ConcurrentMap` to `Cache`.
+- Fixed `ReflectionUtilTest` cache-introspection helpers to use `cache.asMap()`.
 
 ## Risks
 
 - Java 25 build not yet validated locally (JDK 25 not confirmed on dev machine); CI will resolve via `actions/setup-java@v5`.
-- 9 unbounded `ConcurrentHashMap` caches in `ReflectionUtil` are a memory risk in long-running servers.
-- `FilterExecutionPlanCacheStore.rebuildCache()` has a transient empty-cache window; concurrent queries see plan-cache miss storms on config change.
+- `FilterExecutionPlanCacheStore.rebuildCache()` has a transient empty-cache window; concurrent queries see plan-cache miss storms on config change (WP10).
 - Real MySQL verification still pending for `examples/spring-boot-starter-risk-console`.
+
+## WP8 complete (2026-04-25)
+
+- Pre-indexed `QueryRow` projection in `SqlLikeExecutionSupport.projectAliasedRows`: builds `Map<String,Integer>` from first row's schema, resolves source field indexes once per projection call, uses `row.getValueAt(idx)` per-row instead of O(n) scan.
+- Computed field identifier resolution also uses pre-built index map via `resolveIndexedQueryRowFieldValue`.
+- POJO source rows path unchanged (already uses `ReflectionUtil.getFieldValue` with caching).
+- Confirmed: JoinEngine/AggregationEngine/GroupEngine/window already used pre-computed indexes; only `projectAliasedRows` had the per-row O(n) scan.
+- 1036/1036 tests green.
 
 ## Next
 
-- WP7: Bound all 9 `ReflectionUtil` caches + per-query execution caches.
-- WP8: Pre-compute field index maps at plan time; remove per-row O(n) lookups.
+- Release gate: WP6+WP7+WP8 complete — draft release notes; run final guardrails.
+- WP9 (optional pre-release): allocation reduction in FastPojoFilterSupport, ObjectUtil boxing, GroupEngine key strings.
+- WP10 (optional): FilterExecutionPlanCacheStore.rebuildCache() atomic swap.

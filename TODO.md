@@ -27,8 +27,8 @@ wiring.
 | WP4 | Hybrid Adapters And Pushdown                | Done     | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution          |
 | WP5 | Repeated-Workload Performance Upgrade       | Done     | Reflection caching, join reuse, window allocation, hotspot guardrails                |
 | WP6 | Expression Cache Contention Fix             | Done     | Replace synchronized LRU map; Caffeine in SqlExpressionEvaluator                    |
-| WP7 | Reflection Cache Bounds & Safety            | Pending  | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
-| WP8 | Filter Hot-Path Field Index Pre-computation | Pending  | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
+| WP7 | Reflection Cache Bounds & Safety            | Done     | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
+| WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
 | WP9 | Allocation Reduction in Hot Paths           | Pending  | Array reuse, reduce boxing in ObjectUtil, GroupEngine key allocation                 |
 | WP10| Cache Coherence Hardening                   | Pending  | rebuildCache() atomic swap; bound preparedExecutions/resolvedExecutions              |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |

@@ -26,7 +26,8 @@ import java.util.Map;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 public final class ReflectionUtil {
 
@@ -34,15 +35,29 @@ public final class ReflectionUtil {
 
     private static final int MAX_FIELD_GRAPH_DEPTH = 8;
 
-    private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
-    private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
-    private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<DirectFieldReadPlanCacheKey, DirectFieldReadPlan> DIRECT_FIELD_READ_PLAN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
+    // Class-keyed caches: bounded to prevent unbounded growth under dynamic class loading.
+    private static final int CLASS_CACHE_MAX_ENTRIES = 1_000;
+    // Path/plan keyed caches: higher cardinality (class + field/schema combinations).
+    private static final int PLAN_CACHE_MAX_ENTRIES = 2_000;
+
+    private static final Cache<Class<?>, List<Field>> MUTABLE_FIELD_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<DirectFieldReadPlanCacheKey, DirectFieldReadPlan> DIRECT_FIELD_READ_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
 
     private static final ResolvedFieldPath MISSING_FIELD_PATH = new ResolvedFieldPath(List.of(), null, false);
 
@@ -403,7 +418,7 @@ public final class ReflectionUtil {
             throw new IllegalArgumentException("root must not be null");
         }
         List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
-        return FLAT_ROW_READ_PLAN_CACHE.computeIfAbsent(
+        return FLAT_ROW_READ_PLAN_CACHE.get(
                 new FlatRowReadPlanCacheKey(root, normalizedSelection),
                 key -> buildFlatRowReadPlan(key.rootType(), key.selectedFieldNames())
         );
@@ -415,7 +430,7 @@ public final class ReflectionUtil {
             throw new IllegalArgumentException("root must not be null");
         }
         List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
-        return DIRECT_FIELD_READ_PLAN_CACHE.computeIfAbsent(
+        return DIRECT_FIELD_READ_PLAN_CACHE.get(
                 new DirectFieldReadPlanCacheKey(root, normalizedSelection),
                 key -> buildDirectFieldReadPlan(key.rootType(), key.selectedFieldNames())
         );
@@ -449,7 +464,7 @@ public final class ReflectionUtil {
     }
 
     private static List<Field> getMutableFields(Class<?> clazz) {
-        return MUTABLE_FIELD_CACHE.computeIfAbsent(clazz, ReflectionUtil::getFields);
+        return MUTABLE_FIELD_CACHE.get(clazz, ReflectionUtil::getFields);
     }
 
     public static List<Field> getFields(Class<?> key) {
@@ -473,7 +488,7 @@ public final class ReflectionUtil {
 
     private static Field findMutableField(Class<?> clazz, String fieldName) {
         return MUTABLE_FIELD_BY_NAME_CACHE
-                .computeIfAbsent(clazz, ReflectionUtil::buildMutableFieldByNameMap)
+                .get(clazz, ReflectionUtil::buildMutableFieldByNameMap)
                 .get(fieldName);
     }
 
@@ -491,7 +506,7 @@ public final class ReflectionUtil {
 
     private static Field findReadableField(Class<?> clazz, String fieldName) {
         return READABLE_FIELD_BY_NAME_CACHE
-                .computeIfAbsent(clazz, ReflectionUtil::buildReadableFieldByNameMap)
+                .get(clazz, ReflectionUtil::buildReadableFieldByNameMap)
                 .get(fieldName);
     }
 
@@ -545,7 +560,7 @@ public final class ReflectionUtil {
     }
 
     private static FieldGraphDescriptor fieldGraph(Class<?> root) {
-        return FIELD_GRAPH_CACHE.computeIfAbsent(root, ReflectionUtil::buildFieldGraphDescriptor);
+        return FIELD_GRAPH_CACHE.get(root, ReflectionUtil::buildFieldGraphDescriptor);
     }
 
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
@@ -657,7 +672,7 @@ public final class ReflectionUtil {
             return MISSING_FIELD_PATH;
         }
 
-        return FIELD_PATH_CACHE.computeIfAbsent(
+        return FIELD_PATH_CACHE.get(
                 new FieldPathCacheKey(rootType, fieldName),
                 key -> buildResolvedFieldPath(key.rootType(), key.fieldName())
         );
@@ -714,7 +729,7 @@ public final class ReflectionUtil {
     }
 
     private static ProjectionWritePlan projectionWritePlanForSchema(Class<?> projectionClass, List<String> sourceFieldSchema) {
-        return PROJECTION_WRITE_PLAN_CACHE.computeIfAbsent(
+        return PROJECTION_WRITE_PLAN_CACHE.get(
                 new ProjectionPlanCacheKey(projectionClass, sourceFieldSchema),
                 key -> buildProjectionWritePlan(key.projectionClass(), key.sourceFieldSchema())
         );
@@ -842,7 +857,7 @@ public final class ReflectionUtil {
     }
 
     private static Constructor<?> noArgConstructor(Class<?> type) {
-        return NO_ARG_CTOR_CACHE.computeIfAbsent(type, key -> {
+        return NO_ARG_CTOR_CACHE.get(type, key -> {
             try {
                 Constructor<?> constructor = key.getDeclaredConstructor();
                 constructor.setAccessible(true);

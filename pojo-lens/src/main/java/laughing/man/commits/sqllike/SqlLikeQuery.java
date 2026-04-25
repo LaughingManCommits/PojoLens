@@ -46,8 +46,9 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -71,7 +72,7 @@ public final class SqlLikeQuery {
     private final FilterExecutionPlanCacheStore executionPlanCache;
     private final QueryExposurePolicy exposurePolicy;
     private final QueryExecutionGuard executionGuard;
-    private final ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions;
+    private final Cache<ExecutionShapeKey, PreparedExecution> preparedExecutions;
 
     private SqlLikeQuery(String source, String normalizedQuery, String queryType, QueryAst ast) {
         this(source, normalizedQuery, queryType, ast, false, false, Collections.emptySet(), null, ComputedFieldRegistry.empty(),
@@ -127,7 +128,10 @@ public final class SqlLikeQuery {
         this.executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
         this.exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
         this.executionGuard = executionGuard == null ? QueryExecutionGuard.unrestricted() : executionGuard;
-        this.preparedExecutions = new ConcurrentHashMap<>();
+        this.preparedExecutions = Caffeine.newBuilder()
+                .maximumSize(256)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .build();
     }
 
     public static SqlLikeQuery of(String source) {

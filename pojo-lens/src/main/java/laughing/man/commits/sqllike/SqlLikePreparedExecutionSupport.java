@@ -36,7 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentMap;
+import com.github.benmanes.caffeine.cache.Cache;
 
 final class SqlLikePreparedExecutionSupport {
 
@@ -50,7 +50,7 @@ final class SqlLikePreparedExecutionSupport {
                                                  ComputedFieldRegistry computedFieldRegistry,
                                                  FilterExecutionPlanCacheStore executionPlanCache,
                                                  QueryTelemetryListener telemetryListener,
-                                                 ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions,
+                                                 Cache<ExecutionShapeKey, PreparedExecution> preparedExecutions,
                                                  List<?> pojos,
                                                  Map<String, List<?>> joinSources,
                                                  Class<T> projectionClass) {
@@ -73,7 +73,7 @@ final class SqlLikePreparedExecutionSupport {
             );
         } else {
             ExecutionShapeKey shapeKey = ExecutionShapeKey.of(ast, sourceClass, projectionClass, joinSources);
-            prepared = preparedExecutions.computeIfAbsent(
+            prepared = preparedExecutions.get(
                     shapeKey,
                     ignored -> buildPreparedExecution(
                             ast,

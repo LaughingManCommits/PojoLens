@@ -4,9 +4,7 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. Start WP6: replace `Collections.synchronizedMap` LRU in `SqlExpressionEvaluator` with Caffeine.
-4. Then WP7: bound all 9 `ReflectionUtil` caches and per-query execution caches.
-5. Then WP8: pre-compute field index maps at plan time in JoinEngine/AggregationEngine/GroupEngine.
+3. WP6+WP7+WP8 done — release gate: draft release notes, run `scripts/check-doc-consistency.ps1`, run `mvn -B -ntp test`, then cut release.
 
 ## Focus
 
