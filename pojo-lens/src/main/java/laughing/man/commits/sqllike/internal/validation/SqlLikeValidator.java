@@ -198,11 +198,17 @@ public final class SqlLikeValidator {
                                         Map<String, List<?>> joinSources,
                                         ComputedFieldRegistry computedFieldRegistry) {
         for (FilterAst filter : filters) {
-            if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
-                validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
-            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
-                continue;
+            switch (filter.value()) {
+                case null -> {
+                }
+                case SubqueryValueAst subqueryValueAst ->
+                        validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                    validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                    continue;
+                }
+                default -> {
+                }
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "WHERE");
@@ -311,7 +317,7 @@ public final class SqlLikeValidator {
         ambiguous.retainAll(aggregateOutputs);
 
         for (FilterAst filter : having) {
-            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
+            if (hasSubqueryValue(filter.value())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
@@ -363,7 +369,7 @@ public final class SqlLikeValidator {
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
+            if (hasSubqueryValue(filter.value())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
@@ -688,17 +694,18 @@ public final class SqlLikeValidator {
         if (expression == null || windowAliases.isEmpty()) {
             return expression;
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
-            return new FilterPredicateAst(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                normalizeWindowAliasExpression(binary.left(), windowAliases),
-                normalizeWindowAliasExpression(binary.right(), windowAliases),
-                binary.operator()
-        );
+        return switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
+                yield new FilterPredicateAst(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
+            }
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    normalizeWindowAliasExpression(binary.left(), windowAliases),
+                    normalizeWindowAliasExpression(binary.right(), windowAliases),
+                    binary.operator()
+            );
+        };
     }
 
     private static FilterExpressionAst normalizeGroupedAliasExpression(FilterExpressionAst expression,
@@ -706,21 +713,34 @@ public final class SqlLikeValidator {
         if (expression == null || groupedAliases.isEmpty()) {
             return expression;
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
-                    ? SqlExpressionEvaluator.rewriteIdentifiers(filter.field(), identifier -> groupedAliases.getOrDefault(identifier, identifier))
-                    : groupedAliases.getOrDefault(filter.field(), filter.field());
-            return new FilterPredicateAst(
-                    new FilterAst(field, filter.clause(), filter.value(), filter.separator())
+        return switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
+                        ? SqlExpressionEvaluator.rewriteIdentifiers(
+                        filter.field(),
+                        identifier -> groupedAliases.getOrDefault(identifier, identifier)
+                )
+                        : groupedAliases.getOrDefault(filter.field(), filter.field());
+                yield new FilterPredicateAst(
+                        new FilterAst(field, filter.clause(), filter.value(), filter.separator())
+                );
+            }
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    normalizeGroupedAliasExpression(binary.left(), groupedAliases),
+                    normalizeGroupedAliasExpression(binary.right(), groupedAliases),
+                    binary.operator()
             );
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                normalizeGroupedAliasExpression(binary.left(), groupedAliases),
-                normalizeGroupedAliasExpression(binary.right(), groupedAliases),
-                binary.operator()
-        );
+        };
+    }
+
+    private static boolean hasSubqueryValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _ -> true;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     private static Set<String> resolveAllowedOrderFields(QueryAst ast, Set<String> sourceFields) {

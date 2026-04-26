@@ -134,15 +134,19 @@ public final class SqlLikeExplainSupport {
     private static void collectParameterSnapshots(List<FilterAst> filters,
                                                   Map<String, Map<String, Object>> snapshot) {
         for (FilterAst filter : filters) {
-            Object value = filter.value();
-            if (value instanceof ParameterValueAst parameterValueAst) {
-                snapshot.putIfAbsent(parameterValueAst.name(), unresolvedParameter());
-            } else if (value instanceof BoundParameterValue boundParameterValue) {
-                snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
-            } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-                collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
+            switch (filter.value()) {
+                case null -> {
+                }
+                case ParameterValueAst parameterValueAst ->
+                        snapshot.putIfAbsent(parameterValueAst.name(), unresolvedParameter());
+                case BoundParameterValue boundParameterValue ->
+                        snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
+                case SubqueryValueAst subqueryValueAst ->
+                        collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
+                case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                        collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
+                default -> {
+                }
             }
         }
     }

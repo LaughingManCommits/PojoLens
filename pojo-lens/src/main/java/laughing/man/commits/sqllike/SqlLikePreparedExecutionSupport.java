@@ -214,18 +214,19 @@ final class SqlLikePreparedExecutionSupport {
     }
 
     private static boolean containsSubquery(FilterExpressionAst expression) {
-        if (expression == null) {
-            return false;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return isSubqueryValue(predicateAst.filter().value());
-        }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        return containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+        return switch (expression) {
+            case null -> false;
+            case FilterPredicateAst predicateAst -> isSubqueryValue(predicateAst.filter().value());
+            case FilterBinaryAst binaryAst -> containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+        };
     }
 
     private static boolean isSubqueryValue(Object value) {
-        return value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst;
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _, ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     static final class ExecutionContext {

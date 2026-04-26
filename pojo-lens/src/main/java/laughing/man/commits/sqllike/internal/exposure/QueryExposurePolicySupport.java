@@ -172,27 +172,32 @@ public final class QueryExposurePolicySupport {
                                                     Class<?> sourceClass,
                                                     Map<String, List<?>> joinSources,
                                                     LinkedHashSet<String> fields) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst ->
+                    collectNestedExposureFields(predicateAst.filter(), sourceClass, joinSources, fields);
+            case FilterBinaryAst binary -> {
+                collectNestedExposureFields(binary.left(), sourceClass, joinSources, fields);
+                collectNestedExposureFields(binary.right(), sourceClass, joinSources, fields);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectNestedExposureFields(predicateAst.filter(), sourceClass, joinSources, fields);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectNestedExposureFields(binary.left(), sourceClass, joinSources, fields);
-        collectNestedExposureFields(binary.right(), sourceClass, joinSources, fields);
     }
 
     private static void collectNestedExposureFields(FilterAst filter,
                                                     Class<?> sourceClass,
                                                     Map<String, List<?>> joinSources,
                                                     LinkedHashSet<String> fields) {
-        Object value = filter.value();
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            collectExposureFields(subqueryValueAst.query(), sourceClass, joinSources, fields);
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            collectExposureFields(existsSubqueryValueAst.query(), sourceClass, joinSources, fields);
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst ->
+                    collectExposureFields(subqueryValueAst.query(), sourceClass, joinSources, fields);
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    collectExposureFields(existsSubqueryValueAst.query(), sourceClass, joinSources, fields);
+            default -> {
+            }
         }
     }
 
@@ -218,24 +223,27 @@ public final class QueryExposurePolicySupport {
     }
 
     private static void collectNestedSources(FilterExpressionAst expression, LinkedHashSet<String> sources) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> collectNestedSources(predicateAst.filter(), sources);
+            case FilterBinaryAst binary -> {
+                collectNestedSources(binary.left(), sources);
+                collectNestedSources(binary.right(), sources);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectNestedSources(predicateAst.filter(), sources);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectNestedSources(binary.left(), sources);
-        collectNestedSources(binary.right(), sources);
     }
 
     private static void collectNestedSources(FilterAst filter, LinkedHashSet<String> sources) {
-        Object value = filter.value();
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            collectSourceNames(subqueryValueAst.query(), sources);
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            collectSourceNames(existsSubqueryValueAst.query(), sources);
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst -> collectSourceNames(subqueryValueAst.query(), sources);
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    collectSourceNames(existsSubqueryValueAst.query(), sources);
+            default -> {
+            }
         }
     }
 

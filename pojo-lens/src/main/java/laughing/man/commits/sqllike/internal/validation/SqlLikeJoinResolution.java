@@ -226,50 +226,49 @@ public final class SqlLikeJoinResolution {
                     : SqlExpressionEvaluator.looksLikeExpression(filter.field())
                     ? rewriteExpression(filter.field(), plan, clauseName)
                     : plan.resolveOrSame(filter.field(), clauseName);
-            Object value = filter.value();
-            if (value instanceof SubqueryValueAst subqueryValueAst) {
-                value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                value = new ExistsSubqueryValueAst(
-                        existsSubqueryValueAst.source(),
-                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
-                        existsSubqueryValueAst.negated()
-                );
-            }
+            Object value = canonicalizeFilterValue(filter.value());
             resolved.add(new FilterAst(field, filter.clause(), value, filter.separator()));
         }
         return resolved;
     }
 
     private static FilterExpressionAst canonicalizeExpression(FilterExpressionAst expression, Plan plan, String clauseName) {
-        if (expression == null) {
-            return null;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = isWindowExpressionReference(filter.field())
-                    ? filter.field()
-                    : SqlExpressionEvaluator.looksLikeExpression(filter.field())
-                    ? rewriteExpression(filter.field(), plan, clauseName)
-                    : plan.resolveOrSame(filter.field(), clauseName);
-            Object value = filter.value();
-            if (value instanceof SubqueryValueAst subqueryValueAst) {
-                value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                value = new ExistsSubqueryValueAst(
-                        existsSubqueryValueAst.source(),
-                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
-                        existsSubqueryValueAst.negated()
-                );
+        return switch (expression) {
+            case null -> null;
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = isWindowExpressionReference(filter.field())
+                        ? filter.field()
+                        : SqlExpressionEvaluator.looksLikeExpression(filter.field())
+                        ? rewriteExpression(filter.field(), plan, clauseName)
+                        : plan.resolveOrSame(filter.field(), clauseName);
+                yield new FilterPredicateAst(new FilterAst(
+                        field,
+                        filter.clause(),
+                        canonicalizeFilterValue(filter.value()),
+                        filter.separator()
+                ));
             }
-            return new FilterPredicateAst(new FilterAst(field, filter.clause(), value, filter.separator()));
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                canonicalizeExpression(binary.left(), plan, clauseName),
-                canonicalizeExpression(binary.right(), plan, clauseName),
-                binary.operator()
-        );
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    canonicalizeExpression(binary.left(), plan, clauseName),
+                    canonicalizeExpression(binary.right(), plan, clauseName),
+                    binary.operator()
+            );
+        };
+    }
+
+    private static Object canonicalizeFilterValue(Object value) {
+        return switch (value) {
+            case null -> null;
+            case SubqueryValueAst subqueryValueAst ->
+                    new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> new ExistsSubqueryValueAst(
+                    existsSubqueryValueAst.source(),
+                    canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                    existsSubqueryValueAst.negated()
+            );
+            default -> value;
+        };
     }
 
     private static List<String> canonicalizeGroupBy(List<String> groupByFields, Plan plan) {

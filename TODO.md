@@ -31,7 +31,7 @@ wiring.
 | WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
 | WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
 | WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; concurrent test added; reset semantics follow-up in WP13 |
-| WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
+| WP11| Java 25 Modernization                       | Done     | Internal records, sealed filter-expression AST, pattern switches, full tests         |
 | WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
 | WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
 | WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
@@ -54,9 +54,9 @@ wiring.
   expressions reach Caffeine; WP14 now restores deterministic
   `IllegalArgumentException("Expression must not be blank")` behavior before
   cache access.
-- Review snapshot was `1037/1037`; after WP12-WP14 the suite is `1043/1043`,
-  and the remaining release work is release notes, final guardrails, and the
-  pending benchmark/WP11 cut decisions.
+- Review snapshot was `1037/1037`; after WP11-WP14 the suite is `1043/1043`,
+  and the remaining release work is chart parity, release notes, and final
+  guardrails.
 
 ---
 
@@ -291,10 +291,22 @@ rebuild race window, and the lack of bounds on per-query execution caches.
 
 ## WP11: Java 25 Modernization
 
+**Status:** Done (`2026-04-26`)
+
 **Priority:** Quality / Maintainability
 **Goal:** Apply Java 25 language features to reduce boilerplate, improve
 readability, enable compiler-exhaustiveness checks, and modernize the style of
 the core engine internals.
+
+**Implementation note:** The actual landed scope was narrower and more accurate
+than the original placeholder text. WP11 sealed `FilterExpressionAst`,
+converted internal carriers (`CompiledRule`, `AggregationEngine.NumericStats`,
+`AggregationEngine.GroupAccumulator`, and
+`FastStatsQuerySupport.GroupAccumulator`) to records, switched SQL-like and
+natural traversal helpers to pattern switches or binding patterns, modernized
+aggregation metric dispatch to `switch`, and confirmed `pojo-lens` main sources
+already had zero `.collect(Collectors.toList())` usages. `FilterExecutionPlan`
+`OrderColumn` / `GroupColumn` were already records before WP11 started.
 
 **Context — confirmed candidates:**
 
@@ -322,22 +334,19 @@ the core engine internals.
    should become switch expressions.
 
 **Tasks:**
-- [ ] Convert `CompiledRule`, `NumericStats`, `GroupAccumulator`, `OrderColumn`,
-      `GroupColumn` to records. Validate compact constructor validation where null
-      checks are currently in the constructor body.
-- [ ] Seal `FilterAst` and its concrete subtypes in `sqllike/ast/`; update all
-      `instanceof` dispatch sites to use exhaustive `switch` expressions.
-- [ ] Seal `SelectFieldAst` and `OrderAst` similarly if their subtype sets are
-      fully known.
-- [ ] Replace `instanceof X x2` pattern with binding patterns throughout engine
-      internals (search for `instanceof` + subsequent cast on the same variable).
-- [ ] Replace `.collect(Collectors.toList())` with `.toList()` throughout
+- [x] Convert `CompiledRule`, `AggregationEngine.NumericStats`,
+      `AggregationEngine.GroupAccumulator`, and
+      `FastStatsQuerySupport.GroupAccumulator` to records.
+- [x] Seal `FilterExpressionAst` and update SQL-like and natural traversal code
+      to use pattern switches or binding patterns.
+- [x] Replace the remaining cast-after-`instanceof` sites in main sources and
+      keep explicit `null` handling where filter values may be absent.
+- [x] Replace aggregation metric dispatch chains with switch expressions.
+- [x] Confirm `.collect(Collectors.toList())` was already absent from
       `pojo-lens` main sources.
-- [ ] Replace multi-branch `if/else if` enum dispatches with switch expressions
-      where all branches are covered; remove unreachable `default` fallbacks.
-- [ ] Run full test suite to confirm no behavioural change.
-- [ ] Update `ai/core/agent-invariants.md` if any sealed hierarchy changes public
-      API shape (sealed interfaces on public types need careful compat review).
+- [x] Run the full reactor test suite to confirm no behavioural change.
+- [x] Record the sealed public AST compatibility caution in
+      `ai/core/agent-invariants.md`.
 
 **Validate:**
 - `mvn -B -ntp test`

@@ -133,58 +133,57 @@ public final class SqlLikePlanPreviewSupport {
 
     private static void collectFromExpression(FilterExpressionAst expression,
                                               List<PlanPreviewFilter> filters) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> filters.add(buildPreviewFilter(predicateAst.filter()));
+            case FilterBinaryAst binary -> {
+                collectFromExpression(binary.left(), filters);
+                collectFromExpression(binary.right(), filters);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            filters.add(buildPreviewFilter(predicateAst.filter()));
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectFromExpression(binary.left(), filters);
-        collectFromExpression(binary.right(), filters);
     }
 
     private static PlanPreviewPredicate buildPredicate(FilterExpressionAst expression) {
-        if (expression == null) {
-            return null;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return new PlanPreviewPredicate(buildPreviewFilter(predicateAst.filter()), null, List.of());
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new PlanPreviewPredicate(
-                null,
-                binary.operator().name(),
-                List.of(buildPredicate(binary.left()), buildPredicate(binary.right()))
-        );
+        return switch (expression) {
+            case null -> null;
+            case FilterPredicateAst predicateAst ->
+                    new PlanPreviewPredicate(buildPreviewFilter(predicateAst.filter()), null, List.of());
+            case FilterBinaryAst binary -> new PlanPreviewPredicate(
+                    null,
+                    binary.operator().name(),
+                    List.of(buildPredicate(binary.left()), buildPredicate(binary.right()))
+            );
+        };
     }
 
     private static PlanPreviewFilter buildPreviewFilter(FilterAst f) {
-        Object value = f.value();
-        String operator;
-        String valueKind;
-        String paramName = null;
-        SqlLikePlanPreview subqueryPreview = null;
-
-        if (value instanceof ExistsSubqueryValueAst existsAst) {
-            operator = existsAst.negated() ? "NOT EXISTS" : "EXISTS";
-            valueKind = "EXISTS_SUBQUERY";
-            subqueryPreview = buildFromAst(existsAst.query(), existsAst.source());
-        } else if (value instanceof SubqueryValueAst subqueryAst) {
-            operator = clauseOperator(f.clause());
-            valueKind = "SUBQUERY";
-            subqueryPreview = buildFromAst(subqueryAst.query(), subqueryAst.source());
-        } else if (value instanceof ParameterValueAst paramAst) {
-            operator = clauseOperator(f.clause());
-            valueKind = "PARAMETER";
-            paramName = paramAst.name();
-        } else {
-            operator = clauseOperator(f.clause());
-            valueKind = "LITERAL";
-        }
-
-        return new PlanPreviewFilter(f.field(), operator, valueKind, paramName, subqueryPreview);
+        return switch (f.value()) {
+            case null -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
+            case ExistsSubqueryValueAst existsAst -> new PlanPreviewFilter(
+                    f.field(),
+                    existsAst.negated() ? "NOT EXISTS" : "EXISTS",
+                    "EXISTS_SUBQUERY",
+                    null,
+                    buildFromAst(existsAst.query(), existsAst.source())
+            );
+            case SubqueryValueAst subqueryAst -> new PlanPreviewFilter(
+                    f.field(),
+                    clauseOperator(f.clause()),
+                    "SUBQUERY",
+                    null,
+                    buildFromAst(subqueryAst.query(), subqueryAst.source())
+            );
+            case ParameterValueAst paramAst -> new PlanPreviewFilter(
+                    f.field(),
+                    clauseOperator(f.clause()),
+                    "PARAMETER",
+                    paramAst.name(),
+                    null
+            );
+            default -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
+        };
     }
 
     private static String clauseOperator(Clauses clause) {

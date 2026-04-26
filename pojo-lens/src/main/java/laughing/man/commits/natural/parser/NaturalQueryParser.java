@@ -1448,19 +1448,21 @@ public final class NaturalQueryParser {
     private static void flattenInto(FilterExpressionAst expression,
                                     Separator separator,
                                     List<FilterAst> filters) {
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            filters.add(new FilterAst(
-                    filter.field(),
-                    filter.clause(),
-                    filter.value(),
-                    filters.isEmpty() ? null : separator
-            ));
-            return;
+        switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                filters.add(new FilterAst(
+                        filter.field(),
+                        filter.clause(),
+                        filter.value(),
+                        filters.isEmpty() ? null : separator
+                ));
+            }
+            case FilterBinaryAst binaryAst -> {
+                flattenInto(binaryAst.left(), separator, filters);
+                flattenInto(binaryAst.right(), binaryAst.operator(), filters);
+            }
         }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        flattenInto(binaryAst.left(), separator, filters);
-        flattenInto(binaryAst.right(), binaryAst.operator(), filters);
     }
 
     private static int lastIndexOfWord(List<Token> tokens, String value) {

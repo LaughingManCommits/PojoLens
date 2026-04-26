@@ -104,40 +104,38 @@ final class AggregationEngine {
     }
 
     private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
-        if (Metric.COUNT.equals(metric.metric())) {
-            return (long) (rows == null ? 0 : rows.size());
-        }
+        return switch (metric.metric()) {
+            case COUNT -> (long) (rows == null ? 0 : rows.size());
+            case SUM, AVG, MIN, MAX -> {
+                int fieldIndex = metric.fieldIndex();
+                if (fieldIndex < 0) {
+                    throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
+                }
 
-        int fieldIndex = metric.fieldIndex();
-        if (fieldIndex < 0) {
-            throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
-        }
-
-        NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
-        if (!stats.present) {
-            return null;
-        }
-
-        if (Metric.SUM.equals(metric.metric())) {
-            return stats.hasFraction ? stats.sum : (long) stats.sum;
-        }
-        if (Metric.AVG.equals(metric.metric())) {
-            return stats.sum / stats.count;
-        }
-        if (Metric.MIN.equals(metric.metric())) {
-            return stats.min;
-        }
-        if (Metric.MAX.equals(metric.metric())) {
-            return stats.max;
-        }
-
-        throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+                NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
+                if (!stats.present()) {
+                    yield null;
+                }
+                yield switch (metric.metric()) {
+                    case SUM -> stats.hasFraction() ? stats.sum() : (long) stats.sum();
+                    case AVG -> stats.sum() / stats.count();
+                    case MIN -> stats.min();
+                    case MAX -> stats.max();
+                    case COUNT -> throw new IllegalStateException("COUNT handled before numeric aggregation");
+                };
+            }
+        };
     }
 
     private NumericStats collectNumericStats(List<QueryRow> rows, int fieldIndex, FilterExecutionPlan.MetricPlan metric) {
-        NumericStats stats = new NumericStats();
+        boolean present = false;
+        int count = 0;
+        Number min = null;
+        Number max = null;
+        double sum = 0;
+        boolean hasFraction = false;
         if (rows == null) {
-            return stats;
+            return new NumericStats(false, 0, null, null, 0, false);
         }
         for (QueryRow row : rows) {
             if (row == null) {
@@ -153,25 +151,25 @@ final class AggregationEngine {
             }
             Number number = (Number) value;
             if (number instanceof Float || number instanceof Double) {
-                stats.hasFraction = true;
+                hasFraction = true;
             }
             double asDouble = number.doubleValue();
-            if (!stats.present) {
-                stats.min = number;
-                stats.max = number;
-                stats.present = true;
+            if (!present) {
+                min = number;
+                max = number;
+                present = true;
             } else {
-                if (asDouble < stats.min.doubleValue()) {
-                    stats.min = number;
+                if (asDouble < min.doubleValue()) {
+                    min = number;
                 }
-                if (asDouble > stats.max.doubleValue()) {
-                    stats.max = number;
+                if (asDouble > max.doubleValue()) {
+                    max = number;
                 }
             }
-            stats.count++;
-            stats.sum += asDouble;
+            count++;
+            sum += asDouble;
         }
-        return stats;
+        return new NumericStats(present, count, min, max, sum, hasFraction);
     }
 
     private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {
@@ -181,24 +179,15 @@ final class AggregationEngine {
         return TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
     }
 
-    private static final class NumericStats {
-        private boolean present;
-        private int count;
-        private Number min;
-        private Number max;
-        private double sum;
-        private boolean hasFraction;
+    private record NumericStats(boolean present, int count, Number min, Number max, double sum, boolean hasFraction) {
     }
 
-    private static final class GroupAccumulator {
-        private final Object[] groupValues;
-        private final MetricAccumulator[] metricAccumulators;
+    private record GroupAccumulator(Object[] groupValues, MetricAccumulator[] metricAccumulators) {
 
         private GroupAccumulator(Object[] sourceValues, int columnCount, List<FilterExecutionPlan.MetricPlan> metrics) {
-            this.groupValues = Arrays.copyOf(sourceValues, columnCount);
-            this.metricAccumulators = new MetricAccumulator[metrics.size()];
+            this(Arrays.copyOf(sourceValues, columnCount), new MetricAccumulator[metrics.size()]);
             for (int i = 0; i < metrics.size(); i++) {
-                this.metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
+                metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
             }
         }
 
@@ -223,7 +212,7 @@ final class AggregationEngine {
         }
 
         private void accumulate(QueryRow row) {
-            if (Metric.COUNT.equals(metric.metric())) {
+            if (metric.metric() == Metric.COUNT) {
                 count++;
                 return;
             }
@@ -263,25 +252,13 @@ final class AggregationEngine {
         }
 
         private Object result() {
-            if (Metric.COUNT.equals(metric.metric())) {
-                return count;
-            }
-            if (!present) {
-                return null;
-            }
-            if (Metric.SUM.equals(metric.metric())) {
-                return hasFraction ? sum : (long) sum;
-            }
-            if (Metric.AVG.equals(metric.metric())) {
-                return sum / count;
-            }
-            if (Metric.MIN.equals(metric.metric())) {
-                return min;
-            }
-            if (Metric.MAX.equals(metric.metric())) {
-                return max;
-            }
-            throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+            return switch (metric.metric()) {
+                case COUNT -> count;
+                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
+                case AVG -> present ? sum / count : null;
+                case MIN -> present ? min : null;
+                case MAX -> present ? max : null;
+            };
         }
     }
 }

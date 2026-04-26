@@ -202,14 +202,18 @@ final class FastPojoFilterSupport {
             CompiledRule[] rules = rulesByField.compiledRules()[i];
             for (CompiledRule rule : rules) {
                 boolean matched = ObjectUtil.compareObject(
-                        fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                if (Separator.AND.equals(rule.separator)) {
+                        fieldValue,
+                        rule.compareValue(),
+                        rule.clause(),
+                        rule.dateFormat()
+                );
+                if (Separator.AND.equals(rule.separator())) {
                     if (matched) {
                         andMatched = true;
                     } else {
                         andFailed = true;
                     }
-                } else if (Separator.OR.equals(rule.separator) && matched) {
+                } else if (Separator.OR.equals(rule.separator()) && matched) {
                     orMatched = true;
                 }
                 if (andFailed && orMatched) {

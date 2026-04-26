@@ -219,26 +219,32 @@ public final class SqlLikeDiagnosticsSupport {
     }
 
     private static void collectJoinSources(FilterExpressionAst expression, LinkedHashSet<String> sources) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> collectJoinSources(predicateAst.filter(), sources);
+            case FilterBinaryAst binary -> {
+                collectJoinSources(binary.left(), sources);
+                collectJoinSources(binary.right(), sources);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectJoinSources(predicateAst.filter(), sources);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectJoinSources(binary.left(), sources);
-        collectJoinSources(binary.right(), sources);
     }
 
     private static void collectJoinSources(FilterAst filter, LinkedHashSet<String> sources) {
-        Object value = filter.value();
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            addSubquerySource(sources, subqueryValueAst.query());
-            collectJoinSources(subqueryValueAst.query(), sources, true);
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            addSubquerySource(sources, existsSubqueryValueAst.query());
-            collectJoinSources(existsSubqueryValueAst.query(), sources, true);
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst -> {
+                addSubquerySource(sources, subqueryValueAst.query());
+                collectJoinSources(subqueryValueAst.query(), sources, true);
+            }
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                addSubquerySource(sources, existsSubqueryValueAst.query());
+                collectJoinSources(existsSubqueryValueAst.query(), sources, true);
+            }
+            default -> {
+            }
         }
     }
 
@@ -259,11 +265,7 @@ public final class SqlLikeDiagnosticsSupport {
 
     private static boolean hasSubqueries(List<FilterAst> filters) {
         for (FilterAst filter : filters) {
-            Object value = filter.value();
-            if (value instanceof SubqueryValueAst) {
-                return true;
-            }
-            if (value instanceof ExistsSubqueryValueAst) {
+            if (hasSubqueryValue(filter.value())) {
                 return true;
             }
         }
@@ -271,19 +273,15 @@ public final class SqlLikeDiagnosticsSupport {
     }
 
     private static boolean hasSubqueries(FilterExpressionAst expression) {
-        if (expression == null) {
-            return false;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return hasSubquery(predicateAst.filter());
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return hasSubqueries(binary.left()) || hasSubqueries(binary.right());
+        return switch (expression) {
+            case null -> false;
+            case FilterPredicateAst predicateAst -> hasSubquery(predicateAst.filter());
+            case FilterBinaryAst binary -> hasSubqueries(binary.left()) || hasSubqueries(binary.right());
+        };
     }
 
     private static boolean hasSubquery(FilterAst filter) {
-        Object value = filter.value();
-        return value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst;
+        return hasSubqueryValue(filter.value());
     }
 
     private static void collectFilterFields(List<FilterAst> filters, LinkedHashSet<String> fields) {
@@ -293,27 +291,30 @@ public final class SqlLikeDiagnosticsSupport {
     }
 
     private static void collectFilterExpressionFields(FilterExpressionAst expression, LinkedHashSet<String> fields) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> collectFilterField(predicateAst.filter(), fields);
+            case FilterBinaryAst binary -> {
+                collectFilterExpressionFields(binary.left(), fields);
+                collectFilterExpressionFields(binary.right(), fields);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectFilterField(predicateAst.filter(), fields);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectFilterExpressionFields(binary.left(), fields);
-        collectFilterExpressionFields(binary.right(), fields);
     }
 
     private static void collectFilterField(FilterAst filter, LinkedHashSet<String> fields) {
-        Object value = filter.value();
-        if (!(value instanceof ExistsSubqueryValueAst)) {
+        if (!isExistsSubqueryValue(filter.value())) {
             fields.add(filter.field());
         }
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            collectReferencedFields(subqueryValueAst.query(), fields);
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            collectReferencedFields(existsSubqueryValueAst.query(), fields);
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst -> collectReferencedFields(subqueryValueAst.query(), fields);
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    collectReferencedFields(existsSubqueryValueAst.query(), fields);
+            default -> {
+            }
         }
     }
 
@@ -358,27 +359,32 @@ public final class SqlLikeDiagnosticsSupport {
                                                             Map<String, List<?>> joinSources,
                                                             QueryExposurePolicy exposurePolicy,
                                                             List<QueryDiagnosticsError> errors) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst ->
+                    collectNestedMissingJoinSourceErrors(predicateAst.filter(), joinSources, exposurePolicy, errors);
+            case FilterBinaryAst binary -> {
+                collectNestedMissingJoinSourceErrors(binary.left(), joinSources, exposurePolicy, errors);
+                collectNestedMissingJoinSourceErrors(binary.right(), joinSources, exposurePolicy, errors);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectNestedMissingJoinSourceErrors(predicateAst.filter(), joinSources, exposurePolicy, errors);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectNestedMissingJoinSourceErrors(binary.left(), joinSources, exposurePolicy, errors);
-        collectNestedMissingJoinSourceErrors(binary.right(), joinSources, exposurePolicy, errors);
     }
 
     private static void collectNestedMissingJoinSourceErrors(FilterAst filter,
                                                             Map<String, List<?>> joinSources,
                                                             QueryExposurePolicy exposurePolicy,
                                                             List<QueryDiagnosticsError> errors) {
-        Object value = filter.value();
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            collectMissingJoinSourceErrors(subqueryValueAst.query(), joinSources, exposurePolicy, errors);
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            collectMissingJoinSourceErrors(existsSubqueryValueAst.query(), joinSources, exposurePolicy, errors);
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst ->
+                    collectMissingJoinSourceErrors(subqueryValueAst.query(), joinSources, exposurePolicy, errors);
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    collectMissingJoinSourceErrors(existsSubqueryValueAst.query(), joinSources, exposurePolicy, errors);
+            default -> {
+            }
         }
     }
 
@@ -443,19 +449,26 @@ public final class SqlLikeDiagnosticsSupport {
                                                        QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> collectUnknownWhereFieldErrors(
+                    predicateAst.filter(),
+                    sourceClass,
+                    joinSources,
+                    computedFieldRegistry,
+                    exposurePolicy,
+                    allowed,
+                    errors
+            );
+            case FilterBinaryAst binary -> {
+                collectUnknownWhereFieldErrors(binary.left(), sourceClass, joinSources, computedFieldRegistry,
+                        exposurePolicy, allowed, errors);
+                collectUnknownWhereFieldErrors(binary.right(), sourceClass, joinSources, computedFieldRegistry,
+                        exposurePolicy, allowed, errors);
+            }
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            collectUnknownWhereFieldErrors(predicateAst.filter(), sourceClass, joinSources, computedFieldRegistry,
-                    exposurePolicy, allowed, errors);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectUnknownWhereFieldErrors(binary.left(), sourceClass, joinSources, computedFieldRegistry,
-                exposurePolicy, allowed, errors);
-        collectUnknownWhereFieldErrors(binary.right(), sourceClass, joinSources, computedFieldRegistry,
-                exposurePolicy, allowed, errors);
     }
 
     private static void collectUnknownWhereFieldErrors(FilterAst filter,
@@ -465,40 +478,63 @@ public final class SqlLikeDiagnosticsSupport {
                                                        QueryExposurePolicy exposurePolicy,
                                                        Set<String> allowed,
                                                        List<QueryDiagnosticsError> errors) {
-        Object value = filter.value();
-        if (!(value instanceof ExistsSubqueryValueAst) && !fieldAllowed(allowed, filter.field())) {
+        if (!isExistsSubqueryValue(filter.value()) && !fieldAllowed(allowed, filter.field())) {
             addError(errors, new QueryDiagnosticsError(
                     SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
                     unknownWhereFieldMessage(filter.field(), allowed)
             ));
         }
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            Class<?> subquerySourceClass = subquerySourceClass(
-                    sourceName(subqueryValueAst.query()), sourceClass, joinSources
-            );
-            collectUnknownWhereFieldErrors(
-                    subqueryValueAst.query(),
-                    subquerySourceClass,
-                    joinSources,
-                    computedFieldRegistry,
-                    exposurePolicy,
-                    allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
-                    errors
-            );
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            Class<?> subquerySourceClass = subquerySourceClass(
-                    sourceName(existsSubqueryValueAst.query()), sourceClass, joinSources
-            );
-            collectUnknownWhereFieldErrors(
-                    existsSubqueryValueAst.query(),
-                    subquerySourceClass,
-                    joinSources,
-                    computedFieldRegistry,
-                    exposurePolicy,
-                    allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
-                    errors
-            );
+        switch (filter.value()) {
+            case null -> {
+            }
+            case SubqueryValueAst subqueryValueAst -> {
+                Class<?> subquerySourceClass = subquerySourceClass(
+                        sourceName(subqueryValueAst.query()), sourceClass, joinSources
+                );
+                collectUnknownWhereFieldErrors(
+                        subqueryValueAst.query(),
+                        subquerySourceClass,
+                        joinSources,
+                        computedFieldRegistry,
+                        exposurePolicy,
+                        allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
+                        errors
+                );
+            }
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                Class<?> subquerySourceClass = subquerySourceClass(
+                        sourceName(existsSubqueryValueAst.query()), sourceClass, joinSources
+                );
+                collectUnknownWhereFieldErrors(
+                        existsSubqueryValueAst.query(),
+                        subquerySourceClass,
+                        joinSources,
+                        computedFieldRegistry,
+                        exposurePolicy,
+                        allowedFieldNames(subquerySourceClass, computedFieldRegistry, exposurePolicy),
+                        errors
+                );
+            }
+            default -> {
+            }
         }
+    }
+
+    private static boolean hasSubqueryValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _ -> true;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isExistsSubqueryValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     private static LinkedHashSet<String> allowedFieldNames(Class<?> sourceClass,

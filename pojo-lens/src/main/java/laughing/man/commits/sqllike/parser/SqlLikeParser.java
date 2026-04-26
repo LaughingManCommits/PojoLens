@@ -779,14 +779,16 @@ public final class SqlLikeParser {
     }
 
     private void appendFlattened(FilterExpressionAst expression, Separator separator, List<FilterAst> out) {
-        if (expression instanceof FilterPredicateAst) {
-            FilterAst filter = ((FilterPredicateAst) expression).filter();
-            out.add(new FilterAst(filter.field(), filter.clause(), filter.value(), separator));
-            return;
+        switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                out.add(new FilterAst(filter.field(), filter.clause(), filter.value(), separator));
+            }
+            case FilterBinaryAst binary -> {
+                appendFlattened(binary.left(), separator, out);
+                appendFlattened(binary.right(), binary.operator(), out);
+            }
         }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        appendFlattened(binary.left(), separator, out);
-        appendFlattened(binary.right(), binary.operator(), out);
     }
 
     private String parseHavingReference() {

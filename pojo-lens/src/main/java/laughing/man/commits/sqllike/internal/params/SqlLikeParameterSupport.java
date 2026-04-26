@@ -129,25 +129,28 @@ public final class SqlLikeParameterSupport {
     }
 
     private static void collectParameterNames(FilterExpressionAst expression, Set<String> names) {
-        if (expression == null) {
-            return;
+        switch (expression) {
+            case null -> {
+                return;
+            }
+            case FilterPredicateAst predicateAst -> collectParameterNames(predicateAst.filter().value(), names);
+            case FilterBinaryAst binary -> {
+                collectParameterNames(binary.left(), names);
+                collectParameterNames(binary.right(), names);
+            }
         }
-        if (expression instanceof FilterPredicateAst) {
-            collectParameterNames(((FilterPredicateAst) expression).filter().value(), names);
-            return;
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        collectParameterNames(binary.left(), names);
-        collectParameterNames(binary.right(), names);
     }
 
     private static void collectParameterNames(Object value, Set<String> names) {
-        if (value instanceof ParameterValueAst) {
-            names.add(((ParameterValueAst) value).name());
-        } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-            names.addAll(collectParameterNamesInternal(subqueryValueAst.query()));
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            names.addAll(collectParameterNamesInternal(existsSubqueryValueAst.query()));
+        switch (value) {
+            case null -> {
+            }
+            case ParameterValueAst parameterValueAst -> names.add(parameterValueAst.name());
+            case SubqueryValueAst subqueryValueAst -> names.addAll(collectParameterNamesInternal(subqueryValueAst.query()));
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    names.addAll(collectParameterNamesInternal(existsSubqueryValueAst.query()));
+            default -> {
+            }
         }
     }
 
@@ -160,41 +163,40 @@ public final class SqlLikeParameterSupport {
     }
 
     private static FilterExpressionAst resolveExpression(FilterExpressionAst expression, Map<String, Object> parameters) {
-        if (expression == null) {
-            return null;
-        }
-        if (expression instanceof FilterPredicateAst) {
-            return new FilterPredicateAst(resolveFilter(((FilterPredicateAst) expression).filter(), parameters));
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                resolveExpression(binary.left(), parameters),
-                resolveExpression(binary.right(), parameters),
-                binary.operator()
-        );
+        return switch (expression) {
+            case null -> null;
+            case FilterPredicateAst predicateAst ->
+                    new FilterPredicateAst(resolveFilter(predicateAst.filter(), parameters));
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    resolveExpression(binary.left(), parameters),
+                    resolveExpression(binary.right(), parameters),
+                    binary.operator()
+            );
+        };
     }
 
     private static FilterAst resolveFilter(FilterAst filter, Map<String, Object> parameters) {
-        Object value = filter.value();
-        if (value instanceof ParameterValueAst) {
-            String name = ((ParameterValueAst) value).name();
-            if (!parameters.containsKey(name)) {
-                throw parameter(SqlLikeErrorCodes.PARAM_MISSING,
-                        "Missing SQL-like parameter(s): [" + name + "]");
+        Object value = switch (filter.value()) {
+            case null -> null;
+            case ParameterValueAst parameterValueAst -> {
+                String name = parameterValueAst.name();
+                if (!parameters.containsKey(name)) {
+                    throw parameter(SqlLikeErrorCodes.PARAM_MISSING,
+                            "Missing SQL-like parameter(s): [" + name + "]");
+                }
+                yield new BoundParameterValue(name, parameters.get(name));
             }
-            value = new BoundParameterValue(name, parameters.get(name));
-        } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-            value = new SubqueryValueAst(
+            case SubqueryValueAst subqueryValueAst -> new SubqueryValueAst(
                     subqueryValueAst.source(),
                     bind(subqueryValueAst.query(), parameters)
             );
-        } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            value = new ExistsSubqueryValueAst(
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> new ExistsSubqueryValueAst(
                     existsSubqueryValueAst.source(),
                     bind(existsSubqueryValueAst.query(), parameters),
                     existsSubqueryValueAst.negated()
             );
-        }
+            default -> filter.value();
+        };
         return new FilterAst(filter.field(), filter.clause(), value, filter.separator());
     }
 

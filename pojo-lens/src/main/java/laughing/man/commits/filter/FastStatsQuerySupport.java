@@ -329,25 +329,14 @@ public final class FastStatsQuerySupport {
         }
     }
 
-    private static final class GroupAccumulator {
-        private final Object[] groupProjection;
-        private final MetricAccumulator[] metricAccumulators;
+    private record GroupAccumulator(Object[] groupProjection, MetricAccumulator[] metricAccumulators) {
 
         private GroupAccumulator(Object[] groupProjection, List<FilterExecutionPlan.MetricPlan> metricPlans) {
-            this.groupProjection = groupProjection;
-            this.metricAccumulators = FastStatsQuerySupport.metricAccumulators(metricPlans);
+            this(groupProjection, FastStatsQuerySupport.metricAccumulators(metricPlans));
         }
 
         private void accumulate(Object[] rowValues) {
             FastStatsQuerySupport.accumulate(metricAccumulators, rowValues);
-        }
-
-        private Object[] groupProjection() {
-            return groupProjection;
-        }
-
-        private MetricAccumulator[] metricAccumulators() {
-            return metricAccumulators;
         }
     }
 
@@ -367,7 +356,7 @@ public final class FastStatsQuerySupport {
         }
 
         private void accumulate(Object[] rowValues) {
-            if (Metric.COUNT.equals(metric.metric())) {
+            if (metric.metric() == Metric.COUNT) {
                 count++;
                 return;
             }
@@ -406,25 +395,13 @@ public final class FastStatsQuerySupport {
         }
 
         private Object result() {
-            if (Metric.COUNT.equals(metric.metric())) {
-                return count;
-            }
-            if (!present) {
-                return null;
-            }
-            if (Metric.SUM.equals(metric.metric())) {
-                return hasFraction ? sum : (long) sum;
-            }
-            if (Metric.AVG.equals(metric.metric())) {
-                return sum / count;
-            }
-            if (Metric.MIN.equals(metric.metric())) {
-                return min;
-            }
-            if (Metric.MAX.equals(metric.metric())) {
-                return max;
-            }
-            throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+            return switch (metric.metric()) {
+                case COUNT -> count;
+                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
+                case AVG -> present ? sum / count : null;
+                case MIN -> present ? min : null;
+                case MAX -> present ? max : null;
+            };
         }
     }
 }
