@@ -36,6 +36,10 @@ wiring.
 | WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
 | WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
 | Release Gate | Release Gate                         | Pending  | Scope decisions made; lint baseline refreshed; blocked by chart parity               |
+| WP15| JDK 25 JFR Chart-Parity Profiling          | Pending  | CPU-time + method tracing for `SCATTER size=100000`; hotspot diagnosis + rerun      |
+| WP16| Virtual-Thread Boundary Evaluation         | Pending  | Opt-in Spring/JDBC boundary spike; cancellation and pinning audit                    |
+| WP17| Internal Java 25 Cleanup Pass              | Pending  | Non-preview utility/cursor dispatch cleanup; full regression rerun                   |
+| WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
 
 ---
 
@@ -54,9 +58,9 @@ wiring.
   expressions reach Caffeine; WP14 now restores deterministic
   `IllegalArgumentException("Expression must not be blank")` behavior before
   cache access.
-- Review snapshot was `1037/1037`; after WP11-WP14 the suite is `1043/1043`,
-  and the remaining release work is chart parity, release notes, and final
-  guardrails.
+- Review snapshot was `1037/1037`; after WP11-WP14 and the later follow-up
+  additions the full reactor is now `1066/1066`, and the remaining release
+  work is chart parity and final guardrails.
 
 ---
 
@@ -475,13 +479,13 @@ performance work is backed by the final guardrails.
   next release cut. Existing strict core/chart guardrails already cover the
   shipped performance surface, and adding new benchmark suites or threshold
   entries would expand scope while the release gate is blocked elsewhere.
-- Defer WP11 until after the release cut. The Java 25 modernization work is
-  maintainability-focused and should not be mixed into a release currently
-  blocked by validation issues.
+- WP11 landed before the release cut on `2026-04-26`, and the Java 25
+  maintainability scope validated green before the release gate returned to the
+  remaining chart-parity blocker.
 
 **Current blockers (2026-04-26):**
 - The Checkstyle baseline was refreshed to the current report
-  (`18328` entries), and the lint baseline gate now passes.
+  (`18313` entries), and the lint baseline gate now passes.
 - Core and chart threshold checks passed, but chart parity still fails at
   `SCATTER size=100000` with SQL-like/fluent ratio `2.411 > 1.750`.
 - Local benchmark commands must use `$env:JAVA_HOME\\bin\\java.exe`; the shell
@@ -492,3 +496,152 @@ performance work is backed by the final guardrails.
 - `mvn -B -ntp -Plint verify -DskipTests`
 - `scripts/check-doc-consistency.ps1`
 - Release benchmark guardrails from `docs/benchmarking.md`.
+
+---
+
+## WP15: JDK 25 JFR Chart-Parity Profiling
+
+**Priority:** High Performance / Diagnostics
+**Goal:** Use JDK 25 JFR profiling features to explain and reduce the remaining
+`SCATTER size=100000` SQL-like/fluent parity gap before broader runtime tuning.
+
+**Context:**
+- The Release Gate is blocked by chart parity for `SCATTER size=100000`
+  (`2.411 > 1.750`).
+- The remaining hotspot is in an in-memory CPU-bound path, so better profiling
+  is a stronger fit than concurrency-model changes.
+- JDK 25 adds `jdk.CPUTimeSample`, cooperative sampling, and method timing /
+  tracing that can quantify exact hot methods without repo-local probe code.
+- Earlier scatter follow-up profiling already pointed at `ChartMapper`,
+  `ReflectionUtil`, and chart-series accumulation as the likely cost centers;
+  this package should turn that clue into an actionable fix or rebaseline
+  decision.
+
+**Tasks:**
+- [ ] Capture JDK 25 CPU-time profiles for
+      `fluentScatterMapping`, `sqlLikeScatterMapping`, and
+      `sqlLikeBoundScatterMapping` at `size=100000` using
+      `$env:JAVA_HOME\\bin\\java.exe`.
+- [ ] Capture targeted `jdk.MethodTiming` / `jdk.MethodTrace` data for the
+      hottest `ChartMapper`, `ReflectionUtil`, and accumulator methods to
+      measure exact per-invocation cost.
+- [ ] Attribute the SQL-like/fluent delta to a small set of buckets:
+      reflection, row materialization, cursor decoding, and chart series
+      accumulation.
+- [ ] Implement the smallest hot-path change that materially improves parity,
+      or document why the remaining gap should be rebaselined instead.
+- [ ] Record a repeatable JFR profiling recipe in `docs/benchmarking.md` so the
+      next parity investigation does not start from scratch.
+
+**Validate:**
+- `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- `java -cp target/*-benchmarks.jar laughing.man.commits.benchmark.ChartParityChecker ...`
+- Strict chart guardrails from `docs/benchmarking.md`
+
+---
+
+## WP16: Virtual-Thread Boundary Evaluation
+
+**Priority:** Moderate Integration Scalability
+**Goal:** Evaluate virtual threads at the blocking Spring/JDBC boundary without
+changing the core PojoLens execution model.
+
+**Context:**
+- The core `pojo-lens` engine is primarily in-memory and CPU-bound, so virtual
+  threads are unlikely to improve its throughput directly.
+- The blocking boundaries live in the Spring example applications and JDBC
+  bridge helpers, especially controller -> service -> `JdbcTemplate` paths.
+- `QueryCancellationToken.ofThread(...)` ties cancellation to thread interrupt
+  state and should be verified under any virtual-thread request model.
+- JDK guidance warns about blocking while pinned inside `synchronized` or native
+  regions; the current cache locks are short in-memory sections, but the
+  boundary audit should confirm no long-lived I/O is guarded that way.
+
+**Tasks:**
+- [ ] Add an opt-in virtual-thread runtime toggle or profile for the Spring
+      example apps, keeping the default execution model unchanged.
+- [ ] Run starter/example smoke coverage under the virtual-thread mode and
+      confirm request handling stays functionally identical.
+- [ ] Verify `QueryCancellationToken.ofThread(...)` still behaves correctly for
+      request-scoped cancellation and document any limitations.
+- [ ] Audit repository/service code for pinning risk around blocking JDBC/HTTP
+      calls and document any lock-scope changes that would be required before a
+      wider rollout.
+- [ ] Document the recommendation explicitly: virtual threads are a boundary
+      integration option, not a core-query-engine performance feature.
+
+**Validate:**
+- `mvn -B -ntp -f examples\\spring-boot-starter-basic\\pom.xml test`
+- `mvn -B -ntp -f examples\\spring-boot-starter-quickstart\\pom.xml test`
+- `mvn -B -ntp -pl pojo-lens-spring-boot-starter test`
+- `scripts/check-doc-consistency.ps1`
+
+---
+
+## WP17: Internal Java 25 Cleanup Pass
+
+**Priority:** Moderate Maintainability
+**Goal:** Finish the non-preview Java 25 cleanup in internal utility and cursor
+code using finalized language features only.
+
+**Context:**
+- WP11 handled the main AST and carrier modernization, but several internal
+  utility classes still contain readable-but-repetitive type-dispatch chains.
+- Remaining candidates include `ObjectUtil`, `SqlLikeCursor`,
+  `TimeBucketUtil`, `ChartValidation`, `ChartResultMapper`,
+  `ReportComparisons`, and selected `FilterQueryBuilder` helpers.
+- This package should stay away from preview features and from public API-shape
+  changes; the value is cleaner internal dispatch, not compatibility churn.
+
+**Tasks:**
+- [ ] Audit the remaining main-source cast-after-`instanceof` and manual
+      type-dispatch sites in internal utility/cursor code.
+- [ ] Convert only the clearly improved sites to binding patterns or switch
+      expressions; leave code untouched where the newer form is not clearer.
+- [ ] Keep public contract types and stable surface classes structurally
+      unchanged unless a separate compatibility review justifies it.
+- [ ] Add or refresh targeted tests for cursor encoding, chart validation,
+      numeric comparison coercion, and time-bucket conversion where dispatch
+      logic changes.
+- [ ] Re-run the full reactor to confirm this remains a pure maintainability
+      cleanup.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeCursorTest,ChartResultMapper*Test,ChartValidation*Test,TimeBucket*Test,*Comparison*Test" test`
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+
+---
+
+## WP18: JDK 25 Runtime Knob Evaluation
+
+**Priority:** Experimental Runtime Performance
+**Goal:** Measure JDK 25 runtime features as deployment guidance rather than as
+mandatory code changes.
+
+**Context:**
+- JDK 25 ships productized runtime features such as compact object headers and
+  generational Shenandoah, plus simpler AOT cache creation and method-profile
+  reuse.
+- These knobs can improve startup, footprint, or GC behavior without changing
+  PojoLens source code, but they need repo-local data before they become
+  guidance.
+- The benchmark module and Spring examples provide a reasonable place to gather
+  comparative startup and throughput numbers.
+
+**Tasks:**
+- [ ] Define a small runtime matrix covering default JVM settings, compact
+      object headers, generational Shenandoah, and AOT cache startup for the
+      benchmark runner and one Spring example app.
+- [ ] Execute the matrix with `$env:JAVA_HOME\\bin\\java.exe` and capture
+      startup time, heap footprint, and relevant throughput/parity outputs.
+- [ ] Decide which knobs are worth documenting in `docs/benchmarking.md` or
+      release guidance, and which should remain experimental notes only.
+- [ ] Keep all runtime-feature guidance explicitly optional until the data is
+      stable across multiple runs and environments.
+- [ ] Document platform or tooling assumptions so reruns do not depend on
+      unstated local setup.
+
+**Validate:**
+- `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- `scripts/check-doc-consistency.ps1`

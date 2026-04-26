@@ -11,6 +11,7 @@
 - `2026-04-26`: Release Gate is blocked only by chart parity failure for `SCATTER size=100000`.
 - `2026-04-26`: WP6/WP8/WP9 benchmark-backfill tasks remain deferred until after the release cut.
 - `2026-04-26`: WP11-WP14 are complete.
+- `2026-04-26`: `TODO.md` now includes post-release WP15-WP18 for JDK 25 profiling, virtual-thread boundary evaluation, internal cleanup, and runtime tuning.
 - `2026-04-25`: Java 25 upgrade is complete across the Maven build and CI workflows.
 
 ## Facts

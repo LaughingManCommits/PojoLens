@@ -10,6 +10,7 @@
 - `2026-04-26`: Release Gate is now blocked only by chart parity failure for `SCATTER size=100000`.
 - `2026-04-26`: Defer the unimplemented WP6/WP8/WP9 benchmark-backfill tasks until after the next release cut.
 - `2026-04-26`: WP11-WP14 are complete and green.
+- `2026-04-26`: `TODO.md` now queues follow-up WP15-WP18 for JDK 25 profiling, virtual-thread boundary evaluation, internal cleanup, and runtime-knob measurement.
 - `2026-04-25`: Java 25 upgrade is complete across the Maven build and CI workflows.
 
 ## Verified
@@ -36,4 +37,5 @@
 ## Next
 
 - Investigate or rebaseline the `SCATTER size=100000` parity failure, then rerun the chart parity gate.
+- After the release cut, work the new Java 25 follow-up backlog in WP15-WP18.
 - Re-run the remaining release guardrails after both blockers clear.

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-26T09:14:57.415463+02:00",
+  "generatedAt": "2026-04-26T09:41:48.081937+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "29eb34ede739ba192fcafc313ca29ab50efbb2468e69dc3aa8846a34fbec90f7",
+      "inputHash": "6de84f814e8998cd19cb86cdc1d1a6640b35b0e13341aa909109119e0cbd35f4",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -24,9 +24,9 @@
         "ai/orchestrator/README.md": "bf429de83c0d4fb2f5f5ae353aa550f7c922def1e3db137624937fa5e6b75a8e",
         "ai/orchestrator/SYSTEM-SPEC.md": "8afde18e946c5393744b13a5b47bfa61587c01f5e448129238592d8df7683251",
         "ai/state/benchmark-state.md": "051bdffd524c14dbe4ab2f4cbe4d48c942e0a3d2ba135d705f065031ae87def4",
-        "ai/state/current-state.md": "70f9ba91d590e0558d14cbbf96f00fd063ef7ff0abd0ec59f6a6cac4cad39b1e",
-        "ai/state/handoff.md": "070c5f7766401540762aec59c73da5732e44f01bb8e952592b1d40336ee3af2d",
-        "ai/state/recent-validations.md": "8a0cf400908b2c0c314aff50c13ab43e07115b70f0305ccc44a0f0a09d5900b7",
+        "ai/state/current-state.md": "fd93addc884cbb33d6d5addbd6d72ed0003962bab681f6ad0bd2e4a82dd63b6d",
+        "ai/state/handoff.md": "efc16ad73cab05de4fe1cde49191daaf7d869dfae75abb1cda1870dbace09ede",
+        "ai/state/recent-validations.md": "f0e820eb8f06a2c5deb212069021313abc0f1ffeaa514cbdf63b33d32831d75f",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "0c53b08c3483d2f30018a42e24bf54d83bb12568c62c8718c83c02bb1f84e5fd",
         "docs/benchmarking.md": "dc97c54787be2f06a4148159c712c97dd0664b651b7d6898937838c42793b79a",
@@ -60,12 +60,12 @@
         "README.md": "2d06368850eab03d9cb802689c0181f76079dca673382b7089ce1820fe6aa0b7",
         "RELEASE.md": "bcece30ee778938a985d71c63e25fdeb1da5060d5a35fe21942a75ec39583dff",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "76939ef61706844931c44a4e93f86434c9e87833da6c051986a00b75daa4fe1c"
+        "TODO.md": "24d383bd890773953852ea255e3930549d9f63003fe72e949e13f34caae36267"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "b9caeb872d83a6c4bd21e4ac43f29ac0119442e9d1093cd6f94d4ef7f5e2ea23",
+      "inputHash": "54508c7e39cc5ecc5c0b0587be2ef8dd308e226e6355fc4cf8935fef2441126a",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -91,9 +91,9 @@
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
         "ai/state/benchmark-state.md": "051bdffd524c14dbe4ab2f4cbe4d48c942e0a3d2ba135d705f065031ae87def4",
-        "ai/state/current-state.md": "70f9ba91d590e0558d14cbbf96f00fd063ef7ff0abd0ec59f6a6cac4cad39b1e",
-        "ai/state/handoff.md": "070c5f7766401540762aec59c73da5732e44f01bb8e952592b1d40336ee3af2d",
-        "ai/state/recent-validations.md": "8a0cf400908b2c0c314aff50c13ab43e07115b70f0305ccc44a0f0a09d5900b7",
+        "ai/state/current-state.md": "fd93addc884cbb33d6d5addbd6d72ed0003962bab681f6ad0bd2e4a82dd63b6d",
+        "ai/state/handoff.md": "efc16ad73cab05de4fe1cde49191daaf7d869dfae75abb1cda1870dbace09ede",
+        "ai/state/recent-validations.md": "f0e820eb8f06a2c5deb212069021313abc0f1ffeaa514cbdf63b33d32831d75f",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "0c53b08c3483d2f30018a42e24bf54d83bb12568c62c8718c83c02bb1f84e5fd",
         "docs/benchmarking.md": "dc97c54787be2f06a4148159c712c97dd0664b651b7d6898937838c42793b79a",
@@ -521,7 +521,7 @@
         "scripts/claude-orchestrator.py": "accfc854745c3cfd9667f48a2ba35f88ef4394302f6b3c7832a471a371a24314",
         "scripts/refresh-ai-memory.ps1": "3ac853f1e5e0e2fd29a2b1fe3d5883610e5c35da9dc1187e31b1c088fda129d9",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "76939ef61706844931c44a4e93f86434c9e87833da6c051986a00b75daa4fe1c"
+        "TODO.md": "24d383bd890773953852ea255e3930549d9f63003fe72e949e13f34caae36267"
       }
     },
     "symbols": {
