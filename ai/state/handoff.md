@@ -4,28 +4,28 @@
 
 1. Load hot context files.
 2. Check `git status --short`.
-3. WP6+WP7+WP8 done — release gate: draft release notes, run `scripts/check-doc-consistency.ps1`, run `mvn -B -ntp test`, then cut release.
+3. Fix WP12, WP13, and WP14 from the WP6-WP10 review, then run `scripts/check-doc-consistency.ps1`, `mvn -B -ntp test`, and the release guardrails.
 
 ## Focus
 
-- `2026-04-25`: Java 25 upgrade complete — `maven.compiler.release=25`, CI matrix `[25]`, all workflows updated.
-- `2026-04-25`: Full pojo-lens scan (208 files). Six new performance/quality WPs in TODO.md (WP6–WP11).
-- `2026-04-24`: Core helpers, docs continuity, risk-console tab nav all shipped.
+- `2026-04-26`: Reviewed WP6-WP10 implementation; TODO now tracks WP12-WP14 for mixed-schema QueryRow alias projection, stats-plan-cache reset semantics, and SqlExpressionEvaluator null/blank validation.
+- `2026-04-25`: Java 25 upgrade complete; `maven.compiler.release=25`, CI matrix `[25]`, and workflow Java versions are aligned.
+- `2026-04-25`: Full pojo-lens scan (208 files) produced the WP6-WP11 performance/quality backlog.
+- `2026-04-24`: Core helpers, docs continuity, and risk-console tab-navigation work all shipped.
 
 ## Facts
 
-- `2026-04-25`: Critical finding: `SqlExpressionEvaluator` lines 20–33 uses `Collections.synchronizedMap(LinkedHashMap)` as LRU for token and compiled-expression caches — global lock on hot per-row path.
-- `2026-04-25`: `ReflectionUtil` lines 37–45: 9 unbounded global `ConcurrentHashMap` caches, no eviction, no size limit.
-- `2026-04-25`: `FilterExecutionPlanCacheStore.rebuildCache()` lines 169–175: `cache = newCache()` before `putAll()` creates transient empty cache visible to concurrent readers.
-- `2026-04-25`: `QueryFieldLookupUtil.findFieldIndex()` is O(n) linear scan called per-row from join/group/aggregation hot paths.
-- `2026-04-24`: `PojoLensJdbc` wraps `JdbcTemplate` + `SqlLikeResultSetAdapter` in `pojo-lens-spring-boot-autoconfigure`.
+- `2026-04-26`: `SqlLikeExecutionSupport.projectAliasedQueryRows()` reuses first-row field indexes across all `QueryRow`s; mixed-order rows can return wrong aliased values (WP12).
+- `2026-04-26`: `FilterExecutionPlanCacheStore.resetStats()` still repopulates entries via `rebuildCache()`; the next identical query hits instead of missing (WP13).
+- `2026-04-26`: `SqlExpressionEvaluator.compileNumeric(null)` now throws `NullPointerException` via Caffeine; restore the validation contract in WP14.
+- `2026-04-26`: Full core suite still passes (`mvn -B -ntp -pl pojo-lens test`, 1037/1037), so these regressions need targeted coverage.
 
 ## Validate
 
 - After code changes: `mvn -B -ntp test`.
 - After docs/process changes: `scripts/check-doc-consistency.ps1`.
 - After AI memory changes: `scripts/refresh-ai-memory.ps1`, then `-Check`.
-- Last validation: `2026-04-24` core 1036 green; risk-console 36 green.
+- Last validation: `2026-04-26` core `mvn -B -ntp -pl pojo-lens test` passed at 1037/1037; `2026-04-24` risk-console example tests passed at 36/36.
 
 ## Cold Pointers
 

@@ -30,9 +30,29 @@ wiring.
 | WP7 | Reflection Cache Bounds & Safety            | Done     | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
 | WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
 | WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
-| WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; resetStats() separated; concurrent test added            |
+| WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; concurrent test added; reset semantics follow-up in WP13 |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
-| —   | Release Gate                                | Pending  | WP6–WP8 complete; release notes; final guardrails                                    |
+| WP12| QueryRow Alias Projection Schema Safety     | Pending  | Restore name-based correctness for heterogeneous QueryRow alias projection           |
+| WP13| Stats Plan Cache Reset Semantics            | Pending  | `resetStats()` must drop entries and force the next identical query to miss         |
+| WP14| Expression Evaluator Input Validation Contract | Pending | Restore null/blank validation before Caffeine cache access                           |
+| Release Gate | Release Gate                         | Pending  | Fix WP12-WP14 regressions; release notes; final guardrails                          |
+
+---
+
+## Review Findings (2026-04-26)
+
+- WP6-WP10 review found three correctness regressions that are not covered by the
+  current green suite.
+- `SqlLikeExecutionSupport.projectAliasedRows(...)` now reuses the first
+  `QueryRow` schema across all rows; mixed field order can return wrong aliased
+  values.
+- `FilterExecutionPlanCacheStore.resetStats()` still preserves entries; the next
+  identical stats query records a hit instead of the expected miss.
+- `SqlExpressionEvaluator.compileNumeric(null)` now throws
+  `NullPointerException` via Caffeine rather than the previous validation error
+  contract. The same regression affects the other expression-entry helpers.
+- `mvn -B -ntp -pl pojo-lens test` still passes at `1037/1037`, so targeted
+  regression coverage must land before release.
 
 ---
 
@@ -322,19 +342,118 @@ the core engine internals.
 
 ---
 
+## WP12: QueryRow Alias Projection Schema Safety
+
+**Priority:** High Correctness
+**Goal:** Restore correct aliased projection for `QueryRow` sources even when
+row-local field order differs between rows.
+
+**Context:**
+- `SqlLikeExecutionSupport.projectAliasedQueryRows()` now builds one
+  `Map<String,Integer>` from the first `QueryRow` and reuses those indexes for
+  every later row.
+- `resolveIndexedQueryRowValues()` then reads later rows with `row.getValueAt(idx)`
+  based on the first row's field order rather than the current row's field name.
+- Review repro: first row `[a=1,b=2]`, second row `[b=20,a=10]`, `select a,b`
+  returns `20,10` for the second row instead of `10,20`.
+- Previous behavior used per-row name lookup and stayed correct for
+  heterogeneous `QueryRow` schemas.
+
+**Tasks:**
+- [ ] Redesign `projectAliasedQueryRows()` so correctness does not depend on the
+      first row's field order.
+- [ ] Keep a fast path only when schema uniformity is proven per row or
+      normalized up front.
+- [ ] Add a regression test covering same-field/different-order `QueryRow`
+      inputs for aliased projection.
+- [ ] Add a regression test covering computed-field identifier resolution over
+      heterogeneous `QueryRow` field order.
+- [ ] Re-run row-projection and SQL-like alias coverage after the fix.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeAliasTest,SqlLikeMappingParityTest,SqlLikeQueryContractTest" test`
+- `mvn -B -ntp test`
+
+---
+
+## WP13: Stats Plan Cache Reset Semantics
+
+**Priority:** Moderate Correctness
+**Goal:** Make `FilterExecutionPlanCacheStore.resetStats()` a true fresh-start
+operation that clears counters and cached entries.
+
+**Context:**
+- `FilterExecutionPlanCacheStore.resetStats()` still delegates to
+  `rebuildCache()`.
+- `rebuildCache()` now uses the safe atomic-swap pattern, but it still copies
+  `cache.asMap()` into the new cache before the swap.
+- Review repro: cache size remains `1` immediately after `resetStats()`, and
+  the next identical stats query records a hit instead of a miss.
+- TODO and AI state already claimed fresh-start semantics, so the backlog and
+  memory now overstate the implementation.
+
+**Tasks:**
+- [ ] Split `resetStats()` from `rebuildCache()` with a direct `cache = newCache()`
+      under `mutationLock`, without copying existing entries.
+- [ ] Add a regression test asserting `size()==0` immediately after
+      `resetStats()`.
+- [ ] Add a regression test asserting the next identical stats query records a
+      miss, not a hit, after `resetStats()`.
+- [ ] Cover the runtime/public cache controls that expose stats-plan-cache reset
+      semantics.
+- [ ] Reconcile TODO and AI notes once the implementation matches the contract.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=CachePolicyConfigTest,CacheConcurrencyTest,PublicApiCacheCoverageTest" test`
+- `mvn -B -ntp test`
+
+---
+
+## WP14: Expression Evaluator Input Validation Contract
+
+**Priority:** Moderate Correctness / API Consistency
+**Goal:** Restore deterministic null/blank expression validation in
+`SqlExpressionEvaluator` before any Caffeine cache lookup.
+
+**Context:**
+- `compileNumeric()` and `tokensFor()` now call `Cache.get(...)` directly.
+- Caffeine rejects null keys with `NullPointerException`.
+- Review repro: `compileNumeric(null)` now throws `NullPointerException`
+  instead of the previous validation-oriented `IllegalArgumentException`.
+- The same regression affects `collectIdentifiers(...)`,
+  `rewriteIdentifiers(...)`, and `evaluateNumeric(...)`.
+
+**Tasks:**
+- [ ] Validate null/blank expressions before any cache access in all public
+      `SqlExpressionEvaluator` entry points.
+- [ ] Preserve one consistent exception type/message for null and blank
+      expression inputs.
+- [ ] Add regression tests for `compileNumeric`, `collectIdentifiers`,
+      `rewriteIdentifiers`, and `evaluateNumeric`.
+- [ ] Confirm the Caffeine caches remain in the hot path after the front-door
+      validation.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlExpressionEvaluatorTest" test`
+- `mvn -B -ntp test`
+
+---
+
 ## Release Gate
 
 **Priority:** High
-**Goal:** Cut the next release after the critical and high-priority performance
-work packages land.
+**Goal:** Cut the next release after the WP6-WP10 review follow-ups land and the
+performance work is backed by the final guardrails.
 
 **Tasks:**
-- [ ] Complete WP6 (expression cache contention fix).
-- [ ] Complete WP7 (reflection cache bounds).
-- [ ] Complete WP8 (field index pre-computation).
-- [ ] Decide whether WP9 and WP10 land before or after the release cut.
-- [ ] Update release notes focusing on the Java 25 upgrade and performance
-      improvements (not just API delta).
+- [ ] Complete WP12 (QueryRow alias projection schema safety).
+- [ ] Complete WP13 (stats plan cache reset semantics).
+- [ ] Complete WP14 (expression evaluator input validation contract).
+- [ ] Decide whether to backfill the missing WP6/WP8/WP9 JMH + threshold work
+      before the release cut.
+- [ ] Decide whether WP11 lands before or after the release cut.
+- [ ] Update release notes focusing on the Java 25 upgrade, the performance
+      work, and the post-review correctness fixes.
 - [ ] Run final release guardrails from `RELEASE.md`.
 - [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after release.
 
