@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ReportComparisonsTest {
@@ -14,6 +15,14 @@ public class ReportComparisonsTest {
         public double amount;
 
         SaleRow(double amount) {
+            this.amount = amount;
+        }
+    }
+
+    static class LabelRow {
+        public String amount;
+
+        LabelRow(String amount) {
             this.amount = amount;
         }
     }
@@ -85,6 +94,14 @@ public class ReportComparisonsTest {
 
         assertEquals(150d, c.currentValue());
         assertEquals(300d, c.previousValue());
+    }
+
+    @Test
+    void compareShouldRejectNonNumericFields() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> ReportComparisons.compare(List.of(new LabelRow("high")), List.of(), "amount", Metric.SUM));
+
+        assertTrue(ex.getMessage().contains("is not numeric"));
     }
 
     @Test

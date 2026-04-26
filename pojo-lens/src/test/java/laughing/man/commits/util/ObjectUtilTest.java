@@ -73,6 +73,13 @@ class ObjectUtilTest {
     }
 
     @Test
+    void compareObjectShouldCoerceNumericStringsForScalarComparisons() {
+        assertTrue(ObjectUtil.compareObject(42, "42.0", Clauses.EQUAL, null));
+        assertTrue(ObjectUtil.compareObject(42L, "41.0", Clauses.BIGGER, null));
+        assertFalse(ObjectUtil.compareObject(42, "forty-two", Clauses.EQUAL, null));
+    }
+
+    @Test
     void castValueShouldHandleNullTargetType() {
         assertNull(ObjectUtil.castValue("123", null));
     }

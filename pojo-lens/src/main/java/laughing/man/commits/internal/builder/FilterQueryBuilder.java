@@ -236,8 +236,7 @@ public class FilterQueryBuilder implements QueryBuilder {
             addJoinRows(parentField, new ArrayList<>(), childField, joinMethod);
             return this;
         }
-        Object first = CollectionUtil.firstNonNull(children);
-        if (first instanceof QueryRow) {
+        if (usesQueryRows(children)) {
             List<QueryRow> childRows = toSourceRows(children);
             addJoinRows(parentField, childRows, childField, joinMethod);
             return this;
@@ -1632,8 +1631,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void bindPreparedSourceRows(List<?> pojos) {
         spec.setSourceFieldTypes(inferSourceFieldTypes(pojos));
         refreshFieldTypes();
-        Object first = CollectionUtil.firstNonNull(pojos);
-        if (first instanceof QueryRow) {
+        if (usesQueryRows(pojos)) {
             sourceBeans = List.of();
             fullyMaterializedSourceRows = false;
             materializedSourceFields = Set.of();
@@ -1649,8 +1647,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void bindPreparedJoinSource(int joinIndex, List<?> children) {
         Map<String, Class<?>> childFieldTypes = inferSourceFieldTypes(children);
         spec.getJoinSourceFieldTypes().put(joinIndex, new LinkedHashMap<>(childFieldTypes));
-        Object first = CollectionUtil.firstNonNull(children);
-        if (first instanceof QueryRow) {
+        if (usesQueryRows(children)) {
             spec.getJoinClasses().put(joinIndex, materializedRows(queryRows(children)));
             return;
         }
@@ -1662,8 +1659,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void initializeSourceRows(List<?> pojos) {
-        Object first = CollectionUtil.firstNonNull(pojos);
-        if (first instanceof QueryRow) {
+        if (usesQueryRows(pojos)) {
             sourceBeans = List.of();
             clearMaterializedSourceRows();
             spec.setRows(materializedRows(queryRows(pojos)));
@@ -1686,8 +1682,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private List<QueryRow> toSourceRows(List<?> pojos) {
-        Object first = CollectionUtil.firstNonNull(pojos);
-        if (first instanceof QueryRow) {
+        if (usesQueryRows(pojos)) {
             return queryRows(pojos);
         }
         return ReflectionUtil.toDomainRows(pojos);
@@ -2059,12 +2054,16 @@ public class FilterQueryBuilder implements QueryBuilder {
         return rows;
     }
 
+    private static boolean usesQueryRows(List<?> rows) {
+        return rows != null && CollectionUtil.firstNonNull(rows) instanceof QueryRow;
+    }
+
     private boolean supportsPreparedExecutionView(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
-        if (CollectionUtil.firstNonNull(pojos) instanceof QueryRow) {
+        if (usesQueryRows(pojos)) {
             return false;
         }
         for (List<?> rows : joinSourcesByIndex.values()) {
-            if (CollectionUtil.firstNonNull(rows) instanceof QueryRow) {
+            if (usesQueryRows(rows)) {
                 return false;
             }
         }

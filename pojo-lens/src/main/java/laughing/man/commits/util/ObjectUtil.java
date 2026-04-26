@@ -96,26 +96,20 @@ public final class ObjectUtil {
     }
 
     public static String castToString(Object fieldValue, String dateFormat) {
+        if (fieldValue == null) {
+            return String.valueOf((Object) null);
+        }
         try {
-            if (fieldValue instanceof Date date) {
-                return datePlan(dateFormat).format(date.toInstant());
-            }
-            if (fieldValue instanceof Instant instant) {
-                return datePlan(dateFormat).format(instant);
-            }
-            if (fieldValue instanceof ZonedDateTime zdt) {
-                return datePlan(dateFormat).format(zdt.toInstant());
-            }
-            if (fieldValue instanceof OffsetDateTime odt) {
-                return datePlan(dateFormat).format(odt.toInstant());
-            }
-            if (fieldValue instanceof LocalDateTime ldt) {
-                return datePlan(dateFormat).formatter().format(ldt);
-            }
-            if (fieldValue instanceof LocalDate ld) {
-                return datePlan(dateFormat).formatter().format(ld);
-            }
-            return String.valueOf(fieldValue);
+            DateFormatPlan plan = datePlan(dateFormat);
+            return switch (fieldValue) {
+                case Date date -> plan.format(date.toInstant());
+                case Instant instant -> plan.format(instant);
+                case ZonedDateTime zdt -> plan.format(zdt.toInstant());
+                case OffsetDateTime odt -> plan.format(odt.toInstant());
+                case LocalDateTime ldt -> plan.formatter().format(ldt);
+                case LocalDate ld -> plan.formatter().format(ld);
+                default -> String.valueOf(fieldValue);
+            };
         } catch (Exception e) {
             LOG.error("Failed to cast field [{}]", fieldValue, e);
             return null;
@@ -521,30 +515,16 @@ public final class ObjectUtil {
         Long normalize(Object value) {
             try {
                 ZoneId systemZone = systemZone();
-                if (value instanceof Date d) {
-                    return normalizeInstant(d.toInstant(), systemZone);
-                }
-                if (value instanceof Instant instant) {
-                    return normalizeInstant(instant, systemZone);
-                }
-                if (value instanceof ZonedDateTime zdt) {
-                    return normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
-                }
-                if (value instanceof OffsetDateTime odt) {
-                    return normalizeInstant(odt.toInstant(), systemZone);
-                }
-                if (value instanceof LocalDateTime ldt) {
-                    return normalizeLocalDateTime(ldt, systemZone);
-                }
-                if (value instanceof LocalDate ld) {
-                    return normalizeLocalDate(ld, systemZone);
-                }
-                if (value instanceof String s) {
-                    return normalizeString(s, systemZone);
-                }
-
-                String s = String.valueOf(value);
-                return normalizeString(s, systemZone);
+                return switch (value) {
+                    case Date d -> normalizeInstant(d.toInstant(), systemZone);
+                    case Instant instant -> normalizeInstant(instant, systemZone);
+                    case ZonedDateTime zdt -> normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
+                    case OffsetDateTime odt -> normalizeInstant(odt.toInstant(), systemZone);
+                    case LocalDateTime ldt -> normalizeLocalDateTime(ldt, systemZone);
+                    case LocalDate ld -> normalizeLocalDate(ld, systemZone);
+                    case String s -> normalizeString(s, systemZone);
+                    default -> normalizeString(String.valueOf(value), systemZone);
+                };
             } catch (Exception e) {
                 return null;
             }
@@ -709,19 +689,13 @@ public final class ObjectUtil {
                     LocalDate::from
             );
 
-            if (parsed instanceof ZonedDateTime zdt) {
-                return normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
-            }
-            if (parsed instanceof OffsetDateTime odt) {
-                return normalizeInstant(odt.toInstant(), systemZone);
-            }
-            if (parsed instanceof LocalDateTime ldt) {
-                return normalizeLocalDateTime(ldt, systemZone);
-            }
-            if (parsed instanceof LocalDate ld) {
-                return normalizeLocalDate(ld, systemZone);
-            }
-            return Instant.from(parsed).toEpochMilli();
+            return switch (parsed) {
+                case ZonedDateTime zdt -> normalizeZoned(zdt.withZoneSameInstant(systemZone), systemZone);
+                case OffsetDateTime odt -> normalizeInstant(odt.toInstant(), systemZone);
+                case LocalDateTime ldt -> normalizeLocalDateTime(ldt, systemZone);
+                case LocalDate ld -> normalizeLocalDate(ld, systemZone);
+                default -> Instant.from(parsed).toEpochMilli();
+            };
         }
 
         /**
@@ -738,19 +712,13 @@ public final class ObjectUtil {
                     LocalDate::from
             );
 
-            if (parsed instanceof ZonedDateTime zdt) {
-                return zdt.toInstant().toEpochMilli();
-            }
-            if (parsed instanceof OffsetDateTime odt) {
-                return odt.toInstant().toEpochMilli();
-            }
-            if (parsed instanceof LocalDateTime ldt) {
-                return ldt.atZone(systemZone).toInstant().toEpochMilli();
-            }
-            if (parsed instanceof LocalDate ld) {
-                return ld.atStartOfDay(systemZone).toInstant().toEpochMilli();
-            }
-            return Instant.from(parsed).toEpochMilli();
+            return switch (parsed) {
+                case ZonedDateTime zdt -> zdt.toInstant().toEpochMilli();
+                case OffsetDateTime odt -> odt.toInstant().toEpochMilli();
+                case LocalDateTime ldt -> ldt.atZone(systemZone).toInstant().toEpochMilli();
+                case LocalDate ld -> ld.atStartOfDay(systemZone).toInstant().toEpochMilli();
+                default -> Instant.from(parsed).toEpochMilli();
+            };
         }
 
         private static DatePlanType detectType(String pattern) {

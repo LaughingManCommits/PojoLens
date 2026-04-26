@@ -38,7 +38,7 @@ wiring.
 | Release Gate | Release Gate                         | Pending  | Scope decisions made; lint/chart parity cleared; final release guardrails pending    |
 | WP15| JDK 25 JFR Chart-Parity Profiling          | Done     | Scatter hotspot fix, JFR harness/recipe, chart parity rerun                          |
 | WP16| Virtual-Thread Boundary Evaluation         | Done     | Opt-in Spring `virtual` profiles, smoke coverage, cancellation/pinning audit         |
-| WP17| Internal Java 25 Cleanup Pass              | Pending  | Non-preview utility/cursor dispatch cleanup; full regression rerun                   |
+| WP17| Internal Java 25 Cleanup Pass              | Done     | Internal utility/cursor switch cleanup; targeted regressions; full reactor green     |
 | WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
 
 ---
@@ -605,6 +605,8 @@ is the in-memory telemetry buffer only.
 
 ## WP17: Internal Java 25 Cleanup Pass
 
+**Status:** Done (`2026-04-26`)
+
 **Priority:** Moderate Maintainability
 **Goal:** Finish the non-preview Java 25 cleanup in internal utility and cursor
 code using finalized language features only.
@@ -619,20 +621,29 @@ code using finalized language features only.
   changes; the value is cleaner internal dispatch, not compatibility churn.
 
 **Tasks:**
-- [ ] Audit the remaining main-source cast-after-`instanceof` and manual
+- [x] Audit the remaining main-source cast-after-`instanceof` and manual
       type-dispatch sites in internal utility/cursor code.
-- [ ] Convert only the clearly improved sites to binding patterns or switch
+- [x] Convert only the clearly improved sites to binding patterns or switch
       expressions; leave code untouched where the newer form is not clearer.
-- [ ] Keep public contract types and stable surface classes structurally
+- [x] Keep public contract types and stable surface classes structurally
       unchanged unless a separate compatibility review justifies it.
-- [ ] Add or refresh targeted tests for cursor encoding, chart validation,
+- [x] Add or refresh targeted tests for cursor encoding, chart validation,
       numeric comparison coercion, and time-bucket conversion where dispatch
       logic changes.
-- [ ] Re-run the full reactor to confirm this remains a pure maintainability
+- [x] Re-run the full reactor to confirm this remains a pure maintainability
       cleanup.
 
+**Implementation note:** The landed scope replaced repetitive manual dispatch
+with non-preview switch expressions across `SqlLikeCursor`,
+`TimeBucketUtil`, `ChartValidation`, `ChartResultMapper`,
+`ReportComparisons`, and `ObjectUtil.DateFormatPlan`; deduplicated internal
+`QueryRow` source detection in selected `FilterQueryBuilder` helpers; and
+added targeted regression coverage for cursor token round-trips, numeric
+string coercion, and chart/report mapping fallbacks. No public contract shape
+changed.
+
 **Validate:**
-- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeCursorTest,ChartResultMapper*Test,ChartValidation*Test,TimeBucket*Test,*Comparison*Test" test`
+- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeKeysetCursorTest,ChartResultMapper*Test,TimeBucket*Test,*Comparison*Test,ObjectUtilTest,FilterQueryBuilderSelectiveMaterializationTest" test`
 - `mvn -B -ntp test`
 - `mvn -B -ntp -Plint verify -DskipTests`
 

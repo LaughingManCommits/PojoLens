@@ -80,6 +80,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   aggregation metric routing to switch expressions. `pojo-lens` main sources
   already had zero `.collect(Collectors.toList())` usages before this pass, so
   no production collector changes were needed.
+
+- **WP17 internal Java 25 cleanup** - replaced repetitive manual dispatch in
+  `SqlLikeCursor`, `TimeBucketUtil`, `ChartValidation`, `ChartResultMapper`,
+  `ReportComparisons`, and `ObjectUtil` with non-preview switch expressions,
+  consolidated internal `QueryRow` source detection in selected
+  `FilterQueryBuilder` helpers, and added targeted regression coverage for
+  cursor token round-trips plus numeric/chart/report coercion paths.
 - **Docs navigation and surface maps** - linked the new `docs/facets.md` and `docs/jdbc.md` guides from the README/docs navigation and product-surface/public-stability maps, corrected the facet field-access note to match reflection behavior, and surfaced `examples/spring-boot-starter-risk-console` in the example inventory.
 - **Risk console tabbed workspace** - split the large single-page dashboard into focused Overview, Analytics, Operations, PojoLens, and Reports tabs while keeping the same backend/API surface. Browser tests now switch tabs explicitly before interacting with hidden controls, and charts are resized when a tab becomes active so the tabbed UI stays stable.
 - **Risk console tab navigation polish** - active top-level dashboard tabs now persist in the URL hash, restore on reload, and support keyboard arrow/home/end navigation. Dense PojoLens and Reports areas are split into secondary sub-tabs, so Workbench, Query Studio, report output, and report inspector no longer compete in one long vertical section. Browser coverage now locks the hash-backed tab restore and keyboard tab UX in place.

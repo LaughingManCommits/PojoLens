@@ -3,6 +3,8 @@ package laughing.man.commits.chart;
 import laughing.man.commits.util.ObjectUtil;
 import laughing.man.commits.util.ReflectionUtil;
 
+import java.util.Date;
+
 /**
  * Validation helpers for chart specification and value constraints.
  */
@@ -57,39 +59,31 @@ final class ChartValidation {
     }
 
     static String validateXValue(Object value, String fieldName, String dateFormat) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof String || value instanceof Number) {
-            return String.valueOf(value);
-        }
-        if (value instanceof java.util.Date) {
-            return ObjectUtil.castToString(value, dateFormat);
-        }
-        throw new IllegalArgumentException(
-                "Chart xField '" + fieldName + "' has unsupported type '" + value.getClass().getSimpleName() + "'");
+        return switch (value) {
+            case null -> null;
+            case String stringValue -> stringValue;
+            case Number number -> String.valueOf(number);
+            case Date date -> ObjectUtil.castToString(date, dateFormat);
+            default -> throw new IllegalArgumentException(
+                    "Chart xField '" + fieldName + "' has unsupported type '"
+                            + value.getClass().getSimpleName() + "'");
+        };
     }
 
     static double validateYValue(Object value, String fieldName) {
-        if (value == null) {
-            throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
-        }
-        if (!(value instanceof Number)) {
-            throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
-        }
-        return ((Number) value).doubleValue();
+        return switch (value) {
+            case null -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
+            case Number number -> number.doubleValue();
+            default -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+        };
     }
 
     static Double validateYValueBoxed(Object value, String fieldName) {
-        if (value == null) {
-            throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
-        }
-        if (value instanceof Double doubleValue) {
-            return doubleValue;
-        }
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+        return switch (value) {
+            case null -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
+            case Double doubleValue -> doubleValue;
+            case Number number -> number.doubleValue();
+            default -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+        };
     }
 }

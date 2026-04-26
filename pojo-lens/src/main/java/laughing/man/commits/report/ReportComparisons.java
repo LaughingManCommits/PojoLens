@@ -93,13 +93,11 @@ public final class ReportComparisons {
                     "ReportComparisons: cannot read field '" + field + "' from "
                             + row.getClass().getSimpleName(), ex);
         }
-        if (raw == null) {
-            return 0d;
-        }
-        if (raw instanceof Number) {
-            return ((Number) raw).doubleValue();
-        }
-        throw new IllegalArgumentException(
-                "ReportComparisons: field '" + field + "' is not numeric");
+        return switch (raw) {
+            case null -> 0d;
+            case Number number -> number.doubleValue();
+            default -> throw new IllegalArgumentException(
+                    "ReportComparisons: field '" + field + "' is not numeric");
+        };
     }
 }

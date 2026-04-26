@@ -56,6 +56,19 @@ public class ChartResultMapperMappingTest {
     }
 
     @Test
+    public void toSeriesPointsShouldCoerceNumericStringValues() {
+        List<ChartResultMapperFixtures.InvalidMetricRow> rows = List.of(
+                new ChartResultMapperFixtures.InvalidMetricRow("Engineering", "42.5")
+        );
+
+        List<SeriesPoint> points = ChartResultMapper.toSeriesPoints(rows, "department", "payroll");
+
+        assertEquals(1, points.size());
+        assertEquals("Engineering", points.get(0).getLabel());
+        assertEquals(42.5d, points.get(0).getValue(), 0.0001d);
+    }
+
+    @Test
     public void toChartDataShouldMapSingleSeries() {
         List<ChartResultMapperFixtures.DepartmentMetricRow> rows = new ArrayList<>();
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Engineering", "2025-01", 2, 300));
