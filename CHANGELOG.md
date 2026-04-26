@@ -77,6 +77,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Fixed
 
+- **WP14 expression evaluator input validation contract** -
+  `SqlExpressionEvaluator` now rejects null and blank expressions before any
+  Caffeine cache lookup, restoring deterministic `IllegalArgumentException`
+  behavior for `compileNumeric`, `collectIdentifiers`, `rewriteIdentifiers`,
+  and `evaluateNumeric`. The valid-expression cache path stays unchanged.
 - **WP13 stats-plan-cache reset semantics** - `FilterExecutionPlanCacheStore`
   now treats `resetStats()` as a true fresh-start operation by swapping in a
   new empty cache instead of rebuilding from existing entries. Runtime and

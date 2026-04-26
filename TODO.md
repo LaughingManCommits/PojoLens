@@ -34,26 +34,29 @@ wiring.
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
 | WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
 | WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
-| WP14| Expression Evaluator Input Validation Contract | Pending | Restore null/blank validation before Caffeine cache access                           |
-| Release Gate | Release Gate                         | Pending  | Fix WP14 regression; release notes; final guardrails                                |
+| WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
+| Release Gate | Release Gate                         | Pending  | Release notes; final guardrails; benchmark/WP11 release-cut decisions               |
 
 ---
 
 ## Review Findings (2026-04-26)
 
-- WP6-WP10 review found three correctness regressions that are not covered by the
-  current green suite.
-- `SqlLikeExecutionSupport.projectAliasedRows(...)` now reuses the first
-  `QueryRow` schema across all rows; mixed field order can return wrong aliased
-  values.
-- `FilterExecutionPlanCacheStore.resetStats()` still preserves entries; the next
-  identical stats query records a hit instead of the expected miss.
-- `SqlExpressionEvaluator.compileNumeric(null)` now throws
-  `NullPointerException` via Caffeine rather than the previous validation error
-  contract. The same regression affects the other expression-entry helpers.
-- Review snapshot was `1037/1037`; after WP12 and WP13 the suite is
-  `1041/1041`, and WP14 still needs its targeted regression coverage before
-  release.
+- WP6-WP10 review found three correctness regressions; all three are now
+  resolved in WP12-WP14.
+- `SqlLikeExecutionSupport.projectAliasedRows(...)` previously reused the first
+  `QueryRow` schema across all rows; WP12 now validates preferred indexes
+  against each row and falls back to name lookup when the row-local schema
+  differs.
+- `FilterExecutionPlanCacheStore.resetStats()` previously preserved entries;
+  WP13 now swaps in a fresh empty cache so the next equivalent stats query
+  records a miss instead of a hit.
+- `SqlExpressionEvaluator` public entry points previously let null and blank
+  expressions reach Caffeine; WP14 now restores deterministic
+  `IllegalArgumentException("Expression must not be blank")` behavior before
+  cache access.
+- Review snapshot was `1037/1037`; after WP12-WP14 the suite is `1043/1043`,
+  and the remaining release work is release notes, final guardrails, and the
+  pending benchmark/WP11 cut decisions.
 
 ---
 
@@ -425,13 +428,13 @@ operation that clears counters and cached entries.
   `rewriteIdentifiers(...)`, and `evaluateNumeric(...)`.
 
 **Tasks:**
-- [ ] Validate null/blank expressions before any cache access in all public
+- [x] Validate null/blank expressions before any cache access in all public
       `SqlExpressionEvaluator` entry points.
-- [ ] Preserve one consistent exception type/message for null and blank
+- [x] Preserve one consistent exception type/message for null and blank
       expression inputs.
-- [ ] Add regression tests for `compileNumeric`, `collectIdentifiers`,
+- [x] Add regression tests for `compileNumeric`, `collectIdentifiers`,
       `rewriteIdentifiers`, and `evaluateNumeric`.
-- [ ] Confirm the Caffeine caches remain in the hot path after the front-door
+- [x] Confirm the Caffeine caches remain in the hot path after the front-door
       validation.
 
 **Validate:**
@@ -449,7 +452,7 @@ performance work is backed by the final guardrails.
 **Tasks:**
 - [x] Complete WP12 (QueryRow alias projection schema safety).
 - [x] Complete WP13 (stats plan cache reset semantics).
-- [ ] Complete WP14 (expression evaluator input validation contract).
+- [x] Complete WP14 (expression evaluator input validation contract).
 - [ ] Decide whether to backfill the missing WP6/WP8/WP9 JMH + threshold work
       before the release cut.
 - [ ] Decide whether WP11 lands before or after the release cut.

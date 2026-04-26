@@ -2,7 +2,6 @@ package laughing.man.commits.sqllike.internal.expression;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import laughing.man.commits.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +17,7 @@ public final class SqlExpressionEvaluator {
     private static final int TOKEN_CACHE_MAX_ENTRIES = 512;
     private static final int COMPILED_CACHE_MAX_ENTRIES = 512;
     private static final double DIVISION_BY_ZERO_EPSILON = 1e-12;
+    private static final String BLANK_EXPRESSION_MESSAGE = "Expression must not be blank";
     private static final Cache<String, List<Token>> TOKEN_CACHE =
             Caffeine.newBuilder().maximumSize(TOKEN_CACHE_MAX_ENTRIES).recordStats().build();
     private static final Cache<String, CompiledExpression> COMPILED_CACHE =
@@ -56,8 +56,9 @@ public final class SqlExpressionEvaluator {
     }
 
     public static String rewriteIdentifiers(String expression, UnaryOperator<String> rewriter) {
-        List<Token> tokens = tokensFor(expression);
-        StringBuilder rewritten = new StringBuilder(expression.length());
+        String validExpression = requireExpression(expression);
+        List<Token> tokens = tokensFor(validExpression);
+        StringBuilder rewritten = new StringBuilder(validExpression.length());
         for (int i = 0; i < tokens.size(); i++) {
             Token token = tokens.get(i);
             if (token.type == TokenType.EOF) {
@@ -73,7 +74,8 @@ public final class SqlExpressionEvaluator {
     }
 
     public static CompiledExpression compileNumeric(String expression) {
-        return COMPILED_CACHE.get(expression, expr -> new Compiler(tokensFor(expr)).compile());
+        String validExpression = requireExpression(expression);
+        return COMPILED_CACHE.get(validExpression, expr -> new Compiler(tokensFor(expr)).compile());
     }
 
     private static boolean isFunctionCall(List<Token> tokens, int index) {
@@ -87,9 +89,6 @@ public final class SqlExpressionEvaluator {
     }
 
     private static List<Token> tokenize(String expression) {
-        if (StringUtil.isNullOrBlank(expression)) {
-            throw new IllegalArgumentException("Expression must not be blank");
-        }
         List<Token> tokens = new ArrayList<>();
         int i = 0;
         while (i < expression.length()) {
@@ -128,6 +127,13 @@ public final class SqlExpressionEvaluator {
         }
         tokens.add(new Token("", TokenType.EOF));
         return tokens;
+    }
+
+    private static String requireExpression(String expression) {
+        if (expression == null || expression.isBlank()) {
+            throw new IllegalArgumentException(BLANK_EXPRESSION_MESSAGE);
+        }
+        return expression;
     }
 
     private enum TokenType {
