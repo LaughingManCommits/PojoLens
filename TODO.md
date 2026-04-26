@@ -32,10 +32,10 @@ wiring.
 | WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
 | WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; concurrent test added; reset semantics follow-up in WP13 |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
-| WP12| QueryRow Alias Projection Schema Safety     | Pending  | Restore name-based correctness for heterogeneous QueryRow alias projection           |
+| WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
 | WP13| Stats Plan Cache Reset Semantics            | Pending  | `resetStats()` must drop entries and force the next identical query to miss         |
 | WP14| Expression Evaluator Input Validation Contract | Pending | Restore null/blank validation before Caffeine cache access                           |
-| Release Gate | Release Gate                         | Pending  | Fix WP12-WP14 regressions; release notes; final guardrails                          |
+| Release Gate | Release Gate                         | Pending  | Fix WP13-WP14 regressions; release notes; final guardrails                          |
 
 ---
 
@@ -51,8 +51,8 @@ wiring.
 - `SqlExpressionEvaluator.compileNumeric(null)` now throws
   `NullPointerException` via Caffeine rather than the previous validation error
   contract. The same regression affects the other expression-entry helpers.
-- `mvn -B -ntp -pl pojo-lens test` still passes at `1037/1037`, so targeted
-  regression coverage must land before release.
+- Review snapshot was `1037/1037`; after WP12 the suite is `1039/1039`, and
+  WP13/WP14 still need their targeted regression coverage before release.
 
 ---
 
@@ -360,15 +360,15 @@ row-local field order differs between rows.
   heterogeneous `QueryRow` schemas.
 
 **Tasks:**
-- [ ] Redesign `projectAliasedQueryRows()` so correctness does not depend on the
+- [x] Redesign `projectAliasedQueryRows()` so correctness does not depend on the
       first row's field order.
-- [ ] Keep a fast path only when schema uniformity is proven per row or
+- [x] Keep a fast path only when schema uniformity is proven per row or
       normalized up front.
-- [ ] Add a regression test covering same-field/different-order `QueryRow`
+- [x] Add a regression test covering same-field/different-order `QueryRow`
       inputs for aliased projection.
-- [ ] Add a regression test covering computed-field identifier resolution over
+- [x] Add a regression test covering computed-field identifier resolution over
       heterogeneous `QueryRow` field order.
-- [ ] Re-run row-projection and SQL-like alias coverage after the fix.
+- [x] Re-run row-projection and SQL-like alias coverage after the fix.
 
 **Validate:**
 - `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeAliasTest,SqlLikeMappingParityTest,SqlLikeQueryContractTest" test`
@@ -446,7 +446,7 @@ operation that clears counters and cached entries.
 performance work is backed by the final guardrails.
 
 **Tasks:**
-- [ ] Complete WP12 (QueryRow alias projection schema safety).
+- [x] Complete WP12 (QueryRow alias projection schema safety).
 - [ ] Complete WP13 (stats plan cache reset semantics).
 - [ ] Complete WP14 (expression evaluator input validation contract).
 - [ ] Decide whether to backfill the missing WP6/WP8/WP9 JMH + threshold work

@@ -1,6 +1,7 @@
 package laughing.man.commits.sqllike.internal.execution;
 
 import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Sort;
@@ -100,28 +101,26 @@ public final class SqlLikeExecutionSupport {
             Map<String, Integer> fieldIndexMap) {
         int n = fields.size();
         Object[] values = new Object[n];
+        List<? extends QueryField> rowFields = row.getFields();
         for (int i = 0; i < n; i++) {
             int srcIdx = sourceIndexes[i];
             if (srcIdx == -2) {
                 values[i] = SqlExpressionEvaluator.evaluateNumeric(
                         fields.get(i).field(),
-                        id -> resolveIndexedQueryRowFieldValue(row, id, fieldIndexMap)
+                        id -> resolveIndexedQueryRowFieldValue(rowFields, id, fieldIndexMap)
                 );
-            } else if (srcIdx >= 0 && srcIdx < row.getFieldCount()) {
-                values[i] = row.getValueAt(srcIdx);
             } else if (sourceNames[i] != null) {
-                values[i] = queryRowFieldValue(row, sourceNames[i]);
+                values[i] = queryRowFieldValue(rowFields, sourceNames[i], srcIdx);
             }
         }
         return values;
     }
 
-    private static Object resolveIndexedQueryRowFieldValue(QueryRow row, String fieldName, Map<String, Integer> fieldIndexMap) {
+    private static Object resolveIndexedQueryRowFieldValue(List<? extends QueryField> rowFields,
+                                                           String fieldName,
+                                                           Map<String, Integer> fieldIndexMap) {
         Integer idx = fieldIndexMap.get(fieldName);
-        if (idx != null && idx < row.getFieldCount()) {
-            return row.getValueAt(idx);
-        }
-        return queryRowFieldValue(row, fieldName);
+        return queryRowFieldValue(rowFields, fieldName, idx == null ? -1 : idx);
     }
 
     private static <T> List<T> projectAliasedPojoRows(
@@ -283,6 +282,12 @@ public final class SqlLikeExecutionSupport {
 
     private static Object queryRowFieldValue(QueryRow row, String fieldName) {
         return QueryFieldLookupUtil.findFieldValue(row.getFields(), fieldName);
+    }
+
+    private static Object queryRowFieldValue(List<? extends QueryField> rowFields,
+                                             String fieldName,
+                                             int preferredIndex) {
+        return QueryFieldLookupUtil.findFieldValue(rowFields, fieldName, preferredIndex);
     }
 
     private record AliasedProjectionPlan(List<String> outputSchema, int[] sourceIndexes) {

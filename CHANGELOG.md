@@ -77,6 +77,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Fixed
 
+- **WP12 QueryRow alias projection schema safety** - `SqlLikeExecutionSupport`
+  no longer assumes every `QueryRow` shares the first row's field order during
+  aliased or computed projection. Preferred indexes are now validated against
+  each row's field names before use, so mixed-schema `QueryRow` inputs fall
+  back to correct name-based resolution instead of returning swapped values.
 - **Risk console empty decline-chart subset** - trends now return explicit empty chart payloads when the filtered transaction snapshot is non-empty but the decline-only subset is empty. This prevents `EQ-SQL-VAL-008` time-bucket validation failures on approved-only or otherwise no-decline dashboard scopes.
 - **Risk console transaction next-page bug** - replaced the mixed paging implementation with one stable app-owned cursor strategy across `id`, `createdAt`, `amount`, and `riskScore` sorts. The transactions endpoint now pages over the PojoLens-sorted snapshot consistently, so `Next Page` no longer lands on an empty table when more results exist.
 - **Risk console chart resize loop** - bounded dashboard and report chart canvases with fixed-height chart frames so Chart.js no longer grows the page vertically under responsive resize mode. Added smoke coverage that checks page height stabilizes after load.

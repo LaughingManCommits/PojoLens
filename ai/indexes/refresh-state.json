@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-26T07:33:50.463401+02:00",
+  "generatedAt": "2026-04-26T07:43:54.131251+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "486a77c4bd86d9a23114cc4ab44ed729bf48be08a5e79c2f26f2fab50a1691bf",
+      "inputHash": "701f5331c09e9d5491f7da243180c1baa9ad3c9226f1216f4ef396b0087a4083",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -24,8 +24,8 @@
         "ai/orchestrator/README.md": "bf429de83c0d4fb2f5f5ae353aa550f7c922def1e3db137624937fa5e6b75a8e",
         "ai/orchestrator/SYSTEM-SPEC.md": "8afde18e946c5393744b13a5b47bfa61587c01f5e448129238592d8df7683251",
         "ai/state/benchmark-state.md": "051bdffd524c14dbe4ab2f4cbe4d48c942e0a3d2ba135d705f065031ae87def4",
-        "ai/state/current-state.md": "da45bcf8e22b09666ccfa03a67b6030963092fd39debd29256a592066a16cede",
-        "ai/state/handoff.md": "526606edb5168ede143fbbb2e5a5bb6f19927db7606e3cf91fb61613c28800a3",
+        "ai/state/current-state.md": "f56e9c0898459a7413b867601bef51b7befbf54abb9e48199361c19537ab6430",
+        "ai/state/handoff.md": "0b5ac28dc3e3c013db911b9e8f521cbb5afead5791376e3d662dd69b0a3da524",
         "ai/state/recent-validations.md": "8d31ca76bfd5d24c6ac9cafab494c0115e678d236c13dd03503207fd78756b61",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "0c53b08c3483d2f30018a42e24bf54d83bb12568c62c8718c83c02bb1f84e5fd",
@@ -60,12 +60,12 @@
         "README.md": "2d06368850eab03d9cb802689c0181f76079dca673382b7089ce1820fe6aa0b7",
         "RELEASE.md": "bcece30ee778938a985d71c63e25fdeb1da5060d5a35fe21942a75ec39583dff",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "0f09ffc98896aea0e331fe6a5f9f5828154a50e476e1a1797adf607071aab842"
+        "TODO.md": "f746e5e15ea5bcf742adc2fb1a420b583b67f8fa728b2d986a874da455fda288"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "db183c14a7eee5f7aa11764aba8a9f9a8d782cbbbf33c8957e40cc11f0de2490",
+      "inputHash": "3d06e53196e7fc27d17ef49fd63581d3dcc5491da10733d038949f10cc08add6",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -91,8 +91,8 @@
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
         "ai/state/benchmark-state.md": "051bdffd524c14dbe4ab2f4cbe4d48c942e0a3d2ba135d705f065031ae87def4",
-        "ai/state/current-state.md": "da45bcf8e22b09666ccfa03a67b6030963092fd39debd29256a592066a16cede",
-        "ai/state/handoff.md": "526606edb5168ede143fbbb2e5a5bb6f19927db7606e3cf91fb61613c28800a3",
+        "ai/state/current-state.md": "f56e9c0898459a7413b867601bef51b7befbf54abb9e48199361c19537ab6430",
+        "ai/state/handoff.md": "0b5ac28dc3e3c013db911b9e8f521cbb5afead5791376e3d662dd69b0a3da524",
         "ai/state/recent-validations.md": "8d31ca76bfd5d24c6ac9cafab494c0115e678d236c13dd03503207fd78756b61",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "0c53b08c3483d2f30018a42e24bf54d83bb12568c62c8718c83c02bb1f84e5fd",
@@ -267,7 +267,7 @@
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeErrorCodes.java": "98b38de265eb0cdfc661fe63665352c20e95489183b4396176a2a6f5c6d7f722",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeErrors.java": "9f70a71d1ebcf041a25da696ea00b130a09e0b0159c76a9a013fa1160381792c",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeSourceBindingMessages.java": "d789d75bdff083ff4b86666fdc25825568517bb85071d6f810695c61a6aa43b1",
-        "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java": "9fb5309fba284f11121da2a4a42f7073a8e64da386fe26e49bd91ee8d50a174d",
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java": "51bd44b1bc3f67748d3fd5303e6c6c10a6b13e7226ab70488de14755c51be33a",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/explain/SqlLikeExplainSupport.java": "221eb2f1f5c4765cf7469408c01369c7c33acd000253cf50a85401d2f363e8f6",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/exposure/QueryExposurePolicySupport.java": "b309caaf4f0d970ca7b920cc78a0ea30fece814a800c7707c62ee6675b14dd3a",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/expression/BooleanExpressionNormalizer.java": "94339a688fc5898715807542c6429ce6323fc7d75ba9a73fb1e4ccd14a2b359b",
@@ -411,6 +411,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/SnapshotComparisonTest.java": "e3957328d25bd010d4fa8c35196ff91bb7531ab0320f4d26874b046219a3b7cb",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinderSubqueryLoweringTest.java": "cfed8fc94e251bd9a52a03d9f46137f7c81d0c0829475fd3f18acbaa7c5acb6a",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/error/SqlLikeSourceBindingMessagesTest.java": "31c015caa7aeab6c3800d7c10692b37d6d69efb106ac2b6a6926ef07efa9ac0a",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupportTest.java": "20dbd401fa563804a5d1a6501e08fc68f47ee8ba4b28dcfd399a2f195608fe98",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java": "474d2fda8f8eaac88cdaebbb0641ae9412f4421b8ec50038d3858d0ce0fbc502",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java": "d0d291aebcb97fe105bf9cca7fb4e4d5c95dce9871538f1226efcf07ff5b1136",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryCancellationTest.java": "8e37d588641d338915b530120b51ce5627cbb292f544b264438f8c14d86819bb",
@@ -434,7 +435,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownAdapterTest.java": "693cab2e8eb9777c1807c94bce46294629183dcb50ece019495deafdaf1d0c5f",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownPreviewTest.java": "201ecaed13651c77f2246857d071fffb13fb94664ff8980086e9a8f8a8f23bf3",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryCacheTest.java": "56ca5c993007699c3f21ca4b40a170595ff5d3846b5d1cc1a4395a450cf9df27",
-        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java": "28e62e1e20594d2b54e3fa46f42dd8b6e6369e6cb00e3d2c37c34aa9e4192378",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java": "0a38bee81bde6c90ba20add83307e7f36d53691ca7b8fc53fdf84dee6faf3404",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeStrictParameterTypeModeTest.java": "2fd341e49e7321b010a9b5f8863a6b12fa004f04f1311c186440663865fd5efa",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTemplateContractTest.java": "52b76951f5d37a0506bd367c65729c469e6dac2547000e105287dccab83071cf",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java": "504991bec38cf41fb584220c194789089b4ada7e20c5d38f4e9469db71042af9",
@@ -520,12 +521,12 @@
         "scripts/claude-orchestrator.py": "accfc854745c3cfd9667f48a2ba35f88ef4394302f6b3c7832a471a371a24314",
         "scripts/refresh-ai-memory.ps1": "3ac853f1e5e0e2fd29a2b1fe3d5883610e5c35da9dc1187e31b1c088fda129d9",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "0f09ffc98896aea0e331fe6a5f9f5828154a50e476e1a1797adf607071aab842"
+        "TODO.md": "f746e5e15ea5bcf742adc2fb1a420b583b67f8fa728b2d986a874da455fda288"
       }
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "0f427fb4f283010deeba30049d27e3d892299fb2f3025684371f7d429a840812",
+      "inputHash": "789d82c31304c563a0212e6faf70f593446404c0661469c7b3d7445e57fbd98d",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java": "229c79998a85f3a7ec9326d5fff5aebf5839d0250634dc158ce0a67ae35956cd",
         "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java": "64f2627c6d8062a39ac2bad829b73f618758158fc21c7b0846a33a3d2b01c798",
@@ -667,7 +668,7 @@
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeErrorCodes.java": "98b38de265eb0cdfc661fe63665352c20e95489183b4396176a2a6f5c6d7f722",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeErrors.java": "9f70a71d1ebcf041a25da696ea00b130a09e0b0159c76a9a013fa1160381792c",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/error/SqlLikeSourceBindingMessages.java": "d789d75bdff083ff4b86666fdc25825568517bb85071d6f810695c61a6aa43b1",
-        "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java": "9fb5309fba284f11121da2a4a42f7073a8e64da386fe26e49bd91ee8d50a174d",
+        "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupport.java": "51bd44b1bc3f67748d3fd5303e6c6c10a6b13e7226ab70488de14755c51be33a",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/explain/SqlLikeExplainSupport.java": "221eb2f1f5c4765cf7469408c01369c7c33acd000253cf50a85401d2f363e8f6",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/exposure/QueryExposurePolicySupport.java": "b309caaf4f0d970ca7b920cc78a0ea30fece814a800c7707c62ee6675b14dd3a",
         "pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/expression/BooleanExpressionNormalizer.java": "94339a688fc5898715807542c6429ce6323fc7d75ba9a73fb1e4ccd14a2b359b",
@@ -779,7 +780,7 @@
     },
     "test": {
       "outputPath": "ai/indexes/test-index.json",
-      "inputHash": "88c1c1ddbfdf521554db045614e173c55513f96e572dbfe3e1fb0e9d5dbda5b1",
+      "inputHash": "7ce8773e86e5b4217e009b41222c84a1d82c301afc80eccfe0c01a23da2a381a",
       "pathHashes": {
         "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java": "8732dac711b778e1707f8464beb95b872849731d83f8d93118bd42644561401b",
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java": "46cd081cc5f6df1afe91e8b262177e04a5ca7bee483e74e02b60be435bc8b91f",
@@ -851,6 +852,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/SnapshotComparisonTest.java": "e3957328d25bd010d4fa8c35196ff91bb7531ab0320f4d26874b046219a3b7cb",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinderSubqueryLoweringTest.java": "cfed8fc94e251bd9a52a03d9f46137f7c81d0c0829475fd3f18acbaa7c5acb6a",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/error/SqlLikeSourceBindingMessagesTest.java": "31c015caa7aeab6c3800d7c10692b37d6d69efb106ac2b6a6926ef07efa9ac0a",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/execution/SqlLikeExecutionSupportTest.java": "20dbd401fa563804a5d1a6501e08fc68f47ee8ba4b28dcfd399a2f195608fe98",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluatorTest.java": "474d2fda8f8eaac88cdaebbb0641ae9412f4421b8ec50038d3858d0ce0fbc502",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/package-info.java": "d0d291aebcb97fe105bf9cca7fb4e4d5c95dce9871538f1226efcf07ff5b1136",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/QueryCancellationTest.java": "8e37d588641d338915b530120b51ce5627cbb292f544b264438f8c14d86819bb",
@@ -874,7 +876,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownAdapterTest.java": "693cab2e8eb9777c1807c94bce46294629183dcb50ece019495deafdaf1d0c5f",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikePushdownPreviewTest.java": "201ecaed13651c77f2246857d071fffb13fb94664ff8980086e9a8f8a8f23bf3",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryCacheTest.java": "56ca5c993007699c3f21ca4b40a170595ff5d3846b5d1cc1a4395a450cf9df27",
-        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java": "28e62e1e20594d2b54e3fa46f42dd8b6e6369e6cb00e3d2c37c34aa9e4192378",
+        "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeQueryContractTest.java": "0a38bee81bde6c90ba20add83307e7f36d53691ca7b8fc53fdf84dee6faf3404",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeStrictParameterTypeModeTest.java": "2fd341e49e7321b010a9b5f8863a6b12fa004f04f1311c186440663865fd5efa",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTemplateContractTest.java": "52b76951f5d37a0506bd367c65729c469e6dac2547000e105287dccab83071cf",
         "pojo-lens/src/test/java/laughing/man/commits/sqllike/SqlLikeTypedBindContractTest.java": "504991bec38cf41fb584220c194789089b4ada7e20c5d38f4e9469db71042af9",
