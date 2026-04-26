@@ -35,8 +35,8 @@ wiring.
 | WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
 | WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
 | WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
-| Release Gate | Release Gate                         | Pending  | Scope decisions made; lint baseline refreshed; blocked by chart parity               |
-| WP15| JDK 25 JFR Chart-Parity Profiling          | Pending  | CPU-time + method tracing for `SCATTER size=100000`; hotspot diagnosis + rerun      |
+| Release Gate | Release Gate                         | Pending  | Scope decisions made; lint/chart parity cleared; final release guardrails pending    |
+| WP15| JDK 25 JFR Chart-Parity Profiling          | Done     | Scatter hotspot fix, JFR harness/recipe, chart parity rerun                          |
 | WP16| Virtual-Thread Boundary Evaluation         | Pending  | Opt-in Spring/JDBC boundary spike; cancellation and pinning audit                    |
 | WP17| Internal Java 25 Cleanup Pass              | Pending  | Non-preview utility/cursor dispatch cleanup; full regression rerun                   |
 | WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
@@ -58,9 +58,9 @@ wiring.
   expressions reach Caffeine; WP14 now restores deterministic
   `IllegalArgumentException("Expression must not be blank")` behavior before
   cache access.
-- Review snapshot was `1037/1037`; after WP11-WP14 and the later follow-up
-  additions the full reactor is now `1066/1066`, and the remaining release
-  work is chart parity and final guardrails.
+- Review snapshot was `1037/1037`; after WP11-WP15 and the later follow-up
+  additions the full reactor is now `1067/1067`, and the remaining release
+  work is the final release guardrails.
 
 ---
 
@@ -483,13 +483,16 @@ performance work is backed by the final guardrails.
   maintainability scope validated green before the release gate returned to the
   remaining chart-parity blocker.
 
-**Current blockers (2026-04-26):**
+**Current status (2026-04-26):**
 - The Checkstyle baseline was refreshed to the current report
-  (`18313` entries), and the lint baseline gate now passes.
-- Core and chart threshold checks passed, but chart parity still fails at
-  `SCATTER size=100000` with SQL-like/fluent ratio `2.411 > 1.750`.
+  (`18383` entries), and the lint baseline gate now passes.
+- Core and chart threshold checks pass, and chart parity now passes on the
+  standard rerun. The current `SCATTER size=100000` parity row is fluent
+  `4.887 ms/op`, SQL-like `7.454 ms/op`, ratio `1.526`.
 - Local benchmark commands must use `$env:JAVA_HOME\\bin\\java.exe`; the shell
   `java` on `PATH` is still JDK 17 and cannot run the Java 25 benchmark jar.
+- Remaining release work is to run the final release guardrails from
+  `RELEASE.md`.
 
 **Validate:**
 - `mvn -B -ntp test`
@@ -518,20 +521,27 @@ performance work is backed by the final guardrails.
   decision.
 
 **Tasks:**
-- [ ] Capture JDK 25 CPU-time profiles for
+- [x] Capture repeatable local JFR recordings for
       `fluentScatterMapping`, `sqlLikeScatterMapping`, and
       `sqlLikeBoundScatterMapping` at `size=100000` using
-      `$env:JAVA_HOME\\bin\\java.exe`.
-- [ ] Capture targeted `jdk.MethodTiming` / `jdk.MethodTrace` data for the
-      hottest `ChartMapper`, `ReflectionUtil`, and accumulator methods to
-      measure exact per-invocation cost.
-- [ ] Attribute the SQL-like/fluent delta to a small set of buckets:
-      reflection, row materialization, cursor decoding, and chart series
-      accumulation.
-- [ ] Implement the smallest hot-path change that materially improves parity,
-      or document why the remaining gap should be rebaselined instead.
-- [ ] Record a repeatable JFR profiling recipe in `docs/benchmarking.md` so the
-      next parity investigation does not start from scratch.
+      `$env:JAVA_HOME\\bin\\java.exe`. On this Windows host the usable profile
+      signal came from `jdk.ExecutionSample` / `jdk.ObjectAllocationSample`
+      because `jdk.CPUTimeSample` is not available.
+- [x] Attempt targeted `jdk.MethodTiming` / `jdk.MethodTrace` capture and fold
+      the host caveat into the recipe. The local recordings reported zero for
+      those event types under `settings=profile`, so the new workflow now
+      checks `jfr summary` before assuming those events are available.
+- [x] Attribute the SQL-like/fluent delta to concrete buckets. The largest
+      avoidable costs were eager per-row scatter x-string materialization and
+      repeated direct-field name lookup in typed multi-series scatter mapping.
+- [x] Implement the smallest hot-path change that materially improves parity.
+      `ChartMapper` now defers typed scatter x-string conversion and reuses
+      resolved `Field` handles, while `ChartVisualizationJmhBenchmark` primes
+      reusable SQL-like chart state in setup so the strict no-warmup suite
+      measures steady execution.
+- [x] Record a repeatable JFR profiling recipe in `docs/benchmarking.md` and
+      add `ChartScatterProfileMain` to the benchmark module so the next parity
+      investigation does not start from scratch.
 
 **Validate:**
 - `mvn -B -ntp -Pbenchmark-runner -DskipTests package`

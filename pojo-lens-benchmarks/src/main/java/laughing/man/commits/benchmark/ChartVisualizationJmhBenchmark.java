@@ -123,6 +123,15 @@ public class ChartVisualizationJmhBenchmark {
         pieData = pieFilter.chart(CategoryTotalRow.class, pieSpec);
         areaData = areaFilter.chart(PeriodSeriesTotalRow.class, areaSpec);
         scatterData = scatterFilter.chart(ScatterRow.class, scatterSpec);
+
+        // Prime reusable SQL-like chart mapping state in setup so the no-warmup
+        // suite measures steady execution rather than first-use cache fill.
+        parsedBarSql.chart(source, CategoryTotalRow.class, barSpec);
+        parsedLineSql.chart(source, PeriodSeriesTotalRow.class, lineSpec);
+        parsedPieSql.chart(source, CategoryTotalRow.class, pieSpec);
+        parsedAreaSql.chart(source, PeriodSeriesTotalRow.class, areaSpec);
+        parsedScatterSql.chart(source, ScatterRow.class, scatterSpec);
+        boundScatterSql.chart(scatterSpec);
     }
 
     @Setup(Level.Invocation)

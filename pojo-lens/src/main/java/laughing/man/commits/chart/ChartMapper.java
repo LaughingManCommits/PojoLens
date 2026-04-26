@@ -6,6 +6,7 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.ReflectionUtil.DirectFieldReadPlan;
 import laughing.man.commits.util.SchemaIndexUtil;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Comparator;
@@ -256,14 +257,24 @@ public final class ChartMapper {
                                                 ChartData chartData,
                                                 DirectFieldReadPlan directReadPlan) {
         MultiSeriesAccumulator accumulator = new MultiSeriesAccumulator(spec);
+        DirectMultiSeriesReadPlan directRowPlan = directMultiSeriesReadPlan(spec, directReadPlan);
 
         for (T row : rows) {
             if (row == null) {
                 continue;
             }
-            Object x = readXValue(row, spec, directReadPlan);
-            String series = readSeriesValue(row, spec.seriesField(), directReadPlan);
-            Double value = readYValue(row, spec.yField(), directReadPlan);
+            Object x;
+            String series;
+            Double value;
+            if (directRowPlan != null && directReadPlan.canRead(row)) {
+                x = readDirectMultiSeriesXValue(row, spec, directRowPlan);
+                series = readDirectSeriesValue(row, spec.seriesField(), directRowPlan.seriesField());
+                value = readDirectYValue(row, spec.yField(), directRowPlan.yField());
+            } else {
+                x = readMultiSeriesXValue(row, spec, directReadPlan);
+                series = readSeriesValue(row, spec.seriesField(), directReadPlan);
+                value = readYValue(row, spec.yField(), directReadPlan);
+            }
             accumulator.addPoint(x, series, value);
         }
         return accumulator.finish(chartData);
@@ -393,6 +404,54 @@ public final class ChartMapper {
         );
     }
 
+    private static Object readMultiSeriesXValue(Object row, ChartSpec spec, DirectFieldReadPlan directReadPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return readField(row, spec.xField(), directReadPlan);
+        }
+        return readXValue(row, spec, directReadPlan);
+    }
+
+    private static DirectMultiSeriesReadPlan directMultiSeriesReadPlan(ChartSpec spec,
+                                                                       DirectFieldReadPlan directReadPlan) {
+        if (directReadPlan == null) {
+            return null;
+        }
+        Field xField = directReadPlan.field(spec.xField());
+        Field yField = directReadPlan.field(spec.yField());
+        Field seriesField = directReadPlan.field(spec.seriesField());
+        if (xField == null || yField == null || seriesField == null) {
+            return null;
+        }
+        return new DirectMultiSeriesReadPlan(xField, yField, seriesField);
+    }
+
+    private static Object readDirectMultiSeriesXValue(Object row,
+                                                      ChartSpec spec,
+                                                      DirectMultiSeriesReadPlan directReadPlan) {
+        Field xField = directReadPlan.xField();
+        if (spec.type() == ChartType.SCATTER) {
+            return readFieldValue(row, spec.xField(), xField);
+        }
+        if (xField.getType().isPrimitive() && isNumericPrimitive(xField.getType())) {
+            return readPrimitiveAsString(row, spec.xField(), xField);
+        }
+        return ChartValidation.validateXValue(readFieldValue(row, spec.xField(), xField), spec.xField(), spec.dateFormat());
+    }
+
+    private static Double readDirectYValue(Object row, String fieldName, Field field) {
+        if (field.getType().isPrimitive() && isNumericPrimitive(field.getType())) {
+            return readNumericPrimitiveAsDouble(row, fieldName, field);
+        }
+        return ChartValidation.validateYValueBoxed(readFieldValue(row, fieldName, field), fieldName);
+    }
+
+    private static String readDirectSeriesValue(Object row, String fieldName, Field field) {
+        if (field.getType().isPrimitive()) {
+            return readPrimitiveAsString(row, fieldName, field);
+        }
+        return stringSeriesValue(readFieldValue(row, fieldName, field));
+    }
+
     private static Double readYValue(Object row, String fieldName, DirectFieldReadPlan directReadPlan) {
         if (canUseDirectFields(row, directReadPlan)
                 && directReadPlan.isNumericPrimitiveField(fieldName)) {
@@ -436,6 +495,41 @@ public final class ChartMapper {
         }
     }
 
+    private static String readPrimitiveAsString(Object row,
+                                                String fieldName,
+                                                Field field) {
+        try {
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return String.valueOf(field.getInt(row));
+            }
+            if (fieldType == long.class) {
+                return String.valueOf(field.getLong(row));
+            }
+            if (fieldType == double.class) {
+                return String.valueOf(field.getDouble(row));
+            }
+            if (fieldType == float.class) {
+                return String.valueOf(field.getFloat(row));
+            }
+            if (fieldType == short.class) {
+                return String.valueOf(field.getShort(row));
+            }
+            if (fieldType == byte.class) {
+                return String.valueOf(field.getByte(row));
+            }
+            if (fieldType == boolean.class) {
+                return String.valueOf(field.getBoolean(row));
+            }
+            if (fieldType == char.class) {
+                return String.valueOf(field.getChar(row));
+            }
+            return null;
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
     private static Double readNumericPrimitiveAsDouble(Object row,
                                                        DirectFieldReadPlan directReadPlan,
                                                        String fieldName) {
@@ -444,6 +538,52 @@ public final class ChartMapper {
         } catch (IllegalAccessException ex) {
             throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
         }
+    }
+
+    private static Double readNumericPrimitiveAsDouble(Object row,
+                                                       String fieldName,
+                                                       Field field) {
+        try {
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return (double) field.getInt(row);
+            }
+            if (fieldType == long.class) {
+                return (double) field.getLong(row);
+            }
+            if (fieldType == double.class) {
+                return field.getDouble(row);
+            }
+            if (fieldType == float.class) {
+                return (double) field.getFloat(row);
+            }
+            if (fieldType == short.class) {
+                return (double) field.getShort(row);
+            }
+            if (fieldType == byte.class) {
+                return (double) field.getByte(row);
+            }
+            return null;
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
+    private static Object readFieldValue(Object row, String fieldName, Field field) {
+        try {
+            return field.get(row);
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
+    private static boolean isNumericPrimitive(Class<?> fieldType) {
+        return fieldType == int.class
+                || fieldType == long.class
+                || fieldType == double.class
+                || fieldType == float.class
+                || fieldType == short.class
+                || fieldType == byte.class;
     }
 
     private static String stringSeriesValue(Object value) {
@@ -504,6 +644,9 @@ public final class ChartMapper {
                 spec.stackGroupIdForDataset(label),
                 spec.axisIdForDataset(label)
         );
+    }
+
+    private record DirectMultiSeriesReadPlan(Field xField, Field yField, Field seriesField) {
     }
 
     private static final class MultiSeriesAccumulator {

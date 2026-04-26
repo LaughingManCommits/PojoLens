@@ -196,6 +196,28 @@ public class ChartResultMapperMappingTest {
     }
 
     @Test
+    public void toChartDataShouldMapScatterMultiSeriesRows() {
+        List<ChartResultMapperFixtures.MultiSeriesScatterRow> rows = List.of(
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(2d, 20d, "A"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(1d, 10d, "B"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(1d, 15d, "A"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(2d, 25d, "A")
+        );
+
+        ChartData data = ChartResultMapper.toChartData(
+                rows,
+                ChartSpec.of(ChartType.SCATTER, "xValue", "yValue", "series").withSortedLabels(true)
+        );
+
+        assertEquals(List.of("1.0", "2.0"), data.getLabels());
+        assertEquals(2, data.getDatasets().size());
+        assertEquals("A", data.getDatasets().get(0).getLabel());
+        assertEquals(List.of(15d, 25d), data.getDatasets().get(0).getValues());
+        assertEquals("B", data.getDatasets().get(1).getLabel());
+        assertEquals(Arrays.asList(10d, null), data.getDatasets().get(1).getValues());
+    }
+
+    @Test
     public void toChartDataShouldMapMultiSeries() {
         List<ChartResultMapperFixtures.DepartmentMetricRow> rows = new ArrayList<>();
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Engineering", "2025-01", 2, 300));

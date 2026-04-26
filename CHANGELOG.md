@@ -11,6 +11,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Scatter JFR profiling harness** - added
+  `laughing.man.commits.benchmark.ChartScatterProfileMain` to the benchmark
+  module and documented a repeatable `docs/benchmarking.md` JFR recipe for the
+  `SCATTER size=100000` parity path, including the local Windows caveat that
+  `jdk.CPUTimeSample` may be unavailable and should be verified with
+  `jfr summary`.
+
 - **Chart.js scatter bridge** - `ChartJsAdapter.toPayload()` now supports `ChartType.SCATTER`: emits `[{x, y}]` point arrays per dataset and a `type: "linear"` numeric x-axis instead of categorical labels. `ChartDataset` gains `xValues` (numeric x-coordinates populated by `ChartMapper` for scatter specs). `ChartJsDataset.data` widened to `Object` to support both numeric arrays and point-object arrays. 6 adapter bridge tests green.
 
 - **Facet option helper** - added `FacetOption(value, count)` record and `FacetPresets.distinctCounts(fieldName)` factory returning `FacetQuery<T>` in package `laughing.man.commits.facet`. Counts distinct field values in-memory from any POJO list; results sorted by count descending then value ascending. 5 tests green.
@@ -83,6 +90,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Risk console created-at paging fix** - restored transaction paging for `createdAt` sort by keeping PojoLens filter/sort behavior and using an app-owned cursor token with ISO timestamp plus `id`. Added service and browser regression coverage so date-sorted `Load More` now works and stays tested.
 
 ### Fixed
+
+- **WP15 scatter chart parity hotspot** - typed multi-series scatter mapping
+  now defers x-label string conversion and reuses resolved direct-field handles
+  instead of repeating per-row field-name lookups. The chart JMH harness now
+  also primes reusable SQL-like chart state in `@Setup`, and the strict chart
+  parity rerun passes for `SCATTER size=100000` at fluent `4.887 ms/op`,
+  SQL-like `7.454 ms/op`, ratio `1.526`.
 
 - **WP14 expression evaluator input validation contract** -
   `SqlExpressionEvaluator` now rejects null and blank expressions before any

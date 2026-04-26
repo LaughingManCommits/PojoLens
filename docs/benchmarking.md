@@ -105,6 +105,33 @@ Hotspot microbenchmark suite:
 java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
 ```
 
+## JFR Scatter Parity Recipe
+
+When a chart-parity failure narrows down to `SCATTER size=100000`, profile the
+hot path inside the recorded JVM instead of attaching JFR to the outer JMH
+launcher process.
+
+PowerShell:
+
+```powershell
+$jar = (Get-ChildItem target -Filter '*-benchmarks.jar' | Select-Object -First 1).FullName
+& "$env:JAVA_HOME\bin\java.exe" `
+  -XX:StartFlightRecording=filename=target/benchmarks/wp15/sqlLike-scatter.jfr,settings=profile,dumponexit=true `
+  -cp $jar laughing.man.commits.benchmark.ChartScatterProfileMain sqlLike 100000 200
+& "$env:JAVA_HOME\bin\jfr.exe" summary target/benchmarks/wp15/sqlLike-scatter.jfr
+& "$env:JAVA_HOME\bin\jfr.exe" view hot-methods target/benchmarks/wp15/sqlLike-scatter.jfr
+```
+
+Repeat the same command with `fluent` and `sqlLikeBound` to compare steady-state
+scatter mapping directly.
+
+Local caveats:
+- Use `$env:JAVA_HOME\bin\java.exe`; `java` on `PATH` may still point at JDK 17.
+- On this Windows host, `jdk.CPUTimeSample` is not available, so use
+  `jdk.ExecutionSample` plus allocation views from the same recording.
+- Confirm the available event mix with `jfr summary`; some hosts may report
+  `jdk.MethodTiming` and `jdk.MethodTrace` as zero even with `settings=profile`.
+
 ## Representative Budgets
 
 The budget files are the source of truth:

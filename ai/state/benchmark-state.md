@@ -19,6 +19,17 @@ Load this file only for benchmark, threshold, or profiling tasks.
 
 ## Current Position
 
+- `2026-04-26`: WP15 is complete. JFR-guided scatter profiling showed the
+  remaining SQL-like chart parity cost came from eager per-row scatter x-string
+  materialization plus repeated direct-field name lookup in typed multi-series
+  scatter mapping. `ChartMapper` now defers scatter x-label formatting, reuses
+  resolved `Field` handles, and the strict chart suite rerun cleared
+  `SCATTER size=100000` parity at fluent `4.887 ms/op`, SQL-like
+  `7.454 ms/op`, ratio `1.526`.
+- `2026-04-26`: Local Windows JFR did not expose `jdk.CPUTimeSample`; usable
+  recordings came from `jdk.ExecutionSample` / `jdk.ObjectAllocationSample`.
+  `docs/benchmarking.md` now documents the `ChartScatterProfileMain` recipe and
+  the need to verify actual event availability with `jfr summary`.
 - `2026-04-23`: WP5 is complete: reflection hot-path caching shipped, repeated joins reuse prepared fast join state, warmed window allocation overhead dropped, and batch/columnar evaluation closed with no new execution mode.
 - `2026-04-17`: CI reported CSV guardrail misses at typed `1k = 13.655 ms`, multiline `1k = 5.709 ms`, and multiline `10k = 54.170 ms`; thresholds now allow `18.0 ms`, `8.0 ms`, and `70.0 ms` respectively.
 - `2026-04-23`: WP5 first slice reduced reflection hot-path cost by caching direct-field read plans across equivalent selections and reusing cached nested-path writes during projection materialization.

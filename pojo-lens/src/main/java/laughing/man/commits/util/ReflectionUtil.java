@@ -1177,6 +1177,10 @@ public final class ReflectionUtil {
             return field != null && isNumericPrimitive(field.getType());
         }
 
+        public Field field(String fieldName) {
+            return fields.get(fieldName);
+        }
+
         public Object readValue(Object row, String fieldName) throws IllegalAccessException {
             Field field = fields.get(fieldName);
             return field == null ? null : field.get(row);
