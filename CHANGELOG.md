@@ -230,9 +230,9 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
-- **CI runtime** - added Java 25 to the CI test matrix, moved artifact uploads
-  to `actions/upload-artifact@v6`, and kept published bytecode targeting Java
-  17.
+- **Java 25 toolchain alignment** - moved the repository build and CI matrix to
+  Java 25, set `maven.compiler.release=25`, and updated workflow artifact steps
+  to `actions/upload-artifact@v6`.
 - **Benchmark docs** - replaced versioned benchmark runner examples with
   dynamic `BENCHMARK_JAR` resolution and updated the documentation consistency
   gate to reject hardcoded benchmark jar versions.
