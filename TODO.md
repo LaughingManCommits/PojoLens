@@ -33,9 +33,9 @@ wiring.
 | WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; concurrent test added; reset semantics follow-up in WP13 |
 | WP11| Java 25 Modernization                       | Pending  | Records, sealed AST hierarchy, pattern matching, Stream.toList()                     |
 | WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
-| WP13| Stats Plan Cache Reset Semantics            | Pending  | `resetStats()` must drop entries and force the next identical query to miss         |
+| WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
 | WP14| Expression Evaluator Input Validation Contract | Pending | Restore null/blank validation before Caffeine cache access                           |
-| Release Gate | Release Gate                         | Pending  | Fix WP13-WP14 regressions; release notes; final guardrails                          |
+| Release Gate | Release Gate                         | Pending  | Fix WP14 regression; release notes; final guardrails                                |
 
 ---
 
@@ -51,8 +51,9 @@ wiring.
 - `SqlExpressionEvaluator.compileNumeric(null)` now throws
   `NullPointerException` via Caffeine rather than the previous validation error
   contract. The same regression affects the other expression-entry helpers.
-- Review snapshot was `1037/1037`; after WP12 the suite is `1039/1039`, and
-  WP13/WP14 still need their targeted regression coverage before release.
+- Review snapshot was `1037/1037`; after WP12 and WP13 the suite is
+  `1041/1041`, and WP14 still needs its targeted regression coverage before
+  release.
 
 ---
 
@@ -393,15 +394,15 @@ operation that clears counters and cached entries.
   memory now overstate the implementation.
 
 **Tasks:**
-- [ ] Split `resetStats()` from `rebuildCache()` with a direct `cache = newCache()`
+- [x] Split `resetStats()` from `rebuildCache()` with a direct `cache = newCache()`
       under `mutationLock`, without copying existing entries.
-- [ ] Add a regression test asserting `size()==0` immediately after
+- [x] Add a regression test asserting `size()==0` immediately after
       `resetStats()`.
-- [ ] Add a regression test asserting the next identical stats query records a
+- [x] Add a regression test asserting the next identical stats query records a
       miss, not a hit, after `resetStats()`.
-- [ ] Cover the runtime/public cache controls that expose stats-plan-cache reset
+- [x] Cover the runtime/public cache controls that expose stats-plan-cache reset
       semantics.
-- [ ] Reconcile TODO and AI notes once the implementation matches the contract.
+- [x] Reconcile TODO and AI notes once the implementation matches the contract.
 
 **Validate:**
 - `mvn -B -ntp -pl pojo-lens "-Dtest=CachePolicyConfigTest,CacheConcurrencyTest,PublicApiCacheCoverageTest" test`
@@ -447,7 +448,7 @@ performance work is backed by the final guardrails.
 
 **Tasks:**
 - [x] Complete WP12 (QueryRow alias projection schema safety).
-- [ ] Complete WP13 (stats plan cache reset semantics).
+- [x] Complete WP13 (stats plan cache reset semantics).
 - [ ] Complete WP14 (expression evaluator input validation contract).
 - [ ] Decide whether to backfill the missing WP6/WP8/WP9 JMH + threshold work
       before the release cut.

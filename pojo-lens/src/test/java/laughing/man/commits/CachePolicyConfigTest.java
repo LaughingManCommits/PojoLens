@@ -126,6 +126,32 @@ public class CachePolicyConfigTest {
         assertEquals(1L, runtime.statsPlanCache().hits());
     }
 
+    @Test
+    public void statsPlanCacheResetShouldDropEntriesAndForceNextEquivalentQueryToMiss() {
+        List<Employee> employees = sampleEmployees();
+        SqlLikeQuery query = runtime.parse("select department, count(*) as total group by department");
+
+        query.filter(employees, DepartmentCount.class);
+        query.filter(employees, DepartmentCount.class);
+
+        assertEquals(1, runtime.statsPlanCache().size());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(1L, runtime.statsPlanCache().hits());
+
+        runtime.statsPlanCache().resetStats();
+
+        assertEquals(0, runtime.statsPlanCache().size());
+        assertEquals(0L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+        assertEquals(0L, runtime.statsPlanCache().evictions());
+
+        query.filter(employees, DepartmentCount.class);
+
+        assertEquals(1, runtime.statsPlanCache().size());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+    }
+
     private void runStatsPlanQuery(List<Employee> employees) {
         FluentEngine.newQueryBuilder(employees, runtime.statsPlanCache())
                 .addGroup("department")

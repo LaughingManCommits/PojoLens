@@ -77,6 +77,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Fixed
 
+- **WP13 stats-plan-cache reset semantics** - `FilterExecutionPlanCacheStore`
+  now treats `resetStats()` as a true fresh-start operation by swapping in a
+  new empty cache instead of rebuilding from existing entries. Runtime and
+  public API regression coverage now lock `size()==0` immediately after reset
+  and require the next equivalent stats query to record a miss rather than a
+  hit.
 - **WP12 QueryRow alias projection schema safety** - `SqlLikeExecutionSupport`
   no longer assumes every `QueryRow` shares the first row's field order during
   aliased or computed projection. Preferred indexes are now validated against

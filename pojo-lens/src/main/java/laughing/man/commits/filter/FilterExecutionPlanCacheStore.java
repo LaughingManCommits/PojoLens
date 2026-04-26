@@ -86,7 +86,9 @@ public final class FilterExecutionPlanCacheStore {
     }
 
     public void resetStats() {
-        rebuildCache();
+        synchronized (mutationLock) {
+            cache = newCache();
+        }
     }
 
     public boolean isEnabled() {
