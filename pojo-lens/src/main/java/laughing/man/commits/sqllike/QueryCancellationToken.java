@@ -64,7 +64,13 @@ public interface QueryCancellationToken {
 
     /**
      * Returns a token that cancels when the given thread is interrupted.
-     * Useful for tying query lifetime to a request thread.
+     * Useful for tying query lifetime to a request thread, including a virtual
+     * request thread in a Spring-style boundary.
+     *
+     * <p>This token only observes the interrupt state of the specific thread
+     * instance passed here. If a host hands execution across threads or drives
+     * cancellation through another request-scoped signal, prefer
+     * {@link #ofAtomic(AtomicBoolean)}.
      *
      * @param thread target thread; must not be null
      * @return token backed by thread interrupt status

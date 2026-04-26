@@ -105,6 +105,10 @@ state (`QueryCancellationToken.ofThread(...)`). Cancellation is cooperative:
 eager paths check at execution start, and lazy stream/iterator paths also check
 between returned rows. Cancellation outcomes include
 `rowsReturnedBeforeAbort`, the exact number of rows yielded before the abort.
+Thread-backed cancellation works for platform and virtual request threads, but
+it only tracks the specific thread you bind. If a host hands work across
+threads or cancels via a separate request signal, prefer an
+`AtomicBoolean`-backed token instead of `ofThread(...)`.
 
 **Telemetry:** When a guard blocks, `QueryTelemetryStage.GUARD_REJECTED` is emitted
 via `QueryTelemetryListener` before throwing, carrying `auditMetadata()` fields.

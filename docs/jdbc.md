@@ -52,3 +52,16 @@ Examples: `merchant_name` → `merchantName`, `merchant name` → `merchantName`
 with a `ResultSet`. Use it when you hold the result set yourself or are not
 using Spring. Use `PojoLensJdbc` when you have a `JdbcTemplate` and want a
 one-liner.
+
+## Virtual Threads
+
+Virtual threads are a boundary-integration option for blocking
+controller/service/`JdbcTemplate` paths, not a core PojoLens performance
+feature. The query engine itself remains primarily in-memory and CPU-bound, so
+enabling Spring virtual threads should be treated as a request/JDBC scaling
+choice rather than an engine-throughput optimization.
+
+`PojoLensJdbc` itself does not wrap `JdbcTemplate.query(...)` in long-lived
+`synchronized` sections. Before wider rollout, still audit the surrounding app
+code, JDBC driver, and connection-pool behavior for pinning or other blocking
+constraints.

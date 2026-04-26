@@ -27,6 +27,12 @@ mvn -B -ntp -pl pojo-lens-spring-boot-starter -am install -DskipTests
 mvn -B -ntp -f examples/spring-boot-starter-risk-console/pom.xml spring-boot:run
 ```
 
+Optional virtual-thread boundary run:
+
+```bash
+mvn -B -ntp -f examples/spring-boot-starter-risk-console/pom.xml spring-boot:run "-Dspring-boot.run.profiles=virtual"
+```
+
 Test:
 
 ```bash
@@ -45,6 +51,8 @@ Notes:
 - `SqlLikeResultSetAdapter` now bridges flat JDBC `ResultSet` rows into mutable POJOs for the main dashboard snapshot and related flat repository queries.
 - Manual JDBC mapping stays only where the example needs non-flat or record-shaped detail payloads.
 - PojoLens shapes loaded POJOs in memory.
+- The optional `virtual` profile is for evaluating the blocking web/JDBC boundary only; it is not meant as a claim that the in-memory PojoLens engine speeds up under virtual threads.
+- Current pinning audit result: repository/service code does not hold long-lived `synchronized` blocks across JDBC calls. The remaining synchronized section is the in-memory telemetry buffer, which does not wrap database I/O.
 - Browser screenshots land in `target/playwright-screenshots/`.
 - H2 test profile is fallback for automated test runs.
 - Reviewer handoff lives in `examples/spring-boot-starter-risk-console/REVIEWER.md`.

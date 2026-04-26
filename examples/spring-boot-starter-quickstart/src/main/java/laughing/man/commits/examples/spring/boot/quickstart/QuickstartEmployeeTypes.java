@@ -44,6 +44,8 @@ public final class QuickstartEmployeeTypes {
         public boolean lintMode;
         public boolean sqlLikeCacheEnabled;
         public boolean statsPlanCacheEnabled;
+        public boolean virtualThreadsEnabled;
+        public boolean requestThreadVirtual;
 
         public RuntimeInfo() {
         }
@@ -51,11 +53,15 @@ public final class QuickstartEmployeeTypes {
         public RuntimeInfo(boolean strictParameterTypes,
                            boolean lintMode,
                            boolean sqlLikeCacheEnabled,
-                           boolean statsPlanCacheEnabled) {
+                           boolean statsPlanCacheEnabled,
+                           boolean virtualThreadsEnabled,
+                           boolean requestThreadVirtual) {
             this.strictParameterTypes = strictParameterTypes;
             this.lintMode = lintMode;
             this.sqlLikeCacheEnabled = sqlLikeCacheEnabled;
             this.statsPlanCacheEnabled = statsPlanCacheEnabled;
+            this.virtualThreadsEnabled = virtualThreadsEnabled;
+            this.requestThreadVirtual = requestThreadVirtual;
         }
     }
 }

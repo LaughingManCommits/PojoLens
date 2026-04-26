@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
@@ -60,6 +61,31 @@ public class QueryCancellationTest {
         } finally {
             Thread.interrupted(); // clear interrupt flag
         }
+    }
+
+    @Test
+    void cancellationTokenShouldReflectVirtualThreadInterruptStatus() throws Exception {
+        AtomicBoolean beforeInterrupt = new AtomicBoolean(true);
+        AtomicBoolean afterInterrupt = new AtomicBoolean(false);
+        CountDownLatch ready = new CountDownLatch(1);
+
+        Thread virtualThread = Thread.ofVirtual().start(() -> {
+            QueryCancellationToken token = QueryCancellationToken.ofThread(Thread.currentThread());
+            beforeInterrupt.set(token.isCancelled());
+            ready.countDown();
+            while (!Thread.currentThread().isInterrupted()) {
+                Thread.onSpinWait();
+            }
+            afterInterrupt.set(token.isCancelled());
+            Thread.interrupted();
+        });
+
+        ready.await();
+        virtualThread.interrupt();
+        virtualThread.join();
+
+        assertFalse(beforeInterrupt.get());
+        assertTrue(afterInterrupt.get());
     }
 
     @Test

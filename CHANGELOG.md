@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Virtual-thread boundary profiles** - added opt-in `virtual` Spring
+  profiles for the quickstart, basic, and risk-console examples; extended the
+  starter/basic/quickstart smoke surfaces to expose
+  `virtualThreadsEnabled`/`requestThreadVirtual`; added virtual-mode
+  integration tests plus core `QueryCancellationToken.ofThread(...)`
+  virtual-thread coverage; and documented that virtual threads are a
+  Spring/JDBC boundary option rather than a core-engine throughput feature.
+
 - **Scatter JFR profiling harness** - added
   `laughing.man.commits.benchmark.ChartScatterProfileMain` to the benchmark
   module and documented a repeatable `docs/benchmarking.md` JFR recipe for the
@@ -58,6 +66,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   into conservative threshold checks.
 
 ### Changed
+
+- **Spring/JDBC boundary guidance** - `docs/advanced-features.md`,
+  `docs/jdbc.md`, and the Spring example READMEs now explicitly frame virtual
+  threads as an opt-in blocking-boundary integration choice, document the
+  `QueryCancellationToken.ofThread(...)` limitation to one concrete thread, and
+  record the current no-long-lived-JDBC-lock pinning audit result.
 
 - **Java 25 internal modernization** - sealed `FilterExpressionAst`, converted
   `CompiledRule` plus the `AggregationEngine` / `FastStatsQuerySupport`

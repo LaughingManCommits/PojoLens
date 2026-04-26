@@ -37,7 +37,7 @@ wiring.
 | WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
 | Release Gate | Release Gate                         | Pending  | Scope decisions made; lint/chart parity cleared; final release guardrails pending    |
 | WP15| JDK 25 JFR Chart-Parity Profiling          | Done     | Scatter hotspot fix, JFR harness/recipe, chart parity rerun                          |
-| WP16| Virtual-Thread Boundary Evaluation         | Pending  | Opt-in Spring/JDBC boundary spike; cancellation and pinning audit                    |
+| WP16| Virtual-Thread Boundary Evaluation         | Done     | Opt-in Spring `virtual` profiles, smoke coverage, cancellation/pinning audit         |
 | WP17| Internal Java 25 Cleanup Pass              | Pending  | Non-preview utility/cursor dispatch cleanup; full regression rerun                   |
 | WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
 
@@ -552,6 +552,8 @@ performance work is backed by the final guardrails.
 
 ## WP16: Virtual-Thread Boundary Evaluation
 
+**Status:** Done (`2026-04-26`)
+
 **Priority:** Moderate Integration Scalability
 **Goal:** Evaluate virtual threads at the blocking Spring/JDBC boundary without
 changing the core PojoLens execution model.
@@ -568,17 +570,30 @@ changing the core PojoLens execution model.
   boundary audit should confirm no long-lived I/O is guarded that way.
 
 **Tasks:**
-- [ ] Add an opt-in virtual-thread runtime toggle or profile for the Spring
+- [x] Add an opt-in virtual-thread runtime toggle or profile for the Spring
       example apps, keeping the default execution model unchanged.
-- [ ] Run starter/example smoke coverage under the virtual-thread mode and
+- [x] Run starter/example smoke coverage under the virtual-thread mode and
       confirm request handling stays functionally identical.
-- [ ] Verify `QueryCancellationToken.ofThread(...)` still behaves correctly for
+- [x] Verify `QueryCancellationToken.ofThread(...)` still behaves correctly for
       request-scoped cancellation and document any limitations.
-- [ ] Audit repository/service code for pinning risk around blocking JDBC/HTTP
+- [x] Audit repository/service code for pinning risk around blocking JDBC/HTTP
       calls and document any lock-scope changes that would be required before a
       wider rollout.
-- [ ] Document the recommendation explicitly: virtual threads are a boundary
+- [x] Document the recommendation explicitly: virtual threads are a boundary
       integration option, not a core-query-engine performance feature.
+
+**Implementation note:** The landed scope added a `virtual` Spring profile to
+the `spring-boot-starter-basic`, `spring-boot-starter-quickstart`, and
+`spring-boot-starter-risk-console` examples; exposed
+`virtualThreadsEnabled`/`requestThreadVirtual` runtime metadata on the basic,
+quickstart, and starter smoke endpoints; added dedicated virtual-mode smoke
+tests for the starter/basic/quickstart paths; extended
+`QueryCancellationTest` to cover virtual-thread interrupt-backed cancellation;
+and documented the current boundary guidance plus pinning findings in
+`docs/advanced-features.md`, `docs/jdbc.md`, and the example READMEs. The
+current repository audit found no long-lived `synchronized` sections wrapped
+around JDBC calls; the remaining synchronized code in the risk-console example
+is the in-memory telemetry buffer only.
 
 **Validate:**
 - `mvn -B -ntp -f examples\\spring-boot-starter-basic\\pom.xml test`

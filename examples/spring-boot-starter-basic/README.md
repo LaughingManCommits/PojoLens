@@ -63,6 +63,19 @@ Inspect runtime starter settings:
 curl "http://localhost:8080/api/employees/runtime"
 ```
 
+## Optional Virtual-Thread Profile
+
+Run the dashboard example with Spring virtual threads enabled:
+
+```bash
+mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml spring-boot:run "-Dspring-boot.run.profiles=virtual"
+```
+
+Treat this as a boundary experiment for HTTP request handling, not as a claim
+that PojoLens core execution gets faster. `/api/employees/runtime` exposes
+`virtualThreadsEnabled` and `requestThreadVirtual`, and the repo now includes a
+dedicated virtual-mode smoke test for this example.
+
 ## What This Demonstrates
 
 - `PojoLensRuntime` is injected by Spring Boot auto-configuration from the starter.
@@ -110,3 +123,4 @@ Notes:
 - Tests are Java/JUnit based (`com.microsoft.playwright:playwright`) under `src/test/java`.
 - The suite starts the app with `@SpringBootTest(webEnvironment = RANDOM_PORT)` and drives both UI and API coverage against that server.
 - On first run Playwright downloads browser binaries automatically.
+- A lighter virtual-thread smoke test also runs under `src/test/java` to confirm the opt-in `virtual` profile keeps request handling functional.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T10:26:34.425743+02:00",
+  "generatedAt": "2026-04-26T16:07:45.984110+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,8 +11,8 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 137,
-    "testClasses": 137
+    "testJavaFiles": 140,
+    "testClasses": 140
   },
   "modules": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "path": "pojo-lens-spring-boot-starter",
-      "testJavaFiles": 1
+      "testJavaFiles": 2
     },
     {
       "path": "pojo-lens-benchmarks",
@@ -33,11 +33,11 @@
     },
     {
       "path": "examples/spring-boot-starter-basic",
-      "testJavaFiles": 1
+      "testJavaFiles": 2
     },
     {
       "path": "examples/spring-boot-starter-quickstart",
-      "testJavaFiles": 1
+      "testJavaFiles": 2
     }
   ],
   "suites": [
@@ -89,6 +89,7 @@
     {
       "category": "fluent-and-query-engine",
       "files": [
+        "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterVirtualThreadsIntegrationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/ComputedFieldRegistryTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/DatasetBundleExecutionContextTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/ExplainToolingTest.java",
@@ -214,8 +215,10 @@
     {
       "category": "starter-example",
       "files": [
+        "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/BasicVirtualThreadsIntegrationTest.java",
         "examples/spring-boot-starter-basic/src/test/java/laughing/man/commits/examples/spring/boot/basic/DashboardPlaywrightE2eTest.java",
-        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java"
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
       ]
     }
   ]

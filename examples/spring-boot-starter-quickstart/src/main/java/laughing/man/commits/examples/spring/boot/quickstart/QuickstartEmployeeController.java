@@ -4,6 +4,7 @@ import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.Employee;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.EmployeeView;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.RuntimeInfo;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +22,7 @@ public class QuickstartEmployeeController {
             + "order by salary desc limit :limit";
 
     private final PojoLensRuntime pojoLensRuntime;
+    private final boolean virtualThreadsEnabled;
     private final List<Employee> employees = List.of(
             new Employee(1, "Ava", "Engineering", 145000),
             new Employee(2, "Milan", "Engineering", 132000),
@@ -29,8 +31,9 @@ public class QuickstartEmployeeController {
             new Employee(5, "Sara", "Marketing", 98000)
     );
 
-    public QuickstartEmployeeController(PojoLensRuntime pojoLensRuntime) {
+    public QuickstartEmployeeController(PojoLensRuntime pojoLensRuntime, Environment environment) {
         this.pojoLensRuntime = pojoLensRuntime;
+        this.virtualThreadsEnabled = environment.getProperty("spring.threads.virtual.enabled", Boolean.class, false);
     }
 
     @GetMapping
@@ -57,7 +60,9 @@ public class QuickstartEmployeeController {
                 pojoLensRuntime.isStrictParameterTypes(),
                 pojoLensRuntime.isLintMode(),
                 pojoLensRuntime.sqlLikeCache().isEnabled(),
-                pojoLensRuntime.statsPlanCache().isEnabled()
+                pojoLensRuntime.statsPlanCache().isEnabled(),
+                virtualThreadsEnabled,
+                Thread.currentThread().isVirtual()
         );
     }
 }

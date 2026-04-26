@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-04-26T10:26:34.425743+02:00",
+  "generatedAt": "2026-04-26T16:09:13.945421+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
     "mainJavaFiles": 248,
-    "testJavaFiles": 137,
+    "testJavaFiles": 140,
     "markdownDocs": 54,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
@@ -106,7 +106,7 @@
       "testRoot": "pojo-lens-spring-boot-starter/src/test/java",
       "resourceRoot": null,
       "mainJavaFiles": 1,
-      "testJavaFiles": 1,
+      "testJavaFiles": 2,
       "resourceFiles": 0
     },
     {
@@ -130,8 +130,8 @@
       "testRoot": "examples/spring-boot-starter-basic/src/test/java",
       "resourceRoot": "examples/spring-boot-starter-basic/src/main/resources",
       "mainJavaFiles": 5,
-      "testJavaFiles": 1,
-      "resourceFiles": 4
+      "testJavaFiles": 2,
+      "resourceFiles": 5
     },
     {
       "path": "examples/spring-boot-starter-quickstart",
@@ -142,8 +142,8 @@
       "testRoot": "examples/spring-boot-starter-quickstart/src/test/java",
       "resourceRoot": "examples/spring-boot-starter-quickstart/src/main/resources",
       "mainJavaFiles": 3,
-      "testJavaFiles": 1,
-      "resourceFiles": 1
+      "testJavaFiles": 2,
+      "resourceFiles": 2
     }
   ],
   "importantFiles": [
