@@ -40,6 +40,8 @@ wiring.
 | WP16| Virtual-Thread Boundary Evaluation         | Done     | Opt-in Spring `virtual` profiles, smoke coverage, cancellation/pinning audit         |
 | WP17| Internal Java 25 Cleanup Pass              | Done     | Internal utility/cursor switch cleanup; targeted regressions; full reactor green     |
 | WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
+| WP19| Reusable Report Wrapper Consolidation      | Pending  | `ReportDefinition` as shared row-query owner; preset wrappers delegate cleanly       |
+| WP20| Query Message Consolidation                | Done     | `SqlLikeFieldMessages`, natural helper dedupe, targeted message-contract tests green  |
 
 ---
 
@@ -681,3 +683,81 @@ mandatory code changes.
 **Validate:**
 - `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
 - `scripts/check-doc-consistency.ps1`
+
+---
+
+## WP19: Reusable Report Wrapper Consolidation
+
+**Priority:** High Maintainability / API Continuity
+**Goal:** Make `ReportDefinition` the single shared owner of the reusable
+row-query contract while keeping `ChartQueryPreset` and `StatsViewPreset` as
+specialized convenience wrappers.
+
+**Context:**
+- `ChartQueryPreset`, `StatsViewPreset`, and `ReportDefinition` all own the
+  same `source()`/`schema()`/`rows(...)` shape over list, join-binding, and
+  dataset-bundle entry points.
+- The current split is manageable now, but it creates drift risk whenever row
+  execution, schema access, or reusable report behavior changes.
+- The chart-first and stats-first wrappers still add independent value, so this
+  is not a deletion package; it is a single-owner package.
+
+**Tasks:**
+- [ ] Route `ChartQueryPreset` through a shared `ReportDefinition<T>` owner for
+      `source()`, `schema()`, and `rows(...)` behavior.
+- [ ] Route `StatsViewPreset` through a shared `ReportDefinition<T>` owner for
+      `source()`, `schema()`, and `rows(...)` behavior.
+- [ ] Keep `ChartQueryPreset`-specific chart/chart-js helpers and
+      `StatsViewPreset`-specific totals/table helpers as the specialized public
+      surface.
+- [ ] Preserve public API signatures and observable behavior; avoid widening the
+      reusable contract just to make delegation easier.
+- [ ] Add focused regression coverage proving wrapper rows/schema behavior stays
+      aligned with `ReportDefinition` across `List<?>`, `JoinBindings`, and
+      `DatasetBundle` entry points.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=ChartQueryPresetsTest,StatsViewPresetsTest,ReportDefinitionTest" test`
+- `mvn -B -ntp test`
+
+---
+
+## WP20: Query Message Consolidation
+
+**Status:** Done (`2026-04-27`)
+
+**Priority:** Moderate Maintainability / Diagnostics Consistency
+**Goal:** Consolidate repeated field-resolution message assembly so equivalent
+errors have one canonical owner per query language.
+
+**Context:**
+- SQL-like unknown-field diagnostics are currently assembled in multiple places:
+  `SqlLikeValidator`, `SqlLikeJoinResolution`, and
+  `SqlLikeDiagnosticsSupport`.
+- Natural-field resolution also repeats the same ambiguous/unknown natural-term
+  message flow in two separate helpers.
+- Message wording is user-facing and contract-sensitive, so the consolidation
+  must preserve existing output instead of rephrasing it.
+
+**Tasks:**
+- [x] Add a focused SQL-like message owner (for example
+      `sqllike.internal.error.SqlLikeFieldMessages`) for
+      `"Unknown field ..."` assembly with suggestions and allowed-fields text.
+- [x] Migrate SQL-like validator, join-resolution, and diagnostics callers to
+      the shared message owner without changing observable wording.
+- [x] Extract shared private helpers in `NaturalQueryResolutionSupport` for
+      unknown and ambiguous natural field-term errors.
+- [x] Keep the subquery-row lookup duplication and `NaturalQuery.QueryState`
+      withers unchanged unless a later third use appears; both were reviewed and
+      are currently cheaper to keep explicit.
+- [x] Refresh focused tests that lock exact error text for SQL-like validation,
+      SQL-like diagnostics, JOIN resolution, and natural-query resolution.
+
+**Implementation note:** Landed `SqlLikeFieldMessages` as the shared SQL-like
+unknown-field message owner, switched validator/JOIN/diagnostics callers to it
+without changing wording, extracted shared natural ambiguous/unknown field-term
+helpers, and added `SqlLikeFieldMessagesTest`.
+
+**Validate:**
+- `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeValidationTest,SqlLikeDiagnosticsTest,SqlLikeJoinTest,NaturalQueryContractTest,NaturalQueryParserTest,SqlLikeFieldMessagesTest,SqlLikeSourceBindingMessagesTest" test`
+- `mvn -B -ntp test`

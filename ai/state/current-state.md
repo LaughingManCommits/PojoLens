@@ -7,25 +7,20 @@
 
 ## Focus
 
+- `2026-04-27`: WP20 landed: SQL-like field errors now share `SqlLikeFieldMessages`, natural field-term helpers are deduplicated, and WP19 remains pending after WP18.
 - `2026-04-26`: WP17 landed: internal Java 25 cleanup replaced repetitive utility/cursor dispatch with non-preview switch expressions and refreshed targeted regressions.
 - `2026-04-26`: Release Gate is down to the final release guardrails.
 - `2026-04-26`: Defer the unimplemented WP6/WP8/WP9 benchmark-backfill tasks until after the next release cut.
 - `2026-04-26`: WP11-WP17 are complete and green.
-- `2026-04-26`: `TODO.md` now leaves WP18 as the remaining post-release Java 25 follow-up.
 - `2026-04-25`: Java 25 upgrade is complete across the Maven build and CI workflows.
 
 ## Verified
 
-- `2026-04-26`: WP17 targeted `mvn -B -ntp -pl pojo-lens "-Dtest=SqlLikeKeysetCursorTest,ChartResultMapper*Test,TimeBucket*Test,*Comparison*Test,ObjectUtilTest,FilterQueryBuilderSelectiveMaterializationTest" test` passed: 96 tests, 0 failures.
-- `2026-04-26`: `mvn -B -ntp test` passed: 1074 tests, 0 failures across all modules after WP17.
-- `2026-04-26`: `mvn -B -ntp -Plint verify -DskipTests` passed after the WP17 cleanup.
-- `2026-04-26`: `scripts/check-lint-baseline.ps1` passed after refreshing `scripts/checkstyle-baseline.txt` to `18383` entries.
-- `2026-04-26`: `scripts/check-doc-consistency.ps1` passed.
-- `2026-04-26`: `mvn -B -ntp -Pbenchmark-runner -DskipTests package` passed.
-- `2026-04-26`: Release benchmark core thresholds passed.
-- `2026-04-26`: Release benchmark chart thresholds passed.
-- `2026-04-26`: Release chart parity passed on rerun for `SCATTER size=100000`: fluent `4.887 ms/op`, SQL-like `7.454 ms/op`, ratio `1.526`.
-- `2026-04-26`: Release benchmark plot generation passed.
+- `2026-04-27`: WP20 targeted message-contract tests passed at 126/126.
+- `2026-04-27`: `mvn -B -ntp test` passed at 1077/1077 after WP20.
+- `2026-04-26`: WP17 targeted dispatch regressions passed at 96/96.
+- `2026-04-26`: Lint verify passed after WP17.
+- `2026-04-26`: Release benchmark guardrails and the `SCATTER size=100000` parity rerun passed.
 
 ## Release
 
@@ -43,4 +38,4 @@
 ## Next
 
 - Run the final release guardrails from `RELEASE.md`, then cut the release if they stay green.
-- After the release cut, work WP18 runtime-knob evaluation.
+- After the release cut, work WP18 runtime-knob evaluation, then WP19 wrapper consolidation.

@@ -87,19 +87,9 @@ final class NaturalQueryResolutionSupport {
             return aliasTargets.get(0);
         }
         if (aliasTargets.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
-                            + new TreeSet<>(aliasTargets)
-            );
+            throw ambiguousNaturalFieldTerm(originalPhrase, aliasTargets);
         }
-        TreeSet<String> allowed = new TreeSet<>(sourceFields);
-        allowed.addAll(exactReferences);
-        List<String> suggestions = NameSuggestions.suggest(originalPhrase, allowed);
-        throw new IllegalArgumentException(
-                "Unknown natural field term '" + originalPhrase + "' in natural query."
-                        + NameSuggestions.formatFragment(suggestions)
-                        + " Allowed fields: " + allowed
-        );
+        throw unknownNaturalFieldTerm(originalPhrase, sourceFields, exactReferences);
     }
 
     private static String resolveQualifiedField(String originalPhrase,
@@ -125,17 +115,27 @@ final class NaturalQueryResolutionSupport {
             return qualifiedTargets.get(0);
         }
         if (qualifiedTargets.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
-                            + new TreeSet<>(qualifiedTargets)
-            );
+            throw ambiguousNaturalFieldTerm(originalPhrase, qualifiedTargets);
         }
+        throw unknownNaturalFieldTerm(originalPhrase, sourceFields, exactReferences);
+    }
+
+    private static IllegalArgumentException ambiguousNaturalFieldTerm(String originalPhrase,
+                                                                     java.util.Collection<String> candidates) {
+        return new IllegalArgumentException(
+                "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
+                        + new TreeSet<>(candidates)
+        );
+    }
+
+    private static IllegalArgumentException unknownNaturalFieldTerm(String originalPhrase,
+                                                                    Set<String> sourceFields,
+                                                                    Set<String> exactReferences) {
         TreeSet<String> allowed = new TreeSet<>(sourceFields);
         allowed.addAll(exactReferences);
-        List<String> suggestions = NameSuggestions.suggest(originalPhrase, allowed);
-        throw new IllegalArgumentException(
+        return new IllegalArgumentException(
                 "Unknown natural field term '" + originalPhrase + "' in natural query."
-                        + NameSuggestions.formatFragment(suggestions)
+                        + NameSuggestions.formatFragment(NameSuggestions.suggest(originalPhrase, allowed))
                         + " Allowed fields: " + allowed
         );
     }

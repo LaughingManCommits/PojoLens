@@ -18,6 +18,7 @@ import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
@@ -811,10 +812,7 @@ public final class SqlLikeValidator {
     }
 
     private static String formatUnknownFieldMessage(String field, Set<String> allowedFields, String clauseName) {
-        List<String> suggestions = NameSuggestions.suggest(field, allowedFields);
-        return "Unknown field '" + field + "' in " + clauseName + " clause."
-                + NameSuggestions.formatFragment(suggestions)
-                + " Allowed fields: " + new TreeSet<>(allowedFields);
+        return SqlLikeFieldMessages.unknownField(field, clauseName, allowedFields);
     }
 
     private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {

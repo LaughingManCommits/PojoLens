@@ -1,7 +1,6 @@
 package laughing.man.commits.sqllike.internal.diagnostics;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
-import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.QueryDiagnostics;
 import laughing.man.commits.sqllike.QueryDiagnosticsError;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -17,6 +16,7 @@ import laughing.man.commits.sqllike.ast.QueryAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.lint.SqlLikeLintSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
@@ -30,7 +30,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Internal helpers for building {@link QueryDiagnostics} from SQL-like AST metadata.
@@ -584,14 +583,7 @@ public final class SqlLikeDiagnosticsSupport {
     }
 
     private static String unknownWhereFieldMessage(String field, Set<String> allowedFields) {
-        List<String> suggestions = NameSuggestions.suggest(field, allowedFields);
-        return "Unknown field '" + field + "' in WHERE clause."
-                + NameSuggestions.formatFragment(suggestions)
-                + allowedFieldsFragment(allowedFields);
-    }
-
-    private static String allowedFieldsFragment(Set<String> allowedFields) {
-        return allowedFields.isEmpty() ? "" : " Allowed fields: " + new TreeSet<>(allowedFields);
+        return SqlLikeFieldMessages.unknownFieldIfAllowedKnown(field, "WHERE", allowedFields);
     }
 
     private static LinkedHashSet<String> filterAllowedFields(Set<String> candidates,
