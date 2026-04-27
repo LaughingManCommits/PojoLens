@@ -116,6 +116,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   consolidated internal `QueryRow` source detection in selected
   `FilterQueryBuilder` helpers, and added targeted regression coverage for
   cursor token round-trips plus numeric/chart/report coercion paths.
+- **Filter rule-compilation deduplication** - extracted
+  `FastPojoRuleSupport` as the shared owner of `compileRuleBundle`,
+  `addKnownFields`, and the `CompiledRuleBundle` record. Both
+  `FastPojoFilterSupport` and `FastPojoStreamSupport` now delegate to it,
+  eliminating the duplicated AND/OR evaluation logic that previously existed
+  in both classes.
+
+- **`isNullOrBlank` consolidation** - replaced 5 instances of the redundant
+  `x == null || StringUtil.isNull(x.trim())` pattern in
+  `FilterQueryBuilder`, `QueryWindow`, and `QueryWindowOrder` with the
+  canonical `StringUtil.isNullOrBlank(x)` call.
+
 - **Query message consolidation** - added
   `sqllike.internal.error.SqlLikeFieldMessages` as the shared SQL-like
   unknown-field message owner, migrated validator/JOIN/diagnostics callers to

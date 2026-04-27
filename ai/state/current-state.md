@@ -7,17 +7,16 @@
 
 ## Focus
 
-- `2026-04-27`: WP19 landed; release cut remains user-controlled.
-- `2026-04-27`: The repo-local Checkstyle profile is clean; `mvn -B -ntp -Plint verify -DskipTests` and the staged baseline check both pass at `report=0 baseline=0 new=0 fixed=0`.
-- `2026-04-27`: Benchmark guardrails are green; release cut remains user-controlled.
+- `2026-04-27`: Redundancy second pass complete; `FastPojoRuleSupport` extracted, 5-site `isNull(x.trim())` policy clone fixed with `isNullOrBlank`.
+- `2026-04-27`: TODO.md cleaned — Done WP bodies stripped; only Release Gate and WP18 remain active.
 - `2026-04-27`: WP20 landed; WP18 remains the next post-release backlog.
 - `2026-04-26`: WP11-WP17 are complete; WP6/WP8/WP9 benchmark backfill stays deferred until after release.
 
 ## Verified
 
-- `2026-04-27`: `mvn -B -ntp -Pbenchmark-runner -DskipTests package`, the core benchmark suite and strict threshold check, the chart benchmark suite, chart threshold check, chart parity check, and `BenchmarkMetricsPlotGenerator` all passed. Release benchmark evidence now exists under `target/benchmarks.json`, `target/benchmark-report.csv`, `target/benchmarks/charts/chart-benchmarks.json`, `target/benchmarks/charts/chart-benchmark-report.csv`, `target/benchmarks/charts/chart-parity-report.csv`, `target/benchmarks/charts/metrics-normalized.csv`, and `target/benchmarks/charts/images/`.
-- `2026-04-27`: `mvn -B -ntp -Plint verify -DskipTests`, the refreshed baseline check, and `mvn -B -ntp test` all passed after switching `-Plint` to `config/checkstyle/checkstyle.xml`, cleaning the remaining repo-local violations, and fixing the baseline script's zero-violation write path.
-- `2026-04-27`: `mvn -B -ntp -pl pojo-lens "-Dtest=ChartResultMapperValidationTest,ChartResultMapperMappingTest,FluentChartIntegrationTest,FilterQueryBuilderSelectiveMaterializationTest" test` passed at 50/50 after the cleanup.
+- `2026-04-27`: `mvn -B -ntp verify`, `-Pstatic-analysis verify -DskipTests`, `-Plint verify -DskipTests`, `-Pbenchmark-runner -DskipTests package`, and the core/chart benchmark guardrails all passed on Java 25.0.2.
+- `2026-04-27`: Benchmark evidence now exists under `target/benchmarks/**` after the core suite, chart suite, chart parity, and plot generation passed.
+- `2026-04-27`: `-Plint verify -DskipTests`, the refreshed baseline check, and `mvn -B -ntp test` all passed after switching `-Plint` to `config/checkstyle/checkstyle.xml` and fixing the zero-violation baseline write path.
 - `2026-04-27`: WP20 targeted message-contract tests passed at 126/126.
 - `2026-04-26`: WP17 targeted dispatch regressions passed at 96/96.
 

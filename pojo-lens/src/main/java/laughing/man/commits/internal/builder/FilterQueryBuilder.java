@@ -1514,7 +1514,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private String requireIdentifier(String value, String label) {
-        if (value == null || StringUtil.isNull(value.trim())) {
+        if (StringUtil.isNullOrBlank(value)) {
             throw new IllegalArgumentException(label + " is required");
         }
         return value.trim();

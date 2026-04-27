@@ -19,7 +19,7 @@ public final class QueryWindowOrder {
     }
 
     public static QueryWindowOrder of(String field, Sort sort) {
-        if (field == null || StringUtil.isNull(field.trim())) {
+        if (StringUtil.isNullOrBlank(field)) {
             throw new IllegalArgumentException("field is required");
         }
         if (sort == null) {

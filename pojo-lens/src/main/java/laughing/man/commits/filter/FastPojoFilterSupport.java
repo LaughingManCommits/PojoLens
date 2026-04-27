@@ -93,7 +93,7 @@ final class FastPojoFilterSupport {
         ReflectionUtil.FlatRowReadPlan readPlan =
                 ReflectionUtil.compileFlatRowReadPlan(firstBean.getClass(), fieldNames);
         List<String> readFieldNames = readPlan.fieldNames();
-        CompiledRuleBundle ruleBundle = compileRuleBundle(rulesByField, readPlan.size());
+        var ruleBundle = FastPojoRuleSupport.compileRuleBundle(rulesByField, readPlan.size());
         Object[] buffer = new Object[readPlan.size()];
         List<QueryRow> matched = new ArrayList<>();
 
@@ -131,10 +131,10 @@ final class FastPojoFilterSupport {
         }
 
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
-        addKnownFields(selected, sourceFieldTypes, builder.getOrderFields().values());
-        addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
-        addKnownFields(selected, sourceFieldTypes, builder.getDistinctFields().values());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getOrderFields().values());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getDistinctFields().values());
 
         if (selected.isEmpty()) {
             return new ArrayList<>(sourceFieldTypes.keySet());
@@ -149,48 +149,8 @@ final class FastPojoFilterSupport {
         return ordered.isEmpty() ? new ArrayList<>(sourceFieldTypes.keySet()) : ordered;
     }
 
-    private static void addKnownFields(LinkedHashSet<String> selected,
-                                       Map<String, Class<?>> sourceFieldTypes,
-                                       Iterable<String> candidateFieldNames) {
-        for (String fieldName : candidateFieldNames) {
-            if (sourceFieldTypes.containsKey(fieldName)) {
-                selected.add(fieldName);
-            }
-        }
-    }
-
-    private static CompiledRuleBundle compileRuleBundle(Map<Integer, List<CompiledRule>> rulesByField,
-                                                        int valueCount) {
-        int validCount = 0;
-        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
-            int fieldIndex = entry.getKey();
-            List<CompiledRule> rules = entry.getValue();
-            if (fieldIndex >= 0 && fieldIndex < valueCount && rules != null && !rules.isEmpty()) {
-                validCount++;
-            }
-        }
-        if (validCount == 0) {
-            return new CompiledRuleBundle(new int[0], new CompiledRule[0][]);
-        }
-
-        int[] fieldIndexes = new int[validCount];
-        CompiledRule[][] compiledRules = new CompiledRule[validCount][];
-        int position = 0;
-        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
-            int fieldIndex = entry.getKey();
-            List<CompiledRule> rules = entry.getValue();
-            if (fieldIndex < 0 || fieldIndex >= valueCount || rules == null || rules.isEmpty()) {
-                continue;
-            }
-            fieldIndexes[position] = fieldIndex;
-            compiledRules[position] = rules.toArray(new CompiledRule[0]);
-            position++;
-        }
-        return new CompiledRuleBundle(fieldIndexes, compiledRules);
-    }
-
     private static boolean passesFilter(Object[] values,
-                                        CompiledRuleBundle rulesByField) {
+                                        FastPojoRuleSupport.CompiledRuleBundle rulesByField) {
         boolean andMatched = false;
         boolean andFailed = false;
         boolean orMatched = false;
@@ -228,6 +188,4 @@ final class FastPojoFilterSupport {
         return new RawQueryRow(values.clone(), fieldNames);
     }
 
-    private record CompiledRuleBundle(int[] fieldIndexes, CompiledRule[][] compiledRules) {
-    }
 }

@@ -58,14 +58,14 @@ public final class QueryWindow {
                                  List<String> partitionFields,
                                  List<QueryWindowOrder> orderFields,
                                  QueryWindowFrame frame) {
-        if (alias == null || StringUtil.isNull(alias.trim())) {
+        if (StringUtil.isNullOrBlank(alias)) {
             throw new IllegalArgumentException("alias is required");
         }
         if (function == null) {
             throw new IllegalArgumentException("function is required");
         }
         QueryWindowFrame normalizedFrame = frame == null ? QueryWindowFrame.running() : frame;
-        String normalizedValueField = valueField == null || StringUtil.isNull(valueField.trim())
+        String normalizedValueField = StringUtil.isNullOrBlank(valueField)
                 ? null
                 : valueField.trim();
         if (function.isRankFunction()) {
@@ -89,7 +89,7 @@ public final class QueryWindow {
         ArrayList<String> normalizedPartitions = new ArrayList<>();
         if (partitionFields != null) {
             for (String field : partitionFields) {
-                if (field == null || StringUtil.isNull(field.trim())) {
+                if (StringUtil.isNullOrBlank(field)) {
                     continue;
                 }
                 normalizedPartitions.add(field.trim());
