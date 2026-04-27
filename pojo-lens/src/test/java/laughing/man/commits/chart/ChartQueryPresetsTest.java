@@ -1,9 +1,12 @@
 package laughing.man.commits.chart;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
+import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
@@ -16,6 +19,7 @@ import java.util.Calendar;
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.StatsExampleFixtures.utcDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -115,6 +119,31 @@ public class ChartQueryPresetsTest {
         assertEquals(2, rows.size());
         assertEquals("bar", payload.type());
         assertEquals(List.of("Engineering", "Finance"), payload.data().labels());
+    }
+
+    @Test
+    public void categoryTotalsPresetShouldShareReportDefinitionRowContract() {
+        ChartQueryPreset<DepartmentPayrollRow> preset = ChartQueryPresets
+                .categoryTotals("department", Metric.SUM, "salary", "payroll", DepartmentPayrollRow.class);
+        ReportDefinition<DepartmentPayrollRow> report = preset.reportDefinition();
+        List<Employee> source = sampleEmployees();
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+        DatasetBundle datasetBundle = DatasetBundle.of(source, joinBindings);
+
+        assertEquals(preset.source(), report.source());
+        assertEquals(preset.schema().names(), report.schema().names());
+        assertEquals(
+                preset.rows(source).stream().map(row -> row.department + ":" + row.payroll).toList(),
+                report.rows(source).stream().map(row -> row.department + ":" + row.payroll).toList()
+        );
+        assertEquals(
+                preset.rows(source, joinBindings).stream().map(row -> row.department + ":" + row.payroll).toList(),
+                report.rows(source, joinBindings).stream().map(row -> row.department + ":" + row.payroll).toList()
+        );
+        assertEquals(
+                preset.rows(datasetBundle).stream().map(row -> row.department + ":" + row.payroll).toList(),
+                report.rows(datasetBundle).stream().map(row -> row.department + ":" + row.payroll).toList()
+        );
     }
 }
 

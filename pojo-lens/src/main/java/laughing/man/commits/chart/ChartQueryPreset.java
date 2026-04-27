@@ -1,7 +1,6 @@
 package laughing.man.commits.chart;
 
 import laughing.man.commits.DatasetBundle;
-import laughing.man.commits.chartjs.ChartJsAdapter;
 import laughing.man.commits.chartjs.ChartJsPayload;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -23,15 +22,17 @@ public final class ChartQueryPreset<T> {
     private final SqlLikeQuery query;
     private final Class<T> projectionClass;
     private final ChartSpec chartSpec;
+    private final ReportDefinition<T> reportDefinition;
 
     ChartQueryPreset(SqlLikeQuery query, Class<T> projectionClass, ChartSpec chartSpec) {
         this.query = Objects.requireNonNull(query, "query must not be null");
         this.projectionClass = Objects.requireNonNull(projectionClass, "projectionClass must not be null");
         this.chartSpec = Objects.requireNonNull(chartSpec, "chartSpec must not be null");
+        this.reportDefinition = ReportDefinition.sql(this.query, this.projectionClass, this.chartSpec);
     }
 
     public String source() {
-        return query.source();
+        return reportDefinition.source();
     }
 
     public SqlLikeQuery query() {
@@ -63,7 +64,7 @@ public final class ChartQueryPreset<T> {
     }
 
     public TabularSchema schema() {
-        return query.schema(projectionClass);
+        return reportDefinition.schema();
     }
 
     /**
@@ -71,47 +72,55 @@ public final class ChartQueryPreset<T> {
      * while preserving the configured chart specification.
      */
     public ReportDefinition<T> reportDefinition() {
-        return ReportDefinition.sql(query, projectionClass, chartSpec);
+        return reportDefinition;
     }
 
     public List<T> rows(List<?> sourceRows) {
-        return query.filter(sourceRows, projectionClass);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.rows(sourceRows);
     }
 
     public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return query.filter(sourceRows, joinBindings, projectionClass);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.rows(sourceRows, joinBindings);
     }
 
     public List<T> rows(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return query.filter(datasetBundle, projectionClass);
+        return reportDefinition.rows(datasetBundle);
     }
 
     public ChartData chart(List<?> sourceRows) {
-        return query.chart(sourceRows, projectionClass, chartSpec);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.chart(sourceRows);
     }
 
     public ChartData chart(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return query.chart(sourceRows, joinBindings, projectionClass, chartSpec);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.chart(sourceRows, joinBindings);
     }
 
     public ChartData chart(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return query.chart(datasetBundle, projectionClass, chartSpec);
+        return reportDefinition.chart(datasetBundle);
     }
 
     public ChartJsPayload chartJs(List<?> sourceRows) {
-        return ChartJsAdapter.toPayload(chart(sourceRows));
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.chartJs(sourceRows);
     }
 
     public ChartJsPayload chartJs(List<?> sourceRows, JoinBindings joinBindings) {
-        return ChartJsAdapter.toPayload(chart(sourceRows, joinBindings));
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.chartJs(sourceRows, joinBindings);
     }
 
     public ChartJsPayload chartJs(DatasetBundle datasetBundle) {
-        return ChartJsAdapter.toPayload(chart(datasetBundle));
+        Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
+        return reportDefinition.chartJs(datasetBundle);
     }
 }
 

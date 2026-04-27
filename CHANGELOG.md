@@ -67,6 +67,8 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **Reusable report wrapper consolidation** - `ChartQueryPreset` and `StatsViewPreset` now delegate shared `source()`/`schema()`/`rows(...)` behavior to cached `ReportDefinition` owners while keeping chart/table-specific helpers on the specialized wrappers. Added regression coverage for the list, join-binding, and dataset-bundle bridge against `ReportDefinition`.
+
 - **Repo-local Checkstyle profile** - switched the `pojo-lens` `lint`
   profile from stock `sun_checks.xml` to
   `config/checkstyle/checkstyle.xml`, keeping the gate focused on active

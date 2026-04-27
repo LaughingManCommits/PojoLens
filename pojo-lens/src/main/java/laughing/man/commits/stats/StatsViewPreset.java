@@ -23,15 +23,17 @@ public final class StatsViewPreset<T> {
     private final SqlLikeQuery query;
     private final SqlLikeQuery totalsQuery;
     private final Class<T> projectionClass;
+    private final ReportDefinition<T> reportDefinition;
 
     StatsViewPreset(SqlLikeQuery query, SqlLikeQuery totalsQuery, Class<T> projectionClass) {
         this.query = Objects.requireNonNull(query, "query must not be null");
         this.totalsQuery = totalsQuery;
         this.projectionClass = Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        this.reportDefinition = ReportDefinition.sql(this.query, this.projectionClass);
     }
 
     public String source() {
-        return query.source();
+        return reportDefinition.source();
     }
 
     public SqlLikeQuery query() {
@@ -47,7 +49,7 @@ public final class StatsViewPreset<T> {
     }
 
     public TabularSchema schema() {
-        return query.schema(projectionClass);
+        return reportDefinition.schema();
     }
 
     /**
@@ -56,21 +58,23 @@ public final class StatsViewPreset<T> {
      * into the returned report definition.
      */
     public ReportDefinition<T> reportDefinition() {
-        return ReportDefinition.sql(query, projectionClass);
+        return reportDefinition;
     }
 
     public List<T> rows(List<?> sourceRows) {
-        return query.filter(sourceRows, projectionClass);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.rows(sourceRows);
     }
 
     public List<T> rows(List<?> sourceRows, JoinBindings joinBindings) {
         Objects.requireNonNull(joinBindings, "joinBindings must not be null");
-        return query.filter(sourceRows, joinBindings, projectionClass);
+        Objects.requireNonNull(sourceRows, "pojos must not be null");
+        return reportDefinition.rows(sourceRows, joinBindings);
     }
 
     public List<T> rows(DatasetBundle datasetBundle) {
         Objects.requireNonNull(datasetBundle, "datasetBundle must not be null");
-        return query.filter(datasetBundle, projectionClass);
+        return reportDefinition.rows(datasetBundle);
     }
 
     public Map<String, Object> totals(List<?> sourceRows) {

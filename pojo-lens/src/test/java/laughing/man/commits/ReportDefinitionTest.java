@@ -1,5 +1,6 @@
 package laughing.man.commits;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
@@ -156,10 +157,26 @@ public class ReportDefinitionTest {
 
         ReportDefinition<DepartmentCountRow> report = preset.reportDefinition()
                 .mapChartSpec(spec -> spec.withAxisLabels("Department", "Headcount"));
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+        DatasetBundle datasetBundle = DatasetBundle.of(sampleEmployees(), joinBindings);
         List<DepartmentCountRow> rows = report.rows(sampleEmployees());
         ChartData chart = report.chart(sampleEmployees());
         ChartJsPayload payload = report.chartJs(sampleEmployees());
 
+        assertEquals(preset.source(), report.source());
+        assertEquals(preset.schema().names(), report.schema().names());
+        assertEquals(
+                preset.rows(sampleEmployees()).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(sampleEmployees()).stream().map(row -> row.department + ":" + row.total).toList()
+        );
+        assertEquals(
+                preset.rows(sampleEmployees(), joinBindings).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(sampleEmployees(), joinBindings).stream().map(row -> row.department + ":" + row.total).toList()
+        );
+        assertEquals(
+                preset.rows(datasetBundle).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(datasetBundle).stream().map(row -> row.department + ":" + row.total).toList()
+        );
         assertEquals(2, rows.size());
         assertEquals(ChartType.BAR, report.chartSpec().type());
         assertEquals(2, chart.getLabels().size());

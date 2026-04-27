@@ -40,7 +40,7 @@ wiring.
 | WP16| Virtual-Thread Boundary Evaluation         | Done     | Opt-in Spring `virtual` profiles, smoke coverage, cancellation/pinning audit         |
 | WP17| Internal Java 25 Cleanup Pass              | Done     | Internal utility/cursor switch cleanup; targeted regressions; full reactor green     |
 | WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
-| WP19| Reusable Report Wrapper Consolidation      | Pending  | `ReportDefinition` as shared row-query owner; preset wrappers delegate cleanly       |
+| WP19| Reusable Report Wrapper Consolidation      | Done     | `ReportDefinition` as shared row-query owner; preset wrappers delegate cleanly       |
 | WP20| Query Message Consolidation                | Done     | `SqlLikeFieldMessages`, natural helper dedupe, targeted message-contract tests green  |
 
 ---
@@ -703,21 +703,24 @@ specialized convenience wrappers.
   is not a deletion package; it is a single-owner package.
 
 **Tasks:**
-- [ ] Route `ChartQueryPreset` through a shared `ReportDefinition<T>` owner for
+- [x] Route `ChartQueryPreset` through a shared `ReportDefinition<T>` owner for
       `source()`, `schema()`, and `rows(...)` behavior.
-- [ ] Route `StatsViewPreset` through a shared `ReportDefinition<T>` owner for
+- [x] Route `StatsViewPreset` through a shared `ReportDefinition<T>` owner for
       `source()`, `schema()`, and `rows(...)` behavior.
-- [ ] Keep `ChartQueryPreset`-specific chart/chart-js helpers and
+- [x] Keep `ChartQueryPreset`-specific chart/chart-js helpers and
       `StatsViewPreset`-specific totals/table helpers as the specialized public
       surface.
-- [ ] Preserve public API signatures and observable behavior; avoid widening the
+- [x] Preserve public API signatures and observable behavior; avoid widening the
       reusable contract just to make delegation easier.
-- [ ] Add focused regression coverage proving wrapper rows/schema behavior stays
+- [x] Add focused regression coverage proving wrapper rows/schema behavior stays
       aligned with `ReportDefinition` across `List<?>`, `JoinBindings`, and
       `DatasetBundle` entry points.
 
 **Validate:**
 - `mvn -B -ntp -pl pojo-lens "-Dtest=ChartQueryPresetsTest,StatsViewPresetsTest,ReportDefinitionTest" test`
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .`
 - `mvn -B -ntp test`
 
 ---
