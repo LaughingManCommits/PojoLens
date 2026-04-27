@@ -517,7 +517,8 @@ final class QuerySpec {
     }
 
     private static Map<String, List<String>> copyFilterIds(Map<String, List<String>> source) {
-        Map<String, List<String>> copy = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,source.size() * 2));
+        Map<String, List<String>> copy = new HashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, source.size() * 2));
         for (Map.Entry<String, List<String>> entry : source.entrySet()) {
             List<String> ids = entry.getValue();
             List<String> idCopy = new ArrayList<>(ids == null ? 0 : ids.size());
@@ -530,7 +531,8 @@ final class QuerySpec {
     }
 
     private static Map<Integer, List<QueryRow>> copyJoinClasses(Map<Integer, List<QueryRow>> source) {
-        Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,source.size() * 2));
+        Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, source.size() * 2));
         for (Map.Entry<Integer, List<QueryRow>> entry : source.entrySet()) {
             copy.put(entry.getKey(), deepCopyRows(entry.getValue()));
         }
@@ -538,7 +540,8 @@ final class QuerySpec {
     }
 
     private static Map<Integer, List<QueryRow>> copyJoinClassReferences(Map<Integer, List<QueryRow>> source) {
-        Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,source.size() * 2));
+        Map<Integer, List<QueryRow>> copy = new HashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, source.size() * 2));
         for (Map.Entry<Integer, List<QueryRow>> entry : source.entrySet()) {
             copy.put(entry.getKey(), copyRowsReference(entry.getValue()));
         }
@@ -546,7 +549,8 @@ final class QuerySpec {
     }
 
     private static Map<Integer, Map<String, Class<?>>> copyJoinFieldTypes(Map<Integer, Map<String, Class<?>>> source) {
-        Map<Integer, Map<String, Class<?>>> copy = new HashMap<>(Math.max(DEFAULT_MAP_CAPACITY,source.size() * 2));
+        Map<Integer, Map<String, Class<?>>> copy = new HashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, source.size() * 2));
         for (Map.Entry<Integer, Map<String, Class<?>>> entry : source.entrySet()) {
             copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
         }

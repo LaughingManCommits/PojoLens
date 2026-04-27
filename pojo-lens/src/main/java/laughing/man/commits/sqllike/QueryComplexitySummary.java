@@ -74,10 +74,18 @@ public final class QueryComplexitySummary {
                              boolean hasAggregation, boolean hasWindows, boolean hasSubqueries) {
         int s = filterCount;
         s += joinCount * 3;
-        if (hasGrouping)    s += 2;
-        if (hasAggregation) s += 2;
-        if (hasWindows)     s += 4;
-        if (hasSubqueries)  s += 3;
+        if (hasGrouping) {
+            s += 2;
+        }
+        if (hasAggregation) {
+            s += 2;
+        }
+        if (hasWindows) {
+            s += 4;
+        }
+        if (hasSubqueries) {
+            s += 3;
+        }
         return s;
     }
 

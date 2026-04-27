@@ -27,7 +27,6 @@ import laughing.man.commits.natural.NaturalTemplate;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.report.SavedReport;
-import laughing.man.commits.report.SavedReportKind;
 import laughing.man.commits.table.TabularColumn;
 import laughing.man.commits.sqllike.QueryComplexitySummary;
 import laughing.man.commits.sqllike.QueryDiagnostics;

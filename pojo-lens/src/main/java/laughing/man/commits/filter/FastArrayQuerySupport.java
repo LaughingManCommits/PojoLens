@@ -260,7 +260,8 @@ final class FastArrayQuerySupport {
         schemaFields.addAll(parentReadPlan.fieldNames());
         schemaFields.addAll(childReadPlan.fieldNames());
 
-        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
+        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, schemaFields.size() * 2));
         for (int i = 0; i < schemaFields.size(); i++) {
             schemaIndexByName.put(schemaFields.get(i), i);
         }
@@ -289,7 +290,8 @@ final class FastArrayQuerySupport {
             );
         }
 
-        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
+        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, schemaFields.size() * 2));
         for (Map.Entry<String, Class<?>> entry : baseSchemaTypes.entrySet()) {
             schemaTypes.put(entry.getKey(), entry.getValue());
         }

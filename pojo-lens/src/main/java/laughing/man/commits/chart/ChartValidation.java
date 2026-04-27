@@ -13,7 +13,7 @@ final class ChartValidation {
     private ChartValidation() {
     }
 
-    static void validateSpec(ChartSpec spec) {
+    static void validateSpec(final ChartSpec spec) {
         if (spec == null) {
             throw new IllegalArgumentException("Chart spec is required");
         }
@@ -27,10 +27,12 @@ final class ChartValidation {
             throw new IllegalArgumentException("yField is required");
         }
         if (spec.seriesField() != null && spec.seriesField().isBlank()) {
-            throw new IllegalArgumentException("Chart seriesField must not be blank when provided");
+            throw new IllegalArgumentException(
+                    "Chart seriesField must not be blank when provided");
         }
         if (ChartType.PIE.equals(spec.type()) && spec.multiSeries()) {
-            throw new IllegalArgumentException("Chart type PIE does not support seriesField");
+            throw new IllegalArgumentException(
+                    "Chart type PIE does not support seriesField");
         }
         if (spec.percentStacked() && !spec.stacked()) {
             throw new IllegalArgumentException("percentStacked requires stacked=true");
@@ -40,11 +42,12 @@ final class ChartValidation {
         }
         if ((spec.stacked() || spec.percentStacked())
                 && !(ChartType.BAR.equals(spec.type()) || ChartType.AREA.equals(spec.type()))) {
-            throw new IllegalArgumentException("stacked/percentStacked is supported only for BAR and AREA charts");
+            throw new IllegalArgumentException(
+                    "stacked/percentStacked is supported only for BAR and AREA charts");
         }
     }
 
-    static void requireFieldExists(Class<?> type, String fieldName) {
+    static void requireFieldExists(final Class<?> type, final String fieldName) {
         for (java.lang.reflect.Field field : ReflectionUtil.getFields(type)) {
             if (fieldName.equals(field.getName())) {
                 return;
@@ -58,7 +61,9 @@ final class ChartValidation {
         throw new IllegalArgumentException("Unknown chart field '" + fieldName + "'");
     }
 
-    static String validateXValue(Object value, String fieldName, String dateFormat) {
+    static String validateXValue(final Object value,
+                                 final String fieldName,
+                                 final String dateFormat) {
         return switch (value) {
             case null -> null;
             case String stringValue -> stringValue;
@@ -70,20 +75,25 @@ final class ChartValidation {
         };
     }
 
-    static double validateYValue(Object value, String fieldName) {
+    static double validateYValue(final Object value, final String fieldName) {
         return switch (value) {
-            case null -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
+            case null -> throw new IllegalArgumentException(
+                    "Chart yField '" + fieldName + "' must not be null");
             case Number number -> number.doubleValue();
-            default -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+            default -> throw new IllegalArgumentException(
+                    "Chart yField '" + fieldName + "' must be numeric");
         };
     }
 
-    static Double validateYValueBoxed(Object value, String fieldName) {
+    static Double validateYValueBoxed(final Object value,
+                                      final String fieldName) {
         return switch (value) {
-            case null -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must not be null");
+            case null -> throw new IllegalArgumentException(
+                    "Chart yField '" + fieldName + "' must not be null");
             case Double doubleValue -> doubleValue;
             case Number number -> number.doubleValue();
-            default -> throw new IllegalArgumentException("Chart yField '" + fieldName + "' must be numeric");
+            default -> throw new IllegalArgumentException(
+                    "Chart yField '" + fieldName + "' must be numeric");
         };
     }
 }

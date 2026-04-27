@@ -996,7 +996,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         return spec.getJoinClasses().size() + 1;
     }
 
-    private void addJoinRows(String parentField, List<QueryRow> children, String childField, Join joinMethod) {
+    private void addJoinRows(final String parentField,
+                             final List<QueryRow> children,
+                             final String childField,
+                             final Join joinMethod) {
         int index = nextJoinIndex();
         storeJoinDefinition(index,
                 ComputedFieldSupport.materializeRows(children, computedFieldRegistry),
@@ -1006,20 +1009,29 @@ public class FilterQueryBuilder implements QueryBuilder {
                 joinMethod);
     }
 
-    private void addLazyJoinSource(String parentField, List<?> children, String childField, Join joinMethod) {
+    private void addLazyJoinSource(final String parentField,
+                                   final List<?> children,
+                                   final String childField,
+                                   final Join joinMethod) {
         int index = nextJoinIndex();
         joinSourceBeans.put(index, copySourceBeans(children));
-        storeJoinDefinition(index, new ArrayList<>(), inferSourceFieldTypes(children), parentField, childField, joinMethod);
+        storeJoinDefinition(index,
+                new ArrayList<>(),
+                inferSourceFieldTypes(children),
+                parentField,
+                childField,
+                joinMethod);
     }
 
-    private void storeJoinDefinition(int index,
-                                     List<QueryRow> children,
-                                     Map<String, Class<?>> childFieldTypes,
-                                     String parentField,
-                                     String childField,
-                                     Join joinMethod) {
+    private void storeJoinDefinition(final int index,
+                                     final List<QueryRow> children,
+                                     final Map<String, Class<?>> childFieldTypes,
+                                     final String parentField,
+                                     final String childField,
+                                     final Join joinMethod) {
         spec.getJoinClasses().put(index, children);
-        spec.getJoinSourceFieldTypes().put(index, new LinkedHashMap<>(childFieldTypes));
+        spec.getJoinSourceFieldTypes().put(index,
+                new LinkedHashMap<>(childFieldTypes));
         spec.getJoinMethods().put(index, joinMethod);
         spec.getJoinParentFields().put(index, parentField);
         spec.getJoinChildFields().put(index, childField);

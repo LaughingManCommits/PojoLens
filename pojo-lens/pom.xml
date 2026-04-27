@@ -85,7 +85,7 @@
                         <artifactId>maven-checkstyle-plugin</artifactId>
                         <version>3.6.0</version>
                         <configuration>
-                            <configLocation>sun_checks.xml</configLocation>
+                            <configLocation>${project.basedir}/../config/checkstyle/checkstyle.xml</configLocation>
                             <includeTestSourceDirectory>true</includeTestSourceDirectory>
                             <consoleOutput>true</consoleOutput>
                             <logViolationsToConsole>true</logViolationsToConsole>

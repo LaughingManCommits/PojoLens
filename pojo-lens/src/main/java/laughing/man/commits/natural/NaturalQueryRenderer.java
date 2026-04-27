@@ -1,7 +1,6 @@
 package laughing.man.commits.natural;
 
 import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;

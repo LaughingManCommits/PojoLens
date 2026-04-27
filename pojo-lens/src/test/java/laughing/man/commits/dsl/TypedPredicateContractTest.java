@@ -8,8 +8,24 @@ import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.List;
 
-import static laughing.man.commits.dsl.TypedPredicate.Operator.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.AND;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.EQ;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.GT;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.GTE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.IN;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NOT_NULL;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.IS_NULL;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.LT;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.LTE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.NE;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.NOT;
+import static laughing.man.commits.dsl.TypedPredicate.Operator.OR;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TypedPredicateContractTest {
 

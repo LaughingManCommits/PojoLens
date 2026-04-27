@@ -88,7 +88,8 @@ public class SqlLikePlanPreviewTest {
     @Test
     public void windowFieldReportsWindowFunction() {
         SqlLikePlanPreview p = PojoLensSql.parse(
-                "select row_number() over (partition by department order by salary desc) as rank " +
+                "select row_number() over (partition by department order by salary desc) as rank "
+                        +
                 "from Employee").planPreview();
         assertFalse(p.selectFields().isEmpty());
         PlanPreviewField f = p.selectFields().get(0);
@@ -193,7 +194,8 @@ public class SqlLikePlanPreviewTest {
     @Test
     public void inSubqueryIncludesNestedPreviewShape() {
         SqlLikePlanPreview p = PojoLensSql.parse(
-                "where id in (select companyId from employees " +
+                "where id in (select companyId from employees "
+                        +
                 "where title = :title order by companyId desc limit 2)").planPreview();
 
         PlanPreviewFilter inFilter = p.filters().get(0);
@@ -327,10 +329,14 @@ public class SqlLikePlanPreviewTest {
     @Test
     public void complexQueryPreviewCoversAllClauses() {
         SqlLikePlanPreview p = PojoLensSql.parse(
-                "select department, count(*) as headcount from Employee " +
-                "where active = true and salary >= :min " +
-                "group by department " +
-                "order by headcount desc " +
+                "select department, count(*) as headcount from Employee "
+                        +
+                "where active = true and salary >= :min "
+                        +
+                "group by department "
+                        +
+                "order by headcount desc "
+                        +
                 "limit :top").planPreview();
 
         assertEquals("Employee", p.source());
@@ -354,7 +360,8 @@ public class SqlLikePlanPreviewTest {
     @Test
     public void havingFiltersReported() {
         SqlLikePlanPreview p = PojoLensSql.parse(
-                "select department, count(*) as cnt from Employee " +
+                "select department, count(*) as cnt from Employee "
+                        +
                 "group by department having cnt > :min").planPreview();
         assertTrue(p.hasGrouping());
         assertFalse(p.havingFilters().isEmpty());
@@ -369,7 +376,8 @@ public class SqlLikePlanPreviewTest {
     @Test
     public void qualifyFiltersReportedForWindowQueries() {
         SqlLikePlanPreview p = PojoLensSql.parse(
-                "select row_number() over (partition by department order by salary desc) as rank " +
+                "select row_number() over (partition by department order by salary desc) as rank "
+                        +
                 "from Employee qualify rank <= 3").planPreview();
         assertFalse(p.qualifyFilters().isEmpty());
         assertNotNull(p.qualifyExpression());

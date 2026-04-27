@@ -7,7 +7,6 @@ import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.telemetry.QueryTelemetryEvent;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
-import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 
 import org.junit.jupiter.api.Test;

@@ -11,7 +11,6 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPeriodPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.EmployeeEvent;
-import laughing.man.commits.testutil.ChartTestFixtures.PeriodSeriesPayrollRow;
 import laughing.man.commits.testutil.ChartTestFixtures.ScatterPoint;
 import org.junit.jupiter.api.Test;
 

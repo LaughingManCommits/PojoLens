@@ -79,7 +79,8 @@ public final class ChartResultMapper {
                 try {
                     yield Double.parseDouble(String.valueOf(value));
                 } catch (NumberFormatException ex) {
-                    throw new IllegalArgumentException("Field '" + fieldName + "' is not numeric");
+                    throw new IllegalArgumentException(
+                            "Field '" + fieldName + "' is not numeric");
                 }
             }
         };

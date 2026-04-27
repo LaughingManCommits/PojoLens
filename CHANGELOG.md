@@ -67,6 +67,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **Repo-local Checkstyle profile** - switched the `pojo-lens` `lint`
+  profile from stock `sun_checks.xml` to
+  `config/checkstyle/checkstyle.xml`, keeping the gate focused on active
+  hygiene rules (`AvoidStarImport`, `UnusedImports`, `NeedBraces`,
+  `WhitespaceAfter`, `OperatorWrap`, and `RedundantModifier`) that match the
+  current repository conventions.
+
 - **SpotBugs Java 25 compatibility** - upgraded
   `spotbugs-maven-plugin` from `4.8.6.6` to `4.9.8.3` so the existing
   `-Pstatic-analysis` report can analyze Java 25 class files again instead of
@@ -76,6 +83,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `scripts/checkstyle-baseline.txt` from the current `-Plint` report so the
   staged baseline gate matches the present repo-wide Checkstyle backlog again
   (`report=18454 baseline=18454 new=0 fixed=0`).
+
+- **Internal lint cleanup** - tightened `final` parameters and wrapped long
+  internal chart/join-helper lines in `ChartValidation`,
+  `ChartResultMapper`, and `FilterQueryBuilder`, reducing the Checkstyle
+  report from `18454` to `18420` before refreshing the staged baseline.
+
+- **Lint gate completion** - cleaned the remaining repo-local Checkstyle
+  violations in the touched internal/runtime/test slice, refreshed
+  `scripts/checkstyle-baseline.txt`, and brought the `-Plint` gate plus the
+  staged baseline check to `report=0 baseline=0 new=0 fixed=0`.
 
 - **Spring/JDBC boundary guidance** - `docs/advanced-features.md`,
   `docs/jdbc.md`, and the Spring example READMEs now explicitly frame virtual
@@ -127,6 +144,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Risk console created-at paging fix** - restored transaction paging for `createdAt` sort by keeping PojoLens filter/sort behavior and using an app-owned cursor token with ISO timestamp plus `id`. Added service and browser regression coverage so date-sorted `Load More` now works and stays tested.
 
 ### Fixed
+
+- **Empty Checkstyle baseline refresh** - `scripts/check-lint-baseline.ps1`
+  now handles zero-violation reports when writing the staged baseline instead
+  of failing with a null `WriteAllLines(...)` argument.
 
 - **WP15 scatter chart parity hotspot** - typed multi-series scatter mapping
   now defers x-label string conversion and reuses resolved direct-field handles

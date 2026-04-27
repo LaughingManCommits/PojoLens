@@ -494,7 +494,8 @@ public final class ReflectionUtil {
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
         List<Field> fields = getMutableFields(clazz);
-        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, fields.size() * 2));
 
         for (int i = 0; i < fields.size(); i++) {
             Field field = fields.get(i);
@@ -567,7 +568,8 @@ public final class ReflectionUtil {
         ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
         Field[] pathStack = new Field[MAX_FIELD_GRAPH_DEPTH + 1];
         collectFieldGraph(root, "", pathStack, 0, new LinkedHashSet<>(), flattenedFields);
-        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
+        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, flattenedFields.size() * 2));
         ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
         for (int i = 0; i < flattenedFields.size(); i++) {
             FlattenedFieldDescriptor field = flattenedFields.get(i);
@@ -1118,7 +1120,8 @@ public final class ReflectionUtil {
             this.flattenedFields = List.copyOf(flattenedFields);
             this.fieldPaths = new ResolvedFieldPath[flattenedFields.size()];
             ArrayList<String> orderedFieldNames = new ArrayList<>(flattenedFields.size());
-            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
+            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(
+                    DEFAULT_MAP_CAPACITY, flattenedFields.size() * 2));
             for (int i = 0; i < flattenedFields.size(); i++) {
                 FlattenedFieldDescriptor field = flattenedFields.get(i);
                 fieldPaths[i] = field.fieldPath();

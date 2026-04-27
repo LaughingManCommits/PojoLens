@@ -367,7 +367,7 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         LocalDateTime reviewedAt;
         CsvDepartmentCode department;
 
-        public CsvPolicyRow() {
+        CsvPolicyRow() {
         }
     }
 

@@ -107,7 +107,8 @@ if ($WriteBaseline) {
     if (-not [string]::IsNullOrWhiteSpace($baselineDir)) {
         New-Item -Path $baselineDir -ItemType Directory -Force | Out-Null
     }
-    [System.IO.File]::WriteAllLines($Baseline, ($reportKeys | Sort-Object))
+    $baselineLines = @($reportKeys | Sort-Object)
+    [System.IO.File]::WriteAllLines($Baseline, [string[]]$baselineLines)
     Write-Host "Wrote baseline: $Baseline ($($reportKeys.Count) entries)"
     exit 0
 }
