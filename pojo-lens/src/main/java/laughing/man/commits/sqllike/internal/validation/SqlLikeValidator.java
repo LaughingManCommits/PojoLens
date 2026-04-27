@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Internal query validation for SQL-like execution.
@@ -818,8 +817,8 @@ public final class SqlLikeValidator {
     private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {
         return "Invalid aggregate ORDER BY reference '"
                 + reference
-                + "': expected grouped field, aggregate output, or aggregate expression. Allowed fields: "
-                + new TreeSet<>(allowedFields);
+                + "': expected grouped field, aggregate output, or aggregate expression."
+                + SqlLikeFieldMessages.allowedFieldsFragment(allowedFields);
     }
 
     private static String formatUnknownAggregateOrderArgumentMessage(String expression,
@@ -828,7 +827,7 @@ public final class SqlLikeValidator {
         List<String> suggestions = NameSuggestions.suggest(argument, sourceFields);
         return "Unknown field '" + argument + "' in ORDER BY aggregate expression '" + expression + "'."
                 + NameSuggestions.formatFragment(suggestions)
-                + " Allowed source fields: " + new TreeSet<>(sourceFields);
+                + SqlLikeFieldMessages.allowedSourceFieldsFragment(sourceFields);
     }
 
     private static String canonicalWindowExpression(String value) {

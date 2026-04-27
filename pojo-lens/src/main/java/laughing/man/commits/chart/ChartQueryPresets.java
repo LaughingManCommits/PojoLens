@@ -7,7 +7,6 @@ import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.time.TimeBucketPreset;
 import laughing.man.commits.util.StringUtil;
 
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -39,10 +38,10 @@ public final class ChartQueryPresets {
                                                          String valueAlias,
                                                          ChartType chartType,
                                                          Class<T> projectionClass) {
-        String normalizedCategoryField = requireName(categoryField, "categoryField");
-        String normalizedValueAlias = requireName(valueAlias, "valueAlias");
+        String normalizedCategoryField = StringUtil.requireNonBlank(categoryField, "categoryField");
+        String normalizedValueAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
         Metric normalizedMetric = requireMetric(metric);
-        String metricExpression = metricExpression(normalizedMetric, metricField);
+        String metricExpression = normalizedMetric.expressionFor(metricField);
         String sql = "select " + normalizedCategoryField + ", "
                 + metricExpression + " as " + normalizedValueAlias
                 + " group by " + normalizedCategoryField
@@ -137,12 +136,12 @@ public final class ChartQueryPresets {
                                                            String valueAlias,
                                                            ChartType chartType,
                                                            Class<T> projectionClass) {
-        String normalizedDateField = requireName(dateField, "dateField");
+        String normalizedDateField = StringUtil.requireNonBlank(dateField, "dateField");
         TimeBucketPreset normalizedPreset = Objects.requireNonNull(preset, "preset must not be null");
-        String normalizedPeriodAlias = requireName(periodAlias, "periodAlias");
-        String normalizedValueAlias = requireName(valueAlias, "valueAlias");
+        String normalizedPeriodAlias = StringUtil.requireNonBlank(periodAlias, "periodAlias");
+        String normalizedValueAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
         Metric normalizedMetric = requireMetric(metric);
-        String metricExpression = metricExpression(normalizedMetric, metricField);
+        String metricExpression = normalizedMetric.expressionFor(metricField);
         String sql = "select bucket(" + normalizedDateField + "," + normalizedPreset.sqlArgumentList() + ") as "
                 + normalizedPeriodAlias + ", "
                 + metricExpression + " as " + normalizedValueAlias
@@ -217,11 +216,11 @@ public final class ChartQueryPresets {
                                                            String valueAlias,
                                                            ChartType chartType,
                                                            Class<T> projectionClass) {
-        String normalizedCategoryField = requireName(categoryField, "categoryField");
-        String normalizedSeriesField = requireName(seriesField, "seriesField");
-        String normalizedValueAlias = requireName(valueAlias, "valueAlias");
+        String normalizedCategoryField = StringUtil.requireNonBlank(categoryField, "categoryField");
+        String normalizedSeriesField = StringUtil.requireNonBlank(seriesField, "seriesField");
+        String normalizedValueAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
         Metric normalizedMetric = requireMetric(metric);
-        String metricExpression = metricExpression(normalizedMetric, metricField);
+        String metricExpression = normalizedMetric.expressionFor(metricField);
         String sql = "select " + normalizedSeriesField + ", "
                 + normalizedCategoryField + ", "
                 + metricExpression + " as " + normalizedValueAlias
@@ -241,13 +240,6 @@ public final class ChartQueryPresets {
         return groupedBreakdown(categoryField, seriesField, metric, metricField, valueAlias, chartType, QueryRow.class);
     }
 
-    private static String requireName(String value, String label) {
-        if (StringUtil.isNullOrBlank(value)) {
-            throw new IllegalArgumentException(label + " must not be null/blank");
-        }
-        return value;
-    }
-
     private static Metric requireMetric(Metric metric) {
         return Objects.requireNonNull(metric, "metric must not be null");
     }
@@ -260,11 +252,5 @@ public final class ChartQueryPresets {
         return Objects.requireNonNull(projectionClass, "projectionClass must not be null");
     }
 
-    private static String metricExpression(Metric metric, String metricField) {
-        if (metric == Metric.COUNT) {
-            return "count(*)";
-        }
-        return metric.name().toLowerCase(Locale.ROOT) + "(" + requireName(metricField, "metricField") + ")";
-    }
 }
 

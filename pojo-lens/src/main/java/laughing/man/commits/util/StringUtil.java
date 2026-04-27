@@ -52,6 +52,13 @@ public final class StringUtil {
         return str.length() == pos.getIndex();
     }
 
+    public static String requireNonBlank(String value, String label) {
+        if (isNullOrBlank(value)) {
+            throw new IllegalArgumentException(label + " must not be null/blank");
+        }
+        return value;
+    }
+
     private StringUtil() {
     }
 }

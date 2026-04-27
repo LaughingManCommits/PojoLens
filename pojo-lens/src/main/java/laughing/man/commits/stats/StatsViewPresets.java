@@ -5,7 +5,6 @@ import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.util.StringUtil;
 
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -49,8 +48,8 @@ public final class StatsViewPresets {
                                                  String metricField,
                                                  String valueAlias,
                                                  Class<T> projectionClass) {
-        String normalizedAlias = requireName(valueAlias, "valueAlias");
-        String metricExpression = metricExpression(requireMetric(metric), metricField);
+        String normalizedAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
+        String metricExpression = requireMetric(metric).expressionFor(metricField);
         String sql = "select " + metricExpression + " as " + normalizedAlias;
         return new StatsViewPreset<>(SqlLikeQuery.of(sql), null, requireProjectionClass(projectionClass));
     }
@@ -98,9 +97,9 @@ public final class StatsViewPresets {
                                             String metricField,
                                             String valueAlias,
                                             Class<T> projectionClass) {
-        String normalizedGroupField = requireName(groupField, "groupField");
-        String normalizedAlias = requireName(valueAlias, "valueAlias");
-        String metricExpression = metricExpression(requireMetric(metric), metricField);
+        String normalizedGroupField = StringUtil.requireNonBlank(groupField, "groupField");
+        String normalizedAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
+        String metricExpression = requireMetric(metric).expressionFor(metricField);
         String rowSql = "select " + normalizedGroupField + ", "
                 + metricExpression + " as " + normalizedAlias
                 + " group by " + normalizedGroupField
@@ -154,10 +153,10 @@ public final class StatsViewPresets {
                                                 String valueAlias,
                                                 int n,
                                                 Class<T> projectionClass) {
-        String normalizedGroupField = requireName(groupField, "groupField");
-        String normalizedAlias = requireName(valueAlias, "valueAlias");
+        String normalizedGroupField = StringUtil.requireNonBlank(groupField, "groupField");
+        String normalizedAlias = StringUtil.requireNonBlank(valueAlias, "valueAlias");
         int normalizedN = requirePositiveTopN(n);
-        String metricExpression = metricExpression(requireMetric(metric), metricField);
+        String metricExpression = requireMetric(metric).expressionFor(metricField);
         String rowSql = "select " + normalizedGroupField + ", "
                 + metricExpression + " as " + normalizedAlias
                 + " group by " + normalizedGroupField
@@ -186,13 +185,6 @@ public final class StatsViewPresets {
         return value;
     }
 
-    private static String requireName(String value, String label) {
-        if (StringUtil.isNullOrBlank(value)) {
-            throw new IllegalArgumentException(label + " must not be null/blank");
-        }
-        return value;
-    }
-
     private static Metric requireMetric(Metric metric) {
         return Objects.requireNonNull(metric, "metric must not be null");
     }
@@ -201,10 +193,4 @@ public final class StatsViewPresets {
         return Objects.requireNonNull(projectionClass, "projectionClass must not be null");
     }
 
-    private static String metricExpression(Metric metric, String metricField) {
-        if (metric == Metric.COUNT) {
-            return "count(*)";
-        }
-        return metric.name().toLowerCase(Locale.ROOT) + "(" + requireName(metricField, "metricField") + ")";
-    }
 }

@@ -1,0 +1,220 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-25\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.2",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.2+10-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.019877750087041977,
+            "scoreError" : 0.003437180055592134,
+            "scoreConfidence" : [
+                0.016440570031449844,
+                0.02331493014263411
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.018799269662921347,
+                "50.0" : 0.01978400945254037,
+                "90.0" : 0.020900062656641603,
+                "95.0" : 0.020900062656641603,
+                "99.0" : 0.020900062656641603,
+                "99.9" : 0.020900062656641603,
+                "99.99" : 0.020900062656641603,
+                "99.999" : 0.020900062656641603,
+                "99.9999" : 0.020900062656641603,
+                "100.0" : 0.020900062656641603
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.02064510925056157,
+                    0.020900062656641603,
+                    0.018799269662921347,
+                    0.019260299412545007,
+                    0.01978400945254037
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-25\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.2",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.2+10-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.19228689850530511,
+            "scoreError" : 0.02244011905889735,
+            "scoreConfidence" : [
+                0.16984677944640778,
+                0.21472701756420245
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.18249585585585584,
+                "50.0" : 0.19507980582524273,
+                "90.0" : 0.19678485436893203,
+                "95.0" : 0.19678485436893203,
+                "99.0" : 0.19678485436893203,
+                "99.9" : 0.19678485436893203,
+                "99.99" : 0.19678485436893203,
+                "99.999" : 0.19678485436893203,
+                "99.9999" : 0.19678485436893203,
+                "100.0" : 0.19678485436893203
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.19563735408560312,
+                    0.18249585585585584,
+                    0.19143662239089185,
+                    0.19507980582524273,
+                    0.19678485436893203
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-25\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.2",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.2+10-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.026701919196835462,
+            "scoreError" : 0.0018432331415832043,
+            "scoreConfidence" : [
+                0.02485868605525226,
+                0.028545152338418665
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.02612645844088797,
+                "50.0" : 0.02659899894625922,
+                "90.0" : 0.02737347872913301,
+                "95.0" : 0.02737347872913301,
+                "99.0" : 0.02737347872913301,
+                "99.9" : 0.02737347872913301,
+                "99.99" : 0.02737347872913301,
+                "99.999" : 0.02737347872913301,
+                "99.9999" : 0.02737347872913301,
+                "100.0" : 0.02737347872913301
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.02737347872913301,
+                    0.02612645844088797,
+                    0.02695410885805763,
+                    0.02659899894625922,
+                    0.02645655100983946
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-25\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "25.0.2",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "25.0.2+10-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.09444262157029464,
+            "scoreError" : 0.008407403646384192,
+            "scoreConfidence" : [
+                0.08603521792391045,
+                0.10285002521667883
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.0925282169117647,
+                "50.0" : 0.09389008341056534,
+                "90.0" : 0.09819912706110573,
+                "95.0" : 0.09819912706110573,
+                "99.0" : 0.09819912706110573,
+                "99.9" : 0.09819912706110573,
+                "99.99" : 0.09819912706110573,
+                "99.999" : 0.09819912706110573,
+                "99.9999" : 0.09819912706110573,
+                "100.0" : 0.09819912706110573
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.09351903881700555,
+                    0.09819912706110573,
+                    0.0940766416510319,
+                    0.0925282169117647,
+                    0.09389008341056534
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

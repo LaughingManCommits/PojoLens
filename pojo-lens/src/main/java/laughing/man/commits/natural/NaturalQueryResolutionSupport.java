@@ -14,6 +14,7 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 
 import java.util.ArrayList;
@@ -136,7 +137,7 @@ final class NaturalQueryResolutionSupport {
         return new IllegalArgumentException(
                 "Unknown natural field term '" + originalPhrase + "' in natural query."
                         + NameSuggestions.formatFragment(NameSuggestions.suggest(originalPhrase, allowed))
-                        + " Allowed fields: " + allowed
+                        + SqlLikeFieldMessages.allowedFieldsFragment(allowed)
         );
     }
 

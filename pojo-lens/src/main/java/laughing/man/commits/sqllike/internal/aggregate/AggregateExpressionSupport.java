@@ -4,6 +4,7 @@ import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.SelectAst;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 
 import java.util.LinkedHashMap;
@@ -11,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Shared aggregate-expression parsing/canonicalization utilities
@@ -137,7 +137,7 @@ public final class AggregateExpressionSupport {
             List<String> suggestions = NameSuggestions.suggest(argument, sourceFields);
             return new IllegalArgumentException(base
                     + NameSuggestions.formatFragment(suggestions)
-                    + " Allowed source fields: " + new TreeSet<>(sourceFields));
+                    + SqlLikeFieldMessages.allowedSourceFieldsFragment(sourceFields));
         }
         return new IllegalArgumentException(base);
     }

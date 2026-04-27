@@ -35,6 +35,11 @@ public final class SqlLikeFieldMessages {
         return allowedFields.isEmpty() ? "" : " Allowed fields: " + new TreeSet<>(allowedFields);
     }
 
+    public static String allowedSourceFieldsFragment(Set<String> sourceFields) {
+        Objects.requireNonNull(sourceFields, "sourceFields must not be null");
+        return sourceFields.isEmpty() ? "" : " Allowed source fields: " + new TreeSet<>(sourceFields);
+    }
+
     private static String baseUnknownField(String field, String clauseName, Set<String> allowedFields) {
         return "Unknown field '" + field + "' in " + clauseName + " clause."
                 + NameSuggestions.formatFragment(NameSuggestions.suggest(field, allowedFields));

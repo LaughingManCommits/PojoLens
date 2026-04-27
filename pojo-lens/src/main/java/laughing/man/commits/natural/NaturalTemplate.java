@@ -59,7 +59,7 @@ public final class NaturalTemplate {
         }
         LinkedHashSet<String> names = new LinkedHashSet<>();
         for (String expectedParam : expectedParams) {
-            String normalized = normalizeName(expectedParam, "expected parameter name");
+            String normalized = StringUtil.requireNonBlank(expectedParam, "expected parameter name");
             if (!names.add(normalized)) {
                 throw new IllegalArgumentException(
                         "Duplicate natural template parameter schema entry: " + normalized);
@@ -72,7 +72,7 @@ public final class NaturalTemplate {
         Objects.requireNonNull(parameters, "parameters must not be null");
         LinkedHashMap<String, Object> normalized = new LinkedHashMap<>();
         for (Map.Entry<String, ?> entry : parameters.entrySet()) {
-            String key = normalizeName(entry.getKey(), "parameter name");
+            String key = StringUtil.requireNonBlank(entry.getKey(), "parameter name");
             normalized.put(key, entry.getValue());
         }
         return normalized;
@@ -108,10 +108,4 @@ public final class NaturalTemplate {
         }
     }
 
-    private static String normalizeName(String value, String label) {
-        if (StringUtil.isNullOrBlank(value)) {
-            throw new IllegalArgumentException(label + " must not be null/blank");
-        }
-        return value;
-    }
 }

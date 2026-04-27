@@ -4,6 +4,7 @@ import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Separator;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 
 import java.util.LinkedHashSet;
@@ -107,6 +108,6 @@ final class FluentQualifySupport {
     }
 
     private static String formatUnknownQualifyMessage(String field, Set<String> allowedAliases) {
-        return "Unknown field '" + field + "' in QUALIFY clause. Allowed fields: " + allowedAliases;
+        return SqlLikeFieldMessages.unknownField(field, "QUALIFY", allowedAliases);
     }
 }
