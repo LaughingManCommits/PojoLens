@@ -54,22 +54,32 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     private final QuerySpec spec;
     private final FilterExecutionPlanCacheStore executionPlanCache;
-    private boolean copyOnBuild = true;
+    private volatile boolean copyOnBuild = true;
     private QueryTelemetryListener telemetryListener;
     private String telemetryQueryType = "fluent";
     private String telemetrySource = "fluent";
     private ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
     private boolean runtimeSchemaValidated;
     private List<?> sourceBeans = List.of();
+    private List<?> sourceBeansView = List.of();
     private Map<Integer, List<?>> joinSourceBeans = new HashMap<>();
-    private boolean fullyMaterializedSourceRows;
+    private Map<Integer, List<?>> joinSourceBeansView = Collections.emptyMap();
+    private volatile boolean fullyMaterializedSourceRows;
     private Set<String> materializedSourceFields = Set.of();
     private final AtomicLong executionPlanShapeVersion = new AtomicLong();
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "CT_CONSTRUCTOR_THROW",
+            justification = "The builder validates required configuration eagerly and fails fast on invalid input."
+    )
     public FilterQueryBuilder(List<?> pojos) {
         this(pojos, DefaultFilterExecutionPlanCacheSupport.defaultStore());
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "CT_CONSTRUCTOR_THROW",
+            justification = "The builder validates required configuration eagerly and fails fast on invalid input."
+    )
     public FilterQueryBuilder(List<?> pojos, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
         this.spec = new QuerySpec();
@@ -78,6 +88,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         initializeSourceRows(pojos);
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "CT_CONSTRUCTOR_THROW",
+            justification = "Snapshot construction still validates required cache wiring eagerly."
+    )
     private FilterQueryBuilder(QuerySpec snapshot, FilterExecutionPlanCacheStore executionPlanCache) {
         this.executionPlanCache = requireCacheStore(executionPlanCache);
         this.spec = snapshot == null ? new QuerySpec() : snapshot;
@@ -191,11 +205,11 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public List<?> getSourceBeansForExecution() {
-        return sourceBeans;
+        return sourceBeansView;
     }
 
     public Map<Integer, List<?>> getJoinSourceBeansForExecution() {
-        return joinSourceBeans;
+        return joinSourceBeansView;
     }
 
     public void setRows(List<QueryRow> rows) {
@@ -205,6 +219,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     public void setRows(List<QueryRow> rows, Map<String, Class<?>> sourceFieldTypes) {
         markExecutionPlanShapeChanged();
         sourceBeans = List.of();
+        refreshExecutionSourceViews();
         clearMaterializedSourceRows();
         spec.setSourceFieldTypes(sourceFieldTypes);
         refreshFieldTypes();
@@ -214,6 +229,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     public void setMaterializedRows(List<QueryRow> rows, Map<String, Class<?>> sourceFieldTypes) {
         markExecutionPlanShapeChanged();
         sourceBeans = List.of();
+        refreshExecutionSourceViews();
         clearMaterializedSourceRows();
         spec.setSourceFieldTypes(sourceFieldTypes);
         refreshFieldTypes();
@@ -1339,8 +1355,9 @@ public class FilterQueryBuilder implements QueryBuilder {
         FilterQueryBuilder snapshot = copyBuilderState(spec.executionCopy(), copyOnBuild);
         snapshot.sourceBeans = copySourceBeans(sourceBeans);
         snapshot.joinSourceBeans = copyJoinSourceBeans();
-        snapshot.fullyMaterializedSourceRows = fullyMaterializedSourceRows;
-        snapshot.materializedSourceFields = materializedSourceFields;
+        snapshot.refreshExecutionSourceViews();
+        snapshot.fullyMaterializedSourceRows = false;
+        snapshot.materializedSourceFields = Set.of();
         return snapshot;
     }
 
@@ -1348,6 +1365,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         FilterQueryBuilder snapshot = copyBuilderState(spec.executionCopy(), true);
         snapshot.sourceBeans = List.of();
         snapshot.joinSourceBeans = new HashMap<>();
+        snapshot.refreshExecutionSourceViews();
         snapshot.fullyMaterializedSourceRows = false;
         snapshot.materializedSourceFields = Set.of();
         snapshot.spec.setRows(new ArrayList<>());
@@ -1391,6 +1409,10 @@ public class FilterQueryBuilder implements QueryBuilder {
         return current;
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "The execution-plan cache is intentionally shared and mutable."
+    )
     public FilterExecutionPlanCacheStore getExecutionPlanCache() {
         return executionPlanCache;
     }
@@ -1528,13 +1550,6 @@ public class FilterQueryBuilder implements QueryBuilder {
         return configurer;
     }
 
-    private TimeBucket requireTimeBucket(TimeBucket bucket) {
-        if (bucket == null) {
-            throw new IllegalArgumentException("bucket is required");
-        }
-        return bucket;
-    }
-
     private TimeBucketPreset requireTimeBucketPreset(TimeBucketPreset preset) {
         if (preset == null) {
             throw new IllegalArgumentException("preset is required");
@@ -1635,6 +1650,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void bindPreparedExecutionSources(List<?> pojos, Map<Integer, List<?>> joinSourcesByIndex) {
         bindPreparedSourceRows(pojos);
         joinSourceBeans = new HashMap<>();
+        refreshExecutionSourceViews();
         for (Integer joinIndex : new ArrayList<>(spec.getJoinClasses().keySet())) {
             spec.getJoinClasses().put(joinIndex, new ArrayList<>());
             bindPreparedJoinSource(joinIndex, joinSourcesByIndex.get(joinIndex));
@@ -1646,12 +1662,14 @@ public class FilterQueryBuilder implements QueryBuilder {
         refreshFieldTypes();
         if (usesQueryRows(pojos)) {
             sourceBeans = List.of();
+            refreshExecutionSourceViews();
             fullyMaterializedSourceRows = false;
             materializedSourceFields = Set.of();
             spec.setRows(materializedRows(queryRows(pojos)));
             return;
         }
         sourceBeans = directSourceBeans(pojos);
+        refreshExecutionSourceViews();
         fullyMaterializedSourceRows = false;
         materializedSourceFields = Set.of();
         spec.setRows(new ArrayList<>());
@@ -1674,11 +1692,13 @@ public class FilterQueryBuilder implements QueryBuilder {
     private void initializeSourceRows(List<?> pojos) {
         if (usesQueryRows(pojos)) {
             sourceBeans = List.of();
+            refreshExecutionSourceViews();
             clearMaterializedSourceRows();
             spec.setRows(materializedRows(queryRows(pojos)));
             return;
         }
         sourceBeans = copySourceBeans(pojos);
+        refreshExecutionSourceViews();
         clearMaterializedSourceRows();
         spec.setRows(new ArrayList<>());
     }
@@ -1854,6 +1874,11 @@ public class FilterQueryBuilder implements QueryBuilder {
         if (hasSourceBeans()) {
             spec.setRows(new ArrayList<>());
         }
+    }
+
+    private void refreshExecutionSourceViews() {
+        sourceBeansView = Collections.unmodifiableList(sourceBeans);
+        joinSourceBeansView = Collections.unmodifiableMap(joinSourceBeans);
     }
 
     private List<?> copySourceBeans(List<?> pojos) {

@@ -594,11 +594,6 @@ public final class SqlLikeBinder {
                                               Map<String, List<?>> joinSources,
                                               ComputedFieldRegistry computedFieldRegistry) {
         return switch (unwrapValue(filter.value())) {
-            case null -> QueryRule.of(
-                    filter.field(),
-                    resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
-                    filter.clause()
-            );
             case SubqueryValueAst subqueryValueAst -> Clauses.IN.equals(filter.clause())
                     ? inSubqueryRule(filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry)
                     : QueryRule.of(
@@ -608,7 +603,7 @@ public final class SqlLikeBinder {
             );
             case ExistsSubqueryValueAst existsSubqueryValueAst ->
                     existsSubqueryRule(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
-            default -> QueryRule.of(
+            case null, default -> QueryRule.of(
                     filter.field(),
                     resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
                     filter.clause()
@@ -701,20 +696,6 @@ public final class SqlLikeBinder {
             case ExistsSubqueryValueAst _ -> true;
             default -> false;
         };
-    }
-
-    private static boolean resolveExistsSubquery(ExistsSubqueryValueAst existsSubqueryValueAst,
-                                                 List<?> pojos,
-                                                 Map<String, List<?>> joinSources,
-                                                 ComputedFieldRegistry computedFieldRegistry) {
-        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
-        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
-        if (sourceRows == null || sourceRows.isEmpty()) {
-            return existsSubqueryValueAst.negated();
-        }
-
-        boolean exists = !executeSubqueryRows(subquery, sourceRows, joinSources, computedFieldRegistry).isEmpty();
-        return existsSubqueryValueAst.negated() ? !exists : exists;
     }
 
     private static List<Object> resolveSubqueryValues(SubqueryValueAst subqueryValueAst,

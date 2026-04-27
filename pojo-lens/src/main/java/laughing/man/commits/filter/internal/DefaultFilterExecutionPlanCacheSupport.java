@@ -15,6 +15,10 @@ public final class DefaultFilterExecutionPlanCacheSupport {
     private DefaultFilterExecutionPlanCacheSupport() {
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "MS_EXPOSE_REP",
+            justification = "The process-wide default cache is intentionally shared."
+    )
     public static FilterExecutionPlanCacheStore defaultStore() {
         return DEFAULT_STORE;
     }

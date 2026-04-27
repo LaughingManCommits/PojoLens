@@ -17,6 +17,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   SpotBugs findings now gate `verify` while lower-priority warnings still
   emit XML output.
 
+### Fixed
+
+- **Window row materialization** - `FluentWindowSupport` now computes window values before wrapping `RawQueryRow`s, so fluent and SQL-like `ROW_NUMBER`, ranking, aggregate window, and `QUALIFY` queries keep populated aliases.
+
 ### Added
 
 - **Virtual-thread boundary profiles** - added opt-in `virtual` Spring

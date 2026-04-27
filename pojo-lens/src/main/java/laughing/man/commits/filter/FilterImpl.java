@@ -17,7 +17,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +39,10 @@ public class FilterImpl implements Filter {
     private volatile SourceIndexCache sourceIndexCache;
     private volatile ReusableFastJoinState reusableFastJoinState;
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "FilterImpl intentionally keeps the live builder snapshot that drives query execution."
+    )
     public FilterImpl(FilterQueryBuilder query) {
         this.builderState = query;
     }
@@ -52,9 +55,9 @@ public class FilterImpl implements Filter {
         materializeFastRowsIfPresent();
         FilterQueryBuilder executionBuilder = builderState;
         FilterCore core = new FilterCore(executionBuilder);
+        List<QueryRow> rows = core.getBuilder().getRows();
         try {
-            if (core.getBuilder().getRows() != null
-                    && !core.getBuilder().getRows().isEmpty()) {
+            if (rows != null && !rows.isEmpty()) {
                 FilterStageResult stage = runFilterStage(
                         executionBuilder,
                         core,
@@ -69,11 +72,10 @@ public class FilterImpl implements Filter {
                 Map<String, List<QueryRow>> groupedClasses =
                         core.groupByFields(stage.filteredRows(), displayFields, stage.plan());
                 // Convert grouped rows back to caller type.
-                Set<String> keys = groupedClasses.keySet();
                 Map<String, List<T>> map = new HashMap<>();
-                for (String key : keys) {
-                    List<T> list = ReflectionUtil.toClassList(cls, groupedClasses.get(key));
-                    map.put(key, list);
+                for (Map.Entry<String, List<QueryRow>> entry : groupedClasses.entrySet()) {
+                    List<T> list = ReflectionUtil.toClassList(cls, entry.getValue());
+                    map.put(entry.getKey(), list);
                 }
 
                 return map;
@@ -81,7 +83,7 @@ public class FilterImpl implements Filter {
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            LOG.error("Failed to compare core.getBuilder().getRows()[" + core.getBuilder().getRows() + "] ", e);
+            LOG.error("Failed to compare core.getBuilder().getRows()[" + rows + "] ", e);
             throw new IllegalStateException("Failed to run grouped filter", e);
         }
         return new HashMap<>();

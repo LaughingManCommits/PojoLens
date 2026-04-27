@@ -26,11 +26,11 @@ public final class SqlLikePushdownPreview {
                                   List<String> fallbackReasons) {
         this.source = Objects.requireNonNull(source, "source must not be null");
         this.mode = Objects.requireNonNull(mode, "mode must not be null");
-        this.pushableStages = List.copyOf(Objects.requireNonNull(pushableStages,
+        this.pushableStages = new java.util.ArrayList<>(Objects.requireNonNull(pushableStages,
                 "pushableStages must not be null"));
-        this.inMemoryStages = List.copyOf(Objects.requireNonNull(inMemoryStages,
+        this.inMemoryStages = new java.util.ArrayList<>(Objects.requireNonNull(inMemoryStages,
                 "inMemoryStages must not be null"));
-        this.fallbackReasons = List.copyOf(Objects.requireNonNull(fallbackReasons,
+        this.fallbackReasons = new java.util.ArrayList<>(Objects.requireNonNull(fallbackReasons,
                 "fallbackReasons must not be null"));
     }
 
@@ -58,7 +58,7 @@ public final class SqlLikePushdownPreview {
      * @return pushable stage names
      */
     public List<String> pushableStages() {
-        return pushableStages;
+        return java.util.Collections.unmodifiableList(pushableStages);
     }
 
     /**
@@ -67,7 +67,7 @@ public final class SqlLikePushdownPreview {
      * @return in-memory stage names
      */
     public List<String> inMemoryStages() {
-        return inMemoryStages;
+        return java.util.Collections.unmodifiableList(inMemoryStages);
     }
 
     /**
@@ -76,7 +76,7 @@ public final class SqlLikePushdownPreview {
      * @return fallback reason codes
      */
     public List<String> fallbackReasons() {
-        return fallbackReasons;
+        return java.util.Collections.unmodifiableList(fallbackReasons);
     }
 
     /**
@@ -105,5 +105,9 @@ public final class SqlLikePushdownPreview {
      */
     public boolean isInMemoryOnly() {
         return mode == SqlLikePushdownMode.IN_MEMORY_ONLY;
+    }
+
+    public SqlLikePushdownPreview copy() {
+        return new SqlLikePushdownPreview(source, mode, pushableStages, inMemoryStages, fallbackReasons);
     }
 }

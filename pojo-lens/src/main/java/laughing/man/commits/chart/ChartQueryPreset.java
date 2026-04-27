@@ -36,7 +36,7 @@ public final class ChartQueryPreset<T> {
     }
 
     public SqlLikeQuery query() {
-        return query;
+        return query.copy();
     }
 
     public Class<T> projectionClass() {

@@ -39,6 +39,10 @@ public final class PojoLensRuntime {
         this(new SqlLikeQueryCache(), new FilterExecutionPlanCacheStore());
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "The runtime intentionally owns and shares the live cache instances it is configured with."
+    )
     public PojoLensRuntime(SqlLikeQueryCache sqlLikeCache, FilterExecutionPlanCacheStore statsPlanCache) {
         if (sqlLikeCache == null) {
             throw new IllegalArgumentException("sqlLikeCache must not be null");
@@ -91,10 +95,18 @@ public final class PojoLensRuntime {
         return SqlLikeTemplate.of(parse(sqlLikeQuery), expectedParams);
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "The runtime intentionally exposes its live cache for configuration and inspection."
+    )
     public SqlLikeQueryCache sqlLikeCache() {
         return sqlLikeCache;
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "The runtime intentionally exposes its live cache for configuration and inspection."
+    )
     public FilterExecutionPlanCacheStore statsPlanCache() {
         return statsPlanCache;
     }

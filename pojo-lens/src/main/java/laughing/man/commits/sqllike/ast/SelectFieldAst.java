@@ -187,14 +187,14 @@ public final class SelectFieldAst {
                 return windowFunction.toLowerCase(Locale.ROOT);
             }
             if (timeBucketPreset != null) {
-                return "bucket_" + field + "_" + timeBucketPreset.bucket().name().toLowerCase();
+                return "bucket_" + field + "_" + timeBucketPreset.bucket().name().toLowerCase(Locale.ROOT);
             }
             return field;
         }
         if (countAll) {
             return "count_all";
         }
-        return metric.name().toLowerCase() + "_" + field;
+        return metric.name().toLowerCase(Locale.ROOT) + "_" + field;
     }
 
     public boolean aliased() {

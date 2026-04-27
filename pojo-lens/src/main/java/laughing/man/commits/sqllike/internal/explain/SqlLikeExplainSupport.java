@@ -216,7 +216,8 @@ public final class SqlLikeExplainSupport {
 
     private static int iterableSize(Iterable<?> iterable) {
         int size = 0;
-        for (Object ignored : iterable) {
+        for (java.util.Iterator<?> iterator = iterable.iterator(); iterator.hasNext(); ) {
+            iterator.next();
             size++;
         }
         return size;

@@ -160,7 +160,6 @@ public final class SqlLikePlanPreviewSupport {
 
     private static PlanPreviewFilter buildPreviewFilter(FilterAst f) {
         return switch (f.value()) {
-            case null -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
             case ExistsSubqueryValueAst existsAst -> new PlanPreviewFilter(
                     f.field(),
                     existsAst.negated() ? "NOT EXISTS" : "EXISTS",
@@ -182,7 +181,7 @@ public final class SqlLikePlanPreviewSupport {
                     paramAst.name(),
                     null
             );
-            default -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
+            case null, default -> new PlanPreviewFilter(f.field(), clauseOperator(f.clause()), "LITERAL", null, null);
         };
     }
 

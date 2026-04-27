@@ -55,7 +55,8 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static <T> List<T> projectAliasedQueryRows(
-            List<?> sourceRows, QueryRow firstRow, Class<T> targetClass, SelectAst select) throws Exception {
+            List<?> sourceRows, QueryRow firstRow, Class<T> targetClass, SelectAst select)
+            throws ReflectiveOperationException {
         Map<String, Integer> fieldIndexMap = SchemaIndexUtil.indexQueryFields(firstRow.getFields());
         List<SelectFieldAst> fields = select.fields();
         int numFields = fields.size();
@@ -124,7 +125,8 @@ public final class SqlLikeExecutionSupport {
     }
 
     private static <T> List<T> projectAliasedPojoRows(
-            List<?> sourceRows, Class<T> targetClass, SelectAst select) throws Exception {
+            List<?> sourceRows, Class<T> targetClass, SelectAst select)
+            throws ReflectiveOperationException {
         ArrayList<String> outputSchema = new ArrayList<>(select.fields().size());
         for (SelectFieldAst field : select.fields()) {
             outputSchema.add(field.outputName());
@@ -231,7 +233,8 @@ public final class SqlLikeExecutionSupport {
         }
     }
 
-    private static Object resolveProjectedFieldValue(Object sourceRow, SelectFieldAst field) throws Exception {
+    private static Object resolveProjectedFieldValue(Object sourceRow, SelectFieldAst field)
+            throws ReflectiveOperationException {
         String sourceFieldName = projectionSourceField(field);
         if (sourceRow instanceof QueryRow queryRow) {
             return queryRowFieldValue(queryRow, sourceFieldName);

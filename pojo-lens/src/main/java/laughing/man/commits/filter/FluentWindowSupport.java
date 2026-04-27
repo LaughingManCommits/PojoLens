@@ -38,8 +38,9 @@ final class FluentWindowSupport {
             outputSchema.add(window.alias());
         }
 
-        ArrayList<QueryRow> output = new ArrayList<>(rows.size());
         Object[][] outputValues = new Object[rows.size()][];
+        String[] rowIds = new String[rows.size()];
+        String[] rowTypes = new String[rows.size()];
         int baseFieldCount = sourceSchema.size();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             QueryRow sourceRow = rows.get(rowIndex);
@@ -48,16 +49,26 @@ final class FluentWindowSupport {
             for (int fieldIndex = 0; fieldIndex < baseFieldCount; fieldIndex++) {
                 values[fieldIndex] = sourceRow == null ? null : sourceRow.getValueAt(fieldIndex);
             }
-            RawQueryRow projected = new RawQueryRow(values, outputSchema);
             if (sourceRow != null) {
-                projected.setRowId(sourceRow.getRowId());
-                projected.setRowType(sourceRow.getRowType());
+                rowIds[rowIndex] = sourceRow.getRowId();
+                rowTypes[rowIndex] = sourceRow.getRowType();
             }
-            output.add(projected);
         }
 
         for (int windowIndex = 0; windowIndex < windows.size(); windowIndex++) {
             evaluateWindow(rows, windows.get(windowIndex), sourceFieldIndexes, outputValues, baseFieldCount + windowIndex);
+        }
+
+        ArrayList<QueryRow> output = new ArrayList<>(rows.size());
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            RawQueryRow projected = new RawQueryRow(outputValues[rowIndex], outputSchema);
+            if (rowIds[rowIndex] != null) {
+                projected.setRowId(rowIds[rowIndex]);
+            }
+            if (rowTypes[rowIndex] != null) {
+                projected.setRowType(rowTypes[rowIndex]);
+            }
+            output.add(projected);
         }
         return output;
     }

@@ -42,7 +42,7 @@ public final class SqlLikePushdownRequest {
      * @return pushdown preview
      */
     public SqlLikePushdownPreview preview() {
-        return preview;
+        return preview.copy();
     }
 
     /**

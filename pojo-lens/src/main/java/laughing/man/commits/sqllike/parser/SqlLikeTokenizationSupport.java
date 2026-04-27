@@ -25,19 +25,19 @@ final class SqlLikeTokenizationSupport {
                 continue;
             }
             if (ch == ',') {
-                addToken(output, maxTokens, new Token(TokenType.COMMA, ",", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.COMMA, ",", i++), value, positionMap);
                 continue;
             }
             if (ch == '(') {
-                addToken(output, maxTokens, new Token(TokenType.LEFT_PAREN, "(", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.LEFT_PAREN, "(", i++), value, positionMap);
                 continue;
             }
             if (ch == ')') {
-                addToken(output, maxTokens, new Token(TokenType.RIGHT_PAREN, ")", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.RIGHT_PAREN, ")", i++), value, positionMap);
                 continue;
             }
             if (ch == '*') {
-                addToken(output, maxTokens, new Token(TokenType.STAR, "*", i++, positionMap.lineOf(i - 1), positionMap.columnOf(i - 1)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.STAR, "*", i++), value, positionMap);
                 continue;
             }
             if (ch == '\'') {
@@ -62,7 +62,7 @@ final class SqlLikeTokenizationSupport {
                 if (!terminated) {
                     throw syntaxError(value, positionMap, "Unterminated string literal", start);
                 }
-                addToken(output, maxTokens, new Token(TokenType.STRING, sb.toString(), start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.STRING, sb.toString(), start), value, positionMap);
                 continue;
             }
             if (ch == ':') {
@@ -73,13 +73,7 @@ final class SqlLikeTokenizationSupport {
                 while (i < value.length() && isIdentifierPart(value.charAt(i))) {
                     i++;
                 }
-                addToken(output, maxTokens, new Token(
-                        TokenType.PARAM,
-                        value.substring(start, i),
-                        start,
-                        positionMap.lineOf(start),
-                        positionMap.columnOf(start)
-                ), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.PARAM, value.substring(start, i), start), value, positionMap);
                 continue;
             }
             if (ch == '!' || ch == '<' || ch == '>' || ch == '=' || ch == '+' || ch == '/' || ch == '-') {
@@ -98,18 +92,18 @@ final class SqlLikeTokenizationSupport {
                             i++;
                         }
                     }
-                    addToken(output, maxTokens, new Token(TokenType.NUMBER, value.substring(start, i), start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                    addToken(output, maxTokens, new Token(TokenType.NUMBER, value.substring(start, i), start), value, positionMap);
                     continue;
                 }
                 if (i + 1 < value.length()) {
                     String two = value.substring(i, i + 2);
                     if ("!=".equals(two) || ">=".equals(two) || "<=".equals(two) || "<>".equals(two)) {
-                        addToken(output, maxTokens, new Token(TokenType.OPERATOR, two, start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                        addToken(output, maxTokens, new Token(TokenType.OPERATOR, two, start), value, positionMap);
                         i += 2;
                         continue;
                     }
                 }
-                addToken(output, maxTokens, new Token(TokenType.OPERATOR, String.valueOf(ch), start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.OPERATOR, String.valueOf(ch), start), value, positionMap);
                 i++;
                 continue;
             }
@@ -128,7 +122,7 @@ final class SqlLikeTokenizationSupport {
                         i++;
                     }
                 }
-                addToken(output, maxTokens, new Token(TokenType.NUMBER, value.substring(start, i), start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                addToken(output, maxTokens, new Token(TokenType.NUMBER, value.substring(start, i), start), value, positionMap);
                 continue;
             }
             if (isIdentifierStart(ch)) {
@@ -138,9 +132,9 @@ final class SqlLikeTokenizationSupport {
                 }
                 String word = value.substring(start, i);
                 if (isKeyword(word, keywords)) {
-                    addToken(output, maxTokens, new Token(TokenType.KEYWORD, word, start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                    addToken(output, maxTokens, new Token(TokenType.KEYWORD, word, start), value, positionMap);
                 } else {
-                    addToken(output, maxTokens, new Token(TokenType.IDENTIFIER, word, start, positionMap.lineOf(start), positionMap.columnOf(start)), value, positionMap);
+                    addToken(output, maxTokens, new Token(TokenType.IDENTIFIER, word, start), value, positionMap);
                 }
                 continue;
             }
@@ -149,9 +143,7 @@ final class SqlLikeTokenizationSupport {
         addToken(output, maxTokens, new Token(
                 TokenType.EOF,
                 "",
-                value.length(),
-                positionMap.lineOf(value.length()),
-                positionMap.columnOf(value.length())
+                value.length()
         ), value, positionMap);
         return output;
     }
@@ -249,15 +241,11 @@ final class SqlLikeTokenizationSupport {
         final TokenType type;
         final String text;
         final int position;
-        final int line;
-        final int column;
 
-        Token(TokenType type, String text, int position, int line, int column) {
+        Token(TokenType type, String text, int position) {
             this.type = type;
             this.text = text;
             this.position = position;
-            this.line = line;
-            this.column = column;
         }
     }
 

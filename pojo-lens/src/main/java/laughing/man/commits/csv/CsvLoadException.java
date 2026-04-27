@@ -7,7 +7,7 @@ import java.util.Objects;
  */
 public final class CsvLoadException extends IllegalArgumentException {
 
-    private final CsvLoadReport report;
+    private final transient CsvLoadReport report;
 
     public CsvLoadException(String message, CsvLoadReport report) {
         super(message);

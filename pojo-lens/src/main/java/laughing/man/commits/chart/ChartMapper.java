@@ -363,7 +363,8 @@ public final class ChartMapper {
         for (int labelIndex = 0; labelIndex < labelCount; labelIndex++) {
             double total = 0d;
             for (ChartDataset dataset : datasets) {
-                Double value = dataset.getValues().get(labelIndex);
+                List<Double> values = dataset.getValues();
+                Double value = values.get(labelIndex);
                 if (value != null) {
                     total += value;
                 }
@@ -372,11 +373,12 @@ public final class ChartMapper {
                 continue;
             }
             for (ChartDataset dataset : datasets) {
-                Double value = dataset.getValues().get(labelIndex);
+                List<Double> values = dataset.getValues();
+                Double value = values.get(labelIndex);
                 if (value == null) {
                     continue;
                 }
-                dataset.getValues().set(labelIndex, (value / total) * PERCENTAGE_SCALE);
+                dataset.setValueAt(labelIndex, (value / total) * PERCENTAGE_SCALE);
             }
         }
     }

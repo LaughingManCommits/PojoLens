@@ -37,7 +37,7 @@ public final class StatsViewPreset<T> {
     }
 
     public SqlLikeQuery query() {
-        return query;
+        return query.copy();
     }
 
     public boolean hasTotals() {

@@ -32,6 +32,10 @@ public class FilterCore {
     private final JoinEngine joinEngine;
     private final AggregationEngine aggregationEngine;
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "FilterCore intentionally executes against the live mutable query builder."
+    )
     public FilterCore(FilterQueryBuilder builder) {
         this.builder = builder;
         this.cleaner = new RuleCleaner(builder);
@@ -297,7 +301,7 @@ public class FilterCore {
         return builder.getRows();
     }
 
-    public FilterQueryBuilder getBuilder() {
+    FilterQueryBuilder getBuilder() {
         return builder;
     }
 

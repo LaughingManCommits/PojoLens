@@ -34,8 +34,8 @@ public final class TypedPredicate<T> {
         this.operator = operator;
         this.field = field;
         this.value = value;
-        this.values = values;
-        this.children = children;
+        this.values = values == null ? List.of() : new ArrayList<>(values);
+        this.children = children == null ? List.of() : new ArrayList<>(children);
     }
 
     // --- Accessors ---
@@ -56,12 +56,12 @@ public final class TypedPredicate<T> {
 
     /** Non-empty for IN predicates; empty otherwise. */
     public List<Object> values() {
-        return values;
+        return Collections.unmodifiableList(values);
     }
 
     /** Non-empty for compound predicates (AND/OR/NOT); empty otherwise. */
     public List<TypedPredicate<T>> children() {
-        return children;
+        return Collections.unmodifiableList(children);
     }
 
     public boolean isLeaf() {

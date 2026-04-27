@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -116,7 +117,7 @@ public final class ObjectUtil {
         }
     }
 
-    public static <T> T value(Object value, Class<T> cls) throws Exception {
+    public static <T> T value(Object value, Class<T> cls) {
         return cls.cast(value);
     }
 
@@ -441,13 +442,11 @@ public final class ObjectUtil {
 
         return switch (clause) {
             case BIGGER -> left > right;
-            case BIGGER_EQUAL -> left >= right;
+            case BIGGER_EQUAL, NOT_SMALLER -> left >= right;
             case EQUAL, IN -> left.longValue() == right.longValue();
-            case NOT_BIGGER -> left <= right;
+            case NOT_BIGGER, SMALLER_EQUAL -> left <= right;
             case NOT_EQUAL -> left.longValue() != right.longValue();
-            case NOT_SMALLER -> left >= right;
             case SMALLER -> left < right;
-            case SMALLER_EQUAL -> left <= right;
             default -> false;
         };
     }
@@ -526,7 +525,7 @@ public final class ObjectUtil {
                     case String s -> normalizeString(s, systemZone);
                     default -> normalizeString(String.valueOf(value), systemZone);
                 };
-            } catch (Exception e) {
+            } catch (DateTimeException | IllegalArgumentException e) {
                 return null;
             }
         }

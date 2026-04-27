@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -291,7 +292,7 @@ public final class SqlLikeJoinResolution {
         if (value == null) {
             return false;
         }
-        String normalized = value.toLowerCase();
+        String normalized = value.toLowerCase(Locale.ROOT);
         return normalized.contains(" over(") || normalized.contains(" over (");
     }
 

@@ -1,5 +1,7 @@
 package laughing.man.commits.domain;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,11 +30,11 @@ public class QueryRow {
     }
 
     public List<? extends QueryField> getFields() {
-        return fields;
+        return fields == null ? null : Collections.unmodifiableList(fields);
     }
 
     public void setFields(List<? extends QueryField> fields) {
-        this.fields = fields;
+        this.fields = fields == null ? null : new ArrayList<>(fields);
     }
 
     /**

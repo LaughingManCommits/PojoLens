@@ -50,7 +50,6 @@ public final class SqlLikeValidator {
                                              Map<String, List<?>> joinSources,
                                              boolean strictParameterTypes,
                                              ComputedFieldRegistry computedFieldRegistry) {
-        Set<String> sourceFields = collectFields(sourceClass);
         Map<String, Class<?>> sourceFieldTypes = collectFieldTypes(sourceClass);
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);

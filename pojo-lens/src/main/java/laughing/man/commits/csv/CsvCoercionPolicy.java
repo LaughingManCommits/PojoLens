@@ -61,7 +61,7 @@ public final class CsvCoercionPolicy {
     }
 
     public List<String> nullTokens() {
-        return nullTokens;
+        return List.copyOf(nullTokens);
     }
 
     public boolean isNullToken(String value) {
@@ -85,19 +85,19 @@ public final class CsvCoercionPolicy {
     }
 
     public List<String> datePatterns() {
-        return datePatterns;
+        return List.copyOf(datePatterns);
     }
 
     public List<DateTimeFormatter> dateFormatters() {
-        return dateFormatters;
+        return List.copyOf(dateFormatters);
     }
 
     public List<String> dateTimePatterns() {
-        return dateTimePatterns;
+        return List.copyOf(dateTimePatterns);
     }
 
     public List<DateTimeFormatter> dateTimeFormatters() {
-        return dateTimeFormatters;
+        return List.copyOf(dateTimeFormatters);
     }
 
     private static List<DateTimeFormatter> compileFormatters(List<String> patterns) {

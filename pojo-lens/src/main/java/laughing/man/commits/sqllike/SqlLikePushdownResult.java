@@ -23,8 +23,8 @@ public final class SqlLikePushdownResult<T> {
                                  Collection<String> pushedStages,
                                  int sourceRowCount,
                                  Map<String, ?> metadata) {
-        this.rows = List.copyOf(Objects.requireNonNull(rows, "rows must not be null"));
-        this.pushedStages = List.copyOf(Objects.requireNonNull(pushedStages,
+        this.rows = new java.util.ArrayList<>(Objects.requireNonNull(rows, "rows must not be null"));
+        this.pushedStages = new java.util.ArrayList<>(Objects.requireNonNull(pushedStages,
                 "pushedStages must not be null"));
         this.sourceRowCount = sourceRowCount;
         this.metadata = copyMetadata(metadata);
@@ -51,7 +51,7 @@ public final class SqlLikePushdownResult<T> {
      * @return rows
      */
     public List<T> rows() {
-        return rows;
+        return java.util.Collections.unmodifiableList(rows);
     }
 
     /**
@@ -60,7 +60,7 @@ public final class SqlLikePushdownResult<T> {
      * @return pushed stage names
      */
     public List<String> pushedStages() {
-        return pushedStages;
+        return java.util.Collections.unmodifiableList(pushedStages);
     }
 
     /**
@@ -78,7 +78,7 @@ public final class SqlLikePushdownResult<T> {
      * @return immutable metadata
      */
     public Map<String, Object> metadata() {
-        return metadata;
+        return java.util.Collections.unmodifiableMap(metadata);
     }
 
     private static Map<String, Object> copyMetadata(Map<String, ?> metadata) {
@@ -91,6 +91,6 @@ public final class SqlLikePushdownResult<T> {
                 copy.put(entry.getKey(), entry.getValue());
             }
         }
-        return Collections.unmodifiableMap(copy);
+        return copy;
     }
 }

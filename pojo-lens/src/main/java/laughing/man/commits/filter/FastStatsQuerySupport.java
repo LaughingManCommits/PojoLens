@@ -11,6 +11,7 @@ import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -316,16 +317,16 @@ public final class FastStatsQuerySupport {
         private final List<Object[]> rows;
 
         private FastStatsState(List<String> schemaFields, List<Object[]> rows) {
-            this.schemaFields = schemaFields;
-            this.rows = rows;
+            this.schemaFields = schemaFields == null ? List.of() : List.copyOf(schemaFields);
+            this.rows = rows == null ? List.of() : List.copyOf(rows);
         }
 
         public List<String> schemaFields() {
-            return schemaFields;
+            return Collections.unmodifiableList(schemaFields);
         }
 
         public List<Object[]> rows() {
-            return rows;
+            return Collections.unmodifiableList(rows);
         }
     }
 

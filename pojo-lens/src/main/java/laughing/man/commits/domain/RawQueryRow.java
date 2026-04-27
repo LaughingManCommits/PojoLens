@@ -16,8 +16,8 @@ public final class RawQueryRow extends QueryRow {
     private final List<String> schema;
 
     public RawQueryRow(Object[] values, List<String> schema) {
-        this.values = values;
-        this.schema = schema;
+        this.values = values == null ? new Object[0] : values.clone();
+        this.schema = schema == null ? List.of() : new ArrayList<>(schema);
     }
 
     @Override
@@ -57,6 +57,6 @@ public final class RawQueryRow extends QueryRow {
             fields.add(f);
         }
         setFields(fields);
-        return fields;
+        return super.getFields();
     }
 }

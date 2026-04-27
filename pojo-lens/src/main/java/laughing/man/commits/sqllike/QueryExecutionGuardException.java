@@ -24,7 +24,7 @@ import java.util.Objects;
  */
 public final class QueryExecutionGuardException extends RuntimeException {
 
-    private final QueryGuardOutcome outcome;
+    private final transient QueryGuardOutcome outcome;
 
     QueryExecutionGuardException(QueryGuardOutcome outcome) {
         super(Objects.requireNonNull(outcome, "outcome must not be null").blockReason());

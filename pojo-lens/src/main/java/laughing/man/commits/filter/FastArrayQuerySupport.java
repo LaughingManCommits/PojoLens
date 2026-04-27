@@ -909,7 +909,7 @@ final class FastArrayQuerySupport {
                                        List<String> schemaFields,
                                        FilterExecutionPlan plan) {
         if (builder.getReturnFields().isEmpty()) {
-            return null;
+            return new int[0];
         }
         List<Integer> returnIndexes = plan.getReturnFieldIndexes();
         int[] indexes = new int[returnIndexes.size()];

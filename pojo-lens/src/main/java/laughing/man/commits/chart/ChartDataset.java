@@ -44,7 +44,7 @@ public final class ChartDataset {
     }
 
     public List<Double> getValues() {
-        return values;
+        return values == null ? null : java.util.Collections.unmodifiableList(values);
     }
 
     public void setValues(List<Double> values) {
@@ -76,11 +76,18 @@ public final class ChartDataset {
     }
 
     public List<Double> getXValues() {
-        return xValues;
+        return xValues == null ? null : java.util.Collections.unmodifiableList(xValues);
     }
 
     public void setXValues(List<Double> xValues) {
         this.xValues = xValues == null ? null : new ArrayList<>(xValues);
+    }
+
+    void setValueAt(int index, Double value) {
+        if (values == null) {
+            values = new ArrayList<>();
+        }
+        values.set(index, value);
     }
 }
 

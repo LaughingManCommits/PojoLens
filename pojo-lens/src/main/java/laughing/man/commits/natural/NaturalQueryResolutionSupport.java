@@ -305,9 +305,8 @@ final class NaturalQueryResolutionSupport {
     private static FilterAst rewriteFilter(FilterAst filter, Map<String, String> resolvedByNaturalField) {
         return new FilterAst(
                 switch (filter.value()) {
-                    case null -> rewriteReference(filter.field(), resolvedByNaturalField);
                     case ExistsSubqueryValueAst ignored -> filter.field();
-                    default -> rewriteReference(filter.field(), resolvedByNaturalField);
+                    case null, default -> rewriteReference(filter.field(), resolvedByNaturalField);
                 },
                 filter.clause(),
                 rewriteFilterValue(filter.value(), resolvedByNaturalField),

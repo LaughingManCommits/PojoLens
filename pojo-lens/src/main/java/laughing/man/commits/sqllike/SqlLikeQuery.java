@@ -171,6 +171,21 @@ public final class SqlLikeQuery {
         return new SqlLikeQuery(normalizedSource, normalizedQuery.trim(), queryType.trim(), ast);
     }
 
+    public SqlLikeQuery copy() {
+        return new SqlLikeQuery(source,
+                normalizedQuery,
+                queryType,
+                ast,
+                strictParameterTypes,
+                lintMode,
+                suppressedLintCodes,
+                telemetryListener,
+                computedFieldRegistry,
+                executionPlanCache,
+                exposurePolicy,
+                executionGuard);
+    }
+
     /**
      * Returns the normalized query string supplied by the caller.
      *

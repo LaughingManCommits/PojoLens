@@ -132,7 +132,7 @@ public final class ReflectionUtil {
 
                 result.add(object);
             }
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
             LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
             throw new IllegalStateException("Failed to convert domain rows to " + cls.getSimpleName(), e);
         }
@@ -167,7 +167,8 @@ public final class ReflectionUtil {
     /**
      * Sets a mutable field value by name.
      */
-    public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue) throws Exception {
+    public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue)
+            throws IllegalAccessException {
         try {
             if (javaBean == null || propertyName == null || propertyName.isBlank()) {
                 return;
@@ -232,7 +233,7 @@ public final class ReflectionUtil {
                 applyProjectionWritePlan(object, row, sourceIndexes, plan);
                 result.add(object);
             }
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
             LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
             throw new IllegalStateException("Failed to convert array rows to " + cls.getSimpleName(), e);
         }
@@ -244,7 +245,7 @@ public final class ReflectionUtil {
         if (row == null) {
             return new Object[0];
         }
-        if (sourceIndexes == null) {
+        if (sourceIndexes == null || sourceIndexes.length == 0) {
             return row;
         }
         Object[] projected = new Object[sourceIndexes.length];
@@ -340,7 +341,7 @@ public final class ReflectionUtil {
     /**
      * Reads a mutable field value by name.
      */
-    public static Object getFieldValue(Object cls, String fieldName) throws Exception {
+    public static Object getFieldValue(Object cls, String fieldName) throws IllegalAccessException {
         Object value = null;
 
         try {
@@ -751,26 +752,8 @@ public final class ReflectionUtil {
     }
 
     private static void applyProjectionWritePlan(Object target,
-                                                 List<? extends QueryField> fields,
-                                                 ProjectionWritePlan plan) throws Exception {
-        for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
-            ProjectionWriteStep step = plan.steps().get(stepIndex);
-            QueryField sourceField = projectionSourceField(fields, step);
-            if (sourceField == null || sourceField.getValue() == null) {
-                continue;
-            }
-            Object rawValue = sourceField.getValue();
-            Class<?> leafType = step.fieldPath().leafType();
-            Object value = leafType.isInstance(rawValue)
-                    ? rawValue
-                    : ObjectUtil.castValue(rawValue, leafType);
-            setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
-        }
-    }
-
-    private static void applyProjectionWritePlan(Object target,
                                                  QueryRow row,
-                                                 ProjectionWritePlan plan) throws Exception {
+                                                 ProjectionWritePlan plan) throws IllegalAccessException {
         for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
             ProjectionWriteStep step = plan.steps().get(stepIndex);
             Object rawValue = row.getValueAt(step.sourceIndex());
@@ -788,7 +771,7 @@ public final class ReflectionUtil {
     private static void applyProjectionWritePlan(Object target,
                                                  Object[] sourceValues,
                                                  int[] sourceIndexes,
-                                                 ProjectionWritePlan plan) throws Exception {
+                                                 ProjectionWritePlan plan) throws IllegalAccessException {
         for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
             ProjectionWriteStep step = plan.steps().get(stepIndex);
             int sourceIndex = step.sourceIndex();
@@ -813,30 +796,14 @@ public final class ReflectionUtil {
         }
     }
 
-    private static QueryField projectionSourceField(List<? extends QueryField> fields, ProjectionWriteStep step) {
-        if (step.sourceIndex() < fields.size()) {
-            QueryField indexedField = fields.get(step.sourceIndex());
-            if (indexedField != null && step.fieldName().equals(indexedField.getFieldName())) {
-                return indexedField;
-            }
-        }
-        for (int i = 0; i < fields.size(); i++) {
-            QueryField field = fields.get(i);
-            if (field != null && step.fieldName().equals(field.getFieldName())) {
-                return field;
-            }
-        }
-        return null;
-    }
-
     private static void setResolvedFieldValue(Object javaBean,
                                               ResolvedFieldPath fieldPath,
                                               Object propertyValue,
-                                              String propertyName) throws Exception {
+                                              String propertyName) throws IllegalAccessException {
         fieldPath.write(javaBean, propertyValue, propertyName);
     }
 
-    private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) throws Exception {
+    private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) {
         if (fieldType == null || isSimpleType(fieldType) || fieldType.isEnum() || !isTraversableType(fieldType)) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'");
         }
@@ -1022,7 +989,7 @@ public final class ReflectionUtil {
             };
         }
 
-        private void write(Object bean, Object propertyValue, String propertyName) throws Exception {
+        private void write(Object bean, Object propertyValue, String propertyName) throws IllegalAccessException {
             if (bean == null || !resolvable) {
                 return;
             }
@@ -1054,7 +1021,7 @@ public final class ReflectionUtil {
         private Object ensureNestedParent(Object current,
                                           Field field,
                                           Object propertyValue,
-                                          String propertyName) throws Exception {
+                                          String propertyName) throws IllegalAccessException {
             Object nested = field.get(current);
             if (nested != null) {
                 return nested;
@@ -1067,7 +1034,7 @@ public final class ReflectionUtil {
             return nested;
         }
 
-        private void writeNested(Object bean, Object propertyValue, String propertyName) throws Exception {
+        private void writeNested(Object bean, Object propertyValue, String propertyName) throws IllegalAccessException {
             Object current = bean;
             for (int i = 0; i < readFields.length - 1; i++) {
                 current = ensureNestedParent(current, readFields[i], propertyValue, propertyName);
@@ -1142,10 +1109,6 @@ public final class ReflectionUtil {
 
         public int size() {
             return flattenedFields.size();
-        }
-
-        private List<FlattenedFieldDescriptor> flattenedFields() {
-            return flattenedFields;
         }
 
         private ResolvedFieldPath[] fieldPaths() {

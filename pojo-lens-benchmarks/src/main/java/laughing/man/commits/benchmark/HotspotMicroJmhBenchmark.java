@@ -265,7 +265,7 @@ public class HotspotMicroJmhBenchmark {
 
             core = new FilterCore(builder);
             plan = core.buildExecutionPlan();
-            rows = core.getBuilder().getRows();
+            rows = builder.getRows();
         }
     }
 
