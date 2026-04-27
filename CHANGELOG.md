@@ -9,6 +9,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ## [Unreleased]
 
+### Changed
+
+- **SpotBugs static-analysis gate** - switched `pojo-lens` `-Pstatic-analysis`
+  from the report-only `spotbugs` execution to the build-failing
+  `spotbugs:check` goal with `failThreshold=High`, so high-severity
+  SpotBugs findings now gate `verify` while lower-priority warnings still
+  emit XML output.
+
 ### Added
 
 - **Virtual-thread boundary profiles** - added opt-in `virtual` Spring

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import laughing.man.commits.enums.Clauses;
@@ -63,7 +64,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     private Map<Integer, List<?>> joinSourceBeans = new HashMap<>();
     private boolean fullyMaterializedSourceRows;
     private Set<String> materializedSourceFields = Set.of();
-    private volatile long executionPlanShapeVersion;
+    private final AtomicLong executionPlanShapeVersion = new AtomicLong();
 
     public FilterQueryBuilder(List<?> pojos) {
         this(pojos, DefaultFilterExecutionPlanCacheSupport.defaultStore());
@@ -1411,7 +1412,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     public long getExecutionPlanShapeVersion() {
-        return executionPlanShapeVersion;
+        return executionPlanShapeVersion.get();
     }
 
     public boolean requiresRuntimeSchemaCleaning() {
@@ -1435,7 +1436,7 @@ public class FilterQueryBuilder implements QueryBuilder {
         snapshot.telemetrySource = telemetrySource;
         snapshot.computedFieldRegistry = computedFieldRegistry;
         snapshot.runtimeSchemaValidated = runtimeSchemaValidated;
-        snapshot.executionPlanShapeVersion = executionPlanShapeVersion;
+        snapshot.executionPlanShapeVersion.set(executionPlanShapeVersion.get());
         return snapshot;
     }
 
@@ -2083,7 +2084,7 @@ public class FilterQueryBuilder implements QueryBuilder {
     }
 
     private void markExecutionPlanShapeChanged() {
-        executionPlanShapeVersion++;
+        executionPlanShapeVersion.incrementAndGet();
     }
 
     private record SourceMaterializationPlan(boolean full, List<String> fields) {

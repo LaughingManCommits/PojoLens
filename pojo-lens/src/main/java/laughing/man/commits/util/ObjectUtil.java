@@ -184,9 +184,10 @@ public final class ObjectUtil {
             return s == null ? null : value(s, cls);
 
         } catch (Exception e) {
+            String targetType = cls.getSimpleName();
             LOG.error("Cannot cast value [{}] to type [{}]",
                     fieldValue,
-                    cls == null ? "null" : cls.getSimpleName(),
+                    targetType,
                     e);
             return null;
         }
@@ -748,7 +749,7 @@ public final class ObjectUtil {
             this.delegate = new LinkedHashMap<>(maxEntries, DEFAULT_LOAD_FACTOR, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-                    return size() > maxEntries;
+                    return BoundedCache.this.size() > maxEntries;
                 }
             };
         }

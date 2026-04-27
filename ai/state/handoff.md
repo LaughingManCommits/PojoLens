@@ -8,15 +8,15 @@
 
 ## Focus
 
+- `2026-04-27`: `pojo-lens/pom.xml` now binds SpotBugs `check` in `-Pstatic-analysis` with `failThreshold=High`, so high-severity bug patterns fail `verify`.
 - `2026-04-27`: Redundancy passes complete; `FastPojoRuleSupport` extracted, `isNullOrBlank` consolidation applied at 5 sites, TODO.md cleaned.
 - `2026-04-27`: Release cut remains user-controlled; WP18 is next after release.
 - `2026-04-26`: WP11-WP17 are complete; WP6/WP8/WP9 benchmark backfill stays deferred until after release.
 
 ## Facts
 
-- `2026-04-27`: `pojo-lens/pom.xml` now points `-Plint` at `config/checkstyle/checkstyle.xml`, and the repo-local rule set is clean.
-- `2026-04-27`: `scripts/checkstyle-baseline.txt` is now intentionally empty because the current `-Plint` report is empty (`report=0 baseline=0 new=0 fixed=0`).
-- `2026-04-27`: `scripts/check-lint-baseline.ps1` now handles zero-violation reports when writing the staged baseline.
+- `2026-04-27`: `pojo-lens/pom.xml` now points `-Plint` at `config/checkstyle/checkstyle.xml` and uses SpotBugs `check` in `-Pstatic-analysis` with `failThreshold=High`.
+- `2026-04-27`: `scripts/checkstyle-baseline.txt` is now intentionally empty because the current `-Plint` report is empty (`report=0 baseline=0 new=0 fixed=0`), and `scripts/check-lint-baseline.ps1` now handles zero-violation reports when writing the staged baseline.
 - `2026-04-27`: Benchmark guardrail evidence now exists from core/chart suites, chart parity, and plot generation.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` now passes on Java 25 after SpotBugs `4.9.8.3`.
 - `2026-04-27`: `SqlLikeFieldMessages` now owns shared SQL-like unknown-field messages, and `NaturalQueryResolutionSupport` reuses the shared helper pair.

@@ -58,8 +58,9 @@ public final class NaturalQuery {
     }
 
     public static NaturalQuery of(String source) {
-        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(source);
-        String normalizedSource = source == null ? null : source.trim();
+        String nonNullSource = Objects.requireNonNull(source, "source must not be null");
+        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(nonNullSource);
+        String normalizedSource = nonNullSource.trim();
         String equivalentSqlLike = NaturalQueryRenderer.toSqlLike(parseResult.ast());
         return new NaturalQuery(
                 normalizedSource,
