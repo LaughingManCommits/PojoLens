@@ -72,6 +72,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `-Pstatic-analysis` report can analyze Java 25 class files again instead of
   failing on unsupported class-file version `69`.
 
+- **Checkstyle baseline refresh** - regenerated
+  `scripts/checkstyle-baseline.txt` from the current `-Plint` report so the
+  staged baseline gate matches the present repo-wide Checkstyle backlog again
+  (`report=18454 baseline=18454 new=0 fixed=0`).
+
 - **Spring/JDBC boundary guidance** - `docs/advanced-features.md`,
   `docs/jdbc.md`, and the Spring example READMEs now explicitly frame virtual
   threads as an opt-in blocking-boundary integration choice, document the
