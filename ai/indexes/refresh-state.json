@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-27T08:28:55.772163+02:00",
+  "generatedAt": "2026-04-27T08:39:53.201870+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "530e76e5b8570eafebf1b6940bc0d1cb0a99c1e882c7ecf6666c1e31468f445d",
+      "inputHash": "c1b313b220052636eee94e7c963219ff48de10253b3b8189386239532d31ac8d",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -24,9 +24,9 @@
         "ai/orchestrator/README.md": "bf429de83c0d4fb2f5f5ae353aa550f7c922def1e3db137624937fa5e6b75a8e",
         "ai/orchestrator/SYSTEM-SPEC.md": "8afde18e946c5393744b13a5b47bfa61587c01f5e448129238592d8df7683251",
         "ai/state/benchmark-state.md": "98f70004ebfe144a5a77cb2252f21cfc479fd5bbd79fc4e8d2dde16fb77e0d98",
-        "ai/state/current-state.md": "aa681181e67bc827507fc880970281a83d691efc8d3d73522334ce5c234ec1e1",
-        "ai/state/handoff.md": "d33021827b5c96ebee71603011b6c9471de11ec838a796687aeef6de74ae17f1",
-        "ai/state/recent-validations.md": "7a3e3fcc87cb606ede635ad96c2de3dc283ba81ac690a1956871ff92ec39cffd",
+        "ai/state/current-state.md": "c4997955d9bd301c47e657597870a41c7091261da34865ef64975246c0caa4b7",
+        "ai/state/handoff.md": "cd5267eab5fa30a7de2dd4a86fbba693e0b9c467102e5e100d5f60001131a9de",
+        "ai/state/recent-validations.md": "673a33d34cad0941231d487ac492c0d791360015ded36dc1d5f38d63ba6216e5",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "58d7aa7632470e987262c5d2820b3861f329447e4d897e965693c81a8f0bccc5",
         "docs/benchmarking.md": "4cf2b73d0d418c0ec9b65953eac29e2f44248d80969dcf75f21dd77c0285f40f",
@@ -65,7 +65,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "f4b2f8fb958413aaa152a8dec72475d1e82df895c489d3ae89d518e558108a3d",
+      "inputHash": "692beaf57524660b4df70155e6cbbcc8e1cbd61d996698365fd587aec1dcb0e1",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -91,9 +91,9 @@
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
         "ai/state/benchmark-state.md": "98f70004ebfe144a5a77cb2252f21cfc479fd5bbd79fc4e8d2dde16fb77e0d98",
-        "ai/state/current-state.md": "aa681181e67bc827507fc880970281a83d691efc8d3d73522334ce5c234ec1e1",
-        "ai/state/handoff.md": "d33021827b5c96ebee71603011b6c9471de11ec838a796687aeef6de74ae17f1",
-        "ai/state/recent-validations.md": "7a3e3fcc87cb606ede635ad96c2de3dc283ba81ac690a1956871ff92ec39cffd",
+        "ai/state/current-state.md": "c4997955d9bd301c47e657597870a41c7091261da34865ef64975246c0caa4b7",
+        "ai/state/handoff.md": "cd5267eab5fa30a7de2dd4a86fbba693e0b9c467102e5e100d5f60001131a9de",
+        "ai/state/recent-validations.md": "673a33d34cad0941231d487ac492c0d791360015ded36dc1d5f38d63ba6216e5",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "58d7aa7632470e987262c5d2820b3861f329447e4d897e965693c81a8f0bccc5",
         "docs/benchmarking.md": "4cf2b73d0d418c0ec9b65953eac29e2f44248d80969dcf75f21dd77c0285f40f",
@@ -136,7 +136,7 @@
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java": "90823cc10961701dda76fd4e43f0945b712c232cf04e491c799df13e7a19bebb",
         "MAINTENANCE.md": "ec9c73a49316f2f026cc7bb6e1607539e1bd9d56137eb397a9b7b5a478b4e611",
         "MIGRATION.md": "6bf5f89317e785feaa77a11a22fbd4fe5b46e85e46376b1333e75277269d830c",
-        "pojo-lens/pom.xml": "6c7477ed301c9f3d37378f6aabd6b1c081e7c948c319958570ca72bfc14f99a6",
+        "pojo-lens/pom.xml": "3b48c357d8143e69ab97c2c00675d3674c0c4ca6012ee82abf23308ae490ee3d",
         "pojo-lens/src/main/java/laughing/man/commits/annotations/Exclude.java": "f981d62e0bdf6d87b2ab880f396e7ab8b4c5e024fcc435c8b68f9b815775fda3",
         "pojo-lens/src/main/java/laughing/man/commits/builder/FieldSelector.java": "c73a7f80feb52e6a93f10c839ed3278cc11a348873fbae40375568ad627f4f70",
         "pojo-lens/src/main/java/laughing/man/commits/builder/FieldSelectors.java": "f47ed061abf9b8a46a91a8c6fcf76ea6ac8371edf8dee4804de65ff715763274",
@@ -936,7 +936,7 @@
     },
     "config": {
       "outputPath": "ai/indexes/config-index.json",
-      "inputHash": "da0399ff7be52f4ebb435b35708e6101df4dca5221c1e4eb9d24e4b8fc0ed1cf",
+      "inputHash": "9a8167df6978af5827542b6019e653138361217b3dfdaeb7f62601142005cea1",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -944,7 +944,7 @@
         "ai/orchestrator/tasks/example-materialized-chain.json": "3a998778e91f0d132e657ed9970550029713c4550f087f1b48983ba959d5716c",
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
-        "pojo-lens/pom.xml": "6c7477ed301c9f3d37378f6aabd6b1c081e7c948c319958570ca72bfc14f99a6",
+        "pojo-lens/pom.xml": "3b48c357d8143e69ab97c2c00675d3674c0c4ca6012ee82abf23308ae490ee3d",
         "pojo-lens-benchmarks/pom.xml": "cc971086efc6e56486f3737a7f871148da9b06ea6bf43c3c4c94b29185a323ba",
         "pojo-lens-spring-boot-autoconfigure/pom.xml": "3bf199dab8932a2c81cf9941fd97afd177f3eba648ade58ca410b05d73617cf8",
         "pojo-lens-spring-boot-starter/pom.xml": "cb5e6d29c0cd7f521f5ffbafa94048d34faac479b07c2f7483218a4d0b2f9916",

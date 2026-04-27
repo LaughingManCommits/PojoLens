@@ -67,6 +67,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **SpotBugs Java 25 compatibility** - upgraded
+  `spotbugs-maven-plugin` from `4.8.6.6` to `4.9.8.3` so the existing
+  `-Pstatic-analysis` report can analyze Java 25 class files again instead of
+  failing on unsupported class-file version `69`.
+
 - **Spring/JDBC boundary guidance** - `docs/advanced-features.md`,
   `docs/jdbc.md`, and the Spring example READMEs now explicitly frame virtual
   threads as an opt-in blocking-boundary integration choice, document the
