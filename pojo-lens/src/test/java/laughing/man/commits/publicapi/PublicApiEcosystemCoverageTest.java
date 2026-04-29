@@ -17,7 +17,9 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.dsl.TypedWindowOrder;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.metamodel.MetamodelBatchGenerator;
@@ -36,6 +38,7 @@ import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
 import laughing.man.commits.tooling.SavedReportCatalogValidator;
 import laughing.man.commits.tooling.SavedReportValidationResult;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
@@ -55,6 +58,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
@@ -418,6 +422,30 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(1, rows.size());
         assertEquals("Engineering", rows.get(0).department);
         assertEquals(3L, rows.get(0).total);
+    }
+
+    @Test
+    public void typedQueryShouldSupportWindowQualifyFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Integer> salary = TypedField.of("salary", Integer.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<DepartmentRank, Long> rn = TypedField.of("rn", Long.class);
+
+        List<DepartmentRank> rows = TypedQuery.from(Employee.class)
+                .where(active.eq(true))
+                .window(WindowFunction.ROW_NUMBER, rn, List.of(TypedWindowOrder.desc(salary)), department)
+                .qualify(rn.lte(1L))
+                .orderBy(department)
+                .orderBy(rn)
+                .filter(sampleEmployees(), DepartmentRank.class)
+                .stream()
+                .sorted(Comparator.comparing(row -> row.department))
+                .toList();
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(1L, rows.get(0).rn);
     }
 
     @Test

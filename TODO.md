@@ -26,7 +26,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
-| WP24| Typed DSL Advanced Analytics                 | In Progress | Typed `HAVING` landed; typed window/subquery design and staged parity-backed rollout pending |
+| WP24| Typed DSL Advanced Analytics                 | In Progress | Typed `HAVING`, windows, and `QUALIFY` landed; bounded frame/subquery design and staged parity-backed rollout pending |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
@@ -167,8 +167,11 @@ aggregation foundation is stable.
 - [x] Add typed `HAVING` on the existing `TypedQuery` surface for grouped
       fields and aggregate aliases without adding a parallel grouped-query
       wrapper.
-- [ ] Design typed window expression APIs that map cleanly onto the existing
-      execution model.
+- [x] Add typed window outputs and `QUALIFY` on the existing `TypedQuery`
+      surface for rank and default running-window shapes without adding a
+      parallel window-query wrapper.
+- [ ] Decide whether bounded/public window-frame configuration belongs on
+      `TypedQuery` or remains text-only.
 - [ ] Evaluate bounded typed subquery and existence predicates against API
       readability, error reporting, and generic-type weight.
 - [ ] Keep user-authored text flows on SQL-like/natural while extending typed

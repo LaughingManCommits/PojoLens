@@ -43,6 +43,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery window and qualify slice** - added `TypedWindowOrder`,
+  `TypedQuery.window(...)`, `windowCountAll(...)`, and `qualify(...)` so
+  code-owned typed queries can express rank windows, default running aggregate
+  windows, and post-window filtering on the same immutable surface used for
+  joins, grouped aggregates, and `HAVING`. Bounded frame configuration and
+  typed subqueries remain deferred.
+
 - **TypedQuery HAVING slice** - added `TypedQuery.having(...)` plus grouped
   output validation so code-owned typed queries can filter grouped fields and
   metric aliases on the same immutable surface used for joins and aggregates.

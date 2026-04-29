@@ -186,14 +186,17 @@ The default first-read story is SQL-like first:
   - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
   - combinators: `and`, `or`, `not`, `allOf`, `anyOf`
 - `TypedQuery<T>`:
-  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `orderBy`, `orderByDesc`, `limit`, `offset`
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
   - `executionGuard`, `filter`, `explain`, `schema`
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
-    `HAVING` over grouped fields and metric aliases, totals-style metrics,
+    `HAVING` over grouped fields and metric aliases, rank/running window
+    outputs, `QUALIFY` over selected window aliases, totals-style metrics,
     ordering, offset, limit, explain/schema, and
     row-scan/row-return/duration/cancellation guard checks
-  - typed windows and subqueries are deferred
+  - bounded typed window-frame configuration and typed subqueries are deferred
+- `TypedWindowOrder`:
+  - `asc`, `desc`, `fieldName`, `sort`
 - `FieldMetamodelGenerator.generateTyped(...)`
 
 ### Plain-English Contracts

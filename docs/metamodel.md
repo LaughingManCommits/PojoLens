@@ -139,12 +139,25 @@ List<DepartmentCount> rows = TypedQuery.from(Employee.class)
     .filter(employees, DepartmentCount.class);
 ```
 
+Window-output constants work the same way:
+
+```java
+List<DepartmentRank> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .window(WindowFunction.ROW_NUMBER, DepartmentRankTypedFields.RN,
+        List.of(TypedWindowOrder.desc(EmployeeTypedFields.SALARY)),
+        EmployeeTypedFields.DEPARTMENT)
+    .qualify(DepartmentRankTypedFields.RN.lte(1L))
+    .filter(employees, DepartmentRank.class);
+```
+
 The current typed DSL foundation covers projection, filters, join
 declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
-grouped `HAVING` over grouped fields and metric aliases, totals-style metrics,
+grouped `HAVING` over grouped fields and metric aliases, rank/running window
+outputs, `QUALIFY` over selected window aliases, totals-style metrics,
 ordering, offset, limit, explain, schema, and execution guards. Keep SQL-like
-or natural queries for windows, subqueries, and user-authored query text until
-those typed shapes are stabilized.
+or natural queries for bounded window frames, subqueries, and user-authored
+query text until those typed shapes are stabilized.
 
 ## Batch Generation
 

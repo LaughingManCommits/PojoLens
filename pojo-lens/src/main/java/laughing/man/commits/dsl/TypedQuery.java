@@ -5,9 +5,11 @@ import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
@@ -40,7 +42,8 @@ import java.util.Objects;
  *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
  *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
  *       {@code isNotNull}) instead.</li>
- *   <li>Typed windows and subqueries are not part of this foundation surface.</li>
+ *   <li>Typed bounded window-frame configuration and typed subqueries are not
+ *       part of this foundation surface.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
@@ -54,6 +57,8 @@ public final class TypedQuery<T> {
     private final List<String> groupByFieldNames;
     private final List<TypedMetric> metrics;
     private final TypedPredicate<?> havingPredicate;
+    private final List<TypedWindow> windows;
+    private final TypedPredicate<?> qualifyPredicate;
     private final List<String> orderByFieldNames;
     private final Sort sortDirection;
     private final int limit;
@@ -67,6 +72,8 @@ public final class TypedQuery<T> {
                        List<String> groupByFieldNames,
                        List<TypedMetric> metrics,
                        TypedPredicate<?> havingPredicate,
+                       List<TypedWindow> windows,
+                       TypedPredicate<?> qualifyPredicate,
                        List<String> orderByFieldNames,
                        Sort sortDirection,
                        int limit,
@@ -79,6 +86,8 @@ public final class TypedQuery<T> {
         this.groupByFieldNames = List.copyOf(groupByFieldNames);
         this.metrics = List.copyOf(metrics);
         this.havingPredicate = havingPredicate;
+        this.windows = List.copyOf(windows);
+        this.qualifyPredicate = qualifyPredicate;
         this.orderByFieldNames = List.copyOf(orderByFieldNames);
         this.sortDirection = sortDirection;
         this.limit = limit;
@@ -91,7 +100,7 @@ public final class TypedQuery<T> {
     public static <T> TypedQuery<T> from(Class<T> entityClass) {
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         return new TypedQuery<>(entityClass, List.of(), null, List.of(), List.of(), List.of(),
-                null, List.of(), Sort.ASC, UNSET, UNSET, null);
+                null, List.of(), null, List.of(), Sort.ASC, UNSET, UNSET, null);
     }
 
     // --- Fluent configuration ---
@@ -100,13 +109,15 @@ public final class TypedQuery<T> {
     public final TypedQuery<T> select(TypedField<T, ?>... fields) {
         Objects.requireNonNull(fields, "fields must not be null");
         return new TypedQuery<>(entityClass, List.of(fields), wherePredicate, joins, groupByFieldNames, metrics,
-                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, windows, qualifyPredicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> where(TypedPredicate<T> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, predicate, joins, groupByFieldNames, metrics,
-                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, windows, qualifyPredicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
     }
 
     public <J, K> TypedQuery<T> join(String sourceName,
@@ -124,7 +135,8 @@ public final class TypedQuery<T> {
                 joinType
         ));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, updated, groupByFieldNames, metrics,
-                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, windows, qualifyPredicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> groupBy(TypedField<T, ?> field) {
@@ -132,14 +144,15 @@ public final class TypedQuery<T> {
         List<String> updated = new ArrayList<>(groupByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                updated, metrics, havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                updated, metrics, havingPredicate, windows, qualifyPredicate,
+                orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> count(String alias) {
         ArrayList<TypedMetric> updated = new ArrayList<>(metrics);
         updated.add(TypedMetric.count(normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, updated, havingPredicate, orderByFieldNames,
+                groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, limit, offset, executionGuard);
     }
 
@@ -154,7 +167,7 @@ public final class TypedQuery<T> {
         ArrayList<TypedMetric> updated = new ArrayList<>(metrics);
         updated.add(TypedMetric.of(field.fieldName(), metric, normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, updated, havingPredicate, orderByFieldNames,
+                groupByFieldNames, updated, havingPredicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, limit, offset, executionGuard);
     }
 
@@ -166,8 +179,89 @@ public final class TypedQuery<T> {
     public TypedQuery<T> having(TypedPredicate<?> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, predicate, orderByFieldNames,
+                groupByFieldNames, metrics, predicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, limit, offset, executionGuard);
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> window(WindowFunction function,
+                                      String alias,
+                                      List<TypedWindowOrder> orderFields,
+                                      TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(function, "function must not be null");
+        if (!function.isRankFunction()) {
+            throw new IllegalArgumentException(
+                    "TypedQuery window(function, alias, ...) without a value field only supports "
+                            + "ROW_NUMBER, RANK, and DENSE_RANK."
+            );
+        }
+        return addWindow(TypedWindow.rank(function, normalizeAlias(alias),
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> window(WindowFunction function,
+                                      TypedField<?, ?> outputField,
+                                      List<TypedWindowOrder> orderFields,
+                                      TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return window(function, outputField.fieldName(), orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final <V> TypedQuery<T> window(WindowFunction function,
+                                          TypedField<?, V> valueField,
+                                          String alias,
+                                          List<TypedWindowOrder> orderFields,
+                                          TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(function, "function must not be null");
+        Objects.requireNonNull(valueField, "valueField must not be null");
+        if (!function.isAggregateFunction()) {
+            throw new IllegalArgumentException(
+                    "TypedQuery window(function, valueField, alias, ...) with a value field only supports "
+                            + "COUNT, SUM, AVG, MIN, and MAX."
+            );
+        }
+        if (function.requiresNumericField() && !isNumericType(valueField.valueType())) {
+            throw new IllegalArgumentException(
+                    "TypedQuery window " + function + " requires a numeric value field."
+            );
+        }
+        return addWindow(TypedWindow.value(function, valueField.fieldName(), normalizeAlias(alias),
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
+    }
+
+    @SafeVarargs
+    public final <V> TypedQuery<T> window(WindowFunction function,
+                                          TypedField<?, V> valueField,
+                                          TypedField<?, ?> outputField,
+                                          List<TypedWindowOrder> orderFields,
+                                          TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return window(function, valueField, outputField.fieldName(), orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> windowCountAll(String alias,
+                                              List<TypedWindowOrder> orderFields,
+                                              TypedField<?, ?>... partitionFields) {
+        return addWindow(TypedWindow.countAll(normalizeAlias(alias),
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> windowCountAll(TypedField<?, ?> outputField,
+                                              List<TypedWindowOrder> orderFields,
+                                              TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return windowCountAll(outputField.fieldName(), orderFields, partitionFields);
+    }
+
+    public TypedQuery<T> qualify(TypedPredicate<?> predicate) {
+        Objects.requireNonNull(predicate, "predicate must not be null");
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, havingPredicate, windows, predicate,
+                orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> orderBy(TypedField<?, ?> field) {
@@ -175,7 +269,8 @@ public final class TypedQuery<T> {
         List<String> updated = new ArrayList<>(orderByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, havingPredicate, updated, Sort.ASC, limit, offset, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
+                updated, Sort.ASC, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> orderByDesc(TypedField<?, ?> field) {
@@ -183,7 +278,8 @@ public final class TypedQuery<T> {
         List<String> updated = new ArrayList<>(orderByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, havingPredicate, updated, Sort.DESC, limit, offset, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate,
+                updated, Sort.DESC, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> limit(int n) {
@@ -191,7 +287,7 @@ public final class TypedQuery<T> {
             throw new IllegalArgumentException("limit must be >= 0, got: " + n);
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, n, offset, executionGuard);
     }
 
@@ -200,14 +296,14 @@ public final class TypedQuery<T> {
             throw new IllegalArgumentException("offset must be >= 0, got: " + n);
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, limit, n, executionGuard);
     }
 
     public TypedQuery<T> executionGuard(QueryExecutionGuard guard) {
         Objects.requireNonNull(guard, "guard must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                groupByFieldNames, metrics, havingPredicate, windows, qualifyPredicate, orderByFieldNames,
                 sortDirection, limit, offset, guard);
     }
 
@@ -227,6 +323,10 @@ public final class TypedQuery<T> {
 
     public TypedPredicate<?> havingPredicate() {
         return havingPredicate;
+    }
+
+    public TypedPredicate<?> qualifyPredicate() {
+        return qualifyPredicate;
     }
 
     public List<String> orderByFieldNames() {
@@ -255,6 +355,14 @@ public final class TypedQuery<T> {
 
     public boolean hasHaving() {
         return havingPredicate != null;
+    }
+
+    public boolean hasWindows() {
+        return !windows.isEmpty();
+    }
+
+    public boolean hasQualify() {
+        return qualifyPredicate != null;
     }
 
     public boolean hasOrderBy() {
@@ -436,6 +544,8 @@ public final class TypedQuery<T> {
         applyGroupBy(builder);
         applyMetrics(builder);
         applyHaving(builder);
+        applyWindows(builder);
+        applyQualify(builder);
         applyOrderBy(builder);
         applyLimit(builder);
         applyOffset(builder);
@@ -492,6 +602,33 @@ public final class TypedQuery<T> {
         }
     }
 
+    private void applyWindows(QueryBuilder builder) {
+        for (TypedWindow window : windows) {
+            List<QueryWindowOrder> queryOrders = new ArrayList<>(window.orderFields().size());
+            for (TypedWindowOrder order : window.orderFields()) {
+                queryOrders.add(QueryWindowOrder.of(order.fieldName(), order.sort()));
+            }
+            builder.addWindow(
+                    window.alias(),
+                    window.function(),
+                    window.valueField(),
+                    window.countAll(),
+                    window.partitionFields(),
+                    queryOrders
+            );
+        }
+    }
+
+    private void applyQualify(QueryBuilder builder) {
+        if (qualifyPredicate == null) {
+            return;
+        }
+        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(qualifyPredicate);
+        for (List<QueryRule> conjunction : disjunction) {
+            builder.addQualifyAllOf(conjunction.toArray(new QueryRule[0]));
+        }
+    }
+
     private void applyOrderBy(QueryBuilder builder) {
         for (String fieldName : orderByFieldNames) {
             builder.addOrder(fieldName);
@@ -534,6 +671,8 @@ public final class TypedQuery<T> {
             );
         }
         validateHavingShape();
+        validateWindowShape();
+        validateQualifyShape();
     }
 
     private boolean supportsSelectProjection() {
@@ -563,6 +702,40 @@ public final class TypedQuery<T> {
         }
     }
 
+    private void validateWindowShape() {
+        if (windows.isEmpty()) {
+            return;
+        }
+        if (hasGroupBy() || hasMetrics() || hasHaving()) {
+            throw new IllegalStateException(
+                    "TypedQuery windows are only supported for non-aggregate query shapes."
+            );
+        }
+    }
+
+    private void validateQualifyShape() {
+        if (qualifyPredicate == null) {
+            return;
+        }
+        if (windows.isEmpty()) {
+            throw new IllegalStateException(
+                    "TypedQuery qualify(...) requires at least one window output."
+            );
+        }
+        List<String> allowedFields = new ArrayList<>(windows.size());
+        for (TypedWindow window : windows) {
+            allowedFields.add(window.alias());
+        }
+        for (String fieldName : referencedFields(qualifyPredicate)) {
+            if (!allowedFields.contains(fieldName)) {
+                throw new IllegalStateException(
+                        "TypedQuery qualify(...) field '" + fieldName
+                                + "' must match a selected window output alias."
+                );
+            }
+        }
+    }
+
     private static String normalizeJoinSourceName(String sourceName) {
         if (sourceName == null || sourceName.isBlank()) {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.JOIN_SOURCE_NAME_INVALID,
@@ -576,6 +749,53 @@ public final class TypedQuery<T> {
             throw new IllegalArgumentException("alias must not be null/blank");
         }
         return alias.trim();
+    }
+
+    @SafeVarargs
+    private static List<String> partitionFieldNames(TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(partitionFields, "partitionFields must not be null");
+        List<String> fieldNames = new ArrayList<>(partitionFields.length);
+        for (TypedField<?, ?> field : partitionFields) {
+            Objects.requireNonNull(field, "partition field must not be null");
+            fieldNames.add(field.fieldName());
+        }
+        return List.copyOf(fieldNames);
+    }
+
+    private static List<TypedWindowOrder> normalizedWindowOrders(List<TypedWindowOrder> orderFields) {
+        Objects.requireNonNull(orderFields, "orderFields must not be null");
+        if (orderFields.isEmpty()) {
+            throw new IllegalArgumentException("TypedQuery window orderFields must not be empty.");
+        }
+        List<TypedWindowOrder> normalized = new ArrayList<>(orderFields.size());
+        for (TypedWindowOrder order : orderFields) {
+            Objects.requireNonNull(order, "window order entry must not be null");
+            normalized.add(order);
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static boolean isNumericType(Class<?> type) {
+        if (type == null) {
+            return false;
+        }
+        if (Number.class.isAssignableFrom(type)) {
+            return true;
+        }
+        return type == byte.class
+                || type == short.class
+                || type == int.class
+                || type == long.class
+                || type == float.class
+                || type == double.class;
+    }
+
+    private TypedQuery<T> addWindow(TypedWindow window) {
+        ArrayList<TypedWindow> updated = new ArrayList<>(windows);
+        updated.add(window);
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, havingPredicate, updated, qualifyPredicate,
+                orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node) {
@@ -671,6 +891,35 @@ public final class TypedQuery<T> {
 
         private static TypedMetric count(String alias) {
             return new TypedMetric(null, Metric.COUNT, alias, true);
+        }
+    }
+
+    private record TypedWindow(WindowFunction function,
+                               String valueField,
+                               boolean countAll,
+                               String alias,
+                               List<String> partitionFields,
+                               List<TypedWindowOrder> orderFields) {
+
+        private static TypedWindow rank(WindowFunction function,
+                                        String alias,
+                                        List<String> partitionFields,
+                                        List<TypedWindowOrder> orderFields) {
+            return new TypedWindow(function, null, false, alias, partitionFields, orderFields);
+        }
+
+        private static TypedWindow value(WindowFunction function,
+                                         String valueField,
+                                         String alias,
+                                         List<String> partitionFields,
+                                         List<TypedWindowOrder> orderFields) {
+            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields);
+        }
+
+        private static TypedWindow countAll(String alias,
+                                            List<String> partitionFields,
+                                            List<TypedWindowOrder> orderFields) {
+            return new TypedWindow(WindowFunction.COUNT, null, true, alias, partitionFields, orderFields);
         }
     }
 }

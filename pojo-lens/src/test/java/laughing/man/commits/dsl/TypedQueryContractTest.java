@@ -4,6 +4,7 @@ import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
@@ -13,8 +14,15 @@ import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentAgg;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowEmployee;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowRankProjection;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -23,6 +31,7 @@ import java.util.Map;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -44,6 +53,16 @@ public class TypedQueryContractTest {
     private static final TypedField<DepartmentAgg, Long> TOTAL_SALARY = TypedField.of("totalSalary", Long.class);
     private static final TypedField<JoinedTitleCount, Long> JOINED_TOTAL = TypedField.of("total", Long.class);
     private static final TypedField<TotalsRow, Long> PAYROLL = TypedField.of("payroll", Long.class);
+    private static final TypedField<DepartmentRank, Long> RN = TypedField.of("rn", Long.class);
+    private static final TypedField<WindowRankProjection, Long> RK = TypedField.of("rk", Long.class);
+    private static final TypedField<WindowRankProjection, Long> DR = TypedField.of("dr", Long.class);
+    private static final TypedField<WindowMetricInput, String> WINDOW_DEPT = TypedField.of("department", String.class);
+    private static final TypedField<WindowMetricInput, Integer> WINDOW_SEQ = TypedField.of("seq", Integer.class);
+    private static final TypedField<WindowMetricInput, Integer> WINDOW_AMOUNT = TypedField.of("amount", Integer.class);
+    private static final TypedField<WindowMetricProjection, Long> RUNNING_SUM =
+            TypedField.of("runningSum", Long.class);
+    private static final TypedField<WindowMetricProjection, Long> RUNNING_COUNT_ALL =
+            TypedField.of("runningCountAll", Long.class);
 
     // fixtures: Alice(Eng,120k,active), Bob(Fin,90k,active), Cara(Eng,130k,active), Dan(Eng,110k,inactive)
 
@@ -61,6 +80,19 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "having", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -85,8 +117,11 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "selectFields");
         requirePublicMethod(TypedQuery.class, "wherePredicate");
         requirePublicMethod(TypedQuery.class, "havingPredicate");
+        requirePublicMethod(TypedQuery.class, "qualifyPredicate");
         requirePublicMethod(TypedQuery.class, "hasWhere");
         requirePublicMethod(TypedQuery.class, "hasHaving");
+        requirePublicMethod(TypedQuery.class, "hasWindows");
+        requirePublicMethod(TypedQuery.class, "hasQualify");
         requirePublicMethod(TypedQuery.class, "hasSelect");
         requirePublicMethod(TypedQuery.class, "hasOrderBy");
         requirePublicMethod(TypedQuery.class, "hasJoins");
@@ -94,6 +129,10 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "hasMetrics");
         requirePublicMethod(TypedQuery.class, "hasLimit");
         requirePublicMethod(TypedQuery.class, "hasOffset");
+        requirePublicStaticMethod(TypedWindowOrder.class, "asc", TypedField.class);
+        requirePublicStaticMethod(TypedWindowOrder.class, "desc", TypedField.class);
+        requirePublicMethod(TypedWindowOrder.class, "fieldName");
+        requirePublicMethod(TypedWindowOrder.class, "sort");
     }
 
     // --- Execution behavior ---
@@ -265,6 +304,24 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void windowBuilderIsImmutable() {
+        TypedQuery<Employee> base = TypedQuery.from(Employee.class);
+        TypedQuery<Employee> windowed = base.window(
+                WindowFunction.ROW_NUMBER,
+                RN,
+                List.of(TypedWindowOrder.desc(SALARY)),
+                DEPT
+        );
+        TypedQuery<Employee> qualified = windowed.qualify(RN.lte(1L));
+
+        assertFalse(base.hasWindows());
+        assertFalse(base.hasQualify());
+        assertTrue(windowed.hasWindows());
+        assertFalse(windowed.hasQualify());
+        assertTrue(qualified.hasQualify());
+    }
+
+    @Test
     void accessorsReflectConfiguredState() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
                 .where(SALARY.gt(100_000))
@@ -275,6 +332,8 @@ public class TypedQueryContractTest {
         assertEquals(Employee.class, q.entityClass());
         assertTrue(q.hasWhere());
         assertFalse(q.hasHaving());
+        assertFalse(q.hasWindows());
+        assertFalse(q.hasQualify());
         assertTrue(q.hasOrderBy());
         assertTrue(q.hasLimit());
         assertTrue(q.hasOffset());
@@ -410,6 +469,120 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void typedWindowQualifyShouldReturnTopPerDepartment() {
+        List<DepartmentRank> result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .qualify(RN.lte(1L))
+                .orderBy(DEPT)
+                .orderBy(RN)
+                .filter(sampleEmployees(), DepartmentRank.class)
+                .stream()
+                .sorted(Comparator.comparing(row -> row.department))
+                .toList();
+
+        assertEquals(2, result.size());
+        assertEquals("Engineering", result.get(0).department);
+        assertEquals("Cara", result.get(0).name);
+        assertEquals(1L, result.get(0).rn);
+        assertEquals("Finance", result.get(1).department);
+        assertEquals("Bob", result.get(1).name);
+        assertEquals(1L, result.get(1).rn);
+    }
+
+    @Test
+    void typedWindowQualifyShouldMatchEquivalentSqlLikeExecution() {
+        List<String> typedRows = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .qualify(RN.lte(1L))
+                .orderBy(DEPT)
+                .orderBy(RN)
+                .filter(sampleEmployees(), DepartmentRank.class)
+                .stream()
+                .map(row -> row.department + ":" + row.name + ":" + row.rn)
+                .sorted()
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, name, salary, "
+                        + "row_number() over (partition by department order by salary desc) as rn "
+                        + "where active = true qualify rn <= 1 order by department asc, rn asc")
+                .filter(sampleEmployees(), DepartmentRank.class)
+                .stream()
+                .map(row -> row.department + ":" + row.name + ":" + row.rn)
+                .sorted()
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedRankWindowsShouldMatchEquivalentSqlLikeExecution() {
+        List<WindowEmployee> source = Arrays.asList(
+                new WindowEmployee(1, "Alice", "Engineering", 120000, true),
+                new WindowEmployee(2, "Bob", "Engineering", 120000, true),
+                new WindowEmployee(3, "Cara", "Engineering", 130000, true),
+                new WindowEmployee(4, "Dan", "Finance", 110000, true)
+        );
+        TypedField<WindowEmployee, String> windowName = TypedField.of("name", String.class);
+        TypedField<WindowEmployee, Integer> windowSalary = TypedField.of("salary", Integer.class);
+        TypedField<WindowEmployee, Boolean> windowActive = TypedField.of("active", Boolean.class);
+
+        List<String> typedRows = TypedQuery.from(WindowEmployee.class)
+                .where(windowActive.eq(true))
+                .window(WindowFunction.RANK, RK, List.of(TypedWindowOrder.desc(windowSalary)))
+                .window(WindowFunction.DENSE_RANK, DR, List.of(TypedWindowOrder.desc(windowSalary)))
+                .orderBy(RK)
+                .orderBy(windowName)
+                .filter(source, WindowRankProjection.class)
+                .stream()
+                .map(row -> row.name + ":" + row.rk + ":" + row.dr)
+                .sorted()
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select name, salary, rank() over (order by salary desc) as rk, "
+                        + "dense_rank() over (order by salary desc) as dr "
+                        + "where active = true order by rk asc, name asc")
+                .filter(source, WindowRankProjection.class)
+                .stream()
+                .map(row -> row.name + ":" + row.rk + ":" + row.dr)
+                .sorted()
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedRunningAggregateWindowsShouldMatchEquivalentSqlLikeExecution() {
+        List<String> typedRows = TypedQuery.from(WindowMetricInput.class)
+                .window(WindowFunction.SUM, WINDOW_AMOUNT, RUNNING_SUM,
+                        List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .windowCountAll(RUNNING_COUNT_ALL, List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .orderBy(WINDOW_DEPT)
+                .orderBy(WINDOW_SEQ)
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningSum, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and current row) as runningCountAll "
+                        + "order by department asc, seq asc")
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
     void typedJoinAndGroupedCountShouldMatchEquivalentSqlLikeExecution() {
         JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
 
@@ -506,6 +679,39 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void qualifyShouldFailWithoutWindow() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .qualify(RN.lte(1L))
+                        .filter(sampleEmployees()));
+
+        assertTrue(ex.getMessage().contains("qualify(...) requires at least one window output"));
+    }
+
+    @Test
+    void qualifyShouldFailForNonWindowField() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                        .qualify(SALARY.gte(100_000))
+                        .filter(sampleEmployees(), DepartmentRank.class));
+
+        assertTrue(ex.getMessage().contains("must match a selected window output alias"));
+    }
+
+    @Test
+    void windowsShouldFailForAggregateShape() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .groupBy(DEPT)
+                        .count(TOTAL)
+                        .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                        .filter(sampleEmployees(), DepartmentRank.class));
+
+        assertTrue(ex.getMessage().contains("windows are only supported for non-aggregate query shapes"));
+    }
+
+    @Test
     void notPredicateThrowsUnsupportedOperationException() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
                 .where(ACTIVE.eq(true).not());
@@ -598,6 +804,16 @@ public class TypedQueryContractTest {
         assertNotNull(plan);
     }
 
+    @Test
+    void explainWithWindowQualifyReturnsMap() {
+        Map<String, Object> plan = TypedQuery.from(Employee.class)
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .qualify(RN.lte(1L))
+                .explain(sampleEmployees());
+
+        assertNotNull(plan);
+    }
+
     // --- Schema interop ---
 
     @Test
@@ -634,6 +850,15 @@ public class TypedQueryContractTest {
                 .schema(sampleEmployees(), DepartmentAgg.class);
 
         assertEquals(List.of("department", "employeeCount", "totalSalary"), s.names());
+    }
+
+    @Test
+    void schemaWithWindowProjectionReflectsWindowOutput() {
+        TabularSchema s = TypedQuery.from(Employee.class)
+                .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                .schema(sampleEmployees(), DepartmentRank.class);
+
+        assertEquals(List.of("department", "name", "salary", "rn"), s.names());
     }
 
     // --- Helpers ---

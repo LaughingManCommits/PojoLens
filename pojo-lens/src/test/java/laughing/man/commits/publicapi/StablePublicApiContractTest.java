@@ -20,8 +20,10 @@ import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.dsl.TypedWindowOrder;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.files.FileLoadRuntime;
 import laughing.man.commits.files.JsonLoadException;
 import laughing.man.commits.files.JsonLoadReport;
@@ -559,6 +561,19 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "having", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                String.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -579,11 +594,18 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class, Class.class);
         requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "qualifyPredicate");
         requirePublicMethod(TypedQuery.class, "hasJoins");
         requirePublicMethod(TypedQuery.class, "hasGroupBy");
         requirePublicMethod(TypedQuery.class, "hasMetrics");
         requirePublicMethod(TypedQuery.class, "havingPredicate");
         requirePublicMethod(TypedQuery.class, "hasHaving");
+        requirePublicMethod(TypedQuery.class, "hasWindows");
+        requirePublicMethod(TypedQuery.class, "hasQualify");
+        requirePublicStaticMethod(TypedWindowOrder.class, "asc", TypedField.class);
+        requirePublicStaticMethod(TypedWindowOrder.class, "desc", TypedField.class);
+        requirePublicMethod(TypedWindowOrder.class, "fieldName");
+        requirePublicMethod(TypedWindowOrder.class, "sort");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

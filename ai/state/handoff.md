@@ -10,14 +10,14 @@
 - `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 static-analysis gate is clean.
 - `2026-04-29`: Surface/tooling cleanup packages are complete: wrapper guidance is `ReportDefinition`/`SavedReport` first, docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL with Excel as a non-goal, and build tooling is split between `metamodel` generation and `tooling` validation.
 - `2026-04-29`: WP23 is complete. `TypedQuery` now covers joins, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` filter, explain, and schema overloads on one typed surface.
-- `2026-04-29`: WP24 is in progress. `TypedQuery.having(...)` now filters grouped fields and metric aliases on the same immutable typed surface; typed windows and bounded subqueries are still pending design.
+- `2026-04-29`: WP24 is in progress. `TypedQuery` now covers grouped `HAVING`, rank/running window outputs, and `QUALIFY` on the same immutable typed surface; bounded window frames and typed subqueries are still pending design.
 
 ## Facts
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-04-29`: `TODO.md` order is WP24, WP18, then `Release Gate`.
 - `2026-04-29`: WP23 outcome: typed joins reuse `JoinBindings` and `DatasetBundle`, grouped queries reuse the same `TypedQuery` surface via `groupBy(...)`, `count(...)`, and `metric(...)`, aggregate aliases can drive `orderBy(...)` / `orderByDesc(...)`, and parity coverage now includes joined-grouped execution against equivalent SQL-like queries.
-- `2026-04-29`: WP24 outcome so far: typed `having(...)` accepts grouped-output predicates only, validates references against grouped fields and metric aliases, supports totals-style metric queries, and keeps windows/subqueries on the text surfaces for now.
+- `2026-04-29`: WP24 outcome so far: typed `having(...)` accepts grouped-output predicates only, typed windows reuse `window(...)` / `windowCountAll(...)` plus `TypedWindowOrder` and `qualify(...)`, rank/default-running window shapes are parity-covered against SQL-like, and bounded frames/subqueries stay on the text surfaces for now.
 
 ## Validate
 - After code changes: `mvn -B -ntp test`.
