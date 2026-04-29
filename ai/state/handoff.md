@@ -16,10 +16,11 @@
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-04-29`: `TODO.md` order is WP18, then `Release Gate`.
+- `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 - `2026-04-29`: WP23 outcome: typed joins reuse `JoinBindings` and `DatasetBundle`; grouped queries stay on `TypedQuery` via `groupBy(...)`, `count(...)`, and `metric(...)`; aggregate aliases drive `orderBy(...)` / `orderByDesc(...)`; parity includes joined-grouped SQL-like coverage.
 - `2026-04-29`: WP24 outcome: typed `having(...)` only accepts grouped-output predicates; windows reuse `window(...)` / `windowCountAll(...)` plus `TypedWindowOrder`; frames reuse `QueryWindowFrame`; bounded `IN` / `EXISTS` / `NOT EXISTS` reuse the grouped predicate path; correlated/scalar subqueries stay text-only by design.
 - `2026-04-29`: CI sweep passed after removing an unused `CsvLoaderSupport` import; lint, static-analysis, docs, runtime jar, binary compat, cache stress, chart interop, and benchmarks are green.
-- `2026-04-29`: `README.md` now stays route-based: one authoring-path table, quick starts, non-goals, and a compact docs map. Do not reintroduce separate “product shape”, “surface layers”, or large capability-taxonomy sections there.
+- `2026-04-29`: `README.md` stays route-based and now includes a top `Quick Integration` section that points AI agents to `AGENTS.md`; do not reintroduce separate product-taxonomy sections there.
 
 ## Validate
 - After code changes: `mvn -B -ntp test`.

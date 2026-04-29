@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-04-29T16:39:35.820306+02:00",
+  "generatedAt": "2026-04-29T20:21:41.038162+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
     "artifactId": "pojo-lens-parent",
-    "version": "2026.04.17.1834",
+    "version": "2026.04.29.1809",
     "packaging": "pom",
     "javaRelease": 25,
     "springBootVersion": "4.0.4",
