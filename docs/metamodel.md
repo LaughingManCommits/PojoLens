@@ -127,11 +127,23 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .filter(employees);
 ```
 
+The same generator can emit output-field constants for grouped projection
+types:
+
+```java
+List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .count(DepartmentCountTypedFields.TOTAL)
+    .orderByDesc(DepartmentCountTypedFields.TOTAL)
+    .filter(employees, DepartmentCount.class);
+```
+
 The current typed DSL foundation covers projection, filters, join
-declarations, `JoinBindings` / `DatasetBundle` execution, ordering, offset,
-limit, explain, schema, and execution guards. Keep SQL-like or natural queries
-for grouping, aggregation, windows, subqueries, and user-authored query text
-until those typed shapes are stabilized.
+declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
+totals-style metrics, ordering, offset, limit, explain, schema, and execution
+guards. Keep SQL-like or natural queries for `HAVING`, windows, subqueries,
+and user-authored query text until those typed shapes are stabilized.
 
 ## Batch Generation
 

@@ -17,7 +17,7 @@ Core execution model:
 | Reusable SQL-like query shape | `PojoLensSql.template(queryText, params...)` | Keeps repeated query shapes on a fixed parameter schema. |
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
 | Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
-| Code-owned typed query composition | `TypedQuery.from(rowType)` with generated `TypedField<T,V>` constants | Keeps field references and literal values type-checked for projection, filters, joins, ordering, offset, and limit. |
+| Code-owned typed query composition | `TypedQuery.from(rowType)` with generated `TypedField<T,V>` constants | Keeps field references and literal values type-checked for projection, filters, joins, grouped aggregates, ordering, offset, and limit. |
 
 ## Reusable Contracts
 
@@ -60,9 +60,10 @@ Output-helper guide:
 - Use `TypedQuery` when query logic is owned by Java code and should use
   generated `TypedField<T,V>` constants instead of string field names. The
   stable typed foundation covers projection, filters, join declarations,
-  `JoinBindings` / `DatasetBundle` execution, ordering, offset, limit,
-  explain/schema, and execution guards; use SQL-like or natural queries for
-  grouping, aggregation, windows, and subqueries.
+  `JoinBindings` / `DatasetBundle` execution, grouped aggregates and
+  totals-style metrics, ordering, offset, limit, explain/schema, and execution
+  guards; use SQL-like or natural queries for `HAVING`, windows, and
+  subqueries.
 
 ## Layering Rules
 

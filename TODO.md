@@ -25,7 +25,7 @@ Execution order is dependency-first, not ticket-number order.
 |-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
 | WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
-| WP23| Typed DSL Aggregation And Join Expansion     | In Progress | Typed joins, grouping, metrics, and dataset parity with SQL-like                   |
+| WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
 | WP24| Typed DSL Advanced Analytics                 | Pending | Typed HAVING/window/subquery design and staged parity-backed rollout                  |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
@@ -134,13 +134,13 @@ and multi-source queries onto typed APIs.
 **Tasks:**
 - [x] Design typed join bindings that reuse `JoinBindings` and `DatasetBundle`
       concepts instead of inventing a parallel multi-source model.
-- [ ] Add typed grouping, aggregate selection, ordering by aggregate output,
+- [x] Add typed grouping, aggregate selection, ordering by aggregate output,
       and totals-style projection support.
-- [ ] Preserve parity with SQL-like validation, schema, explain, and execution
+- [x] Preserve parity with SQL-like validation, schema, explain, and execution
       guards where query shapes overlap.
-- [ ] Generate or derive the typed field helpers needed for grouped and joined
+- [x] Generate or derive the typed field helpers needed for grouped and joined
       projections.
-- [ ] Land parity/regression coverage against equivalent SQL-like queries
+- [x] Land parity/regression coverage against equivalent SQL-like queries
       before exposing the new typed surface as stable guidance.
 
 **Validate:**

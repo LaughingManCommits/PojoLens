@@ -12,17 +12,17 @@
 - `2026-04-29`: WP21 completed the authoring-first/docs-layering pass, including `docs/output-helpers.md`.
 - `2026-04-29`: WP25 is complete. `PojoLensFiles` / `runtime.files()` are the single file-boundary loader route for CSV, TSV, JSON, and JSONL; Excel is an explicit non-goal.
 - `2026-04-29`: WP22 is complete. `laughing.man.commits.metamodel` owns single-model and batch metamodel generation, `laughing.man.commits.tooling` stays validation-only, and `docs/build-tooling.md` documents the staged library-first shape.
-- `2026-04-29`: WP23 is in progress. `TypedQuery.join(...)` plus `JoinBindings` / `DatasetBundle` filter, explain, and schema overloads now cover the first typed multi-source slice.
+- `2026-04-29`: WP23 is complete. `TypedQuery` now covers joins, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` filter, explain, and schema overloads on one typed surface.
 
 ## Facts
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-04-27`: `scripts/checkstyle-baseline.txt` is intentionally empty because the lint report is clean.
 - `2026-04-27`: The latest recorded window rerun at `size=10000` landed at `0.623 ms/op` baseline, `1.825 ms/op` rank, and `1.843 ms/op` running total.
-- `2026-04-29`: `TODO.md` order is WP23, WP24, WP18, then `Release Gate`.
+- `2026-04-29`: `TODO.md` order is WP24, WP18, then `Release Gate`.
 - `2026-04-29`: WP25 outcome: file onboarding now routes through `docs/files.md`, `PojoLensFiles` owns CSV/TSV/JSON/JSONL, `PojoLensRuntime` owns both delimited-text and JSON defaults, and no peer `PojoLensJson` surface was added.
 - `2026-04-29`: WP22 outcome: build tooling stays library-first. `MetamodelBatchGenerator` now lives under `metamodel`, `SavedReportCatalogValidator` stays in `tooling`, and natural/raw fallback uses `PLT-SAVED-008`.
-- `2026-04-29`: WP23 outcome so far: typed joins reuse `JoinBindings` and `DatasetBundle`, missing join sources fail with the same SQL-like error code path, and grouped metrics/windows/subqueries remain deferred.
+- `2026-04-29`: WP23 outcome: typed joins reuse `JoinBindings` and `DatasetBundle`, grouped queries reuse the same `TypedQuery` surface via `groupBy(...)`, `count(...)`, and `metric(...)`, aggregate aliases can drive `orderBy(...)` / `orderByDesc(...)`, and parity coverage now includes joined-grouped execution against equivalent SQL-like queries.
 
 ## Validate
 - After code changes: `mvn -B -ntp test`.

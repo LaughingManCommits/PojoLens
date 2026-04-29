@@ -3,6 +3,7 @@ package laughing.man.commits.dsl;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
@@ -10,6 +11,8 @@ import laughing.man.commits.table.TabularSchema;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentAgg;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -36,6 +39,11 @@ public class TypedQueryContractTest {
     private static final TypedField<Company, String> JOINED_TITLE = TypedField.of("title", String.class);
     private static final TypedField<CompanyEmployee, Integer> EMPLOYEE_COMPANY_ID =
             TypedField.of("companyId", Integer.class);
+    private static final TypedField<DepartmentCount, Long> TOTAL = TypedField.of("total", Long.class);
+    private static final TypedField<DepartmentAgg, Long> EMPLOYEE_COUNT = TypedField.of("employeeCount", Long.class);
+    private static final TypedField<DepartmentAgg, Long> TOTAL_SALARY = TypedField.of("totalSalary", Long.class);
+    private static final TypedField<JoinedTitleCount, Long> JOINED_TOTAL = TypedField.of("total", Long.class);
+    private static final TypedField<TotalsRow, Long> PAYROLL = TypedField.of("payroll", Long.class);
 
     // fixtures: Alice(Eng,120k,active), Bob(Fin,90k,active), Cara(Eng,130k,active), Dan(Eng,110k,inactive)
 
@@ -47,6 +55,11 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
+        requirePublicMethod(TypedQuery.class, "groupBy", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "count", String.class);
+        requirePublicMethod(TypedQuery.class, "count", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
+        requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -74,6 +87,8 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "hasSelect");
         requirePublicMethod(TypedQuery.class, "hasOrderBy");
         requirePublicMethod(TypedQuery.class, "hasJoins");
+        requirePublicMethod(TypedQuery.class, "hasGroupBy");
+        requirePublicMethod(TypedQuery.class, "hasMetrics");
         requirePublicMethod(TypedQuery.class, "hasLimit");
         requirePublicMethod(TypedQuery.class, "hasOffset");
     }
@@ -233,6 +248,17 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void groupedBuilderIsImmutable() {
+        TypedQuery<Employee> base = TypedQuery.from(Employee.class);
+        TypedQuery<Employee> grouped = base.groupBy(DEPT).count(TOTAL);
+
+        assertFalse(base.hasGroupBy());
+        assertFalse(base.hasMetrics());
+        assertTrue(grouped.hasGroupBy());
+        assertTrue(grouped.hasMetrics());
+    }
+
+    @Test
     void accessorsReflectConfiguredState() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
                 .where(SALARY.gt(100_000))
@@ -300,6 +326,82 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void typedGroupedCountShouldReturnDepartmentTotals() {
+        List<DepartmentCount> result = TypedQuery.from(Employee.class)
+                .where(ACTIVE.eq(true))
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .orderByDesc(TOTAL)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(2, result.size());
+        assertEquals("Engineering", result.get(0).department);
+        assertEquals(2L, result.get(0).total);
+        assertEquals("Finance", result.get(1).department);
+        assertEquals(1L, result.get(1).total);
+    }
+
+    @Test
+    void typedGroupedAggregationShouldMatchEquivalentSqlLikeExecution() {
+        List<String> typedRows = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(EMPLOYEE_COUNT)
+                .metric(SALARY, Metric.SUM, TOTAL_SALARY)
+                .orderByDesc(TOTAL_SALARY)
+                .filter(sampleEmployees(), DepartmentAgg.class)
+                .stream()
+                .map(row -> row.department + ":" + row.employeeCount + ":" + row.totalSalary)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
+                        + "group by department order by totalSalary desc")
+                .filter(sampleEmployees(), DepartmentAgg.class)
+                .stream()
+                .map(row -> row.department + ":" + row.employeeCount + ":" + row.totalSalary)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedJoinAndGroupedCountShouldMatchEquivalentSqlLikeExecution() {
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+
+        List<String> typedRows = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .groupBy(JOINED_TITLE)
+                .count(JOINED_TOTAL)
+                .orderByDesc(JOINED_TOTAL)
+                .filter(sampleCompanies(), joinBindings, JoinedTitleCount.class)
+                .stream()
+                .map(row -> row.title + ":" + row.total)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select title, count(*) as total from companies "
+                        + "left join employees on id = companyId group by title order by total desc")
+                .filter(sampleCompanies(), joinBindings, JoinedTitleCount.class)
+                .stream()
+                .map(row -> row.title + ":" + row.total)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedTotalsProjectionShouldSupportCountAndMetricWithoutGroupBy() {
+        List<TotalsRow> result = TypedQuery.from(Employee.class)
+                .count(TOTAL)
+                .metric(SALARY, Metric.SUM, PAYROLL)
+                .filter(sampleEmployees(), TotalsRow.class);
+
+        assertEquals(1, result.size());
+        assertEquals(4L, result.get(0).total);
+        assertEquals(450000L, result.get(0).payroll);
+    }
+
+    @Test
     void typedJoinShouldFailWhenJoinSourceBindingIsMissing() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> TypedQuery.from(Company.class)
@@ -309,6 +411,18 @@ public class TypedQueryContractTest {
 
         assertTrue(ex.getMessage().contains("EQ-SQL-VAL-003"));
         assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'employees'"));
+    }
+
+    @Test
+    void selectShouldFailWhenMixedWithGroupedMetrics() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .select(NAME)
+                        .groupBy(DEPT)
+                        .count(TOTAL)
+                        .filter(sampleEmployees(), DepartmentCount.class));
+
+        assertTrue(ex.getMessage().contains("select(...) cannot be combined with groupBy/count/metric"));
     }
 
     @Test
@@ -393,6 +507,17 @@ public class TypedQueryContractTest {
         assertNotNull(plan);
     }
 
+    @Test
+    void explainWithGroupedMetricsReturnsMap() {
+        Map<String, Object> plan = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .metric(SALARY, Metric.SUM, TOTAL_SALARY)
+                .explain(sampleEmployees());
+
+        assertNotNull(plan);
+    }
+
     // --- Schema interop ---
 
     @Test
@@ -420,6 +545,17 @@ public class TypedQueryContractTest {
         assertNotNull(s);
     }
 
+    @Test
+    void schemaWithGroupedMetricsReflectsGroupedProjection() {
+        TabularSchema s = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(EMPLOYEE_COUNT)
+                .metric(SALARY, Metric.SUM, TOTAL_SALARY)
+                .schema(sampleEmployees(), DepartmentAgg.class);
+
+        assertEquals(List.of("department", "employeeCount", "totalSalary"), s.names());
+    }
+
     // --- Helpers ---
 
     private static Method requirePublicMethod(Class<?> type, String name, Class<?>... params)
@@ -436,5 +572,21 @@ public class TypedQueryContractTest {
         assertTrue(Modifier.isStatic(m.getModifiers()),
                 () -> "Expected static: " + type.getSimpleName() + "." + name);
         return m;
+    }
+
+    public static class TotalsRow {
+        public long total;
+        public long payroll;
+
+        public TotalsRow() {
+        }
+    }
+
+    public static class JoinedTitleCount {
+        public String title;
+        public long total;
+
+        public JoinedTitleCount() {
+        }
     }
 }

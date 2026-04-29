@@ -21,6 +21,7 @@ import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.Metric;
 import laughing.man.commits.files.FileLoadRuntime;
 import laughing.man.commits.files.JsonLoadException;
 import laughing.man.commits.files.JsonLoadReport;
@@ -552,6 +553,11 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
+        requirePublicMethod(TypedQuery.class, "groupBy", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "count", String.class);
+        requirePublicMethod(TypedQuery.class, "count", TypedField.class);
+        requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
+        requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -573,6 +579,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "hasJoins");
+        requirePublicMethod(TypedQuery.class, "hasGroupBy");
+        requirePublicMethod(TypedQuery.class, "hasMetrics");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

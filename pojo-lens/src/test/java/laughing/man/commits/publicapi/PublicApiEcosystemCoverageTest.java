@@ -35,6 +35,7 @@ import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.tooling.SavedReportCatalogValidator;
 import laughing.man.commits.tooling.SavedReportValidationResult;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
@@ -382,6 +383,24 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
         assertEquals(1, rows.size());
         assertEquals(1, rows.get(0).id);
+    }
+
+    @Test
+    public void typedQueryShouldSupportGroupedAggregatesFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<DepartmentCount, Long> total = TypedField.of("total", Long.class);
+
+        List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+                .where(active.eq(true))
+                .groupBy(department)
+                .count(total)
+                .orderByDesc(total)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
     }
 
     @Test
