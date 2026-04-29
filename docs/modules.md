@@ -27,6 +27,7 @@ Canonical product-surface classification:
 Docs starting points:
 - choose an authoring mode first in [usecases.md](usecases.md)
 - choose explicit authoring and layering entry points in [entry-points.md](entry-points.md)
+- use [typed.md](typed.md) for Java-owned typed query composition
 - choose reusable contracts in [reusable-wrappers.md](reusable-wrappers.md)
 - choose file-boundary loaders in [files.md](files.md) when input starts as files
 - use [advanced-features.md](advanced-features.md) only for optional follow-on

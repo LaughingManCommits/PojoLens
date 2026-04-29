@@ -6,9 +6,10 @@
 
 ## Focus
 - `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 `-Pstatic-analysis` gate is clean.
-- `2026-04-29`: Surface/tooling cleanup packages are complete: wrapper guidance is `ReportDefinition`/`SavedReport` first, docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL with Excel as a non-goal, and build tooling is split between `metamodel` generation and `tooling` validation.
+- `2026-04-29`: Surface/tooling cleanup packages are complete: wrapper guidance is `ReportDefinition`/`SavedReport` first, docs are authoring-first with dedicated SQL-like, natural, and typed guides, `PojoLensFiles` owns CSV/TSV/JSON/JSONL with Excel as a non-goal, and build tooling is split between `metamodel` generation and `tooling` validation.
 - `2026-04-29`: WP23 completed. `TypedQuery` now supports join declarations, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` execution, explain, and schema reuse on the same surface.
 - `2026-04-29`: WP24 completed. `TypedQuery`/`TypedPredicate` now cover grouped `HAVING`, bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries, rank windows, aggregate window frames via `QueryWindowFrame`, and `QUALIFY` on the same immutable surface.
+- `2026-04-29`: `README.md` is now trimmed to one onboarding route table, quick starts, non-goals, and a short docs map so developers do not have to scan repeated product-surface taxonomy before reaching the correct guide.
 
 ## Verified
 - `2026-04-27`: Full reactor, lint, and static-analysis gates passed after the window fix.

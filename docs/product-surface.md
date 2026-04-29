@@ -41,6 +41,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | --- | --- | --- | --- | --- | --- |
 | SQL-like querying | `Core query engine` | Primary public query authoring path | `PojoLensSql`, `SqlLikeQuery`, `SqlLikeTemplate`, `SqlParams`, `SqlLikeCursor`, `PageResult`, `JoinBindings` | `Stable` core | `README.md`, `docs/sql-like.md` |
 | Plain-English querying | `Core query engine` | Guided text authoring path for non-SQL users | `PojoLensNatural`, `NaturalQuery`, `NaturalTemplate`, `NaturalBoundQuery` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/natural.md` |
+| Typed DSL querying | `Core query engine` | Java-owned authoring path for refactor-friendly query composition in code | `TypedQuery`, `TypedField`, `TypedPredicate`, `TypedWindowOrder` | `Stable` core | `README.md`, `docs/entry-points.md`, `docs/typed.md`, `docs/metamodel.md` |
 | Fluent engine DSL | `Core query engine` | Internal execution-planning and parity infrastructure, not the public product story | `laughing.man.commits.internal.FluentEngine`, `laughing.man.commits.internal.builder.*` | Internal | `docs/internal-fluent-engine.md` |
 | Dataset composition | `Workflow helper` | Reusable multi-source execution wiring | `DatasetBundle` | `Stable` support contract | `docs/usecases.md`, `docs/reports.md` |
 | Chart output mapping | `Workflow helper` | Chart-ready output contracts built on query results | `PojoLensChart`, `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType` | `Stable` helper contracts | `docs/charts.md` |
@@ -65,6 +66,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - `PojoLensRuntime` is not a third query style. It is the scoped runtime and
   configuration model around the same engine, including runtime-owned natural
   vocabulary for guided text queries.
+- `TypedQuery` is the Java-owned authoring mode. `docs/typed.md` teaches query
+  composition, while `docs/metamodel.md` stays focused on generating the typed
+  field constants used by that surface.
 - `PojoLensFiles` is the single file-boundary loader story. It loads typed rows
   into memory before the existing engine runs; it is not a second query engine
   or a generic table platform. `PojoLensCsv` remains the stable CSV-only

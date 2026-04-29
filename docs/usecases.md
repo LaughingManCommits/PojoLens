@@ -8,6 +8,7 @@ Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
 - SQL-like query guide: [docs/sql-like.md](sql-like.md)
 - natural query guide: [docs/natural.md](natural.md)
+- typed query guide: [docs/typed.md](typed.md)
 - reusable wrappers: [docs/reusable-wrappers.md](reusable-wrappers.md)
 - file-boundary loaders: [docs/files.md](files.md)
 - output helpers: [docs/output-helpers.md](output-helpers.md)

@@ -35,6 +35,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   Added `docs/output-helpers.md` so chart/table/schema guidance reads as one
   layered helper story rather than multiple peer workflow identities.
 
+- **Typed DSL guide split** - added `docs/typed.md` as the dedicated typed
+  authoring guide and moved first-read navigation to treat typed query usage
+  as a peer route beside SQL-like and natural. `docs/metamodel.md` now points
+  back to that guide and stays focused on typed-field generation tooling.
+
 ### Fixed
 
 - **Window row materialization** - `FluentWindowSupport` now computes window values before wrapping `RawQueryRow`s, so fluent and SQL-like `ROW_NUMBER`, ranking, aggregate window, and `QUALIFY` queries keep populated aliases.

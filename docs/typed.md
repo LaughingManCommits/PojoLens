@@ -1,0 +1,219 @@
+# Typed Query Guide
+
+Typed queries are the Java-owned authoring path for PojoLens.
+Use `TypedQuery` when query logic should live in code, field references should
+be refactor-friendly, and predicate composition should stay type-checked.
+
+Use SQL-like or natural queries when callers author query text directly, when
+you need correlated or scalar subqueries, or when broader named-source planning
+reads better as text than Java builder code.
+
+## Field Constants
+
+`TypedQuery` composes `TypedField<T,V>` and `TypedPredicate<T>`.
+For one-off usage you can hand-write fields:
+
+```java
+TypedField<Employee, String> DEPARTMENT = TypedField.of("department", String.class);
+TypedField<Employee, Integer> SALARY = TypedField.of("salary", Integer.class);
+TypedField<Employee, Boolean> ACTIVE = TypedField.of("active", Boolean.class);
+```
+
+For shared domain types, generate typed constants with
+[metamodel.md](metamodel.md):
+
+```java
+FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(
+    Employee.class,
+    "com.acme.generated",
+    "EmployeeTypedFields");
+metamodel.writeTo(Path.of("target/generated-sources/pojo-lens"));
+```
+
+Generated constants are the default recommendation for long-lived application
+code. Hand-written `TypedField.of(...)` calls are still useful for quick
+one-offs and for joined-field references that do not belong to the base row
+type.
+
+## Basic Filtering, Ordering, And Limits
+
+`TypedQuery` is immutable. Each fluent call returns a new query definition.
+
+```java
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.ACTIVE.eq(true))
+        .and(EmployeeTypedFields.SALARY.gte(120000)))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(10)
+    .filter(employees);
+```
+
+Use negated operators such as `ne(...)`, `lte(...)`, or `isNotNull()` instead
+of relying on `NOT` as a first-class typed query shape.
+
+## Projection
+
+Use `select(...)` when the output type is a projection rather than the source
+row type:
+
+```java
+List<EmployeeSummary> rows = TypedQuery.from(Employee.class)
+    .select(EmployeeTypedFields.NAME, EmployeeTypedFields.DEPARTMENT)
+    .orderBy(EmployeeTypedFields.NAME)
+    .filter(employees, EmployeeSummary.class);
+```
+
+The projection type should expose fields that match the selected output names.
+
+## Joins And Reused Sources
+
+`join(...)` declares the named secondary source relationship.
+`JoinBindings` or `DatasetBundle` provide the actual secondary rows at
+execution time.
+
+```java
+TypedField<Company, Integer> COMPANY_ID = TypedField.of("id", Integer.class);
+TypedField<CompanyEmployee, Integer> EMPLOYEE_COMPANY_ID =
+    TypedField.of("companyId", Integer.class);
+TypedField<Company, String> JOINED_TITLE = TypedField.of("title", String.class);
+
+JoinBindings joins = JoinBindings.of("employees", companyEmployees);
+
+List<Company> rows = TypedQuery.from(Company.class)
+    .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+    .where(JOINED_TITLE.eq("Engineer"))
+    .filter(companies, joins);
+```
+
+When the same multi-source snapshot is reused, package it once:
+
+```java
+DatasetBundle bundle = DatasetBundle.of(companies, joins);
+List<Company> rows = TypedQuery.from(Company.class)
+    .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+    .where(JOINED_TITLE.eq("Engineer"))
+    .filter(bundle);
+```
+
+## Grouped Aggregates And HAVING
+
+Grouped output aliases are usually modeled as typed fields on the projection
+type:
+
+```java
+List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .count(DepartmentCountTypedFields.TOTAL)
+    .having(DepartmentCountTypedFields.TOTAL.gte(2L))
+    .orderByDesc(DepartmentCountTypedFields.TOTAL)
+    .filter(employees, DepartmentCount.class);
+```
+
+Metric output works the same way:
+
+```java
+List<DepartmentPayroll> rows = TypedQuery.from(Employee.class)
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .metric(EmployeeTypedFields.SALARY, Metric.SUM, DepartmentPayrollTypedFields.PAYROLL)
+    .filter(employees, DepartmentPayroll.class);
+```
+
+`having(...)` is limited to grouped fields and metric aliases.
+
+## Windows And QUALIFY
+
+Rank windows and post-window filtering stay on the same immutable surface:
+
+```java
+List<DepartmentRank> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .window(
+        WindowFunction.ROW_NUMBER,
+        DepartmentRankTypedFields.RN,
+        List.of(TypedWindowOrder.desc(EmployeeTypedFields.SALARY)),
+        EmployeeTypedFields.DEPARTMENT)
+    .qualify(DepartmentRankTypedFields.RN.lte(1L))
+    .filter(employees, DepartmentRank.class);
+```
+
+Aggregate windows accept explicit `QueryWindowFrame` values:
+
+```java
+TypedQuery.from(WindowMetricInput.class)
+    .window(
+        WindowFunction.SUM,
+        WindowMetricInputTypedFields.AMOUNT,
+        WindowMetricProjectionTypedFields.RUNNING_SUM,
+        QueryWindowFrame.rowsPrecedingToCurrentRow(6),
+        List.of(TypedWindowOrder.asc(WindowMetricInputTypedFields.SEQ)),
+        WindowMetricInputTypedFields.DEPARTMENT);
+```
+
+Use `windowCountAll(...)` when the value field is `COUNT(*)`.
+`qualify(...)` is limited to selected window aliases.
+
+## Bounded Subqueries
+
+Same-source bounded subqueries compose directly from typed predicates:
+
+```java
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.NAME.inSubquery(
+        EmployeeTypedFields.NAME,
+        TypedQuery.from(Employee.class)
+            .where(EmployeeTypedFields.ACTIVE.eq(true)
+                .and(EmployeeTypedFields.SALARY.gte(120000)))))
+    .filter(employees);
+```
+
+Explicit-source-list subqueries are also supported:
+
+```java
+TypedField<Company, Integer> COMPANY_ID = TypedField.of("id", Integer.class);
+
+List<Company> rows = TypedQuery.from(Company.class)
+    .where(COMPANY_ID.inSubquery(
+        CompanyEmployeeTypedFields.COMPANY_ID,
+        companyEmployees,
+        TypedQuery.from(CompanyEmployee.class)
+            .where(CompanyEmployeeTypedFields.TITLE.eq("Engineer"))))
+    .filter(companies);
+```
+
+`TypedPredicate.exists(...)` and `TypedPredicate.notExists(...)` follow the
+same pattern. Bounded typed subqueries are supported only in `where(...)`, not
+in `having(...)` or `qualify(...)`.
+
+## Explain, Schema, And Guards
+
+The typed surface keeps the same diagnostics and governance hooks as the text
+surfaces:
+
+```java
+TypedQuery<Employee> query = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .executionGuard(QueryExecutionGuard.builder()
+        .maxRowsScanned(50_000)
+        .maxRowsReturned(1_000)
+        .build());
+
+Map<String, Object> explain = query.explain(employees);
+TabularSchema schema = query.schema(employees);
+List<Employee> rows = query.filter(employees);
+```
+
+Use `schema(..., Projection.class)` when the output is a projection rather than
+the source row type.
+
+## Current Boundaries
+
+- `TypedQuery` is the right path for Java-owned query logic, not user-authored text.
+- Sort direction is global; the last `orderBy(...)` or `orderByDesc(...)` call wins.
+- `having(...)` only accepts grouped fields and metric aliases.
+- `qualify(...)` only accepts selected window aliases.
+- Correlated/scalar subqueries and broader named-source planning remain on
+  [sql-like.md](sql-like.md) or [natural.md](natural.md).
+- Field generation lives in [metamodel.md](metamodel.md); build-time catalog
+  validation lives in [build-tooling.md](build-tooling.md).

@@ -17,7 +17,7 @@ Core execution model:
 | Reusable SQL-like query shape | `PojoLensSql.template(queryText, params...)` | Keeps repeated query shapes on a fixed parameter schema. |
 | Guided plain-English query text | `PojoLensNatural.parse(queryText)` | Gives non-SQL users a deterministic text surface that still lowers into the same engine; see [docs/natural.md](natural.md). |
 | Reusable natural template | `PojoLensNatural.template(queryText, params...)` | Keeps parameter-schema-driven guided-text flows on the natural surface; use `runtime.natural().template(...)` when runtime vocabulary or computed fields should apply. |
-| Code-owned typed query composition | `TypedQuery.from(rowType)` with generated `TypedField<T,V>` constants | Keeps field references and literal values type-checked for projection, filters, joins, grouped aggregates, grouped `HAVING`, bounded subqueries, rank windows, aggregate window outputs, `QUALIFY`, ordering, offset, and limit. |
+| Code-owned typed query composition | `TypedQuery.from(rowType)` with generated `TypedField<T,V>` constants | Keeps field references and literal values type-checked for projection, filters, joins, grouped aggregates, grouped `HAVING`, bounded subqueries, rank windows, aggregate window outputs, `QUALIFY`, ordering, offset, and limit; see [docs/typed.md](typed.md). |
 
 ## Reusable Contracts
 
@@ -66,7 +66,7 @@ Output-helper guide:
   metrics, explicit aggregate window frames via `QueryWindowFrame`, bounded
   `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or an
   explicit source list, ordering, offset, limit, explain/schema, and
-  execution guards; keep SQL-like or natural queries for user-authored text
+  execution guards; see [docs/typed.md](typed.md). Keep SQL-like or natural queries for user-authored text
   flows plus correlated/scalar subqueries and broader named-source planning.
 
 ## Layering Rules

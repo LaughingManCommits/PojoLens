@@ -4,6 +4,7 @@ Some PojoLens flows use string field names:
 
 This is optional authoring/build-time tooling.
 Use it when generated field constants are worth the extra build step.
+For day-to-day typed DSL composition, see [typed.md](typed.md).
 
 - chart specs
 - alias/result row projections
@@ -107,6 +108,8 @@ ChartData chart = PojoLensChart.toChartData(rows, spec);
 `generateTyped(...)` emits `TypedField<T,V>` constants for the stable typed DSL.
 Primitive model fields are boxed in the generated generic type, so an `int`
 field is emitted as `TypedField<Employee, Integer>`.
+This page focuses on generating those constants; the typed authoring guide
+lives in [typed.md](typed.md).
 
 ```java
 FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(

@@ -7,6 +7,7 @@
 - `docs/entry-points.md`
 - `docs/sql-like.md`
 - `docs/natural.md`
+- `docs/typed.md`
 - `docs/reusable-wrappers.md`
 - `docs/output-helpers.md`
 - `docs/usecases.md`

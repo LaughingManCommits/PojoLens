@@ -1,10 +1,10 @@
 # PojoLens!
-From `List<T>` to query and chart-ready results, without a database.
+From `List<T>` to query-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. Its primary public query surface is SQL-like text over already-loaded Java objects, with a controlled plain-English surface for guided non-SQL authoring. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV, TSV, JSON, and JSONL files into typed rows and shaping flat parent-ID lists before they enter the same engine.
-
-Core execution model:
-`authoring mode -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
+`PojoLens` is a POJO-first in-memory query library for Java. Start with one
+authoring mode, run queries over already-loaded objects, and add reusable
+reports, file loaders, charts, or runtime policy only when the workflow needs
+them.
 
 ## Installation
 
@@ -61,15 +61,10 @@ Runnable example projects:
 - Use SQL-like strings as the default public query surface.
 - Use controlled plain-English queries when authors need guided non-SQL text.
 - Use typed DSL field constants when query logic is owned by Java code.
-- Inspect pushdown-readiness metadata when a host-owned adapter may prefilter
-  or page before materializing rows; PojoLens can finish split execution over
-  those returned rows.
-- Keep query definition and execution in one in-memory engine.
-- Add chart/table/report helpers only when the use case needs them.
-- Keep runtime wiring and tooling optional instead of making them part of the
-  first-read adoption path.
-- Use [docs/advanced-features.md](docs/advanced-features.md) only after the
-  core query path is already in place.
+- Reuse the same engine for filtering, ordering, grouping, joins, bounded
+  subqueries, windows, `QUALIFY`, and chart/table output mapping.
+- Add reusable reports, runtime policy, or boundary loaders only when the core
+  query path is already clear.
 
 ## When Not To Use PojoLens
 
@@ -86,30 +81,7 @@ Runnable example projects:
 - Use object-mapping libraries when the goal is DTO/entity conversion rather
   than querying already-loaded rows.
 
-## Start Here
-
-- Need to choose the default query authoring mode:
-  [docs/entry-points.md](docs/entry-points.md)
-- Need SQL-like grammar, templates, joins, windows, and bounded subqueries:
-  [docs/sql-like.md](docs/sql-like.md)
-- Need the controlled plain-English grammar and recipes:
-  [docs/natural.md](docs/natural.md)
-- Need reusable-contract guidance after the authoring mode is clear:
-  [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
-- Need file-boundary loader guidance for CSV/TSV/JSON/JSONL onboarding:
-  [docs/files.md](docs/files.md)
-- Need build-time metamodel generation or saved-report validation:
-  [docs/build-tooling.md](docs/build-tooling.md)
-- Need chart/table/schema output-helper guidance after the query or reusable
-  contract is clear:
-  [docs/output-helpers.md](docs/output-helpers.md)
-- Need a scenario-driven selection guide:
-  [docs/usecases.md](docs/usecases.md)
-- Need optional runtime tuning, testing, or tooling:
-  [docs/advanced-features.md](docs/advanced-features.md)
-- See what has changed: [CHANGELOG.md](CHANGELOG.md)
-
-## Choose Authoring Mode First
+## Choose A Path
 
 For new code, choose one primary authoring mode first.
 
@@ -117,7 +89,7 @@ For new code, choose one primary authoring mode first.
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Default query authoring over in-memory rows               | `PojoLensSql` (`parse(...)`, `template(...)`)    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Guided text queries for non-SQL users                     | `PojoLensNatural` (`parse(...)`, `template(...)`) | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                       |
-| Code-owned typed filters, joins, grouped aggregates, `HAVING`, windows, bounded subqueries, aggregate window frames, and ordering | `TypedQuery`                               | [docs/entry-points.md](docs/entry-points.md), [docs/metamodel.md](docs/metamodel.md)                   |
+| Code-owned typed filters, joins, grouped aggregates, `HAVING`, windows, bounded subqueries, aggregate window frames, and ordering | `TypedQuery`                               | [docs/entry-points.md](docs/entry-points.md), [docs/typed.md](docs/typed.md), [docs/metamodel.md](docs/metamodel.md) |
 
 Then add only the layer the workflow actually needs:
 
@@ -138,33 +110,10 @@ For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
 For reusable workflows, the defaults are `ReportDefinition` and `SavedReport`;
 chart/table presets remain advanced convenience sugar.
 
-## Product Shape
-
-- `Core query engine`:
-  SQL-like, typed DSL, and controlled plain-English querying over existing Java objects.
-- `Workflow helper`:
-  chart mapping, tree row shaping, reusable report/preset wrappers, dataset
-  composition, and schema metadata.
-- `Compatibility adapter`:
-  boundary-only file loading into typed rows via `PojoLensFiles`.
-- `Integration`:
-  runtime-scoped configuration and optional Spring Boot wiring.
-- `Tooling`:
-  diagnostics, regression helpers, build-time metamodel/query tooling, and
-  benchmarks.
-- `Advanced`:
-  optional policy tuning and faster-evolving public helper surfaces.
-
-Canonical surface classification:
-- [docs/product-surface.md](docs/product-surface.md)
-
-Advanced/optional follow-on guide:
-- [docs/advanced-features.md](docs/advanced-features.md)
-
 ## Quick Start
 
-Short examples for the primary public query paths.
-Broader recipes for joins, grouping, windows, templates, charts, and presets live in the docs linked below.
+Short examples for the primary paths. Broader recipes for joins, grouping,
+windows, templates, charts, and reusable contracts live in the linked docs.
 
 ### SQL-like query
 
@@ -228,165 +177,43 @@ More examples:
   [docs/sql-like.md](docs/sql-like.md)
 - Natural queries, joins, bounded subqueries, windows, and templates:
   [docs/natural.md](docs/natural.md)
+- Typed query joins, grouped aggregates, `HAVING`, windows, `QUALIFY`, and
+  bounded subqueries: [docs/typed.md](docs/typed.md)
 - Tree traversal from flat parent-ID rows: [docs/tree.md](docs/tree.md)
-- Charts, reports, and presets: [docs/charts.md](docs/charts.md), [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
+- Charts, reports, and presets: [docs/output-helpers.md](docs/output-helpers.md),
+  [docs/reports.md](docs/reports.md), [docs/stats-presets.md](docs/stats-presets.md)
 
-## Capability Snapshot
+## Limits And Non-Goals
 
-This README is the feature-set map. Clause grammar, recipes, and edge-case
-rules live in the module docs linked beside each surface.
+- PojoLens is not a database query engine. Use database-native tools when
+  filtering, joining, paging, locking, or aggregating should happen before rows
+  are loaded into memory.
+- SQL-like and natural surfaces are intentionally bounded, not full SQL or
+  free-form language. See
+  [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations)
+  and [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
+- Correlated and scalar subqueries remain text-only; the typed path stays
+  focused on readable code-owned query composition. See
+  [docs/typed.md](docs/typed.md).
 
-### Core query engine
+## Docs
 
-- SQL-like text queries for public query authoring. See
-  [docs/sql-like.md](docs/sql-like.md).
-- Controlled natural query text for guided non-SQL authoring. See
-  [docs/natural.md](docs/natural.md).
-- Derived values, time buckets, pagination, streaming, and repeated-snapshot
-  helpers. See [docs/computed-fields.md](docs/computed-fields.md),
-  [docs/time-buckets.md](docs/time-buckets.md), and
-  [docs/usecases.md](docs/usecases.md).
-- Multi-source execution with typed join bindings and reusable dataset bundles.
-  See [docs/sql-like.md](docs/sql-like.md),
-  [docs/natural.md](docs/natural.md), and [docs/reports.md](docs/reports.md).
-
-### Workflow Helper
-
-- Chart payload mapping, report definitions, chart presets, stats presets,
-  tree row shaping, and tabular schema metadata. See [docs/charts.md](docs/charts.md),
-  [docs/tree.md](docs/tree.md),
-  [docs/reports.md](docs/reports.md),
-  [docs/stats-presets.md](docs/stats-presets.md), and
-  [docs/tabular-schema.md](docs/tabular-schema.md).
-
-### Integration
-
-- Runtime-scoped policy, file-loader defaults, computed fields, and natural
-  vocabulary. See [docs/entry-points.md](docs/entry-points.md),
+- Choosing a path: [docs/entry-points.md](docs/entry-points.md),
+  [docs/usecases.md](docs/usecases.md)
+- Authoring guides: [docs/sql-like.md](docs/sql-like.md),
+  [docs/natural.md](docs/natural.md), [docs/typed.md](docs/typed.md)
+- Reusable contracts and output helpers:
+  [docs/reusable-wrappers.md](docs/reusable-wrappers.md),
+  [docs/reports.md](docs/reports.md), [docs/output-helpers.md](docs/output-helpers.md)
+- File and tree boundaries: [docs/files.md](docs/files.md),
+  [docs/csv.md](docs/csv.md), [docs/tree.md](docs/tree.md)
+- Tooling and policy: [docs/build-tooling.md](docs/build-tooling.md),
+  [docs/metamodel.md](docs/metamodel.md),
   [docs/advanced-features.md](docs/advanced-features.md),
-  and [docs/telemetry.md](docs/telemetry.md).
-- Optional Spring Boot starter and autoconfigure modules. See
-  [docs/modules.md](docs/modules.md).
-
-### Compatibility adapter
-
-- File-boundary loading into typed rows before normal query execution. See
-  [docs/files.md](docs/files.md) and [docs/csv.md](docs/csv.md).
-
-### Tooling
-
-- Snapshot comparison, regression fixtures, metamodel generation, benchmarks,
-  pushdown-readiness metadata, and diagnostics. See [docs/advanced-features.md](docs/advanced-features.md),
-  [docs/snapshot-comparison.md](docs/snapshot-comparison.md),
-  [docs/regression-fixtures.md](docs/regression-fixtures.md),
-  [docs/metamodel.md](docs/metamodel.md), and
-  [docs/benchmarking.md](docs/benchmarking.md).
-
-### Advanced
-
-- Optional policy tuning and faster-evolving public helper surfaces. See
-  [docs/advanced-features.md](docs/advanced-features.md),
-  [docs/caching.md](docs/caching.md), and
-  [docs/reusable-wrappers.md](docs/reusable-wrappers.md).
-
-## Public Surface Layers
-
-- Primary authoring modes:
-  `PojoLensSql`, `PojoLensNatural`, `TypedQuery`
-- Reusable contracts:
-  `ReportDefinition`, `SavedReport`
-- Scoped runtime and integration:
-  `PojoLensRuntime`
-- Boundary and workflow helpers:
-  `PojoLensFiles`, `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `JoinBindings`,
-  `DatasetBundle`, `SqlLikeCursor`, `SnapshotComparison`
-
-Recommended defaults for new code are documented in
-[docs/entry-points.md](docs/entry-points.md).
-
-## Public API Stability
-
-PojoLens uses three API tiers:
-- `Stable`: intended dated-release surface, enforced from the first
-  `release-*` tag onward
-- `Advanced`: public but faster-evolving (best-effort compatibility)
-- `Internal`: no compatibility guarantee (`*.internal.*`)
-
-These tiers are orthogonal to the product-surface families in
-[docs/product-surface.md](docs/product-surface.md):
-- core query engine
-- workflow helper
-- integration
-- compatibility adapters
-- tooling
-- advanced
-
-The explicit stable-surface contract and deprecation policy are documented in
-[docs/public-api-stability.md](docs/public-api-stability.md).
-
-## Runtime Presets
-
-`PojoLensRuntime` includes `DEV`, `PROD`, and `TEST` presets for scoped policy
-defaults. Detailed behavior and override examples live in
-[docs/entry-points.md](docs/entry-points.md) and
-[docs/sql-like.md#recipe-runtime-policy-presets](docs/sql-like.md#recipe-runtime-policy-presets).
-
-## Current Limitations
-
-The README keeps limits at the product-surface level. Detailed limitations live
-with the owning guide.
-
-- SQL-like does not try to be a full SQL engine; subqueries, aggregate ordering,
-  and window frames are intentionally bounded. See
-  [docs/sql-like.md#current-limitations](docs/sql-like.md#current-limitations).
-- Natural queries use controlled grammar, not free-form language; bounded
-  subquery phrases are documented with that grammar. See
-  [docs/natural.md#current-limitations](docs/natural.md#current-limitations).
-- Java builder internals are not the first-read public API; use SQL-like
-  templates or report definitions for reusable public query contracts.
-
-## Documentation Map
-
-### Start Here
-
-- Path selection guide: [docs/usecases.md](docs/usecases.md)
-- Entry point guide: [docs/entry-points.md](docs/entry-points.md)
-- Reusable wrapper guide: [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
-- Advanced features guide: [docs/advanced-features.md](docs/advanced-features.md)
-
-### Core Guides
-
-- File-boundary loader guide: [docs/files.md](docs/files.md)
-- CSV adapter guide: [docs/csv.md](docs/csv.md)
-- Tree traversal guide: [docs/tree.md](docs/tree.md)
-- SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
-- Natural query guide: [docs/natural.md](docs/natural.md)
-- Charts: [docs/charts.md](docs/charts.md)
-- Reports and presets: [docs/reports.md](docs/reports.md)
-- Stats view presets: [docs/stats-presets.md](docs/stats-presets.md)
-- Time buckets: [docs/time-buckets.md](docs/time-buckets.md)
-- Computed fields: [docs/computed-fields.md](docs/computed-fields.md)
-
-### Reference
-
-- Product surface map: [docs/product-surface.md](docs/product-surface.md)
-- Module boundaries: [docs/modules.md](docs/modules.md)
-- Spring/JDBC bridge: [docs/jdbc.md](docs/jdbc.md)
-- Public API stability policy: [docs/public-api-stability.md](docs/public-api-stability.md)
-- Tabular schema: [docs/tabular-schema.md](docs/tabular-schema.md)
-- Migration notes: [MIGRATION.md](MIGRATION.md)
-- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Release workflow: [RELEASE.md](RELEASE.md)
-
-### Advanced Follow-On
-
-- Cache behavior: [docs/caching.md](docs/caching.md)
-- Facet options: [docs/facets.md](docs/facets.md)
-- Telemetry: [docs/telemetry.md](docs/telemetry.md)
-- Regression fixtures: [docs/regression-fixtures.md](docs/regression-fixtures.md)
-- Snapshot comparison: [docs/snapshot-comparison.md](docs/snapshot-comparison.md)
-- Field metamodel generation: [docs/metamodel.md](docs/metamodel.md)
-- Benchmarking and guardrails: [docs/benchmarking.md](docs/benchmarking.md)
+  [docs/public-api-stability.md](docs/public-api-stability.md)
+- Reference: [docs/modules.md](docs/modules.md),
+  [docs/product-surface.md](docs/product-surface.md), [MIGRATION.md](MIGRATION.md),
+  [CHANGELOG.md](CHANGELOG.md)
 
 ## Development
 
