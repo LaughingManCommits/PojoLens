@@ -27,6 +27,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
 | WP24| Typed DSL Advanced Analytics                 | Completed | Typed `HAVING`, windows, bounded subqueries, `QUALIFY`, and aggregate window frames now share one `TypedQuery`/`TypedPredicate` story |
+| WP26| Typed Authoring Compiler Integration         | Pending | Compiler-integrated typed field generation and IDE-visible completion without Lombok-style AST rewriting |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
@@ -184,6 +185,42 @@ aggregation foundation is stable.
 **Validate:**
 - `mvn -B -ntp test`
 - `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+
+---
+
+## WP26: Typed Authoring Compiler Integration
+
+**Priority:** High
+**Goal:** Make typed authoring feel closer to Lombok-style ergonomics by
+generating typed field constants automatically at compile time, using the
+existing metamodel generator instead of handwritten driver code or AST
+rewriting.
+
+**Context:**
+- `FieldMetamodelGenerator` already produces deterministic typed constants and
+  generated source files.
+- The current docs still describe metamodel generation as library-level
+  tooling rather than compiler-driven generation.
+- The useful part is compiler-integrated source generation plus
+  IDE-visible completion, not Java syntax transformation.
+- This should complement `docs/typed.md` and `docs/metamodel.md` without
+  creating a new public query surface.
+
+**Tasks:**
+- [ ] Decide the first-party delivery shape: annotation processor,
+      Maven/Gradle plugin, or a staged combination.
+- [ ] Wrap the existing metamodel generator so typed constants can be emitted
+      automatically during compilation.
+- [ ] Wire generated sources into build examples so IDE completion works
+      without manual driver code.
+- [ ] Keep the library generator as the documented fallback, with no AST
+      rewriting or Lombok-style syntax expansion.
+- [ ] Add docs and regression coverage for the generated-source workflow and
+      compiler diagnostics.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `scripts/check-doc-consistency.ps1`
 
 ---
 

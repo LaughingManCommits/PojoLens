@@ -3,7 +3,7 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow the dependency-ordered roadmap in `TODO.md`: WP18.
+3. Follow the dependency-ordered roadmap in `TODO.md`: WP26.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` when requested.
 
 ## Focus
@@ -15,7 +15,7 @@
 ## Facts
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
-- `2026-04-29`: `TODO.md` order is WP18, then `Release Gate`.
+- `2026-04-29`: `TODO.md` order is WP26, then WP18, then Release Gate.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 - `2026-04-29`: WP23 outcome: typed joins reuse `JoinBindings` and `DatasetBundle`; grouped queries stay on `TypedQuery` via `groupBy(...)`, `count(...)`, and `metric(...)`; aggregate aliases drive `orderBy(...)` / `orderByDesc(...)`; parity includes joined-grouped SQL-like coverage.
 - `2026-04-29`: WP24 outcome: typed `having(...)` only accepts grouped-output predicates; windows reuse `window(...)` / `windowCountAll(...)` plus `TypedWindowOrder`; frames reuse `QueryWindowFrame`; bounded `IN` / `EXISTS` / `NOT EXISTS` reuse the grouped predicate path; correlated/scalar subqueries stay text-only by design.

@@ -25,5 +25,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-04-29`: Roadmap order is WP18 -> Release Gate.
-- `2026-04-29`: Next roadmap item is WP18 JDK 25 runtime knob evaluation.
+- `2026-04-29`: Roadmap order is WP26 -> WP18 -> Release Gate.
+- `2026-04-29`: Next roadmap item is WP26 Typed Authoring Compiler Integration.

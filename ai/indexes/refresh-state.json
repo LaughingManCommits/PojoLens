@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-29T20:22:29.103398+02:00",
+  "generatedAt": "2026-04-29T21:12:26.090839+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "1bd109f346ce8852e2cd7a9f51f26c6eb964b6c5b01cd1caf4684b7947d76407",
+      "inputHash": "93b45be8449000b56eebffbd309be0d55dfcd4f53aa49be9125ad428b61738f1",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -24,8 +24,8 @@
         "ai/orchestrator/README.md": "bf429de83c0d4fb2f5f5ae353aa550f7c922def1e3db137624937fa5e6b75a8e",
         "ai/orchestrator/SYSTEM-SPEC.md": "8afde18e946c5393744b13a5b47bfa61587c01f5e448129238592d8df7683251",
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
-        "ai/state/current-state.md": "1a40b11ba4f2c72a49fa51707fc75f0efdae4be7cd9eef88878536532454520a",
-        "ai/state/handoff.md": "89ae86b4f56144956e1057f4f6063aa3ae4b7bc437c04c61a45c0d5afc949d87",
+        "ai/state/current-state.md": "0ef669f1960feb50d8c0252b21cb83767a209f31a2f7aeb81da2ffbe049982bb",
+        "ai/state/handoff.md": "f7eb3dd1264989637756a946af0f546df88e26fdbcf068fd1420c8211d771f16",
         "ai/state/recent-validations.md": "3b511b436c7be2ecbbab21afafe2747e954bf9452a31ded04c96d0926023e17e",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -39,9 +39,9 @@
         "docs/facets.md": "fd2c4fd215dbf20c46661d0b9ed1e947ce6d76792ac2b4cf1e671183cb53d3e5",
         "docs/files.md": "569dc0d5d3f8071dd8a08fce2fffe14a32af76c5fec7247273e8fbd6458da0c5",
         "docs/internal-fluent-engine.md": "c2c68e365d5c89305b707bdb142fee88caba050a786b4b0e10c2915c6b2517ad",
-        "docs/jdbc.md": "cecd8e2f19ab396f084b2cd6661e9f908dfb84f6ad495d0f4da4f3cdc81548f5",
+        "docs/jdbc.md": "dd077698bb086ea99474ee116361b799f29d42a2a88b55281c9b5606fa66f5d7",
         "docs/metamodel.md": "15c9b5b5a14000e97d52556d7545e1d79dbc855daed9e8a9c28bb9f6ddb3a236",
-        "docs/modules.md": "5042d406867d55f1746d02faf5ca936d019141e256c4d3215adc3173510914be",
+        "docs/modules.md": "5b03d5d853a75a6fb85ef3a2606e5b432351833cb9ff3274e23e323a3b3ce732",
         "docs/natural.md": "3ac64e97d0ea8139814b67f0f54161d30b756b3e499dacb53b8c2793bb29ef65",
         "docs/output-helpers.md": "c79d5b93e5154bab8e49b97e5737aa419322daee0a9c58e01702dbfdc51a0bd3",
         "docs/product-surface.md": "e0cc52bad566784deadcbc62e759018baa8e77b09120ec1ccf83d9a88499bda5",
@@ -61,15 +61,15 @@
         "docs/usecases.md": "202ed0d63caf06fa2497e7af5c63a98151d0d4ad2fdf99a620ab3cab972043c3",
         "MAINTENANCE.md": "ec9c73a49316f2f026cc7bb6e1607539e1bd9d56137eb397a9b7b5a478b4e611",
         "MIGRATION.md": "70b0a18a79bb3786cfa060097b5587fab540ab24f7d401593d76b3e9da30c628",
-        "README.md": "afea4f5b1dbf8d2d44e946efc9291184ab3b09165935ec0efc869f1337a0e9b1",
-        "RELEASE.md": "56c2256e8618857342265f99991abf0936f1da21b5244831837e9887d56458d9",
+        "README.md": "5991f841f1b11106c05e838783b99d825bd3861d189f09f6d9b0b0cb1f4a3643",
+        "RELEASE.md": "3f1f665ffa11b135a967bf55156e29357e33851dc1de67db82b6ec859fd21412",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "95ad5a60354e7ce724b6e5b4cb17c6047776839c92410aaa0e0e68933a8783ac"
+        "TODO.md": "c677b5796af9367519f925f4c173e1452827e2291bb7491ab9ee8db9212e3b2d"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "439de16b1c7c2540945024a6d3e866564fff919f3e54ca17e1de62314b34ce7e",
+      "inputHash": "ec6bd910c95051bf189bee7cabd2c1e64c0c8e0b590d0c55b7553c4a29c5b3e2",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -95,8 +95,8 @@
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
-        "ai/state/current-state.md": "1a40b11ba4f2c72a49fa51707fc75f0efdae4be7cd9eef88878536532454520a",
-        "ai/state/handoff.md": "89ae86b4f56144956e1057f4f6063aa3ae4b7bc437c04c61a45c0d5afc949d87",
+        "ai/state/current-state.md": "0ef669f1960feb50d8c0252b21cb83767a209f31a2f7aeb81da2ffbe049982bb",
+        "ai/state/handoff.md": "f7eb3dd1264989637756a946af0f546df88e26fdbcf068fd1420c8211d771f16",
         "ai/state/recent-validations.md": "3b511b436c7be2ecbbab21afafe2747e954bf9452a31ded04c96d0926023e17e",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -110,9 +110,9 @@
         "docs/facets.md": "fd2c4fd215dbf20c46661d0b9ed1e947ce6d76792ac2b4cf1e671183cb53d3e5",
         "docs/files.md": "569dc0d5d3f8071dd8a08fce2fffe14a32af76c5fec7247273e8fbd6458da0c5",
         "docs/internal-fluent-engine.md": "c2c68e365d5c89305b707bdb142fee88caba050a786b4b0e10c2915c6b2517ad",
-        "docs/jdbc.md": "cecd8e2f19ab396f084b2cd6661e9f908dfb84f6ad495d0f4da4f3cdc81548f5",
+        "docs/jdbc.md": "dd077698bb086ea99474ee116361b799f29d42a2a88b55281c9b5606fa66f5d7",
         "docs/metamodel.md": "15c9b5b5a14000e97d52556d7545e1d79dbc855daed9e8a9c28bb9f6ddb3a236",
-        "docs/modules.md": "5042d406867d55f1746d02faf5ca936d019141e256c4d3215adc3173510914be",
+        "docs/modules.md": "5b03d5d853a75a6fb85ef3a2606e5b432351833cb9ff3274e23e323a3b3ce732",
         "docs/natural.md": "3ac64e97d0ea8139814b67f0f54161d30b756b3e499dacb53b8c2793bb29ef65",
         "docs/output-helpers.md": "c79d5b93e5154bab8e49b97e5737aa419322daee0a9c58e01702dbfdc51a0bd3",
         "docs/product-surface.md": "e0cc52bad566784deadcbc62e759018baa8e77b09120ec1ccf83d9a88499bda5",
@@ -549,15 +549,15 @@
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterSmokeIntegrationTest.java": "a2221adea49e8e2ddd5df8083b0ca90dab40a160bb3c9c615d316bddd0b2485a",
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterVirtualThreadsIntegrationTest.java": "cd307a8bbd49b2be3713234db9db0f2c8a5cbcf6cf51bc8ce430838f5fa922c8",
         "pom.xml": "2f7b8644a2249fb7533672198b180eae994b2ef6a5f2754e5e569fd225ff6a8f",
-        "README.md": "afea4f5b1dbf8d2d44e946efc9291184ab3b09165935ec0efc869f1337a0e9b1",
-        "RELEASE.md": "56c2256e8618857342265f99991abf0936f1da21b5244831837e9887d56458d9",
+        "README.md": "5991f841f1b11106c05e838783b99d825bd3861d189f09f6d9b0b0cb1f4a3643",
+        "RELEASE.md": "3f1f665ffa11b135a967bf55156e29357e33851dc1de67db82b6ec859fd21412",
         "scripts/benchmark-ai-memory.ps1": "ef74fe5ac4dd9abeca7b3c1ced18fcaf8061c6d4242d361c2c00c71a9d490c4f",
         "scripts/benchmark-ai-memory.py": "5dca8a7c3b0cd47302b593c33aa8728c5651be2a44d8dd9e8d302e60fed6ea39",
         "scripts/claude-orchestrator.ps1": "826a325ef42a6740338caec0d5648a4be29711b7542b935bf907c12c92915a34",
         "scripts/claude-orchestrator.py": "3a1a3079428358d12fbc1e2a523499fdffaaa00269d283643f1c1c99f203fa6f",
         "scripts/refresh-ai-memory.ps1": "3ac853f1e5e0e2fd29a2b1fe3d5883610e5c35da9dc1187e31b1c088fda129d9",
         "scripts/refresh-ai-memory.py": "dad4728a2953f162014806049e3062995a714f79c7912ac0970cbfe0a0f94489",
-        "TODO.md": "95ad5a60354e7ce724b6e5b4cb17c6047776839c92410aaa0e0e68933a8783ac"
+        "TODO.md": "c677b5796af9367519f925f4c173e1452827e2291bb7491ab9ee8db9212e3b2d"
       }
     },
     "symbols": {
