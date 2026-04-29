@@ -22,6 +22,7 @@ import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.metamodel.MetamodelBatchGenerator;
 import laughing.man.commits.metamodel.MetamodelGenerationResult;
 import laughing.man.commits.report.ReportDefinition;
@@ -39,6 +40,8 @@ import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
 import laughing.man.commits.tooling.SavedReportCatalogValidator;
 import laughing.man.commits.tooling.SavedReportValidationResult;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
@@ -64,6 +67,7 @@ import java.util.List;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -446,6 +450,38 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals("Engineering", rows.get(0).department);
         assertEquals("Cara", rows.get(0).name);
         assertEquals(1L, rows.get(0).rn);
+    }
+
+    @Test
+    public void typedQueryShouldSupportBoundedWindowFramesFromPublicApi() {
+        TypedField<WindowMetricInput, String> department = TypedField.of("department", String.class);
+        TypedField<WindowMetricInput, Integer> seq = TypedField.of("seq", Integer.class);
+        TypedField<WindowMetricInput, Integer> amount = TypedField.of("amount", Integer.class);
+        TypedField<WindowMetricProjection, Long> runningSum = TypedField.of("runningSum", Long.class);
+        TypedField<WindowMetricProjection, Long> runningCountAll = TypedField.of("runningCountAll", Long.class);
+
+        List<String> rows = TypedQuery.from(WindowMetricInput.class)
+                .window(WindowFunction.SUM, amount, runningSum,
+                        QueryWindowFrame.rowsPrecedingToCurrentRow(1),
+                        List.of(TypedWindowOrder.asc(seq)), department)
+                .windowCountAll(runningCountAll,
+                        QueryWindowFrame.rowsPrecedingToCurrentRow(1),
+                        List.of(TypedWindowOrder.asc(seq)), department)
+                .orderBy(department)
+                .orderBy(seq)
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        assertEquals(List.of(
+                "A:1:10:1",
+                "A:2:10:2",
+                "A:3:5:2",
+                "B:1:2:1",
+                "B:2:5:2",
+                "C:1:null:1"
+        ), rows);
     }
 
     @Test

@@ -29,6 +29,7 @@ import laughing.man.commits.files.JsonLoadException;
 import laughing.man.commits.files.JsonLoadReport;
 import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
@@ -568,11 +569,21 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "window",
                 WindowFunction.class, TypedField.class, String.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, String.class, QueryWindowFrame.class,
+                List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
                 WindowFunction.class, TypedField.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, TypedField.class, QueryWindowFrame.class,
+                List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
                 String.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
+                String.class, QueryWindowFrame.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
                 TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                TypedField.class, QueryWindowFrame.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
@@ -606,6 +617,16 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(TypedWindowOrder.class, "desc", TypedField.class);
         requirePublicMethod(TypedWindowOrder.class, "fieldName");
         requirePublicMethod(TypedWindowOrder.class, "sort");
+        requirePublicStaticMethod(QueryWindowFrame.class, "running");
+        requirePublicStaticMethod(QueryWindowFrame.class, "unboundedPrecedingToCurrentRow");
+        requirePublicStaticMethod(QueryWindowFrame.class, "rowsPrecedingToCurrentRow", int.class);
+        requirePublicStaticMethod(QueryWindowFrame.class, "fullPartition");
+        requirePublicMethod(QueryWindowFrame.class, "isRunning");
+        requirePublicMethod(QueryWindowFrame.class, "boundedPreceding");
+        requirePublicMethod(QueryWindowFrame.class, "precedingRows");
+        requirePublicMethod(QueryWindowFrame.class, "isFullPartition");
+        requirePublicMethod(QueryWindowFrame.class, "sqlExpression");
+        requirePublicMethod(QueryWindowFrame.class, "explainToken");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
@@ -87,11 +88,21 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "window",
                 WindowFunction.class, TypedField.class, String.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, String.class, QueryWindowFrame.class,
+                List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
                 WindowFunction.class, TypedField.class, TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "window",
+                WindowFunction.class, TypedField.class, TypedField.class, QueryWindowFrame.class,
+                List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
                 String.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "windowCountAll",
+                String.class, QueryWindowFrame.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
                 TypedField.class, List.class, TypedField[].class);
+        requirePublicMethod(TypedQuery.class, "windowCountAll",
+                TypedField.class, QueryWindowFrame.class, List.class, TypedField[].class);
         requirePublicMethod(TypedQuery.class, "qualify", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
@@ -133,6 +144,16 @@ public class TypedQueryContractTest {
         requirePublicStaticMethod(TypedWindowOrder.class, "desc", TypedField.class);
         requirePublicMethod(TypedWindowOrder.class, "fieldName");
         requirePublicMethod(TypedWindowOrder.class, "sort");
+        requirePublicStaticMethod(QueryWindowFrame.class, "running");
+        requirePublicStaticMethod(QueryWindowFrame.class, "unboundedPrecedingToCurrentRow");
+        requirePublicStaticMethod(QueryWindowFrame.class, "rowsPrecedingToCurrentRow", int.class);
+        requirePublicStaticMethod(QueryWindowFrame.class, "fullPartition");
+        requirePublicMethod(QueryWindowFrame.class, "isRunning");
+        requirePublicMethod(QueryWindowFrame.class, "boundedPreceding");
+        requirePublicMethod(QueryWindowFrame.class, "precedingRows");
+        requirePublicMethod(QueryWindowFrame.class, "isFullPartition");
+        requirePublicMethod(QueryWindowFrame.class, "sqlExpression");
+        requirePublicMethod(QueryWindowFrame.class, "explainToken");
     }
 
     // --- Execution behavior ---
@@ -573,6 +594,68 @@ public class TypedQueryContractTest {
                         + "rows between unbounded preceding and current row) as runningSum, "
                         + "count(*) over (partition by department order by seq asc "
                         + "rows between unbounded preceding and current row) as runningCountAll "
+                        + "order by department asc, seq asc")
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedBoundedAggregateWindowsShouldMatchEquivalentSqlLikeExecution() {
+        QueryWindowFrame onePreceding = QueryWindowFrame.rowsPrecedingToCurrentRow(1);
+
+        List<String> typedRows = TypedQuery.from(WindowMetricInput.class)
+                .window(WindowFunction.SUM, WINDOW_AMOUNT, RUNNING_SUM,
+                        onePreceding, List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .windowCountAll(RUNNING_COUNT_ALL,
+                        onePreceding, List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .orderBy(WINDOW_DEPT)
+                .orderBy(WINDOW_SEQ)
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningSum, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between 1 preceding and current row) as runningCountAll "
+                        + "order by department asc, seq asc")
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedFullPartitionAggregateWindowsShouldMatchEquivalentSqlLikeExecution() {
+        QueryWindowFrame fullPartition = QueryWindowFrame.fullPartition();
+
+        List<String> typedRows = TypedQuery.from(WindowMetricInput.class)
+                .window(WindowFunction.SUM, WINDOW_AMOUNT, RUNNING_SUM,
+                        fullPartition, List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .windowCountAll(RUNNING_COUNT_ALL,
+                        fullPartition, List.of(TypedWindowOrder.asc(WINDOW_SEQ)), WINDOW_DEPT)
+                .orderBy(WINDOW_DEPT)
+                .orderBy(WINDOW_SEQ)
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, seq, amount, "
+                        + "sum(amount) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningSum, "
+                        + "count(*) over (partition by department order by seq asc "
+                        + "rows between unbounded preceding and unbounded following) as runningCountAll "
                         + "order by department asc, seq asc")
                 .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
                 .stream()

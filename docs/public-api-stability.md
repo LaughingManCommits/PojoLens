@@ -190,11 +190,12 @@ The default first-read story is SQL-like first:
   - `executionGuard`, `filter`, `explain`, `schema`
   - current stable foundation covers projection, filters, join declarations,
     `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
-    `HAVING` over grouped fields and metric aliases, rank/running window
-    outputs, `QUALIFY` over selected window aliases, totals-style metrics,
+    `HAVING` over grouped fields and metric aliases, rank windows, aggregate
+    window outputs, `QUALIFY` over selected window aliases, totals-style
+    metrics, explicit aggregate window frames via `QueryWindowFrame`,
     ordering, offset, limit, explain/schema, and
     row-scan/row-return/duration/cancellation guard checks
-  - bounded typed window-frame configuration and typed subqueries are deferred
+  - typed subqueries are deferred
 - `TypedWindowOrder`:
   - `asc`, `desc`, `fieldName`, `sort`
 - `FieldMetamodelGenerator.generateTyped(...)`
@@ -223,6 +224,8 @@ The default first-read story is SQL-like first:
     `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
+- shared window-frame descriptor:
+  - `QueryWindowFrame` (`internal.builder` package retained for compatibility)
 - chart contracts:
   - `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType`
 

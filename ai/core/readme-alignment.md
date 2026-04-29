@@ -19,6 +19,6 @@
 
 - `WP24` is still the next competitive/docs-adjacent gap, but the remaining
   boundary is narrower now: the typed surface has joins, grouped aggregates,
-  grouped `HAVING`, and rank/default-running windows with `QUALIFY`; bounded
-  window-frame configuration and typed subquery/existence composition are still
-  deferred to SQL-like or natural entry points.
+  grouped `HAVING`, rank windows, aggregate window frames, and `QUALIFY`;
+  typed subquery/existence composition is still deferred to SQL-like or
+  natural entry points.

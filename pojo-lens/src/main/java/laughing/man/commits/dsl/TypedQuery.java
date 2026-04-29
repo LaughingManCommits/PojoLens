@@ -9,6 +9,7 @@ import laughing.man.commits.enums.WindowFunction;
 import laughing.man.commits.filter.Filter;
 import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -42,8 +43,10 @@ import java.util.Objects;
  *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
  *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
  *       {@code isNotNull}) instead.</li>
- *   <li>Typed bounded window-frame configuration and typed subqueries are not
- *       part of this foundation surface.</li>
+ *   <li>Typed subqueries are not part of this foundation surface.</li>
+ *   <li>Explicit window-frame configuration is available only for aggregate
+ *       windows and {@code COUNT(*)}; rank windows keep their default
+ *       semantics.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
@@ -214,6 +217,16 @@ public final class TypedQuery<T> {
                                           String alias,
                                           List<TypedWindowOrder> orderFields,
                                           TypedField<?, ?>... partitionFields) {
+        return window(function, valueField, alias, QueryWindowFrame.running(), orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final <V> TypedQuery<T> window(WindowFunction function,
+                                          TypedField<?, V> valueField,
+                                          String alias,
+                                          QueryWindowFrame frame,
+                                          List<TypedWindowOrder> orderFields,
+                                          TypedField<?, ?>... partitionFields) {
         Objects.requireNonNull(function, "function must not be null");
         Objects.requireNonNull(valueField, "valueField must not be null");
         if (!function.isAggregateFunction()) {
@@ -228,7 +241,8 @@ public final class TypedQuery<T> {
             );
         }
         return addWindow(TypedWindow.value(function, valueField.fieldName(), normalizeAlias(alias),
-                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields),
+                normalizedWindowFrame(frame)));
     }
 
     @SafeVarargs
@@ -242,11 +256,31 @@ public final class TypedQuery<T> {
     }
 
     @SafeVarargs
+    public final <V> TypedQuery<T> window(WindowFunction function,
+                                          TypedField<?, V> valueField,
+                                          TypedField<?, ?> outputField,
+                                          QueryWindowFrame frame,
+                                          List<TypedWindowOrder> orderFields,
+                                          TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return window(function, valueField, outputField.fieldName(), frame, orderFields, partitionFields);
+    }
+
+    @SafeVarargs
     public final TypedQuery<T> windowCountAll(String alias,
                                               List<TypedWindowOrder> orderFields,
                                               TypedField<?, ?>... partitionFields) {
+        return windowCountAll(alias, QueryWindowFrame.running(), orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> windowCountAll(String alias,
+                                              QueryWindowFrame frame,
+                                              List<TypedWindowOrder> orderFields,
+                                              TypedField<?, ?>... partitionFields) {
         return addWindow(TypedWindow.countAll(normalizeAlias(alias),
-                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields)));
+                partitionFieldNames(partitionFields), normalizedWindowOrders(orderFields),
+                normalizedWindowFrame(frame)));
     }
 
     @SafeVarargs
@@ -255,6 +289,15 @@ public final class TypedQuery<T> {
                                               TypedField<?, ?>... partitionFields) {
         Objects.requireNonNull(outputField, "outputField must not be null");
         return windowCountAll(outputField.fieldName(), orderFields, partitionFields);
+    }
+
+    @SafeVarargs
+    public final TypedQuery<T> windowCountAll(TypedField<?, ?> outputField,
+                                              QueryWindowFrame frame,
+                                              List<TypedWindowOrder> orderFields,
+                                              TypedField<?, ?>... partitionFields) {
+        Objects.requireNonNull(outputField, "outputField must not be null");
+        return windowCountAll(outputField.fieldName(), frame, orderFields, partitionFields);
     }
 
     public TypedQuery<T> qualify(TypedPredicate<?> predicate) {
@@ -614,7 +657,8 @@ public final class TypedQuery<T> {
                     window.valueField(),
                     window.countAll(),
                     window.partitionFields(),
-                    queryOrders
+                    queryOrders,
+                    window.frame()
             );
         }
     }
@@ -775,6 +819,10 @@ public final class TypedQuery<T> {
         return List.copyOf(normalized);
     }
 
+    private static QueryWindowFrame normalizedWindowFrame(QueryWindowFrame frame) {
+        return Objects.requireNonNull(frame, "frame must not be null");
+    }
+
     private static boolean isNumericType(Class<?> type) {
         if (type == null) {
             return false;
@@ -899,27 +947,31 @@ public final class TypedQuery<T> {
                                boolean countAll,
                                String alias,
                                List<String> partitionFields,
-                               List<TypedWindowOrder> orderFields) {
+                               List<TypedWindowOrder> orderFields,
+                               QueryWindowFrame frame) {
 
         private static TypedWindow rank(WindowFunction function,
                                         String alias,
                                         List<String> partitionFields,
                                         List<TypedWindowOrder> orderFields) {
-            return new TypedWindow(function, null, false, alias, partitionFields, orderFields);
+            return new TypedWindow(function, null, false, alias, partitionFields, orderFields,
+                    QueryWindowFrame.running());
         }
 
         private static TypedWindow value(WindowFunction function,
                                          String valueField,
                                          String alias,
                                          List<String> partitionFields,
-                                         List<TypedWindowOrder> orderFields) {
-            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields);
+                                         List<TypedWindowOrder> orderFields,
+                                         QueryWindowFrame frame) {
+            return new TypedWindow(function, valueField, false, alias, partitionFields, orderFields, frame);
         }
 
         private static TypedWindow countAll(String alias,
                                             List<String> partitionFields,
-                                            List<TypedWindowOrder> orderFields) {
-            return new TypedWindow(WindowFunction.COUNT, null, true, alias, partitionFields, orderFields);
+                                            List<TypedWindowOrder> orderFields,
+                                            QueryWindowFrame frame) {
+            return new TypedWindow(WindowFunction.COUNT, null, true, alias, partitionFields, orderFields, frame);
         }
     }
 }

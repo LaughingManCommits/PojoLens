@@ -153,11 +153,12 @@ List<DepartmentRank> rows = TypedQuery.from(Employee.class)
 
 The current typed DSL foundation covers projection, filters, join
 declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
-grouped `HAVING` over grouped fields and metric aliases, rank/running window
-outputs, `QUALIFY` over selected window aliases, totals-style metrics,
-ordering, offset, limit, explain, schema, and execution guards. Keep SQL-like
-or natural queries for bounded window frames, subqueries, and user-authored
-query text until those typed shapes are stabilized.
+grouped `HAVING` over grouped fields and metric aliases, rank windows,
+aggregate window outputs, `QUALIFY` over selected window aliases,
+totals-style metrics, explicit aggregate window frames via `QueryWindowFrame`,
+ordering, offset, limit, explain, schema, and execution guards. Keep
+SQL-like or natural queries for typed subqueries and user-authored query text
+until those shapes are stabilized.
 
 ## Batch Generation
 
