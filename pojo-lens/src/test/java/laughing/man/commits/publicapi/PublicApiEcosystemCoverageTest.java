@@ -404,6 +404,23 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     }
 
     @Test
+    public void typedQueryShouldSupportHavingOverGroupedOutputFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<DepartmentCount, Long> total = TypedField.of("total", Long.class);
+
+        List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+                .groupBy(department)
+                .count(total)
+                .having(total.gte(2L))
+                .orderByDesc(total)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(3L, rows.get(0).total);
+    }
+
+    @Test
     public void telemetryHooksShouldBeUsableFromPublicApi() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
 

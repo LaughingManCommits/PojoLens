@@ -141,9 +141,10 @@ List<DepartmentCount> rows = TypedQuery.from(Employee.class)
 
 The current typed DSL foundation covers projection, filters, join
 declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
-totals-style metrics, ordering, offset, limit, explain, schema, and execution
-guards. Keep SQL-like or natural queries for `HAVING`, windows, subqueries,
-and user-authored query text until those typed shapes are stabilized.
+grouped `HAVING` over grouped fields and metric aliases, totals-style metrics,
+ordering, offset, limit, explain, schema, and execution guards. Keep SQL-like
+or natural queries for windows, subqueries, and user-authored query text until
+those typed shapes are stabilized.
 
 ## Batch Generation
 

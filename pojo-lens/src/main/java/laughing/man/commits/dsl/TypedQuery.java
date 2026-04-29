@@ -40,7 +40,7 @@ import java.util.Objects;
  *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
  *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
  *       {@code isNotNull}) instead.</li>
- *   <li>Typed HAVING, windows, and subqueries are not part of this foundation surface.</li>
+ *   <li>Typed windows and subqueries are not part of this foundation surface.</li>
  * </ul>
  */
 public final class TypedQuery<T> {
@@ -53,6 +53,7 @@ public final class TypedQuery<T> {
     private final List<TypedJoin> joins;
     private final List<String> groupByFieldNames;
     private final List<TypedMetric> metrics;
+    private final TypedPredicate<?> havingPredicate;
     private final List<String> orderByFieldNames;
     private final Sort sortDirection;
     private final int limit;
@@ -65,6 +66,7 @@ public final class TypedQuery<T> {
                        List<TypedJoin> joins,
                        List<String> groupByFieldNames,
                        List<TypedMetric> metrics,
+                       TypedPredicate<?> havingPredicate,
                        List<String> orderByFieldNames,
                        Sort sortDirection,
                        int limit,
@@ -76,6 +78,7 @@ public final class TypedQuery<T> {
         this.joins = List.copyOf(joins);
         this.groupByFieldNames = List.copyOf(groupByFieldNames);
         this.metrics = List.copyOf(metrics);
+        this.havingPredicate = havingPredicate;
         this.orderByFieldNames = List.copyOf(orderByFieldNames);
         this.sortDirection = sortDirection;
         this.limit = limit;
@@ -88,7 +91,7 @@ public final class TypedQuery<T> {
     public static <T> TypedQuery<T> from(Class<T> entityClass) {
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         return new TypedQuery<>(entityClass, List.of(), null, List.of(), List.of(), List.of(),
-                List.of(), Sort.ASC, UNSET, UNSET, null);
+                null, List.of(), Sort.ASC, UNSET, UNSET, null);
     }
 
     // --- Fluent configuration ---
@@ -97,13 +100,13 @@ public final class TypedQuery<T> {
     public final TypedQuery<T> select(TypedField<T, ?>... fields) {
         Objects.requireNonNull(fields, "fields must not be null");
         return new TypedQuery<>(entityClass, List.of(fields), wherePredicate, joins, groupByFieldNames, metrics,
-                orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> where(TypedPredicate<T> predicate) {
         Objects.requireNonNull(predicate, "predicate must not be null");
         return new TypedQuery<>(entityClass, selectFields, predicate, joins, groupByFieldNames, metrics,
-                orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public <J, K> TypedQuery<T> join(String sourceName,
@@ -121,7 +124,7 @@ public final class TypedQuery<T> {
                 joinType
         ));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, updated, groupByFieldNames, metrics,
-                orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> groupBy(TypedField<T, ?> field) {
@@ -129,14 +132,15 @@ public final class TypedQuery<T> {
         List<String> updated = new ArrayList<>(groupByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                updated, metrics, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                updated, metrics, havingPredicate, orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> count(String alias) {
         ArrayList<TypedMetric> updated = new ArrayList<>(metrics);
         updated.add(TypedMetric.count(normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, updated, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                groupByFieldNames, updated, havingPredicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> count(TypedField<?, ?> outputField) {
@@ -150,7 +154,8 @@ public final class TypedQuery<T> {
         ArrayList<TypedMetric> updated = new ArrayList<>(metrics);
         updated.add(TypedMetric.of(field.fieldName(), metric, normalizeAlias(alias)));
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, updated, orderByFieldNames, sortDirection, limit, offset, executionGuard);
+                groupByFieldNames, updated, havingPredicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
     }
 
     public <V> TypedQuery<T> metric(TypedField<T, V> field, Metric metric, TypedField<?, ?> outputField) {
@@ -158,12 +163,19 @@ public final class TypedQuery<T> {
         return metric(field, metric, outputField.fieldName());
     }
 
+    public TypedQuery<T> having(TypedPredicate<?> predicate) {
+        Objects.requireNonNull(predicate, "predicate must not be null");
+        return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
+                groupByFieldNames, metrics, predicate, orderByFieldNames,
+                sortDirection, limit, offset, executionGuard);
+    }
+
     public TypedQuery<T> orderBy(TypedField<?, ?> field) {
         Objects.requireNonNull(field, "field must not be null");
         List<String> updated = new ArrayList<>(orderByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, updated, Sort.ASC, limit, offset, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, updated, Sort.ASC, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> orderByDesc(TypedField<?, ?> field) {
@@ -171,7 +183,7 @@ public final class TypedQuery<T> {
         List<String> updated = new ArrayList<>(orderByFieldNames);
         updated.add(field.fieldName());
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, updated, Sort.DESC, limit, offset, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, updated, Sort.DESC, limit, offset, executionGuard);
     }
 
     public TypedQuery<T> limit(int n) {
@@ -179,7 +191,8 @@ public final class TypedQuery<T> {
             throw new IllegalArgumentException("limit must be >= 0, got: " + n);
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, orderByFieldNames, sortDirection, n, offset, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                sortDirection, n, offset, executionGuard);
     }
 
     public TypedQuery<T> offset(int n) {
@@ -187,13 +200,15 @@ public final class TypedQuery<T> {
             throw new IllegalArgumentException("offset must be >= 0, got: " + n);
         }
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, orderByFieldNames, sortDirection, limit, n, executionGuard);
+                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                sortDirection, limit, n, executionGuard);
     }
 
     public TypedQuery<T> executionGuard(QueryExecutionGuard guard) {
         Objects.requireNonNull(guard, "guard must not be null");
         return new TypedQuery<>(entityClass, selectFields, wherePredicate, joins,
-                groupByFieldNames, metrics, orderByFieldNames, sortDirection, limit, offset, guard);
+                groupByFieldNames, metrics, havingPredicate, orderByFieldNames,
+                sortDirection, limit, offset, guard);
     }
 
     // --- Accessors ---
@@ -208,6 +223,10 @@ public final class TypedQuery<T> {
 
     public TypedPredicate<T> wherePredicate() {
         return wherePredicate;
+    }
+
+    public TypedPredicate<?> havingPredicate() {
+        return havingPredicate;
     }
 
     public List<String> orderByFieldNames() {
@@ -232,6 +251,10 @@ public final class TypedQuery<T> {
 
     public boolean hasWhere() {
         return wherePredicate != null;
+    }
+
+    public boolean hasHaving() {
+        return havingPredicate != null;
     }
 
     public boolean hasOrderBy() {
@@ -412,6 +435,7 @@ public final class TypedQuery<T> {
         applyWhere(builder);
         applyGroupBy(builder);
         applyMetrics(builder);
+        applyHaving(builder);
         applyOrderBy(builder);
         applyLimit(builder);
         applyOffset(builder);
@@ -458,6 +482,16 @@ public final class TypedQuery<T> {
         }
     }
 
+    private void applyHaving(QueryBuilder builder) {
+        if (havingPredicate == null) {
+            return;
+        }
+        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(havingPredicate);
+        for (List<QueryRule> conjunction : disjunction) {
+            builder.addHavingAllOf(conjunction.toArray(new QueryRule[0]));
+        }
+    }
+
     private void applyOrderBy(QueryBuilder builder) {
         for (String fieldName : orderByFieldNames) {
             builder.addOrder(fieldName);
@@ -499,10 +533,34 @@ public final class TypedQuery<T> {
                             + "grouped output is derived from group and metric definitions."
             );
         }
+        validateHavingShape();
     }
 
     private boolean supportsSelectProjection() {
         return selectFields.isEmpty() || (!hasGroupBy() && !hasMetrics());
+    }
+
+    private void validateHavingShape() {
+        if (havingPredicate == null) {
+            return;
+        }
+        if (!hasGroupBy() && !hasMetrics()) {
+            throw new IllegalStateException(
+                    "TypedQuery having(...) requires groupBy(...) or count/metric output."
+            );
+        }
+        List<String> allowedFields = new ArrayList<>(groupByFieldNames);
+        for (TypedMetric metric : metrics) {
+            allowedFields.add(metric.alias());
+        }
+        for (String fieldName : referencedFields(havingPredicate)) {
+            if (!allowedFields.contains(fieldName)) {
+                throw new IllegalStateException(
+                        "TypedQuery having(...) field '" + fieldName
+                                + "' must match a grouped field or metric alias."
+                );
+            }
+        }
     }
 
     private static String normalizeJoinSourceName(String sourceName) {
@@ -578,6 +636,22 @@ public final class TypedQuery<T> {
             default -> throw new UnsupportedOperationException(
                     "Unexpected leaf operator: " + leaf.operator());
         };
+    }
+
+    private static List<String> referencedFields(TypedPredicate<?> predicate) {
+        List<String> fieldNames = new ArrayList<>();
+        collectReferencedFields(predicate, fieldNames);
+        return List.copyOf(fieldNames);
+    }
+
+    private static void collectReferencedFields(TypedPredicate<?> predicate, List<String> fieldNames) {
+        if (predicate.isLeaf()) {
+            fieldNames.add(predicate.field().fieldName());
+            return;
+        }
+        for (TypedPredicate<?> child : predicate.children()) {
+            collectReferencedFields(child, fieldNames);
+        }
     }
 
     private record TypedJoin(String sourceName,

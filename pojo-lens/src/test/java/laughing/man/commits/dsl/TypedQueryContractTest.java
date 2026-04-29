@@ -60,6 +60,7 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "count", TypedField.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
+        requirePublicMethod(TypedQuery.class, "having", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -83,7 +84,9 @@ public class TypedQueryContractTest {
         requirePublicMethod(TypedQuery.class, "entityClass");
         requirePublicMethod(TypedQuery.class, "selectFields");
         requirePublicMethod(TypedQuery.class, "wherePredicate");
+        requirePublicMethod(TypedQuery.class, "havingPredicate");
         requirePublicMethod(TypedQuery.class, "hasWhere");
+        requirePublicMethod(TypedQuery.class, "hasHaving");
         requirePublicMethod(TypedQuery.class, "hasSelect");
         requirePublicMethod(TypedQuery.class, "hasOrderBy");
         requirePublicMethod(TypedQuery.class, "hasJoins");
@@ -251,11 +254,14 @@ public class TypedQueryContractTest {
     void groupedBuilderIsImmutable() {
         TypedQuery<Employee> base = TypedQuery.from(Employee.class);
         TypedQuery<Employee> grouped = base.groupBy(DEPT).count(TOTAL);
+        TypedQuery<Employee> withHaving = grouped.having(TOTAL.gte(2L));
 
         assertFalse(base.hasGroupBy());
         assertFalse(base.hasMetrics());
+        assertFalse(grouped.hasHaving());
         assertTrue(grouped.hasGroupBy());
         assertTrue(grouped.hasMetrics());
+        assertTrue(withHaving.hasHaving());
     }
 
     @Test
@@ -268,6 +274,7 @@ public class TypedQueryContractTest {
 
         assertEquals(Employee.class, q.entityClass());
         assertTrue(q.hasWhere());
+        assertFalse(q.hasHaving());
         assertTrue(q.hasOrderBy());
         assertTrue(q.hasLimit());
         assertTrue(q.hasOffset());
@@ -365,6 +372,44 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void typedHavingShouldFilterGroupedRows() {
+        List<DepartmentCount> result = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(TOTAL)
+                .having(TOTAL.gte(2L))
+                .orderByDesc(TOTAL)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, result.size());
+        assertEquals("Engineering", result.get(0).department);
+        assertEquals(3L, result.get(0).total);
+    }
+
+    @Test
+    void typedHavingShouldMatchEquivalentSqlLikeExecution() {
+        List<String> typedRows = TypedQuery.from(Employee.class)
+                .groupBy(DEPT)
+                .count(EMPLOYEE_COUNT)
+                .metric(SALARY, Metric.SUM, TOTAL_SALARY)
+                .having(TOTAL_SALARY.gte(220_000L))
+                .orderByDesc(TOTAL_SALARY)
+                .filter(sampleEmployees(), DepartmentAgg.class)
+                .stream()
+                .map(row -> row.department + ":" + row.employeeCount + ":" + row.totalSalary)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("select department, count(*) as employeeCount, sum(salary) as totalSalary "
+                        + "group by department having totalSalary >= 220000 order by totalSalary desc")
+                .filter(sampleEmployees(), DepartmentAgg.class)
+                .stream()
+                .map(row -> row.department + ":" + row.employeeCount + ":" + row.totalSalary)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
     void typedJoinAndGroupedCountShouldMatchEquivalentSqlLikeExecution() {
         JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
 
@@ -402,6 +447,19 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void typedHavingShouldSupportTotalsStyleMetrics() {
+        List<TotalsRow> result = TypedQuery.from(Employee.class)
+                .count(TOTAL)
+                .metric(SALARY, Metric.SUM, PAYROLL)
+                .having(PAYROLL.gte(400_000L))
+                .filter(sampleEmployees(), TotalsRow.class);
+
+        assertEquals(1, result.size());
+        assertEquals(4L, result.get(0).total);
+        assertEquals(450000L, result.get(0).payroll);
+    }
+
+    @Test
     void typedJoinShouldFailWhenJoinSourceBindingIsMissing() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> TypedQuery.from(Company.class)
@@ -423,6 +481,28 @@ public class TypedQueryContractTest {
                         .filter(sampleEmployees(), DepartmentCount.class));
 
         assertTrue(ex.getMessage().contains("select(...) cannot be combined with groupBy/count/metric"));
+    }
+
+    @Test
+    void havingShouldFailWithoutGroupOrMetric() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .having(NAME.eq("Alice"))
+                        .filter(sampleEmployees()));
+
+        assertTrue(ex.getMessage().contains("having(...) requires groupBy(...) or count/metric output"));
+    }
+
+    @Test
+    void havingShouldFailForNonGroupedNonAggregateField() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .groupBy(DEPT)
+                        .count(TOTAL)
+                        .having(SALARY.gte(100_000))
+                        .filter(sampleEmployees(), DepartmentCount.class));
+
+        assertTrue(ex.getMessage().contains("must match a grouped field or metric alias"));
     }
 
     @Test

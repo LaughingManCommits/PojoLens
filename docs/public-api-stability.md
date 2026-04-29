@@ -186,13 +186,14 @@ The default first-read story is SQL-like first:
   - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
   - combinators: `and`, `or`, `not`, `allOf`, `anyOf`
 - `TypedQuery<T>`:
-  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `orderBy`, `orderByDesc`, `limit`, `offset`
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `orderBy`, `orderByDesc`, `limit`, `offset`
   - `executionGuard`, `filter`, `explain`, `schema`
   - current stable foundation covers projection, filters, join declarations,
-    `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
-    totals-style metrics, ordering, offset, limit, explain/schema, and
+    `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
+    `HAVING` over grouped fields and metric aliases, totals-style metrics,
+    ordering, offset, limit, explain/schema, and
     row-scan/row-return/duration/cancellation guard checks
-  - typed `HAVING`, windows, and subqueries are deferred
+  - typed windows and subqueries are deferred
 - `FieldMetamodelGenerator.generateTyped(...)`
 
 ### Plain-English Contracts

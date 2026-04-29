@@ -3,26 +3,21 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow the dependency-ordered roadmap in `TODO.md`: WP23 -> WP24 -> WP18.
+3. Follow the dependency-ordered roadmap in `TODO.md`: WP24 -> WP18.
 4. Treat `Release Gate` as the final roadmap package and cut from `RELEASE.md` when the user wants it.
 
 ## Focus
 - `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 static-analysis gate is clean.
-- `2026-04-29`: WP26 set `ReportDefinition` / `SavedReport` as the default reusable-contract story; preset wrappers remain advanced convenience.
-- `2026-04-29`: WP21 completed the authoring-first/docs-layering pass, including `docs/output-helpers.md`.
-- `2026-04-29`: WP25 is complete. `PojoLensFiles` / `runtime.files()` are the single file-boundary loader route for CSV, TSV, JSON, and JSONL; Excel is an explicit non-goal.
-- `2026-04-29`: WP22 is complete. `laughing.man.commits.metamodel` owns single-model and batch metamodel generation, `laughing.man.commits.tooling` stays validation-only, and `docs/build-tooling.md` documents the staged library-first shape.
+- `2026-04-29`: Surface/tooling cleanup packages are complete: wrapper guidance is `ReportDefinition`/`SavedReport` first, docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL with Excel as a non-goal, and build tooling is split between `metamodel` generation and `tooling` validation.
 - `2026-04-29`: WP23 is complete. `TypedQuery` now covers joins, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` filter, explain, and schema overloads on one typed surface.
+- `2026-04-29`: WP24 is in progress. `TypedQuery.having(...)` now filters grouped fields and metric aliases on the same immutable typed surface; typed windows and bounded subqueries are still pending design.
 
 ## Facts
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
-- `2026-04-27`: `scripts/checkstyle-baseline.txt` is intentionally empty because the lint report is clean.
-- `2026-04-27`: The latest recorded window rerun at `size=10000` landed at `0.623 ms/op` baseline, `1.825 ms/op` rank, and `1.843 ms/op` running total.
 - `2026-04-29`: `TODO.md` order is WP24, WP18, then `Release Gate`.
-- `2026-04-29`: WP25 outcome: file onboarding now routes through `docs/files.md`, `PojoLensFiles` owns CSV/TSV/JSON/JSONL, `PojoLensRuntime` owns both delimited-text and JSON defaults, and no peer `PojoLensJson` surface was added.
-- `2026-04-29`: WP22 outcome: build tooling stays library-first. `MetamodelBatchGenerator` now lives under `metamodel`, `SavedReportCatalogValidator` stays in `tooling`, and natural/raw fallback uses `PLT-SAVED-008`.
 - `2026-04-29`: WP23 outcome: typed joins reuse `JoinBindings` and `DatasetBundle`, grouped queries reuse the same `TypedQuery` surface via `groupBy(...)`, `count(...)`, and `metric(...)`, aggregate aliases can drive `orderBy(...)` / `orderByDesc(...)`, and parity coverage now includes joined-grouped execution against equivalent SQL-like queries.
+- `2026-04-29`: WP24 outcome so far: typed `having(...)` accepts grouped-output predicates only, validates references against grouped fields and metric aliases, supports totals-style metric queries, and keeps windows/subqueries on the text surfaces for now.
 
 ## Validate
 - After code changes: `mvn -B -ntp test`.

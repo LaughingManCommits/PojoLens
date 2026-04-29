@@ -43,6 +43,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery HAVING slice** - added `TypedQuery.having(...)` plus grouped
+  output validation so code-owned typed queries can filter grouped fields and
+  metric aliases on the same immutable surface used for joins and aggregates.
+  Totals-style metric queries can also apply typed `HAVING`, and parity
+  coverage now compares the grouped typed `HAVING` path to equivalent
+  SQL-like execution.
+
 - **TypedQuery join and aggregate slice** - added `TypedQuery.join(...)`,
   `groupBy(...)`, `count(...)`, and `metric(...)`, plus `JoinBindings` /
   `DatasetBundle` execution, explain, and schema overloads so code-owned typed

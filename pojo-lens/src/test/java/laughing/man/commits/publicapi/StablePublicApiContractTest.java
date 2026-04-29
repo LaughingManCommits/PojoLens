@@ -558,6 +558,7 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "count", TypedField.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, String.class);
         requirePublicMethod(TypedQuery.class, "metric", TypedField.class, Metric.class, TypedField.class);
+        requirePublicMethod(TypedQuery.class, "having", TypedPredicate.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -581,6 +582,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "hasJoins");
         requirePublicMethod(TypedQuery.class, "hasGroupBy");
         requirePublicMethod(TypedQuery.class, "hasMetrics");
+        requirePublicMethod(TypedQuery.class, "havingPredicate");
+        requirePublicMethod(TypedQuery.class, "hasHaving");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

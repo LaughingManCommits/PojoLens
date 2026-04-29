@@ -17,6 +17,7 @@
 
 ## Current Gap
 
-- `WP22` no longer has a first-read docs gap; the next competitive/docs-adjacent
-  gap is `WP23` typed aggregation and join expansion on the code-owned typed
-  surface.
+- `WP24` is now the next competitive/docs-adjacent gap: the typed surface has
+  joins, grouped aggregates, and grouped `HAVING`, but typed windows and
+  bounded typed subquery/existence composition are still deferred to SQL-like
+  or natural entry points.
