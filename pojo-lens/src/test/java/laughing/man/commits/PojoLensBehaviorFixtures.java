@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -157,7 +159,7 @@ final class PojoLensBehaviorFixtures {
                                           Clauses clause,
                                           int compareValue,
                                           int expectedInteger) throws Exception {
-        List<Foo> results = PojoLensCore.newQueryBuilder(source)
+        List<Foo> results = FluentEngine.newQueryBuilder(source)
                 .addRule("integerField", compareValue, clause, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);

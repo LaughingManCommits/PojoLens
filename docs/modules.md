@@ -19,14 +19,17 @@ published as release artifacts.
 Current starter examples:
 - `examples/spring-boot-starter-quickstart`: minimal onboarding path
 - `examples/spring-boot-starter-basic`: advanced dashboard reference
+- `examples/spring-boot-starter-risk-console`: JDBC-backed reviewer/demo showcase with dashboard, reports, and Query Studio flows
 
 Canonical product-surface classification:
 - [product-surface.md](product-surface.md)
 
 Docs starting points:
-- choose a path first in [usecases.md](usecases.md)
-- choose explicit entry points in [entry-points.md](entry-points.md)
-- choose reusable wrappers in [reusable-wrappers.md](reusable-wrappers.md)
+- choose an authoring mode first in [usecases.md](usecases.md)
+- choose explicit authoring and layering entry points in [entry-points.md](entry-points.md)
+- use [typed.md](typed.md) for Java-owned typed query composition
+- choose reusable contracts in [reusable-wrappers.md](reusable-wrappers.md)
+- choose file-boundary loaders in [files.md](files.md) when input starts as files
 - use [advanced-features.md](advanced-features.md) only for optional follow-on
   surface
 
@@ -40,30 +43,42 @@ This page is an artifact and packaging reference, not the main onboarding path.
 - Not published:
   `pojo-lens-benchmarks`, `examples/*`
 
-## Public Runtime Layering
+## Public Surface Layers
 
-- `PojoLensCore`:
-  core fluent query-engine entry point
-- `PojoLensNatural`:
-  core controlled plain-English query-engine entry point
-- `PojoLensSql`:
-  core SQL-like query-engine entry point
-- `PojoLensCsv`:
-  boundary adapter for loading typed rows from UTF-8 CSV files
-- `PojoLensRuntime`:
-  scoped runtime/configuration surface over the same engine
-- `PojoLensChart`:
-  chart-mapping workflow helper over query results
-- `PojoLensTree`:
-  flat parent-ID row-shaping helper before normal query execution
+- Primary authoring modes:
+  - `PojoLensSql`:
+    core SQL-like query-engine entry point
+  - `PojoLensNatural`:
+    core controlled plain-English query-engine entry point
+  - `TypedQuery`:
+    core Java-owned typed authoring surface
+- Scoped runtime and integration:
+  - `PojoLensRuntime`:
+    scoped runtime/configuration surface over the same engine
+- Boundary and workflow helpers:
+  - `PojoLensFiles`:
+    single file-boundary loader surface for CSV/TSV/JSON/JSONL onboarding
+  - `PojoLensCsv`:
+    stable CSV-only convenience route over the shared file-boundary loader
+  - `PojoLensChart`:
+    chart-mapping workflow helper over query results
+  - `PojoLensTree`:
+    flat parent-ID row-shaping helper before normal query execution
 
-Additional workflow helpers such as `ReportDefinition`, chart presets,
-stats presets, `DatasetBundle`, tree traversal, and schema metadata stay in
-the runtime artifact as convenience layers on top of the core engine; they are
-not separate modules.
+The fluent engine DSL now lives under `laughing.man.commits.internal`.
+Do not use it as the public entry point for docs or examples.
+
+Reusable contracts and helper layers such as `ReportDefinition`,
+`SavedReport`, chart presets, stats presets, `DatasetBundle`, tree traversal,
+and schema metadata stay in the runtime artifact as convenience layers on top
+of the core engine; they are not separate modules.
 
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).
+
+## Spring/JDBC Bridge
+
+See [jdbc.md](jdbc.md) for `PojoLensJdbc` usage.
 
 ## Artifact Scope
 
@@ -94,14 +109,15 @@ This writes `target/pojo-lens-<version>-benchmarks.jar` at repository root.
 The public surface no longer includes the `PojoLens` facade.
 Use the owning type directly:
 
-1. `PojoLens.newQueryBuilder(...)` -> `PojoLensCore.newQueryBuilder(...)`
+1. Prefer `PojoLensSql.parse(...)` or `PojoLensSql.template(...)` for public
+   query authoring.
 2. `PojoLens.parse(...)` -> `PojoLensSql.parse(...)`
 3. `PojoLens.template(...)` -> `PojoLensSql.template(...)`
 4. `PojoLens.toChartData(...)` -> `PojoLensChart.toChartData(...)`
 5. `PojoLens.newRuntime(...)` -> `new PojoLensRuntime()` or
    `PojoLensRuntime.ofPreset(...)`
-6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)`,
-   `ReportDefinition.natural(...)`, or `ReportDefinition.fluent(...)`
+6. `PojoLens.report(...)` -> `ReportDefinition.sql(...)` or
+   `ReportDefinition.natural(...)`
 7. `PojoLens.bundle(...)` -> `DatasetBundle.of(...)`
 8. `PojoLens.compareSnapshots(...)` -> `SnapshotComparison.builder(...)`
 

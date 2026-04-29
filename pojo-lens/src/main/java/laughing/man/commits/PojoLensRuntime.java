@@ -1,20 +1,20 @@
 package laughing.man.commits;
 
-import laughing.man.commits.builder.QueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.files.FileLoadRuntime;
+import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalRuntime;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlLikeTemplate;
 import laughing.man.commits.sqllike.internal.cache.SqlLikeQueryCache;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
 import laughing.man.commits.telemetry.internal.QueryTelemetrySupport;
-
-import java.util.List;
 
 /**
  * Instance-scoped runtime for DI and multi-tenant cache isolation.
@@ -34,12 +34,18 @@ public final class PojoLensRuntime {
     private volatile QueryTelemetryListener telemetryListener;
     private volatile ComputedFieldRegistry computedFieldRegistry = ComputedFieldRegistry.empty();
     private volatile NaturalVocabulary naturalVocabulary = NaturalVocabulary.empty();
+    private volatile QueryExposurePolicy queryExposurePolicy = QueryExposurePolicy.unrestricted();
     private volatile CsvOptions csvDefaults = CsvOptions.defaults();
+    private volatile JsonOptions jsonDefaults = JsonOptions.defaults();
 
     public PojoLensRuntime() {
         this(new SqlLikeQueryCache(), new FilterExecutionPlanCacheStore());
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "The runtime intentionally owns and shares the live cache instances it is configured with."
+    )
     public PojoLensRuntime(SqlLikeQueryCache sqlLikeCache, FilterExecutionPlanCacheStore statsPlanCache) {
         if (sqlLikeCache == null) {
             throw new IllegalArgumentException("sqlLikeCache must not be null");
@@ -56,12 +62,6 @@ public final class PojoLensRuntime {
         return new PojoLensRuntime().applyPreset(preset);
     }
 
-    public QueryBuilder newQueryBuilder(List<?> pojos) {
-        return PojoLensCore.newQueryBuilder(pojos, statsPlanCache)
-                .computedFields(computedFieldRegistry)
-                .telemetry(telemetryListener);
-    }
-
     public NaturalRuntime natural() {
         return new NaturalRuntime(this);
     }
@@ -70,12 +70,17 @@ public final class PojoLensRuntime {
         return new CsvRuntime(this);
     }
 
+    public FileLoadRuntime files() {
+        return new FileLoadRuntime(this);
+    }
+
     public SqlLikeQuery parse(String sqlLikeQuery) {
         long parseStarted = QueryTelemetrySupport.start(telemetryListener);
         SqlLikeQuery query = sqlLikeCache.parse(sqlLikeQuery)
                 .strictParameterTypes(strictParameterTypes)
                 .lintMode(lintMode)
                 .computedFields(computedFieldRegistry)
+                .exposurePolicy(queryExposurePolicy)
                 .telemetry(telemetryListener);
         QueryTelemetrySupport.emit(
                 telemetryListener,
@@ -97,10 +102,18 @@ public final class PojoLensRuntime {
         return SqlLikeTemplate.of(parse(sqlLikeQuery), expectedParams);
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "The runtime intentionally exposes its live cache for configuration and inspection."
+    )
     public SqlLikeQueryCache sqlLikeCache() {
         return sqlLikeCache;
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "The runtime intentionally exposes its live cache for configuration and inspection."
+    )
     public FilterExecutionPlanCacheStore statsPlanCache() {
         return statsPlanCache;
     }
@@ -151,6 +164,17 @@ public final class PojoLensRuntime {
         return naturalVocabulary;
     }
 
+    public void setQueryExposurePolicy(QueryExposurePolicy queryExposurePolicy) {
+        if (queryExposurePolicy == null) {
+            throw new IllegalArgumentException("queryExposurePolicy must not be null");
+        }
+        this.queryExposurePolicy = queryExposurePolicy;
+    }
+
+    public QueryExposurePolicy getQueryExposurePolicy() {
+        return queryExposurePolicy;
+    }
+
     public void setCsvDefaults(CsvOptions csvDefaults) {
         if (csvDefaults == null) {
             throw new IllegalArgumentException("csvDefaults must not be null");
@@ -160,6 +184,17 @@ public final class PojoLensRuntime {
 
     public CsvOptions getCsvDefaults() {
         return csvDefaults;
+    }
+
+    public void setJsonDefaults(JsonOptions jsonDefaults) {
+        if (jsonDefaults == null) {
+            throw new IllegalArgumentException("jsonDefaults must not be null");
+        }
+        this.jsonDefaults = jsonDefaults;
+    }
+
+    public JsonOptions getJsonDefaults() {
+        return jsonDefaults;
     }
 
     public PojoLensRuntime applyPreset(PojoLensRuntimePreset preset) {

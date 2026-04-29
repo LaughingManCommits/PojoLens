@@ -1,11 +1,14 @@
 package laughing.man.commits.sqllike.internal.aggregate;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.SelectAst;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -75,7 +78,7 @@ public final class AggregateExpressionSupport {
         }
         String argument = parsed.field();
         if (argument == null || argument.isBlank() || !sourceFields.contains(argument)) {
-            throw unknownHavingReference(reference);
+            throw unknownHavingReference(reference, argument, sourceFields);
         }
         return parsed.metric().name().toLowerCase(Locale.ROOT) + "(" + argument + ")";
     }
@@ -124,6 +127,19 @@ public final class AggregateExpressionSupport {
 
     private static IllegalArgumentException unknownHavingReference(String reference) {
         return new IllegalArgumentException("Unknown HAVING reference '" + reference + "'");
+    }
+
+    private static IllegalArgumentException unknownHavingReference(String reference,
+                                                                    String argument,
+                                                                    Set<String> sourceFields) {
+        String base = "Unknown HAVING reference '" + reference + "'.";
+        if (argument != null && !argument.isBlank() && !sourceFields.isEmpty()) {
+            List<String> suggestions = NameSuggestions.suggest(argument, sourceFields);
+            return new IllegalArgumentException(base
+                    + NameSuggestions.formatFragment(suggestions)
+                    + SqlLikeFieldMessages.allowedSourceFieldsFragment(sourceFields));
+        }
+        return new IllegalArgumentException(base);
     }
 
     public record ParsedAggregateExpression(Metric metric, boolean countAll, String field) {

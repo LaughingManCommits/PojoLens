@@ -1,0 +1,2804 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.CsvLoadJmhBenchmark.csvTypedLoad",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 2.5303268292682928,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.5303268292682928,
+                "50.0" : 2.5303268292682928,
+                "90.0" : 2.5303268292682928,
+                "95.0" : 2.5303268292682928,
+                "99.0" : 2.5303268292682928,
+                "99.9" : 2.5303268292682928,
+                "99.99" : 2.5303268292682928,
+                "99.999" : 2.5303268292682928,
+                "99.9999" : 2.5303268292682928,
+                "100.0" : 2.5303268292682928
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.5303268292682928
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.CsvLoadJmhBenchmark.csvTypedLoad",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 31.1159,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 31.1159,
+                "50.0" : 31.1159,
+                "90.0" : 31.1159,
+                "95.0" : 31.1159,
+                "99.0" : 31.1159,
+                "99.9" : 31.1159,
+                "99.99" : 31.1159,
+                "99.999" : 31.1159,
+                "99.9999" : 31.1159,
+                "100.0" : 31.1159
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    31.1159
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.CsvLoadJmhBenchmark.csvTypedLoadMultiline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 1.183622340425532,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.183622340425532,
+                "50.0" : 1.183622340425532,
+                "90.0" : 1.183622340425532,
+                "95.0" : 1.183622340425532,
+                "99.0" : 1.183622340425532,
+                "99.9" : 1.183622340425532,
+                "99.99" : 1.183622340425532,
+                "99.999" : 1.183622340425532,
+                "99.9999" : 1.183622340425532,
+                "100.0" : 1.183622340425532
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.183622340425532
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.CsvLoadJmhBenchmark.csvTypedLoadMultiline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 10.354272727272727,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 10.354272727272727,
+                "50.0" : 10.354272727272727,
+                "90.0" : 10.354272727272727,
+                "95.0" : 10.354272727272727,
+                "99.0" : 10.354272727272727,
+                "99.9" : 10.354272727272727,
+                "99.99" : 10.354272727272727,
+                "99.999" : 10.354272727272727,
+                "99.9999" : 10.354272727272727,
+                "100.0" : 10.354272727272727
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    10.354272727272727
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 1.13066875,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.13066875,
+                "50.0" : 1.13066875,
+                "90.0" : 1.13066875,
+                "95.0" : 1.13066875,
+                "99.0" : 1.13066875,
+                "99.9" : 1.13066875,
+                "99.99" : 1.13066875,
+                "99.999" : 1.13066875,
+                "99.9999" : 1.13066875,
+                "100.0" : 1.13066875
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.13066875
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeft",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 5.763725,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5.763725,
+                "50.0" : 5.763725,
+                "90.0" : 5.763725,
+                "95.0" : 5.763725,
+                "99.0" : 5.763725,
+                "99.9" : 5.763725,
+                "99.99" : 5.763725,
+                "99.999" : 5.763725,
+                "99.9999" : 5.763725,
+                "100.0" : 5.763725
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    5.763725
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 2.4887477272727274,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.4887477272727274,
+                "50.0" : 2.4887477272727274,
+                "90.0" : 2.4887477272727274,
+                "95.0" : 2.4887477272727274,
+                "99.0" : 2.4887477272727274,
+                "99.9" : 2.4887477272727274,
+                "99.99" : 2.4887477272727274,
+                "99.999" : 2.4887477272727274,
+                "99.9999" : 2.4887477272727274,
+                "100.0" : 2.4887477272727274
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.4887477272727274
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 42.6801,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 42.6801,
+                "50.0" : 42.6801,
+                "90.0" : 42.6801,
+                "95.0" : 42.6801,
+                "99.0" : 42.6801,
+                "99.9" : 42.6801,
+                "99.99" : 42.6801,
+                "99.999" : 42.6801,
+                "99.9999" : 42.6801,
+                "100.0" : 42.6801
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    42.6801
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 2.822008108108108,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.822008108108108,
+                "50.0" : 2.822008108108108,
+                "90.0" : 2.822008108108108,
+                "95.0" : 2.822008108108108,
+                "99.0" : 2.822008108108108,
+                "99.9" : 2.822008108108108,
+                "99.99" : 2.822008108108108,
+                "99.999" : 2.822008108108108,
+                "99.9999" : 2.822008108108108,
+                "100.0" : 2.822008108108108
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.822008108108108
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 39.80266666666667,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 39.80266666666667,
+                "50.0" : 39.80266666666667,
+                "90.0" : 39.80266666666667,
+                "95.0" : 39.80266666666667,
+                "99.0" : 39.80266666666667,
+                "99.9" : 39.80266666666667,
+                "99.99" : 39.80266666666667,
+                "99.999" : 39.80266666666667,
+                "99.9999" : 39.80266666666667,
+                "100.0" : 39.80266666666667
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    39.80266666666667
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.009086580577611029,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.009086580577611029,
+                "50.0" : 0.009086580577611029,
+                "90.0" : 0.009086580577611029,
+                "95.0" : 0.009086580577611029,
+                "99.0" : 0.009086580577611029,
+                "99.9" : 0.009086580577611029,
+                "99.99" : 0.009086580577611029,
+                "99.999" : 0.009086580577611029,
+                "99.9999" : 0.009086580577611029,
+                "100.0" : 0.009086580577611029
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.009086580577611029
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullFilterPipeline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.030157611438183348,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.030157611438183348,
+                "50.0" : 0.030157611438183348,
+                "90.0" : 0.030157611438183348,
+                "95.0" : 0.030157611438183348,
+                "99.0" : 0.030157611438183348,
+                "99.9" : 0.030157611438183348,
+                "99.99" : 0.030157611438183348,
+                "99.999" : 0.030157611438183348,
+                "99.9999" : 0.030157611438183348,
+                "100.0" : 0.030157611438183348
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.030157611438183348
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.5370696261682243,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.5370696261682243,
+                "50.0" : 0.5370696261682243,
+                "90.0" : 0.5370696261682243,
+                "95.0" : 0.5370696261682243,
+                "99.0" : 0.5370696261682243,
+                "99.9" : 0.5370696261682243,
+                "99.99" : 0.5370696261682243,
+                "99.999" : 0.5370696261682243,
+                "99.9999" : 0.5370696261682243,
+                "100.0" : 0.5370696261682243
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.5370696261682243
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.PojoLensPipelineJmhBenchmark.fullGroupPipeline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 4.9607,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4.9607,
+                "50.0" : 4.9607,
+                "90.0" : 4.9607,
+                "95.0" : 4.9607,
+                "99.0" : 4.9607,
+                "99.9" : 4.9607,
+                "99.99" : 4.9607,
+                "99.999" : 4.9607,
+                "99.9999" : 4.9607,
+                "100.0" : 4.9607
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    4.9607
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.0025868575902214816,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.0025868575902214816,
+                "50.0" : 0.0025868575902214816,
+                "90.0" : 0.0025868575902214816,
+                "95.0" : 0.0025868575902214816,
+                "99.0" : 0.0025868575902214816,
+                "99.9" : 0.0025868575902214816,
+                "99.99" : 0.0025868575902214816,
+                "99.999" : 0.0025868575902214816,
+                "99.9999" : 0.0025868575902214816,
+                "100.0" : 0.0025868575902214816
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.0025868575902214816
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.002373198005549413,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.002373198005549413,
+                "50.0" : 0.002373198005549413,
+                "90.0" : 0.002373198005549413,
+                "95.0" : 0.002373198005549413,
+                "99.0" : 0.002373198005549413,
+                "99.9" : 0.002373198005549413,
+                "99.99" : 0.002373198005549413,
+                "99.999" : 0.002373198005549413,
+                "99.9999" : 0.002373198005549413,
+                "100.0" : 0.002373198005549413
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.002373198005549413
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 6.460847058823529,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6.460847058823529,
+                "50.0" : 6.460847058823529,
+                "90.0" : 6.460847058823529,
+                "95.0" : 6.460847058823529,
+                "99.0" : 6.460847058823529,
+                "99.9" : 6.460847058823529,
+                "99.99" : 6.460847058823529,
+                "99.999" : 6.460847058823529,
+                "99.9999" : 6.460847058823529,
+                "100.0" : 6.460847058823529
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    6.460847058823529
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndExplainExecution",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 113.6799,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 113.6799,
+                "50.0" : 113.6799,
+                "90.0" : 113.6799,
+                "95.0" : 113.6799,
+                "99.0" : 113.6799,
+                "99.9" : 113.6799,
+                "99.99" : 113.6799,
+                "99.999" : 113.6799,
+                "99.9999" : 113.6799,
+                "100.0" : 113.6799
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    113.6799
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilter",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.4303411522633745,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.4303411522633745,
+                "50.0" : 0.4303411522633745,
+                "90.0" : 0.4303411522633745,
+                "95.0" : 0.4303411522633745,
+                "99.0" : 0.4303411522633745,
+                "99.9" : 0.4303411522633745,
+                "99.99" : 0.4303411522633745,
+                "99.999" : 0.4303411522633745,
+                "99.9999" : 0.4303411522633745,
+                "100.0" : 0.4303411522633745
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.4303411522633745
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilter",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 6.824426666666667,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6.824426666666667,
+                "50.0" : 6.824426666666667,
+                "90.0" : 6.824426666666667,
+                "95.0" : 6.824426666666667,
+                "99.0" : 6.824426666666667,
+                "99.9" : 6.824426666666667,
+                "99.99" : 6.824426666666667,
+                "99.999" : 6.824426666666667,
+                "99.9999" : 6.824426666666667,
+                "100.0" : 6.824426666666667
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    6.824426666666667
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterBooleanDepth",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 1.32805,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.32805,
+                "50.0" : 1.32805,
+                "90.0" : 1.32805,
+                "95.0" : 1.32805,
+                "99.0" : 1.32805,
+                "99.9" : 1.32805,
+                "99.99" : 1.32805,
+                "99.999" : 1.32805,
+                "99.9999" : 1.32805,
+                "100.0" : 1.32805
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.32805
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterBooleanDepth",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 22.68468,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 22.68468,
+                "50.0" : 22.68468,
+                "90.0" : 22.68468,
+                "95.0" : 22.68468,
+                "99.0" : 22.68468,
+                "99.9" : 22.68468,
+                "99.99" : 22.68468,
+                "99.999" : 22.68468,
+                "99.9999" : 22.68468,
+                "100.0" : 22.68468
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    22.68468
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 3.8243714285714288,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.8243714285714288,
+                "50.0" : 3.8243714285714288,
+                "90.0" : 3.8243714285714288,
+                "95.0" : 3.8243714285714288,
+                "99.0" : 3.8243714285714288,
+                "99.9" : 3.8243714285714288,
+                "99.99" : 3.8243714285714288,
+                "99.999" : 3.8243714285714288,
+                "99.9999" : 3.8243714285714288,
+                "100.0" : 3.8243714285714288
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    3.8243714285714288
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHaving",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 104.3595,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 104.3595,
+                "50.0" : 104.3595,
+                "90.0" : 104.3595,
+                "95.0" : 104.3595,
+                "99.0" : 104.3595,
+                "99.9" : 104.3595,
+                "99.99" : 104.3595,
+                "99.999" : 104.3595,
+                "99.9999" : 104.3595,
+                "100.0" : 104.3595
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    104.3595
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.8154289855072464,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.8154289855072464,
+                "50.0" : 0.8154289855072464,
+                "90.0" : 0.8154289855072464,
+                "95.0" : 0.8154289855072464,
+                "99.0" : 0.8154289855072464,
+                "99.9" : 0.8154289855072464,
+                "99.99" : 0.8154289855072464,
+                "99.999" : 0.8154289855072464,
+                "99.9999" : 0.8154289855072464,
+                "100.0" : 0.8154289855072464
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.8154289855072464
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterHavingComputed",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 3.9906714285714284,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.9906714285714284,
+                "50.0" : 3.9906714285714284,
+                "90.0" : 3.9906714285714284,
+                "95.0" : 3.9906714285714284,
+                "99.0" : 3.9906714285714284,
+                "99.9" : 3.9906714285714284,
+                "99.99" : 3.9906714285714284,
+                "99.999" : 3.9906714285714284,
+                "99.9999" : 3.9906714285714284,
+                "100.0" : 3.9906714285714284
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    3.9906714285714284
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowBaseline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 2.9829529411764706,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.9829529411764706,
+                "50.0" : 2.9829529411764706,
+                "90.0" : 2.9829529411764706,
+                "95.0" : 2.9829529411764706,
+                "99.0" : 2.9829529411764706,
+                "99.9" : 2.9829529411764706,
+                "99.99" : 2.9829529411764706,
+                "99.999" : 2.9829529411764706,
+                "99.9999" : 2.9829529411764706,
+                "100.0" : 2.9829529411764706
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.9829529411764706
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowBaseline",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 27.728725,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 27.728725,
+                "50.0" : 27.728725,
+                "90.0" : 27.728725,
+                "95.0" : 27.728725,
+                "99.0" : 27.728725,
+                "99.9" : 27.728725,
+                "99.99" : 27.728725,
+                "99.999" : 27.728725,
+                "99.9999" : 27.728725,
+                "100.0" : 27.728725
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    27.728725
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRank",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 25.864825,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 25.864825,
+                "50.0" : 25.864825,
+                "90.0" : 25.864825,
+                "95.0" : 25.864825,
+                "99.0" : 25.864825,
+                "99.9" : 25.864825,
+                "99.99" : 25.864825,
+                "99.999" : 25.864825,
+                "99.9999" : 25.864825,
+                "100.0" : 25.864825
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    25.864825
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRank",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 137.5446,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 137.5446,
+                "50.0" : 137.5446,
+                "90.0" : 137.5446,
+                "95.0" : 137.5446,
+                "99.0" : 137.5446,
+                "99.9" : 137.5446,
+                "99.99" : 137.5446,
+                "99.999" : 137.5446,
+                "99.9999" : 137.5446,
+                "100.0" : 137.5446
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    137.5446
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRunningTotal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 18.551866666666665,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 18.551866666666665,
+                "50.0" : 18.551866666666665,
+                "90.0" : 18.551866666666665,
+                "95.0" : 18.551866666666665,
+                "99.0" : 18.551866666666665,
+                "99.9" : 18.551866666666665,
+                "99.99" : 18.551866666666665,
+                "99.999" : 18.551866666666665,
+                "99.9999" : 18.551866666666665,
+                "100.0" : 18.551866666666665
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    18.551866666666665
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseAndFilterWindowRunningTotal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 142.2675,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 142.2675,
+                "50.0" : 142.2675,
+                "90.0" : 142.2675,
+                "95.0" : 142.2675,
+                "99.0" : 142.2675,
+                "99.9" : 142.2675,
+                "99.99" : 142.2675,
+                "99.999" : 142.2675,
+                "99.9999" : 142.2675,
+                "100.0" : 142.2675
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    142.2675
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.005474929396026359,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.005474929396026359,
+                "50.0" : 0.005474929396026359,
+                "90.0" : 0.005474929396026359,
+                "95.0" : 0.005474929396026359,
+                "99.0" : 0.005474929396026359,
+                "99.9" : 0.005474929396026359,
+                "99.99" : 0.005474929396026359,
+                "99.999" : 0.005474929396026359,
+                "99.9999" : 0.005474929396026359,
+                "100.0" : 0.005474929396026359
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.005474929396026359
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.parseOnly",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.005599720943895036,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.005599720943895036,
+                "50.0" : 0.005599720943895036,
+                "90.0" : 0.005599720943895036,
+                "95.0" : 0.005599720943895036,
+                "99.0" : 0.005599720943895036,
+                "99.9" : 0.005599720943895036,
+                "99.99" : 0.005599720943895036,
+                "99.999" : 0.005599720943895036,
+                "99.9999" : 0.005599720943895036,
+                "100.0" : 0.005599720943895036
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.005599720943895036
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 2.0387825431914504E-4,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.0387825431914504E-4,
+                "50.0" : 2.0387825431914504E-4,
+                "90.0" : 2.0387825431914504E-4,
+                "95.0" : 2.0387825431914504E-4,
+                "99.0" : 2.0387825431914504E-4,
+                "99.9" : 2.0387825431914504E-4,
+                "99.99" : 2.0387825431914504E-4,
+                "99.999" : 2.0387825431914504E-4,
+                "99.9999" : 2.0387825431914504E-4,
+                "100.0" : 2.0387825431914504E-4
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.0387825431914504E-4
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.SqlLikePipelineJmhBenchmark.sqlLikeCacheSnapshotRead",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 2.2482687280257763E-4,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.2482687280257763E-4,
+                "50.0" : 2.2482687280257763E-4,
+                "90.0" : 2.2482687280257763E-4,
+                "95.0" : 2.2482687280257763E-4,
+                "99.0" : 2.2482687280257763E-4,
+                "99.9" : 2.2482687280257763E-4,
+                "99.99" : 2.2482687280257763E-4,
+                "99.999" : 2.2482687280257763E-4,
+                "99.9999" : 2.2482687280257763E-4,
+                "100.0" : 2.2482687280257763E-4
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.2482687280257763E-4
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.06189713038053649,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.06189713038053649,
+                "50.0" : 0.06189713038053649,
+                "90.0" : 0.06189713038053649,
+                "95.0" : 0.06189713038053649,
+                "99.0" : 0.06189713038053649,
+                "99.9" : 0.06189713038053649,
+                "99.99" : 0.06189713038053649,
+                "99.999" : 0.06189713038053649,
+                "99.9999" : 0.06189713038053649,
+                "100.0" : 0.06189713038053649
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.06189713038053649
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.5374467741935484,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.5374467741935484,
+                "50.0" : 0.5374467741935484,
+                "90.0" : 0.5374467741935484,
+                "95.0" : 0.5374467741935484,
+                "99.0" : 0.5374467741935484,
+                "99.9" : 0.5374467741935484,
+                "99.99" : 0.5374467741935484,
+                "99.999" : 0.5374467741935484,
+                "99.9999" : 0.5374467741935484,
+                "100.0" : 0.5374467741935484
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.5374467741935484
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.001766729571271528,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.001766729571271528,
+                "50.0" : 0.001766729571271528,
+                "90.0" : 0.001766729571271528,
+                "95.0" : 0.001766729571271528,
+                "99.0" : 0.001766729571271528,
+                "99.9" : 0.001766729571271528,
+                "99.99" : 0.001766729571271528,
+                "99.999" : 0.001766729571271528,
+                "99.9999" : 0.001766729571271528,
+                "100.0" : 0.001766729571271528
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.001766729571271528
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.0014411635111876075,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.0014411635111876075,
+                "50.0" : 0.0014411635111876075,
+                "90.0" : 0.0014411635111876075,
+                "95.0" : 0.0014411635111876075,
+                "99.0" : 0.0014411635111876075,
+                "99.9" : 0.0014411635111876075,
+                "99.99" : 0.0014411635111876075,
+                "99.999" : 0.0014411635111876075,
+                "99.9999" : 0.0014411635111876075,
+                "100.0" : 0.0014411635111876075
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.0014411635111876075
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.06580105853051059,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.06580105853051059,
+                "50.0" : 0.06580105853051059,
+                "90.0" : 0.06580105853051059,
+                "95.0" : 0.06580105853051059,
+                "99.0" : 0.06580105853051059,
+                "99.9" : 0.06580105853051059,
+                "99.99" : 0.06580105853051059,
+                "99.999" : 0.06580105853051059,
+                "99.9999" : 0.06580105853051059,
+                "100.0" : 0.06580105853051059
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.06580105853051059
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentGroupedMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.5240164319248827,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.5240164319248827,
+                "50.0" : 0.5240164319248827,
+                "90.0" : 0.5240164319248827,
+                "95.0" : 0.5240164319248827,
+                "99.0" : 0.5240164319248827,
+                "99.9" : 0.5240164319248827,
+                "99.99" : 0.5240164319248827,
+                "99.999" : 0.5240164319248827,
+                "99.9999" : 0.5240164319248827,
+                "100.0" : 0.5240164319248827
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.5240164319248827
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.15871501547987615,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.15871501547987615,
+                "50.0" : 0.15871501547987615,
+                "90.0" : 0.15871501547987615,
+                "95.0" : 0.15871501547987615,
+                "99.0" : 0.15871501547987615,
+                "99.9" : 0.15871501547987615,
+                "99.99" : 0.15871501547987615,
+                "99.999" : 0.15871501547987615,
+                "99.9999" : 0.15871501547987615,
+                "100.0" : 0.15871501547987615
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.15871501547987615
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 1.7520254237288135,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.7520254237288135,
+                "50.0" : 1.7520254237288135,
+                "90.0" : 1.7520254237288135,
+                "95.0" : 1.7520254237288135,
+                "99.0" : 1.7520254237288135,
+                "99.9" : 1.7520254237288135,
+                "99.99" : 1.7520254237288135,
+                "99.999" : 1.7520254237288135,
+                "99.9999" : 1.7520254237288135,
+                "100.0" : 1.7520254237288135
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.7520254237288135
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.1496884393063584,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.1496884393063584,
+                "50.0" : 0.1496884393063584,
+                "90.0" : 0.1496884393063584,
+                "95.0" : 0.1496884393063584,
+                "99.0" : 0.1496884393063584,
+                "99.9" : 0.1496884393063584,
+                "99.99" : 0.1496884393063584,
+                "99.999" : 0.1496884393063584,
+                "99.9999" : 0.1496884393063584,
+                "100.0" : 0.1496884393063584
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.1496884393063584
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.fluentTimeBucketMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 1.8396140350877193,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.8396140350877193,
+                "50.0" : 1.8396140350877193,
+                "90.0" : 1.8396140350877193,
+                "95.0" : 1.8396140350877193,
+                "99.0" : 1.8396140350877193,
+                "99.9" : 1.8396140350877193,
+                "99.99" : 1.8396140350877193,
+                "99.999" : 1.8396140350877193,
+                "99.9999" : 1.8396140350877193,
+                "100.0" : 1.8396140350877193
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.8396140350877193
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeGroupedMetricsExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.0023076401160634424,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.0023076401160634424,
+                "50.0" : 0.0023076401160634424,
+                "90.0" : 0.0023076401160634424,
+                "95.0" : 0.0023076401160634424,
+                "99.0" : 0.0023076401160634424,
+                "99.9" : 0.0023076401160634424,
+                "99.99" : 0.0023076401160634424,
+                "99.999" : 0.0023076401160634424,
+                "99.9999" : 0.0023076401160634424,
+                "100.0" : 0.0023076401160634424
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.0023076401160634424
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeGroupedMetricsExplain",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.0026647872487872487,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.0026647872487872487,
+                "50.0" : 0.0026647872487872487,
+                "90.0" : 0.0026647872487872487,
+                "95.0" : 0.0026647872487872487,
+                "99.0" : 0.0026647872487872487,
+                "99.9" : 0.0026647872487872487,
+                "99.99" : 0.0026647872487872487,
+                "99.999" : 0.0026647872487872487,
+                "99.9999" : 0.0026647872487872487,
+                "100.0" : 0.0026647872487872487
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.0026647872487872487
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.08494812030075188,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.08494812030075188,
+                "50.0" : 0.08494812030075188,
+                "90.0" : 0.08494812030075188,
+                "95.0" : 0.08494812030075188,
+                "99.0" : 0.08494812030075188,
+                "99.9" : 0.08494812030075188,
+                "99.99" : 0.08494812030075188,
+                "99.999" : 0.08494812030075188,
+                "99.9999" : 0.08494812030075188,
+                "100.0" : 0.08494812030075188
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.08494812030075188
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.610521052631579,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.610521052631579,
+                "50.0" : 0.610521052631579,
+                "90.0" : 0.610521052631579,
+                "95.0" : 0.610521052631579,
+                "99.0" : 0.610521052631579,
+                "99.9" : 0.610521052631579,
+                "99.99" : 0.610521052631579,
+                "99.999" : 0.610521052631579,
+                "99.9999" : 0.610521052631579,
+                "100.0" : 0.610521052631579
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.610521052631579
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.08725903515944398,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.08725903515944398,
+                "50.0" : 0.08725903515944398,
+                "90.0" : 0.08725903515944398,
+                "95.0" : 0.08725903515944398,
+                "99.0" : 0.08725903515944398,
+                "99.9" : 0.08725903515944398,
+                "99.99" : 0.08725903515944398,
+                "99.999" : 0.08725903515944398,
+                "99.9999" : 0.08725903515944398,
+                "100.0" : 0.08725903515944398
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.08725903515944398
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndGroupedMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 0.5857382653061225,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.5857382653061225,
+                "50.0" : 0.5857382653061225,
+                "90.0" : 0.5857382653061225,
+                "95.0" : 0.5857382653061225,
+                "99.0" : 0.5857382653061225,
+                "99.9" : 0.5857382653061225,
+                "99.99" : 0.5857382653061225,
+                "99.999" : 0.5857382653061225,
+                "99.9999" : 0.5857382653061225,
+                "100.0" : 0.5857382653061225
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.5857382653061225
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.19821353965183752,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.19821353965183752,
+                "50.0" : 0.19821353965183752,
+                "90.0" : 0.19821353965183752,
+                "95.0" : 0.19821353965183752,
+                "99.0" : 0.19821353965183752,
+                "99.9" : 0.19821353965183752,
+                "99.99" : 0.19821353965183752,
+                "99.999" : 0.19821353965183752,
+                "99.9999" : 0.19821353965183752,
+                "100.0" : 0.19821353965183752
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.19821353965183752
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetrics",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 1.939925,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.939925,
+                "50.0" : 1.939925,
+                "90.0" : 1.939925,
+                "95.0" : 1.939925,
+                "99.0" : 1.939925,
+                "99.9" : 1.939925,
+                "99.99" : 1.939925,
+                "99.999" : 1.939925,
+                "99.9999" : 1.939925,
+                "100.0" : 1.939925
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    1.939925
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "1000"
+        },
+        "primaryMetric" : {
+            "score" : 0.20456291262135923,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.20456291262135923,
+                "50.0" : 0.20456291262135923,
+                "90.0" : 0.20456291262135923,
+                "95.0" : 0.20456291262135923,
+                "99.0" : 0.20456291262135923,
+                "99.9" : 0.20456291262135923,
+                "99.99" : 0.20456291262135923,
+                "99.999" : 0.20456291262135923,
+                "99.9999" : 0.20456291262135923,
+                "100.0" : 0.20456291262135923
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    0.20456291262135923
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "laughing.man.commits.benchmark.StatsQueryJmhBenchmark.sqlLikeParseAndTimeBucketMetricsToChart",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "C:\\projects\\tools\\Java\\jdk-17\\bin\\java.exe",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "17.0.10",
+        "vmName" : "Java HotSpot(TM) 64-Bit Server VM",
+        "vmVersion" : "17.0.10+11-LTS-240",
+        "warmupIterations" : 0,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "100 ms",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "size" : "10000"
+        },
+        "primaryMetric" : {
+            "score" : 2.008544,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.008544,
+                "50.0" : 2.008544,
+                "90.0" : 2.008544,
+                "95.0" : 2.008544,
+                "99.0" : 2.008544,
+                "99.9" : 2.008544,
+                "99.99" : 2.008544,
+                "99.999" : 2.008544,
+                "99.9999" : 2.008544,
+                "100.0" : 2.008544
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    2.008544
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

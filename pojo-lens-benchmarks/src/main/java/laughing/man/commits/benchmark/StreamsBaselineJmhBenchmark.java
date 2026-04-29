@@ -1,6 +1,6 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Separator;
@@ -45,7 +45,7 @@ public class StreamsBaselineJmhBenchmark {
             source.add(new BenchmarkFoo(value, date, integerField));
         }
         matchValue = "dept3";
-        filterProjectionFilter = PojoLensCore.newQueryBuilder(source)
+        filterProjectionFilter = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", matchValue, Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 100, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
@@ -53,12 +53,12 @@ public class StreamsBaselineJmhBenchmark {
                 .addField("stringField")
                 .addField("integerField")
                 .initFilter();
-        groupedMetricsFilter = PojoLensCore.newQueryBuilder(source)
+        groupedMetricsFilter = FluentEngine.newQueryBuilder(source)
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        timeBucketMetricsFilter = PojoLensCore.newQueryBuilder(source)
+        timeBucketMetricsFilter = FluentEngine.newQueryBuilder(source)
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")

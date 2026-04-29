@@ -1,7 +1,6 @@
 package laughing.man.commits.util;
 
 import laughing.man.commits.annotations.Exclude;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import org.slf4j.Logger;
@@ -26,7 +25,8 @@ import java.util.Map;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 public final class ReflectionUtil {
 
@@ -34,14 +34,29 @@ public final class ReflectionUtil {
 
     private static final int MAX_FIELD_GRAPH_DEPTH = 8;
 
-    private static final Map<Class<?>, List<Field>> MUTABLE_FIELD_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE = new ConcurrentHashMap<>();
-    private static final Map<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
-    private static final Map<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE = new ConcurrentHashMap<>();
+    // Class-keyed caches: bounded to prevent unbounded growth under dynamic class loading.
+    private static final int CLASS_CACHE_MAX_ENTRIES = 1_000;
+    // Path/plan keyed caches: higher cardinality (class + field/schema combinations).
+    private static final int PLAN_CACHE_MAX_ENTRIES = 2_000;
+
+    private static final Cache<Class<?>, List<Field>> MUTABLE_FIELD_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Map<String, Field>> MUTABLE_FIELD_BY_NAME_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Map<String, Field>> READABLE_FIELD_BY_NAME_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, FieldGraphDescriptor> FIELD_GRAPH_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
+    private static final Cache<FieldPathCacheKey, ResolvedFieldPath> FIELD_PATH_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<FlatRowReadPlanCacheKey, FlatRowReadPlan> FLAT_ROW_READ_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<DirectFieldReadPlanCacheKey, DirectFieldReadPlan> DIRECT_FIELD_READ_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<ProjectionPlanCacheKey, ProjectionWritePlan> PROJECTION_WRITE_PLAN_CACHE =
+            Caffeine.newBuilder().maximumSize(PLAN_CACHE_MAX_ENTRIES).build();
+    private static final Cache<Class<?>, Constructor<?>> NO_ARG_CTOR_CACHE =
+            Caffeine.newBuilder().maximumSize(CLASS_CACHE_MAX_ENTRIES).build();
 
     private static final ResolvedFieldPath MISSING_FIELD_PATH = new ResolvedFieldPath(List.of(), null, false);
 
@@ -116,7 +131,7 @@ public final class ReflectionUtil {
 
                 result.add(object);
             }
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
             LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
             throw new IllegalStateException("Failed to convert domain rows to " + cls.getSimpleName(), e);
         }
@@ -151,7 +166,8 @@ public final class ReflectionUtil {
     /**
      * Sets a mutable field value by name.
      */
-    public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue) throws Exception {
+    public static void setFieldValue(Object javaBean, String propertyName, Object propertyValue)
+            throws IllegalAccessException {
         try {
             if (javaBean == null || propertyName == null || propertyName.isBlank()) {
                 return;
@@ -216,7 +232,7 @@ public final class ReflectionUtil {
                 applyProjectionWritePlan(object, row, sourceIndexes, plan);
                 result.add(object);
             }
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
             LOG.error("Failed to Convert Objects [{}] to new List", cls.getSimpleName(), e);
             throw new IllegalStateException("Failed to convert array rows to " + cls.getSimpleName(), e);
         }
@@ -228,7 +244,7 @@ public final class ReflectionUtil {
         if (row == null) {
             return new Object[0];
         }
-        if (sourceIndexes == null) {
+        if (sourceIndexes == null || sourceIndexes.length == 0) {
             return row;
         }
         Object[] projected = new Object[sourceIndexes.length];
@@ -324,7 +340,7 @@ public final class ReflectionUtil {
     /**
      * Reads a mutable field value by name.
      */
-    public static Object getFieldValue(Object cls, String fieldName) throws Exception {
+    public static Object getFieldValue(Object cls, String fieldName) throws IllegalAccessException {
         Object value = null;
 
         try {
@@ -379,18 +395,21 @@ public final class ReflectionUtil {
         LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             QueryRow row = rows.get(rowIndex);
-            if (row == null || row.getFields() == null) {
+            List<String> fieldNames = row == null ? null : row.getFieldNames();
+            if (fieldNames == null || fieldNames.isEmpty()) {
                 continue;
             }
-            List<? extends QueryField> fields = row.getFields();
-            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
-                QueryField field = fields.get(fieldIndex);
-                if (field == null || field.getFieldName() == null || field.getFieldName().isBlank()) {
+            for (int fieldIndex = 0; fieldIndex < fieldNames.size(); fieldIndex++) {
+                String fieldName = fieldNames.get(fieldIndex);
+                if (fieldName == null || fieldName.isBlank()) {
                     continue;
                 }
-                fieldTypes.putIfAbsent(field.getFieldName(), null);
-                if (fieldTypes.get(field.getFieldName()) == null && field.getValue() != null) {
-                    fieldTypes.put(field.getFieldName(), field.getValue().getClass());
+                fieldTypes.putIfAbsent(fieldName, null);
+                if (fieldTypes.get(fieldName) == null) {
+                    Object value = row.getValueAt(fieldIndex);
+                    if (value != null) {
+                        fieldTypes.put(fieldName, value.getClass());
+                    }
                 }
             }
         }
@@ -402,7 +421,7 @@ public final class ReflectionUtil {
             throw new IllegalArgumentException("root must not be null");
         }
         List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
-        return FLAT_ROW_READ_PLAN_CACHE.computeIfAbsent(
+        return FLAT_ROW_READ_PLAN_CACHE.get(
                 new FlatRowReadPlanCacheKey(root, normalizedSelection),
                 key -> buildFlatRowReadPlan(key.rootType(), key.selectedFieldNames())
         );
@@ -414,17 +433,10 @@ public final class ReflectionUtil {
             throw new IllegalArgumentException("root must not be null");
         }
         List<String> normalizedSelection = normalizedSelectedFieldNames(selectedFieldNames);
-        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
-        for (String fieldName : normalizedSelection) {
-            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
-                continue;
-            }
-            Field field = findReadableField(root, fieldName);
-            if (field != null) {
-                selectedFields.put(fieldName, field);
-            }
-        }
-        return new DirectFieldReadPlan(root, selectedFields);
+        return DIRECT_FIELD_READ_PLAN_CACHE.get(
+                new DirectFieldReadPlanCacheKey(root, normalizedSelection),
+                key -> buildDirectFieldReadPlan(key.rootType(), key.selectedFieldNames())
+        );
     }
 
     public static Object[] readFlatRowValues(Object bean, FlatRowReadPlan plan) {
@@ -455,7 +467,7 @@ public final class ReflectionUtil {
     }
 
     private static List<Field> getMutableFields(Class<?> clazz) {
-        return MUTABLE_FIELD_CACHE.computeIfAbsent(clazz, ReflectionUtil::getFields);
+        return MUTABLE_FIELD_CACHE.get(clazz, ReflectionUtil::getFields);
     }
 
     public static List<Field> getFields(Class<?> key) {
@@ -479,13 +491,14 @@ public final class ReflectionUtil {
 
     private static Field findMutableField(Class<?> clazz, String fieldName) {
         return MUTABLE_FIELD_BY_NAME_CACHE
-                .computeIfAbsent(clazz, ReflectionUtil::buildMutableFieldByNameMap)
+                .get(clazz, ReflectionUtil::buildMutableFieldByNameMap)
                 .get(fieldName);
     }
 
     private static Map<String, Field> buildMutableFieldByNameMap(Class<?> clazz) {
         List<Field> fields = getMutableFields(clazz);
-        Map<String, Field> byName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,fields.size() * 2));
+        Map<String, Field> byName = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, fields.size() * 2));
 
         for (int i = 0; i < fields.size(); i++) {
             Field field = fields.get(i);
@@ -497,7 +510,7 @@ public final class ReflectionUtil {
 
     private static Field findReadableField(Class<?> clazz, String fieldName) {
         return READABLE_FIELD_BY_NAME_CACHE
-                .computeIfAbsent(clazz, ReflectionUtil::buildReadableFieldByNameMap)
+                .get(clazz, ReflectionUtil::buildReadableFieldByNameMap)
                 .get(fieldName);
     }
 
@@ -551,14 +564,15 @@ public final class ReflectionUtil {
     }
 
     private static FieldGraphDescriptor fieldGraph(Class<?> root) {
-        return FIELD_GRAPH_CACHE.computeIfAbsent(root, ReflectionUtil::buildFieldGraphDescriptor);
+        return FIELD_GRAPH_CACHE.get(root, ReflectionUtil::buildFieldGraphDescriptor);
     }
 
     private static FieldGraphDescriptor buildFieldGraphDescriptor(Class<?> root) {
         ArrayList<FlattenedFieldDescriptor> flattenedFields = new ArrayList<>();
         Field[] pathStack = new Field[MAX_FIELD_GRAPH_DEPTH + 1];
         collectFieldGraph(root, "", pathStack, 0, new LinkedHashSet<>(), flattenedFields);
-        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
+        LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, flattenedFields.size() * 2));
         ArrayList<String> fieldNames = new ArrayList<>(flattenedFields.size());
         for (int i = 0; i < flattenedFields.size(); i++) {
             FlattenedFieldDescriptor field = flattenedFields.get(i);
@@ -663,7 +677,7 @@ public final class ReflectionUtil {
             return MISSING_FIELD_PATH;
         }
 
-        return FIELD_PATH_CACHE.computeIfAbsent(
+        return FIELD_PATH_CACHE.get(
                 new FieldPathCacheKey(rootType, fieldName),
                 key -> buildResolvedFieldPath(key.rootType(), key.fieldName())
         );
@@ -705,8 +719,22 @@ public final class ReflectionUtil {
         return projectionWritePlanForSchema(projectionClass, SchemaIndexUtil.firstQueryRowFieldNames(rows));
     }
 
+    private static DirectFieldReadPlan buildDirectFieldReadPlan(Class<?> root, List<String> selectedFieldNames) {
+        LinkedHashMap<String, Field> selectedFields = new LinkedHashMap<>();
+        for (String fieldName : selectedFieldNames) {
+            if (StringUtil.isNullOrBlank(fieldName) || fieldName.indexOf('.') >= 0) {
+                continue;
+            }
+            Field field = findReadableField(root, fieldName);
+            if (field != null) {
+                selectedFields.put(fieldName, field);
+            }
+        }
+        return new DirectFieldReadPlan(root, selectedFields);
+    }
+
     private static ProjectionWritePlan projectionWritePlanForSchema(Class<?> projectionClass, List<String> sourceFieldSchema) {
-        return PROJECTION_WRITE_PLAN_CACHE.computeIfAbsent(
+        return PROJECTION_WRITE_PLAN_CACHE.get(
                 new ProjectionPlanCacheKey(projectionClass, sourceFieldSchema),
                 key -> buildProjectionWritePlan(key.projectionClass(), key.sourceFieldSchema())
         );
@@ -726,26 +754,8 @@ public final class ReflectionUtil {
     }
 
     private static void applyProjectionWritePlan(Object target,
-                                                 List<? extends QueryField> fields,
-                                                 ProjectionWritePlan plan) throws Exception {
-        for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
-            ProjectionWriteStep step = plan.steps().get(stepIndex);
-            QueryField sourceField = projectionSourceField(fields, step);
-            if (sourceField == null || sourceField.getValue() == null) {
-                continue;
-            }
-            Object rawValue = sourceField.getValue();
-            Class<?> leafType = step.fieldPath().leafType();
-            Object value = leafType.isInstance(rawValue)
-                    ? rawValue
-                    : ObjectUtil.castValue(rawValue, leafType);
-            setResolvedFieldValue(target, step.fieldPath(), value, step.fieldName());
-        }
-    }
-
-    private static void applyProjectionWritePlan(Object target,
                                                  QueryRow row,
-                                                 ProjectionWritePlan plan) throws Exception {
+                                                 ProjectionWritePlan plan) throws IllegalAccessException {
         for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
             ProjectionWriteStep step = plan.steps().get(stepIndex);
             Object rawValue = row.getValueAt(step.sourceIndex());
@@ -763,7 +773,7 @@ public final class ReflectionUtil {
     private static void applyProjectionWritePlan(Object target,
                                                  Object[] sourceValues,
                                                  int[] sourceIndexes,
-                                                 ProjectionWritePlan plan) throws Exception {
+                                                 ProjectionWritePlan plan) throws IllegalAccessException {
         for (int stepIndex = 0; stepIndex < plan.steps().size(); stepIndex++) {
             ProjectionWriteStep step = plan.steps().get(stepIndex);
             int sourceIndex = step.sourceIndex();
@@ -788,49 +798,14 @@ public final class ReflectionUtil {
         }
     }
 
-    private static QueryField projectionSourceField(List<? extends QueryField> fields, ProjectionWriteStep step) {
-        if (step.sourceIndex() < fields.size()) {
-            QueryField indexedField = fields.get(step.sourceIndex());
-            if (indexedField != null && step.fieldName().equals(indexedField.getFieldName())) {
-                return indexedField;
-            }
-        }
-        for (int i = 0; i < fields.size(); i++) {
-            QueryField field = fields.get(i);
-            if (field != null && step.fieldName().equals(field.getFieldName())) {
-                return field;
-            }
-        }
-        return null;
-    }
-
     private static void setResolvedFieldValue(Object javaBean,
                                               ResolvedFieldPath fieldPath,
                                               Object propertyValue,
-                                              String propertyName) throws Exception {
-        Object current = javaBean;
-        List<Field> fields = fieldPath.fields();
-
-        for (int i = 0; i < fields.size() - 1; i++) {
-            Field field = fields.get(i);
-            Object nested = field.get(current);
-
-            if (nested == null) {
-                if (propertyValue == null) {
-                    return;
-                }
-                nested = instantiateNestedValue(field.getType(), propertyName);
-                field.set(current, nested);
-            }
-
-            current = nested;
-        }
-
-        Field leaf = fields.get(fields.size() - 1);
-        leaf.set(current, propertyValue);
+                                              String propertyName) throws IllegalAccessException {
+        fieldPath.write(javaBean, propertyValue, propertyName);
     }
 
-    private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) throws Exception {
+    private static Object instantiateNestedValue(Class<?> fieldType, String propertyName) {
         if (fieldType == null || isSimpleType(fieldType) || fieldType.isEnum() || !isTraversableType(fieldType)) {
             throw new IllegalArgumentException("Cannot materialize nested path '" + propertyName + "'");
         }
@@ -853,7 +828,7 @@ public final class ReflectionUtil {
     }
 
     private static Constructor<?> noArgConstructor(Class<?> type) {
-        return NO_ARG_CTOR_CACHE.computeIfAbsent(type, key -> {
+        return NO_ARG_CTOR_CACHE.get(type, key -> {
             try {
                 Constructor<?> constructor = key.getDeclaredConstructor();
                 constructor.setAccessible(true);
@@ -943,6 +918,13 @@ public final class ReflectionUtil {
         }
     }
 
+    private record DirectFieldReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+        private DirectFieldReadPlanCacheKey(Class<?> rootType, List<String> selectedFieldNames) {
+            this.rootType = rootType;
+            this.selectedFieldNames = Collections.unmodifiableList(new ArrayList<>(selectedFieldNames));
+        }
+    }
+
     private record ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
         private ProjectionPlanCacheKey(Class<?> projectionClass, List<String> sourceFieldSchema) {
             this.projectionClass = projectionClass;
@@ -1009,6 +991,62 @@ public final class ReflectionUtil {
             };
         }
 
+        private void write(Object bean, Object propertyValue, String propertyName) throws IllegalAccessException {
+            if (bean == null || !resolvable) {
+                return;
+            }
+            switch (readFields.length) {
+                case 0 -> {
+                    return;
+                }
+                case 1 -> readFields[0].set(bean, propertyValue);
+                case 2 -> {
+                    Object nested = ensureNestedParent(bean, readFields[0], propertyValue, propertyName);
+                    if (nested != null) {
+                        readFields[1].set(nested, propertyValue);
+                    }
+                }
+                case INLINE_THREE_FIELD_PATH -> {
+                    Object nested = ensureNestedParent(bean, readFields[0], propertyValue, propertyName);
+                    if (nested == null) {
+                        return;
+                    }
+                    Object leafParent = ensureNestedParent(nested, readFields[1], propertyValue, propertyName);
+                    if (leafParent != null) {
+                        readFields[2].set(leafParent, propertyValue);
+                    }
+                }
+                default -> writeNested(bean, propertyValue, propertyName);
+            }
+        }
+
+        private Object ensureNestedParent(Object current,
+                                          Field field,
+                                          Object propertyValue,
+                                          String propertyName) throws IllegalAccessException {
+            Object nested = field.get(current);
+            if (nested != null) {
+                return nested;
+            }
+            if (propertyValue == null) {
+                return null;
+            }
+            nested = instantiateNestedValue(field.getType(), propertyName);
+            field.set(current, nested);
+            return nested;
+        }
+
+        private void writeNested(Object bean, Object propertyValue, String propertyName) throws IllegalAccessException {
+            Object current = bean;
+            for (int i = 0; i < readFields.length - 1; i++) {
+                current = ensureNestedParent(current, readFields[i], propertyValue, propertyName);
+                if (current == null) {
+                    return;
+                }
+            }
+            readFields[readFields.length - 1].set(current, propertyValue);
+        }
+
     }
 
     private record FieldGraphDescriptor(List<String> fieldNames,
@@ -1051,7 +1089,8 @@ public final class ReflectionUtil {
             this.flattenedFields = List.copyOf(flattenedFields);
             this.fieldPaths = new ResolvedFieldPath[flattenedFields.size()];
             ArrayList<String> orderedFieldNames = new ArrayList<>(flattenedFields.size());
-            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,flattenedFields.size() * 2));
+            LinkedHashMap<String, Class<?>> orderedFieldTypes = new LinkedHashMap<>(Math.max(
+                    DEFAULT_MAP_CAPACITY, flattenedFields.size() * 2));
             for (int i = 0; i < flattenedFields.size(); i++) {
                 FlattenedFieldDescriptor field = flattenedFields.get(i);
                 fieldPaths[i] = field.fieldPath();
@@ -1072,10 +1111,6 @@ public final class ReflectionUtil {
 
         public int size() {
             return flattenedFields.size();
-        }
-
-        private List<FlattenedFieldDescriptor> flattenedFields() {
-            return flattenedFields;
         }
 
         private ResolvedFieldPath[] fieldPaths() {
@@ -1108,6 +1143,10 @@ public final class ReflectionUtil {
         public boolean isNumericPrimitiveField(String fieldName) {
             Field field = fields.get(fieldName);
             return field != null && isNumericPrimitive(field.getType());
+        }
+
+        public Field field(String fieldName) {
+            return fields.get(fieldName);
         }
 
         public Object readValue(Object row, String fieldName) throws IllegalAccessException {

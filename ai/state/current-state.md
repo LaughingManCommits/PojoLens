@@ -1,46 +1,28 @@
 # Current State
 
 ## Repo
-
-- Java 17 library with runtime, Spring Boot, and JMH modules.
-- Current date-based release is `2026.04.17.1834`.
+- Java 25 multi-module library with core runtime, Spring Boot integration, and JMH benchmarks.
+- Current release is `2026.04.17.1834`.
 
 ## Focus
-
-- `2026-04-18`: CI runtime matrix now tests Java `17`, `21`, and `25`; Maven compiler release remains `17`.
-- `2026-04-18`: Latest-release docs, examples, release guide, changelog, and consistency checks align to `2026.04.17.1834`.
-- `2026-04-18`: Documentation backlog `DOC-WP1` through `DOC-WP10` complete; `TODO.md` has no active TODOs.
-- `2026-04-10`: CSV complete through `CSV-WP5`; `CSV-WP6` deferred.
-- `2026-04-14`: limitation work done: bounded windows, aggregate ORDER BY, prepare, bounded subqueries/EXISTS, natural cleanup, SQL-like lowering.
-- `2026-04-16`: `ReflectionUtil` and `FastArrayQuerySupport` cleanup complete.
-- `2026-04-17`: `PojoLensTree` and ecosystem-positioning follow-up complete.
+- `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 `-Pstatic-analysis` gate is clean.
+- `2026-04-29`: Surface/tooling cleanup packages are complete: wrapper guidance is `ReportDefinition`/`SavedReport` first, docs are authoring-first with dedicated SQL-like, natural, and typed guides, `PojoLensFiles` owns CSV/TSV/JSON/JSONL with Excel as a non-goal, and build tooling is split between `metamodel` generation and `tooling` validation.
+- `2026-04-29`: WP23 completed. `TypedQuery` now supports join declarations, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` execution, explain, and schema reuse on the same surface.
+- `2026-04-29`: WP24 completed. `TypedQuery`/`TypedPredicate` now cover grouped `HAVING`, bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries, rank windows, aggregate window frames via `QueryWindowFrame`, and `QUALIFY` on the same immutable surface.
+- `2026-04-29`: `README.md` is now trimmed to one onboarding route table, quick starts, non-goals, and a short docs map so developers do not have to scan repeated product-surface taxonomy before reaching the correct guide.
 
 ## Verified
-
-- `2026-04-18`: Java 25 CI matrix update validated locally with `git diff --check`, `scripts/check-doc-consistency.ps1`, and `mvn -B -ntp test` on JDK 17; Java 25 executes in GitHub Actions via `actions/setup-java@v5`.
-- `2026-04-18`: Latest-release alignment validated with both doc consistency scripts, Python compile, full Maven tests, both starter example builds, and `git diff --check`.
-- `2026-04-18`: DOC-WP1 through DOC-WP10 validated with both doc consistency scripts, `git diff --check`, Python compile, and `mvn -B -ntp test`.
-- `2026-04-10`: CSV WP1-WP5 validated including guarded load benchmarks.
-- `2026-04-14`: bounded subquery/existence parity closed across fluent, SQL-like, and natural.
-- `2026-04-17`: `PojoLensTree` validated with `mvn -B -ntp -pl pojo-lens test`, `scripts/check-doc-consistency.ps1`, and full `mvn -B -ntp test`.
-- `2026-04-17`: positioning/release-readiness docs validated; Checkstyle baseline refreshed to `15691` entries and baseline gate passes with `new=0 fixed=0`.
-- `2026-04-17`: CI workflow warnings addressed: Node 24 action majors, quoted deploy flags, validated chart PNG paths, and passing benchmark thresholds.
+- `2026-04-27`: Full reactor, lint, and static-analysis gates passed after the window fix.
+- `2026-04-29`: WP21/WP25/WP22 all passed their focused public-surface or tooling coverage plus `mvn -B -ntp test` and `scripts/check-doc-consistency.ps1`.
+- `2026-04-29`: WP23 and WP24 passed focused typed/public-API coverage, full reactor `mvn -B -ntp test`, `mvn -B -ntp -Pstatic-analysis verify -DskipTests`, and `scripts/check-doc-consistency.ps1`.
 
 ## Release
-
-- `2026.04.17.1834` is complete.
+- Latest cut is `2026.04.17.1834`.
+- Use `RELEASE.md` when the user wants a new cut.
 
 ## Risks
-
-- Fluent/core should lead capability; SQL-like and natural are facades.
-- Bounded subquery/existence parity user-facing complete; SQL-like binding uses shared fluent/core path.
-- Natural remains controlled grammar; static parse/template stay vocabulary-free.
-- `PojoLensTree` is row shaping only; it must not grow parser syntax, graph algorithms, ORM behavior, or a second query engine.
-- User-authored SQL-like/natural text should use params, approved field/source exposure, lint mode, strict typing, and separate authorization before execution.
+- `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-
-- Release: cut a later date-based version only for post-`2026.04.17.1834` changes.
-- CSV: keep `CSV-WP6` deferred unless typed-first demand proves insufficient.
-- Limitations: correlated/scalar subqueries and broad window-frame parity stay opt-in only.
-- `TODO.md` currently has no active TODOs.
+- `2026-04-29`: Roadmap order is WP18 -> Release Gate.
+- `2026-04-29`: Next roadmap item is WP18 JDK 25 runtime knob evaluation.

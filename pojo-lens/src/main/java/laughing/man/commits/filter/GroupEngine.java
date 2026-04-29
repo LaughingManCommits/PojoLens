@@ -1,12 +1,13 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,13 +36,23 @@ final class GroupEngine {
 
             String[] groupParts = new String[columnCount];
             QueryKey lookupKey = QueryKey.forMutableLookup(groupParts, columnCount);
+            @SuppressWarnings("unchecked")
+            HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
+            for (int i = 0; i < columnCount; i++) {
+                keyStringCaches[i] = new HashMap<>();
+            }
             for (int index = 0; index < rows.size(); index++) {
                 QueryRow row = rows.get(index);
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                     FilterExecutionPlan.GroupColumn column = columns.get(columnIndex);
                     Object raw = row.getValueAt(column.fieldIndex());
                     Object projected = column.timeBucket() == null ? raw : TimeBucketUtil.bucketValue(raw, column.timeBucket());
-                    groupParts[columnIndex] = GroupKeyUtil.toGroupKeyValue(projected, column.dateFormat());
+                    String keyStr = keyStringCaches[columnIndex].get(projected);
+                    if (keyStr == null) {
+                        keyStr = GroupKeyUtil.toGroupKeyValue(projected, column.dateFormat());
+                        keyStringCaches[columnIndex].put(projected, keyStr);
+                    }
+                    groupParts[columnIndex] = keyStr;
                 }
                 lookupKey.refresh();
                 List<QueryRow> groupedRows = grouped.get(lookupKey);

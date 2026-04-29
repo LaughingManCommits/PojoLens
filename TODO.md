@@ -1,137 +1,249 @@
 # TODO
 
-## DOC-WP1: Fix stale version references
+## Product Direction
+
+**Conclusion:** PojoLens is the embedded reporting and governed query layer for
+Java apps working over already-materialized object snapshots.
+
+**Winning niche:** Safe configurable reporting over data the application already
+owns in memory. Strong diagnostics, plan preview, explain, keyset pagination,
+telemetry hooks, reusable report/chart/schema helpers, and optional Spring Boot
+wiring.
+
+**Non-goals:**
+- Not a replacement for jOOQ, Querydsl, or Spring Data for DB-backed queries.
+- No free-form AI/chatbot natural queries.
+- No auth, RBAC, or tenant-security framework in core.
+
+---
+
+## Status Overview
+
+Execution order is dependency-first, not ticket-number order.
+
+| WP  | Title                                        | Status  | Key deliverables                                                                      |
+|-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
+| WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
+| WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
+| WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
+| WP24| Typed DSL Advanced Analytics                 | Completed | Typed `HAVING`, windows, bounded subqueries, `QUALIFY`, and aggregate window frames now share one `TypedQuery`/`TypedPredicate` story |
+| WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
+| Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
+
+---
+
+Completed work packages were cleared from the active backlog. Historical detail
+stays in `CHANGELOG.md` and git history.
+
+---
+
+## WP25: Boundary Loader Consolidation And Expansion
+
+**Priority:** Medium
+**Goal:** Broaden file-boundary onboarding under one loader surface without
+turning PojoLens into a dataframe or ETL framework.
+
+**Context:**
+- The CSV adapter started intentionally bounded, and format expansion only
+  makes sense if it stays read-only, row-oriented, and subordinate to the same
+  in-memory engine story.
+- Competitive analytics-adjacent libraries gain adoption through format
+  convenience even when their core engine story is different.
+- Any expansion here needs to stay read-only, boundary-only, and explicitly
+  subordinate to the in-memory query engine story.
+- New format growth should not create a new peer public surface for each file
+  type.
+- The first slice established `PojoLensFiles` / `runtime.files()` as the
+  single file-boundary loader story while keeping `PojoLensCsv` and
+  `runtime.csv()` as stable CSV-only convenience routes.
+
+**Tasks:**
+- [x] Decide the single public boundary-loader surface for format-specific
+      loading so future adapters do not fragment into separate peer entry
+      points.
+- [x] Add first-party TSV typed loading under that single boundary-loader
+      story, with load reports, coercion controls, and runtime-owned defaults
+      where the model stays bounded.
+- [x] Add first-party JSON/JSONL typed loading under that same
+      boundary-loader story with bounded options and diagnostics.
+- [x] Factor shared row-schema diagnostics plumbing out of CSV internals where
+      reuse improves clarity and keeps error contracts aligned.
+- [x] Decide whether Excel support is a bounded adapter worth owning or a
+      deliberate non-goal, and document that decision explicitly.
+- [x] Keep adapters read-only, boundary-only, and schema-explicit rather than
+      widening into a general table platform.
+- [x] Add docs and example flows that feed loaded rows into the normal
+      SQL-like, natural, and typed execution paths.
+- [x] Do not add separate top-level peer product stories such as distinct
+      `PojoLensJson` or `PojoLensTsv` surfaces unless that decision is
+      explicitly justified and reviewed.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `scripts/check-doc-consistency.ps1`
+
+---
+
+## WP22: Developer Tooling And Static Validation
 
 **Priority:** High
-**Files:** `docs/public-api-stability.md`, `ai/core/repo-purpose.md`, `docs/benchmarking.md`
+**Goal:** Close the build-time and CI ergonomics gap with first-party code
+generation and query-validation hooks.
 
-Tasks:
-- [x] `public-api-stability.md`: Remove or rewrite "pre-first-release" conditional sections - the first public `release-*` tag has already shipped. Replace with present-tense post-release policy throughout.
-- [x] `repo-purpose.md`: Update version string after next release is cut; consider referencing pom.xml as source of truth rather than embedding the version in prose.
-- [x] `benchmarking.md`: Replace all hardcoded `2026.03.28.1919` jar filenames (~15 occurrences) with a variable or glob pattern (e.g. `target/*-benchmarks.jar`), consistent with the "do not hardcode a specific dated release filename" guidance already in that doc.
+**Context:**
+- `FieldMetamodelGenerator` exists today, but it is intentionally
+  library-level rather than annotation-processor-driven.
+- `SavedReport`, SQL-like diagnostics, natural diagnostics, and plan preview
+  already provide most of the raw pieces for static validation.
+- This work should target the consolidated first-read surface from WP21/WP25 so
+  build integration does not bake in avoidable naming churn.
 
-Validate: `scripts/check-doc-consistency.ps1`
+**Tasks:**
+- [x] Decide the first-party build integration shape: Maven plugin, Gradle task
+      recipe, annotation processor, or a staged combination.
+- [x] Add automated metamodel generation for typed-field and string-field
+      constants without requiring handwritten driver code.
+- [x] Add build-time validation for `SavedReport` catalogs and config-owned
+      SQL-like/natural query text using diagnostics/plan preview without live
+      data execution.
+- [x] Emit deterministic machine-readable diagnostics that can fail CI with
+      stable error contracts.
+- [x] Ship at least one documented build integration example, including
+      generated-sources wiring and incremental-build behavior.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `scripts/check-doc-consistency.ps1`
 
 ---
 
-## DOC-WP2: Fix entry-point omissions in summary sections
+## WP23: Typed DSL Aggregation And Join Expansion
 
 **Priority:** High
-**Files:** `README.md`, `docs/usecases.md`, `docs/modules.md`
+**Goal:** Close the largest typed-authoring gap by bringing code-owned grouped
+and multi-source queries onto typed APIs.
 
-Tasks:
-- [x] `README.md` - `API Entry Points` section: add `PojoLensCsv` entry (currently listed in "Pick A Path" table but absent from the summary).
-- [x] `docs/usecases.md` - Section 7 "Default Calls": add `PojoLensNatural` default call (present in Section 1 path-selection table but absent from the defaults summary).
-- [x] `docs/modules.md` - "Public Runtime Layering" section: add `PojoLensNatural` entry (the third first-class query entry point is missing from this list alongside `PojoLensCore` and `PojoLensSql`).
+**Context:**
+- `TypedQuery` currently stops at projection, filters, ordering, offset, limit,
+  explain, schema, and execution guards.
+- SQL-like already owns grouping, joins, metrics, windows, and bounded
+  subqueries; typed code-owned use cases fall back to strings for those shapes.
+- WP22 should land first so metamodel/codegen and validation support can back
+  the larger typed surface.
 
-Validate: `scripts/check-doc-consistency.ps1`
+**Tasks:**
+- [x] Design typed join bindings that reuse `JoinBindings` and `DatasetBundle`
+      concepts instead of inventing a parallel multi-source model.
+- [x] Add typed grouping, aggregate selection, ordering by aggregate output,
+      and totals-style projection support.
+- [x] Preserve parity with SQL-like validation, schema, explain, and execution
+      guards where query shapes overlap.
+- [x] Generate or derive the typed field helpers needed for grouped and joined
+      projections.
+- [x] Land parity/regression coverage against equivalent SQL-like queries
+      before exposing the new typed surface as stable guidance.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 
 ---
 
-## DOC-WP3: Remove process text from user-facing docs
+## WP24: Typed DSL Advanced Analytics
 
 **Priority:** Medium
-**Files:** `docs/reusable-wrappers.md`, `docs/product-surface.md`
+**Goal:** Extend the typed story beyond grouped queries once the typed
+aggregation foundation is stable.
 
-Tasks:
-- [x] `reusable-wrappers.md` - "Overlap And Disposition" section: remove the final two sentences ("No wrapper is a current deprecation candidate. Further wrapper reduction remains a pre-first-release product decision, not a compatibility constraint.") - these are internal planning notes, not user guidance.
-- [x] `product-surface.md` - "Follow-On Work" section: remove entirely, or replace with a single sentence pointing to `public-api-stability.md` for stability guarantees.
+**Context:**
+- Windows, `HAVING`, `QUALIFY`, and bounded subqueries are already
+  differentiators on the SQL-like surface.
+- Bringing those shapes to typed authoring only makes sense after grouped and
+  joined typed composition settles into a coherent API.
+- This package is about code-owned query composition, not replacing the text
+  surfaces for user-authored queries.
 
-Validate: `scripts/check-doc-consistency.ps1`
+**Tasks:**
+- [x] Add typed `HAVING` on the existing `TypedQuery` surface for grouped
+      fields and aggregate aliases without adding a parallel grouped-query
+      wrapper.
+- [x] Add typed window outputs and `QUALIFY` on the existing `TypedQuery`
+      surface for rank and default running-window shapes without adding a
+      parallel window-query wrapper.
+- [x] Decide whether bounded/public window-frame configuration belongs on
+      `TypedQuery` or remains text-only.
+- [x] Evaluate bounded typed subquery and existence predicates against API
+      readability, error reporting, and generic-type weight.
+- [x] Keep user-authored text flows on SQL-like/natural while extending typed
+      composition only where code-owned queries clearly benefit.
+- [x] Stage rollout behind parity tests and usage docs so the typed surface
+      grows in one direction instead of fragmenting.
+- [x] Decide and document any advanced shapes that should remain text-only even
+      after the typed expansion work.
 
----
-
-## DOC-WP4: Align product family names
-
-**Priority:** Medium
-**Files:** `README.md`, `docs/product-surface.md`
-
-The README "Product Shape" section uses different family names than the canonical `product-surface.md`:
-
-| README label | Canonical (`product-surface.md`) |
-|---|---|
-| `Workflow helpers` | `Workflow helper` |
-| `Runtime integration` | `Integration` |
-| `Advanced and tooling` | `Advanced` + `Tooling` (two families) |
-
-Tasks:
-- [x] Decide canonical names and update the non-canonical file to match. Preferred: keep `product-surface.md` as the authority and update README to match.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP5: Fix caching.md broken sentence and maxWeight clarity
-
-**Priority:** Medium
-**File:** `docs/caching.md`
-
-Tasks:
-- [x] Fix broken sentence at lines 3-5: move the two bullet-list items (`SQL-like parse cache`, `stats-plan cache`) to immediately follow the colon, before the "This is an advanced policy-tuning surface." line.
-- [x] Clarify `maxWeight=0` inline comment in the defaults table: change `(disabled)` to `(count-based eviction via maxEntries)` to avoid implying eviction is off.
-
-Validate: `scripts/check-doc-consistency.ps1`
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 
 ---
 
-## DOC-WP6: Consolidate natural.md Non-goals / Limitations overlap
+## WP18: JDK 25 Runtime Knob Evaluation
 
-**Priority:** Medium
-**File:** `docs/natural.md`
+**Priority:** Experimental Runtime Performance
+**Goal:** Measure JDK 25 runtime features as deployment guidance rather than as
+mandatory code changes.
 
-Tasks:
-- [x] Remove "free-form SQL window grammar beyond the supported natural window phrases" from the "Non-goals" section - it duplicates what is already covered in "Current Limitations". Keep it only in Limitations as a technical scope boundary.
-- [x] Verify remaining Non-goals are design-intent statements, not technical scope gaps (those belong in Limitations).
+**Context:**
+- JDK 25 ships productized runtime features such as compact object headers and
+  generational Shenandoah, plus simpler AOT cache creation and method-profile
+  reuse.
+- These knobs can improve startup, footprint, or GC behavior without changing
+  PojoLens source code, but they need repo-local data before they become
+  guidance.
+- The benchmark module and Spring examples provide a reasonable place to gather
+  comparative startup and throughput numbers.
+- This package is intentionally late in the queue because it is experimental
+  and does not reduce product-surface overlap or unlock the developer-facing
+  API roadmap.
 
-Validate: `scripts/check-doc-consistency.ps1`
+**Tasks:**
+- [ ] Define a small runtime matrix covering default JVM settings, compact
+      object headers, generational Shenandoah, and AOT cache startup for the
+      benchmark runner and one Spring example app.
+- [ ] Execute the matrix with `$env:JAVA_HOME\\bin\\java.exe` and capture
+      startup time, heap footprint, and relevant throughput/parity outputs.
+- [ ] Decide which knobs are worth documenting in `docs/benchmarking.md` or
+      release guidance, and which should remain experimental notes only.
+- [ ] Keep all runtime-feature guidance explicitly optional until the data is
+      stable across multiple runs and environments.
+- [ ] Document platform or tooling assumptions so reruns do not depend on
+      unstated local setup.
 
----
-
-## DOC-WP7: Add natural query diagnostics pointer to advanced-features.md
-
-**Priority:** Medium
-**File:** `docs/advanced-features.md`
-
-Tasks:
-- [x] In the "Diagnostics And Guardrails" section, add a bullet for natural query `explain()` pointing to `natural.md`. Currently the section only references `sql-like.md` for explain and lint mode, leaving natural query diagnostics undiscoverable from this guide.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP8: Add cross-references to thin docs
-
-**Priority:** Low
-**Files:** `docs/snapshot-comparison.md`, `docs/regression-fixtures.md`, `docs/tabular-schema.md`
-
-Tasks:
-- [x] `snapshot-comparison.md`: add `## See Also` section pointing to `reports.md`, `charts.md`, `entry-points.md`.
-- [x] `regression-fixtures.md`: add `## See Also` section pointing to `entry-points.md`, `sql-like.md`, `reports.md`.
-- [x] `tabular-schema.md`: add `## See Also` section pointing to `reports.md`, `stats-presets.md`, `entry-points.md`.
-
-Validate: `scripts/check-doc-consistency.ps1`
-
----
-
-## DOC-WP9: Minor README fixes
-
-**Priority:** Low
-**File:** `README.md`
-
-Tasks:
-- [x] Fix double "and" in Capability Snapshot -> Workflow helpers bullet: "tree row shaping, and tabular schema metadata" -> "tree row shaping and tabular schema metadata" (remove one "and").
-- [x] Clarify `StatsViewPreset / StatsTable` row in "Pick A Path" table: note that `StatsTablePayload` is the projection-free dashboard variant, separate from the typed `StatsTable<T>`.
-
-Validate: `scripts/check-doc-consistency.ps1`
+**Validate:**
+- `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- `scripts/check-doc-consistency.ps1`
 
 ---
 
-## DOC-WP10: Add docs/ landing file
+## Release Gate
 
-**Priority:** Low
-**File:** `docs/README.md` (new)
+**Priority:** High
+**Goal:** Cut the next release after the active roadmap queue is complete and
+the final release guardrails are rerun.
 
-Tasks:
-- [x] Create a thin `docs/README.md` that orients users who land directly in the `docs/` folder on GitHub. One sentence pointing to the root README's Documentation Map section is sufficient.
+**Tasks:**
+- [ ] Run final release guardrails from `RELEASE.md`.
+- [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after release.
 
-Validate: `scripts/check-doc-consistency.ps1`
+**Current release-cut decisions (2026-04-26):**
+- Defer the unimplemented WP6/WP8/WP9 benchmark-backfill tasks until after the
+  next release cut. Existing strict core/chart guardrails already cover the
+  shipped performance surface, and adding new benchmark suites or threshold
+  entries would expand scope while the release gate is blocked elsewhere.
+- WP11 landed before the release cut on `2026-04-26`.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `scripts/check-doc-consistency.ps1`
+- Release benchmark guardrails from `docs/benchmarking.md`.

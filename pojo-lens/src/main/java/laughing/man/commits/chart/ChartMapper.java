@@ -6,6 +6,7 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.ReflectionUtil.DirectFieldReadPlan;
 import laughing.man.commits.util.SchemaIndexUtil;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Comparator;
@@ -91,6 +92,9 @@ public final class ChartMapper {
                                                  ChartSpec spec,
                                                  ChartData chartData,
                                                  DirectFieldReadPlan directReadPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterPoints(rows, spec, chartData, directReadPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (T row : rows) {
@@ -108,6 +112,29 @@ public final class ChartMapper {
         return chartData;
     }
 
+    private static <T> ChartData mapScatterPoints(List<T> rows,
+                                                   ChartSpec spec,
+                                                   ChartData chartData,
+                                                   DirectFieldReadPlan directReadPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (T row : rows) {
+            if (row == null) {
+                continue;
+            }
+            xValues.add(readYValue(row, spec.xField(), directReadPlan));
+            yValues.add(readYValue(row, spec.yField(), directReadPlan));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
+        return chartData;
+    }
+
     private static ChartData mapQueryRows(List<QueryRow> rows, ChartSpec spec, ChartData chartData) {
         IndexedRowReadPlan readPlan = queryRowReadPlan(rows, spec);
         if (!spec.multiSeries()) {
@@ -120,6 +147,9 @@ public final class ChartMapper {
                                                       ChartSpec spec,
                                                       ChartData chartData,
                                                       IndexedRowReadPlan readPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterQueryRows(rows, spec, chartData, readPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (QueryRow row : rows) {
@@ -139,10 +169,38 @@ public final class ChartMapper {
         return chartData;
     }
 
+    private static ChartData mapScatterQueryRows(List<QueryRow> rows,
+                                                  ChartSpec spec,
+                                                  ChartData chartData,
+                                                  IndexedRowReadPlan readPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (QueryRow row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object x = readQueryRowField(row, spec.xField(), readPlan.xFieldIndex());
+            Object y = readQueryRowField(row, spec.yField(), readPlan.yFieldIndex());
+            xValues.add(ChartValidation.validateYValueBoxed(x, spec.xField()));
+            yValues.add(ChartValidation.validateYValueBoxed(y, spec.yField()));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
+        return chartData;
+    }
+
     private static ChartData mapSingleSeriesArrayRows(List<Object[]> rows,
                                                       ChartSpec spec,
                                                       ChartData chartData,
                                                       IndexedRowReadPlan readPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return mapScatterArrayRows(rows, spec, chartData, readPlan);
+        }
         List<String> labels = new ArrayList<>(rows.size());
         List<Double> values = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
@@ -162,6 +220,31 @@ public final class ChartMapper {
         return chartData;
     }
 
+    private static ChartData mapScatterArrayRows(List<Object[]> rows,
+                                                  ChartSpec spec,
+                                                  ChartData chartData,
+                                                  IndexedRowReadPlan readPlan) {
+        List<Double> xValues = new ArrayList<>(rows.size());
+        List<Double> yValues = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object x = readArrayRowField(row, readPlan.xFieldIndex());
+            Object y = readArrayRowField(row, readPlan.yFieldIndex());
+            xValues.add(ChartValidation.validateYValueBoxed(x, spec.xField()));
+            yValues.add(ChartValidation.validateYValueBoxed(y, spec.yField()));
+        }
+        if (spec.sortLabels()) {
+            sortScatterPoints(xValues, yValues);
+        }
+        ChartDataset dataset = newDataset(spec, spec.yField(), yValues);
+        dataset.setXValues(xValues);
+        chartData.setLabels(new ArrayList<>());
+        chartData.setDatasets(List.of(dataset));
+        return chartData;
+    }
+
     private static List<String> chartFieldNames(ChartSpec spec) {
         if (!spec.multiSeries()) {
             return List.of(spec.xField(), spec.yField());
@@ -174,14 +257,24 @@ public final class ChartMapper {
                                                 ChartData chartData,
                                                 DirectFieldReadPlan directReadPlan) {
         MultiSeriesAccumulator accumulator = new MultiSeriesAccumulator(spec);
+        DirectMultiSeriesReadPlan directRowPlan = directMultiSeriesReadPlan(spec, directReadPlan);
 
         for (T row : rows) {
             if (row == null) {
                 continue;
             }
-            Object x = readXValue(row, spec, directReadPlan);
-            String series = readSeriesValue(row, spec.seriesField(), directReadPlan);
-            Double value = readYValue(row, spec.yField(), directReadPlan);
+            Object x;
+            String series;
+            Double value;
+            if (directRowPlan != null && directReadPlan.canRead(row)) {
+                x = readDirectMultiSeriesXValue(row, spec, directRowPlan);
+                series = readDirectSeriesValue(row, spec.seriesField(), directRowPlan.seriesField());
+                value = readDirectYValue(row, spec.yField(), directRowPlan.yField());
+            } else {
+                x = readMultiSeriesXValue(row, spec, directReadPlan);
+                series = readSeriesValue(row, spec.seriesField(), directReadPlan);
+                value = readYValue(row, spec.yField(), directReadPlan);
+            }
             accumulator.addPoint(x, series, value);
         }
         return accumulator.finish(chartData);
@@ -270,7 +363,8 @@ public final class ChartMapper {
         for (int labelIndex = 0; labelIndex < labelCount; labelIndex++) {
             double total = 0d;
             for (ChartDataset dataset : datasets) {
-                Double value = dataset.getValues().get(labelIndex);
+                List<Double> values = dataset.getValues();
+                Double value = values.get(labelIndex);
                 if (value != null) {
                     total += value;
                 }
@@ -279,11 +373,12 @@ public final class ChartMapper {
                 continue;
             }
             for (ChartDataset dataset : datasets) {
-                Double value = dataset.getValues().get(labelIndex);
+                List<Double> values = dataset.getValues();
+                Double value = values.get(labelIndex);
                 if (value == null) {
                     continue;
                 }
-                dataset.getValues().set(labelIndex, (value / total) * PERCENTAGE_SCALE);
+                dataset.setValueAt(labelIndex, (value / total) * PERCENTAGE_SCALE);
             }
         }
     }
@@ -309,6 +404,54 @@ public final class ChartMapper {
                 spec.xField(),
                 spec.dateFormat()
         );
+    }
+
+    private static Object readMultiSeriesXValue(Object row, ChartSpec spec, DirectFieldReadPlan directReadPlan) {
+        if (spec.type() == ChartType.SCATTER) {
+            return readField(row, spec.xField(), directReadPlan);
+        }
+        return readXValue(row, spec, directReadPlan);
+    }
+
+    private static DirectMultiSeriesReadPlan directMultiSeriesReadPlan(ChartSpec spec,
+                                                                       DirectFieldReadPlan directReadPlan) {
+        if (directReadPlan == null) {
+            return null;
+        }
+        Field xField = directReadPlan.field(spec.xField());
+        Field yField = directReadPlan.field(spec.yField());
+        Field seriesField = directReadPlan.field(spec.seriesField());
+        if (xField == null || yField == null || seriesField == null) {
+            return null;
+        }
+        return new DirectMultiSeriesReadPlan(xField, yField, seriesField);
+    }
+
+    private static Object readDirectMultiSeriesXValue(Object row,
+                                                      ChartSpec spec,
+                                                      DirectMultiSeriesReadPlan directReadPlan) {
+        Field xField = directReadPlan.xField();
+        if (spec.type() == ChartType.SCATTER) {
+            return readFieldValue(row, spec.xField(), xField);
+        }
+        if (xField.getType().isPrimitive() && isNumericPrimitive(xField.getType())) {
+            return readPrimitiveAsString(row, spec.xField(), xField);
+        }
+        return ChartValidation.validateXValue(readFieldValue(row, spec.xField(), xField), spec.xField(), spec.dateFormat());
+    }
+
+    private static Double readDirectYValue(Object row, String fieldName, Field field) {
+        if (field.getType().isPrimitive() && isNumericPrimitive(field.getType())) {
+            return readNumericPrimitiveAsDouble(row, fieldName, field);
+        }
+        return ChartValidation.validateYValueBoxed(readFieldValue(row, fieldName, field), fieldName);
+    }
+
+    private static String readDirectSeriesValue(Object row, String fieldName, Field field) {
+        if (field.getType().isPrimitive()) {
+            return readPrimitiveAsString(row, fieldName, field);
+        }
+        return stringSeriesValue(readFieldValue(row, fieldName, field));
     }
 
     private static Double readYValue(Object row, String fieldName, DirectFieldReadPlan directReadPlan) {
@@ -354,6 +497,41 @@ public final class ChartMapper {
         }
     }
 
+    private static String readPrimitiveAsString(Object row,
+                                                String fieldName,
+                                                Field field) {
+        try {
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return String.valueOf(field.getInt(row));
+            }
+            if (fieldType == long.class) {
+                return String.valueOf(field.getLong(row));
+            }
+            if (fieldType == double.class) {
+                return String.valueOf(field.getDouble(row));
+            }
+            if (fieldType == float.class) {
+                return String.valueOf(field.getFloat(row));
+            }
+            if (fieldType == short.class) {
+                return String.valueOf(field.getShort(row));
+            }
+            if (fieldType == byte.class) {
+                return String.valueOf(field.getByte(row));
+            }
+            if (fieldType == boolean.class) {
+                return String.valueOf(field.getBoolean(row));
+            }
+            if (fieldType == char.class) {
+                return String.valueOf(field.getChar(row));
+            }
+            return null;
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
     private static Double readNumericPrimitiveAsDouble(Object row,
                                                        DirectFieldReadPlan directReadPlan,
                                                        String fieldName) {
@@ -364,8 +542,75 @@ public final class ChartMapper {
         }
     }
 
+    private static Double readNumericPrimitiveAsDouble(Object row,
+                                                       String fieldName,
+                                                       Field field) {
+        try {
+            Class<?> fieldType = field.getType();
+            if (fieldType == int.class) {
+                return (double) field.getInt(row);
+            }
+            if (fieldType == long.class) {
+                return (double) field.getLong(row);
+            }
+            if (fieldType == double.class) {
+                return field.getDouble(row);
+            }
+            if (fieldType == float.class) {
+                return (double) field.getFloat(row);
+            }
+            if (fieldType == short.class) {
+                return (double) field.getShort(row);
+            }
+            if (fieldType == byte.class) {
+                return (double) field.getByte(row);
+            }
+            return null;
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
+    private static Object readFieldValue(Object row, String fieldName, Field field) {
+        try {
+            return field.get(row);
+        } catch (IllegalAccessException ex) {
+            throw new IllegalArgumentException("Failed to read chart field '" + fieldName + "'", ex);
+        }
+    }
+
+    private static boolean isNumericPrimitive(Class<?> fieldType) {
+        return fieldType == int.class
+                || fieldType == long.class
+                || fieldType == double.class
+                || fieldType == float.class
+                || fieldType == short.class
+                || fieldType == byte.class;
+    }
+
     private static String stringSeriesValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private static void sortScatterPoints(List<Double> xValues, List<Double> yValues) {
+        List<Integer> indexes = new ArrayList<>(xValues.size());
+        for (int i = 0; i < xValues.size(); i++) {
+            indexes.add(i);
+        }
+        indexes.sort(Comparator.comparingDouble(i -> {
+            Double x = xValues.get(i);
+            return x == null ? Double.MAX_VALUE : x;
+        }));
+        List<Double> sortedX = new ArrayList<>(xValues.size());
+        List<Double> sortedY = new ArrayList<>(yValues.size());
+        for (Integer i : indexes) {
+            sortedX.add(xValues.get(i));
+            sortedY.add(yValues.get(i));
+        }
+        xValues.clear();
+        xValues.addAll(sortedX);
+        yValues.clear();
+        yValues.addAll(sortedY);
     }
 
     private static void sortSingleSeries(List<String> labels, List<Double> values) {
@@ -401,6 +646,9 @@ public final class ChartMapper {
                 spec.stackGroupIdForDataset(label),
                 spec.axisIdForDataset(label)
         );
+    }
+
+    private record DirectMultiSeriesReadPlan(Field xField, Field yField, Field seriesField) {
     }
 
     private static final class MultiSeriesAccumulator {

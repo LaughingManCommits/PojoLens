@@ -1,6 +1,6 @@
 # Computed Fields
 
-`ComputedFieldRegistry` lets you register reusable named numeric expressions once and reuse them across fluent queries, SQL-like queries, reports, and chart flows.
+`ComputedFieldRegistry` lets you register reusable named numeric expressions once and reuse them across SQL-like queries, natural queries, reports, and chart flows.
 
 Use it when the same derived measure would otherwise be repeated inline:
 
@@ -42,28 +42,6 @@ The same registry also works with:
 - reusable `ReportDefinition`
 - chart mapping via `chart(...)`
 
-## Fluent Queries
-
-Attach the registry to the builder before using computed-field names:
-
-```java
-List<DepartmentAdjustedPayroll> rows = PojoLensCore.newQueryBuilder(source)
-    .computedFields(registry)
-    .addGroup("department")
-    .addMetric("adjustedSalary", Metric.SUM, "totalAdjustedPayroll")
-    .addOrder("totalAdjustedPayroll", 1)
-    .initFilter()
-    .filter(DepartmentAdjustedPayroll.class);
-```
-
-Once attached, computed-field names can be used anywhere the materialized row schema is valid:
-
-- `addRule(...)`
-- `addField(...)`
-- `addGroup(...)`
-- `addOrder(...)`
-- `addMetric(...)`
-
 ## Runtime-Wide Registry
 
 For app-wide defaults, attach the registry to a runtime:
@@ -77,14 +55,14 @@ List<AdjustedSalaryRow> rows = runtime
     .filter(source, AdjustedSalaryRow.class);
 ```
 
-Runtime-created fluent builders also inherit the registry.
+Runtime-created SQL-like and natural queries inherit the registry.
 
 ## Explain Output
 
 Explain payloads surface computed fields in use:
 
-- fluent `explain()` includes configured computed fields for the current schema
 - SQL-like `explain()` includes computed fields referenced by the query
+- natural `explain()` includes computed fields referenced through the resolved query
 
 ## Validation Notes
 

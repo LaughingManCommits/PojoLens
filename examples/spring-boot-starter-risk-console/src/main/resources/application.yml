@@ -1,0 +1,42 @@
+#spring:
+#  application:
+#    name: pojo-lens-spring-boot-starter-risk-console
+#  datasource:
+#    url: ${RISK_CONSOLE_DB_URL:jdbc:mysql://localhost:3306/pojolens_demo?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+#    username: ${RISK_CONSOLE_DB_USERNAME:demo}
+#    password: ${RISK_CONSOLE_DB_PASSWORD:demo}
+#  sql:
+#    init:
+#      mode: always
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:riskconsole;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+
+pojo-lens:
+  preset: DEV
+  strict-parameter-types: true
+  lint-mode: true
+  telemetry:
+    micrometer:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+risk-console:
+  seed:
+    enabled: true
+    seed: 4242
+    merchant-count: 240
+    customer-count: 3200
+    transaction-count: 28000

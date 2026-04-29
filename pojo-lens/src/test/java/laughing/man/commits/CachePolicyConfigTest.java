@@ -2,6 +2,7 @@ package laughing.man.commits;
 
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
@@ -125,8 +126,34 @@ public class CachePolicyConfigTest {
         assertEquals(1L, runtime.statsPlanCache().hits());
     }
 
+    @Test
+    public void statsPlanCacheResetShouldDropEntriesAndForceNextEquivalentQueryToMiss() {
+        List<Employee> employees = sampleEmployees();
+        SqlLikeQuery query = runtime.parse("select department, count(*) as total group by department");
+
+        query.filter(employees, DepartmentCount.class);
+        query.filter(employees, DepartmentCount.class);
+
+        assertEquals(1, runtime.statsPlanCache().size());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(1L, runtime.statsPlanCache().hits());
+
+        runtime.statsPlanCache().resetStats();
+
+        assertEquals(0, runtime.statsPlanCache().size());
+        assertEquals(0L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+        assertEquals(0L, runtime.statsPlanCache().evictions());
+
+        query.filter(employees, DepartmentCount.class);
+
+        assertEquals(1, runtime.statsPlanCache().size());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+    }
+
     private void runStatsPlanQuery(List<Employee> employees) {
-        runtime.newQueryBuilder(employees)
+        FluentEngine.newQueryBuilder(employees, runtime.statsPlanCache())
                 .addGroup("department")
                 .addCount("total")
                 .initFilter()

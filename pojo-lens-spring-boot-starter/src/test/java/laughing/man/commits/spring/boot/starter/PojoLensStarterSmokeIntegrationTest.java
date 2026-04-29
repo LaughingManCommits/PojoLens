@@ -7,6 +7,7 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -70,8 +71,10 @@ class PojoLensStarterSmokeIntegrationTest {
     static class TestApplication {
 
         @Bean
-        EmployeeEndpoint employeeEndpoint(PojoLensRuntime pojoLensRuntime) {
-            return new EmployeeEndpoint(pojoLensRuntime);
+        EmployeeEndpoint employeeEndpoint(PojoLensRuntime pojoLensRuntime, Environment environment) {
+            boolean virtualThreadsEnabled =
+                    environment.getProperty("spring.threads.virtual.enabled", Boolean.class, false);
+            return new EmployeeEndpoint(pojoLensRuntime, virtualThreadsEnabled);
         }
     }
 
@@ -88,9 +91,11 @@ class PojoLensStarterSmokeIntegrationTest {
         );
 
         private final PojoLensRuntime pojoLensRuntime;
+        private final boolean virtualThreadsEnabled;
 
-        EmployeeEndpoint(PojoLensRuntime pojoLensRuntime) {
+        EmployeeEndpoint(PojoLensRuntime pojoLensRuntime, boolean virtualThreadsEnabled) {
             this.pojoLensRuntime = pojoLensRuntime;
+            this.virtualThreadsEnabled = virtualThreadsEnabled;
         }
 
         @GetMapping("/top-paid")
@@ -111,6 +116,16 @@ class PojoLensStarterSmokeIntegrationTest {
                             "limit", cappedLimit
                     ))
                     .filter(EMPLOYEES, EmployeeView.class);
+        }
+
+        @GetMapping("/runtime")
+        public Map<String, Object> runtime() {
+            return Map.of(
+                    "strictParameterTypes", pojoLensRuntime.isStrictParameterTypes(),
+                    "lintMode", pojoLensRuntime.isLintMode(),
+                    "virtualThreadsEnabled", virtualThreadsEnabled,
+                    "requestThreadVirtual", Thread.currentThread().isVirtual()
+            );
         }
     }
 

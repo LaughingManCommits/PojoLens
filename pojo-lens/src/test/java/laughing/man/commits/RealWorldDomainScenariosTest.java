@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.enums.Sort;
@@ -26,7 +28,7 @@ public class RealWorldDomainScenariosTest {
     public void fluentFilterShouldReturnActiveEngineeringEmployeesOrderedBySalary() throws Exception {
         List<Employee> employees = sampleEmployees();
 
-        List<Employee> results = PojoLensCore.newQueryBuilder(employees)
+        List<Employee> results = FluentEngine.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addOrder("salary", 1)
@@ -42,7 +44,7 @@ public class RealWorldDomainScenariosTest {
     public void sqlLikeShouldMatchFluentForDepartmentAndSalaryFilter() throws Exception {
         List<Employee> employees = sampleEmployees();
 
-        List<Employee> fluent = PojoLensCore.newQueryBuilder(employees)
+        List<Employee> fluent = FluentEngine.newQueryBuilder(employees)
                 .addRule("department", "Engineering", Clauses.EQUAL, Separator.AND)
                 .addRule("salary", 120000, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addOrder("salary", 1)

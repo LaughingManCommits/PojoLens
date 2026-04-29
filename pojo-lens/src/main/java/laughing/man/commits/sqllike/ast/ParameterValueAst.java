@@ -27,10 +27,9 @@ public final class ParameterValueAst {
         if (this == other) {
             return true;
         }
-        if (!(other instanceof ParameterValueAst)) {
+        if (!(other instanceof ParameterValueAst that)) {
             return false;
         }
-        ParameterValueAst that = (ParameterValueAst) other;
         return Objects.equals(name, that.name);
     }
 

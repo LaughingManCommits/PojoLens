@@ -5,13 +5,13 @@ import laughing.man.commits.csv.CsvLoadException;
 import laughing.man.commits.csv.CsvLoadReport;
 import laughing.man.commits.csv.CsvLoadResult;
 import laughing.man.commits.csv.CsvOptions;
+import laughing.man.commits.files.internal.FileLoadSupport;
 import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.StringUtil;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -287,9 +287,9 @@ public final class CsvLoaderSupport {
     }
 
     private static LinkedHashMap<String, CsvColumnBinding> resolveBindings(Class<?> rowType) {
-        LinkedHashSet<String> fieldNames = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(rowType));
-        LinkedHashMap<String, CsvColumnBinding> bindings = new LinkedHashMap<>(fieldNames.size());
-        for (String fieldName : fieldNames) {
+        FileLoadSupport.RowSchema rowSchema = FileLoadSupport.rowSchema(rowType);
+        LinkedHashMap<String, CsvColumnBinding> bindings = new LinkedHashMap<>(rowSchema.fieldNames().size());
+        for (String fieldName : rowSchema.fieldNames()) {
             CsvColumnBinding binding = resolveBinding(rowType, fieldName, fieldName);
             if (binding != null) {
                 bindings.put(fieldName, binding);
@@ -299,37 +299,11 @@ public final class CsvLoaderSupport {
     }
 
     private static CsvColumnBinding resolveBinding(Class<?> rowType, String fieldName, String columnName) {
-        String[] parts = fieldName.split("\\.");
-        Class<?> currentType = rowType;
-        Class<?> wrappedLeafType = null;
-        boolean primitive = false;
-
-        for (String part : parts) {
-            Field field = findField(currentType, part);
-            if (field == null) {
-                return null;
-            }
-            primitive = field.getType().isPrimitive();
-            wrappedLeafType = wrapPrimitive(field.getType());
-            currentType = wrappedLeafType;
-        }
-
-        if (wrappedLeafType == null) {
+        FileLoadSupport.FieldBinding binding = FileLoadSupport.resolveFieldBinding(rowType, fieldName);
+        if (binding == null) {
             return null;
         }
-        return new CsvColumnBinding(fieldName, columnName, wrappedLeafType, primitive);
-    }
-
-    private static Field findField(Class<?> type, String fieldName) {
-        Class<?> current = type;
-        while (current != null && current != Object.class) {
-            try {
-                return current.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException ex) {
-                current = current.getSuperclass();
-            }
-        }
-        return null;
+        return new CsvColumnBinding(fieldName, columnName, binding.valueType(), binding.primitive());
     }
 
     private static List<String> resolveHeaderSchema(CsvRecord header,
@@ -671,37 +645,6 @@ public final class CsvLoaderSupport {
             return value;
         }
         return value.charAt(0) == '\uFEFF' ? value.substring(1) : value;
-    }
-
-    private static Class<?> wrapPrimitive(Class<?> type) {
-        if (type == null || !type.isPrimitive()) {
-            return type;
-        }
-        if (type == int.class) {
-            return Integer.class;
-        }
-        if (type == long.class) {
-            return Long.class;
-        }
-        if (type == double.class) {
-            return Double.class;
-        }
-        if (type == float.class) {
-            return Float.class;
-        }
-        if (type == boolean.class) {
-            return Boolean.class;
-        }
-        if (type == short.class) {
-            return Short.class;
-        }
-        if (type == byte.class) {
-            return Byte.class;
-        }
-        if (type == char.class) {
-            return Character.class;
-        }
-        return type;
     }
 
     private static final class CsvLoadReportState {

@@ -1,6 +1,6 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
@@ -260,7 +260,8 @@ final class FastArrayQuerySupport {
         schemaFields.addAll(parentReadPlan.fieldNames());
         schemaFields.addAll(childReadPlan.fieldNames());
 
-        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
+        LinkedHashMap<String, Integer> schemaIndexByName = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, schemaFields.size() * 2));
         for (int i = 0; i < schemaFields.size(); i++) {
             schemaIndexByName.put(schemaFields.get(i), i);
         }
@@ -289,7 +290,8 @@ final class FastArrayQuerySupport {
             );
         }
 
-        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(DEFAULT_MAP_CAPACITY,schemaFields.size() * 2));
+        LinkedHashMap<String, Class<?>> schemaTypes = new LinkedHashMap<>(Math.max(
+                DEFAULT_MAP_CAPACITY, schemaFields.size() * 2));
         for (Map.Entry<String, Class<?>> entry : baseSchemaTypes.entrySet()) {
             schemaTypes.put(entry.getKey(), entry.getValue());
         }
@@ -614,7 +616,7 @@ final class FastArrayQuerySupport {
         if (rule == null) {
             return MatchAllRowMatcher.INSTANCE;
         }
-        if (rule.compareValue instanceof Number number && isNumericClause(rule.clause)) {
+        if (rule.compareValue() instanceof Number number && isNumericClause(rule.clause())) {
             return new SingleNumericRuleMatcher(fieldIndex, number.doubleValue(), rule);
         }
         return new SingleRuleMatcher(fieldIndex, rule);
@@ -648,14 +650,19 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             for (CompiledRule rule : group.rules()) {
-                boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                if (Separator.AND.equals(rule.separator)) {
+                boolean matched = ObjectUtil.compareObject(
+                        fieldValue,
+                        rule.compareValue(),
+                        rule.clause(),
+                        rule.dateFormat()
+                );
+                if (Separator.AND.equals(rule.separator())) {
                     if (matched) {
                         andAnyPassed = true;
                     } else {
                         andAnyFailed = true;
                     }
-                } else if (Separator.OR.equals(rule.separator) && matched) {
+                } else if (Separator.OR.equals(rule.separator()) && matched) {
                     orMatched = true;
                 }
                 if (andAnyFailed && orMatched) {
@@ -902,7 +909,7 @@ final class FastArrayQuerySupport {
                                        List<String> schemaFields,
                                        FilterExecutionPlan plan) {
         if (builder.getReturnFields().isEmpty()) {
-            return null;
+            return new int[0];
         }
         List<Integer> returnIndexes = plan.getReturnFieldIndexes();
         int[] indexes = new int[returnIndexes.size()];
@@ -1004,7 +1011,7 @@ final class FastArrayQuerySupport {
             if (row == null || fieldIndex < 0 || fieldIndex >= row.length) {
                 return false;
             }
-            return ObjectUtil.compareObject(row[fieldIndex], rule.compareValue, rule.clause, rule.dateFormat);
+            return ObjectUtil.compareObject(row[fieldIndex], rule.compareValue(), rule.clause(), rule.dateFormat());
         }
     }
 
@@ -1018,9 +1025,9 @@ final class FastArrayQuerySupport {
             }
             Object fieldValue = row[fieldIndex];
             if (fieldValue instanceof Number number) {
-                return compareNumbers(number.doubleValue(), compareValue, rule.clause);
+                return compareNumbers(number.doubleValue(), compareValue, rule.clause());
             }
-            return ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
+            return ObjectUtil.compareObject(fieldValue, rule.compareValue(), rule.clause(), rule.dateFormat());
         }
     }
 }

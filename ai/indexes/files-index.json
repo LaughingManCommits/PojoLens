@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-18T12:09:56.865536+02:00",
+  "generatedAt": "2026-04-29T20:00:59.378135+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
-    "mainJavaFiles": 207,
-    "testJavaFiles": 119,
-    "markdownDocs": 51,
+    "mainJavaFiles": 268,
+    "testJavaFiles": 144,
+    "markdownDocs": 58,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
     "orchestratorTaskPlans": 3
@@ -81,8 +81,8 @@
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 169,
-      "testJavaFiles": 107,
+      "mainJavaFiles": 228,
+      "testJavaFiles": 128,
       "resourceFiles": 0
     },
     {
@@ -93,7 +93,7 @@
       "sourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/java",
       "testRoot": "pojo-lens-spring-boot-autoconfigure/src/test/java",
       "resourceRoot": "pojo-lens-spring-boot-autoconfigure/src/main/resources",
-      "mainJavaFiles": 3,
+      "mainJavaFiles": 4,
       "testJavaFiles": 1,
       "resourceFiles": 1
     },
@@ -106,7 +106,7 @@
       "testRoot": "pojo-lens-spring-boot-starter/src/test/java",
       "resourceRoot": null,
       "mainJavaFiles": 1,
-      "testJavaFiles": 1,
+      "testJavaFiles": 2,
       "resourceFiles": 0
     },
     {
@@ -117,8 +117,8 @@
       "sourceRoot": "pojo-lens-benchmarks/src/main/java",
       "testRoot": "pojo-lens-benchmarks/src/test/java",
       "resourceRoot": null,
-      "mainJavaFiles": 26,
-      "testJavaFiles": 8,
+      "mainJavaFiles": 27,
+      "testJavaFiles": 9,
       "resourceFiles": 0
     },
     {
@@ -130,8 +130,8 @@
       "testRoot": "examples/spring-boot-starter-basic/src/test/java",
       "resourceRoot": "examples/spring-boot-starter-basic/src/main/resources",
       "mainJavaFiles": 5,
-      "testJavaFiles": 1,
-      "resourceFiles": 4
+      "testJavaFiles": 2,
+      "resourceFiles": 5
     },
     {
       "path": "examples/spring-boot-starter-quickstart",
@@ -142,8 +142,8 @@
       "testRoot": "examples/spring-boot-starter-quickstart/src/test/java",
       "resourceRoot": "examples/spring-boot-starter-quickstart/src/main/resources",
       "mainJavaFiles": 3,
-      "testJavaFiles": 1,
-      "resourceFiles": 1
+      "testJavaFiles": 2,
+      "resourceFiles": 2
     }
   ],
   "importantFiles": [
@@ -248,20 +248,12 @@
       "kind": "validation-script"
     },
     {
-      "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java",
-      "kind": "public-entry"
-    },
-    {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",
       "kind": "public-entry"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntime.java",
       "kind": "public-entry"
-    },
-    {
-      "path": "pojo-lens/src/main/java/laughing/man/commits/builder/FilterQueryBuilder.java",
-      "kind": "engine"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java",

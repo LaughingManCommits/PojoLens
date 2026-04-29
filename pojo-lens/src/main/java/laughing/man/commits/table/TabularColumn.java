@@ -16,8 +16,8 @@ public final class TabularColumn {
     private final String formatHint;
 
     private TabularColumn(String name, String label, Class<?> type, int order, String formatHint) {
-        this.name = requireText(name, "name");
-        this.label = requireText(label, "label");
+        this.name = StringUtil.requireNonBlank(name, "name");
+        this.label = StringUtil.requireNonBlank(label, "label");
         this.type = Objects.requireNonNull(type, "type must not be null");
         this.order = order;
         this.formatHint = formatHint;
@@ -47,11 +47,9 @@ public final class TabularColumn {
         return formatHint;
     }
 
-    private static String requireText(String value, String label) {
-        if (StringUtil.isNullOrBlank(value)) {
-            throw new IllegalArgumentException(label + " must not be null/blank");
-        }
-        return value;
+    public String typeName() {
+        return type.getSimpleName();
     }
+
 }
 

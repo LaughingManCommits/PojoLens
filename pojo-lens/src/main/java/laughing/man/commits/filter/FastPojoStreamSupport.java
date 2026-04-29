@@ -1,6 +1,6 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Separator;
@@ -72,7 +72,7 @@ final class FastPojoStreamSupport {
                     ReflectionUtil.compileFlatRowReadPlan(Object.class, List.of()),
                     List.of(),
                     new int[0],
-                    new CompiledRuleBundle(new int[0], new CompiledRule[0][]),
+                    new FastPojoRuleSupport.CompiledRuleBundle(new int[0], new CompiledRule[0][]),
                     normalizeOffset(builder.getOffset()),
                     builder.getLimit()
             );
@@ -89,7 +89,7 @@ final class FastPojoStreamSupport {
         List<String> projectionSchema = builder.getReturnFields().isEmpty()
                 ? effectiveReadSchema
                 : returnFieldNames;
-        CompiledRuleBundle ruleBundle = compileRuleBundle(plan.getRulesByFieldIndex(), readPlan.size());
+        var ruleBundle = FastPojoRuleSupport.compileRuleBundle(plan.getRulesByFieldIndex(), readPlan.size());
         return new StreamingPlan(
                 readPlan,
                 projectionSchema,
@@ -123,8 +123,8 @@ final class FastPojoStreamSupport {
         }
 
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
-        addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getFilterFields().values());
+        FastPojoRuleSupport.addKnownFields(selected, sourceFieldTypes, builder.getReturnFields());
 
         if (selected.isEmpty()) {
             return new ArrayList<>(sourceFieldTypes.keySet());
@@ -139,47 +139,9 @@ final class FastPojoStreamSupport {
         return ordered.isEmpty() ? new ArrayList<>(sourceFieldTypes.keySet()) : ordered;
     }
 
-    private static void addKnownFields(LinkedHashSet<String> selected,
-                                       Map<String, Class<?>> sourceFieldTypes,
-                                       Iterable<String> candidateFieldNames) {
-        for (String fieldName : candidateFieldNames) {
-            if (sourceFieldTypes.containsKey(fieldName)) {
-                selected.add(fieldName);
-            }
-        }
-    }
-
-    private static CompiledRuleBundle compileRuleBundle(Map<Integer, List<CompiledRule>> rulesByField,
-                                                        int valueCount) {
-        int validCount = 0;
-        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
-            int fieldIndex = entry.getKey();
-            List<CompiledRule> rules = entry.getValue();
-            if (fieldIndex >= 0 && fieldIndex < valueCount && rules != null && !rules.isEmpty()) {
-                validCount++;
-            }
-        }
-        if (validCount == 0) {
-            return new CompiledRuleBundle(new int[0], new CompiledRule[0][]);
-        }
-
-        int[] fieldIndexes = new int[validCount];
-        CompiledRule[][] compiledRules = new CompiledRule[validCount][];
-        int position = 0;
-        for (Map.Entry<Integer, List<CompiledRule>> entry : rulesByField.entrySet()) {
-            int fieldIndex = entry.getKey();
-            List<CompiledRule> rules = entry.getValue();
-            if (fieldIndex < 0 || fieldIndex >= valueCount || rules == null || rules.isEmpty()) {
-                continue;
-            }
-            fieldIndexes[position] = fieldIndex;
-            compiledRules[position] = rules.toArray(new CompiledRule[0]);
-            position++;
-        }
-        return new CompiledRuleBundle(fieldIndexes, compiledRules);
-    }
-
-    private static boolean passesFilter(Object[] values, CompiledRuleBundle rulesByField) {
+    // Empty ruleBundle means no filter rules — all rows pass in the streaming path.
+    // (The materialization path uses FastPojoFilterSupport which guards via isApplicable.)
+    private static boolean passesFilter(Object[] values, FastPojoRuleSupport.CompiledRuleBundle rulesByField) {
         if (rulesByField.fieldIndexes().length == 0) {
             return true;
         }
@@ -193,14 +155,19 @@ final class FastPojoStreamSupport {
             Object fieldValue = values[fieldIndex];
             CompiledRule[] rules = rulesByField.compiledRules()[i];
             for (CompiledRule rule : rules) {
-                boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                if (Separator.AND.equals(rule.separator)) {
+                boolean matched = ObjectUtil.compareObject(
+                        fieldValue,
+                        rule.compareValue(),
+                        rule.clause(),
+                        rule.dateFormat()
+                );
+                if (Separator.AND.equals(rule.separator())) {
                     if (matched) {
                         andMatched = true;
                     } else {
                         andFailed = true;
                     }
-                } else if (Separator.OR.equals(rule.separator) && matched) {
+                } else if (Separator.OR.equals(rule.separator()) && matched) {
                     orMatched = true;
                 }
                 if (andFailed && orMatched) {
@@ -302,11 +269,9 @@ final class FastPojoStreamSupport {
     private record StreamingPlan(ReflectionUtil.FlatRowReadPlan readPlan,
                                  List<String> projectionSchema,
                                  int[] projectionIndexes,
-                                 CompiledRuleBundle ruleBundle,
+                                 FastPojoRuleSupport.CompiledRuleBundle ruleBundle,
                                  int offset,
                                  Integer limit) {
     }
 
-    private record CompiledRuleBundle(int[] fieldIndexes, CompiledRule[][] compiledRules) {
-    }
 }

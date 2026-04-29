@@ -86,6 +86,13 @@ java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
 ```
 
+Stable warmed reflection hotspot guardrails:
+
+```bash
+java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspot-reflection.args -f 1 -wi 1 -i 3 -r 100ms -rf json -rff target/benchmarks/hotspot-reflection.json
+java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/hotspot-reflection.json benchmarks/hotspot-thresholds.json target/benchmarks/hotspot-reflection-report.csv --strict
+```
+
 Cache concurrency scenario:
 
 ```bash
@@ -98,11 +105,39 @@ Hotspot microbenchmark suite:
 java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
 ```
 
+## JFR Scatter Parity Recipe
+
+When a chart-parity failure narrows down to `SCATTER size=100000`, profile the
+hot path inside the recorded JVM instead of attaching JFR to the outer JMH
+launcher process.
+
+PowerShell:
+
+```powershell
+$jar = (Get-ChildItem target -Filter '*-benchmarks.jar' | Select-Object -First 1).FullName
+& "$env:JAVA_HOME\bin\java.exe" `
+  -XX:StartFlightRecording=filename=target/benchmarks/wp15/sqlLike-scatter.jfr,settings=profile,dumponexit=true `
+  -cp $jar laughing.man.commits.benchmark.ChartScatterProfileMain sqlLike 100000 200
+& "$env:JAVA_HOME\bin\jfr.exe" summary target/benchmarks/wp15/sqlLike-scatter.jfr
+& "$env:JAVA_HOME\bin\jfr.exe" view hot-methods target/benchmarks/wp15/sqlLike-scatter.jfr
+```
+
+Repeat the same command with `fluent` and `sqlLikeBound` to compare steady-state
+scatter mapping directly.
+
+Local caveats:
+- Use `$env:JAVA_HOME\bin\java.exe`; `java` on `PATH` may still point at JDK 17.
+- On this Windows host, `jdk.CPUTimeSample` is not available, so use
+  `jdk.ExecutionSample` plus allocation views from the same recording.
+- Confirm the available event mix with `jfr summary`; some hosts may report
+  `jdk.MethodTiming` and `jdk.MethodTrace` as zero even with `settings=profile`.
+
 ## Representative Budgets
 
 The budget files are the source of truth:
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
+- `benchmarks/hotspot-thresholds.json`
 
 **Benchmark methodology note (as of 2026-03-20):** All benchmarks now measure execution only. Query plan compilation (`newQueryBuilder(...).add*().initFilter()`) and SQL-like parse (`PojoLensSql.parse()`) are performed once in `@Setup` and reused across iterations. The `@Benchmark` method measures only `filter()`, `filterGroups()`, `chart()`, `join().filter()`, etc. Thresholds in the JSON files reflect this separation.
 
@@ -202,18 +237,83 @@ Benchmarks (`SqlLikePipelineJmhBenchmark`):
 - `parseAndFilterWindowRank`
 - `parseAndFilterWindowRunningTotal`
 
-Representative `2026-03-23` forked results (`size=10000`):
+Representative `2026-04-23` forked results (`size=10000`):
 
 | Workload | ms/op | B/op (`gc.alloc.rate.norm`) |
 |---|---:|---:|
-| `parseAndFilterWindowBaseline` | `0.688` | `744,068` |
-| `parseAndFilterWindowRank` | `2.659` | `4,397,898` |
-| `parseAndFilterWindowRunningTotal` | `2.601` | `4,594,581` |
+| `parseAndFilterWindowBaseline` | `0.564` | `744,772` |
+| `parseAndFilterWindowRank` | `1.449` | `3,470,398` |
+| `parseAndFilterWindowRunningTotal` | `1.462` | `3,678,267` |
 
 Interpretation:
-- Window stages add meaningful overhead versus non-window SQL-like filtering for this workload (`~3.8x` slower, `~5.9x` to `6.2x` more allocation).
-- Rank and running-total windows are in the same performance band here; running totals allocate slightly more.
+- Window stages still add meaningful overhead versus non-window SQL-like filtering for this workload (`~2.6x` slower, `~4.7x` to `4.9x` more allocation).
+- The current WP5 window slice reduced the warmed window allocation footprint by roughly `21%` for rank windows and `20%` for running totals versus the prior `2026-03-23` measurements by writing directly into the final row buffers and avoiding per-row partition-key wrapper churn in common cases.
+- Rank and running-total windows remain in the same performance band here; running totals allocate slightly more.
 - Keep this suite as a follow-up diagnostic until thresholds are formalized.
+
+## Repeated Join Reuse
+
+The repeated computed-field join path now reuses prepared fast join state for
+stable repeated executions over the same filter snapshot instead of rebuilding
+the dense/hash join structure on every `.join()` call.
+
+Representative warmed `2026-04-23` forked results:
+
+| Workload | size | ms/op | B/op (`gc.alloc.rate.norm`) |
+|---|---|---:|---:|
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `1k` | `0.010` | `20,840` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` | `10k` | `0.104` | `182,529` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited` | `1k` | `0.014` | `10,912` |
+| `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedFieldOrderedLimited` | `10k` | `0.063` | `46,840` |
+
+Interpretation:
+- These numbers are for repeated execution on the same prepared filter object and stable source snapshot.
+- The win comes from reusing the prepared join state rather than rebuilding the join structure on every call.
+- Treat this as a repeated-workload optimization, not as a claim about one-shot cold joins.
+
+## SQL-like Pushdown Bridge Overhead
+
+Pushdown bridge benchmarks compare pure in-memory execution with host-adapter
+materialization paths. They do not measure database latency or SQL rendering;
+the adapter used by the benchmark returns deterministic pre-materialized rows so
+the suite isolates PojoLens completion overhead.
+
+Dedicated suite:
+
+```bash
+java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-pushdown.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/pushdown-bridge-forked.json
+```
+
+Benchmarks (`SqlLikePipelineJmhBenchmark`):
+- `pureInMemoryPushdownCandidate`
+- `pushedFirstPhaseCandidate`
+- `pureInMemorySplitCandidate`
+- `splitPushdownCandidate`
+
+Use this suite to compare full pushed-first-phase completion, split completion,
+and pure in-memory execution for the same query shapes.
+
+## Batch/Columnar Evaluation
+
+WP5 evaluated a broader batch or columnar execution mode for heavy report
+workloads and did not promote one into the runtime.
+
+Current decision:
+- keep the execution engine row-oriented
+- continue using the existing array-backed fast paths for the hottest repeated
+  workloads (`FastPojoFilterSupport`, `FastStatsQuerySupport`,
+  `FastArrayQuerySupport`)
+- revisit a broader columnar branch only if a future heavy-report workload
+  demonstrates a repeatable bottleneck that the current row-array paths cannot
+  cover
+
+Reasoning:
+- the public/runtime surface is built around rows, projection classes,
+  chart/report mapping, explain metadata, and telemetry
+- a separate columnar branch would duplicate join, metric, window, and mapping
+  logic across a large part of the engine
+- the current benchmark evidence supports targeted row-array acceleration more
+  strongly than a second execution model
 
 ## Execution-Path Spot Checks
 
@@ -307,18 +407,22 @@ java -jar "$BENCHMARK_JAR" laughing.man.commits.benchmark.HotspotMicroJmhBenchma
 java -jar "$BENCHMARK_JAR" laughing.man.commits.benchmark.HotspotMicroJmhBenchmark.computedFieldJoinSelectiveMaterialization -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc
 ```
 
-For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm` output from `-prof gc`. These runs are local diagnostics rather than merge-gated thresholds until the allocation budgets are stable enough to survive machine noise.
+For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm`
+output from `-prof gc`. The broader hotspot suite remains diagnostic-only. The
+reflection conversion pair is the current exception: those two warmed workloads
+now have conservative guardrails through
+`scripts/benchmark-suite-hotspot-reflection.args` and
+`benchmarks/hotspot-thresholds.json`.
 
-Representative warmed `-prof gc` numbers as of `2026-03-17` (after `RawQueryRow` allocation reduction):
+Representative warmed `-prof gc` reflection numbers as of `2026-04-23` (after
+reusing cached direct-field plans and cached nested-path writes):
 
 | Benchmark | size | us/op | B/op |
 |---|---|---:|---:|
-| `reflectionToDomainRows` | 1k | ~39 us/op | 100,136 B/op |
-| `reflectionToDomainRows` | 10k | ~427 us/op | 1,000,122 B/op |
-| `reflectionToClassList` | 1k | ~87 us/op | 140,232 B/op |
-| `reflectionToClassList` | 10k | ~996 us/op | 1,400,236 B/op |
-| `groupedMultiMetricAggregation` | 1k | ~22 us/op | 73,120 B/op |
-| `groupedMultiMetricAggregation` | 10k | ~303 us/op | 1,043,042 B/op |
+| `reflectionToDomainRows` | 1k | ~31 us/op | 100,144 B/op |
+| `reflectionToDomainRows` | 10k | ~327 us/op | 1,000,130 B/op |
+| `reflectionToClassList` | 1k | ~79 us/op | 140,232 B/op |
+| `reflectionToClassList` | 10k | ~841 us/op | 1,400,236 B/op |
 
 As of the 2026-03-17 rebaseline, `computedFieldJoinSelectiveMaterialization` remains diagnostic-only. Repeated `-prof gc` reruns measured about `28.0 us/op` / `212,656 B/op` at `size=1000` and `256.0 us/op` / `2,012,761 B/op` at `size=10000` (down from `364,312 B/op` and `3,532,314 B/op` before the `RawQueryRow` allocation reduction), so the path is still too allocation-heavy to freeze into a strict merge gate.
 

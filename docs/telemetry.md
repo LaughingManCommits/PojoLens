@@ -10,6 +10,7 @@ Supported stages:
 
 - `PARSE`
 - `BIND`
+- `PUSHDOWN`
 - `FILTER`
 - `AGGREGATE`
 - `ORDER`
@@ -39,20 +40,6 @@ QueryTelemetryListener current = runtime.getTelemetryListener();
 runtime.setTelemetryListener(null); // disables telemetry callbacks
 ```
 
-## Fluent Hook
-
-Attach a listener directly to a fluent builder:
-
-```java
-List<DepartmentCount> rows = PojoLensCore.newQueryBuilder(snapshot)
-    .telemetry(listener)
-    .addRule("active", true, Clauses.EQUAL)
-    .addGroup("department")
-    .addCount("total")
-    .initFilter()
-    .filter(DepartmentCount.class);
-```
-
 ## SQL-like Hook
 
 Attach a listener directly to a SQL-like query when you want bind/execution telemetry:
@@ -70,7 +57,7 @@ List<Employee> rows = query.filter(snapshot, Employee.class);
 Each `QueryTelemetryEvent` contains:
 
 - `stage()`
-- `queryType()` such as `fluent` or `sql-like`
+- `queryType()` such as `sql-like` or `natural`
 - `source()` for the originating query/source label
 - `durationNanos()`
 - `rowCountBefore()`
@@ -82,10 +69,27 @@ Examples of metadata:
 - `projectionClass`
 - `joinSourceCount`
 - `applyJoin`
+- `pushdownMode`
+- `pushdownPushableStages`
+- `pushdownInMemoryStages`
+- `pushdownFallbackReasons`
+- `requestedStages`
+- `pushedStages`
+- `materializedRowCount`
+- `adapterMetadata`
 - `orderFieldCount`
 - `chartType`
 - `labelCount`
 - `datasetCount`
+
+SQL-like `BIND` events include pushdown-readiness metadata. This is advisory
+host-adapter planning data only; it does not mean PojoLens executed a pushed
+query outside the in-memory engine.
+
+`filterWithPushdown(...)` emits a `PUSHDOWN` event after the host adapter
+returns materialized rows. The event describes what PojoLens requested and what
+the adapter reported, while database execution, authorization, and SQL rendering
+remain host-owned.
 
 ## Low-Overhead Behavior
 

@@ -1,14 +1,16 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.domain.QueryField;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.QueryRow;
+import laughing.man.commits.domain.RawQueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
 import laughing.man.commits.util.GroupKeyUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,22 +28,31 @@ final class AggregationEngine {
         if (!builder.getGroupFields().isEmpty()) {
             return aggregateGroupedMetrics(rows, plan.getGroupColumns(), metrics);
         }
-        List<QueryField> metricFields = new ArrayList<>(metrics.size());
-        for (FilterExecutionPlan.MetricPlan metric : metrics) {
-            QueryField field = new QueryField();
-            field.setFieldName(metric.alias());
-            field.setValue(calculateMetricValue(rows, metric));
-            metricFields.add(field);
+        Object[] values = new Object[metrics.size()];
+        ArrayList<String> schema = new ArrayList<>(metrics.size());
+        for (int i = 0; i < metrics.size(); i++) {
+            FilterExecutionPlan.MetricPlan metric = metrics.get(i);
+            values[i] = calculateMetricValue(rows, metric);
+            schema.add(metric.alias());
         }
-        QueryRow metricRow = new QueryRow();
-        metricRow.setFields(metricFields);
-        return List.of(metricRow);
+        return List.of(new RawQueryRow(values, schema));
     }
 
     private List<QueryRow> aggregateGroupedMetrics(List<QueryRow> rows,
                                                    List<FilterExecutionPlan.GroupColumn> columns,
                                                    List<FilterExecutionPlan.MetricPlan> metrics) {
         int columnCount = columns.size();
+        int metricCount = metrics.size();
+
+        // Build shared output schema once: group columns first, then metric aliases.
+        ArrayList<String> outputSchema = new ArrayList<>(columnCount + metricCount);
+        for (FilterExecutionPlan.GroupColumn column : columns) {
+            outputSchema.add(column.fieldName());
+        }
+        for (FilterExecutionPlan.MetricPlan metric : metrics) {
+            outputSchema.add(metric.alias());
+        }
+
         Map<QueryKey, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(rows == null ? 0 : rows.size()));
 
@@ -49,6 +60,11 @@ final class AggregationEngine {
             String[] keyParts = new String[columnCount];
             Object[] projectedValues = new Object[columnCount];
             QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
+            @SuppressWarnings("unchecked")
+            HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
+            for (int i = 0; i < columnCount; i++) {
+                keyStringCaches[i] = new HashMap<>();
+            }
             for (QueryRow row : rows) {
                 if (row == null) {
                     continue;
@@ -57,21 +73,18 @@ final class AggregationEngine {
                     FilterExecutionPlan.GroupColumn column = columns.get(i);
                     Object rawValue = row.getValueAt(column.fieldIndex());
                     Object projectedValue = bucketedOrRawValue(column, rawValue);
-                    keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
                     projectedValues[i] = projectedValue;
+                    String keyStr = keyStringCaches[i].get(projectedValue);
+                    if (keyStr == null) {
+                        keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                        keyStringCaches[i].put(projectedValue, keyStr);
+                    }
+                    keyParts[i] = keyStr;
                 }
                 lookupKey.refresh();
                 GroupAccumulator accumulator = grouped.get(lookupKey);
                 if (accumulator == null) {
-                    List<QueryField> groupProjection = new ArrayList<>(columnCount);
-                    for (int i = 0; i < columnCount; i++) {
-                        FilterExecutionPlan.GroupColumn column = columns.get(i);
-                        QueryField projectionField = new QueryField();
-                        projectionField.setFieldName(column.fieldName());
-                        projectionField.setValue(projectedValues[i]);
-                        groupProjection.add(projectionField);
-                    }
-                    accumulator = new GroupAccumulator(groupProjection, metrics);
+                    accumulator = new GroupAccumulator(projectedValues, columnCount, metrics);
                     grouped.put(new QueryKey(keyParts, columnCount), accumulator);
                 }
                 accumulator.accumulate(row);
@@ -80,57 +93,49 @@ final class AggregationEngine {
 
         List<QueryRow> aggregatedRows = new ArrayList<>(grouped.size());
         for (GroupAccumulator group : grouped.values()) {
-            List<QueryField> fields = new ArrayList<>(group.groupProjection.size() + metrics.size());
-            fields.addAll(group.groupProjection);
-            for (int i = 0; i < metrics.size(); i++) {
-                FilterExecutionPlan.MetricPlan metric = metrics.get(i);
-                QueryField metricField = new QueryField();
-                metricField.setFieldName(metric.alias());
-                metricField.setValue(group.metricAccumulators[i].result());
-                fields.add(metricField);
+            Object[] rowValues = new Object[columnCount + metricCount];
+            System.arraycopy(group.groupValues, 0, rowValues, 0, columnCount);
+            for (int i = 0; i < metricCount; i++) {
+                rowValues[columnCount + i] = group.metricAccumulators[i].result();
             }
-            QueryRow row = new QueryRow();
-            row.setFields(fields);
-            aggregatedRows.add(row);
+            aggregatedRows.add(new RawQueryRow(rowValues, outputSchema));
         }
         return aggregatedRows;
     }
 
     private Object calculateMetricValue(List<QueryRow> rows, FilterExecutionPlan.MetricPlan metric) {
-        if (Metric.COUNT.equals(metric.metric())) {
-            return (long) (rows == null ? 0 : rows.size());
-        }
+        return switch (metric.metric()) {
+            case COUNT -> (long) (rows == null ? 0 : rows.size());
+            case SUM, AVG, MIN, MAX -> {
+                int fieldIndex = metric.fieldIndex();
+                if (fieldIndex < 0) {
+                    throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
+                }
 
-        int fieldIndex = metric.fieldIndex();
-        if (fieldIndex < 0) {
-            throw new IllegalArgumentException("Unknown metric field: " + metric.fieldName());
-        }
-
-        NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
-        if (!stats.present) {
-            return null;
-        }
-
-        if (Metric.SUM.equals(metric.metric())) {
-            return stats.hasFraction ? stats.sum : (long) stats.sum;
-        }
-        if (Metric.AVG.equals(metric.metric())) {
-            return stats.sum / stats.count;
-        }
-        if (Metric.MIN.equals(metric.metric())) {
-            return stats.min;
-        }
-        if (Metric.MAX.equals(metric.metric())) {
-            return stats.max;
-        }
-
-        throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+                NumericStats stats = collectNumericStats(rows, fieldIndex, metric);
+                if (!stats.present()) {
+                    yield null;
+                }
+                yield switch (metric.metric()) {
+                    case SUM -> stats.hasFraction() ? stats.sum() : (long) stats.sum();
+                    case AVG -> stats.sum() / stats.count();
+                    case MIN -> stats.min();
+                    case MAX -> stats.max();
+                    case COUNT -> throw new IllegalStateException("COUNT handled before numeric aggregation");
+                };
+            }
+        };
     }
 
     private NumericStats collectNumericStats(List<QueryRow> rows, int fieldIndex, FilterExecutionPlan.MetricPlan metric) {
-        NumericStats stats = new NumericStats();
+        boolean present = false;
+        int count = 0;
+        Number min = null;
+        Number max = null;
+        double sum = 0;
+        boolean hasFraction = false;
         if (rows == null) {
-            return stats;
+            return new NumericStats(false, 0, null, null, 0, false);
         }
         for (QueryRow row : rows) {
             if (row == null) {
@@ -146,25 +151,25 @@ final class AggregationEngine {
             }
             Number number = (Number) value;
             if (number instanceof Float || number instanceof Double) {
-                stats.hasFraction = true;
+                hasFraction = true;
             }
             double asDouble = number.doubleValue();
-            if (!stats.present) {
-                stats.min = number;
-                stats.max = number;
-                stats.present = true;
+            if (!present) {
+                min = number;
+                max = number;
+                present = true;
             } else {
-                if (asDouble < stats.min.doubleValue()) {
-                    stats.min = number;
+                if (asDouble < min.doubleValue()) {
+                    min = number;
                 }
-                if (asDouble > stats.max.doubleValue()) {
-                    stats.max = number;
+                if (asDouble > max.doubleValue()) {
+                    max = number;
                 }
             }
-            stats.count++;
-            stats.sum += asDouble;
+            count++;
+            sum += asDouble;
         }
-        return stats;
+        return new NumericStats(present, count, min, max, sum, hasFraction);
     }
 
     private Object bucketedOrRawValue(FilterExecutionPlan.GroupColumn column, Object rawValue) {
@@ -174,24 +179,15 @@ final class AggregationEngine {
         return TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
     }
 
-    private static final class NumericStats {
-        private boolean present;
-        private int count;
-        private Number min;
-        private Number max;
-        private double sum;
-        private boolean hasFraction;
+    private record NumericStats(boolean present, int count, Number min, Number max, double sum, boolean hasFraction) {
     }
 
-    private static final class GroupAccumulator {
-        private final List<QueryField> groupProjection;
-        private final MetricAccumulator[] metricAccumulators;
+    private record GroupAccumulator(Object[] groupValues, MetricAccumulator[] metricAccumulators) {
 
-        private GroupAccumulator(List<QueryField> groupProjection, List<FilterExecutionPlan.MetricPlan> metrics) {
-            this.groupProjection = groupProjection;
-            this.metricAccumulators = new MetricAccumulator[metrics.size()];
+        private GroupAccumulator(Object[] sourceValues, int columnCount, List<FilterExecutionPlan.MetricPlan> metrics) {
+            this(Arrays.copyOf(sourceValues, columnCount), new MetricAccumulator[metrics.size()]);
             for (int i = 0; i < metrics.size(); i++) {
-                this.metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
+                metricAccumulators[i] = new MetricAccumulator(metrics.get(i));
             }
         }
 
@@ -216,7 +212,7 @@ final class AggregationEngine {
         }
 
         private void accumulate(QueryRow row) {
-            if (Metric.COUNT.equals(metric.metric())) {
+            if (metric.metric() == Metric.COUNT) {
                 count++;
                 return;
             }
@@ -256,25 +252,13 @@ final class AggregationEngine {
         }
 
         private Object result() {
-            if (Metric.COUNT.equals(metric.metric())) {
-                return count;
-            }
-            if (!present) {
-                return null;
-            }
-            if (Metric.SUM.equals(metric.metric())) {
-                return hasFraction ? sum : (long) sum;
-            }
-            if (Metric.AVG.equals(metric.metric())) {
-                return sum / count;
-            }
-            if (Metric.MIN.equals(metric.metric())) {
-                return min;
-            }
-            if (Metric.MAX.equals(metric.metric())) {
-                return max;
-            }
-            throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+            return switch (metric.metric()) {
+                case COUNT -> count;
+                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
+                case AVG -> present ? sum / count : null;
+                case MIN -> present ? min : null;
+                case MAX -> present ? max : null;
+            };
         }
     }
 }

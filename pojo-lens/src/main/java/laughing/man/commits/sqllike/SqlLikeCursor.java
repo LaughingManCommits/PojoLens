@@ -183,41 +183,21 @@ public final class SqlLikeCursor {
 
     private record EncodedValue(String type, String value) {
         private static EncodedValue encode(Object value) {
-            if (value instanceof String stringValue) {
-                return new EncodedValue("STR", stringValue);
-            }
-            if (value instanceof Boolean booleanValue) {
-                return new EncodedValue("BOOL", Boolean.toString(booleanValue));
-            }
-            if (value instanceof Integer integerValue) {
-                return new EncodedValue("INT", Integer.toString(integerValue));
-            }
-            if (value instanceof Long longValue) {
-                return new EncodedValue("LONG", Long.toString(longValue));
-            }
-            if (value instanceof Double doubleValue) {
-                return new EncodedValue("DOUBLE", Double.toString(doubleValue));
-            }
-            if (value instanceof Float floatValue) {
-                return new EncodedValue("FLOAT", Float.toString(floatValue));
-            }
-            if (value instanceof Short shortValue) {
-                return new EncodedValue("SHORT", Short.toString(shortValue));
-            }
-            if (value instanceof Byte byteValue) {
-                return new EncodedValue("BYTE", Byte.toString(byteValue));
-            }
-            if (value instanceof BigInteger bigIntegerValue) {
-                return new EncodedValue("BIGINT", bigIntegerValue.toString());
-            }
-            if (value instanceof BigDecimal bigDecimalValue) {
-                return new EncodedValue("BIGDEC", bigDecimalValue.toPlainString());
-            }
-            if (value instanceof Date dateValue) {
-                return new EncodedValue("DATE", Long.toString(dateValue.getTime()));
-            }
-            throw cursor(SqlLikeErrorCodes.CURSOR_VALUE_INVALID,
-                    "Unsupported cursor token value type: " + value.getClass().getSimpleName());
+            return switch (value) {
+                case String stringValue -> new EncodedValue("STR", stringValue);
+                case Boolean booleanValue -> new EncodedValue("BOOL", Boolean.toString(booleanValue));
+                case Integer integerValue -> new EncodedValue("INT", Integer.toString(integerValue));
+                case Long longValue -> new EncodedValue("LONG", Long.toString(longValue));
+                case Double doubleValue -> new EncodedValue("DOUBLE", Double.toString(doubleValue));
+                case Float floatValue -> new EncodedValue("FLOAT", Float.toString(floatValue));
+                case Short shortValue -> new EncodedValue("SHORT", Short.toString(shortValue));
+                case Byte byteValue -> new EncodedValue("BYTE", Byte.toString(byteValue));
+                case BigInteger bigIntegerValue -> new EncodedValue("BIGINT", bigIntegerValue.toString());
+                case BigDecimal bigDecimalValue -> new EncodedValue("BIGDEC", bigDecimalValue.toPlainString());
+                case Date dateValue -> new EncodedValue("DATE", Long.toString(dateValue.getTime()));
+                default -> throw cursor(SqlLikeErrorCodes.CURSOR_VALUE_INVALID,
+                        "Unsupported cursor token value type: " + value.getClass().getSimpleName());
+            };
         }
 
         private static Object decode(String type, String value) {

@@ -72,17 +72,18 @@ public final class ChartResultMapper {
     }
 
     private static double numberValue(Object value, String fieldName) {
-        if (value == null) {
-            return 0d;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-        }
-        try {
-            return Double.parseDouble(String.valueOf(value));
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Field '" + fieldName + "' is not numeric");
-        }
+        return switch (value) {
+            case null -> 0d;
+            case Number number -> number.doubleValue();
+            default -> {
+                try {
+                    yield Double.parseDouble(String.valueOf(value));
+                } catch (NumberFormatException ex) {
+                    throw new IllegalArgumentException(
+                            "Field '" + fieldName + "' is not numeric");
+                }
+            }
+        };
     }
 }
 

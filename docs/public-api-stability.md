@@ -41,55 +41,62 @@ The families and tiers are related, but not the same thing:
 - compatibility adapters are allowed, but they should not become a second
   product story
 
-The default first-read story stays centered on the core engine:
-`PojoLensCore`, `PojoLensNatural`, `PojoLensSql`, `PojoLensRuntime`,
-`PojoLensChart`, and `ReportDefinition<T>`.
+The default first-read story is SQL-like first:
+`PojoLensSql`, `PojoLensNatural`, `PojoLensRuntime`, `PojoLensChart`,
+`PojoLensFiles`, `TypedQuery<T>`, `PojoLensTree`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
 ### Entry Points
 
-- `PojoLensCore.newQueryBuilder(List<?>)`
-- `PojoLensCore.prepare(Class<T>, Consumer<QueryBuilder>)`
 - `PojoLensNatural.parse(String)`
 - `PojoLensNatural.template(String, String...)`
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `PojoLensFiles`
+  - `csv(Path, Class<T>)`
+  - `csv(Path, Class<T>, CsvOptions)`
+  - `csvWithReport(Path, Class<T>)`
+  - `csvWithReport(Path, Class<T>, CsvOptions)`
+  - `tsv(Path, Class<T>)`
+  - `tsv(Path, Class<T>, CsvOptions)`
+  - `tsvWithReport(Path, Class<T>)`
+  - `tsvWithReport(Path, Class<T>, CsvOptions)`
+  - `json(Path, Class<T>)`
+  - `json(Path, Class<T>, JsonOptions)`
+  - `jsonWithReport(Path, Class<T>)`
+  - `jsonWithReport(Path, Class<T>, JsonOptions)`
+  - `jsonl(Path, Class<T>)`
+  - `jsonl(Path, Class<T>, JsonOptions)`
+  - `jsonlWithReport(Path, Class<T>)`
+  - `jsonlWithReport(Path, Class<T>, JsonOptions)`
+- `PojoLensCsv`
+  - `read(Path, Class<T>)`
+  - `read(Path, Class<T>, CsvOptions)`
+  - `readWithReport(Path, Class<T>)`
+  - `readWithReport(Path, Class<T>, CsvOptions)`
 - `PojoLensTree.fromFlat(List<T>, Function<T,K>, Function<T,K>)`
 - `PojoLensTree.subtreeOf(List<T>, Function<T,K>, Function<T,K>, K)`
 - `PojoLensRuntime`
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
   - `natural()`
-  - `newQueryBuilder(List<?>)`
+  - `files()`
   - `parse(String)`
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
   - strict/lint toggles
   - `setNaturalVocabulary(NaturalVocabulary)`
   - `getNaturalVocabulary()`
+  - `setQueryExposurePolicy(QueryExposurePolicy)`
+  - `getQueryExposurePolicy()`
+  - `setJsonDefaults(JsonOptions)`
+  - `getJsonDefaults()`
 - `DatasetBundle`
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
   - `builder(List<?>)`
-
-### Fluent Query Contracts
-
-- `QueryBuilder`:
-  - `addRule`, `addOrder`, `addGroup`, `addField`, `addMetric`, `addCount`
-  - `addHaving`, `addQualify`, `addJoinBeans`
-  - `addInSubquery`, `addExists`, `addNotExists`
-  - `limit`, `offset`
-  - `initFilter`, `explain`, `schema`
-- `QueryRule`:
-  - `of`
-  - `inSubquery` self-source and explicit-source overloads
-  - `exists` / `notExists` self-source and explicit-source overloads
-- `FluentQueryDefinition<T>`:
-  - `of`, `rows`, `schema`, `explain`, `reportDefinition`
-- `Filter`:
-  - `filter`, `iterator`, `stream`, `chart`, `join`
 
 ### Tree Row-Shaping Contracts
 
@@ -104,8 +111,59 @@ The default first-read story stays centered on the core engine:
 - `SqlLikeQuery`:
   - `of`, `source`, `params`
   - `keysetAfter`, `keysetBefore`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - `bindTyped`, `filter`, `filterWithPushdown`, `filterPage`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`, `planPreview`, `pushdownPreview`, `pushdownRequest`
+  - `SqlLikePushdownAdapter`, `SqlLikePushdownRequest`, `SqlLikePushdownResult`, `SqlLikePushdownException`, and `SqlLikeResultSetAdapter` are stable bridge contracts for host-owned pushdown adapters.
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
+- `QueryExposurePolicy`:
+  - `unrestricted`, `builder`, `toBuilder`
+  - `allowedFields`, `allowedSources`
+  - `restrictsFields`, `restrictsSources`
+  - `allowsField`, `allowsSource`
+- `QueryCancellationToken`:
+  - `ofAtomic`, `ofThread`, `isCancelled`
+- `QueryExecutionGuard`:
+  - `unrestricted`, `builder`, `isUnrestricted`, `hasPreExecutionLimits`
+  - `maxRowsScanned`, `maxRowsReturned`, `maxComplexityScore`,
+    `maxDurationMillis`, `cancellationToken`
+  - `checkPreExecution`, `checkPostExecution`, `checkCancellation`
+- `QueryExecutionGuard.Builder`:
+  - `maxRowsScanned`, `maxRowsReturned`, `maxComplexityScore`,
+    `maxDurationMillis`, `cancellationToken`, `build`
+- `QueryGuardOutcome`:
+  - `allowed`, `blocked`, `cancelled`
+  - `allowed`, `blocked`, `blockCode`, `blockReason`, `complexitySummary`,
+    `rowsReturnedBeforeAbort`, `auditMetadata`
+- `QueryExecutionGuardException`:
+  - `of`, `outcome`
+- `QueryDiagnostics`:
+  - `valid`, `errors`, `lintWarnings`, `requiredParams`, `referencedFields`,
+    `outputFields`, `joinSources`, `hasSubqueries`
+- `QueryDiagnosticsError`:
+  - `code`, `message`
+- `SqlLikePlanPreview`:
+  - `source`, `isWildcard`, `selectFields`, `filters`, `filterExpression`, `groupByFields`,
+    `havingFilters`, `havingExpression`, `qualifyFilters`, `qualifyExpression`, `orderFields`,
+    `joins`, `paging`, `requiredParams`, `hasSubqueries`
+  - `hasGrouping`, `hasJoins`, `hasWindows`, `hasPaging`, `hasAggregation`
+- `PlanPreviewField`:
+  - `field`, `outputName`, `alias`, `metric`, `timeBucket`, `windowFunction`,
+    `windowPartitionFields`, `windowOrderFields`, `windowFrame`
+  - `isComputed`, `isCountAll`, `isWindow`, `isMetric`, `isTimeBucket`
+- `PlanPreviewFilter`:
+  - `field`, `operator`, `valueKind`, `parameterName`, `subqueryPreview`
+- `PlanPreviewPredicate`:
+  - `isLeaf`, `filter`, `operator`, `children`
+- `PlanPreviewJoin`:
+  - `type`, `source`, `parentField`, `childField`
+- `PlanPreviewOrder`:
+  - `field`, `direction`
+- `PlanPreviewPaging`:
+  - `limit`, `limitParameter`, `offset`, `offsetParameter`, `hasLimit`, `hasOffset`
+- `SqlLikePushdownPreview`:
+  - `source`, `mode`, `pushableStages`, `inMemoryStages`, `fallbackReasons`
+  - `isFullyPushable`, `requiresSplitExecution`, `isInMemoryOnly`
+- `SqlLikePushdownMode`:
+  - `FULL`, `SPLIT`, `IN_MEMORY_ONLY`
 - `SqlLikeBoundQuery`:
   - `filter`, `iterator`, `stream`, `chart`
 - `SqlLikeTemplate`:
@@ -114,8 +172,35 @@ The default first-read story stays centered on the core engine:
   - `builder`, `empty`, `asMap`
 - `SqlLikeCursor`:
   - `builder`, `fromToken`, `toToken`
+- `PageResult<T>`:
+  - `rows`, `hasMore`, `nextCursor`
 - `JoinBindings`:
   - `empty`, `of`, `from`, `builder`, `asMap`
+
+### Typed DSL Contracts
+
+- `TypedField<T,V>`:
+  - `of`, `fieldName`, `valueType`
+  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `inSubquery`, `isNull`, `isNotNull`
+- `TypedPredicate<T>`:
+  - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
+  - combinators/factories: `and`, `or`, `not`, `allOf`, `anyOf`, `inSubquery`, `exists`, `notExists`
+- `TypedQuery<T>`:
+  - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
+  - `executionGuard`, `filter`, `explain`, `schema`
+  - current stable foundation covers projection, filters, join declarations,
+    `JoinBindings` / `DatasetBundle` execution, grouped aggregates, grouped
+    `HAVING` over grouped fields and metric aliases, rank windows, aggregate
+    window outputs, `QUALIFY` over selected window aliases, totals-style
+    metrics, explicit aggregate window frames via `QueryWindowFrame`,
+    bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or
+    an explicit source list, ordering, offset, limit, explain/schema, and
+    row-scan/row-return/duration/cancellation guard checks
+  - correlated/scalar subqueries and broader named-source planning remain on
+    the text surfaces
+- `TypedWindowOrder`:
+  - `asc`, `desc`, `fieldName`, `sort`
+- `FieldMetamodelGenerator.generateTyped(...)`
 
 ### Plain-English Contracts
 
@@ -123,7 +208,7 @@ The default first-read story stays centered on the core engine:
   - `parse`, `template`
 - `NaturalQuery`:
   - `of`, `source`, `equivalentSqlLike`, `params`
-  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `explain`
+  - `bindTyped`, `filter`, `iterator`, `stream`, `chart`, `schema`, `exposurePolicy`, `diagnostics`, `explain`
   - chart execution supports either explicit `ChartSpec` or parsed natural chart phrases
   - named multi-source execution only through `JoinBindings` or `DatasetBundle`
 - `NaturalTemplate`:
@@ -135,8 +220,14 @@ The default first-read story stays centered on the core engine:
 
 - `NaturalVocabulary`
 - `PojoLensRuntimePreset`
+- file-boundary loader contracts:
+  - `CsvOptions`, `CsvCoercionPolicy`, `CsvLoadResult`, `CsvLoadReport`,
+    `CsvLoadException`, `JsonOptions`, `JsonLoadResult`, `JsonLoadReport`,
+    `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
+- shared window-frame descriptor:
+  - `QueryWindowFrame` (`internal.builder` package retained for compatibility)
 - chart contracts:
   - `ChartSpec`, `ChartData`, `ChartDataset`, `ChartType`
 
@@ -147,10 +238,37 @@ The following remain public, but are treated as advanced:
 - fine-grained runtime cache tuning and observability on `PojoLensRuntime`
 - reusable workflow wrappers such as `ReportDefinition`, `ChartQueryPreset`,
   `StatsViewPreset`, and related helper types
+- facet helper contracts such as `FacetPresets`, `FacetQuery`, and
+  `FacetOption`
+- the Spring/JDBC bridge helper `PojoLensJdbc`
 - `SnapshotComparison`, regression fixtures, parity helpers, and other testing
   support
-- metamodel generation
+- metamodel batch generation, saved-report catalog validation, and related
+  build-tooling result types
 - benchmark tooling and threshold helpers
+
+## Internal Engine DSL
+
+The fluent builder surface has moved out of the stable public API.
+It remains useful as implementation infrastructure, but it is not documented
+as a public product surface.
+
+Internal implementation entry points:
+
+- `laughing.man.commits.internal.FluentEngine`
+- `laughing.man.commits.internal.builder.QueryBuilder`
+- `laughing.man.commits.internal.builder.FilterQueryBuilder`
+- `Filter`
+- `laughing.man.commits.internal.builder.QueryRule`
+- `laughing.man.commits.internal.builder.FluentQueryDefinition<T>`
+
+Removed public fluent bridge methods:
+
+- `PojoLensCore`
+- `PojoLensRuntime.newQueryBuilder(...)`
+- `ReportDefinition.fluent(...)`
+
+Maintainer guidance lives in [internal-fluent-engine.md](internal-fluent-engine.md).
 
 Cross-module surface guidance is documented in
 [product-surface.md](product-surface.md) and
@@ -189,3 +307,5 @@ cache. Adapt existing map-shaped join inputs at the boundary with
   baseline behavior.
 - CI binary compatibility checks start from the first `release-*` tag rather
   than from coarse major-version markers.
+- stable public API tests and binary compatibility include lists track the
+  SQL-like-first surface.

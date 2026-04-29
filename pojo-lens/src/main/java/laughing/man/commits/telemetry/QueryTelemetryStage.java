@@ -6,9 +6,11 @@ package laughing.man.commits.telemetry;
 public enum QueryTelemetryStage {
     PARSE,
     BIND,
+    PUSHDOWN,
     FILTER,
     AGGREGATE,
     ORDER,
-    CHART
+    CHART,
+    GUARD_REJECTED
 }
 

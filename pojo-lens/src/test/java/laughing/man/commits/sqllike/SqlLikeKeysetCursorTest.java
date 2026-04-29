@@ -6,11 +6,13 @@ import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,6 +60,26 @@ public class SqlLikeKeysetCursorTest {
         SqlLikeCursor decoded = SqlLikeCursor.fromToken(token);
 
         assertEquals(cursor, decoded);
+    }
+
+    @Test
+    public void keysetCursorShouldRoundtripAllSupportedScalarTypes() {
+        Date createdAt = new Date(1_735_689_600_000L);
+        SqlLikeCursor cursor = SqlLikeCursor.builder()
+                .put("name", "alice")
+                .put("active", true)
+                .put("age", 42)
+                .put("salary", 120_000L)
+                .put("ratio", 1.5d)
+                .put("score", 2.5f)
+                .put("rank", (short) 7)
+                .put("bucket", (byte) 3)
+                .put("bigInt", new BigInteger("12345678901234567890"))
+                .put("bigDec", new BigDecimal("98765.43210"))
+                .put("createdAt", createdAt)
+                .build();
+
+        assertEquals(cursor, SqlLikeCursor.fromToken(cursor.toToken()));
     }
 
     @Test

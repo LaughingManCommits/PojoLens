@@ -1,7 +1,6 @@
 package laughing.man.commits.natural;
 
 import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -120,31 +119,37 @@ final class NaturalQueryRenderer {
     }
 
     private static String renderExpression(FilterExpressionAst expression) {
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return renderPredicate(predicateAst.filter());
-        }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        return "("
-                + renderExpression(binaryAst.left())
-                + " "
-                + renderSeparator(binaryAst.operator())
-                + " "
-                + renderExpression(binaryAst.right())
-                + ")";
+        return switch (expression) {
+            case FilterPredicateAst predicateAst -> renderPredicate(predicateAst.filter());
+            case FilterBinaryAst binaryAst -> "("
+                    + renderExpression(binaryAst.left())
+                    + " "
+                    + renderSeparator(binaryAst.operator())
+                    + " "
+                    + renderExpression(binaryAst.right())
+                    + ")";
+        };
     }
 
     private static String renderPredicate(FilterAst filter) {
-        if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            return (existsSubqueryValueAst.negated() ? "not exists" : "exists")
+        return switch (filter.value()) {
+            case null -> filter.field()
+                    + " "
+                    + renderClause(filter.clause())
+                    + " "
+                    + renderValue(null);
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> (existsSubqueryValueAst.negated()
+                    ? "not exists"
+                    : "exists")
                     + " ("
                     + toSqlLike(existsSubqueryValueAst.query())
                     + ")";
-        }
-        return filter.field()
-                + " "
-                + renderClause(filter.clause())
-                + " "
-                + renderValue(filter.value());
+            default -> filter.field()
+                    + " "
+                    + renderClause(filter.clause())
+                    + " "
+                    + renderValue(filter.value());
+        };
     }
 
     private static String renderOrderBy(List<OrderAst> orders) {
@@ -179,24 +184,14 @@ final class NaturalQueryRenderer {
     }
 
     private static String renderValue(Object value) {
-        if (value instanceof ParameterValueAst parameterValueAst) {
-            return ":" + parameterValueAst.name();
-        }
-        if (value instanceof BoundParameterValue boundParameterValue) {
-            return ":" + boundParameterValue.name();
-        }
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            return "(" + toSqlLike(subqueryValueAst.query()) + ")";
-        }
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof String string) {
-            return "'" + string.replace("'", "''") + "'";
-        }
-        if (value instanceof Boolean bool) {
-            return bool ? "true" : "false";
-        }
-        return String.valueOf(value);
+        return switch (value) {
+            case ParameterValueAst parameterValueAst -> ":" + parameterValueAst.name();
+            case BoundParameterValue boundParameterValue -> ":" + boundParameterValue.name();
+            case SubqueryValueAst subqueryValueAst -> "(" + toSqlLike(subqueryValueAst.query()) + ")";
+            case null -> "null";
+            case String string -> "'" + string.replace("'", "''") + "'";
+            case Boolean bool -> bool ? "true" : "false";
+            default -> String.valueOf(value);
+        };
     }
 }

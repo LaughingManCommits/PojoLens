@@ -1,22 +1,25 @@
 # Field Metamodel Generator
 
-`PojoLens` already supports lambda selectors in many fluent APIs, but some flows still need string field names:
+Some PojoLens flows use string field names:
 
 This is optional authoring/build-time tooling.
 Use it when generated field constants are worth the extra build step.
+For day-to-day typed DSL composition, see [typed.md](typed.md).
 
 - chart specs
 - alias/result row projections
 - shared constants across modules
-- fluent code paths that prefer generated constants over inline strings
+- SQL-like query builders that assemble controlled query text
+- typed DSL field constants
 
 Use `FieldMetamodelGenerator` to generate a Java constants class for a model or projection type.
+Use `generateTyped(...)` when code-owned typed queries should avoid hand-written field strings.
 
 ## Generate Source
 
 ```java
-import metamodel.pojo.lens.FieldMetamodel;
-import metamodel.pojo.lens.FieldMetamodelGenerator;
+import laughing.man.commits.metamodel.FieldMetamodel;
+import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 
 import java.nio.file.Path;
 
@@ -78,15 +81,15 @@ The generator includes queryable instance fields that are:
 
 Field names are sorted alphabetically so generated output is deterministic in tests and build pipelines.
 
-## Fluent Builder Usage
+## SQL-like Query Usage
 
 ```java
-List<Employee> rows = PojoLensCore.newQueryBuilder(source)
-    .addRule(EmployeeFields.DEPARTMENT, "Engineering", Clauses.EQUAL)
-    .addOrder(EmployeeFields.SALARY, 1)
-    .limit(10)
-    .initFilter()
-    .filter(Sort.DESC, Employee.class);
+String query = "where " + EmployeeFields.DEPARTMENT
+    + " = :department order by " + EmployeeFields.SALARY + " desc limit 10";
+
+List<Employee> rows = PojoLensSql.parse(query)
+    .params(Map.of("department", "Engineering"))
+    .filter(source, Employee.class);
 ```
 
 ## Chart Spec Usage
@@ -100,6 +103,91 @@ ChartSpec spec = ChartSpec.of(
 ChartData chart = PojoLensChart.toChartData(rows, spec);
 ```
 
+## Typed DSL Usage
+
+`generateTyped(...)` emits `TypedField<T,V>` constants for the stable typed DSL.
+Primitive model fields are boxed in the generated generic type, so an `int`
+field is emitted as `TypedField<Employee, Integer>`.
+This page focuses on generating those constants; the typed authoring guide
+lives in [typed.md](typed.md).
+
+```java
+FieldMetamodel metamodel = FieldMetamodelGenerator.generateTyped(
+    Employee.class,
+    "com.acme.generated",
+    "EmployeeTypedFields");
+Path javaFile = metamodel.writeTo(Path.of("target/generated-sources/pojo-lens"));
+```
+
+Generated typed constants can be used with `TypedQuery`:
+
+```java
+List<Employee> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.DEPARTMENT.eq("Engineering")
+        .and(EmployeeTypedFields.ACTIVE.eq(true)))
+    .orderByDesc(EmployeeTypedFields.SALARY)
+    .limit(10)
+    .filter(employees);
+```
+
+The same generator can emit output-field constants for grouped projection
+types:
+
+```java
+List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .groupBy(EmployeeTypedFields.DEPARTMENT)
+    .count(DepartmentCountTypedFields.TOTAL)
+    .orderByDesc(DepartmentCountTypedFields.TOTAL)
+    .filter(employees, DepartmentCount.class);
+```
+
+Window-output constants work the same way:
+
+```java
+List<DepartmentRank> rows = TypedQuery.from(Employee.class)
+    .where(EmployeeTypedFields.ACTIVE.eq(true))
+    .window(WindowFunction.ROW_NUMBER, DepartmentRankTypedFields.RN,
+        List.of(TypedWindowOrder.desc(EmployeeTypedFields.SALARY)),
+        EmployeeTypedFields.DEPARTMENT)
+    .qualify(DepartmentRankTypedFields.RN.lte(1L))
+    .filter(employees, DepartmentRank.class);
+```
+
+The current typed DSL foundation covers projection, filters, join
+declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
+grouped `HAVING` over grouped fields and metric aliases, rank windows,
+aggregate window outputs, `QUALIFY` over selected window aliases,
+totals-style metrics, explicit aggregate window frames via `QueryWindowFrame`,
+bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or an
+explicit source list, ordering, offset, limit, explain, schema, and
+execution guards. Keep SQL-like or natural queries for user-authored query
+text plus correlated/scalar subqueries and broader named-source planning.
+
+## Batch Generation
+
+When multiple models should be generated in one build step, use
+`MetamodelBatchGenerator` instead of writing your own loop:
+
+```java
+import laughing.man.commits.metamodel.MetamodelBatchGenerator;
+import laughing.man.commits.metamodel.MetamodelGenerationRequest;
+
+import java.nio.file.Path;
+import java.util.List;
+
+MetamodelBatchGenerator.write(
+    Path.of("target/generated-sources/pojo-lens"),
+    List.of(
+        MetamodelGenerationRequest.typed(Employee.class),
+        MetamodelGenerationRequest.strings(
+            DepartmentPayrollRow.class,
+            "com.acme.generated",
+            "DepartmentPayrollFields")
+    )
+);
+```
+
 ## Build Integration
 
 The generator is intentionally library-level rather than annotation-processor-driven.
@@ -111,5 +199,8 @@ That means you can run it from:
 - a test or internal codegen tool
 
 Write generated source into a normal generated-sources directory and add that directory to compilation in the build tool you already use.
+
+For the first-party build-tooling shape, including catalog validation and a
+generated-sources Maven recipe, see [build-tooling.md](build-tooling.md).
 
 

@@ -1,11 +1,11 @@
 package laughing.man.commits.sqllike.internal.binding;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
-import laughing.man.commits.builder.QueryRule;
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.builder.QueryWindowOrder;
+import laughing.man.commits.internal.builder.QueryRule;
+import laughing.man.commits.internal.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindowOrder;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Sort;
@@ -27,6 +27,7 @@ import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSuppor
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.expression.BooleanExpressionNormalizer;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
@@ -88,7 +89,7 @@ public final class SqlLikeBinder {
                                     FilterExecutionPlanCacheStore executionPlanCache) {
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
+        QueryBuilder builder = FluentEngine.newQueryBuilder(pojos, executionPlanCache).computedFields(computedFieldRegistry);
         return configureBoundBuilder(builder, normalizedAst, joinPlan, pojos, joinSources, computedFieldRegistry);
     }
 
@@ -177,7 +178,9 @@ public final class SqlLikeBinder {
             List<?> children = joinSources.get(join.join().childSource());
             if (children == null) {
                 throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        "Missing JOIN source binding for '" + join.join().childSource() + "'");
+                        SqlLikeSourceBindingMessages.missingJoinSourceBinding(
+                                join.join().childSource(),
+                                joinSources.keySet()));
             }
             builder.addJoinBeans(join.parentField(), children, join.childField(), join.join().joinType());
         }
@@ -254,8 +257,8 @@ public final class SqlLikeBinder {
                                              List<?> pojos,
                                              Map<String, List<?>> joinSources,
                                              ComputedFieldRegistry computedFieldRegistry) {
-        if (expression instanceof FilterPredicateAst) {
-            FilterAst filter = ((FilterPredicateAst) expression).filter();
+        if (expression instanceof FilterPredicateAst predicateAst) {
+            FilterAst filter = predicateAst.filter();
             if (applyDirectWhereSubquery(builder, filter, pojos, joinSources, computedFieldRegistry)) {
                 return;
             }
@@ -340,10 +343,10 @@ public final class SqlLikeBinder {
                                               List<?> pojos,
                                               Map<String, List<?>> joinSources,
                                               ComputedFieldRegistry computedFieldRegistry) {
-        if (expression instanceof FilterPredicateAst) {
+        if (expression instanceof FilterPredicateAst predicateAst) {
             FilterAst resolved = resolveHavingFilter(
                     builder,
-                    ((FilterPredicateAst) expression).filter(),
+                    predicateAst.filter(),
                     aggregateExpressionOutputs,
                     hiddenHavingAliases
             );
@@ -389,8 +392,8 @@ public final class SqlLikeBinder {
                                                List<?> pojos,
                                                Map<String, List<?>> joinSources,
                                                ComputedFieldRegistry computedFieldRegistry) {
-        if (expression instanceof FilterPredicateAst) {
-            FilterAst filter = ((FilterPredicateAst) expression).filter();
+        if (expression instanceof FilterPredicateAst predicateAst) {
+            FilterAst filter = predicateAst.filter();
             if (!SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 builder.addQualify(
                         filter.field(),
@@ -446,8 +449,7 @@ public final class SqlLikeBinder {
 
     private static boolean hasSubqueryFilter(List<FilterAst> filters) {
         for (FilterAst filter : filters) {
-            Object value = unwrapValue(filter.value());
-            if (value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst) {
+            if (isSubqueryValue(unwrapValue(filter.value()))) {
                 return true;
             }
         }
@@ -480,7 +482,11 @@ public final class SqlLikeBinder {
     }
 
     private static boolean isExistsFilter(FilterAst filter) {
-        return unwrapValue(filter.value()) instanceof ExistsSubqueryValueAst;
+        return switch (unwrapValue(filter.value())) {
+            case null -> false;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     private static boolean applyDirectWhereSubquery(QueryBuilder builder,
@@ -488,16 +494,21 @@ public final class SqlLikeBinder {
                                                    List<?> pojos,
                                                    Map<String, List<?>> joinSources,
                                                    ComputedFieldRegistry computedFieldRegistry) {
-        Object value = unwrapValue(filter.value());
-        if (value instanceof SubqueryValueAst subqueryValueAst && Clauses.IN.equals(filter.clause())) {
-            applyInSubquery(builder, filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
-            return true;
-        }
-        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            applyExistsSubquery(builder, existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
-            return true;
-        }
-        return false;
+        return switch (unwrapValue(filter.value())) {
+            case null -> false;
+            case SubqueryValueAst subqueryValueAst -> {
+                if (Clauses.IN.equals(filter.clause())) {
+                    applyInSubquery(builder, filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
+                    yield true;
+                }
+                yield false;
+            }
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                applyExistsSubquery(builder, existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
+                yield true;
+            }
+            default -> false;
+        };
     }
 
     private static void applyInSubquery(QueryBuilder builder,
@@ -582,18 +593,22 @@ public final class SqlLikeBinder {
                                               List<?> pojos,
                                               Map<String, List<?>> joinSources,
                                               ComputedFieldRegistry computedFieldRegistry) {
-        Object value = unwrapValue(filter.value());
-        if (value instanceof SubqueryValueAst subqueryValueAst && Clauses.IN.equals(filter.clause())) {
-            return inSubqueryRule(filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry);
-        }
-        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            return existsSubqueryRule(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
-        }
-        return QueryRule.of(
-                filter.field(),
-                resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
-                filter.clause()
-        );
+        return switch (unwrapValue(filter.value())) {
+            case SubqueryValueAst subqueryValueAst -> Clauses.IN.equals(filter.clause())
+                    ? inSubqueryRule(filter.field(), subqueryValueAst, pojos, joinSources, computedFieldRegistry)
+                    : QueryRule.of(
+                    filter.field(),
+                    resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                    filter.clause()
+            );
+            case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                    existsSubqueryRule(existsSubqueryValueAst, pojos, joinSources, computedFieldRegistry);
+            case null, default -> QueryRule.of(
+                    filter.field(),
+                    resolveValue(filter.value(), pojos, joinSources, computedFieldRegistry),
+                    filter.clause()
+            );
+        };
     }
 
     private static QueryRule inSubqueryRule(String targetField,
@@ -666,25 +681,21 @@ public final class SqlLikeBinder {
                                        List<?> pojos,
                                        Map<String, List<?>> joinSources,
                                        ComputedFieldRegistry computedFieldRegistry) {
-        Object unwrapped = unwrapValue(value);
-        if (unwrapped instanceof SubqueryValueAst subqueryValueAst) {
-            return resolveSubqueryValues(subqueryValueAst, pojos, joinSources, computedFieldRegistry);
-        }
-        return unwrapped;
+        return switch (unwrapValue(value)) {
+            case null -> null;
+            case SubqueryValueAst subqueryValueAst ->
+                    resolveSubqueryValues(subqueryValueAst, pojos, joinSources, computedFieldRegistry);
+            default -> unwrapValue(value);
+        };
     }
 
-    private static boolean resolveExistsSubquery(ExistsSubqueryValueAst existsSubqueryValueAst,
-                                                 List<?> pojos,
-                                                 Map<String, List<?>> joinSources,
-                                                 ComputedFieldRegistry computedFieldRegistry) {
-        QueryAst subquery = SqlLikeValidator.normalizeAggregationAliases(existsSubqueryValueAst.query());
-        List<?> sourceRows = resolveSubquerySourceRows(subquery.select(), pojos, joinSources);
-        if (sourceRows == null || sourceRows.isEmpty()) {
-            return existsSubqueryValueAst.negated();
-        }
-
-        boolean exists = !executeSubqueryRows(subquery, sourceRows, joinSources, computedFieldRegistry).isEmpty();
-        return existsSubqueryValueAst.negated() ? !exists : exists;
+    private static boolean isSubqueryValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _ -> true;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     private static List<Object> resolveSubqueryValues(SubqueryValueAst subqueryValueAst,
@@ -755,7 +766,9 @@ public final class SqlLikeBinder {
         List<?> rows = joinSources.get(select.sourceName());
         if (rows == null) {
             throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Missing subquery source binding for '" + select.sourceName() + "'");
+                    SqlLikeSourceBindingMessages.missingSubquerySourceBinding(
+                            select.sourceName(),
+                            joinSources.keySet()));
         }
         return rows;
     }

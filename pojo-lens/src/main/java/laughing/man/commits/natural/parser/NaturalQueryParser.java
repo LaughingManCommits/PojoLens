@@ -1,6 +1,6 @@
 package laughing.man.commits.natural.parser;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
@@ -112,9 +112,9 @@ public final class NaturalQueryParser {
             String offsetParameter = null;
             ChartType chartType = null;
 
-            Boolean allowBooleanShorthand = tryMatchWhereLeadIn();
-            if (allowBooleanShorthand != null) {
-                whereExpression = parseBooleanExpression(false, "WHERE", allowBooleanShorthand);
+            WhereLeadIn whereLeadIn = tryMatchWhereLeadIn();
+            if (whereLeadIn != null) {
+                whereExpression = parseBooleanExpression(false, "WHERE", whereLeadIn.allowBooleanShorthand());
                 filters = flatten(whereExpression);
             }
             if (peekGroupBy()) {
@@ -261,18 +261,10 @@ public final class NaturalQueryParser {
             );
         }
 
-        private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences, String clauseName) {
-            return parseBooleanExpression(allowAggregateReferences, clauseName, false);
-        }
-
         private FilterExpressionAst parseBooleanExpression(boolean allowAggregateReferences,
                                                            String clauseName,
                                                            boolean allowBooleanShorthand) {
-            FilterExpressionAst expression = parseOrExpression(allowAggregateReferences, clauseName, allowBooleanShorthand);
-            if (expression == null) {
-                throw error(clauseName + " requires at least one predicate", peek().position);
-            }
-            return expression;
+            return parseOrExpression(allowAggregateReferences, clauseName, allowBooleanShorthand);
         }
 
         private FilterExpressionAst parseOrExpression(boolean allowAggregateReferences,
@@ -740,14 +732,14 @@ public final class NaturalQueryParser {
             throw error("Expected 'group by' or 'grouped by'", peek().position);
         }
 
-        private Boolean tryMatchWhereLeadIn() {
+        private WhereLeadIn tryMatchWhereLeadIn() {
             if (matchWord("where")) {
-                return Boolean.FALSE;
+                return new WhereLeadIn(false);
             }
             if (peekFilterConnectorLeadIn(index)) {
                 next();
                 next();
-                return Boolean.TRUE;
+                return new WhereLeadIn(true);
             }
             return null;
         }
@@ -758,6 +750,9 @@ public final class NaturalQueryParser {
                 return true;
             }
             return false;
+        }
+
+        private record WhereLeadIn(boolean allowBooleanShorthand) {
         }
 
         private void expectWord(String expected) {
@@ -957,7 +952,6 @@ public final class NaturalQueryParser {
                     throw error("Expected week-start value in " + clauseName, tokens.get(tokens.size() - 1).position);
                 }
                 weekStartValue = joinTokens(tokens.subList(cursor, tokens.size()));
-                cursor = tokens.size();
             }
 
             try {
@@ -1448,19 +1442,21 @@ public final class NaturalQueryParser {
     private static void flattenInto(FilterExpressionAst expression,
                                     Separator separator,
                                     List<FilterAst> filters) {
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            filters.add(new FilterAst(
-                    filter.field(),
-                    filter.clause(),
-                    filter.value(),
-                    filters.isEmpty() ? null : separator
-            ));
-            return;
+        switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                filters.add(new FilterAst(
+                        filter.field(),
+                        filter.clause(),
+                        filter.value(),
+                        filters.isEmpty() ? null : separator
+                ));
+            }
+            case FilterBinaryAst binaryAst -> {
+                flattenInto(binaryAst.left(), separator, filters);
+                flattenInto(binaryAst.right(), binaryAst.operator(), filters);
+            }
         }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        flattenInto(binaryAst.left(), separator, filters);
-        flattenInto(binaryAst.right(), binaryAst.operator(), filters);
     }
 
     private static int lastIndexOfWord(List<Token> tokens, String value) {

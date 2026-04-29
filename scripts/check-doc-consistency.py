@@ -14,6 +14,17 @@ CONTRIBUTING = ROOT / "CONTRIBUTING.md"
 CHANGELOG = ROOT / "CHANGELOG.md"
 MIGRATION = ROOT / "MIGRATION.md"
 RELEASE = ROOT / "RELEASE.md"
+ENTRY_POINTS = ROOT / "docs/entry-points.md"
+USECASES = ROOT / "docs/usecases.md"
+REUSABLE_WRAPPERS = ROOT / "docs/reusable-wrappers.md"
+REPORTS = ROOT / "docs/reports.md"
+CHARTS = ROOT / "docs/charts.md"
+COMPUTED_FIELDS = ROOT / "docs/computed-fields.md"
+TIME_BUCKETS = ROOT / "docs/time-buckets.md"
+TABULAR_SCHEMA = ROOT / "docs/tabular-schema.md"
+TELEMETRY = ROOT / "docs/telemetry.md"
+CACHING = ROOT / "docs/caching.md"
+METAMODEL = ROOT / "docs/metamodel.md"
 MODULES = ROOT / "docs/modules.md"
 SQL_LIKE = ROOT / "docs/sql-like.md"
 BENCHMARKING = ROOT / "docs/benchmarking.md"
@@ -59,6 +70,17 @@ def main() -> int:
     changelog = read_text(CHANGELOG)
     migration = read_text(MIGRATION)
     release = read_text(RELEASE)
+    entry_points = read_text(ENTRY_POINTS)
+    usecases = read_text(USECASES)
+    reusable_wrappers = read_text(REUSABLE_WRAPPERS)
+    reports = read_text(REPORTS)
+    charts = read_text(CHARTS)
+    computed_fields = read_text(COMPUTED_FIELDS)
+    time_buckets = read_text(TIME_BUCKETS)
+    tabular_schema = read_text(TABULAR_SCHEMA)
+    telemetry = read_text(TELEMETRY)
+    caching = read_text(CACHING)
+    metamodel = read_text(METAMODEL)
     modules = read_text(MODULES)
     sql_like = read_text(SQL_LIKE)
     benchmarking = read_text(BENCHMARKING)
@@ -75,6 +97,32 @@ def main() -> int:
     require_substring(changelog, CHANGELOG, f"## [{version}]", errors)
     require_substring(quickstart_pom, QUICKSTART_POM, f"<version>{version}</version>", errors)
     require_substring(basic_pom, BASIC_POM, f"<version>{version}</version>", errors)
+
+    public_entry_docs = (
+        (README, readme),
+        (MIGRATION, migration),
+        (ENTRY_POINTS, entry_points),
+        (USECASES, usecases),
+        (REUSABLE_WRAPPERS, reusable_wrappers),
+        (REPORTS, reports),
+        (CHARTS, charts),
+        (COMPUTED_FIELDS, computed_fields),
+        (TIME_BUCKETS, time_buckets),
+        (TABULAR_SCHEMA, tabular_schema),
+        (TELEMETRY, telemetry),
+        (CACHING, caching),
+        (METAMODEL, metamodel),
+    )
+    internal_api_patterns = (
+        r"\bPojoLensCore\b",
+        r"\bQueryBuilder\b",
+        r"\bFluentQueryDefinition\b",
+        r"ReportDefinition\.fluent",
+        r"laughing\.man\.commits\.internal",
+    )
+    for path, doc in public_entry_docs:
+        for pattern in internal_api_patterns:
+            forbid_regex(doc, path, pattern, errors)
 
     require_regex(contributing, CONTRIBUTING, r"BENCHMARK_JAR=.*\*-benchmarks\.jar", errors)
     require_regex(release, RELEASE, r"target/\*-benchmarks\.jar", errors)

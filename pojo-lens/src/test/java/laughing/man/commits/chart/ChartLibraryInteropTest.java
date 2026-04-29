@@ -1,6 +1,6 @@
 package laughing.man.commits.chart;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensChart;
 
@@ -42,7 +42,7 @@ public class ChartLibraryInteropTest {
     @Test
     public void xChartBarChartShouldRenderFromLargerFluentGroupedDataset() throws Exception {
         List<EmployeeEvent> events = interopEmployeeEvents();
-        ChartData chartData = PojoLensCore.newQueryBuilder(events)
+        ChartData chartData = FluentEngine.newQueryBuilder(events)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()

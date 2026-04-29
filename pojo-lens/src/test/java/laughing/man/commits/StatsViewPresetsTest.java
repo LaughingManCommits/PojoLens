@@ -1,10 +1,13 @@
 package laughing.man.commits;
 
+import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.stats.StatsTable;
 import laughing.man.commits.stats.StatsTablePayload;
 import laughing.man.commits.stats.StatsViewPreset;
 import laughing.man.commits.stats.StatsViewPresets;
+import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.ChartTestFixtures.DepartmentPayrollRow;
 import laughing.man.commits.testutil.StatsExampleFixtures.DepartmentTotalRow;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -105,6 +109,30 @@ public class StatsViewPresetsTest {
             return;
         }
         throw new AssertionError("Expected IllegalArgumentException");
+    }
+
+    @Test
+    public void groupedPresetShouldShareReportDefinitionRowContract() {
+        StatsViewPreset<DepartmentTotalRow> preset = StatsViewPresets.by("department", DepartmentTotalRow.class);
+        ReportDefinition<DepartmentTotalRow> report = preset.reportDefinition();
+        List<Employee> source = sampleEmployees();
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+        DatasetBundle datasetBundle = DatasetBundle.of(source, joinBindings);
+
+        assertEquals(preset.source(), report.source());
+        assertEquals(preset.schema().names(), report.schema().names());
+        assertEquals(
+                preset.rows(source).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(source).stream().map(row -> row.department + ":" + row.total).toList()
+        );
+        assertEquals(
+                preset.rows(source, joinBindings).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(source, joinBindings).stream().map(row -> row.department + ":" + row.total).toList()
+        );
+        assertEquals(
+                preset.rows(datasetBundle).stream().map(row -> row.department + ":" + row.total).toList(),
+                report.rows(datasetBundle).stream().map(row -> row.department + ":" + row.total).toList()
+        );
     }
 }
 

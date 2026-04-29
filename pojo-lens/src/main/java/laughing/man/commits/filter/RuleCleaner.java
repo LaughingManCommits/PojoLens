@@ -1,12 +1,12 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryWindow;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.QueryWindow;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import laughing.man.commits.builder.QueryMetric;
+import laughing.man.commits.internal.builder.QueryMetric;
 import laughing.man.commits.util.QueryFieldLookupUtil;
 
 import java.util.ArrayList;

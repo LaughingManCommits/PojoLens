@@ -1,6 +1,6 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
@@ -90,25 +90,25 @@ public class ChartVisualizationJmhBenchmark {
         areaSql = "select period, series, sum(amount) as total group by period, series";
         scatterSql = "select xValue, yValue, series";
 
-        barFilter = PojoLensCore.newQueryBuilder(source)
+        barFilter = FluentEngine.newQueryBuilder(source)
                 .addGroup("department")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        lineFilter = PojoLensCore.newQueryBuilder(source)
+        lineFilter = FluentEngine.newQueryBuilder(source)
                 .addGroup("period")
                 .addGroup("series")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        pieFilter = PojoLensCore.newQueryBuilder(source)
+        pieFilter = FluentEngine.newQueryBuilder(source)
                 .addGroup("department")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        areaFilter = PojoLensCore.newQueryBuilder(source)
+        areaFilter = FluentEngine.newQueryBuilder(source)
                 .addGroup("period")
                 .addGroup("series")
                 .addMetric("amount", Metric.SUM, "total")
                 .initFilter();
-        scatterFilter = PojoLensCore.newQueryBuilder(source)
+        scatterFilter = FluentEngine.newQueryBuilder(source)
                 .initFilter();
 
         parsedBarSql = PojoLensSql.parse(barSql);
@@ -123,6 +123,15 @@ public class ChartVisualizationJmhBenchmark {
         pieData = pieFilter.chart(CategoryTotalRow.class, pieSpec);
         areaData = areaFilter.chart(PeriodSeriesTotalRow.class, areaSpec);
         scatterData = scatterFilter.chart(ScatterRow.class, scatterSpec);
+
+        // Prime reusable SQL-like chart mapping state in setup so the no-warmup
+        // suite measures steady execution rather than first-use cache fill.
+        parsedBarSql.chart(source, CategoryTotalRow.class, barSpec);
+        parsedLineSql.chart(source, PeriodSeriesTotalRow.class, lineSpec);
+        parsedPieSql.chart(source, CategoryTotalRow.class, pieSpec);
+        parsedAreaSql.chart(source, PeriodSeriesTotalRow.class, areaSpec);
+        parsedScatterSql.chart(source, ScatterRow.class, scatterSpec);
+        boundScatterSql.chart(scatterSpec);
     }
 
     @Setup(Level.Invocation)

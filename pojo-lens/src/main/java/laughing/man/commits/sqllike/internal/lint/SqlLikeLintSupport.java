@@ -55,19 +55,25 @@ public final class SqlLikeLintSupport {
 
     private static boolean hasInlineStringLiteral(List<FilterAst> filters) {
         for (FilterAst filter : filters) {
-            if (filter.value() instanceof String) {
-                return true;
-            }
-            if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
-                if (hasInlineStringLiteral(subqueryValueAst.query().filters())
-                        || hasInlineStringLiteral(subqueryValueAst.query().havingFilters())) {
+            switch (filter.value()) {
+                case null -> {
+                }
+                case String _ -> {
                     return true;
                 }
-            }
-            if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                if (hasInlineStringLiteral(existsSubqueryValueAst.query().filters())
-                        || hasInlineStringLiteral(existsSubqueryValueAst.query().havingFilters())) {
-                    return true;
+                case SubqueryValueAst subqueryValueAst -> {
+                    if (hasInlineStringLiteral(subqueryValueAst.query().filters())
+                            || hasInlineStringLiteral(subqueryValueAst.query().havingFilters())) {
+                        return true;
+                    }
+                }
+                case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                    if (hasInlineStringLiteral(existsSubqueryValueAst.query().filters())
+                            || hasInlineStringLiteral(existsSubqueryValueAst.query().havingFilters())) {
+                        return true;
+                    }
+                }
+                default -> {
                 }
             }
         }

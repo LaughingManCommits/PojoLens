@@ -14,12 +14,20 @@
     <artifactId>pojo-lens</artifactId>
     <packaging>jar</packaging>
     <name>PojoLens</name>
-    <description>POJO-first in-memory query engine for Java with fluent and SQL-like APIs.</description>
+    <description>POJO-first in-memory query engine for Java with SQL-like and guided plain-English APIs.</description>
 
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -32,14 +40,15 @@
             <version>3.2.2</version>
         </dependency>
         <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>4.9.8</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${slf4j.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -85,7 +94,7 @@
                         <artifactId>maven-checkstyle-plugin</artifactId>
                         <version>3.6.0</version>
                         <configuration>
-                            <configLocation>sun_checks.xml</configLocation>
+                            <configLocation>${project.basedir}/../config/checkstyle/checkstyle.xml</configLocation>
                             <includeTestSourceDirectory>true</includeTestSourceDirectory>
                             <consoleOutput>true</consoleOutput>
                             <logViolationsToConsole>true</logViolationsToConsole>
@@ -114,19 +123,20 @@
                     <plugin>
                         <groupId>com.github.spotbugs</groupId>
                         <artifactId>spotbugs-maven-plugin</artifactId>
-                        <version>4.8.6.6</version>
+                        <version>4.9.8.3</version>
                         <configuration>
                             <effort>Max</effort>
                             <threshold>Low</threshold>
+                            <failThreshold>High</failThreshold>
                             <xmlOutput>true</xmlOutput>
-                            <failOnError>false</failOnError>
+                            <failOnError>true</failOnError>
                         </configuration>
                         <executions>
                             <execution>
                                 <id>spotbugs-report</id>
                                 <phase>verify</phase>
                                 <goals>
-                                    <goal>spotbugs</goal>
+                                    <goal>check</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -177,23 +187,46 @@
                                 <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
                                 <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
                                 <includes>
-                                    <include>laughing.man.commits.PojoLensCore</include>
                                     <include>laughing.man.commits.PojoLensSql</include>
+                                    <include>laughing.man.commits.PojoLensNatural</include>
+                                    <include>laughing.man.commits.PojoLensCsv</include>
+                                    <include>laughing.man.commits.PojoLensFiles</include>
                                     <include>laughing.man.commits.PojoLensChart</include>
                                     <include>laughing.man.commits.PojoLensTree</include>
                                     <include>laughing.man.commits.PojoLensRuntime</include>
                                     <include>laughing.man.commits.PojoLensRuntimePreset</include>
                                     <include>laughing.man.commits.DatasetBundle</include>
+                                    <include>laughing.man.commits.dsl.TypedField</include>
+                                    <include>laughing.man.commits.dsl.TypedPredicate</include>
+                                    <include>laughing.man.commits.dsl.TypedPredicate.Operator</include>
+                                    <include>laughing.man.commits.dsl.TypedQuery</include>
+                                    <include>laughing.man.commits.metamodel.FieldMetamodelGenerator</include>
+                                    <include>laughing.man.commits.report.ReportDefinition</include>
                                     <include>laughing.man.commits.tree.TreeTraversalBuilder</include>
                                     <include>laughing.man.commits.tree.TreeEntry</include>
-                                    <include>laughing.man.commits.builder.QueryBuilder</include>
-                                    <include>laughing.man.commits.filter.Filter</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeQuery</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeBoundQuery</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeTemplate</include>
                                     <include>laughing.man.commits.sqllike.SqlParams</include>
                                     <include>laughing.man.commits.sqllike.SqlLikeCursor</include>
                                     <include>laughing.man.commits.sqllike.JoinBindings</include>
+                                    <include>laughing.man.commits.sqllike.QueryExecutionGuardException</include>
+                                    <include>laughing.man.commits.natural.NaturalRuntime</include>
+                                    <include>laughing.man.commits.natural.NaturalQuery</include>
+                                    <include>laughing.man.commits.natural.NaturalBoundQuery</include>
+                                    <include>laughing.man.commits.natural.NaturalTemplate</include>
+                                    <include>laughing.man.commits.natural.NaturalVocabulary</include>
+                                    <include>laughing.man.commits.csv.CsvOptions</include>
+                                    <include>laughing.man.commits.csv.CsvCoercionPolicy</include>
+                                    <include>laughing.man.commits.csv.CsvLoadResult</include>
+                                    <include>laughing.man.commits.csv.CsvLoadReport</include>
+                                    <include>laughing.man.commits.csv.CsvLoadException</include>
+                                    <include>laughing.man.commits.csv.CsvRuntime</include>
+                                    <include>laughing.man.commits.files.FileLoadRuntime</include>
+                                    <include>laughing.man.commits.files.JsonOptions</include>
+                                    <include>laughing.man.commits.files.JsonLoadResult</include>
+                                    <include>laughing.man.commits.files.JsonLoadReport</include>
+                                    <include>laughing.man.commits.files.JsonLoadException</include>
                                     <include>laughing.man.commits.enums.Clauses</include>
                                     <include>laughing.man.commits.enums.Join</include>
                                     <include>laughing.man.commits.enums.Metric</include>

@@ -11,6 +11,9 @@ import laughing.man.commits.filter.internal.DefaultFilterExecutionPlanCacheSuppo
 import laughing.man.commits.natural.parser.NaturalQueryParser;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExecutionGuard;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.sqllike.SqlParams;
 import laughing.man.commits.sqllike.ast.QueryAst;
@@ -29,8 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
 import java.util.stream.Stream;
 
 /**
@@ -41,18 +45,22 @@ public final class NaturalQuery {
     private final String source;
     private final String equivalentSqlLike;
     private final QueryState state;
-    private final ConcurrentMap<ResolutionShapeKey, ResolvedExecution> resolvedExecutions;
+    private final Cache<ResolutionShapeKey, ResolvedExecution> resolvedExecutions;
 
     private NaturalQuery(String source, String equivalentSqlLike, QueryState state) {
         this.source = Objects.requireNonNull(source, "source must not be null");
         this.equivalentSqlLike = Objects.requireNonNull(equivalentSqlLike, "equivalentSqlLike must not be null");
         this.state = Objects.requireNonNull(state, "state must not be null");
-        this.resolvedExecutions = new ConcurrentHashMap<>();
+        this.resolvedExecutions = Caffeine.newBuilder()
+                .maximumSize(256)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .build();
     }
 
     public static NaturalQuery of(String source) {
-        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(source);
-        String normalizedSource = source == null ? null : source.trim();
+        String nonNullSource = Objects.requireNonNull(source, "source must not be null");
+        NaturalQueryParseResult parseResult = NaturalQueryParser.parseResult(nonNullSource);
+        String normalizedSource = nonNullSource.trim();
         String equivalentSqlLike = NaturalQueryRenderer.toSqlLike(parseResult.ast());
         return new NaturalQuery(
                 normalizedSource,
@@ -106,6 +114,33 @@ public final class NaturalQuery {
         return state.lintMode();
     }
 
+    /**
+     * Returns pre-execution diagnostics for this natural query by inspecting the
+     * equivalent SQL-like representation. No source class is required; field
+     * existence is not validated.
+     *
+     * @return diagnostics with structural metadata and lint warnings
+     */
+    public QueryDiagnostics diagnostics() {
+        return createDelegate(state.ast()).diagnostics();
+    }
+
+    /**
+     * Returns pre-execution diagnostics for this natural query including field
+     * and source validation against the provided classes.
+     *
+     * @param sourceClass     class whose fields are queryable
+     * @param projectionClass class that receives query output
+     * @return diagnostics with validation findings, structural metadata, and lint warnings
+     */
+    public QueryDiagnostics diagnostics(Class<?> sourceClass, Class<?> projectionClass) {
+        Objects.requireNonNull(sourceClass, "sourceClass must not be null");
+        Objects.requireNonNull(projectionClass, "projectionClass must not be null");
+        NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved = resolveForDiagnostics(sourceClass);
+        return createDelegate(resolved.ast())
+                .diagnostics(sourceClass, projectionClass);
+    }
+
     public NaturalQuery telemetry(QueryTelemetryListener listener) {
         return state.telemetryListener() == listener ? this : withState(state.withTelemetryListener(listener));
     }
@@ -125,9 +160,38 @@ public final class NaturalQuery {
         return state.computedFieldRegistry();
     }
 
+    public NaturalQuery exposurePolicy(QueryExposurePolicy policy) {
+        Objects.requireNonNull(policy, "policy must not be null");
+        return state.exposurePolicy() == policy ? this : withState(state.withExposurePolicy(policy));
+    }
+
+    public QueryExposurePolicy exposurePolicy() {
+        return state.exposurePolicy();
+    }
+
     public NaturalQuery executionPlanCache(FilterExecutionPlanCacheStore executionPlanCache) {
         Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
         return state.executionPlanCache() == executionPlanCache ? this : withState(state.withExecutionPlanCache(executionPlanCache));
+    }
+
+    /**
+     * Returns a query with the given execution guard applied.
+     *
+     * @param guard execution guard; must not be null
+     * @return query with guard attached
+     */
+    public NaturalQuery executionGuard(QueryExecutionGuard guard) {
+        Objects.requireNonNull(guard, "guard must not be null");
+        return state.executionGuard() == guard ? this : withState(state.withExecutionGuard(guard));
+    }
+
+    /**
+     * Returns the execution guard attached to this query.
+     *
+     * @return execution guard
+     */
+    public QueryExecutionGuard executionGuard() {
+        return state.executionGuard();
     }
 
     NaturalQuery vocabulary(NaturalVocabulary vocabulary) {
@@ -320,7 +384,7 @@ public final class NaturalQuery {
                                                 Class<?> projectionClass) {
         Map<String, List<?>> effectiveJoinSources = joinSources == null ? Map.of() : joinSources;
         ResolutionShapeKey shapeKey = ResolutionShapeKey.of(state.ast(), pojos, effectiveJoinSources, projectionClass);
-        return resolvedExecutions.computeIfAbsent(shapeKey, ignored -> {
+        return resolvedExecutions.get(shapeKey, ignored -> {
             NaturalQueryResolutionSupport.ResolvedNaturalQuery resolved =
                     resolve(pojos, effectiveJoinSources, projectionClass);
             return new ResolvedExecution(resolved, createDelegate(resolved.ast()));
@@ -363,6 +427,26 @@ public final class NaturalQuery {
         String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
         if (rootSourceName != null) {
             addQualifiedVocabularyTargets(allowedFields, rootSourceName, state.vocabulary());
+        }
+        return NaturalQueryResolutionSupport.resolve(
+                new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
+                allowedFields,
+                state.vocabulary()
+        );
+    }
+
+    private NaturalQueryResolutionSupport.ResolvedNaturalQuery resolveForDiagnostics(Class<?> sourceClass) {
+        if (state.ast().hasJoins()) {
+            return NaturalQueryResolutionSupport.passthrough(state.ast(), equivalentSqlLike);
+        }
+        Set<String> allowedFields = new LinkedHashSet<>(ReflectionUtil.collectQueryableFieldNames(sourceClass));
+        allowedFields.addAll(state.computedFieldRegistry().names());
+        addVocabularyTargets(allowedFields, state.vocabulary());
+        addUnaliasedSourcePhraseFields(allowedFields, state.sourceFieldPhrases(), state.vocabulary());
+        String rootSourceName = state.ast().select() == null ? null : state.ast().select().sourceName();
+        if (rootSourceName != null) {
+            addQualifiedVocabularyTargets(allowedFields, rootSourceName, state.vocabulary());
+            addQualifiedFields(allowedFields, rootSourceName, sourceClass);
         }
         return NaturalQueryResolutionSupport.resolve(
                 new NaturalQueryParseResult(state.ast(), state.sourceFieldPhrases(), state.chartType()),
@@ -420,8 +504,10 @@ public final class NaturalQuery {
                 .strictParameterTypes(state.strictParameterTypes())
                 .lintMode(state.lintMode())
                 .computedFields(state.computedFieldRegistry())
+                .exposurePolicy(state.exposurePolicy())
                 .executionPlanCache(state.executionPlanCache())
-                .telemetry(state.telemetryListener());
+                .telemetry(state.telemetryListener())
+                .executionGuard(state.executionGuard());
     }
 
     private Map<String, Object> addExplainMetadata(Map<String, Object> explain,
@@ -470,8 +556,10 @@ public final class NaturalQuery {
                               QueryTelemetryListener telemetryListener,
                               ComputedFieldRegistry computedFieldRegistry,
                               FilterExecutionPlanCacheStore executionPlanCache,
+                              QueryExposurePolicy exposurePolicy,
                               NaturalVocabulary vocabulary,
-                              ChartType chartType) {
+                              ChartType chartType,
+                              QueryExecutionGuard executionGuard) {
 
         private QueryState {
             Objects.requireNonNull(ast, "ast must not be null");
@@ -480,7 +568,9 @@ public final class NaturalQuery {
             ));
             computedFieldRegistry = computedFieldRegistry == null ? ComputedFieldRegistry.empty() : computedFieldRegistry;
             executionPlanCache = Objects.requireNonNull(executionPlanCache, "executionPlanCache must not be null");
+            exposurePolicy = exposurePolicy == null ? QueryExposurePolicy.unrestricted() : exposurePolicy;
             vocabulary = vocabulary == null ? NaturalVocabulary.empty() : vocabulary;
+            executionGuard = executionGuard == null ? QueryExecutionGuard.unrestricted() : executionGuard;
         }
 
         private static QueryState of(NaturalQueryParseResult parseResult) {
@@ -492,8 +582,10 @@ public final class NaturalQuery {
                     null,
                     ComputedFieldRegistry.empty(),
                     DefaultFilterExecutionPlanCacheSupport.defaultStore(),
+                    QueryExposurePolicy.unrestricted(),
                     NaturalVocabulary.empty(),
-                    parseResult.chartType()
+                    parseResult.chartType(),
+                    QueryExecutionGuard.unrestricted()
             );
         }
 
@@ -506,8 +598,10 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -520,8 +614,10 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -534,8 +630,10 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -548,8 +646,10 @@ public final class NaturalQuery {
                     listener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -562,8 +662,10 @@ public final class NaturalQuery {
                     telemetryListener,
                     registry,
                     executionPlanCache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -576,8 +678,26 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     cache,
+                    exposurePolicy,
                     vocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
+            );
+        }
+
+        private QueryState withExposurePolicy(QueryExposurePolicy policy) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    policy,
+                    vocabulary,
+                    chartType,
+                    executionGuard
             );
         }
 
@@ -590,8 +710,26 @@ public final class NaturalQuery {
                     telemetryListener,
                     computedFieldRegistry,
                     executionPlanCache,
+                    exposurePolicy,
                     updatedVocabulary,
-                    chartType
+                    chartType,
+                    executionGuard
+            );
+        }
+
+        private QueryState withExecutionGuard(QueryExecutionGuard guard) {
+            return new QueryState(
+                    ast,
+                    sourceFieldPhrases,
+                    strictParameterTypes,
+                    lintMode,
+                    telemetryListener,
+                    computedFieldRegistry,
+                    executionPlanCache,
+                    exposurePolicy,
+                    vocabulary,
+                    chartType,
+                    guard
             );
         }
     }

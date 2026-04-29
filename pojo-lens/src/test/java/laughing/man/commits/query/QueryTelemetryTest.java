@@ -1,6 +1,6 @@
 package laughing.man.commits.query;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.PojoLensRuntime;
@@ -57,7 +57,7 @@ public class QueryTelemetryTest {
     public void fluentChartExecutionShouldEmitTelemetryStages() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(sampleEmployees())
+        ChartData chart = FluentEngine.newQueryBuilder(sampleEmployees())
                 .telemetry(events::add)
                 .addRule("active", true, Clauses.EQUAL)
                 .addGroup("department")

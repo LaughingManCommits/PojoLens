@@ -89,6 +89,21 @@ final class ChartResultMapperFixtures {
         }
     }
 
+    public static class MultiSeriesScatterRow {
+        public double xValue;
+        public double yValue;
+        public String series;
+
+        MultiSeriesScatterRow() {
+        }
+
+        MultiSeriesScatterRow(double xValue, double yValue, String series) {
+            this.xValue = xValue;
+            this.yValue = yValue;
+            this.series = series;
+        }
+    }
+
     public static class TypedMetricRow {
         private String department;
         private String period;

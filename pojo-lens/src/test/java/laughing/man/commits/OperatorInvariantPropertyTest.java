@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;
@@ -46,7 +48,7 @@ public class OperatorInvariantPropertyTest {
     }
 
     private static List<Foo> filter(List<Foo> source, Clauses clause, int compareValue) throws Exception {
-        return PojoLensCore.newQueryBuilder(source)
+        return FluentEngine.newQueryBuilder(source)
                 .addRule("integerField", compareValue, clause, Separator.OR)
                 .initFilter()
                 .filter(Foo.class);

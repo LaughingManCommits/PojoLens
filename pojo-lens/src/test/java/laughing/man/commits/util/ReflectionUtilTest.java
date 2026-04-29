@@ -186,6 +186,28 @@ class ReflectionUtilTest {
     }
 
     @Test
+    void compileDirectFieldReadPlanShouldReuseCacheForEquivalentSelection() throws Exception {
+        int before = directFieldReadPlanCache().size();
+
+        ReflectionUtil.DirectFieldReadPlan first = ReflectionUtil.compileDirectFieldReadPlan(
+                RootBean.class,
+                List.of("id", "name")
+        );
+        int afterFirst = directFieldReadPlanCache().size();
+        ReflectionUtil.DirectFieldReadPlan second = ReflectionUtil.compileDirectFieldReadPlan(
+                RootBean.class,
+                List.of("id", "name")
+        );
+        int afterSecond = directFieldReadPlanCache().size();
+
+        assertEquals(before + 1, afterFirst);
+        assertEquals(afterFirst, afterSecond);
+        assertTrue(first == second);
+        assertTrue(first.hasField("id"));
+        assertTrue(first.hasField("name"));
+    }
+
+    @Test
     void collectQueryableFieldTypesShouldIncludeJavaTimeFields() {
         Map<String, Class<?>> fieldTypes = ReflectionUtil.collectQueryableFieldTypes(JavaTimeBean.class);
 
@@ -201,18 +223,25 @@ class ReflectionUtilTest {
         );
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<?, ?> projectionPlanCache() throws Exception {
-        Field field = ReflectionUtil.class.getDeclaredField("PROJECTION_WRITE_PLAN_CACHE");
-        field.setAccessible(true);
-        return (Map<?, ?>) field.get(null);
+        return caffeineAsMap("PROJECTION_WRITE_PLAN_CACHE");
+    }
+
+    private static Map<?, ?> flatRowReadPlanCache() throws Exception {
+        return caffeineAsMap("FLAT_ROW_READ_PLAN_CACHE");
+    }
+
+    private static Map<?, ?> directFieldReadPlanCache() throws Exception {
+        return caffeineAsMap("DIRECT_FIELD_READ_PLAN_CACHE");
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<?, ?> flatRowReadPlanCache() throws Exception {
-        Field field = ReflectionUtil.class.getDeclaredField("FLAT_ROW_READ_PLAN_CACHE");
+    private static Map<?, ?> caffeineAsMap(String fieldName) throws Exception {
+        Field field = ReflectionUtil.class.getDeclaredField(fieldName);
         field.setAccessible(true);
-        return (Map<?, ?>) field.get(null);
+        com.github.benmanes.caffeine.cache.Cache<?, ?> cache =
+                (com.github.benmanes.caffeine.cache.Cache<?, ?>) field.get(null);
+        return cache.asMap();
     }
 
     private static QueryRow queryRow(QueryField... fields) {

@@ -7,6 +7,7 @@ Load this file only for benchmark, threshold, or profiling tasks.
 - Benchmark methodology is execution-only in benchmark methods (setup moved to `@Setup`).
 - Core guardrails: `benchmarks/thresholds.json` (rebaselined on 2026-03-19 from CI data; `2026-04-17` recalibrated CSV load budgets for CI cold temp-file I/O variance).
 - Chart guardrails: `benchmarks/chart-thresholds.json`.
+- Reflection hotspot guardrails: `benchmarks/hotspot-thresholds.json` for warmed `HotspotMicroJmhBenchmark.reflectionToDomainRows` and `reflectionToClassList`.
 - Strict benchmark checker remains the gate for threshold validation.
 
 ## AI Memory Benchmark
@@ -18,8 +19,24 @@ Load this file only for benchmark, threshold, or profiling tasks.
 
 ## Current Position
 
-- No active benchmark optimization work is open.
+- `2026-04-26`: WP15 is complete. JFR-guided scatter profiling showed the
+  remaining SQL-like chart parity cost came from eager per-row scatter x-string
+  materialization plus repeated direct-field name lookup in typed multi-series
+  scatter mapping. `ChartMapper` now defers scatter x-label formatting, reuses
+  resolved `Field` handles, and the strict chart suite rerun cleared
+  `SCATTER size=100000` parity at fluent `4.887 ms/op`, SQL-like
+  `7.454 ms/op`, ratio `1.526`.
+- `2026-04-26`: Local Windows JFR did not expose `jdk.CPUTimeSample`; usable
+  recordings came from `jdk.ExecutionSample` / `jdk.ObjectAllocationSample`.
+  `docs/benchmarking.md` now documents the `ChartScatterProfileMain` recipe and
+  the need to verify actual event availability with `jfr summary`.
+- `2026-04-23`: WP5 is complete: reflection hot-path caching shipped, repeated joins reuse prepared fast join state, warmed window allocation overhead dropped, and batch/columnar evaluation closed with no new execution mode.
 - `2026-04-17`: CI reported CSV guardrail misses at typed `1k = 13.655 ms`, multiline `1k = 5.709 ms`, and multiline `10k = 54.170 ms`; thresholds now allow `18.0 ms`, `8.0 ms`, and `70.0 ms` respectively.
+- `2026-04-23`: WP5 first slice reduced reflection hot-path cost by caching direct-field read plans across equivalent selections and reusing cached nested-path writes during projection materialization.
+- `2026-04-23`: warmed forked hotspot runs promoted conservative reflection guardrails at `45.0 us/op` and `450.0 us/op` for `reflectionToDomainRows`, plus `100.0 us/op` and `1000.0 us/op` for `reflectionToClassList`.
+- `2026-04-23`: warmed repeated-join spot checks dropped `PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField` to about `0.010 ms/op` at `1k` and `0.104 ms/op` at `10k` with far lower allocation, reflecting prepared fast join-state reuse for stable filter snapshots.
+- `2026-04-23`: warmed window diagnostics at `size=10000` measured `parseAndFilterWindowRank ~1.449 ms/op / 3,470,398 B/op` and `parseAndFilterWindowRunningTotal ~1.462 ms/op / 3,678,267 B/op`, down from the `2026-03-23` `~4.40 MB/op` and `~4.59 MB/op` range after trimming output-buffer and partition-key churn.
+- `2026-04-23`: local strict cold core-suite checks still fail on `SqlLikePipelineJmhBenchmark.parseAndExplainExecution`, `parseAndFilterHaving`, and the window benchmarks with `~8.0 s/op` results; warmed isolated diagnostics and targeted WP5 suites remain the reliable validation path for this slice until that cold-suite anomaly is investigated.
 - WP19 is intentionally parked; do not reopen without a materially different structural hypothesis.
 - Warmed profiler hotspots have repeatedly concentrated in `ReflectionUtil` and `FastArrayQuerySupport`.
 - `2026-04-15`: `ReflectionUtil.DirectFieldReadPlan` now backs direct POJO
@@ -36,12 +53,14 @@ Load this file only for benchmark, threshold, or profiling tasks.
   `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
 - Use benchmark suite args from `scripts/benchmark-suite-*.args`.
 - Do not run concurrent Maven builds in the same workspace `target/` directory.
+- For WP5 evidence, prefer the warmed join/window/reflection spot checks; the local cold core-suite anomaly above is unresolved.
 
 ## Sources
 
 - `docs/benchmarking.md`
 - `benchmarks/thresholds.json`
 - `benchmarks/chart-thresholds.json`
+- `benchmarks/hotspot-thresholds.json`
 - `ai/indexes/memory-benchmark.json`
 - `scripts/benchmark-ai-memory.py`
 - `target/benchmarks/*.json` (generated artifacts, not source of truth)

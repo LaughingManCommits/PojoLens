@@ -1,11 +1,7 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.builder.QueryBuilder;
-import laughing.man.commits.testutil.BusinessFixtures.Employee;
-import laughing.man.commits.testutil.PublicApiModels.StatsRow;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,21 +55,12 @@ public class PublicApiCacheCoverageTest extends AbstractPublicApiCoverageTest {
         runtime.statsPlanCache().setStatsEnabled(true);
         runtime.statsPlanCache().clear();
         runtime.statsPlanCache().resetStats();
-
-        List<Employee> employees = sampleEmployees();
-        QueryBuilder stats = runtime.newQueryBuilder(employees)
-                .addGroup("department")
-                .addCount("total");
-
-        stats.initFilter().filter(StatsRow.class);
-        stats.initFilter().filter(StatsRow.class);
-
-        assertTrue(runtime.statsPlanCache().misses() >= 1L);
-        assertTrue(runtime.statsPlanCache().hits() >= 1L);
-        assertTrue(runtime.statsPlanCache().size() >= 1);
+        assertEquals(0L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+        assertEquals(0, runtime.statsPlanCache().size());
         assertEquals(runtime.statsPlanCache().size(),
                 ((Number) runtime.statsPlanCache().snapshot().get("size")).intValue());
-        assertTrue(runtime.statsPlanCache().evictions() >= 0L);
+        assertEquals(0L, runtime.statsPlanCache().evictions());
 
         runtime.statsPlanCache().setEnabled(false);
         assertFalse(runtime.statsPlanCache().isEnabled());
@@ -82,6 +69,32 @@ public class PublicApiCacheCoverageTest extends AbstractPublicApiCoverageTest {
         assertTrue(runtime.statsPlanCache().isStatsEnabled());
         assertEquals(0L, runtime.statsPlanCache().maxWeight());
         assertEquals(0L, runtime.statsPlanCache().expireAfterWriteMillis());
+    }
+
+    @Test
+    public void runtimeStatsPlanCacheResetShouldClearEntriesAndCounters() {
+        runtime.parse("select department, count(*) as total group by department")
+                .filter(sampleEmployees(), DepartmentCount.class);
+        runtime.parse("select department, count(*) as total group by department")
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, runtime.statsPlanCache().size());
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(1L, runtime.statsPlanCache().hits());
+
+        runtime.statsPlanCache().resetStats();
+
+        assertEquals(0, runtime.statsPlanCache().size());
+        assertEquals(0L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
+        assertEquals(0L, runtime.statsPlanCache().evictions());
+        assertEquals(0, ((Number) runtime.statsPlanCache().snapshot().get("size")).intValue());
+
+        runtime.parse("select department, count(*) as total group by department")
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1L, runtime.statsPlanCache().misses());
+        assertEquals(0L, runtime.statsPlanCache().hits());
     }
 }
 

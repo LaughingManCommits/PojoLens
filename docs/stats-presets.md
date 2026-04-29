@@ -1,10 +1,17 @@
 # Stats View Presets
 
-`StatsViewPresets` provides predefined table-oriented query shapes for common dashboard/report workloads.
+`StatsViewPresets` provides predefined table-oriented query shapes for common
+dashboard/report workloads.
+It is part of the output-helper layer in PojoLens.
 
-Use it when you want reusable stats tables without hand-writing SQL-like strings for each endpoint.
-`StatsViewPreset<T>` is the specialized table-first reusable wrapper in PojoLens.
-If the reusable thing becomes a more general row query, bridge it to `ReportDefinition<T>`.
+Use it when you want table-first convenience without hand-writing SQL-like
+strings for each endpoint.
+`StatsViewPreset<T>` is an advanced table-first reusable wrapper in PojoLens.
+If the reusable thing becomes a more general row query, prefer
+`ReportDefinition<T>`.
+
+Output-helper route:
+- [output-helpers.md](output-helpers.md)
 
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -12,6 +19,7 @@ Wrapper selection guide:
 Main contracts:
 - `StatsViewPresets` factory methods (`summary`, `by`, `topNBy`)
 - `StatsViewPreset<T>` executable preset
+- `StatsViewPreset.schema()` reusable schema metadata
 - `StatsTable<T>` output payload (`rows`, optional `totals`, `schema`)
 - `StatsTablePayload` dashboard-friendly payload (`schema`, `rows`, `totals`)
 
@@ -25,6 +33,18 @@ Main contracts:
   grouped leaderboard table with deterministic ordering and `LIMIT`
 
 All presets compile to regular SQL-like queries internally (no separate execution engine).
+
+## Output-Helper Route
+
+Recommended defaults:
+- start from `ReportDefinition` when the same contract should serve reusable
+  rows, chart output, or schema beyond the table workflow
+- start from `StatsViewPreset.table(...)` when the consumer contract is
+  explicitly table-first and totals are part of the output
+- use `StatsTable.schema()` or `StatsViewPreset.schema()` when renderers need
+  deterministic columns alongside the table payload
+- treat `StatsViewPresets...` as advanced convenience sugar, not as the
+  default reusable-contract story
 
 ## Grouped Stats Table Example
 
@@ -50,6 +70,8 @@ Behavior:
 
 Preset helpers:
 - `preset.hasTotals()` tells you whether totals are part of the preset contract
+- `preset.schema()` exposes deterministic schema metadata without materializing
+  the full table payload first
 - `preset.reportDefinition()` exports the row query as the general reusable wrapper
 - `table.rowsAsMaps()` exposes JSON-friendly row maps using the table schema
 - `table.payload()` / `preset.tablePayload(...)` returns a dashboard-friendly payload
@@ -103,4 +125,7 @@ ReportDefinition<DepartmentPayrollRow> report = preset.reportDefinition();
 ```
 
 `reportDefinition()` keeps the reusable row query, but totals remain on `StatsViewPreset<T>` and `StatsTable<T>`.
+
+For new first-read docs and general reusable-query code, start with
+`ReportDefinition<T>` and treat stats presets as optional convenience.
 

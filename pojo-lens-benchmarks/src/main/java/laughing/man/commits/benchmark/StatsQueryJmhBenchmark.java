@@ -1,7 +1,8 @@
 package laughing.man.commits.benchmark;
 
 import laughing.man.commits.PojoLensRuntime;
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.FluentEngine;
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.sqllike.SqlLikeQuery;
 import laughing.man.commits.chart.ChartSpec;
@@ -76,30 +77,30 @@ public class StatsQueryJmhBenchmark {
         runtime.sqlLikeCache().setStatsEnabled(true);
         runtime.sqlLikeCache().setExpireAfterWriteMillis(0L);
 
-        fluentGroupedRowsFilter = runtime.newQueryBuilder(source)
+        fluentGroupedRowsFilter = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addGroup("stringField")
                 .initFilter();
-        fluentGroupedFilter = runtime.newQueryBuilder(source)
+        fluentGroupedFilter = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentTimeBucketFilter = runtime.newQueryBuilder(source)
+        fluentTimeBucketFilter = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentGroupedToChartFilter = runtime.newQueryBuilder(source)
+        fluentGroupedToChartFilter = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentTimeBucketToChartFilter = runtime.newQueryBuilder(source)
+        fluentTimeBucketToChartFilter = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addTimeBucket("dateField", TimeBucket.MONTH, "period")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue")
                 .initFilter();
-        fluentGroupedExplainBuilder = runtime.newQueryBuilder(source)
+        fluentGroupedExplainBuilder = FluentEngine.newQueryBuilder(source, runtime.statsPlanCache())
                 .addGroup("stringField")
                 .addCount("total")
                 .addMetric("integerField", Metric.SUM, "totalValue");

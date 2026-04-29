@@ -36,7 +36,7 @@ public final class DatasetBundle {
     }
 
     public List<?> primaryRows() {
-        return primaryRows;
+        return Collections.unmodifiableList(primaryRows);
     }
 
     public JoinBindings joinBindings() {

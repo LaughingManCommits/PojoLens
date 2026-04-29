@@ -1,6 +1,6 @@
 package laughing.man.commits.fluent;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.NullPointPolicy;
@@ -29,7 +29,7 @@ public class FluentChartIntegrationTest {
     public void fluentGroupedMetricShouldMapToChartInOneStep() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(employees)
+        ChartData chart = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .addOrder("payroll")
@@ -48,7 +48,7 @@ public class FluentChartIntegrationTest {
     public void fluentTimeBucketAliasShouldMapToChart() {
         List<SalaryPoint> rows = monthlySalaryPoints();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(rows)
+        ChartData chart = FluentEngine.newQueryBuilder(rows)
                 .addTimeBucket("hireDate", TimeBucket.MONTH, "period")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .addOrder("period")
@@ -67,7 +67,7 @@ public class FluentChartIntegrationTest {
     public void fluentGroupedMetricShouldMapToPieChart() {
         List<Employee> employees = sampleEmployees();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(employees)
+        ChartData chart = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .initFilter()
@@ -82,7 +82,7 @@ public class FluentChartIntegrationTest {
     public void fluentMultiSeriesShouldSupportStackedPercentPolicies() {
         List<SeriesMetricRow> rows = periodSeriesRows();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(rows)
+        ChartData chart = FluentEngine.newQueryBuilder(rows)
                 .initFilter()
                 .chart(SeriesMetricRow.class,
                         ChartSpec.of(ChartType.AREA, "period", "payroll", "department")

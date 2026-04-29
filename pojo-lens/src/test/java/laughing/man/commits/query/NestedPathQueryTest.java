@@ -1,6 +1,6 @@
 package laughing.man.commits.query;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.annotations.Exclude;
@@ -20,7 +20,7 @@ public class NestedPathQueryTest {
 
     @Test
     public void fluentFilterShouldSupportNestedDottedPathsAndRoundTripToPojo() {
-        List<Person> rows = PojoLensCore.newQueryBuilder(samplePeople())
+        List<Person> rows = FluentEngine.newQueryBuilder(samplePeople())
                 .addRule("address.country", "NL", Clauses.EQUAL)
                 .addRule("address.city", "Amsterdam", Clauses.EQUAL)
                 .addOrder("address.zipCode", 1)

@@ -515,7 +515,7 @@ class PojoLensCsvTest {
         int id;
         Address address;
 
-        public NestedRow() {
+        NestedRow() {
         }
     }
 
@@ -523,14 +523,14 @@ class PojoLensCsvTest {
         String city;
         Geo geo;
 
-        public Address() {
+        Address() {
         }
     }
 
     static final class Geo {
         String countryCode;
 
-        public Geo() {
+        Geo() {
         }
     }
 
@@ -539,7 +539,7 @@ class PojoLensCsvTest {
         String notes;
         boolean active;
 
-        public MultilineRow() {
+        MultilineRow() {
         }
     }
 
@@ -548,7 +548,7 @@ class PojoLensCsvTest {
         String notes;
         int salary;
 
-        public MultilineSalaryRow() {
+        MultilineSalaryRow() {
         }
     }
 
@@ -560,19 +560,19 @@ class PojoLensCsvTest {
         LocalDateTime reviewedAt;
         DepartmentCode department;
 
-        public CoercionRow() {
+        CoercionRow() {
         }
     }
 
     static final class PrimitiveIdRow {
         int id;
 
-        public PrimitiveIdRow() {
+        PrimitiveIdRow() {
         }
     }
 
     static final class EmptyRow {
-        public EmptyRow() {
+        EmptyRow() {
         }
     }
 

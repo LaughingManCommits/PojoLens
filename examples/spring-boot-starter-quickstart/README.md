@@ -1,10 +1,11 @@
 # Spring Boot Starter Quickstart Example
 
 This is the smallest runnable Spring Boot starter example in this repo.
-It shows one PojoLens query flow end-to-end:
+It shows one SQL-like PojoLens query flow end-to-end, with the starter runtime
+only supplying integration defaults:
 
-- starter auto-configures `PojoLensRuntime`
 - the app executes one SQL-like top-paid query over in-memory POJOs
+- starter auto-configures `PojoLensRuntime`
 - the endpoint returns typed rows
 
 For the full dashboard/presets/charts workflow, use:
@@ -25,6 +26,19 @@ mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml spring-boot:run
 curl "http://localhost:8080/api/employees/top-paid?minSalary=100000&limit=3"
 curl "http://localhost:8080/api/employees/runtime"
 ```
+
+## Optional Virtual-Thread Profile
+
+Run the example with Spring virtual threads enabled:
+
+```bash
+mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml spring-boot:run "-Dspring-boot.run.profiles=virtual"
+```
+
+Use this only to evaluate the blocking web boundary. The PojoLens query engine
+itself is still in-memory and CPU-bound. `/api/employees/runtime` now exposes
+`virtualThreadsEnabled` and `requestThreadVirtual` so the running mode is
+visible from the example itself.
 
 ## Test
 

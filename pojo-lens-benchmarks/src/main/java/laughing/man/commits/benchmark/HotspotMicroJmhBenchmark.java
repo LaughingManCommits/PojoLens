@@ -1,6 +1,6 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
@@ -265,7 +265,7 @@ public class HotspotMicroJmhBenchmark {
 
             core = new FilterCore(builder);
             plan = core.buildExecutionPlan();
-            rows = core.getBuilder().getRows();
+            rows = builder.getRows();
         }
     }
 

@@ -1,6 +1,7 @@
 # Agent Invariants
 
-- Repository type: multi-module Maven library build (`pojo-lens-parent`) with a runtime `jar` module (`pojo-lens`), Spring Boot integration modules (`pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`), and a benchmark tooling module (`pojo-lens-benchmarks`), not a deployable service.
+- Repository type: multi-module Maven library build (`pojo-lens-parent`) with a runtime `jar` module (`pojo-lens`), Spring Boot integration modules (`pojo-lens-spring-boot-autoconfigure`, `pojo-lens-spring-boot-starter`), and a benchmark tooling module (`pojo-lens-benchmarks`), not a deployable service. Java release `25`.
 - Source of truth: prefer runtime code, then build and CI config, then tests; documentation and `/ai` must follow them.
 - Build integrity: keep the existing Maven and CI flow buildable and compatible with the current packaging.
+- Public AST types under `laughing.man.commits.sqllike.ast` are part of the library surface; shape changes such as sealing or record conversion require explicit compatibility review and changelog coverage.
 - Scope: do not add unrelated services, runtime infrastructure, or extra subsystems.

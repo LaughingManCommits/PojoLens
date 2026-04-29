@@ -9,6 +9,10 @@ import java.util.Objects;
 
 /**
  * Runtime-scoped entry point for CSV loading with instance-owned defaults.
+ *
+ * <p>Use {@code runtime.files()} when the file-boundary loader surface should
+ * own multiple formats. This type remains the stable CSV-only convenience
+ * runtime.
  */
 public final class CsvRuntime {
 

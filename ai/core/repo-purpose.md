@@ -2,7 +2,7 @@
 
 - `pojo-lens` is a multi-module Maven Java library build with `groupId`
   `io.github.laughingmancommits`, root-POM date-based versioning, and Java
-  release `17`.
+  release `25`.
 - Runtime consumer artifact remains
   `io.github.laughingmancommits:pojo-lens` (`jar`).
 - Optional Spring Boot integration is provided via modules/artifacts

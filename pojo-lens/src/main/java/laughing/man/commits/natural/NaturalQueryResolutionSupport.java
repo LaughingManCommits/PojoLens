@@ -1,5 +1,6 @@
 package laughing.man.commits.natural;
 
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.natural.parser.NaturalQueryParseResult;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
@@ -13,6 +14,7 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 
 import java.util.ArrayList;
@@ -86,17 +88,9 @@ final class NaturalQueryResolutionSupport {
             return aliasTargets.get(0);
         }
         if (aliasTargets.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
-                            + new TreeSet<>(aliasTargets)
-            );
+            throw ambiguousNaturalFieldTerm(originalPhrase, aliasTargets);
         }
-        TreeSet<String> allowed = new TreeSet<>(sourceFields);
-        allowed.addAll(exactReferences);
-        throw new IllegalArgumentException(
-                "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
-                        + allowed
-        );
+        throw unknownNaturalFieldTerm(originalPhrase, sourceFields, exactReferences);
     }
 
     private static String resolveQualifiedField(String originalPhrase,
@@ -122,16 +116,28 @@ final class NaturalQueryResolutionSupport {
             return qualifiedTargets.get(0);
         }
         if (qualifiedTargets.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
-                            + new TreeSet<>(qualifiedTargets)
-            );
+            throw ambiguousNaturalFieldTerm(originalPhrase, qualifiedTargets);
         }
+        throw unknownNaturalFieldTerm(originalPhrase, sourceFields, exactReferences);
+    }
+
+    private static IllegalArgumentException ambiguousNaturalFieldTerm(String originalPhrase,
+                                                                     java.util.Collection<String> candidates) {
+        return new IllegalArgumentException(
+                "Ambiguous natural field term '" + originalPhrase + "' in natural query. Candidates: "
+                        + new TreeSet<>(candidates)
+        );
+    }
+
+    private static IllegalArgumentException unknownNaturalFieldTerm(String originalPhrase,
+                                                                    Set<String> sourceFields,
+                                                                    Set<String> exactReferences) {
         TreeSet<String> allowed = new TreeSet<>(sourceFields);
         allowed.addAll(exactReferences);
-        throw new IllegalArgumentException(
-                "Unknown natural field term '" + originalPhrase + "' in natural query. Allowed fields: "
-                        + allowed
+        return new IllegalArgumentException(
+                "Unknown natural field term '" + originalPhrase + "' in natural query."
+                        + NameSuggestions.formatFragment(NameSuggestions.suggest(originalPhrase, allowed))
+                        + SqlLikeFieldMessages.allowedFieldsFragment(allowed)
         );
     }
 
@@ -270,18 +276,16 @@ final class NaturalQueryResolutionSupport {
 
     private static FilterExpressionAst rewriteExpression(FilterExpressionAst expression,
                                                          Map<String, String> resolvedByNaturalField) {
-        if (expression == null) {
-            return null;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return new FilterPredicateAst(rewriteFilter(predicateAst.filter(), resolvedByNaturalField));
-        }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                rewriteExpression(binaryAst.left(), resolvedByNaturalField),
-                rewriteExpression(binaryAst.right(), resolvedByNaturalField),
-                binaryAst.operator()
-        );
+        return switch (expression) {
+            case null -> null;
+            case FilterPredicateAst predicateAst ->
+                    new FilterPredicateAst(rewriteFilter(predicateAst.filter(), resolvedByNaturalField));
+            case FilterBinaryAst binaryAst -> new FilterBinaryAst(
+                    rewriteExpression(binaryAst.left(), resolvedByNaturalField),
+                    rewriteExpression(binaryAst.right(), resolvedByNaturalField),
+                    binaryAst.operator()
+            );
+        };
     }
 
     private static List<OrderAst> rewriteOrders(List<OrderAst> orders, Map<String, String> resolvedByNaturalField) {
@@ -300,9 +304,10 @@ final class NaturalQueryResolutionSupport {
 
     private static FilterAst rewriteFilter(FilterAst filter, Map<String, String> resolvedByNaturalField) {
         return new FilterAst(
-                filter.value() instanceof ExistsSubqueryValueAst
-                        ? filter.field()
-                        : rewriteReference(filter.field(), resolvedByNaturalField),
+                switch (filter.value()) {
+                    case ExistsSubqueryValueAst ignored -> filter.field();
+                    case null, default -> rewriteReference(filter.field(), resolvedByNaturalField);
+                },
                 filter.clause(),
                 rewriteFilterValue(filter.value(), resolvedByNaturalField),
                 filter.separator()
@@ -310,19 +315,22 @@ final class NaturalQueryResolutionSupport {
     }
 
     private static Object rewriteFilterValue(Object value, Map<String, String> resolvedByNaturalField) {
-        if (value instanceof SubqueryValueAst subqueryValueAst) {
-            QueryAst rewritten = rewrite(subqueryValueAst.query(), resolvedByNaturalField);
-            return new SubqueryValueAst(NaturalQueryRenderer.toSqlLike(rewritten), rewritten);
-        }
-        if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-            QueryAst rewritten = rewrite(existsSubqueryValueAst.query(), resolvedByNaturalField);
-            return new ExistsSubqueryValueAst(
-                    NaturalQueryRenderer.toSqlLike(rewritten),
-                    rewritten,
-                    existsSubqueryValueAst.negated()
-            );
-        }
-        return value;
+        return switch (value) {
+            case null -> null;
+            case SubqueryValueAst subqueryValueAst -> {
+                QueryAst rewritten = rewrite(subqueryValueAst.query(), resolvedByNaturalField);
+                yield new SubqueryValueAst(NaturalQueryRenderer.toSqlLike(rewritten), rewritten);
+            }
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                QueryAst rewritten = rewrite(existsSubqueryValueAst.query(), resolvedByNaturalField);
+                yield new ExistsSubqueryValueAst(
+                        NaturalQueryRenderer.toSqlLike(rewritten),
+                        rewritten,
+                        existsSubqueryValueAst.negated()
+                );
+            }
+            default -> value;
+        };
     }
 
     private static Set<String> collectExactReferences(QueryAst ast) {
@@ -355,10 +363,14 @@ final class NaturalQueryResolutionSupport {
 
     private static void collectNestedExactReferences(List<FilterAst> filters, Set<String> references) {
         for (FilterAst filter : filters) {
-            if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
-                collectExactReferences(subqueryValueAst.query(), references);
-            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                collectExactReferences(existsSubqueryValueAst.query(), references);
+            switch (filter.value()) {
+                case null -> {
+                }
+                case SubqueryValueAst subqueryValueAst -> collectExactReferences(subqueryValueAst.query(), references);
+                case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                        collectExactReferences(existsSubqueryValueAst.query(), references);
+                default -> {
+                }
             }
         }
     }

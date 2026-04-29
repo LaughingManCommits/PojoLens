@@ -1,8 +1,8 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
@@ -32,7 +32,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void exactMatchFilterShouldReturnOnlyMatchingRows() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND)
                 .addField("stringField")
                 .addField("integerField")
@@ -45,7 +45,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void numericFilterShouldReturnRowsAboveThreshold() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("integerField", 25, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
                 .addField("integerField")
@@ -58,7 +58,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void andRulesShouldRequireBothConditions() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND)
                 .addRule("integerField", 20, Clauses.BIGGER_EQUAL, Separator.AND)
                 .addField("stringField")
@@ -74,7 +74,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void orRuleShouldIncludeEitherMatch() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "alpha", Clauses.EQUAL, Separator.OR)
                 .addRule("stringField", "beta", Clauses.EQUAL, Separator.OR)
                 .addField("stringField")
@@ -88,7 +88,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void noMatchShouldReturnEmptyList() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "delta", Clauses.EQUAL, Separator.AND)
                 .addField("stringField")
                 .initFilter()
@@ -99,7 +99,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void orderByShouldSortFilteredRows() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
                 .addField("stringField")
@@ -113,7 +113,7 @@ class FastPojoFilterSupportTest {
 
     @Test
     void distinctShouldDeduplicateAfterFilter() throws Exception {
-        List<Foo> result = PojoLensCore.newQueryBuilder(sampleFoos())
+        List<Foo> result = FluentEngine.newQueryBuilder(sampleFoos())
                 .addRule("stringField", "alpha", Clauses.EQUAL, Separator.AND)
                 .addDistinct("integerField", 1)
                 .addField("stringField")
@@ -131,7 +131,7 @@ class FastPojoFilterSupportTest {
         String rule = "alpha";
 
         // Fast path: POJO source triggers FastPojoFilterSupport
-        List<Foo> fastResult = PojoLensCore.newQueryBuilder(source)
+        List<Foo> fastResult = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", rule, Clauses.EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
                 .addField("stringField")
@@ -141,7 +141,7 @@ class FastPojoFilterSupportTest {
 
         // Standard path: QueryRow source bypasses fast path
         List<QueryRow> rows = ReflectionUtil.toDomainRows(source);
-        List<Foo> standardResult = PojoLensCore.newQueryBuilder(rows)
+        List<Foo> standardResult = FluentEngine.newQueryBuilder(rows)
                 .addRule("stringField", rule, Clauses.EQUAL, Separator.AND)
                 .addOrder("integerField", 1)
                 .addField("stringField")

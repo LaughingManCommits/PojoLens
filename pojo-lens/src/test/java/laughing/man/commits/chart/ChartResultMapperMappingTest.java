@@ -56,6 +56,19 @@ public class ChartResultMapperMappingTest {
     }
 
     @Test
+    public void toSeriesPointsShouldCoerceNumericStringValues() {
+        List<ChartResultMapperFixtures.InvalidMetricRow> rows = List.of(
+                new ChartResultMapperFixtures.InvalidMetricRow("Engineering", "42.5")
+        );
+
+        List<SeriesPoint> points = ChartResultMapper.toSeriesPoints(rows, "department", "payroll");
+
+        assertEquals(1, points.size());
+        assertEquals("Engineering", points.get(0).getLabel());
+        assertEquals(42.5d, points.get(0).getValue(), 0.0001d);
+    }
+
+    @Test
     public void toChartDataShouldMapSingleSeries() {
         List<ChartResultMapperFixtures.DepartmentMetricRow> rows = new ArrayList<>();
         rows.add(new ChartResultMapperFixtures.DepartmentMetricRow("Engineering", "2025-01", 2, 300));
@@ -165,8 +178,10 @@ public class ChartResultMapperMappingTest {
         ChartData data = ChartResultMapper.toChartData(rows, ChartSpec.of(ChartType.SCATTER, "x", "y"));
 
         assertEquals(ChartType.SCATTER, data.getType());
-        assertEquals("1", data.getLabels().get(0));
-        assertEquals("2", data.getLabels().get(1));
+        assertTrue(data.getLabels().isEmpty());
+        List<Double> xValues = data.getDatasets().get(0).getXValues();
+        assertEquals(1d, xValues.get(0), 0.0001d);
+        assertEquals(2d, xValues.get(1), 0.0001d);
         assertEquals(10d, data.getDatasets().get(0).getValues().get(0), 0.0001d);
         assertEquals(25d, data.getDatasets().get(0).getValues().get(1), 0.0001d);
     }
@@ -186,6 +201,28 @@ public class ChartResultMapperMappingTest {
         );
 
         assertEquals(List.of("1", "2"), data.getLabels());
+        assertEquals(2, data.getDatasets().size());
+        assertEquals("A", data.getDatasets().get(0).getLabel());
+        assertEquals(List.of(15d, 25d), data.getDatasets().get(0).getValues());
+        assertEquals("B", data.getDatasets().get(1).getLabel());
+        assertEquals(Arrays.asList(10d, null), data.getDatasets().get(1).getValues());
+    }
+
+    @Test
+    public void toChartDataShouldMapScatterMultiSeriesRows() {
+        List<ChartResultMapperFixtures.MultiSeriesScatterRow> rows = List.of(
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(2d, 20d, "A"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(1d, 10d, "B"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(1d, 15d, "A"),
+                new ChartResultMapperFixtures.MultiSeriesScatterRow(2d, 25d, "A")
+        );
+
+        ChartData data = ChartResultMapper.toChartData(
+                rows,
+                ChartSpec.of(ChartType.SCATTER, "xValue", "yValue", "series").withSortedLabels(true)
+        );
+
+        assertEquals(List.of("1.0", "2.0"), data.getLabels());
         assertEquals(2, data.getDatasets().size());
         assertEquals("A", data.getDatasets().get(0).getLabel());
         assertEquals(List.of(15d, 25d), data.getDatasets().get(0).getValues());

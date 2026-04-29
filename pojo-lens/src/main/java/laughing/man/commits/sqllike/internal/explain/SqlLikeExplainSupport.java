@@ -2,8 +2,10 @@ package laughing.man.commits.sqllike.internal.explain;
 
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.computed.internal.ComputedFieldSupport;
+import laughing.man.commits.sqllike.SqlLikePushdownPreview;
 import laughing.man.commits.sqllike.SqlLikeLintWarning;
 import laughing.man.commits.enums.Sort;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePushdownPreviewSupport;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.OrderAst;
@@ -43,6 +45,7 @@ public final class SqlLikeExplainSupport {
                                               QueryAst ast,
                                               Map<String, List<?>> joinSources,
                                               Map<String, Object> stageRowCounts,
+                                              SqlLikePushdownPreview pushdownPreview,
                                               boolean lintMode,
                                               List<SqlLikeLintWarning> lintWarnings,
                                               ComputedFieldRegistry computedFieldRegistry) {
@@ -65,6 +68,7 @@ public final class SqlLikeExplainSupport {
         explain.put("timeBuckets", timeBucketEntries(ast));
         explain.put("computedFields", ComputedFieldSupport.usedExplainEntries(computedFieldRegistry, usedComputedFieldNames(ast, computedFieldRegistry)));
         explain.put("joinSourceBindings", joinSourceBindings(ast, joinSources));
+        explain.put("pushdownPreview", SqlLikePushdownPreviewSupport.explainEntry(pushdownPreview));
         explain.put("parameterSnapshot", parameterSnapshot(ast));
         if (lintMode) {
             explain.put("lintWarnings", SqlLikeLintSupport.warningEntries(lintWarnings));
@@ -130,15 +134,19 @@ public final class SqlLikeExplainSupport {
     private static void collectParameterSnapshots(List<FilterAst> filters,
                                                   Map<String, Map<String, Object>> snapshot) {
         for (FilterAst filter : filters) {
-            Object value = filter.value();
-            if (value instanceof ParameterValueAst parameterValueAst) {
-                snapshot.putIfAbsent(parameterValueAst.name(), unresolvedParameter());
-            } else if (value instanceof BoundParameterValue boundParameterValue) {
-                snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
-            } else if (value instanceof SubqueryValueAst subqueryValueAst) {
-                collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
+            switch (filter.value()) {
+                case null -> {
+                }
+                case ParameterValueAst parameterValueAst ->
+                        snapshot.putIfAbsent(parameterValueAst.name(), unresolvedParameter());
+                case BoundParameterValue boundParameterValue ->
+                        snapshot.putIfAbsent(boundParameterValue.name(), boundParameter(boundParameterValue.value()));
+                case SubqueryValueAst subqueryValueAst ->
+                        collectQueryParameterSnapshots(subqueryValueAst.query(), snapshot);
+                case ExistsSubqueryValueAst existsSubqueryValueAst ->
+                        collectQueryParameterSnapshots(existsSubqueryValueAst.query(), snapshot);
+                default -> {
+                }
             }
         }
     }
@@ -208,7 +216,8 @@ public final class SqlLikeExplainSupport {
 
     private static int iterableSize(Iterable<?> iterable) {
         int size = 0;
-        for (Object ignored : iterable) {
+        for (java.util.Iterator<?> iterator = iterable.iterator(); iterator.hasNext(); ) {
+            iterator.next();
             size++;
         }
         return size;

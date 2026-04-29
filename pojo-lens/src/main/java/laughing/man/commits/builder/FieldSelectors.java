@@ -25,7 +25,7 @@ public final class FieldSelectors {
                 return Introspector.decapitalize(method.substring(IS_PREFIX_LENGTH));
             }
             return method;
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | SecurityException e) {
             throw new IllegalArgumentException("Unable to resolve field from selector", e);
         }
     }

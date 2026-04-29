@@ -53,6 +53,30 @@ class SqlExpressionEvaluatorTest {
 
         assertTrue(ex.getMessage().contains("Function ABS requires 1 argument(s)"));
     }
+
+    @Test
+    void publicEntryPointsShouldRejectNullExpressionsBeforeCacheAccess() {
+        assertBlankExpression(() -> SqlExpressionEvaluator.compileNumeric(null));
+        assertBlankExpression(() -> SqlExpressionEvaluator.collectIdentifiers(null));
+        assertBlankExpression(() -> SqlExpressionEvaluator.rewriteIdentifiers(null, identifier -> identifier));
+        assertBlankExpression(() -> SqlExpressionEvaluator.evaluateNumeric(null, identifier -> 1));
+    }
+
+    @Test
+    void publicEntryPointsShouldRejectBlankExpressionsBeforeCacheAccess() {
+        assertBlankExpression(() -> SqlExpressionEvaluator.compileNumeric("   "));
+        assertBlankExpression(() -> SqlExpressionEvaluator.collectIdentifiers("   "));
+        assertBlankExpression(() -> SqlExpressionEvaluator.rewriteIdentifiers("   ", identifier -> identifier));
+        assertBlankExpression(() -> SqlExpressionEvaluator.evaluateNumeric("   ", identifier -> 1));
+    }
+
+    private static void assertBlankExpression(Runnable invocation) {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                invocation::run
+        );
+        assertEquals("Expression must not be blank", ex.getMessage());
+    }
 }
 
 

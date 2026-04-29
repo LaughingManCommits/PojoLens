@@ -6,9 +6,12 @@ repeated execution against different in-memory dataset snapshots.
 It also exposes deterministic table metadata through `schema()`.
 It is the general reusable wrapper in PojoLens and the default reusable-query
 contract for docs and new code.
-SQL-like, natural, and fluent queries can all promote into it.
-`ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and
-table-first wrappers that can bridge back to it.
+SQL-like and natural queries are the public paths into it.
+`ChartQueryPreset<T>` and `StatsViewPreset<T>` remain available as advanced
+chart-first and table-first convenience wrappers that can bridge back to it.
+
+Output-helper route:
+- [output-helpers.md](output-helpers.md)
 
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -85,50 +88,6 @@ List<Company> rows = report.rows(bundle);
 ChartData chart = report.chart(bundle);
 ```
 
-## Fluent Report Definition
-
-Use `PojoLensCore.prepare(...)` when the reusable object should remain
-fluent-only while exposing `rows(...)`, `schema()`, and `explain()`:
-
-```java
-FluentQueryDefinition<DepartmentCount> prepared = PojoLensCore.prepare(
-    DepartmentCount.class,
-    builder -> builder
-        .addRule("active", true, Clauses.EQUAL)
-        .addGroup("department")
-        .addCount("total")
-        .addOrder("department", 1));
-
-List<DepartmentCount> rows = prepared.rows(snapshotA);
-TabularSchema schema = prepared.schema();
-```
-
-Promote it when the same fluent definition should become the general row/chart
-report contract:
-
-```java
-ReportDefinition<DepartmentCount> report = prepared.reportDefinition(
-    ChartSpec.of(ChartType.BAR, "department", "total"));
-```
-
-Use `ReportDefinition.fluent(...)` directly when the reusable business contract
-should start as a report definition:
-
-```java
-ReportDefinition<DepartmentCount> report = ReportDefinition.fluent(
-    DepartmentCount.class,
-    builder -> builder
-        .addRule("active", true, Clauses.EQUAL)
-        .addGroup("department")
-        .addCount("total")
-        .addOrder("department", 1),
-    ChartSpec.of(ChartType.BAR, "department", "total"));
-
-List<DepartmentCount> rows = report.rows(snapshotA);
-```
-
-Fluent report definitions build a fresh `QueryBuilder` for each execution, so the same definition can be reused safely across multiple dataset snapshots.
-
 If the underlying query depends on reusable derived fields, attach the registry at query/build time:
 
 ```java
@@ -162,10 +121,127 @@ ReportDefinition<DepartmentCount> chartReady = rowsOnly.withChartSpec(
     ChartSpec.of(ChartType.BAR, "department", "total"));
 ```
 
-## Relation To ChartQueryPreset
+---
 
-`ChartQueryPreset<T>` remains the lightweight preset API for chart-first SQL-like flows.
-Choose it when the preset factory already matches the chart workflow you want.
+## SavedReport — Versioned Saved-Report Contract
+
+`SavedReport` carries query text, default parameters, optional chart spec, and
+optional schema as plain serialization-friendly data — no lambdas or live
+executors. It is designed to be stored, reviewed without executing, and replayed
+on demand against live data snapshots.
+
+Use it when a report must be:
+- persisted to a database, file, or config store and replayed later
+- reviewed by an admin before execution
+- shared across services or processes as a versioned contract
+- migrated safely when query text evolves
+
+When the report is only executed in-process and reuse across requests is enough,
+a plain `ReportDefinition<T>` is simpler.
+
+### Create
+
+```java
+SavedReport report = SavedReport
+    .sqlLike("active-by-dept", "Active employees by department",
+             "select department, count(*) as total "
+             + "where active = :active group by department order by department asc")
+    .withDefaultParam("active", true)
+    .withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+```
+
+Natural query:
+
+```java
+SavedReport report = SavedReport
+    .natural("active-by-dept-natural", "Active employees by department",
+             "show department, count of employees as total "
+             + "where active is true group by department sort by department ascending");
+```
+
+The query is parsed at creation time. Invalid query text throws immediately.
+
+### Configure
+
+All builder methods return a new `SavedReport` instance — the original is unchanged:
+
+```java
+SavedReport withParams = report.withDefaultParam("active", true);
+SavedReport withChart  = report.withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+SavedReport withSchema = report.withSchema(mySchema);
+SavedReport withBulk   = report.withDefaultParams(Map.of("active", true, "dept", "Engineering"));
+```
+
+### Review Without Data
+
+Both methods are safe to call without any row data:
+
+```java
+// structural query shape — fields, grouping, paging, joins, required params
+SqlLikePlanPreview preview = report.planPreview();
+List<String> requiredParams = preview.requiredParams();   // ["active"]
+boolean hasGrouping         = preview.hasGrouping();      // true
+
+// field references, lint warnings, output fields, required params
+QueryDiagnostics diag = report.diagnostics();
+boolean valid            = diag.valid();
+List<String> required    = diag.requiredParams();
+```
+
+### Replay
+
+```java
+// Full replay — builds a live ReportDefinition with default params, chart spec, and schema applied
+ReportDefinition<DeptRow> def = report.toDefinition(DeptRow.class);
+List<DeptRow> rows = def.rows(employeeSnapshot);
+ChartData chart   = def.chart(employeeSnapshot);
+
+// Raw query replay — for callers that need the SqlLikeQuery directly
+SqlLikeQuery query = report.toQuery();          // SQL_LIKE reports only
+NaturalQuery nq    = report.toNaturalQuery();   // NATURAL reports only
+```
+
+### Versioned Contract Metadata
+
+```java
+String version = report.version();        // "1" — format version for deserialization checks
+String id      = report.id();
+String name    = report.name();
+SavedReportKind kind = report.kind();     // SQL_LIKE or NATURAL
+String source  = report.source();         // derived from query at creation
+Map<String, Object> defaults = report.defaultParams();
+ChartSpec spec = report.chartSpec();      // null if not set
+TabularSchema schema = report.schema();   // null if not set
+```
+
+### Full Workflow Example
+
+```java
+// 1. Define once and store
+SavedReport report = SavedReport
+    .sqlLike("rpt-001", "High earners by department",
+             "select department, count(*) as total "
+             + "where active = :active and salary >= :minSalary "
+             + "group by department order by total desc")
+    .withDefaultParam("active", true)
+    .withDefaultParam("minSalary", 100000)
+    .withChartSpec(ChartSpec.of(ChartType.BAR, "department", "total"));
+
+// 2. Admin review before running
+SqlLikePlanPreview preview = report.planPreview();
+// preview.requiredParams() → ["active", "minSalary"]
+
+// 3. Replay against a live snapshot
+ReportDefinition<DeptCountRow> def = report.toDefinition(DeptCountRow.class);
+List<DeptCountRow> rows = def.rows(currentEmployees);
+ChartData chart         = def.chart(currentEmployees);
+```
+
+## Advanced Chart Preset Convenience
+
+`ChartQueryPreset<T>` remains available as lightweight advanced sugar for
+chart-first SQL-like flows.
+It is not the default reusable-contract story for new docs or new code.
 
 If you want the more general report abstraction, convert it:
 
@@ -174,9 +250,10 @@ ReportDefinition<DepartmentCount> report = preset.reportDefinition();
 TabularSchema schema = preset.schema();
 ```
 
-## Relation To StatsViewPreset
+## Advanced Stats Preset Convenience
 
-`StatsViewPreset<T>` is the table-first preset API for common summary/grouped/leaderboard query shapes.
+`StatsViewPreset<T>` remains available as table-first advanced sugar for common
+summary/grouped/leaderboard query shapes.
 Choose it when totals and `StatsTable<T>` are part of the contract.
 
 It adds optional totals and schema metadata through `StatsTable<T>`:
@@ -198,5 +275,40 @@ ReportDefinition<DepartmentCount> report = StatsViewPresets
     .by("department", DepartmentCount.class)
     .reportDefinition();
 ```
+
+## Period Comparison
+
+`ReportComparisons` computes current/previous metric deltas and wraps them in
+`PeriodComparison` for formatted output.
+
+Numeric pair (when aggregation is done outside):
+
+```java
+PeriodComparison c = ReportComparisons.of(currentCount, previousCount);
+c.percentageDelta();   // "+10%", "-5%", "flat", "new"
+c.absoluteDelta();     // numeric change
+```
+
+Row-based aggregation:
+
+```java
+// Compare SUM of a field across two filtered row lists
+PeriodComparison c = ReportComparisons.compare(
+    currentRows, previousRows, "amount", Metric.SUM);
+
+// Compare row counts
+PeriodComparison c = ReportComparisons.compareCount(currentRows, previousRows);
+```
+
+Rate/percentage field deltas (e.g. approval rates expressed as 0–1 fractions):
+
+```java
+PeriodComparison c = ReportComparisons.of(0.92, 0.87);
+c.ratePointDelta();    // "+5.0 pt"
+```
+
+`percentageDelta()` special values:
+- `"flat"` — both current and previous are zero
+- `"new"` — previous is zero, current is non-zero
 
 

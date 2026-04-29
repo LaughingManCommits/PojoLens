@@ -91,25 +91,16 @@ public final class TimeBucketUtil {
     }
 
     private static LocalDate normalizeBucketDate(Object rawValue, TimeBucketPreset preset) {
-        if (rawValue instanceof Date date) {
-            return normalizeInstantBucketDate(Instant.ofEpochMilli(date.getTime()), preset);
-        }
-        if (rawValue instanceof Instant instant) {
-            return normalizeInstantBucketDate(instant, preset);
-        }
-        if (rawValue instanceof LocalDate localDate) {
-            return localDate;
-        }
-        if (rawValue instanceof LocalDateTime localDateTime) {
-            return localDateTime.atZone(preset.zoneId()).toLocalDate();
-        }
-        if (rawValue instanceof OffsetDateTime offsetDateTime) {
-            return normalizeInstantBucketDate(offsetDateTime.toInstant(), preset);
-        }
-        if (rawValue instanceof ZonedDateTime zonedDateTime) {
-            return normalizeInstantBucketDate(zonedDateTime.toInstant(), preset);
-        }
-        throw new IllegalArgumentException("Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
+        return switch (rawValue) {
+            case Date date -> normalizeInstantBucketDate(Instant.ofEpochMilli(date.getTime()), preset);
+            case Instant instant -> normalizeInstantBucketDate(instant, preset);
+            case LocalDate localDate -> localDate;
+            case LocalDateTime localDateTime -> localDateTime.atZone(preset.zoneId()).toLocalDate();
+            case OffsetDateTime offsetDateTime -> normalizeInstantBucketDate(offsetDateTime.toInstant(), preset);
+            case ZonedDateTime zonedDateTime -> normalizeInstantBucketDate(zonedDateTime.toInstant(), preset);
+            default -> throw new IllegalArgumentException(
+                    "Time bucket requires " + SUPPORTED_TIME_BUCKET_TYPES + " values");
+        };
     }
 
     private static LocalDate normalizeInstantBucketDate(Instant instant, TimeBucketPreset preset) {
@@ -120,24 +111,22 @@ public final class TimeBucketUtil {
     }
 
     private static String formatBucketDate(LocalDate date, TimeBucketPreset preset) {
-        switch (preset.bucket()) {
-            case DAY:
-                return formatYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
-            case WEEK:
+        return switch (preset.bucket()) {
+            case DAY -> formatYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+            case WEEK -> {
                 WeekFields weekFields = WeekFields.of(preset.weekStart(), MIN_DAYS_IN_FIRST_WEEK);
                 int year = date.get(weekFields.weekBasedYear());
                 int week = date.get(weekFields.weekOfWeekBasedYear());
-                return formatYearWeek(year, week);
-            case MONTH:
-                return formatYearMonth(date.getYear(), date.getMonthValue());
-            case QUARTER:
+                yield formatYearWeek(year, week);
+            }
+            case MONTH -> formatYearMonth(date.getYear(), date.getMonthValue());
+            case QUARTER -> {
                 int quarter = ((date.getMonthValue() - 1) / MONTHS_PER_QUARTER) + 1;
-                return formatYearQuarter(date.getYear(), quarter);
-            case YEAR:
-                return formatYear(date.getYear());
-            default:
-                throw new IllegalArgumentException("Unsupported time bucket: " + preset.bucket());
-        }
+                yield formatYearQuarter(date.getYear(), quarter);
+            }
+            case YEAR -> formatYear(date.getYear());
+            default -> throw new IllegalArgumentException("Unsupported time bucket: " + preset.bucket());
+        };
     }
 
     private static String formatYearMonthDay(int year, int month, int day) {

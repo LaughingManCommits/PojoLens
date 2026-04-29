@@ -9,6 +9,10 @@ import java.util.List;
 
 /**
  * Boundary adapter for loading typed rows from CSV into the existing engine.
+ *
+ * <p>Use {@link PojoLensFiles} when the file-boundary loader surface should
+ * own multiple formats. This type remains the stable CSV-only convenience
+ * entry point.
  */
 public final class PojoLensCsv {
 

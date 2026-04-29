@@ -1,6 +1,6 @@
 package laughing.man.commits.benchmark;
 
-import laughing.man.commits.PojoLensCore;
+import laughing.man.commits.internal.FluentEngine;
 import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.enums.Clauses;
 
@@ -19,7 +19,7 @@ public final class BenchmarkMetricQueries {
     public static List<BenchmarkMetricRow> fluentByChartTypeAndMinSize(List<BenchmarkMetricRow> rows,
                                                                         String chartType,
                                                                         int minSize) {
-        List<BenchmarkMetricRow> filtered = PojoLensCore.newQueryBuilder(rows)
+        List<BenchmarkMetricRow> filtered = FluentEngine.newQueryBuilder(rows)
                 .addRule("chartType", chartType, Clauses.EQUAL)
                 .addRule("size", minSize, Clauses.BIGGER_EQUAL)
                 .initFilter()
@@ -36,7 +36,7 @@ public final class BenchmarkMetricQueries {
     }
 
     public static List<BenchmarkMetricRow> fluentFailures(List<BenchmarkMetricRow> rows, int limit) {
-        List<BenchmarkMetricRow> filtered = PojoLensCore.newQueryBuilder(rows)
+        List<BenchmarkMetricRow> filtered = FluentEngine.newQueryBuilder(rows)
                 .addRule("status", "FAIL", Clauses.EQUAL)
                 .limit(limit)
                 .initFilter()
@@ -61,7 +61,7 @@ public final class BenchmarkMetricQueries {
     public static List<BenchmarkMetricRow> fluentByFamilyAndStage(List<BenchmarkMetricRow> rows,
                                                                   String family,
                                                                   String metricStage) {
-        return PojoLensCore.newQueryBuilder(rows)
+        return FluentEngine.newQueryBuilder(rows)
                 .addRule("family", family, Clauses.EQUAL)
                 .addRule("metricStage", metricStage, Clauses.EQUAL)
                 .initFilter()

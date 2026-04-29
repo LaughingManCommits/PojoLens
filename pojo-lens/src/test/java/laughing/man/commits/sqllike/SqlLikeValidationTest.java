@@ -5,6 +5,7 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.annotations.Exclude;
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.SqlLikeProjectionFixtures.ComputedScalarProjection;
@@ -15,12 +16,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 
 public class SqlLikeValidationTest {
@@ -82,6 +85,78 @@ public class SqlLikeValidationTest {
             assertTrue(ex.getMessage().contains("Unknown field 'qzxv'"));
             assertFalse(ex.getMessage().contains("Did you mean"));
             assertTrue(ex.getMessage().contains("in WHERE clause"));
+        }
+    }
+
+    @Test
+    public void unknownHavingFieldShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("select department, count(*) as total group by department having sum(salaery) > 0")
+                    .filter(employees, AggregationProjection.class);
+            fail("Expected unknown HAVING field validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown HAVING reference"));
+            assertTrue(ex.getMessage().contains("Did you mean 'salary'"));
+        }
+    }
+
+    @Test
+    public void unknownJoinChildFieldShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Employee> employees = sampleEmployees();
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("select * from employees join companies on id = idd where name = 'Alice'")
+                    .filter(employees, JoinBindings.of("companies", companies), Employee.class);
+            fail("Expected unknown JOIN field validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown field"));
+            assertTrue(ex.getMessage().contains("in JOIN clause"));
+            assertTrue(ex.getMessage().contains("Did you mean 'id'"));
+        }
+    }
+
+    @Test
+    public void missingJoinSourceShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("select * from companies join employes on id = companyId")
+                    .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+            fail("Expected missing JOIN source validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'employes'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'employees'"));
+        }
+    }
+
+    @Test
+    public void unknownSqlLikeParamShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("where department = :dept")
+                    .params(Map.of("dept", "Engineering", "dpt", "Sales"))
+                    .filter(employees, Employee.class);
+            fail("Expected unknown parameter validation error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Unknown SQL-like parameter(s)"));
+            assertTrue(ex.getMessage().contains("Did you mean 'dept'"));
+        }
+    }
+
+    @Test
+    public void blockedPolicyFieldShouldNotExposeFieldNameInSuggestion() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department")
+                .build();
+        List<Employee> employees = sampleEmployees();
+        try {
+            PojoLensSql.parse("where salaery > 50000")
+                    .exposurePolicy(policy)
+                    .filter(employees, Employee.class);
+            fail("Expected exposure policy error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("outside exposure policy"));
+            assertFalse(ex.getMessage().contains("salary"));
         }
     }
 
@@ -419,6 +494,19 @@ public class SqlLikeValidationTest {
             fail("Expected missing subquery source binding error");
         } catch (IllegalArgumentException ex) {
             assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employees'"));
+        }
+    }
+
+    @Test
+    public void missingSubquerySourceShouldIncludeSuggestionWhenCloseMatchExists() {
+        List<Company> companies = sampleCompanies();
+        try {
+            PojoLensSql.parse("where id in (select companyId from employes where title = 'Engineer')")
+                    .filter(companies, JoinBindings.of("employees", sampleCompanyEmployees()), Company.class);
+            fail("Expected missing subquery source binding error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("Missing subquery source binding for 'employes'"));
+            assertTrue(ex.getMessage().contains("Did you mean 'employees'"));
         }
     }
 

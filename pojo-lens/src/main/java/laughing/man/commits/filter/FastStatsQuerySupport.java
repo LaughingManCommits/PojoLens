@@ -1,7 +1,7 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryMetric;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.QueryMetric;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.util.CollectionUtil;
@@ -10,6 +10,8 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -166,6 +168,11 @@ public final class FastStatsQuerySupport {
         String[] keyParts = new String[columnCount];
         Object[] projectedValues = new Object[columnCount];
         QueryKey lookupKey = QueryKey.forMutableLookup(keyParts, columnCount);
+        @SuppressWarnings("unchecked")
+        HashMap<Object, String>[] keyStringCaches = new HashMap[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            keyStringCaches[i] = new HashMap<>();
+        }
 
         for (Object bean : source) {
             if (bean == null) {
@@ -184,7 +191,12 @@ public final class FastStatsQuerySupport {
                         ? rawValue
                         : TimeBucketUtil.bucketValue(rawValue, column.timeBucket());
                 projectedValues[i] = projectedValue;
-                keyParts[i] = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                String keyStr = keyStringCaches[i].get(projectedValue);
+                if (keyStr == null) {
+                    keyStr = GroupKeyUtil.toGroupKeyValue(projectedValue, column.dateFormat());
+                    keyStringCaches[i].put(projectedValue, keyStr);
+                }
+                keyParts[i] = keyStr;
             }
 
             lookupKey.refresh();
@@ -214,6 +226,7 @@ public final class FastStatsQuerySupport {
         LinkedHashMap<String, GroupAccumulator> grouped =
                 new LinkedHashMap<>(CollectionUtil.expectedMapCapacity(Math.min(source.size(), INITIAL_GROUP_MAP_SIZE_CAP)));
         Object[] rowValues = new Object[readPlan.size()];
+        HashMap<Object, String> valueToKey = new HashMap<>();
 
         for (Object bean : source) {
             if (bean == null) {
@@ -229,7 +242,11 @@ public final class FastStatsQuerySupport {
             Object projectedValue = groupColumn.timeBucket() == null
                     ? rawValue
                     : TimeBucketUtil.bucketValue(rawValue, groupColumn.timeBucket());
-            String key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+            String key = valueToKey.get(projectedValue);
+            if (key == null) {
+                key = GroupKeyUtil.toGroupKeyValue(projectedValue, groupColumn.dateFormat());
+                valueToKey.put(projectedValue, key);
+            }
             GroupAccumulator accumulator = grouped.get(key);
             if (accumulator == null) {
                 accumulator = new GroupAccumulator(new Object[]{projectedValue}, metricPlans);
@@ -300,38 +317,27 @@ public final class FastStatsQuerySupport {
         private final List<Object[]> rows;
 
         private FastStatsState(List<String> schemaFields, List<Object[]> rows) {
-            this.schemaFields = schemaFields;
-            this.rows = rows;
+            this.schemaFields = schemaFields == null ? List.of() : List.copyOf(schemaFields);
+            this.rows = rows == null ? List.of() : List.copyOf(rows);
         }
 
         public List<String> schemaFields() {
-            return schemaFields;
+            return Collections.unmodifiableList(schemaFields);
         }
 
         public List<Object[]> rows() {
-            return rows;
+            return Collections.unmodifiableList(rows);
         }
     }
 
-    private static final class GroupAccumulator {
-        private final Object[] groupProjection;
-        private final MetricAccumulator[] metricAccumulators;
+    private record GroupAccumulator(Object[] groupProjection, MetricAccumulator[] metricAccumulators) {
 
         private GroupAccumulator(Object[] groupProjection, List<FilterExecutionPlan.MetricPlan> metricPlans) {
-            this.groupProjection = groupProjection;
-            this.metricAccumulators = FastStatsQuerySupport.metricAccumulators(metricPlans);
+            this(groupProjection, FastStatsQuerySupport.metricAccumulators(metricPlans));
         }
 
         private void accumulate(Object[] rowValues) {
             FastStatsQuerySupport.accumulate(metricAccumulators, rowValues);
-        }
-
-        private Object[] groupProjection() {
-            return groupProjection;
-        }
-
-        private MetricAccumulator[] metricAccumulators() {
-            return metricAccumulators;
         }
     }
 
@@ -351,7 +357,7 @@ public final class FastStatsQuerySupport {
         }
 
         private void accumulate(Object[] rowValues) {
-            if (Metric.COUNT.equals(metric.metric())) {
+            if (metric.metric() == Metric.COUNT) {
                 count++;
                 return;
             }
@@ -390,25 +396,13 @@ public final class FastStatsQuerySupport {
         }
 
         private Object result() {
-            if (Metric.COUNT.equals(metric.metric())) {
-                return count;
-            }
-            if (!present) {
-                return null;
-            }
-            if (Metric.SUM.equals(metric.metric())) {
-                return hasFraction ? sum : (long) sum;
-            }
-            if (Metric.AVG.equals(metric.metric())) {
-                return sum / count;
-            }
-            if (Metric.MIN.equals(metric.metric())) {
-                return min;
-            }
-            if (Metric.MAX.equals(metric.metric())) {
-                return max;
-            }
-            throw new IllegalArgumentException("Unsupported metric: " + metric.metric());
+            return switch (metric.metric()) {
+                case COUNT -> count;
+                case SUM -> present ? (hasFraction ? sum : (long) sum) : null;
+                case AVG -> present ? sum / count : null;
+                case MIN -> present ? min : null;
+                case MAX -> present ? max : null;
+            };
         }
     }
 }

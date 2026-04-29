@@ -45,6 +45,8 @@ class QuickstartEmployeeControllerTest {
         assertThat(body.get("lintMode").isBoolean()).isTrue();
         assertThat(body.get("sqlLikeCacheEnabled").isBoolean()).isTrue();
         assertThat(body.get("statsPlanCacheEnabled").isBoolean()).isTrue();
+        assertThat(body.get("virtualThreadsEnabled").asBoolean()).isFalse();
+        assertThat(body.get("requestThreadVirtual").asBoolean()).isFalse();
     }
 
     private HttpResponse<String> get(String path) throws Exception {

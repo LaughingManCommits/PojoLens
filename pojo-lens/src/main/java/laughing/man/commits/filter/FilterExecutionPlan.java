@@ -1,8 +1,8 @@
 package laughing.man.commits.filter;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryMetric;
-import laughing.man.commits.builder.QueryTimeBucket;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.QueryMetric;
+import laughing.man.commits.internal.builder.QueryTimeBucket;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Separator;

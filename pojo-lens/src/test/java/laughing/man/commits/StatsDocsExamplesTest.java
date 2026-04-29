@@ -1,5 +1,7 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.chart.ChartData;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
@@ -62,7 +64,7 @@ public class StatsDocsExamplesTest {
     public void readmeActiveUsersByWeekExampleShouldWork() {
         List<UserActivity> activity = userActivityRows();
 
-        List<WeeklyActiveRow> rows = PojoLensCore.newQueryBuilder(activity)
+        List<WeeklyActiveRow> rows = FluentEngine.newQueryBuilder(activity)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addTimeBucket("eventDate", TimeBucket.WEEK, "week")
                 .addCount("activeUsers")
@@ -116,7 +118,7 @@ public class StatsDocsExamplesTest {
     public void readmeFluentChartExampleShouldWork() {
         List<EmployeeStatRow> employees = employeeRows();
 
-        ChartData chart = PojoLensCore.newQueryBuilder(employees)
+        ChartData chart = FluentEngine.newQueryBuilder(employees)
                 .addGroup("department")
                 .addMetric("salary", Metric.SUM, "payroll")
                 .addOrder("payroll")

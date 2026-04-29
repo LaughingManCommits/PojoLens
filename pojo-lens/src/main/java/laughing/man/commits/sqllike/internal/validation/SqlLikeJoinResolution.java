@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.internal.validation;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -13,6 +13,8 @@ import laughing.man.commits.sqllike.ast.SelectAst;
 import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
 
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -57,7 +60,7 @@ public final class SqlLikeJoinResolution {
             List<?> childRows = joinSources.get(join.childSource());
             if (childRows == null) {
                 throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                        "Missing JOIN source binding for '" + join.childSource() + "'");
+                        SqlLikeSourceBindingMessages.missingJoinSourceBinding(join.childSource(), joinSources.keySet()));
             }
             Class<?> childClass = SqlLikeValidator.inferListElementClass(childRows);
             LinkedHashSet<String> childFields = new LinkedHashSet<>(SqlLikeValidator.collectFields(childClass));
@@ -67,7 +70,7 @@ public final class SqlLikeJoinResolution {
             String childField = normalizeChildReference(join.childSource(), join.childField());
             if (!childFields.contains(childField)) {
                 throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
-                        "Unknown field '" + childField + "' in JOIN clause. Allowed fields: " + childFields);
+                        SqlLikeFieldMessages.unknownField(childField, "JOIN", childFields));
             }
 
             resolvedJoins.add(new ResolvedJoin(join, parentField, childField));
@@ -220,50 +223,49 @@ public final class SqlLikeJoinResolution {
                     : SqlExpressionEvaluator.looksLikeExpression(filter.field())
                     ? rewriteExpression(filter.field(), plan, clauseName)
                     : plan.resolveOrSame(filter.field(), clauseName);
-            Object value = filter.value();
-            if (value instanceof SubqueryValueAst subqueryValueAst) {
-                value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                value = new ExistsSubqueryValueAst(
-                        existsSubqueryValueAst.source(),
-                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
-                        existsSubqueryValueAst.negated()
-                );
-            }
+            Object value = canonicalizeFilterValue(filter.value());
             resolved.add(new FilterAst(field, filter.clause(), value, filter.separator()));
         }
         return resolved;
     }
 
     private static FilterExpressionAst canonicalizeExpression(FilterExpressionAst expression, Plan plan, String clauseName) {
-        if (expression == null) {
-            return null;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = isWindowExpressionReference(filter.field())
-                    ? filter.field()
-                    : SqlExpressionEvaluator.looksLikeExpression(filter.field())
-                    ? rewriteExpression(filter.field(), plan, clauseName)
-                    : plan.resolveOrSame(filter.field(), clauseName);
-            Object value = filter.value();
-            if (value instanceof SubqueryValueAst subqueryValueAst) {
-                value = new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
-            } else if (value instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                value = new ExistsSubqueryValueAst(
-                        existsSubqueryValueAst.source(),
-                        canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
-                        existsSubqueryValueAst.negated()
-                );
+        return switch (expression) {
+            case null -> null;
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = isWindowExpressionReference(filter.field())
+                        ? filter.field()
+                        : SqlExpressionEvaluator.looksLikeExpression(filter.field())
+                        ? rewriteExpression(filter.field(), plan, clauseName)
+                        : plan.resolveOrSame(filter.field(), clauseName);
+                yield new FilterPredicateAst(new FilterAst(
+                        field,
+                        filter.clause(),
+                        canonicalizeFilterValue(filter.value()),
+                        filter.separator()
+                ));
             }
-            return new FilterPredicateAst(new FilterAst(field, filter.clause(), value, filter.separator()));
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                canonicalizeExpression(binary.left(), plan, clauseName),
-                canonicalizeExpression(binary.right(), plan, clauseName),
-                binary.operator()
-        );
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    canonicalizeExpression(binary.left(), plan, clauseName),
+                    canonicalizeExpression(binary.right(), plan, clauseName),
+                    binary.operator()
+            );
+        };
+    }
+
+    private static Object canonicalizeFilterValue(Object value) {
+        return switch (value) {
+            case null -> null;
+            case SubqueryValueAst subqueryValueAst ->
+                    new SubqueryValueAst(subqueryValueAst.source(), canonicalize(subqueryValueAst.query(), Plan.empty()));
+            case ExistsSubqueryValueAst existsSubqueryValueAst -> new ExistsSubqueryValueAst(
+                    existsSubqueryValueAst.source(),
+                    canonicalize(existsSubqueryValueAst.query(), Plan.empty()),
+                    existsSubqueryValueAst.negated()
+            );
+            default -> value;
+        };
     }
 
     private static List<String> canonicalizeGroupBy(List<String> groupByFields, Plan plan) {
@@ -290,7 +292,7 @@ public final class SqlLikeJoinResolution {
         if (value == null) {
             return false;
         }
-        String normalized = value.toLowerCase();
+        String normalized = value.toLowerCase(Locale.ROOT);
         return normalized.contains(" over(") || normalized.contains(" over (");
     }
 
@@ -424,8 +426,7 @@ public final class SqlLikeJoinResolution {
                 return unique;
             }
             throw SqlLikeValidator.validation(SqlLikeErrorCodes.VALIDATION_UNKNOWN_FIELD,
-                    "Unknown field '" + reference + "' in " + clauseName + " clause. Allowed fields: "
-                            + new LinkedHashSet<>(directReferences.keySet()));
+                    SqlLikeFieldMessages.unknownField(reference, clauseName, directReferences.keySet()));
         }
 
         private void addChild(String childSource, Set<String> fields, Map<String, Class<?>> types) {

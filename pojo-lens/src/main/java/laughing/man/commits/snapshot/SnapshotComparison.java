@@ -52,7 +52,14 @@ public final class SnapshotComparison<T, K> {
     }
 
     public SnapshotComparisonSummary summary() {
-        return summary;
+        return new SnapshotComparisonSummary(
+                summary.currentCount(),
+                summary.previousCount(),
+                summary.addedCount(),
+                summary.removedCount(),
+                summary.changedCount(),
+                summary.unchangedCount()
+        );
     }
 
     private List<SnapshotDeltaRow<T, K>> filterByType(String type) {

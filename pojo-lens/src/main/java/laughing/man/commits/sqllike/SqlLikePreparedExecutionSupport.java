@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Sort;
@@ -20,8 +20,11 @@ import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.binding.SqlLikeBinder;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.execution.SqlLikeExecutionSupport;
 import laughing.man.commits.sqllike.internal.params.SqlLikeParameterSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePlanPreviewSupport;
+import laughing.man.commits.sqllike.internal.preview.SqlLikePushdownPreviewSupport;
 import laughing.man.commits.sqllike.internal.validation.SqlLikeValidator;
 import laughing.man.commits.telemetry.QueryTelemetryListener;
 import laughing.man.commits.telemetry.QueryTelemetryStage;
@@ -33,7 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentMap;
+import com.github.benmanes.caffeine.cache.Cache;
 
 final class SqlLikePreparedExecutionSupport {
 
@@ -47,7 +50,7 @@ final class SqlLikePreparedExecutionSupport {
                                                  ComputedFieldRegistry computedFieldRegistry,
                                                  FilterExecutionPlanCacheStore executionPlanCache,
                                                  QueryTelemetryListener telemetryListener,
-                                                 ConcurrentMap<ExecutionShapeKey, PreparedExecution> preparedExecutions,
+                                                 Cache<ExecutionShapeKey, PreparedExecution> preparedExecutions,
                                                  List<?> pojos,
                                                  Map<String, List<?>> joinSources,
                                                  Class<T> projectionClass) {
@@ -70,7 +73,7 @@ final class SqlLikePreparedExecutionSupport {
             );
         } else {
             ExecutionShapeKey shapeKey = ExecutionShapeKey.of(ast, sourceClass, projectionClass, joinSources);
-            prepared = preparedExecutions.computeIfAbsent(
+            prepared = preparedExecutions.get(
                     shapeKey,
                     ignored -> buildPreparedExecution(
                             ast,
@@ -92,13 +95,31 @@ final class SqlLikePreparedExecutionSupport {
                 bindStarted,
                 pojos.size(),
                 pojos.size(),
-                QueryTelemetrySupport.metadata(
-                        "projectionClass", projectionClass.getSimpleName(),
-                        "joinSourceCount", joinSources.size(),
-                        "applyJoin", prepared.applyJoin()
-                )
+                bindMetadata(telemetryListener, ast, source, projectionClass, joinSources, prepared)
         );
         return new ExecutionContext(prepared, pojos, joinSources, telemetryListener, queryType, source);
+    }
+
+    private static <T> Map<String, Object> bindMetadata(QueryTelemetryListener telemetryListener,
+                                                        QueryAst ast,
+                                                        String source,
+                                                        Class<T> projectionClass,
+                                                        Map<String, List<?>> joinSources,
+                                                        PreparedExecution prepared) {
+        if (telemetryListener == null) {
+            return Collections.emptyMap();
+        }
+        SqlLikePushdownPreview pushdownPreview = SqlLikePushdownPreviewSupport.buildFromPlan(
+                SqlLikePlanPreviewSupport.buildFromAst(ast, source));
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("projectionClass", projectionClass.getSimpleName());
+        metadata.put("joinSourceCount", joinSources.size());
+        metadata.put("applyJoin", prepared.applyJoin());
+        metadata.put("pushdownMode", pushdownPreview.mode().name());
+        metadata.put("pushdownPushableStages", pushdownPreview.pushableStages());
+        metadata.put("pushdownInMemoryStages", pushdownPreview.inMemoryStages());
+        metadata.put("pushdownFallbackReasons", pushdownPreview.fallbackReasons());
+        return Collections.unmodifiableMap(metadata);
     }
 
     private static <T> PreparedExecution buildPreparedExecution(QueryAst ast,
@@ -193,18 +214,19 @@ final class SqlLikePreparedExecutionSupport {
     }
 
     private static boolean containsSubquery(FilterExpressionAst expression) {
-        if (expression == null) {
-            return false;
-        }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            return isSubqueryValue(predicateAst.filter().value());
-        }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        return containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+        return switch (expression) {
+            case null -> false;
+            case FilterPredicateAst predicateAst -> isSubqueryValue(predicateAst.filter().value());
+            case FilterBinaryAst binaryAst -> containsSubquery(binaryAst.left()) || containsSubquery(binaryAst.right());
+        };
     }
 
     private static boolean isSubqueryValue(Object value) {
-        return value instanceof SubqueryValueAst || value instanceof ExistsSubqueryValueAst;
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _, ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     static final class ExecutionContext {
@@ -249,7 +271,11 @@ final class SqlLikePreparedExecutionSupport {
         }
 
         ExecutionContext reusableBoundContext() {
-            if (prepared.applyJoin() || reusableBuilderTemplate != null || containsSubqueries(prepared.ast())) {
+            if (prepared.applyJoin()
+                    || reusableBuilderTemplate != null
+                    || containsSubqueries(prepared.ast())
+                    || prepared.ast().hasQualifyClause()
+                    || (prepared.select() != null && prepared.select().hasWindowFields())) {
                 return this;
             }
             FilterQueryBuilder builder = prepared.newExecutionBuilder(pojos, joinSources, telemetryListener, queryType, source);
@@ -391,7 +417,7 @@ final class SqlLikePreparedExecutionSupport {
                 List<?> rows = joinSources.get(joinSourceName);
                 if (rows == null) {
                     throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + joinSourceName + "'");
+                            SqlLikeSourceBindingMessages.missingJoinSourceBinding(joinSourceName, joinSources.keySet()));
                 }
                 byIndex.put(i + 1, rows);
             }
@@ -431,7 +457,7 @@ final class SqlLikePreparedExecutionSupport {
                 List<?> rows = joinSources.get(join.childSource());
                 if (rows == null) {
                     throw SqlLikeErrors.argument(SqlLikeErrorCodes.VALIDATION_MISSING_JOIN_SOURCE,
-                            "Missing JOIN source binding for '" + join.childSource() + "'");
+                            SqlLikeSourceBindingMessages.missingJoinSourceBinding(join.childSource(), joinSources.keySet()));
                 }
                 joinShapes.add(new JoinSourceShape(join.childSource(), inferJoinSourceClass(rows)));
             });

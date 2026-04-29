@@ -7,21 +7,6 @@ Use `TimeBucketPreset` when you need explicit calendar semantics:
 - timezone: `ZoneId`
 - week start: `MONDAY` by default, configurable for `WEEK`
 
-## Fluent
-
-```java
-List<WeeklyHeadcount> rows = PojoLensCore.newQueryBuilder(source)
-    .addTimeBucket(
-        "hireDate",
-        TimeBucketPreset.week()
-            .withZone("Europe/Amsterdam")
-            .withWeekStart("sunday"),
-        "period")
-    .addCount("headcount")
-    .initFilter()
-    .filter(WeeklyHeadcount.class);
-```
-
 ## SQL-like
 
 Supported forms:
@@ -58,13 +43,13 @@ List<WeeklyHeadcount> rows = PojoLensNatural
 ```
 
 Notes:
-- the natural bucket phrase lowers to the same `TimeBucketPreset` path used by fluent and SQL-like queries
+- the natural bucket phrase lowers to the same `TimeBucketPreset` path used by SQL-like queries
 - bucket outputs should use `as <alias>`
 - grouped natural queries must include the bucket alias in `group by`
 - timezone defaults to `UTC`
 - week buckets default to `MONDAY`
 
-## Chart Presets
+## Advanced Chart Preset Convenience
 
 ```java
 ChartQueryPreset<WeeklyHeadcount> preset = ChartQueryPresets
@@ -80,7 +65,7 @@ ChartQueryPreset<WeeklyHeadcount> preset = ChartQueryPresets
 
 ## Explain Output
 
-Fluent, natural, and SQL-like `explain()` payloads include time bucket entries in:
+Natural and SQL-like `explain()` payloads include time bucket entries in:
 
 `<alias>:<field>:<bucket>:<zoneId>:<weekStart>`
 

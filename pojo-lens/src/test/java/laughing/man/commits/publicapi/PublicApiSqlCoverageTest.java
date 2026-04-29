@@ -5,6 +5,16 @@ import laughing.man.commits.PojoLensSql;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.enums.Sort;
 import laughing.man.commits.sqllike.JoinBindings;
+import laughing.man.commits.sqllike.PageResult;
+import laughing.man.commits.sqllike.PlanPreviewPredicate;
+import laughing.man.commits.sqllike.QueryDiagnostics;
+import laughing.man.commits.sqllike.QueryExposurePolicy;
+import laughing.man.commits.sqllike.SqlLikePlanPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownAdapter;
+import laughing.man.commits.sqllike.SqlLikePushdownMode;
+import laughing.man.commits.sqllike.SqlLikePushdownPreview;
+import laughing.man.commits.sqllike.SqlLikePushdownRequest;
+import laughing.man.commits.sqllike.SqlLikePushdownResult;
 import laughing.man.commits.sqllike.SqlLikeCursor;
 import laughing.man.commits.sqllike.SqlLikeLintCodes;
 import laughing.man.commits.sqllike.SqlLikeQuery;
@@ -106,6 +116,17 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
     }
 
     @Test
+    public void pageResultHelperShouldBeUsableFromPublicApi() {
+        PageResult<Employee> page = PojoLensSql
+                .parse("where active = true order by salary desc, id desc limit 2")
+                .filterPage(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), page.rows().stream().map(row -> row.name).toList());
+        assertTrue(page.hasMore());
+        assertTrue(page.nextCursor().isPresent());
+    }
+
+    @Test
     public void streamingControlsShouldBeUsableFromPublicApi() {
         List<String> sqlNames = PojoLensSql.parse("where active = true limit 2")
                 .stream(sampleEmployees(), Employee.class)
@@ -169,6 +190,89 @@ public class PublicApiSqlCoverageTest extends AbstractPublicApiCoverageTest {
         assertTrue(lintQuery.isLintModeEnabled());
         assertEquals(1, lintQuery.suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD).lintWarnings().size());
         assertFalse(PojoLensSql.parse("select * from companies limit 1").lintMode(false).isLintModeEnabled());
+    }
+
+    @Test
+    public void diagnosticsShouldBeUsableFromPublicApi() {
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = :dept order by salary desc")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+        assertEquals(List.of("dept"), diagnostics.requiredParams());
+        assertTrue(diagnostics.referencedFields().contains("department"));
+        assertTrue(diagnostics.outputFields().contains("salary"));
+    }
+
+    @Test
+    public void exposurePolicyShouldBeUsableFromPublicApi() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department", "salary")
+                .build();
+
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = 'Engineering'")
+                .exposurePolicy(policy)
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(policy.restrictsFields());
+        assertTrue(policy.allowsField("salary"));
+        assertTrue(diagnostics.valid());
+        assertTrue(diagnostics.errors().isEmpty());
+    }
+
+    @Test
+    public void planPreviewShouldBeUsableFromPublicApi() {
+        SqlLikePlanPreview preview = PojoLensSql
+                .parse("select name from Employee where department = :dept and active = true order by name asc")
+                .planPreview();
+
+        assertEquals("Employee", preview.source());
+        assertEquals(List.of("dept"), preview.requiredParams());
+        assertEquals("name", preview.selectFields().get(0).field());
+        assertEquals("name", preview.orderFields().get(0).field());
+
+        PlanPreviewPredicate expression = preview.filterExpression();
+        assertEquals("AND", expression.operator());
+        assertEquals("department", expression.children().get(0).filter().field());
+        assertEquals("active", expression.children().get(1).filter().field());
+    }
+
+    @Test
+    public void pushdownPreviewShouldBeUsableFromPublicApi() {
+        SqlLikePushdownPreview preview = PojoLensSql
+                .parse("select department, count(*) as total where active = true group by department")
+                .pushdownPreview();
+
+        assertEquals(SqlLikePushdownMode.SPLIT, preview.mode());
+        assertTrue(preview.requiresSplitExecution());
+        assertEquals(List.of("WHERE"), preview.pushableStages());
+        assertTrue(preview.inMemoryStages().contains("GROUP_BY"));
+        assertTrue(preview.fallbackReasons().contains("GROUPING_UNSUPPORTED"));
+    }
+
+    @Test
+    public void pushdownAdapterBridgeShouldBeUsableFromPublicApi() {
+        List<Employee> sourceRows = sampleEmployees();
+        SqlLikePushdownAdapter adapter = new SqlLikePushdownAdapter() {
+            @Override
+            public <T> SqlLikePushdownResult<T> fetch(SqlLikePushdownRequest request, Class<T> rowClass) {
+                assertEquals("where active = true order by salary desc limit 2", request.queryText());
+                assertTrue(request.requestsStage("WHERE"));
+                List<T> rows = sourceRows.stream()
+                        .filter(row -> row.active)
+                        .map(rowClass::cast)
+                        .toList();
+                return SqlLikePushdownResult.of(rows, request.requestedStages(), sourceRows.size(), Map.of());
+            }
+        };
+
+        List<Employee> rows = PojoLensSql
+                .parse("where active = true order by salary desc limit 2")
+                .filterWithPushdown(adapter, Employee.class);
+
+        assertEquals(List.of("Cara", "Alice"), rows.stream().map(row -> row.name).toList());
     }
 }
 

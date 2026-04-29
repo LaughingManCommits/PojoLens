@@ -89,6 +89,8 @@ class DashboardPlaywrightE2eTest {
         assertTrue(runtime.get("lintMode").isBoolean());
         assertTrue(runtime.get("sqlLikeCacheEnabled").isBoolean());
         assertTrue(runtime.get("statsPlanCacheEnabled").isBoolean());
+        assertTrue(runtime.get("virtualThreadsEnabled").isBoolean());
+        assertTrue(runtime.get("requestThreadVirtual").isBoolean());
 
         JsonNode employees = getJson("/api/employees");
         assertTrue(employees.isArray());

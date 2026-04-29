@@ -7,6 +7,17 @@ $contributingPath = Join-Path $root "CONTRIBUTING.md"
 $changelogPath = Join-Path $root "CHANGELOG.md"
 $migrationPath = Join-Path $root "MIGRATION.md"
 $releasePath = Join-Path $root "RELEASE.md"
+$entryPointsPath = Join-Path $root "docs/entry-points.md"
+$usecasesPath = Join-Path $root "docs/usecases.md"
+$reusableWrappersPath = Join-Path $root "docs/reusable-wrappers.md"
+$reportsPath = Join-Path $root "docs/reports.md"
+$chartsPath = Join-Path $root "docs/charts.md"
+$computedFieldsPath = Join-Path $root "docs/computed-fields.md"
+$timeBucketsPath = Join-Path $root "docs/time-buckets.md"
+$tabularSchemaPath = Join-Path $root "docs/tabular-schema.md"
+$telemetryPath = Join-Path $root "docs/telemetry.md"
+$cachingPath = Join-Path $root "docs/caching.md"
+$metamodelPath = Join-Path $root "docs/metamodel.md"
 $modulesPath = Join-Path $root "docs/modules.md"
 $sqlLikePath = Join-Path $root "docs/sql-like.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
@@ -50,6 +61,17 @@ $contributing = Require-File $contributingPath
 $changelog = Require-File $changelogPath
 $migration = Require-File $migrationPath
 $release = Require-File $releasePath
+$entryPoints = Require-File $entryPointsPath
+$usecases = Require-File $usecasesPath
+$reusableWrappers = Require-File $reusableWrappersPath
+$reports = Require-File $reportsPath
+$charts = Require-File $chartsPath
+$computedFields = Require-File $computedFieldsPath
+$timeBuckets = Require-File $timeBucketsPath
+$tabularSchema = Require-File $tabularSchemaPath
+$telemetry = Require-File $telemetryPath
+$caching = Require-File $cachingPath
+$metamodel = Require-File $metamodelPath
 $modules = Require-File $modulesPath
 $sqlLike = Require-File $sqlLikePath
 $benchmarking = Require-File $benchmarkingPath
@@ -66,6 +88,35 @@ Require-Substring $release "RELEASE.md" "Git tag: ``release-$projectVersion``" $
 Require-Substring $changelog "CHANGELOG.md" "## [$projectVersion]" $errors
 Require-Substring $quickstartPom "examples/spring-boot-starter-quickstart/pom.xml" "<version>$projectVersion</version>" $errors
 Require-Substring $basicPom "examples/spring-boot-starter-basic/pom.xml" "<version>$projectVersion</version>" $errors
+
+# Public entry docs should keep the stable surface centered on SQL-like and guided natural language.
+$publicEntryDocs = @(
+    @{ Name = "README.md"; Text = $readme },
+    @{ Name = "MIGRATION.md"; Text = $migration },
+    @{ Name = "docs/entry-points.md"; Text = $entryPoints },
+    @{ Name = "docs/usecases.md"; Text = $usecases },
+    @{ Name = "docs/reusable-wrappers.md"; Text = $reusableWrappers },
+    @{ Name = "docs/reports.md"; Text = $reports },
+    @{ Name = "docs/charts.md"; Text = $charts },
+    @{ Name = "docs/computed-fields.md"; Text = $computedFields },
+    @{ Name = "docs/time-buckets.md"; Text = $timeBuckets },
+    @{ Name = "docs/tabular-schema.md"; Text = $tabularSchema },
+    @{ Name = "docs/telemetry.md"; Text = $telemetry },
+    @{ Name = "docs/caching.md"; Text = $caching },
+    @{ Name = "docs/metamodel.md"; Text = $metamodel }
+)
+$internalApiPatterns = @(
+    "\bPojoLensCore\b",
+    "\bQueryBuilder\b",
+    "\bFluentQueryDefinition\b",
+    "ReportDefinition\.fluent",
+    "laughing\.man\.commits\.internal"
+)
+foreach ($doc in $publicEntryDocs) {
+    foreach ($pattern in $internalApiPatterns) {
+        Forbid-Pattern $doc.Text $doc.Name $pattern $errors
+    }
+}
 
 # Benchmark command drift should use dynamic jar resolution in process docs.
 Require-Pattern $contributing "CONTRIBUTING.md" 'BENCHMARK_JAR=.*\*-benchmarks\.jar' $errors

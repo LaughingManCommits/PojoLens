@@ -100,7 +100,7 @@ The old `PojoLens.parse(...)` facade alias is removed.
 
 `PojoLensSql.parse(...)` produces a SQL-like query contract that:
 - parses and validates query text
-- binds into the fluent pipeline
+- lowers into the shared execution engine
 - executes against in-memory rows
 
 Bind-first typed execution:
@@ -135,11 +135,63 @@ Guardrails:
 Input-safety guidance:
 - prefer named parameters over string concatenation for user-provided values
 - expose only approved fields, computed fields, and join sources to callers
-  that author query text
+  that author query text; use `QueryExposurePolicy` to enforce that boundary
 - keep lint mode and strict parameter typing enabled in paths where query text
   comes from configuration, request input, or tenant-owned templates
 - treat parse/validation errors as user-facing diagnostics, not as permission
   checks; authorization should happen before query execution
+
+Exposure policy:
+- `QueryExposurePolicy.builder().allowFields(...)` restricts queryable field
+  names. Empty field allowlists are unrestricted.
+- `QueryExposurePolicy.builder().allowSources(...)` restricts named `FROM`,
+  `JOIN`, and subquery sources. Empty source allowlists are unrestricted.
+- Attach a policy per query with `query.exposurePolicy(policy)` or per runtime
+  with `runtime.setQueryExposurePolicy(policy)`.
+- The policy runs before execution and is also reflected in `diagnostics(...)`.
+- Policy checks are query exposure checks only. They do not replace
+  authentication, tenant authorization, or row-level filtering.
+
+```java
+QueryExposurePolicy policy = QueryExposurePolicy.builder()
+        .allowFields("name", "department", "salary")
+        .allowSources("employees")
+        .build();
+
+QueryDiagnostics diagnostics = PojoLensSql
+        .parse("select name, salary from employees where department = :dept")
+        .exposurePolicy(policy)
+        .diagnostics(Employee.class, Employee.class);
+
+if (!diagnostics.valid()) {
+    throw new IllegalArgumentException(diagnostics.errors().toString());
+}
+```
+
+Runtime-owned policy:
+
+```java
+PojoLensRuntime runtime = new PojoLensRuntime();
+runtime.setQueryExposurePolicy(QueryExposurePolicy.builder()
+        .allowFields("name", "department", "salary", "active")
+        .allowSources("employees", "companies")
+        .build());
+
+List<Employee> rows = runtime
+        .parse("select name, salary where department = :dept and active = true")
+        .params(Map.of("dept", "Engineering"))
+        .filter(employees, Employee.class);
+```
+
+Pre-execution diagnostics:
+- `diagnostics()` returns parse-level structural metadata without source-class
+  validation.
+- `diagnostics(Source.class, Projection.class)` adds field/projection
+  validation without executing rows.
+- `diagnostics(Source.class, Projection.class, joinBindings)` validates
+  queries that reference named join or subquery sources.
+- Diagnostics are for tooling, config screens, tests, and CI guardrails. Use
+  `explain(...)` when you need execution-stage row counts.
 
 Sort limitation:
 - `ORDER BY` must use one global direction (all `ASC` or all `DESC`)
@@ -149,9 +201,8 @@ Sort limitation:
 - SQL-like subqueries support uncorrelated `WHERE <field> IN (select ...)`
   and `WHERE [NOT] EXISTS (select ...)` predicates.
 - Supported subquery predicates can participate in `AND`/`OR` boolean `WHERE`
-  expressions. They lower through the same grouped fluent/core predicate path
-  used by `QueryRule.inSubquery(...)`, `QueryRule.exists(...)`, and
-  `QueryRule.notExists(...)`.
+  expressions. They lower through the same grouped predicate engine used by
+  the internal execution planner.
 - `IN` subqueries must select exactly one explicit output field, grouped
   alias, or aggregate alias.
 - `EXISTS` subqueries ignore selected output and may use `SELECT *` or
@@ -303,6 +354,44 @@ Cursor contract:
 - `keysetBefore(...)` resolves the "previous page" window
 - token format is opaque Base64URL (current format) and preserves common scalar value types
 
+### Recipe: Page Result Helper
+
+`filterPage(...)` combines execution, lookahead, and cursor generation in one call.
+The query must have a positive static `LIMIT` clause and at least one `ORDER BY`
+field. `OFFSET` is not supported by `filterPage(...)`; use the returned keyset
+cursor for later pages instead.
+
+```java
+// First page — no cursor needed
+PageResult<Employee> page = PojoLensSql
+    .parse("where active = true order by salary desc, id desc limit 20")
+    .filterPage(source, Employee.class);
+
+List<Employee> rows = page.rows();     // up to 20 rows
+boolean more       = page.hasMore();   // true when more rows exist
+
+// Next page — apply cursor from previous result
+page.nextCursor().ifPresent(cursor -> {
+    PageResult<Employee> nextPage = PojoLensSql
+        .parse("where active = true order by salary desc, id desc limit 20")
+        .keysetAfter(cursor)
+        .filterPage(source, Employee.class);
+});
+```
+
+Page result contract:
+- `rows()` contains at most `LIMIT` rows (the extra lookahead row is never returned)
+- `hasMore()` is `true` when at least one row exists beyond the current page
+- `nextCursor()` is empty when `hasMore()` is `false`
+- the cursor contains one entry per `ORDER BY` field taken from the last visible row
+- all `ORDER BY` field values in the last visible row must be non-null; null values
+  prevent cursor generation and throw `EQ-SQL-PAG-003`
+- `filterPage(...)` requires a positive static `LIMIT` clause; parameterized limits
+  (`LIMIT :n`) must be bound via `params(...)` before calling `filterPage(...)`
+- `OFFSET` is rejected because cursor paging and offset paging use different
+  page boundaries
+- `filterPage(...)` can be combined with `keysetAfter(...)` for multi-page traversal
+
 ### Recipe: Typed SQL Parameters (`SqlParams`)
 
 ```java
@@ -385,6 +474,200 @@ runtime.setLintMode(true);
 
 SqlLikeQuery query = runtime.parse("select * from companies limit 5");
 ```
+
+### Recipe: Pre-Execution Diagnostics
+
+Use diagnostics when a config screen, test, or CI check needs to inspect a
+query before executing rows.
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("select name, salary where department = :dept order by salary desc")
+    .diagnostics(Employee.class, Employee.class);
+
+boolean valid = diagnostics.valid();
+List<String> requiredParams = diagnostics.requiredParams();     // ["dept"]
+List<String> referencedFields = diagnostics.referencedFields(); // name, salary, department
+List<String> outputFields = diagnostics.outputFields();         // name, salary
+```
+
+For invalid queries, inspect all reported errors instead of catching a thrown
+execution exception:
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("where departmnt = :dept and salry > :min")
+    .diagnostics(Employee.class, Employee.class);
+
+List<QueryDiagnosticsError> errors = diagnostics.errors();
+```
+
+Join-aware diagnostics use the same typed binding model as execution:
+
+```java
+QueryDiagnostics diagnostics = PojoLensSql
+    .parse("select name from employees where companyId in "
+        + "(select id from companies where name = :company)")
+    .diagnostics(
+        Employee.class,
+        Employee.class,
+        JoinBindings.of("companies", companies));
+```
+
+### Recipe: Plan Preview
+
+Use `planPreview()` to inspect a query's structural execution shape before running it against rows.
+The preview describes selected fields, filters, grouping, ordering, joins, subqueries, paging, and
+required parameters. It does not validate field existence, produce row counts, or require a source
+class. Use it for admin tooling, CI query inspection, and generated query review.
+
+```java
+SqlLikePlanPreview preview = PojoLensSql.parse(
+        "select name, salary from Employee " +
+        "where department = :dept and salary >= :min " +
+        "order by salary desc limit :top")
+    .planPreview();
+
+List<String> params   = preview.requiredParams();  // ["dept", "min", "top"]
+boolean paged         = preview.hasPaging();        // true
+boolean grouped       = preview.hasGrouping();      // false
+List<PlanPreviewField>  fields   = preview.selectFields();  // name, salary
+List<PlanPreviewFilter> filters  = preview.filters();       // department=, salary>=
+List<PlanPreviewOrder>  ordering = preview.orderFields();   // salary DESC
+PlanPreviewPaging       paging   = preview.paging();        // limit = :top
+```
+
+Use `filterExpression()` when boolean grouping matters:
+
+```java
+SqlLikePlanPreview grouped = PojoLensSql.parse(
+        "where (department = :dept or department = :backup) and active = true")
+    .planPreview();
+
+PlanPreviewPredicate root = grouped.filterExpression();
+String op = root.operator();                         // "AND"
+PlanPreviewPredicate left = root.children().get(0);  // "OR" group
+```
+
+Inspect individual filter predicates for parameter-driven WHERE clauses:
+
+```java
+for (PlanPreviewFilter f : preview.filters()) {
+    String field    = f.field();       // e.g. "department"
+    String operator = f.operator();    // e.g. "="
+    String kind     = f.valueKind();   // "LITERAL", "PARAMETER", "SUBQUERY", "EXISTS_SUBQUERY"
+    String param    = f.parameterName(); // non-null when kind == "PARAMETER"
+}
+```
+
+Inspect subqueries through the nested preview:
+
+```java
+SqlLikePlanPreview outer = PojoLensSql.parse(
+        "where id in (select companyId from employees " +
+        "where title = :title order by companyId desc limit 2)")
+    .planPreview();
+
+SqlLikePlanPreview inner = outer.filters().get(0).subqueryPreview();
+String source = inner.source();                  // "employees"
+List<String> subParams = inner.requiredParams(); // ["title"]
+boolean subPaged = inner.hasPaging();            // true
+```
+
+Inspect window function fields:
+
+```java
+SqlLikePlanPreview wp = PojoLensSql.parse(
+        "select row_number() over (partition by department order by salary desc) as rank " +
+        "from Employee qualify rank <= 3")
+    .planPreview();
+
+boolean hasWindows = wp.hasWindows();  // true
+PlanPreviewField wf = wp.selectFields().get(0);
+String fn        = wf.windowFunction();          // "ROW_NUMBER"
+List<String> par = wf.windowPartitionFields();   // ["department"]
+List<String> ord = wf.windowOrderFields();       // ["salary"]
+String frame     = wf.windowFrame();             // "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+```
+
+For validation findings and lint warnings, use `diagnostics()` instead. The two entry points are
+complementary: diagnostics validates correctness; preview describes execution shape.
+
+### Recipe: Pushdown Preview
+
+Use `pushdownPreview()` when a host application owns an external adapter and
+needs to decide which simple SQL-like stages can run before rows are handed to
+PojoLens. This is advisory metadata only: PojoLens does not execute database
+queries, translate vendor SQL, or own adapter authorization.
+
+First-phase pushable stages are deliberately narrow:
+
+- simple `SELECT` fields
+- `WHERE` predicates using `=`, `!=`, `<`, `<=`, `>`, or `>=` with literals or named parameters
+- `ORDER BY`
+- `LIMIT`
+- `OFFSET`
+
+Everything else falls back to the in-memory engine, including joins, grouping,
+aggregates, windows, subqueries, `HAVING`, `QUALIFY`, computed select
+expressions, time buckets, and unsupported filter operators such as
+`CONTAINS` or `MATCHES`.
+
+```java
+SqlLikePushdownPreview preview = PojoLensSql
+    .parse("select department, count(*) as total where active = true group by department")
+    .pushdownPreview();
+
+SqlLikePushdownMode mode = preview.mode();       // SPLIT
+List<String> pushable = preview.pushableStages(); // ["WHERE"]
+List<String> inMemory = preview.inMemoryStages(); // GROUP_BY, AGGREGATE
+List<String> reasons = preview.fallbackReasons(); // GROUPING_UNSUPPORTED, AGGREGATION_UNSUPPORTED
+```
+
+`explain()` includes the same data under `pushdownPreview`, and SQL-like BIND
+telemetry includes `pushdownMode`, `pushdownPushableStages`,
+`pushdownInMemoryStages`, and `pushdownFallbackReasons`.
+
+When the host has an adapter, use `filterWithPushdown(...)` to fetch the
+first-phase rows and let PojoLens finish the query in memory:
+
+```java
+SqlLikePushdownAdapter adapter = new SqlLikePushdownAdapter() {
+    @Override
+    public <T> SqlLikePushdownResult<T> fetch(SqlLikePushdownRequest request, Class<T> rowClass) {
+        // Host code owns SQL rendering, authorization, connection handling, and execution.
+        ResultSet resultSet = executeHostQuery(request);
+        return SqlLikeResultSetAdapter.readPushed(resultSet, rowClass, request.requestedStages());
+    }
+};
+
+List<DepartmentTotal> rows = PojoLensSql
+    .parse("select department, count(*) as total where active = true group by department")
+    .filterWithPushdown(adapter, Employee.class, DepartmentTotal.class);
+```
+
+Split execution contract:
+
+- the adapter receives `SqlLikePushdownRequest` with normalized query text,
+  pushdown preview, and requested stages
+- the adapter returns `SqlLikePushdownResult` with materialized rows and audit
+  metadata
+- `SqlLikeResultSetAdapter` maps JDBC column labels to mutable row fields, but
+  it does not create SQL, execute JDBC, or authorize access
+- `SqlLikeResultSetAdapter` accepts exact field names plus normalized JDBC-style
+  labels (`snake_case`, `kebab-case`, spaced labels, and case differences) and
+  coerces common JDBC temporal values (`Timestamp`, `java.sql.Date`) into
+  matching Java time fields like `LocalDateTime`, `LocalDate`, `Instant`,
+  `OffsetDateTime`, and `ZonedDateTime`
+- PojoLens reruns the SQL-like query over returned rows, so unsupported stages
+  and correctness verification stay inside the in-memory engine
+- for grouped, aggregate, window, join, `HAVING`, or `QUALIFY` queries, adapters
+  should return source-shaped rows needed by the remaining in-memory stages
+
+`filterWithPushdown(...)` emits a `PUSHDOWN` telemetry event when telemetry is
+attached. The event includes requested stages, stages the adapter reports as
+pushed, source row count when known, materialized row count, fallback reasons,
+and adapter metadata.
 
 ### Recipe: Runtime Policy Presets
 
@@ -576,26 +859,11 @@ List<Employee> rows = query
     .filter();
 ```
 
-### Recipe: Fluent vs SQL-like Parity Assertions
+### Recipe: Internal SQL-like Engine Parity Assertions
 
-Use `FluentSqlLikeParity` in migration tests when you want to compare a fluent query and its SQL-like equivalent with either exact-order or order-agnostic assertions.
-
-```java
-List<DepartmentHeadcount> fluentRows = PojoLensCore.newQueryBuilder(source)
-    .addGroup("department")
-    .addCount("headcount")
-    .initFilter()
-    .filter(DepartmentHeadcount.class);
-
-List<DepartmentHeadcount> sqlLikeRows = PojoLensSql
-    .parse("select department, count(*) as headcount group by department")
-    .filter(source, DepartmentHeadcount.class);
-
-FluentSqlLikeParity.assertUnorderedEquals(
-    fluentRows,
-    sqlLikeRows,
-    row -> row.department + ":" + row.headcount);
-```
+Use `FluentSqlLikeParity` in maintainer migration tests when you want to
+compare the internal engine DSL and its SQL-like equivalent with either
+exact-order or order-agnostic assertions.
 
 Fixture-backed parity uses the same named immutable snapshot for both executions:
 
@@ -797,6 +1065,13 @@ Parse errors include deterministic location text:
 | `EQ-SQL-BIND-002` | Boolean expression exploded during normalization. | Simplify nested `AND`/`OR` logic. |
 | `EQ-SQL-JOIN-001` | Duplicate typed JOIN binding name. | Register each JOIN source once. |
 | `EQ-SQL-JOIN-002` | Typed JOIN binding name was blank. | Use a non-blank JOIN source name. |
+| `EQ-SQL-EXP-001` | Query referenced a field outside `QueryExposurePolicy`. | Add the field to the allowlist or reject the query. |
+| `EQ-SQL-EXP-002` | Query referenced a named source outside `QueryExposurePolicy`. | Add the source to the allowlist or reject the query. |
+| `EQ-SQL-PAG-001` | `filterPage(...)` was called on a query without `ORDER BY`. | Add deterministic `ORDER BY` fields for cursor generation. |
+| `EQ-SQL-PAG-002` | `filterPage(...)` was called on a query without a static `LIMIT`. | Add a static `LIMIT` clause, or bind parameterized limits before calling `filterPage(...)`. |
+| `EQ-SQL-PAG-003` | An `ORDER BY` field value is null or unreadable in the last row. | Ensure all `ORDER BY` fields are non-null in the result rows and exist on the projection class. |
+| `EQ-SQL-PAG-004` | `filterPage(...)` was called with `LIMIT 0` or another non-positive bound limit. | Use a positive page size. |
+| `EQ-SQL-PAG-005` | `filterPage(...)` was called on a query with `OFFSET`. | Remove `OFFSET` and use `keysetAfter(...)` with the returned cursor. |
 | `EQ-SQL-RUN-001` | Aliased/computed projection failed at runtime. | Ensure projection fields exist and accept the projected values. |
 | `EQ-SQL-RUN-002` | Runtime expression identifier resolution failed. | Verify computed expressions reference valid source fields. |
 
@@ -1026,6 +1301,26 @@ Meaning:
 
 Fix:
 - Use a non-blank source name when building `JoinBindings`.
+
+### Error Code EQ-SQL-EXP-001
+
+Meaning:
+- The query referenced a field outside the configured `QueryExposurePolicy`.
+
+Fix:
+- Use diagnostics to show the blocked field list, then either add the field to
+  the allowlist or reject the user-authored query before execution.
+
+### Error Code EQ-SQL-EXP-002
+
+Meaning:
+- The query referenced a named source outside the configured
+  `QueryExposurePolicy`.
+
+Fix:
+- Add the source to the allowlist or reject the query. Source checks cover
+  explicit `FROM`, `JOIN`, and subquery source names; row authorization still
+  belongs in application code.
 
 ### Error Code EQ-SQL-RUN-001
 

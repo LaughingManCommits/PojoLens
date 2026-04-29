@@ -1,6 +1,6 @@
 package laughing.man.commits.sqllike.ast;
 
-import laughing.man.commits.builder.QueryWindowFrame;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -187,14 +187,14 @@ public final class SelectFieldAst {
                 return windowFunction.toLowerCase(Locale.ROOT);
             }
             if (timeBucketPreset != null) {
-                return "bucket_" + field + "_" + timeBucketPreset.bucket().name().toLowerCase();
+                return "bucket_" + field + "_" + timeBucketPreset.bucket().name().toLowerCase(Locale.ROOT);
             }
             return field;
         }
         if (countAll) {
             return "count_all";
         }
-        return metric.name().toLowerCase() + "_" + field;
+        return metric.name().toLowerCase(Locale.ROOT) + "_" + field;
     }
 
     public boolean aliased() {

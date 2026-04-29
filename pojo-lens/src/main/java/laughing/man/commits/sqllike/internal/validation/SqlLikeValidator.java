@@ -5,6 +5,7 @@ import laughing.man.commits.computed.internal.ComputedFieldSupport;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
+import laughing.man.commits.internal.NameSuggestions;
 import laughing.man.commits.sqllike.ast.ExistsSubqueryValueAst;
 import laughing.man.commits.sqllike.ast.FilterAst;
 import laughing.man.commits.sqllike.ast.FilterBinaryAst;
@@ -17,6 +18,8 @@ import laughing.man.commits.sqllike.ast.SelectFieldAst;
 import laughing.man.commits.sqllike.ast.SubqueryValueAst;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrorCodes;
 import laughing.man.commits.sqllike.internal.error.SqlLikeErrors;
+import laughing.man.commits.sqllike.internal.error.SqlLikeFieldMessages;
+import laughing.man.commits.sqllike.internal.error.SqlLikeSourceBindingMessages;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport;
 import laughing.man.commits.sqllike.internal.aggregate.AggregateExpressionSupport.ParsedAggregateExpression;
 import laughing.man.commits.sqllike.internal.expression.SqlExpressionEvaluator;
@@ -24,7 +27,6 @@ import laughing.man.commits.util.ReflectionUtil;
 import laughing.man.commits.util.TimeBucketUtil;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -33,14 +35,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Internal query validation for SQL-like execution.
  */
 public final class SqlLikeValidator {
-
-    private static final int MAX_SUGGESTIONS = 3;
 
     private SqlLikeValidator() {
     }
@@ -51,7 +50,6 @@ public final class SqlLikeValidator {
                                              Map<String, List<?>> joinSources,
                                              boolean strictParameterTypes,
                                              ComputedFieldRegistry computedFieldRegistry) {
-        Set<String> sourceFields = collectFields(sourceClass);
         Map<String, Class<?>> sourceFieldTypes = collectFieldTypes(sourceClass);
         SqlLikeJoinResolution.Plan joinPlan = SqlLikeJoinResolution.resolve(ast, sourceClass, joinSources);
         QueryAst normalizedAst = SqlLikeJoinResolution.canonicalize(ast, joinPlan);
@@ -199,11 +197,17 @@ public final class SqlLikeValidator {
                                         Map<String, List<?>> joinSources,
                                         ComputedFieldRegistry computedFieldRegistry) {
         for (FilterAst filter : filters) {
-            if (filter.value() instanceof SubqueryValueAst subqueryValueAst) {
-                validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
-            } else if (filter.value() instanceof ExistsSubqueryValueAst existsSubqueryValueAst) {
-                validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
-                continue;
+            switch (filter.value()) {
+                case null -> {
+                }
+                case SubqueryValueAst subqueryValueAst ->
+                        validateInSubquery(filter, subqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                case ExistsSubqueryValueAst existsSubqueryValueAst -> {
+                    validateExistsSubquery(filter, existsSubqueryValueAst, sourceClass, joinSources, computedFieldRegistry);
+                    continue;
+                }
+                default -> {
+                }
             }
             if (SqlExpressionEvaluator.looksLikeExpression(filter.field())) {
                 ensureExpressionClauseSupported(filter, "WHERE");
@@ -312,7 +316,7 @@ public final class SqlLikeValidator {
         ambiguous.retainAll(aggregateOutputs);
 
         for (FilterAst filter : having) {
-            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
+            if (hasSubqueryValue(filter.value())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
@@ -364,7 +368,7 @@ public final class SqlLikeValidator {
             }
         }
         for (FilterAst filter : ast.qualifyFilters()) {
-            if (filter.value() instanceof SubqueryValueAst || filter.value() instanceof ExistsSubqueryValueAst) {
+            if (hasSubqueryValue(filter.value())) {
                 throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
                         "Subqueries are only supported in WHERE IN (...) or WHERE EXISTS (...) filters");
             }
@@ -471,7 +475,7 @@ public final class SqlLikeValidator {
         List<?> sourceRows = joinSources.get(select.sourceName());
         if (sourceRows == null) {
             throw validation(SqlLikeErrorCodes.VALIDATION_SUBQUERY,
-                    "Missing subquery source binding for '" + select.sourceName() + "'");
+                    SqlLikeSourceBindingMessages.missingSubquerySourceBinding(select.sourceName(), joinSources.keySet()));
         }
         return inferListElementClass(sourceRows);
     }
@@ -689,17 +693,18 @@ public final class SqlLikeValidator {
         if (expression == null || windowAliases.isEmpty()) {
             return expression;
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
-            return new FilterPredicateAst(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                normalizeWindowAliasExpression(binary.left(), windowAliases),
-                normalizeWindowAliasExpression(binary.right(), windowAliases),
-                binary.operator()
-        );
+        return switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = windowAliases.getOrDefault(canonicalWindowExpression(filter.field()), filter.field());
+                yield new FilterPredicateAst(new FilterAst(field, filter.clause(), filter.value(), filter.separator()));
+            }
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    normalizeWindowAliasExpression(binary.left(), windowAliases),
+                    normalizeWindowAliasExpression(binary.right(), windowAliases),
+                    binary.operator()
+            );
+        };
     }
 
     private static FilterExpressionAst normalizeGroupedAliasExpression(FilterExpressionAst expression,
@@ -707,21 +712,34 @@ public final class SqlLikeValidator {
         if (expression == null || groupedAliases.isEmpty()) {
             return expression;
         }
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
-                    ? SqlExpressionEvaluator.rewriteIdentifiers(filter.field(), identifier -> groupedAliases.getOrDefault(identifier, identifier))
-                    : groupedAliases.getOrDefault(filter.field(), filter.field());
-            return new FilterPredicateAst(
-                    new FilterAst(field, filter.clause(), filter.value(), filter.separator())
+        return switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                String field = SqlExpressionEvaluator.looksLikeExpression(filter.field())
+                        ? SqlExpressionEvaluator.rewriteIdentifiers(
+                        filter.field(),
+                        identifier -> groupedAliases.getOrDefault(identifier, identifier)
+                )
+                        : groupedAliases.getOrDefault(filter.field(), filter.field());
+                yield new FilterPredicateAst(
+                        new FilterAst(field, filter.clause(), filter.value(), filter.separator())
+                );
+            }
+            case FilterBinaryAst binary -> new FilterBinaryAst(
+                    normalizeGroupedAliasExpression(binary.left(), groupedAliases),
+                    normalizeGroupedAliasExpression(binary.right(), groupedAliases),
+                    binary.operator()
             );
-        }
-        FilterBinaryAst binary = (FilterBinaryAst) expression;
-        return new FilterBinaryAst(
-                normalizeGroupedAliasExpression(binary.left(), groupedAliases),
-                normalizeGroupedAliasExpression(binary.right(), groupedAliases),
-                binary.operator()
-        );
+        };
+    }
+
+    private static boolean hasSubqueryValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case SubqueryValueAst _ -> true;
+            case ExistsSubqueryValueAst _ -> true;
+            default -> false;
+        };
     }
 
     private static Set<String> resolveAllowedOrderFields(QueryAst ast, Set<String> sourceFields) {
@@ -792,80 +810,23 @@ public final class SqlLikeValidator {
     }
 
     private static String formatUnknownFieldMessage(String field, Set<String> allowedFields, String clauseName) {
-        StringBuilder message = new StringBuilder()
-                .append("Unknown field '")
-                .append(field)
-                .append("' in ")
-                .append(clauseName)
-                .append(" clause.");
-        List<String> suggestions = suggestFields(field, allowedFields);
-        if (!suggestions.isEmpty()) {
-            if (suggestions.size() == 1) {
-                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
-            } else {
-                message.append(" Did you mean one of ").append(suggestions).append("?");
-            }
-        }
-        message.append(" Allowed fields: ").append(new TreeSet<>(allowedFields));
-        return message.toString();
+        return SqlLikeFieldMessages.unknownField(field, clauseName, allowedFields);
     }
 
     private static String formatInvalidAggregateOrderReferenceMessage(String reference, Set<String> allowedFields) {
         return "Invalid aggregate ORDER BY reference '"
                 + reference
-                + "': expected grouped field, aggregate output, or aggregate expression. Allowed fields: "
-                + new TreeSet<>(allowedFields);
+                + "': expected grouped field, aggregate output, or aggregate expression."
+                + SqlLikeFieldMessages.allowedFieldsFragment(allowedFields);
     }
 
     private static String formatUnknownAggregateOrderArgumentMessage(String expression,
                                                                     String argument,
                                                                     Set<String> sourceFields) {
-        StringBuilder message = new StringBuilder()
-                .append("Unknown field '")
-                .append(argument)
-                .append("' in ORDER BY aggregate expression '")
-                .append(expression)
-                .append("'.");
-        List<String> suggestions = suggestFields(argument, sourceFields);
-        if (!suggestions.isEmpty()) {
-            if (suggestions.size() == 1) {
-                message.append(" Did you mean '").append(suggestions.get(0)).append("'?");
-            } else {
-                message.append(" Did you mean one of ").append(suggestions).append("?");
-            }
-        }
-        message.append(" Allowed source fields: ").append(new TreeSet<>(sourceFields));
-        return message.toString();
-    }
-
-    private static List<String> suggestFields(String unknownField, Set<String> allowedFields) {
-        if (unknownField == null || unknownField.isBlank() || allowedFields.isEmpty()) {
-            return java.util.Collections.emptyList();
-        }
-        String normalizedUnknown = normalizeIdentifier(unknownField);
-        int threshold = 2;
-        List<FieldSuggestion> ranked = new ArrayList<>();
-        for (String allowedField : allowedFields) {
-            String normalizedAllowed = normalizeIdentifier(allowedField);
-            int distance = levenshteinDistance(normalizedUnknown, normalizedAllowed);
-            boolean prefixMatch = normalizedAllowed.startsWith(normalizedUnknown)
-                    || normalizedUnknown.startsWith(normalizedAllowed);
-            if (distance <= threshold || prefixMatch) {
-                ranked.add(new FieldSuggestion(allowedField, distance));
-            }
-        }
-        ranked.sort(Comparator
-                .comparingInt(FieldSuggestion::distance)
-                .thenComparing(FieldSuggestion::name));
-        List<String> suggestions = new ArrayList<>();
-        for (int i = 0; i < ranked.size() && i < MAX_SUGGESTIONS; i++) {
-            suggestions.add(ranked.get(i).name());
-        }
-        return suggestions;
-    }
-
-    private static String normalizeIdentifier(String value) {
-        return value.toLowerCase(Locale.ROOT);
+        List<String> suggestions = NameSuggestions.suggest(argument, sourceFields);
+        return "Unknown field '" + argument + "' in ORDER BY aggregate expression '" + expression + "'."
+                + NameSuggestions.formatFragment(suggestions)
+                + SqlLikeFieldMessages.allowedSourceFieldsFragment(sourceFields);
     }
 
     private static String canonicalWindowExpression(String value) {
@@ -889,55 +850,6 @@ public final class SqlLikeValidator {
                 || "AVG".equalsIgnoreCase(functionName)
                 || "MIN".equalsIgnoreCase(functionName)
                 || "MAX".equalsIgnoreCase(functionName);
-    }
-
-    private static int levenshteinDistance(String left, String right) {
-        int leftLength = left.length();
-        int rightLength = right.length();
-        if (leftLength == 0) {
-            return rightLength;
-        }
-        if (rightLength == 0) {
-            return leftLength;
-        }
-        int[] previous = new int[rightLength + 1];
-        int[] current = new int[rightLength + 1];
-        for (int j = 0; j <= rightLength; j++) {
-            previous[j] = j;
-        }
-        for (int i = 1; i <= leftLength; i++) {
-            current[0] = i;
-            char leftChar = left.charAt(i - 1);
-            for (int j = 1; j <= rightLength; j++) {
-                int cost = leftChar == right.charAt(j - 1) ? 0 : 1;
-                int deletion = previous[j] + 1;
-                int insertion = current[j - 1] + 1;
-                int substitution = previous[j - 1] + cost;
-                current[j] = Math.min(Math.min(deletion, insertion), substitution);
-            }
-            int[] swap = previous;
-            previous = current;
-            current = swap;
-        }
-        return previous[rightLength];
-    }
-
-    private static final class FieldSuggestion {
-        private final String name;
-        private final int distance;
-
-        private FieldSuggestion(String name, int distance) {
-            this.name = name;
-            this.distance = distance;
-        }
-
-        private String name() {
-            return name;
-        }
-
-        private int distance() {
-            return distance;
-        }
     }
 
     static Set<String> collectFields(Class<?> root) {

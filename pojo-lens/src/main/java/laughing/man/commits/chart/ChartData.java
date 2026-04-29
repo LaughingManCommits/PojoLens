@@ -101,7 +101,7 @@ public final class ChartData {
     }
 
     public List<String> getLabels() {
-        return labels;
+        return labels == null ? null : java.util.Collections.unmodifiableList(labels);
     }
 
     public void setLabels(List<String> labels) {
@@ -109,7 +109,7 @@ public final class ChartData {
     }
 
     public List<ChartDataset> getDatasets() {
-        return datasets;
+        return datasets == null ? null : java.util.Collections.unmodifiableList(datasets);
     }
 
     public void setDatasets(List<ChartDataset> datasets) {

@@ -20,6 +20,7 @@ import laughing.man.commits.stats.StatsTablePayload;
 import laughing.man.commits.stats.StatsViewPreset;
 import laughing.man.commits.stats.StatsViewPresets;
 import laughing.man.commits.table.TabularRows;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,6 +50,7 @@ class EmployeeDashboardService {
 
     private final EmployeeStore employeeStore;
     private final PojoLensRuntime pojoLensRuntime;
+    private final boolean virtualThreadsEnabled;
 
     private final StatsViewPreset<QueryRow> departmentPayrollStatsPreset;
     private final StatsViewPreset<QueryRow> departmentHeadcountStatsPreset;
@@ -56,9 +58,12 @@ class EmployeeDashboardService {
     private final ChartQueryPreset<QueryRow> payrollChartPreset;
     private final ReportDefinition<QueryRow> headcountChartReport;
 
-    EmployeeDashboardService(EmployeeStore employeeStore, PojoLensRuntime pojoLensRuntime) {
+    EmployeeDashboardService(EmployeeStore employeeStore,
+                             PojoLensRuntime pojoLensRuntime,
+                             Environment environment) {
         this.employeeStore = employeeStore;
         this.pojoLensRuntime = pojoLensRuntime;
+        this.virtualThreadsEnabled = environment.getProperty("spring.threads.virtual.enabled", Boolean.class, false);
         departmentPayrollStatsPreset = StatsViewPresets.by("department", Metric.SUM, "salary", "payroll");
         departmentHeadcountStatsPreset = StatsViewPresets.by("department", Metric.COUNT, null, "headcount");
         top3PayrollStatsPreset = StatsViewPresets.topNBy("department", Metric.SUM, "salary", "payroll", 3);
@@ -135,7 +140,9 @@ class EmployeeDashboardService {
                 pojoLensRuntime.isStrictParameterTypes(),
                 pojoLensRuntime.isLintMode(),
                 pojoLensRuntime.sqlLikeCache().isEnabled(),
-                pojoLensRuntime.statsPlanCache().isEnabled()
+                pojoLensRuntime.statsPlanCache().isEnabled(),
+                virtualThreadsEnabled,
+                Thread.currentThread().isVirtual()
         );
     }
 

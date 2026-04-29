@@ -65,9 +65,9 @@ runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 ## Removed Static APIs
 
 Public static/global cache policy methods are removed from the public surface.
-The old `PojoLens` facade is gone, `PojoLensSql` / `PojoLensCore` no longer
-expose cache-policy mutators, and the old public
-`FilterExecutionPlanCache` default-store facade is internalized.
+The old `PojoLens` facade is gone, direct entry points no longer expose
+cache-policy mutators, and the old public `FilterExecutionPlanCache`
+default-store facade is internalized.
 
 Use `new PojoLensRuntime()` and the returned cache handles instead.
 
@@ -84,11 +84,9 @@ PojoLensRuntime runtime = new PojoLensRuntime();
 runtime.sqlLikeCache().setMaxEntries(1024);
 runtime.statsPlanCache().setExpireAfterWriteMillis(30_000L);
 
-List<Employee> rows = runtime.newQueryBuilder(source)
-    .addGroup("department")
-    .addCount("total")
-    .initFilter()
-    .filter(Employee.class);
+List<DepartmentCount> rows = runtime
+    .parse("select department, count(*) as total group by department")
+    .filter(source, DepartmentCount.class);
 ```
 
 Use runtime-scoped policies whenever cache behavior should be explicit in app

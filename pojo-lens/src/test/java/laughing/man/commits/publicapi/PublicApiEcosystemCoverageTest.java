@@ -1,7 +1,7 @@
 package laughing.man.commits.publicapi;
 
-import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensCsv;
+import laughing.man.commits.PojoLensFiles;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 
@@ -14,10 +14,20 @@ import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.builder.FluentQueryDefinition;
 import laughing.man.commits.computed.ComputedFieldRegistry;
-import laughing.man.commits.enums.Clauses;
+import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedPredicate;
+import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.dsl.TypedWindowOrder;
+import laughing.man.commits.enums.Join;
+import laughing.man.commits.enums.WindowFunction;
+import laughing.man.commits.files.JsonLoadResult;
+import laughing.man.commits.files.JsonOptions;
+import laughing.man.commits.internal.builder.QueryWindowFrame;
+import laughing.man.commits.metamodel.MetamodelBatchGenerator;
+import laughing.man.commits.metamodel.MetamodelGenerationResult;
 import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.report.SavedReport;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.table.TabularSchema;
@@ -26,8 +36,15 @@ import laughing.man.commits.testing.FluentSqlLikeParity;
 import laughing.man.commits.testing.QueryRegressionFixture;
 import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.testutil.CommonStatsProjections.DepartmentCount;
+import laughing.man.commits.testutil.WindowTestFixtures.DepartmentRank;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricInput;
+import laughing.man.commits.testutil.WindowTestFixtures.WindowMetricProjection;
+import laughing.man.commits.tooling.SavedReportCatalogValidator;
+import laughing.man.commits.tooling.SavedReportValidationResult;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
 import laughing.man.commits.testutil.PublicApiModels.StatsRow;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -45,11 +62,13 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
+import static laughing.man.commits.testutil.WindowTestFixtures.sampleWindowMetricInputs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -155,6 +174,69 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     }
 
     @Test
+    public void generalFileLoaderSurfaceShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path tsv = tempDir.resolve("employees.tsv");
+        Files.writeString(
+                tsv,
+                "employeeName\tannualSalary\n"
+                        + " Alice \t 120000 \n"
+                        + " Cara \t 130000 \n"
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().trim(true).build());
+
+        List<EmployeeSummary> directRows = PojoLensFiles.tsv(tsv, EmployeeSummary.class);
+        CsvLoadResult<EmployeeSummary> runtimeRows = runtime.files().tsvWithReport(tsv, EmployeeSummary.class);
+
+        assertEquals(2, directRows.size());
+        assertEquals("Alice", directRows.get(0).employeeName);
+        assertEquals(2, runtimeRows.rows().size());
+        assertTrue(runtimeRows.report().success());
+    }
+
+    @Test
+    public void jsonFileLoaderSurfaceShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path json = tempDir.resolve("employees.json");
+        Files.writeString(
+                json,
+                """
+                        [
+                          {"employeeName":"Alice","annualSalary":120000},
+                          {"employeeName":"Cara","annualSalary":130000}
+                        ]
+                        """
+        );
+        Path jsonl = tempDir.resolve("employees.jsonl");
+        Files.writeString(
+                jsonl,
+                """
+                        {"employeeName":"Alice","department":"engineering","annualSalary":120000}
+
+                        {"employeeName":"Cara","department":"engineering","annualSalary":130000}
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setJsonDefaults(
+                JsonOptions.builder()
+                        .skipEmptyLines(true)
+                        .enumCaseInsensitive(true)
+                        .build()
+        );
+
+        List<EmployeeSummary> directRows = PojoLensFiles.json(json, EmployeeSummary.class);
+        JsonLoadResult<JsonFileRow> runtimeRows = runtime.files().jsonlWithReport(jsonl, JsonFileRow.class);
+
+        assertEquals(2, directRows.size());
+        assertEquals("Alice", directRows.get(0).employeeName);
+        assertEquals(2, runtimeRows.rows().size());
+        assertEquals(JsonFileDepartment.ENGINEERING, runtimeRows.rows().get(0).department);
+        assertTrue(runtimeRows.report().success());
+        assertTrue(runtime.getJsonDefaults().enumCaseInsensitive());
+    }
+
+    @Test
     public void runtimeCsvCoercionPolicyShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
         Path csv = tempDir.resolve("employees-coercion.csv");
         Files.writeString(
@@ -256,20 +338,26 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals("show department, count of employees as total group by department sort by department ascending",
                 naturalReport.source());
 
-        ReportDefinition<StatsRow> fluentReport = ReportDefinition.fluent(
-                StatsRow.class,
-                builder -> builder.addGroup("department").addCount("total")
-        );
-        assertEquals(2, fluentReport.rows(sampleEmployees()).size());
-        assertEquals("fluent", fluentReport.source());
+        assertTrue(sqlReport.supportsJoinSources());
+        assertTrue(naturalReport.supportsJoinSources());
+    }
 
-        FluentQueryDefinition<StatsRow> fluentDefinition = PojoLensCore.prepare(
-                StatsRow.class,
-                builder -> builder.addGroup("department").addCount("total")
+    @Test
+    public void buildToolingShouldBeUsableFromPublicApi(@TempDir Path tempDir) {
+        List<MetamodelGenerationResult> generated =
+                MetamodelBatchGenerator.writeDefaultTyped(tempDir, Employee.class);
+        SavedReportValidationResult validation = SavedReportCatalogValidator.validate(
+                SavedReport.sqlLike(
+                        "dept-count",
+                        "Department count",
+                        "select department, count(*) as total group by department order by department asc"
+                )
         );
-        assertEquals(2, fluentDefinition.rows(sampleEmployees()).size());
-        assertEquals(List.of("department", "total"), fluentDefinition.schema().names());
-        assertEquals("fluent", fluentDefinition.reportDefinition().source());
+
+        assertEquals(1, generated.size());
+        assertTrue(Files.exists(generated.get(0).outputPath()));
+        assertTrue(validation.valid());
+        assertEquals("EmployeeTypedFields", generated.get(0).metamodel().simpleName());
     }
 
     @Test
@@ -288,6 +376,144 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     }
 
     @Test
+    public void typedQueryShouldSupportJoinBindingsAndDatasetBundlesFromPublicApi() {
+        TypedField<Company, Integer> companyId = TypedField.of("id", Integer.class);
+        TypedField<CompanyEmployee, Integer> employeeCompanyId = TypedField.of("companyId", Integer.class);
+        TypedField<Company, String> joinedTitle = TypedField.of("title", String.class);
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        List<Company> rows = TypedQuery.from(Company.class)
+                .join("employees", companyId, employeeCompanyId, Join.LEFT_JOIN)
+                .where(joinedTitle.eq("Engineer"))
+                .filter(bundle);
+
+        assertEquals(1, rows.size());
+        assertEquals(1, rows.get(0).id);
+    }
+
+    @Test
+    public void typedQueryShouldSupportGroupedAggregatesFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<DepartmentCount, Long> total = TypedField.of("total", Long.class);
+
+        List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+                .where(active.eq(true))
+                .groupBy(department)
+                .count(total)
+                .orderByDesc(total)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(2L, rows.get(0).total);
+    }
+
+    @Test
+    public void typedQueryShouldSupportHavingOverGroupedOutputFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<DepartmentCount, Long> total = TypedField.of("total", Long.class);
+
+        List<DepartmentCount> rows = TypedQuery.from(Employee.class)
+                .groupBy(department)
+                .count(total)
+                .having(total.gte(2L))
+                .orderByDesc(total)
+                .filter(sampleEmployees(), DepartmentCount.class);
+
+        assertEquals(1, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals(3L, rows.get(0).total);
+    }
+
+    @Test
+    public void typedQueryShouldSupportWindowQualifyFromPublicApi() {
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Integer> salary = TypedField.of("salary", Integer.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<DepartmentRank, Long> rn = TypedField.of("rn", Long.class);
+
+        List<DepartmentRank> rows = TypedQuery.from(Employee.class)
+                .where(active.eq(true))
+                .window(WindowFunction.ROW_NUMBER, rn, List.of(TypedWindowOrder.desc(salary)), department)
+                .qualify(rn.lte(1L))
+                .orderBy(department)
+                .orderBy(rn)
+                .filter(sampleEmployees(), DepartmentRank.class)
+                .stream()
+                .sorted(Comparator.comparing(row -> row.department))
+                .toList();
+
+        assertEquals(2, rows.size());
+        assertEquals("Engineering", rows.get(0).department);
+        assertEquals("Cara", rows.get(0).name);
+        assertEquals(1L, rows.get(0).rn);
+    }
+
+    @Test
+    public void typedQueryShouldSupportBoundedSubqueriesFromPublicApi() {
+        TypedField<Employee, String> name = TypedField.of("name", String.class);
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<Employee, Integer> salary = TypedField.of("salary", Integer.class);
+
+        List<String> rows = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.anyOf(
+                        TypedPredicate.exists(
+                                Employee.class,
+                                TypedQuery.from(Employee.class).where(department.eq("Missing"))
+                        ),
+                        name.inSubquery(
+                                name,
+                                TypedQuery.from(Employee.class)
+                                        .where(active.eq(true).and(salary.gte(120_000)))
+                        )
+                ))
+                .orderBy(name)
+                .filter(sampleEmployees())
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        assertEquals(List.of("Alice", "Cara"), rows);
+    }
+
+    @Test
+    public void typedQueryShouldSupportBoundedWindowFramesFromPublicApi() {
+        TypedField<WindowMetricInput, String> department = TypedField.of("department", String.class);
+        TypedField<WindowMetricInput, Integer> seq = TypedField.of("seq", Integer.class);
+        TypedField<WindowMetricInput, Integer> amount = TypedField.of("amount", Integer.class);
+        TypedField<WindowMetricProjection, Long> runningSum = TypedField.of("runningSum", Long.class);
+        TypedField<WindowMetricProjection, Long> runningCountAll = TypedField.of("runningCountAll", Long.class);
+
+        List<String> rows = TypedQuery.from(WindowMetricInput.class)
+                .window(WindowFunction.SUM, amount, runningSum,
+                        QueryWindowFrame.rowsPrecedingToCurrentRow(1),
+                        List.of(TypedWindowOrder.asc(seq)), department)
+                .windowCountAll(runningCountAll,
+                        QueryWindowFrame.rowsPrecedingToCurrentRow(1),
+                        List.of(TypedWindowOrder.asc(seq)), department)
+                .orderBy(department)
+                .orderBy(seq)
+                .filter(sampleWindowMetricInputs(), WindowMetricProjection.class)
+                .stream()
+                .map(row -> row.department + ":" + row.seq + ":" + row.runningSum + ":" + row.runningCountAll)
+                .toList();
+
+        assertEquals(List.of(
+                "A:1:10:1",
+                "A:2:10:2",
+                "A:3:5:2",
+                "B:1:2:1",
+                "B:2:5:2",
+                "C:1:null:1"
+        ), rows);
+    }
+
+    @Test
     public void telemetryHooksShouldBeUsableFromPublicApi() {
         List<QueryTelemetryEvent> events = new ArrayList<>();
 
@@ -297,11 +523,9 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertFalse(events.isEmpty());
 
         events.clear();
-        PojoLensCore.newQueryBuilder(sampleEmployees())
-                .telemetry(events::add)
-                .addRule("active", true, Clauses.EQUAL)
-                .initFilter()
-                .filter(Employee.class);
+        runtime.natural()
+                .parse("show employees where active is true")
+                .filter(sampleEmployees(), Employee.class);
         assertFalse(events.isEmpty());
     }
 
@@ -339,22 +563,13 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 .withWeekStart("sunday");
 
         assertEquals("WEEK", preset.bucket().name());
-        assertTrue(PojoLensCore.newQueryBuilder(sampleEmployees())
-                .addTimeBucket("hireDate", preset, "period")
-                .addCount("total")
-                .explain()
-                .get("timeBuckets")
-                .toString()
-                .contains("Europe/Amsterdam"));
+        assertEquals("Europe/Amsterdam", preset.zoneId().getId());
+        assertEquals("SUNDAY", preset.weekStart().name());
+        assertTrue(preset.sqlArgumentList().contains("Europe/Amsterdam"));
     }
 
     @Test
     public void tabularSchemaMetadataShouldBeUsableFromPublicApi() {
-        TabularSchema fluentSchema = PojoLensCore.newQueryBuilder(sampleEmployees())
-                .addGroup("department")
-                .addCount("total")
-                .schema(StatsRow.class);
-
         TabularSchema sqlSchema = PojoLensSql.parse("select department, count(*) as total group by department")
                 .schema(StatsRow.class);
 
@@ -363,7 +578,6 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
                 StatsRow.class
         );
 
-        assertEquals(List.of("department", "total"), fluentSchema.names());
         assertEquals(List.of("department", "total"), sqlSchema.names());
         assertEquals(List.of("department", "total"), report.schema().names());
         assertEquals("metric:COUNT", report.schema().column("total").formatHint());
@@ -394,11 +608,25 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         LocalDateTime reviewedAt;
         CsvDepartmentCode department;
 
-        public CsvPolicyRow() {
+        CsvPolicyRow() {
         }
     }
 
     enum CsvDepartmentCode {
+        ENGINEERING,
+        FINANCE
+    }
+
+    static final class JsonFileRow {
+        String employeeName;
+        JsonFileDepartment department;
+        int annualSalary;
+
+        JsonFileRow() {
+        }
+    }
+
+    enum JsonFileDepartment {
         ENGINEERING,
         FINANCE
     }

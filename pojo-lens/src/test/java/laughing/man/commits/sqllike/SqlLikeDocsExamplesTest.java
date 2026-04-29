@@ -1,6 +1,5 @@
 package laughing.man.commits.sqllike;
 
-import laughing.man.commits.PojoLensCore;
 import laughing.man.commits.PojoLensSql;
 
 import laughing.man.commits.PojoLensRuntime;
@@ -10,8 +9,6 @@ import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.enums.Clauses;
-import laughing.man.commits.enums.Sort;
 import laughing.man.commits.enums.TimeBucket;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
@@ -42,27 +39,6 @@ import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 public class SqlLikeDocsExamplesTest {
 
     @Test
-    public void readmeFluentQuickStartExampleShouldWork() {
-        Date now = new Date();
-        List<Employee> source = Arrays.asList(
-                new Employee(1, "Alice", "Engineering", 120000, now, true),
-                new Employee(2, "Bob", "Finance", 90000, now, true),
-                new Employee(3, "Cara", "Engineering", 130000, now, true)
-        );
-
-        List<Employee> results = PojoLensCore.newQueryBuilder(source)
-                .addRule("department", "Engineering", Clauses.EQUAL)
-                .addOrder("salary", 1)
-                .limit(10)
-                .initFilter()
-                .filter(Sort.ASC, Employee.class);
-
-        assertEquals(2, results.size());
-        assertEquals(120000, results.get(0).salary);
-        assertEquals(130000, results.get(1).salary);
-    }
-
-    @Test
     public void readmeSqlLikeQuickStartExampleShouldWork() {
         Date now = new Date();
         List<Employee> source = Arrays.asList(
@@ -72,7 +48,11 @@ public class SqlLikeDocsExamplesTest {
                 new Employee(4, "Dan", "Engineering", 110000, now, false)
         );
 
-        List<Employee> rows = PojoLensSql.parse("select name, salary where department = 'Engineering' and active = true order by salary desc limit 10")
+        List<Employee> rows = PojoLensSql
+                .parse("select name, salary "
+                        + "where department = :dept and salary >= :minSalary "
+                        + "order by salary desc limit 10")
+                .params(Map.of("dept", "Engineering", "minSalary", 120000))
                 .filter(source, Employee.class);
 
         assertEquals(2, rows.size());
@@ -339,6 +319,64 @@ public class SqlLikeDocsExamplesTest {
                 .lintMode()
                 .suppressLintWarnings(SqlLikeLintCodes.SELECT_WILDCARD);
         assertEquals(1, suppressed.lintWarnings().size());
+    }
+
+    @Test
+    public void docsRecipePreExecutionDiagnosticsShouldWork() {
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary where department = :dept order by salary desc")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+        assertEquals(List.of("dept"), diagnostics.requiredParams());
+        assertTrue(diagnostics.referencedFields().contains("name"));
+        assertTrue(diagnostics.referencedFields().contains("salary"));
+        assertTrue(diagnostics.referencedFields().contains("department"));
+        assertEquals(List.of("name", "salary"), diagnostics.outputFields());
+
+        QueryDiagnostics invalid = PojoLensSql
+                .parse("where departmnt = :dept and salry > :min")
+                .diagnostics(Employee.class, Employee.class);
+
+        assertFalse(invalid.valid());
+        assertTrue(invalid.errors().stream().anyMatch(error -> error.message().contains("departmnt")));
+        assertTrue(invalid.errors().stream().anyMatch(error -> error.message().contains("salry")));
+
+        QueryDiagnostics joinAware = PojoLensSql
+                .parse("where id in (select companyId from employees where title = :title)")
+                .diagnostics(
+                        Company.class,
+                        Company.class,
+                        JoinBindings.of("employees", sampleCompanyEmployees()));
+
+        assertTrue(joinAware.valid());
+        assertTrue(joinAware.joinSources().contains("employees"));
+        assertTrue(joinAware.hasSubqueries());
+    }
+
+    @Test
+    public void docsRecipeQueryExposurePolicyShouldWork() {
+        QueryExposurePolicy policy = QueryExposurePolicy.builder()
+                .allowFields("name", "department", "salary", "active")
+                .allowSources("employees", "companies")
+                .build();
+
+        QueryDiagnostics diagnostics = PojoLensSql
+                .parse("select name, salary from employees where department = :dept")
+                .exposurePolicy(policy)
+                .diagnostics(Employee.class, Employee.class);
+
+        assertTrue(diagnostics.valid());
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setQueryExposurePolicy(policy);
+
+        List<Employee> rows = runtime
+                .parse("select name, salary where department = :dept and active = true")
+                .params(Map.of("dept", "Engineering"))
+                .filter(sampleEmployees(), Employee.class);
+
+        assertEquals(List.of("Alice", "Cara"), rows.stream().map(row -> row.name).toList());
     }
 
     @Test

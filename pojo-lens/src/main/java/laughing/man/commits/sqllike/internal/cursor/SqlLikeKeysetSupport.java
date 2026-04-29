@@ -142,14 +142,16 @@ public final class SqlLikeKeysetSupport {
     private static void flatten(FilterExpressionAst expression,
                                 List<FilterAst> out,
                                 Separator inheritedSeparator) {
-        if (expression instanceof FilterPredicateAst predicateAst) {
-            FilterAst filter = predicateAst.filter();
-            out.add(new FilterAst(filter.field(), filter.clause(), filter.value(), inheritedSeparator));
-            return;
+        switch (expression) {
+            case FilterPredicateAst predicateAst -> {
+                FilterAst filter = predicateAst.filter();
+                out.add(new FilterAst(filter.field(), filter.clause(), filter.value(), inheritedSeparator));
+            }
+            case FilterBinaryAst binaryAst -> {
+                flatten(binaryAst.left(), out, inheritedSeparator);
+                flatten(binaryAst.right(), out, binaryAst.operator());
+            }
         }
-        FilterBinaryAst binaryAst = (FilterBinaryAst) expression;
-        flatten(binaryAst.left(), out, inheritedSeparator);
-        flatten(binaryAst.right(), out, binaryAst.operator());
     }
 
     private static List<String> orderedFieldNames(List<OrderAst> orders) {

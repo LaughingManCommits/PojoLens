@@ -1,8 +1,8 @@
 package laughing.man.commits.filter;
 
 import laughing.man.commits.EngineDefaults;
-import laughing.man.commits.builder.FilterQueryBuilder;
-import laughing.man.commits.builder.QueryRule;
+import laughing.man.commits.internal.builder.FilterQueryBuilder;
+import laughing.man.commits.internal.builder.QueryRule;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.RawQueryRow;
@@ -32,6 +32,10 @@ public class FilterCore {
     private final JoinEngine joinEngine;
     private final AggregationEngine aggregationEngine;
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "FilterCore intentionally executes against the live mutable query builder."
+    )
     public FilterCore(FilterQueryBuilder builder) {
         this.builder = builder;
         this.cleaner = new RuleCleaner(builder);
@@ -180,14 +184,19 @@ public class FilterCore {
                     }
                     Object fieldValue = row.getValueAt(fieldIndex);
                     for (CompiledRule rule : rules) {
-                        boolean matched = ObjectUtil.compareObject(fieldValue, rule.compareValue, rule.clause, rule.dateFormat);
-                        if (Separator.AND.equals(rule.separator)) {
+                        boolean matched = ObjectUtil.compareObject(
+                                fieldValue,
+                                rule.compareValue(),
+                                rule.clause(),
+                                rule.dateFormat()
+                        );
+                        if (Separator.AND.equals(rule.separator())) {
                             if (matched) {
                                 andMatched = true;
                             } else {
                                 andFailed = true;
                             }
-                        } else if (Separator.OR.equals(rule.separator) && matched) {
+                        } else if (Separator.OR.equals(rule.separator()) && matched) {
                             orMatched = true;
                         }
 
@@ -292,7 +301,7 @@ public class FilterCore {
         return builder.getRows();
     }
 
-    public FilterQueryBuilder getBuilder() {
+    FilterQueryBuilder getBuilder() {
         return builder;
     }
 

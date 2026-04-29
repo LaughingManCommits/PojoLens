@@ -1,11 +1,13 @@
 package laughing.man.commits;
 
+import laughing.man.commits.internal.FluentEngine;
+
 import laughing.man.commits.domain.Foo;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Join;
 import laughing.man.commits.enums.Separator;
 import org.junit.jupiter.api.Test;
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.builder.QueryBuilder;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,7 +27,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new Foo("b", now, 3)
         );
 
-        QueryBuilder template = PojoLensCore.newQueryBuilder(source)
+        QueryBuilder template = FluentEngine.newQueryBuilder(source)
                 .addRule("stringField", "a", Clauses.EQUAL, Separator.OR)
                 .copyOnBuild(true);
 
@@ -46,7 +48,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new Foo("b", now, 1)
         );
 
-        QueryBuilder template = PojoLensCore.newQueryBuilder(source)
+        QueryBuilder template = FluentEngine.newQueryBuilder(source)
                 .addGroup("stringField", 1)
                 .copyOnBuild(true);
 
@@ -68,7 +70,7 @@ public class PojoLensConcurrencyBehaviorTest {
                 new PojoLensBehaviorFixtures.ChildBean(1, "c1")
         );
 
-        QueryBuilder template = PojoLensCore.newQueryBuilder(parents)
+        QueryBuilder template = FluentEngine.newQueryBuilder(parents)
                 .addJoinBeans("id", children, "parentId", Join.LEFT_JOIN)
                 .copyOnBuild(true);
 

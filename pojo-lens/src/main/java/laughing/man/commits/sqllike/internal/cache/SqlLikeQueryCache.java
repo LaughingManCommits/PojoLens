@@ -108,6 +108,10 @@ public final class SqlLikeQueryCache {
         return statsEnabled;
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "The query cache intentionally adopts the provided mutable execution-plan cache."
+    )
     public void setExecutionPlanCacheStore(FilterExecutionPlanCacheStore executionPlanCache) {
         if (executionPlanCache == null) {
             throw new IllegalArgumentException("executionPlanCache must not be null");

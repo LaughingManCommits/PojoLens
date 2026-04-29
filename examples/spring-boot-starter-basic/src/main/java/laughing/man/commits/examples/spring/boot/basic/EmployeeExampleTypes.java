@@ -66,7 +66,9 @@ public final class EmployeeExampleTypes {
     public record RuntimeInfo(boolean strictParameterTypes,
                               boolean lintMode,
                               boolean sqlLikeCacheEnabled,
-                              boolean statsPlanCacheEnabled) {
+                              boolean statsPlanCacheEnabled,
+                              boolean virtualThreadsEnabled,
+                              boolean requestThreadVirtual) {
     }
 
     public record StatsPayload(String view,

@@ -1,13 +1,16 @@
 # Spring Boot Starter Dashboard Example (Advanced)
 
-This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring Boot app and use the auto-configured `PojoLensRuntime` across a full dashboard workflow.
+This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring
+Boot app, keep SQL-like and reusable report flows as the primary authoring
+surface, and let the auto-configured `PojoLensRuntime` supply integration
+defaults across a full dashboard workflow.
 
 For the minimal onboarding path, use:
 `examples/spring-boot-starter-quickstart`.
 
 The example is intentionally split so each file demonstrates one concern:
 - `EmployeeQueryController` stays as the HTTP adapter.
-- `EmployeeDashboardService` owns the PojoLens runtime, reusable stats presets, reusable chart presets, and the report-definition bridge.
+- `EmployeeDashboardService` owns the PojoLens runtime, reusable report definitions, and the advanced stats/chart preset sugar used by the dashboard.
 - `EmployeeStore` keeps the demo self-contained with an in-memory dataset.
 - `static/app.js` and `static/app.css` keep the frontend readable instead of hiding the behavior inside `index.html`.
 
@@ -63,22 +66,35 @@ Inspect runtime starter settings:
 curl "http://localhost:8080/api/employees/runtime"
 ```
 
+## Optional Virtual-Thread Profile
+
+Run the dashboard example with Spring virtual threads enabled:
+
+```bash
+mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml spring-boot:run "-Dspring-boot.run.profiles=virtual"
+```
+
+Treat this as a boundary experiment for HTTP request handling, not as a claim
+that PojoLens core execution gets faster. `/api/employees/runtime` exposes
+`virtualThreadsEnabled` and `requestThreadVirtual`, and the repo now includes a
+dedicated virtual-mode smoke test for this example.
+
 ## What This Demonstrates
 
 - `PojoLensRuntime` is injected by Spring Boot auto-configuration from the starter.
 - Runtime behavior is controlled with `pojo-lens.*` properties.
-- Direct SQL-like endpoints and reusable preset-backed endpoints can coexist in one service.
+- Direct SQL-like endpoints and reusable report/preset-backed endpoints can coexist in one service.
 - The primary dashboard controls are user-facing: stats focus and chart type, not internal implementation modes.
-- `StatsViewPresets` provide table-first reusable query shapes with `schema()` and `totals()`.
-- `ChartQueryPresets` provide chart-first reusable query shapes and can now emit `ChartJsPayload` directly.
-- `preset.reportDefinition().chartJs(...)` shows how to bridge a chart preset into the general report wrapper without custom mapping code.
+- `StatsViewPresets` are advanced table-first convenience factories with `schema()` and `totals()`.
+- `ChartQueryPresets` are advanced chart-first convenience factories and can emit `ChartJsPayload` directly.
+- `preset.reportDefinition().chartJs(...)` shows how to bridge advanced preset sugar back into the general report wrapper without custom mapping code.
 - The frontend consumes Chart.js-ready payloads produced from PojoLens chart models.
 - The selected chart type (`BAR`, `PIE`, `LINE`, `AREA`) is applied to the same PojoLens chart definitions so readers can see how presentation changes without rewriting backend queries.
 - The selected stats view changes the table focus between department payroll, department headcount, top payroll departments, and a compact team summary.
 - The example serves Bootstrap and Chart.js from local app dependencies (`/webjars/...`) instead of runtime CDNs, so the dashboard stays self-contained.
 - The page surfaces frontend/runtime render errors in a visible error panel, and the Playwright suite asserts that the panel stays empty during happy-path flows.
 
-## Why The New API Surface Matters
+## Why The Advanced Preset Sugar Matters
 
 Adding a new chart can now be this small:
 
@@ -110,3 +126,4 @@ Notes:
 - Tests are Java/JUnit based (`com.microsoft.playwright:playwright`) under `src/test/java`.
 - The suite starts the app with `@SpringBootTest(webEnvironment = RANDOM_PORT)` and drives both UI and API coverage against that server.
 - On first run Playwright downloads browser binaries automatically.
+- A lighter virtual-thread smoke test also runs under `src/test/java` to confirm the opt-in `virtual` profile keeps request handling functional.

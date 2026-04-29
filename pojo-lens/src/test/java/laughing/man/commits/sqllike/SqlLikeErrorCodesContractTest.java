@@ -82,6 +82,20 @@ public class SqlLikeErrorCodesContractTest {
     }
 
     @Test
+    public void exposurePolicyErrorsShouldExposeStableCodeAndTroubleshootingLink() {
+        try {
+            PojoLensSql.parse("where salary >= 100000")
+                    .exposurePolicy(QueryExposurePolicy.builder().allowFields("name").build())
+                    .filter(sampleEmployees(), Employee.class);
+            fail("Expected exposure policy error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.EXPOSURE_FIELD_BLOCKED));
+            assertTrue(ex.getMessage().contains(
+                    SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.EXPOSURE_FIELD_BLOCKED)));
+        }
+    }
+
+    @Test
     public void runtimeErrorsShouldExposeStableCodeAndTroubleshootingLink() {
         try {
             PojoLensSql.parse("select name as employeeName where active = true")
@@ -104,6 +118,19 @@ public class SqlLikeErrorCodesContractTest {
             assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.CURSOR_ORDER_REQUIRED));
             assertTrue(ex.getMessage().contains(
                     SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.CURSOR_ORDER_REQUIRED)));
+        }
+    }
+
+    @Test
+    public void pageResultErrorsShouldExposeStableCodeAndTroubleshootingLink() {
+        try {
+            PojoLensSql.parse("where active = true limit 10")
+                    .filterPage(sampleEmployees(), Employee.class);
+            fail("Expected page result error");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED));
+            assertTrue(ex.getMessage().contains(
+                    SqlLikeErrorCodes.troubleshootingLink(SqlLikeErrorCodes.PAGE_ORDER_REQUIRED)));
         }
     }
 

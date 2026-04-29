@@ -1,6 +1,8 @@
 package laughing.man.commits;
 
-import laughing.man.commits.builder.QueryBuilder;
+import laughing.man.commits.internal.FluentEngine;
+
+import laughing.man.commits.internal.builder.QueryBuilder;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.enums.Clauses;
 import laughing.man.commits.enums.Metric;
@@ -27,7 +29,7 @@ public class ExplainToolingTest {
     @Test
     public void fluentExplainShouldIncludePipelineAndCacheMetadata() {
         List<Employee> employees = sampleEmployees();
-        QueryBuilder builder = PojoLensCore.newQueryBuilder(employees)
+        QueryBuilder builder = FluentEngine.newQueryBuilder(employees)
                 .addRule("active", true, Clauses.EQUAL, Separator.AND)
                 .addGroup("department")
                 .addCount("total")
@@ -211,7 +213,7 @@ public class ExplainToolingTest {
                 .computedFields(registry)
                 .explain();
 
-        Map<String, Object> fluentExplain = PojoLensCore.newQueryBuilder(sampleEmployees())
+        Map<String, Object> fluentExplain = FluentEngine.newQueryBuilder(sampleEmployees())
                 .computedFields(registry)
                 .addRule("adjustedSalary", 120000.0, Clauses.BIGGER_EQUAL)
                 .addField("name")
@@ -227,7 +229,7 @@ public class ExplainToolingTest {
         Map<String, Object> sqlExplain = PojoLensSql.parse("select bucket(hireDate,'week','Europe/Amsterdam','sunday') as period, count(*) as total group by period")
                 .explain();
 
-        Map<String, Object> fluentExplain = PojoLensCore.newQueryBuilder(sampleEmployees())
+        Map<String, Object> fluentExplain = FluentEngine.newQueryBuilder(sampleEmployees())
                 .addTimeBucket("hireDate", TimeBucketPreset.week().withZone("Europe/Amsterdam").withWeekStart("sunday"), "period")
                 .addCount("total")
                 .explain();
