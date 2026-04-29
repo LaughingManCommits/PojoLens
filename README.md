@@ -12,7 +12,7 @@ them.
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens</artifactId>
-  <version>2026.04.17.1834</version>
+  <version>2026.04.29.1809</version>
 </dependency>
 ```
 
@@ -34,7 +34,7 @@ Central distribution:
 <dependency>
   <groupId>io.github.laughingmancommits</groupId>
   <artifactId>pojo-lens-spring-boot-starter</artifactId>
-  <version>2026.04.17.1834</version>
+  <version>2026.04.29.1809</version>
 </dependency>
 ```
 
@@ -54,6 +54,20 @@ Runnable example projects:
 - `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
 - `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
 - `examples/spring-boot-starter-risk-console` (JDBC-backed reviewer/demo app with dashboard, reports, and Query Studio showcase)
+
+## Quick Integration
+
+- AI agent or automation: read [AGENTS.md](AGENTS.md) first. It defines the
+  repo workflow, AI memory rules, and required validation steps.
+- New application code: start with one primary authoring mode only:
+  `PojoLensSql`, `PojoLensNatural`, or `TypedQuery`.
+- Reusable business queries: add `ReportDefinition` or `SavedReport` after the
+  authoring path is clear.
+- File-boundary onboarding: use `PojoLensFiles` for CSV, TSV, JSON, or JSONL
+  before normal query execution.
+- Scoped policy or DI integration: add `PojoLensRuntime` only if the host
+  needs runtime defaults, tenant policy, or Spring wiring.
+- Default validation: run `mvn -B -ntp test`.
 
 ## Why PojoLens
 

@@ -2,7 +2,7 @@
 
 ## Repo
 - Java 25 multi-module library with core runtime, Spring Boot integration, and JMH benchmarks.
-- Current release is `2026.04.17.1834`.
+- Current release is `2026.04.29.1809`.
 
 ## Focus
 - `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 `-Pstatic-analysis` gate is clean.
@@ -10,6 +10,7 @@
 - `2026-04-29`: WP23 completed. `TypedQuery` now supports join declarations, grouped aggregates, totals-style metrics, aggregate-output ordering, and `JoinBindings` / `DatasetBundle` execution, explain, and schema reuse on the same surface.
 - `2026-04-29`: WP24 completed. `TypedQuery`/`TypedPredicate` now cover grouped `HAVING`, bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries, rank windows, aggregate window frames via `QueryWindowFrame`, and `QUALIFY` on the same immutable surface.
 - `2026-04-29`: `README.md` is now trimmed to one onboarding route table, quick starts, non-goals, and a short docs map so developers do not have to scan repeated product-surface taxonomy before reaching the correct guide.
+- `2026-04-29`: `README.md` now also includes a short `Quick Integration` section that points AI agents to `AGENTS.md` and keeps the default validation command visible near the top.
 
 ## Verified
 - `2026-04-27`: Full reactor, lint, and static-analysis gates passed after the window fix.
@@ -17,7 +18,7 @@
 - `2026-04-29`: WP23 and WP24 passed focused typed/public-API coverage, full reactor `mvn -B -ntp test`, `mvn -B -ntp -Pstatic-analysis verify -DskipTests`, and `scripts/check-doc-consistency.ps1`.
 
 ## Release
-- Latest cut is `2026.04.17.1834`.
+- Latest cut is `2026.04.29.1809`.
 - Use `RELEASE.md` when the user wants a new cut.
 
 ## Risks

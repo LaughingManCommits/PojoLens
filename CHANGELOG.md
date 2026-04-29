@@ -7,7 +7,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ---
 
-## [Unreleased]
+## [2026.04.29.1809] - 2026-04-29
 
 ### Changed
 
@@ -158,6 +158,8 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `SqlLikeQuery.filterWithPushdown(...)` so host-owned adapters can materialize
   pushed first-phase rows and let PojoLens finish unsupported stages in memory.
   Added `PUSHDOWN` telemetry and JMH coverage for pure in-memory, pushed, and
+
+## [Unreleased]
   split completion paths.
 
 - **Reflection hotspot guardrails** (`STRAT-WP5` first slice) - added

@@ -4,6 +4,7 @@
 
 - `README.md` positions the repository correctly as a POJO-first in-memory query library with SQL-like as the primary public query surface, typed DSL as the Java-owned composition path, controlled plain-English as the guided text alternative, advisory pushdown-readiness metadata for host-owned adapters, and bounded CSV/tree helpers before normal query execution.
 - `README.md` now keeps first-read onboarding route-based and concise: one `Choose A Path` section, one quick-start block, one limits/non-goals section, and one short docs map instead of repeating the same surface taxonomy across multiple sections.
+- `README.md` now includes a short `Quick Integration` section near the top that points AI agents to `AGENTS.md`, keeps humans on the three primary authoring modes, and spells out the default validation command.
 - `README.md`, `docs/entry-points.md`, and `docs/usecases.md` now separate the three primary authoring modes (`PojoLensSql`, `PojoLensNatural`, `TypedQuery`) from reusable contracts, runtime policy, and boundary/workflow helpers.
 - `README.md`, `docs/README.md`, and `docs/product-surface.md` now treat `docs/typed.md` as the dedicated typed authoring guide, while `docs/metamodel.md` stays focused on typed-field generation tooling.
 - `README.md`, `docs/files.md`, and `docs/csv.md` now keep file-boundary onboarding under one `PojoLensFiles` story while leaving `PojoLensCsv` as CSV-only convenience; that shared loader surface now covers CSV, TSV, JSON, and JSONL.
