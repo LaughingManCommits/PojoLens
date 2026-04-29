@@ -54,7 +54,7 @@ what is core, what is convenience, and what is advanced/tooling surface.
 | Pushdown readiness and bridge metadata | `Tooling` | Advisory host-adapter classification for simple SQL-like stages plus materialized-row completion; no database execution or SQL rendering owned by PojoLens | `SqlLikeQuery.pushdownPreview()`, `pushdownRequest()`, `filterWithPushdown(...)`, `SqlLikePushdownPreview`, `SqlLikePushdownMode`, `SqlLikePushdownAdapter`, `SqlLikePushdownResult`, `SqlLikeResultSetAdapter` | `Stable` SQL-like planning and bridge surface | `docs/sql-like.md`, `docs/telemetry.md` |
 | Schema metadata | `Workflow helper` | Deterministic table/chart column metadata for renderers | `schema()`, `TabularSchema`, `TabularColumn` | `Stable` support contract | `docs/tabular-schema.md`, `docs/reports.md`, `docs/stats-presets.md` |
 | Regression and snapshot support | `Tooling` | Regression safety and parity tooling | `QueryRegressionFixture`, `QuerySnapshotFixture`, `FluentSqlLikeParity`, `SnapshotComparison` | `Advanced` tooling surface | `docs/regression-fixtures.md`, `docs/snapshot-comparison.md` |
-| Field metamodel generation | `Tooling` | Typed field constants for query authoring support | `FieldMetamodel`, `FieldMetamodelGenerator` | `Advanced` tooling surface | `docs/metamodel.md` |
+| Build-time generation and catalog validation | `Tooling` | Deterministic codegen and CI validation for typed authoring plus saved-report/query catalogs | `FieldMetamodel`, `FieldMetamodelGenerator`, `MetamodelBatchGenerator`, `MetamodelGenerationRequest`, `SavedReportCatalogValidator`, `SavedReportValidationResult`, `SavedReportCatalogValidationResult`, `ToolingValidationIssue` | `Advanced` tooling surface | `docs/build-tooling.md`, `docs/metamodel.md` |
 | Benchmarking and thresholds | `Tooling` | Performance validation, not runtime product surface | `pojo-lens-benchmarks`, threshold/parity checkers | Tooling only | `docs/benchmarking.md`, `CONTRIBUTING.md` |
 | File-boundary loading | `Compatibility adapter` | Boundary-only loading from CSV/TSV/JSON/JSONL files into typed rows, with optional runtime-owned defaults, explicit row-mapping policy, and load-scoped diagnostics | `PojoLensFiles`, `PojoLensCsv`, `CsvOptions`, `CsvCoercionPolicy`, `CsvLoadResult`, `CsvLoadReport`, `CsvLoadException`, `JsonOptions`, `JsonLoadResult`, `JsonLoadReport`, `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`, `PojoLensRuntime` | `Advanced` adapter surface | `README.md`, `docs/entry-points.md`, `docs/files.md`, `docs/csv.md` |
 | Boundary adapters | `Compatibility adapter` | Explicit conversion for boundary inputs only | `JoinBindings.from(Map)` | `Advanced` adapter surface | `docs/sql-like.md`, `MIGRATION.md` |
@@ -101,8 +101,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
 - `PojoLensJdbc` is a thin Spring integration bridge over `JdbcTemplate` and
   `SqlLikeResultSetAdapter`. It helps materialize rows at a host-owned SQL
   boundary; it does not make PojoLens a database access layer or SQL renderer.
-- Telemetry, cache policy controls, lint mode, regression fixtures, metamodel
-  generation, and benchmarking are useful public features, but they belong to
-  advanced/tooling surface rather than the first-read product story.
+- Telemetry, cache policy controls, lint mode, regression fixtures, build-time
+  metamodel/query tooling, and benchmarking are useful public features, but
+  they belong to advanced/tooling surface rather than the first-read product
+  story.
 
 

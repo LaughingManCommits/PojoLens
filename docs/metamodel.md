@@ -17,8 +17,8 @@ Use `generateTyped(...)` when code-owned typed queries should avoid hand-written
 ## Generate Source
 
 ```java
-import metamodel.pojo.lens.FieldMetamodel;
-import metamodel.pojo.lens.FieldMetamodelGenerator;
+import laughing.man.commits.metamodel.FieldMetamodel;
+import laughing.man.commits.metamodel.FieldMetamodelGenerator;
 
 import java.nio.file.Path;
 
@@ -132,6 +132,30 @@ limit, explain, schema, and execution guards. Keep SQL-like or natural queries
 for grouping, aggregation, joins, windows, subqueries, and user-authored query
 text until those typed shapes are stabilized.
 
+## Batch Generation
+
+When multiple models should be generated in one build step, use
+`MetamodelBatchGenerator` instead of writing your own loop:
+
+```java
+import laughing.man.commits.metamodel.MetamodelBatchGenerator;
+import laughing.man.commits.metamodel.MetamodelGenerationRequest;
+
+import java.nio.file.Path;
+import java.util.List;
+
+MetamodelBatchGenerator.write(
+    Path.of("target/generated-sources/pojo-lens"),
+    List.of(
+        MetamodelGenerationRequest.typed(Employee.class),
+        MetamodelGenerationRequest.strings(
+            DepartmentPayrollRow.class,
+            "com.acme.generated",
+            "DepartmentPayrollFields")
+    )
+);
+```
+
 ## Build Integration
 
 The generator is intentionally library-level rather than annotation-processor-driven.
@@ -143,5 +167,8 @@ That means you can run it from:
 - a test or internal codegen tool
 
 Write generated source into a normal generated-sources directory and add that directory to compilation in the build tool you already use.
+
+For the first-party build-tooling shape, including catalog validation and a
+generated-sources Maven recipe, see [build-tooling.md](build-tooling.md).
 
 

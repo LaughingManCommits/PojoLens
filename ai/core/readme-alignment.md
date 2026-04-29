@@ -17,4 +17,6 @@
 
 ## Current Gap
 
-- `WP25` no longer has a first-read docs gap; the next competitive/docs-adjacent gap is `WP22` build tooling and static validation.
+- `WP22` no longer has a first-read docs gap; the next competitive/docs-adjacent
+  gap is `WP23` typed aggregation and join expansion on the code-owned typed
+  surface.

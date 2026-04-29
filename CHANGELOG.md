@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Changed
 
+- **Metamodel tooling surface consolidation** - moved
+  `MetamodelBatchGenerator`, `MetamodelGenerationMode`,
+  `MetamodelGenerationRequest`, and `MetamodelGenerationResult` into
+  `laughing.man.commits.metamodel` so all metamodel generation stays under one
+  public surface while `laughing.man.commits.tooling` remains validation-only.
+
 - **SpotBugs static-analysis gate** - switched `pojo-lens` `-Pstatic-analysis`
   from the report-only `spotbugs` execution to the build-failing
   `spotbugs:check` goal with `failThreshold=High`, so high-severity
@@ -36,6 +42,19 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Window snapshot schema path** - `RawQueryRow` now reports computed-field-aware names when fields are already materialized, and `FilterQueryBuilder.snapshotForRows` reuses existing execution source types instead of rescanning row schemas. This keeps computed-join semantics intact while trimming the window benchmark path.
 
 ### Added
+
+- **Library-first build tooling** - added
+  `laughing.man.commits.metamodel.MetamodelBatchGenerator`,
+  `MetamodelGenerationRequest`, `MetamodelGenerationResult`,
+  `SavedReportCatalogValidator`, `SavedReportValidationResult`,
+  `SavedReportCatalogValidationResult`, and `ToolingValidationIssue` as the
+  first-party build/CI tooling surface for batch metamodel generation and
+  saved-report/query validation without live data execution.
+
+- **Build tooling guide** - added `docs/build-tooling.md` with the current
+  tooling-shape decision, batch generation examples, saved-report catalog
+  validation examples, a Maven generated-sources recipe, and incremental-build
+  guidance.
 
 - **Unified file-boundary loader surface** - added `PojoLensFiles` plus
   `runtime.files()` / `FileLoadRuntime` as the single public file-boundary

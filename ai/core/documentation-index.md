@@ -18,6 +18,7 @@
 
 ## Feature Reference Docs
 
+- `docs/build-tooling.md`
 - `docs/caching.md`
 - `docs/computed-fields.md`
 - `docs/facets.md`

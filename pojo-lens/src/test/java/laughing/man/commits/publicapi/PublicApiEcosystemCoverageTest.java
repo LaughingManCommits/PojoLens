@@ -17,7 +17,10 @@ import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
+import laughing.man.commits.metamodel.MetamodelBatchGenerator;
+import laughing.man.commits.metamodel.MetamodelGenerationResult;
 import laughing.man.commits.report.ReportDefinition;
+import laughing.man.commits.report.SavedReport;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.table.TabularSchema;
@@ -28,6 +31,8 @@ import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
+import laughing.man.commits.tooling.SavedReportCatalogValidator;
+import laughing.man.commits.tooling.SavedReportValidationResult;
 import laughing.man.commits.testutil.PublicApiModels.ComputedSalaryRow;
 import laughing.man.commits.testutil.PublicApiModels.StatsRow;
 import laughing.man.commits.time.TimeBucketPreset;
@@ -321,6 +326,24 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
 
         assertTrue(sqlReport.supportsJoinSources());
         assertTrue(naturalReport.supportsJoinSources());
+    }
+
+    @Test
+    public void buildToolingShouldBeUsableFromPublicApi(@TempDir Path tempDir) {
+        List<MetamodelGenerationResult> generated =
+                MetamodelBatchGenerator.writeDefaultTyped(tempDir, Employee.class);
+        SavedReportValidationResult validation = SavedReportCatalogValidator.validate(
+                SavedReport.sqlLike(
+                        "dept-count",
+                        "Department count",
+                        "select department, count(*) as total group by department order by department asc"
+                )
+        );
+
+        assertEquals(1, generated.size());
+        assertTrue(Files.exists(generated.get(0).outputPath()));
+        assertTrue(validation.valid());
+        assertEquals("EmployeeTypedFields", generated.get(0).metamodel().simpleName());
     }
 
     @Test

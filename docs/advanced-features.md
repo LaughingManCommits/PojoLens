@@ -131,6 +131,8 @@ Use these when you need safety rails around changing query behavior:
 Use these when you want stronger typed authoring support or build-time
 verification:
 
+- Batch metamodel generation and saved-report/catalog validation:
+  [build-tooling.md](build-tooling.md)
 - Field metamodel generation:
   [metamodel.md](metamodel.md)
 - Benchmark runner and threshold checks:

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T16:39:35.820306+02:00",
+  "generatedAt": "2026-04-29T17:24:05.061120+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 142,
-    "testClasses": 142
+    "testJavaFiles": 144,
+    "testClasses": 144
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 126
+      "testJavaFiles": 128
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -75,7 +75,8 @@
         "pojo-lens/src/test/java/laughing/man/commits/report/SavedReportTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/ChartTestFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/testutil/CommonStatsProjections.java",
-        "pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java"
+        "pojo-lens/src/test/java/laughing/man/commits/testutil/StatsExampleFixtures.java",
+        "pojo-lens/src/test/java/laughing/man/commits/tooling/SavedReportCatalogValidatorTest.java"
       ]
     },
     {
@@ -125,6 +126,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/fluent/package-info.java",
         "pojo-lens/src/test/java/laughing/man/commits/internal/NameSuggestionsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/internal/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/metamodel/MetamodelBatchGeneratorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",

@@ -98,6 +98,8 @@ Runnable example projects:
   [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
 - Need file-boundary loader guidance for CSV/TSV/JSON/JSONL onboarding:
   [docs/files.md](docs/files.md)
+- Need build-time metamodel generation or saved-report validation:
+  [docs/build-tooling.md](docs/build-tooling.md)
 - Need chart/table/schema output-helper guidance after the query or reusable
   contract is clear:
   [docs/output-helpers.md](docs/output-helpers.md)
@@ -148,7 +150,8 @@ chart/table presets remain advanced convenience sugar.
 - `Integration`:
   runtime-scoped configuration and optional Spring Boot wiring.
 - `Tooling`:
-  diagnostics, regression helpers, metamodel generation, and benchmarks.
+  diagnostics, regression helpers, build-time metamodel/query tooling, and
+  benchmarks.
 - `Advanced`:
   optional policy tuning and faster-evolving public helper surfaces.
 

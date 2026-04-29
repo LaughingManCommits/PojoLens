@@ -24,7 +24,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP  | Title                                        | Status  | Key deliverables                                                                      |
 |-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
 | WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
-| WP22| Developer Tooling And Static Validation      | Pending | First-party build integration, metamodel generation, saved-query validation           |
+| WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Pending | Typed joins, grouping, metrics, and dataset parity with SQL-like                      |
 | WP24| Typed DSL Advanced Analytics                 | Pending | Typed HAVING/window/subquery design and staged parity-backed rollout                  |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
@@ -99,16 +99,16 @@ generation and query-validation hooks.
   build integration does not bake in avoidable naming churn.
 
 **Tasks:**
-- [ ] Decide the first-party build integration shape: Maven plugin, Gradle task
+- [x] Decide the first-party build integration shape: Maven plugin, Gradle task
       recipe, annotation processor, or a staged combination.
-- [ ] Add automated metamodel generation for typed-field and string-field
+- [x] Add automated metamodel generation for typed-field and string-field
       constants without requiring handwritten driver code.
-- [ ] Add build-time validation for `SavedReport` catalogs and config-owned
+- [x] Add build-time validation for `SavedReport` catalogs and config-owned
       SQL-like/natural query text using diagnostics/plan preview without live
       data execution.
-- [ ] Emit deterministic machine-readable diagnostics that can fail CI with
+- [x] Emit deterministic machine-readable diagnostics that can fail CI with
       stable error contracts.
-- [ ] Ship at least one documented build integration example, including
+- [x] Ship at least one documented build integration example, including
       generated-sources wiring and incremental-build behavior.
 
 **Validate:**

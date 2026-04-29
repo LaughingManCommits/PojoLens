@@ -232,7 +232,8 @@ The following remain public, but are treated as advanced:
 - the Spring/JDBC bridge helper `PojoLensJdbc`
 - `SnapshotComparison`, regression fixtures, parity helpers, and other testing
   support
-- metamodel generation beyond the stable typed-field generator entry point
+- metamodel batch generation, saved-report catalog validation, and related
+  build-tooling result types
 - benchmark tooling and threshold helpers
 
 ## Internal Engine DSL
