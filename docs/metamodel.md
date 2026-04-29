@@ -156,9 +156,10 @@ declarations, `JoinBindings` / `DatasetBundle` execution, grouped aggregates,
 grouped `HAVING` over grouped fields and metric aliases, rank windows,
 aggregate window outputs, `QUALIFY` over selected window aliases,
 totals-style metrics, explicit aggregate window frames via `QueryWindowFrame`,
-ordering, offset, limit, explain, schema, and execution guards. Keep
-SQL-like or natural queries for typed subqueries and user-authored query text
-until those shapes are stabilized.
+bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or an
+explicit source list, ordering, offset, limit, explain, schema, and
+execution guards. Keep SQL-like or natural queries for user-authored query
+text plus correlated/scalar subqueries and broader named-source planning.
 
 ## Batch Generation
 

@@ -1,6 +1,7 @@
 package laughing.man.commits.dsl;
 
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -32,6 +33,7 @@ public class TypedPredicateContractTest {
     private static final TypedField<Employee, String> NAME = TypedField.of("name", String.class);
     private static final TypedField<Employee, Integer> SALARY = TypedField.of("salary", Integer.class);
     private static final TypedField<Employee, Boolean> ACTIVE = TypedField.of("active", Boolean.class);
+    private static final TypedField<CompanyEmployee, Integer> COMPANY_ID = TypedField.of("companyId", Integer.class);
 
     // --- Public API surface contract ---
 
@@ -55,6 +57,18 @@ public class TypedPredicateContractTest {
         requirePublicStaticMethod(TypedPredicate.class, "isNull", TypedField.class);
         requirePublicStaticMethod(TypedPredicate.class, "isNotNull", TypedField.class);
         requirePublicStaticMethod(TypedPredicate.class, "in", TypedField.class, Collection.class);
+        requirePublicStaticMethod(TypedPredicate.class, "inSubquery",
+                TypedField.class, TypedField.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "inSubquery",
+                TypedField.class, TypedField.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", Class.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", Class.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
     }
@@ -70,6 +84,8 @@ public class TypedPredicateContractTest {
         requirePublicMethod(TypedField.class, "in", Collection.class);
         requirePublicMethod(TypedField.class, "isNull");
         requirePublicMethod(TypedField.class, "isNotNull");
+        requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
+        requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
     }
 
     // --- Leaf predicate behavior ---
@@ -126,6 +142,45 @@ public class TypedPredicateContractTest {
         TypedPredicate<Employee> p = SALARY.in(List.of(90_000, 110_000, 130_000));
         assertEquals(IN, p.operator());
         assertEquals(List.of(90_000, 110_000, 130_000), p.values());
+    }
+
+    @Test
+    void inSubqueryPredicateCarriesTargetFieldAndNoScalarValue() {
+        TypedPredicate<Employee> p = NAME.inSubquery(
+                NAME,
+                TypedQuery.from(Employee.class).where(ACTIVE.eq(true))
+        );
+
+        assertTrue(p.isLeaf());
+        assertEquals(TypedPredicate.Operator.IN_SUBQUERY, p.operator());
+        assertSame(NAME, p.field());
+        assertNull(p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void existsPredicateCarriesNoTargetField() {
+        TypedPredicate<Employee> p = TypedPredicate.exists(
+                TypedQuery.from(Employee.class).where(ACTIVE.eq(true))
+        );
+
+        assertTrue(p.isLeaf());
+        assertEquals(TypedPredicate.Operator.EXISTS, p.operator());
+        assertNull(p.field());
+        assertNull(p.value());
+        assertTrue(p.values().isEmpty());
+    }
+
+    @Test
+    void explicitSourceSubqueryPredicateCarriesCorrectOperator() {
+        TypedPredicate<Employee> p = SALARY.inSubquery(
+                COMPANY_ID,
+                List.of(new CompanyEmployee(1, "Engineer")),
+                TypedQuery.from(CompanyEmployee.class)
+        );
+
+        assertEquals(TypedPredicate.Operator.IN_SUBQUERY, p.operator());
+        assertSame(SALARY, p.field());
     }
 
     // --- Compound predicate behavior ---
@@ -209,6 +264,13 @@ public class TypedPredicateContractTest {
     @Test
     void emptyInCollectionThrowsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () -> NAME.in(List.of()));
+    }
+
+    @Test
+    void nullSubqueryInputsThrow() {
+        assertThrows(NullPointerException.class, () -> NAME.inSubquery(NAME, (TypedQuery<Employee>) null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.exists((TypedQuery<Employee>) null));
+        assertThrows(NullPointerException.class, () -> TypedPredicate.notExists((TypedQuery<Employee>) null));
     }
 
     @Test

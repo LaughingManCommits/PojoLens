@@ -26,7 +26,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
-| WP24| Typed DSL Advanced Analytics                 | In Progress | Typed `HAVING`, windows, `QUALIFY`, and aggregate window frames landed; typed subquery design and staged parity-backed rollout pending |
+| WP24| Typed DSL Advanced Analytics                 | Completed | Typed `HAVING`, windows, bounded subqueries, `QUALIFY`, and aggregate window frames now share one `TypedQuery`/`TypedPredicate` story |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
@@ -172,13 +172,13 @@ aggregation foundation is stable.
       parallel window-query wrapper.
 - [x] Decide whether bounded/public window-frame configuration belongs on
       `TypedQuery` or remains text-only.
-- [ ] Evaluate bounded typed subquery and existence predicates against API
+- [x] Evaluate bounded typed subquery and existence predicates against API
       readability, error reporting, and generic-type weight.
-- [ ] Keep user-authored text flows on SQL-like/natural while extending typed
+- [x] Keep user-authored text flows on SQL-like/natural while extending typed
       composition only where code-owned queries clearly benefit.
-- [ ] Stage rollout behind parity tests and usage docs so the typed surface
+- [x] Stage rollout behind parity tests and usage docs so the typed surface
       grows in one direction instead of fragmenting.
-- [ ] Decide and document any advanced shapes that should remain text-only even
+- [x] Decide and document any advanced shapes that should remain text-only even
       after the typed expansion work.
 
 **Validate:**

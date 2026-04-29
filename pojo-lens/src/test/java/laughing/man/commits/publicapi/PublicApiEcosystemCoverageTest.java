@@ -16,6 +16,7 @@ import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.dsl.TypedWindowOrder;
 import laughing.man.commits.enums.Join;
@@ -450,6 +451,34 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals("Engineering", rows.get(0).department);
         assertEquals("Cara", rows.get(0).name);
         assertEquals(1L, rows.get(0).rn);
+    }
+
+    @Test
+    public void typedQueryShouldSupportBoundedSubqueriesFromPublicApi() {
+        TypedField<Employee, String> name = TypedField.of("name", String.class);
+        TypedField<Employee, String> department = TypedField.of("department", String.class);
+        TypedField<Employee, Boolean> active = TypedField.of("active", Boolean.class);
+        TypedField<Employee, Integer> salary = TypedField.of("salary", Integer.class);
+
+        List<String> rows = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.anyOf(
+                        TypedPredicate.exists(
+                                Employee.class,
+                                TypedQuery.from(Employee.class).where(department.eq("Missing"))
+                        ),
+                        name.inSubquery(
+                                name,
+                                TypedQuery.from(Employee.class)
+                                        .where(active.eq(true).and(salary.gte(120_000)))
+                        )
+                ))
+                .orderBy(name)
+                .filter(sampleEmployees())
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        assertEquals(List.of("Alice", "Cara"), rows);
     }
 
     @Test

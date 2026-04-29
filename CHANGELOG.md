@@ -55,6 +55,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   surface without introducing a second frame DSL. Typed subqueries remain
   deferred.
 
+- **TypedQuery bounded subqueries** - typed predicates now support bounded
+  `IN` / `EXISTS` / `NOT EXISTS` composition over the same source or an
+  explicit source list, reusing the existing grouped-predicate lowering path
+  instead of adding a second typed query builder. Correlated/scalar
+  subqueries and broader named-source planning remain on the text surfaces.
+
 - **TypedQuery HAVING slice** - added `TypedQuery.having(...)` plus grouped
   output validation so code-owned typed queries can filter grouped fields and
   metric aliases on the same immutable surface used for joins and aggregates.

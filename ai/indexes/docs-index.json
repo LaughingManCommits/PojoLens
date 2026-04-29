@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T18:45:24.789140+02:00",
+  "generatedAt": "2026-04-29T19:02:24.355642+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -79,7 +79,7 @@
       "relevance": "medium",
       "loadTier": "cold",
       "lineCount": 24,
-      "byteCount": 2117,
+      "byteCount": 2157,
       "coldSearchEligible": true
     },
     {
@@ -169,7 +169,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 27,
-      "byteCount": 1988,
+      "byteCount": 1902,
       "coldSearchEligible": true
     },
     {
@@ -178,7 +178,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 31,
-      "byteCount": 2546,
+      "byteCount": 2643,
       "coldSearchEligible": true
     },
     {
@@ -267,8 +267,8 @@
       "category": "product-doc",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 139,
-      "byteCount": 8647,
+      "lineCount": 141,
+      "byteCount": 8817,
       "coldSearchEligible": true
     },
     {
@@ -312,8 +312,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 202,
-      "byteCount": 6018,
+      "lineCount": 203,
+      "byteCount": 6130,
       "coldSearchEligible": true
     },
     {
@@ -357,8 +357,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 309,
-      "byteCount": 11784,
+      "lineCount": 311,
+      "byteCount": 12013,
       "coldSearchEligible": true
     },
     {
@@ -466,7 +466,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 420,
-      "byteCount": 14859,
+      "byteCount": 14910,
       "coldSearchEligible": true
     },
     {
@@ -493,7 +493,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 400,
-      "byteCount": 18277,
+      "byteCount": 18297,
       "coldSearchEligible": true
     },
     {
@@ -511,7 +511,7 @@
       "relevance": "high",
       "loadTier": null,
       "lineCount": 249,
-      "byteCount": 11344,
+      "byteCount": 11341,
       "coldSearchEligible": true
     }
   ]

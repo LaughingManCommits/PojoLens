@@ -17,8 +17,8 @@
 
 ## Current Gap
 
-- `WP24` is still the next competitive/docs-adjacent gap, but the remaining
-  boundary is narrower now: the typed surface has joins, grouped aggregates,
-  grouped `HAVING`, rank windows, aggregate window frames, and `QUALIFY`;
-  typed subquery/existence composition is still deferred to SQL-like or
-  natural entry points.
+- `WP24` is closed. The typed surface now covers joins, grouped aggregates,
+  grouped `HAVING`, bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries, rank
+  windows, aggregate window frames, and `QUALIFY`. The remaining deliberate
+  typed boundary is that correlated/scalar subqueries and broader
+  user-authored text flows stay on SQL-like or natural entry points.

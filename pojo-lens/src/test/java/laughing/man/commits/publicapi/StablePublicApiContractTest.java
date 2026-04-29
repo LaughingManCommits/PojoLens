@@ -539,6 +539,8 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedField.class, "in", java.util.Collection.class);
         requirePublicMethod(TypedField.class, "isNull");
         requirePublicMethod(TypedField.class, "isNotNull");
+        requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, TypedQuery.class);
+        requirePublicMethod(TypedField.class, "inSubquery", TypedField.class, List.class, TypedQuery.class);
 
         requirePublicMethod(TypedPredicate.class, "operator");
         requirePublicMethod(TypedPredicate.class, "field");
@@ -549,6 +551,18 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedPredicate.class, "and", TypedPredicate.class);
         requirePublicMethod(TypedPredicate.class, "or", TypedPredicate.class);
         requirePublicMethod(TypedPredicate.class, "not");
+        requirePublicStaticMethod(TypedPredicate.class, "inSubquery",
+                TypedField.class, TypedField.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "inSubquery",
+                TypedField.class, TypedField.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", Class.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "exists", Class.class, List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", List.class, TypedQuery.class);
+        requirePublicStaticMethod(TypedPredicate.class, "notExists", Class.class, List.class, TypedQuery.class);
         requirePublicStaticMethod(TypedPredicate.class, "allOf", TypedPredicate[].class);
         requirePublicStaticMethod(TypedPredicate.class, "anyOf", TypedPredicate[].class);
 

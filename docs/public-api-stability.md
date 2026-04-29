@@ -181,10 +181,10 @@ The default first-read story is SQL-like first:
 
 - `TypedField<T,V>`:
   - `of`, `fieldName`, `valueType`
-  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `isNull`, `isNotNull`
+  - predicate factories: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `inSubquery`, `isNull`, `isNotNull`
 - `TypedPredicate<T>`:
   - `operator`, `field`, `value`, `values`, `children`, `isLeaf`
-  - combinators: `and`, `or`, `not`, `allOf`, `anyOf`
+  - combinators/factories: `and`, `or`, `not`, `allOf`, `anyOf`, `inSubquery`, `exists`, `notExists`
 - `TypedQuery<T>`:
   - `from`, `select`, `where`, `join`, `groupBy`, `count`, `metric`, `having`, `window`, `windowCountAll`, `qualify`, `orderBy`, `orderByDesc`, `limit`, `offset`
   - `executionGuard`, `filter`, `explain`, `schema`
@@ -193,9 +193,11 @@ The default first-read story is SQL-like first:
     `HAVING` over grouped fields and metric aliases, rank windows, aggregate
     window outputs, `QUALIFY` over selected window aliases, totals-style
     metrics, explicit aggregate window frames via `QueryWindowFrame`,
-    ordering, offset, limit, explain/schema, and
+    bounded `IN` / `EXISTS` / `NOT EXISTS` subqueries over the same source or
+    an explicit source list, ordering, offset, limit, explain/schema, and
     row-scan/row-return/duration/cancellation guard checks
-  - typed subqueries are deferred
+  - correlated/scalar subqueries and broader named-source planning remain on
+    the text surfaces
 - `TypedWindowOrder`:
   - `asc`, `desc`, `fieldName`, `sort`
 - `FieldMetamodelGenerator.generateTyped(...)`

@@ -43,7 +43,6 @@ import java.util.Objects;
  *   <li>Sort direction is global - the last {@code orderByDesc} or {@code orderBy} call wins.</li>
  *   <li>{@code NOT} predicates are not supported; use negated operators ({@code ne}, {@code lte},
  *       {@code isNotNull}) instead.</li>
- *   <li>Typed subqueries are not part of this foundation surface.</li>
  *   <li>Explicit window-frame configuration is available only for aggregate
  *       windows and {@code COUNT(*)}; rank windows keep their default
  *       semantics.</li>
@@ -580,10 +579,17 @@ public final class TypedQuery<T> {
 
     private QueryBuilder configuredBuilder(List<?> rows, JoinBindings joinBindings) {
         QueryBuilder builder = FluentEngine.newQueryBuilder(rows);
+        applyToBuilder(builder, joinBindings);
+        return builder;
+    }
+
+    void applyToBuilder(QueryBuilder builder, JoinBindings joinBindings) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(joinBindings, "joinBindings must not be null");
         validateQueryShape();
         applyJoins(builder, joinBindings);
         applySelect(builder);
-        applyWhere(builder);
+        applyWhere(builder, joinBindings);
         applyGroupBy(builder);
         applyMetrics(builder);
         applyHaving(builder);
@@ -592,7 +598,6 @@ public final class TypedQuery<T> {
         applyOrderBy(builder);
         applyLimit(builder);
         applyOffset(builder);
-        return builder;
     }
 
     private Filter preparedFilter(QueryBuilder builder) {
@@ -626,9 +631,9 @@ public final class TypedQuery<T> {
         }
     }
 
-    private void applyWhere(QueryBuilder builder) {
+    private void applyWhere(QueryBuilder builder, JoinBindings joinBindings) {
         if (wherePredicate != null) {
-            List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(wherePredicate);
+            List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(wherePredicate, joinBindings);
             for (List<QueryRule> conjunction : disjunction) {
                 builder.allOf(conjunction.toArray(new QueryRule[0]));
             }
@@ -639,7 +644,7 @@ public final class TypedQuery<T> {
         if (havingPredicate == null) {
             return;
         }
-        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(havingPredicate);
+        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(havingPredicate, JoinBindings.empty());
         for (List<QueryRule> conjunction : disjunction) {
             builder.addHavingAllOf(conjunction.toArray(new QueryRule[0]));
         }
@@ -667,7 +672,7 @@ public final class TypedQuery<T> {
         if (qualifyPredicate == null) {
             return;
         }
-        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(qualifyPredicate);
+        List<List<QueryRule>> disjunction = toDisjunctiveNormalForm(qualifyPredicate, JoinBindings.empty());
         for (List<QueryRule> conjunction : disjunction) {
             builder.addQualifyAllOf(conjunction.toArray(new QueryRule[0]));
         }
@@ -714,6 +719,7 @@ public final class TypedQuery<T> {
                             + "grouped output is derived from group and metric definitions."
             );
         }
+        validateWhereSubqueryShape();
         validateHavingShape();
         validateWindowShape();
         validateQualifyShape();
@@ -726,6 +732,11 @@ public final class TypedQuery<T> {
     private void validateHavingShape() {
         if (havingPredicate == null) {
             return;
+        }
+        if (containsSubqueryPredicate(havingPredicate)) {
+            throw new IllegalStateException(
+                    "TypedQuery subquery predicates are only supported in where(...)."
+            );
         }
         if (!hasGroupBy() && !hasMetrics()) {
             throw new IllegalStateException(
@@ -761,6 +772,11 @@ public final class TypedQuery<T> {
         if (qualifyPredicate == null) {
             return;
         }
+        if (containsSubqueryPredicate(qualifyPredicate)) {
+            throw new IllegalStateException(
+                    "TypedQuery subquery predicates are only supported in where(...)."
+            );
+        }
         if (windows.isEmpty()) {
             throw new IllegalStateException(
                     "TypedQuery qualify(...) requires at least one window output."
@@ -777,6 +793,30 @@ public final class TypedQuery<T> {
                                 + "' must match a selected window output alias."
                 );
             }
+        }
+    }
+
+    private void validateWhereSubqueryShape() {
+        if (wherePredicate == null || !containsSubqueryPredicate(wherePredicate)) {
+            return;
+        }
+        validateSubqueryLeaves(wherePredicate);
+    }
+
+    private static void validateSubqueryLeaves(TypedPredicate<?> predicate) {
+        if (predicate == null) {
+            return;
+        }
+        if (predicate.hasSubqueryDescriptor()) {
+            if (predicate.operator() == TypedPredicate.Operator.IN_SUBQUERY && predicate.field() == null) {
+                throw new IllegalStateException(
+                        "TypedQuery IN subquery predicates require a target field."
+                );
+            }
+            return;
+        }
+        for (TypedPredicate<?> child : predicate.children()) {
+            validateSubqueryLeaves(child);
         }
     }
 
@@ -846,27 +886,29 @@ public final class TypedQuery<T> {
                 orderByFieldNames, sortDirection, limit, offset, executionGuard);
     }
 
-    private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node) {
+    private static <T> List<List<QueryRule>> toDisjunctiveNormalForm(TypedPredicate<T> node,
+                                                                     JoinBindings joinBindings) {
         switch (node.operator()) {
             case AND -> {
-                return combineAnd(node.children());
+                return combineAnd(node.children(), joinBindings);
             }
             case OR -> {
-                return combineOr(node.children());
+                return combineOr(node.children(), joinBindings);
             }
             case NOT -> throw new UnsupportedOperationException(
                     "NOT predicates are not supported in TypedQuery. "
                     + "Use negated operators (ne, lte, gte, isNotNull) instead.");
             default -> {
-                return List.of(List.of(toQueryRule(node)));
+                return List.of(List.of(toQueryRule(node, joinBindings)));
             }
         }
     }
 
-    private static <T> List<List<QueryRule>> combineAnd(List<TypedPredicate<T>> children) {
+    private static <T> List<List<QueryRule>> combineAnd(List<TypedPredicate<T>> children,
+                                                        JoinBindings joinBindings) {
         List<List<QueryRule>> result = List.of(List.of());
         for (TypedPredicate<T> child : children) {
-            List<List<QueryRule>> childGroups = toDisjunctiveNormalForm(child);
+            List<List<QueryRule>> childGroups = toDisjunctiveNormalForm(child, joinBindings);
             List<List<QueryRule>> combined = new ArrayList<>(result.size() * childGroups.size());
             for (List<QueryRule> left : result) {
                 for (List<QueryRule> right : childGroups) {
@@ -881,16 +923,17 @@ public final class TypedQuery<T> {
         return result;
     }
 
-    private static <T> List<List<QueryRule>> combineOr(List<TypedPredicate<T>> children) {
+    private static <T> List<List<QueryRule>> combineOr(List<TypedPredicate<T>> children,
+                                                       JoinBindings joinBindings) {
         List<List<QueryRule>> result = new ArrayList<>();
         for (TypedPredicate<T> child : children) {
-            result.addAll(toDisjunctiveNormalForm(child));
+            result.addAll(toDisjunctiveNormalForm(child, joinBindings));
         }
         return List.copyOf(result);
     }
 
-    private static <T> QueryRule toQueryRule(TypedPredicate<T> leaf) {
-        String field = leaf.field().fieldName();
+    private static <T> QueryRule toQueryRule(TypedPredicate<T> leaf, JoinBindings joinBindings) {
+        String field = leaf.field() == null ? null : leaf.field().fieldName();
         return switch (leaf.operator()) {
             case EQ -> QueryRule.of(field, leaf.value(), Clauses.EQUAL);
             case NE -> QueryRule.of(field, leaf.value(), Clauses.NOT_EQUAL);
@@ -901,9 +944,49 @@ public final class TypedQuery<T> {
             case IN -> QueryRule.of(field, leaf.values(), Clauses.IN);
             case IS_NULL -> QueryRule.of(field, null, Clauses.EQUAL);
             case IS_NOT_NULL -> QueryRule.of(field, null, Clauses.NOT_EQUAL);
+            case IN_SUBQUERY -> toInSubqueryRule(leaf, joinBindings);
+            case EXISTS -> toExistsRule(leaf, joinBindings, false);
+            case NOT_EXISTS -> toExistsRule(leaf, joinBindings, true);
             default -> throw new UnsupportedOperationException(
                     "Unexpected leaf operator: " + leaf.operator());
         };
+    }
+
+    private static <T> QueryRule toInSubqueryRule(TypedPredicate<T> leaf, JoinBindings inheritedJoinBindings) {
+        TypedPredicate.TypedSubqueryDescriptor descriptor = leaf.subqueryDescriptor();
+        if (descriptor.explicitSource()) {
+            return QueryRule.inSubquery(
+                    leaf.field().fieldName(),
+                    descriptor.sourceRows(),
+                    descriptor.outputField(),
+                    builder -> descriptor.subquery().applyToBuilder(builder, JoinBindings.empty())
+            );
+        }
+        return QueryRule.inSubquery(
+                leaf.field().fieldName(),
+                descriptor.outputField(),
+                builder -> descriptor.subquery().applyToBuilder(builder, inheritedJoinBindings)
+        );
+    }
+
+    private static QueryRule toExistsRule(TypedPredicate<?> leaf,
+                                          JoinBindings inheritedJoinBindings,
+                                          boolean negated) {
+        TypedPredicate.TypedSubqueryDescriptor descriptor = leaf.subqueryDescriptor();
+        if (descriptor.explicitSource()) {
+            return negated
+                    ? QueryRule.notExists(
+                    descriptor.sourceRows(),
+                    builder -> descriptor.subquery().applyToBuilder(builder, JoinBindings.empty())
+            )
+                    : QueryRule.exists(
+                    descriptor.sourceRows(),
+                    builder -> descriptor.subquery().applyToBuilder(builder, JoinBindings.empty())
+            );
+        }
+        return negated
+                ? QueryRule.notExists(builder -> descriptor.subquery().applyToBuilder(builder, inheritedJoinBindings))
+                : QueryRule.exists(builder -> descriptor.subquery().applyToBuilder(builder, inheritedJoinBindings));
     }
 
     private static List<String> referencedFields(TypedPredicate<?> predicate) {
@@ -913,13 +996,34 @@ public final class TypedQuery<T> {
     }
 
     private static void collectReferencedFields(TypedPredicate<?> predicate, List<String> fieldNames) {
+        if (predicate == null) {
+            return;
+        }
         if (predicate.isLeaf()) {
+            if (predicate.field() == null) {
+                return;
+            }
             fieldNames.add(predicate.field().fieldName());
             return;
         }
         for (TypedPredicate<?> child : predicate.children()) {
             collectReferencedFields(child, fieldNames);
         }
+    }
+
+    private static boolean containsSubqueryPredicate(TypedPredicate<?> predicate) {
+        if (predicate == null) {
+            return false;
+        }
+        if (predicate.hasSubqueryDescriptor()) {
+            return true;
+        }
+        for (TypedPredicate<?> child : predicate.children()) {
+            if (containsSubqueryPredicate(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private record TypedJoin(String sourceName,

@@ -17,6 +17,7 @@ public final class TypedPredicate<T> {
 
     public enum Operator {
         EQ, NE, GT, GTE, LT, LTE, IN, IS_NULL, IS_NOT_NULL,
+        IN_SUBQUERY, EXISTS, NOT_EXISTS,
         AND, OR, NOT
     }
 
@@ -25,17 +26,20 @@ public final class TypedPredicate<T> {
     private final Object value;
     private final List<Object> values;
     private final List<TypedPredicate<T>> children;
+    private final TypedSubqueryDescriptor subquery;
 
     private TypedPredicate(Operator operator,
-                            TypedField<T, ?> field,
-                            Object value,
-                            List<Object> values,
-                            List<TypedPredicate<T>> children) {
+                           TypedField<T, ?> field,
+                           Object value,
+                           List<Object> values,
+                           List<TypedPredicate<T>> children,
+                           TypedSubqueryDescriptor subquery) {
         this.operator = operator;
         this.field = field;
         this.value = value;
         this.values = values == null ? List.of() : new ArrayList<>(values);
         this.children = children == null ? List.of() : new ArrayList<>(children);
+        this.subquery = subquery;
     }
 
     // --- Accessors ---
@@ -44,7 +48,7 @@ public final class TypedPredicate<T> {
         return operator;
     }
 
-    /** Non-null for leaf predicates; null for compound (AND/OR/NOT). */
+    /** Non-null for scalar leaves and IN-subquery target fields; null for compound and EXISTS leaves. */
     public TypedField<T, ?> field() {
         return field;
     }
@@ -122,12 +126,12 @@ public final class TypedPredicate<T> {
 
     public static <T> TypedPredicate<T> isNull(TypedField<T, ?> field) {
         requireField(field);
-        return new TypedPredicate<>(Operator.IS_NULL, field, null, List.of(), List.of());
+        return new TypedPredicate<>(Operator.IS_NULL, field, null, List.of(), List.of(), null);
     }
 
     public static <T> TypedPredicate<T> isNotNull(TypedField<T, ?> field) {
         requireField(field);
-        return new TypedPredicate<>(Operator.IS_NOT_NULL, field, null, List.of(), List.of());
+        return new TypedPredicate<>(Operator.IS_NOT_NULL, field, null, List.of(), List.of(), null);
     }
 
     // --- Static IN factories ---
@@ -140,7 +144,7 @@ public final class TypedPredicate<T> {
             throw new IllegalArgumentException("in() requires at least one value");
         }
         return new TypedPredicate<>(Operator.IN, field, null,
-                asObjectList(Arrays.asList(values)), List.of());
+                asObjectList(Arrays.asList(values)), List.of(), null);
     }
 
     public static <T, V> TypedPredicate<T> in(TypedField<T, V> field, Collection<? extends V> values) {
@@ -149,7 +153,113 @@ public final class TypedPredicate<T> {
         if (values.isEmpty()) {
             throw new IllegalArgumentException("in() requires at least one value");
         }
-        return new TypedPredicate<>(Operator.IN, field, null, asObjectList(values), List.of());
+        return new TypedPredicate<>(Operator.IN, field, null, asObjectList(values), List.of(), null);
+    }
+
+    public static <T, V> TypedPredicate<T> inSubquery(TypedField<T, V> field,
+                                                      TypedField<T, ? extends V> subqueryOutputField,
+                                                      TypedQuery<T> subquery) {
+        requireField(field);
+        requireField(subqueryOutputField);
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.IN_SUBQUERY,
+                field,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.selfSource(subqueryOutputField.fieldName(), subquery)
+        );
+    }
+
+    public static <T, V, S> TypedPredicate<T> inSubquery(TypedField<T, V> field,
+                                                         TypedField<S, ? extends V> subqueryOutputField,
+                                                         List<S> subqueryRows,
+                                                         TypedQuery<S> subquery) {
+        requireField(field);
+        requireField(subqueryOutputField);
+        Objects.requireNonNull(subqueryRows, "subqueryRows must not be null");
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.IN_SUBQUERY,
+                field,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.explicitSource(subqueryOutputField.fieldName(), subqueryRows, subquery)
+        );
+    }
+
+    public static <T> TypedPredicate<T> exists(TypedQuery<T> subquery) {
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.EXISTS,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.selfSource(null, subquery)
+        );
+    }
+
+    public static <T> TypedPredicate<T> exists(Class<T> rowType, TypedQuery<T> subquery) {
+        Objects.requireNonNull(rowType, "rowType must not be null");
+        return exists(subquery);
+    }
+
+    public static <T, S> TypedPredicate<T> exists(List<S> subqueryRows, TypedQuery<S> subquery) {
+        Objects.requireNonNull(subqueryRows, "subqueryRows must not be null");
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.EXISTS,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.explicitSource(null, subqueryRows, subquery)
+        );
+    }
+
+    public static <T, S> TypedPredicate<T> exists(Class<T> rowType, List<S> subqueryRows, TypedQuery<S> subquery) {
+        Objects.requireNonNull(rowType, "rowType must not be null");
+        return exists(subqueryRows, subquery);
+    }
+
+    public static <T> TypedPredicate<T> notExists(TypedQuery<T> subquery) {
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.NOT_EXISTS,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.selfSource(null, subquery)
+        );
+    }
+
+    public static <T> TypedPredicate<T> notExists(Class<T> rowType, TypedQuery<T> subquery) {
+        Objects.requireNonNull(rowType, "rowType must not be null");
+        return notExists(subquery);
+    }
+
+    public static <T, S> TypedPredicate<T> notExists(List<S> subqueryRows, TypedQuery<S> subquery) {
+        Objects.requireNonNull(subqueryRows, "subqueryRows must not be null");
+        Objects.requireNonNull(subquery, "subquery must not be null");
+        return new TypedPredicate<>(
+                Operator.NOT_EXISTS,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                TypedSubqueryDescriptor.explicitSource(null, subqueryRows, subquery)
+        );
+    }
+
+    public static <T, S> TypedPredicate<T> notExists(Class<T> rowType,
+                                                     List<S> subqueryRows,
+                                                     TypedQuery<S> subquery) {
+        Objects.requireNonNull(rowType, "rowType must not be null");
+        return notExists(subqueryRows, subquery);
     }
 
     // --- Static compound factories (allOf/anyOf avoids name conflict with instance and/or) ---
@@ -172,14 +282,24 @@ public final class TypedPredicate<T> {
         return compound(Operator.OR, copyPredicateList(predicates));
     }
 
+    // --- Package-private helpers used by TypedQuery lowering ---
+
+    boolean hasSubqueryDescriptor() {
+        return subquery != null;
+    }
+
+    TypedSubqueryDescriptor subqueryDescriptor() {
+        return subquery;
+    }
+
     // --- Private helpers ---
 
     private static <T, V> TypedPredicate<T> scalar(Operator op, TypedField<T, V> field, V value) {
-        return new TypedPredicate<>(op, field, value, List.of(), List.of());
+        return new TypedPredicate<>(op, field, value, List.of(), List.of(), null);
     }
 
     private static <T> TypedPredicate<T> compound(Operator op, List<TypedPredicate<T>> children) {
-        return new TypedPredicate<>(op, null, null, List.of(), children);
+        return new TypedPredicate<>(op, null, null, List.of(), children, null);
     }
 
     private static List<Object> asObjectList(Collection<?> source) {
@@ -188,9 +308,9 @@ public final class TypedPredicate<T> {
 
     private static <T> List<TypedPredicate<T>> copyPredicateList(TypedPredicate<T>[] predicates) {
         List<TypedPredicate<T>> list = new ArrayList<>(predicates.length);
-        for (TypedPredicate<T> p : predicates) {
-            Objects.requireNonNull(p, "predicate element must not be null");
-            list.add(p);
+        for (TypedPredicate<T> predicate : predicates) {
+            Objects.requireNonNull(predicate, "predicate element must not be null");
+            list.add(predicate);
         }
         return Collections.unmodifiableList(list);
     }
@@ -203,6 +323,49 @@ public final class TypedPredicate<T> {
         Objects.requireNonNull(predicates, "predicates must not be null for " + method);
         if (predicates.length == 0) {
             throw new IllegalArgumentException(method + "() requires at least one predicate");
+        }
+    }
+
+    static final class TypedSubqueryDescriptor {
+        private final String outputField;
+        private final List<?> sourceRows;
+        private final boolean explicitSource;
+        private final TypedQuery<?> subquery;
+
+        private TypedSubqueryDescriptor(String outputField,
+                                        List<?> sourceRows,
+                                        boolean explicitSource,
+                                        TypedQuery<?> subquery) {
+            this.outputField = outputField;
+            this.sourceRows = sourceRows == null ? List.of() : List.copyOf(sourceRows);
+            this.explicitSource = explicitSource;
+            this.subquery = subquery;
+        }
+
+        private static TypedSubqueryDescriptor selfSource(String outputField, TypedQuery<?> subquery) {
+            return new TypedSubqueryDescriptor(outputField, List.of(), false, subquery);
+        }
+
+        private static TypedSubqueryDescriptor explicitSource(String outputField,
+                                                              List<?> sourceRows,
+                                                              TypedQuery<?> subquery) {
+            return new TypedSubqueryDescriptor(outputField, sourceRows, true, subquery);
+        }
+
+        String outputField() {
+            return outputField;
+        }
+
+        List<?> sourceRows() {
+            return sourceRows;
+        }
+
+        boolean explicitSource() {
+            return explicitSource;
+        }
+
+        TypedQuery<?> subquery() {
+            return subquery;
         }
     }
 }

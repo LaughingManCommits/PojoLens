@@ -49,6 +49,8 @@ public class TypedQueryContractTest {
     private static final TypedField<Company, String> JOINED_TITLE = TypedField.of("title", String.class);
     private static final TypedField<CompanyEmployee, Integer> EMPLOYEE_COMPANY_ID =
             TypedField.of("companyId", Integer.class);
+    private static final TypedField<CompanyEmployee, String> EMPLOYEE_TITLE =
+            TypedField.of("title", String.class);
     private static final TypedField<DepartmentCount, Long> TOTAL = TypedField.of("total", Long.class);
     private static final TypedField<DepartmentAgg, Long> EMPLOYEE_COUNT = TypedField.of("employeeCount", Long.class);
     private static final TypedField<DepartmentAgg, Long> TOTAL_SALARY = TypedField.of("totalSalary", Long.class);
@@ -691,6 +693,113 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void typedInSubqueryShouldSupportSelfSourceFiltering() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(NAME.inSubquery(
+                        NAME,
+                        TypedQuery.from(Employee.class)
+                                .where(ACTIVE.eq(true).and(SALARY.gte(120_000)))
+                ))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        assertEquals(List.of("Alice", "Cara"), names);
+    }
+
+    @Test
+    void typedInSubqueryShouldSupportExplicitSourceFiltering() {
+        List<Company> results = TypedQuery.from(Company.class)
+                .where(COMPANY_ID.inSubquery(
+                        EMPLOYEE_COMPANY_ID,
+                        sampleCompanyEmployees(),
+                        TypedQuery.from(CompanyEmployee.class).where(EMPLOYEE_TITLE.eq("Engineer"))
+                ))
+                .filter(sampleCompanies());
+
+        assertEquals(1, results.size());
+        assertEquals("Acme", results.get(0).name);
+    }
+
+    @Test
+    void typedExistsShouldParticipateInBooleanComposition() {
+        List<String> names = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.anyOf(
+                        TypedPredicate.exists(
+                                Employee.class,
+                                TypedQuery.from(Employee.class).where(DEPT.eq("Missing"))
+                        ),
+                        DEPT.eq("Finance")
+                ))
+                .filter(sampleEmployees())
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        assertEquals(List.of("Bob"), names);
+    }
+
+    @Test
+    void typedSubqueriesShouldMatchEquivalentSqlLikeExecution() {
+        List<String> typedRows = TypedQuery.from(Employee.class)
+                .where(TypedPredicate.anyOf(
+                        TypedPredicate.exists(
+                                Employee.class,
+                                TypedQuery.from(Employee.class).where(DEPT.eq("Missing"))
+                        ),
+                        NAME.inSubquery(
+                                NAME,
+                                TypedQuery.from(Employee.class)
+                                        .where(ACTIVE.eq(true).and(SALARY.gte(120_000)))
+                        )
+                ))
+                .orderBy(NAME)
+                .filter(sampleEmployees())
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        List<String> sqlLikeRows = PojoLensSql
+                .parse("where exists (select * where department = 'Missing') "
+                        + "or name in (select name where active = true and salary >= 120000) "
+                        + "order by name asc")
+                .filter(sampleEmployees(), Employee.class)
+                .stream()
+                .map(employee -> employee.name)
+                .toList();
+
+        assertEquals(sqlLikeRows, typedRows);
+    }
+
+    @Test
+    void typedExistsSubqueryShouldReuseInheritedJoinBindings() {
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+
+        List<Integer> typedIds = TypedQuery.from(Company.class)
+                .where(TypedPredicate.exists(
+                        Company.class,
+                        TypedQuery.from(Company.class)
+                                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                                .where(JOINED_TITLE.eq("Engineer"))
+                ))
+                .filter(sampleCompanies(), joinBindings)
+                .stream()
+                .map(company -> company.id)
+                .toList();
+
+        List<Integer> sqlLikeIds = PojoLensSql
+                .parse("where exists (select * from employees where title = 'Engineer')")
+                .filter(sampleCompanies(), joinBindings, Company.class)
+                .stream()
+                .map(company -> company.id)
+                .toList();
+
+        assertEquals(sqlLikeIds, typedIds);
+    }
+
+    @Test
     void typedTotalsProjectionShouldSupportCountAndMetricWithoutGroupBy() {
         List<TotalsRow> result = TypedQuery.from(Employee.class)
                 .count(TOTAL)
@@ -759,6 +868,30 @@ public class TypedQueryContractTest {
                         .filter(sampleEmployees(), DepartmentCount.class));
 
         assertTrue(ex.getMessage().contains("must match a grouped field or metric alias"));
+    }
+
+    @Test
+    void subqueriesShouldFailOutsideWhere() {
+        IllegalStateException having = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .groupBy(DEPT)
+                        .count(TOTAL)
+                        .having(NAME.inSubquery(
+                                NAME,
+                                TypedQuery.from(Employee.class).where(ACTIVE.eq(true))
+                        ))
+                        .filter(sampleEmployees(), DepartmentCount.class));
+        IllegalStateException qualify = assertThrows(IllegalStateException.class,
+                () -> TypedQuery.from(Employee.class)
+                        .window(WindowFunction.ROW_NUMBER, RN, List.of(TypedWindowOrder.desc(SALARY)), DEPT)
+                        .qualify(TypedPredicate.exists(
+                                Employee.class,
+                                TypedQuery.from(Employee.class).where(ACTIVE.eq(true))
+                        ))
+                        .filter(sampleEmployees(), DepartmentRank.class));
+
+        assertTrue(having.getMessage().contains("subquery predicates are only supported in where"));
+        assertTrue(qualify.getMessage().contains("subquery predicates are only supported in where"));
     }
 
     @Test

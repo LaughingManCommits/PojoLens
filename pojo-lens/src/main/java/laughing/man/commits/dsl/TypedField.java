@@ -1,6 +1,7 @@
 package laughing.man.commits.dsl;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -94,5 +95,15 @@ public final class TypedField<T, V> {
 
     public TypedPredicate<T> isNotNull() {
         return TypedPredicate.isNotNull(this);
+    }
+
+    public TypedPredicate<T> inSubquery(TypedField<T, ? extends V> subqueryOutputField, TypedQuery<T> subquery) {
+        return TypedPredicate.inSubquery(this, subqueryOutputField, subquery);
+    }
+
+    public <S> TypedPredicate<T> inSubquery(TypedField<S, ? extends V> subqueryOutputField,
+                                            List<S> subqueryRows,
+                                            TypedQuery<S> subquery) {
+        return TypedPredicate.inSubquery(this, subqueryOutputField, subqueryRows, subquery);
     }
 }
