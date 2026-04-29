@@ -1,7 +1,7 @@
 # PojoLens!
 From `List<T>` to query and chart-ready results, without a database.
 
-`PojoLens` is a POJO-first in-memory query engine for Java. Its primary public query surface is SQL-like text over already-loaded Java objects, with a controlled plain-English surface for guided non-SQL authoring. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV files into typed rows and shaping flat parent-ID lists before they enter the same engine.
+`PojoLens` is a POJO-first in-memory query engine for Java. Its primary public query surface is SQL-like text over already-loaded Java objects, with a controlled plain-English surface for guided non-SQL authoring. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV, TSV, JSON, and JSONL files into typed rows and shaping flat parent-ID lists before they enter the same engine.
 
 Core execution model:
 `authoring mode -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
@@ -96,6 +96,8 @@ Runnable example projects:
   [docs/natural.md](docs/natural.md)
 - Need reusable-contract guidance after the authoring mode is clear:
   [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
+- Need file-boundary loader guidance for CSV/TSV/JSON/JSONL onboarding:
+  [docs/files.md](docs/files.md)
 - Need chart/table/schema output-helper guidance after the query or reusable
   contract is clear:
   [docs/output-helpers.md](docs/output-helpers.md)
@@ -122,7 +124,7 @@ Then add only the layer the workflow actually needs:
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A saved/versioned report for storage, admin review, or replay | `SavedReport`                              | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
-| Typed CSV onboarding at the file boundary                 | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
+| Typed file-boundary onboarding for CSV, TSV, JSON, or JSONL | `PojoLensFiles`                               | [docs/entry-points.md](docs/entry-points.md), [docs/files.md](docs/files.md), [docs/csv.md](docs/csv.md) |
 | Flat parent-ID rows need subtree selection                | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | Advanced chart-first convenience after the reusable contract is clear | `ChartQueryPresets` / `ChartQueryPreset` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
@@ -142,7 +144,7 @@ chart/table presets remain advanced convenience sugar.
   chart mapping, tree row shaping, reusable report/preset wrappers, dataset
   composition, and schema metadata.
 - `Compatibility adapter`:
-  boundary-only CSV loading into typed rows via `PojoLensCsv`.
+  boundary-only file loading into typed rows via `PojoLensFiles`.
 - `Integration`:
   runtime-scoped configuration and optional Spring Boot wiring.
 - `Tooling`:
@@ -193,10 +195,10 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .filter(source);
 ```
 
-### CSV boundary load
+### File-boundary load
 
 ```java
-List<Employee> rows = PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+List<Employee> rows = PojoLensFiles.csv(Path.of("employees.csv"), Employee.class);
 
 List<Employee> filtered = PojoLensSql
     .parse("where department = 'Engineering' order by salary desc")
@@ -256,7 +258,7 @@ rules live in the module docs linked beside each surface.
 
 ### Integration
 
-- Runtime-scoped policy, CSV defaults, computed fields, and natural
+- Runtime-scoped policy, file-loader defaults, computed fields, and natural
   vocabulary. See [docs/entry-points.md](docs/entry-points.md),
   [docs/advanced-features.md](docs/advanced-features.md),
   and [docs/telemetry.md](docs/telemetry.md).
@@ -265,8 +267,8 @@ rules live in the module docs linked beside each surface.
 
 ### Compatibility adapter
 
-- CSV file-boundary loading into typed rows before normal query execution. See
-  [docs/csv.md](docs/csv.md).
+- File-boundary loading into typed rows before normal query execution. See
+  [docs/files.md](docs/files.md) and [docs/csv.md](docs/csv.md).
 
 ### Tooling
 
@@ -293,7 +295,7 @@ rules live in the module docs linked beside each surface.
 - Scoped runtime and integration:
   `PojoLensRuntime`
 - Boundary and workflow helpers:
-  `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `JoinBindings`,
+  `PojoLensFiles`, `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `JoinBindings`,
   `DatasetBundle`, `SqlLikeCursor`, `SnapshotComparison`
 
 Recommended defaults for new code are documented in
@@ -351,7 +353,8 @@ with the owning guide.
 
 ### Core Guides
 
-- CSV boundary adapter guide: [docs/csv.md](docs/csv.md)
+- File-boundary loader guide: [docs/files.md](docs/files.md)
+- CSV adapter guide: [docs/csv.md](docs/csv.md)
 - Tree traversal guide: [docs/tree.md](docs/tree.md)
 - SQL-like guide: [docs/sql-like.md](docs/sql-like.md)
 - Natural query guide: [docs/natural.md](docs/natural.md)

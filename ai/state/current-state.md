@@ -5,16 +5,15 @@
 - Current release is `2026.04.17.1834`.
 
 ## Focus
-- `2026-04-27`: `FluentWindowSupport` now computes window values before wrapping `RawQueryRow`s, fixing fluent and SQL-like window and `QUALIFY` rows.
-- `2026-04-27`: `-Pstatic-analysis` uses SpotBugs `check` with `failThreshold=High`, and the current run is clean.
-- `2026-04-27`: Window snapshot schema lookup now keeps computed-field-aware names on materialized rows while reusing execution source types for temporary snapshots; the rerun window suite landed at `0.623/1.825/1.843 ms/op` for baseline/rank/running total at `size=10000`.
-- `2026-04-29`: Release cut remains user-controlled and now sits as the last roadmap package after WP26.
-- `2026-04-29`: WP26 wrapper guidance landed: `ReportDefinition` / `SavedReport` are now the default reusable-contract story in first-read docs, while chart/stats preset wrappers remain advanced convenience sugar without deprecation in this release.
-- `2026-04-29`: WP21 completed. First-read docs now present SQL-like, natural, and typed as the primary authoring modes; `PojoLensRuntime` is layered as scoped policy/integration; and chart/table/schema guidance is grouped under the new `docs/output-helpers.md` route.
+- `2026-04-27`: Window execution now computes values before `RawQueryRow` wrapping, and the Java 25 `-Pstatic-analysis` gate is clean.
+- `2026-04-29`: WP26 settled reusable-wrapper guidance: `ReportDefinition` / `SavedReport` are the defaults; chart/stats presets remain advanced convenience.
+- `2026-04-29`: WP21 completed the authoring-first docs pass and grouped chart/table/schema guidance under `docs/output-helpers.md`.
+- `2026-04-29`: WP25 completed the shared file-boundary loader story: `PojoLensFiles` / `runtime.files()` now cover CSV, TSV, JSON, and JSONL, shared row-schema loader plumbing is in place, and Excel is an explicit non-goal.
 
 ## Verified
-- `2026-04-27`: `mvn -B -ntp test`, `mvn -B -ntp -Plint verify -DskipTests`, and `mvn -B -ntp -Pstatic-analysis verify -DskipTests` all passed after the window fix.
-- `2026-04-29`: `scripts/check-doc-consistency.ps1` and `mvn -B -ntp -pl pojo-lens "-Dtest=PublicSurfaceContractTest,SqlLikeDocsExamplesTest,NaturalDocsExamplesTest,StatsDocsExamplesTest" test` passed after finishing the WP21 docs/output-helper consolidation.
+- `2026-04-27`: Full reactor, lint, and static-analysis gates passed after the window fix.
+- `2026-04-29`: WP21 and the first WP25 file-loader slice both passed doc consistency plus focused public-surface/public-API test runs.
+- `2026-04-29`: WP25 completion passed `mvn -B -ntp test`, `mvn -B -ntp -pl pojo-lens "-Dtest=PojoLensFilesTest,PojoLensCsvTest,StablePublicApiContractTest,PublicApiEcosystemCoverageTest" test`, and `scripts/check-doc-consistency.ps1`.
 
 ## Release
 - Latest cut is `2026.04.17.1834`.
@@ -24,5 +23,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-04-29`: TODO roadmap is now ordered by dependency: WP25 -> WP22 -> WP23 -> WP24 -> WP18 -> Release Gate.
-- `2026-04-29`: The next active package is WP25 for boundary-loader consolidation before adding new file formats.
+- `2026-04-29`: Roadmap order is WP22 -> WP23 -> WP24 -> WP18 -> Release Gate.
+- `2026-04-29`: Start WP22 with the build-integration/tooling shape decision for metamodel generation and saved-query validation.

@@ -28,6 +28,7 @@ Docs starting points:
 - choose an authoring mode first in [usecases.md](usecases.md)
 - choose explicit authoring and layering entry points in [entry-points.md](entry-points.md)
 - choose reusable contracts in [reusable-wrappers.md](reusable-wrappers.md)
+- choose file-boundary loaders in [files.md](files.md) when input starts as files
 - use [advanced-features.md](advanced-features.md) only for optional follow-on
   surface
 
@@ -54,8 +55,10 @@ This page is an artifact and packaging reference, not the main onboarding path.
   - `PojoLensRuntime`:
     scoped runtime/configuration surface over the same engine
 - Boundary and workflow helpers:
+  - `PojoLensFiles`:
+    single file-boundary loader surface for CSV/TSV/JSON/JSONL onboarding
   - `PojoLensCsv`:
-    boundary adapter for loading typed rows from UTF-8 CSV files
+    stable CSV-only convenience route over the shared file-boundary loader
   - `PojoLensChart`:
     chart-mapping workflow helper over query results
   - `PojoLensTree`:

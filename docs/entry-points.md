@@ -33,8 +33,8 @@ Output-helper guide:
 
 | Scenario | Recommended entry point | Why |
 | --- | --- | --- |
-| Typed CSV onboarding from a file boundary | `PojoLensCsv.read(path, rowType)` | Keeps CSV loading as a bounded adapter that produces typed rows for the same engine; use `CsvOptions` only for narrow delimiter/header/trim/coercion needs. |
-| CSV load diagnostics and troubleshooting | `PojoLensCsv.readWithReport(path, rowType)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and split header diagnostics; use `runtime.csv().readWithReport(...)` when the runtime owns CSV defaults. |
+| Typed file onboarding from a boundary | `PojoLensFiles.csv(...)`, `tsv(...)`, `json(...)`, or `jsonl(...)` | Keeps file loading on one bounded loader surface that produces typed rows for the same engine; use `CsvOptions` for delimited-text header/trim/coercion needs and `JsonOptions` for row-oriented JSON/JSONL rules such as single-object acceptance, blank-line handling, and unknown-field policy. |
+| File-load diagnostics and troubleshooting | `csvWithReport(...)`, `tsvWithReport(...)`, `jsonWithReport(...)`, or `jsonlWithReport(...)` | Keeps row-loading diagnostics at the file boundary, including parsed/load counts and schema failures; use `runtime.files().*WithReport(...)` when the runtime owns the relevant loader defaults. |
 | Flat parent-ID rows need subtree selection | `PojoLensTree.subtreeOf(rows, idFn, parentIdFn, rootId)` | Keeps hierarchy traversal as row shaping before normal SQL-like or natural execution; use `fromFlat(...)` when depth, pruning, or leaves-only options are needed. |
 | Chart mapping from already-produced rows | `PojoLensChart.toChartData(rows, spec)` | Uses the chart helper directly when query execution is already done. |
 | One-off named secondary sources | `JoinBindings.of(...)` or `JoinBindings.builder()` | Makes multi-source SQL-like execution explicit and typed. |
@@ -70,10 +70,12 @@ Output-helper guide:
   parsed natural query.
 - Add `SavedReport` when the reusable contract must cross persistence, admin,
   or review boundaries before replay.
-- Use `PojoLensCsv` only at the file boundary when a CSV needs to become typed
-  in-memory rows before normal SQL-like or natural execution;
-  see [docs/csv.md](csv.md) for options, runtime defaults, type mapping, and
-  error model.
+- Use `PojoLensFiles` only at the file boundary when CSV, TSV, JSON, or JSONL
+  needs to become typed in-memory rows before normal SQL-like or natural
+  execution; see [docs/files.md](files.md) and [docs/csv.md](csv.md) for
+  format guidance, runtime defaults, type mapping, and the error model.
+  `PojoLensCsv` remains the stable CSV-only convenience entry point over the
+  same loader support.
 - Use `PojoLensTree` when rows are already in memory but need subtree selection
   from flat ID/parent-ID fields before entering `PojoLensSql` or
   `PojoLensNatural`; see [docs/tree.md](tree.md) for traversal options,
@@ -95,7 +97,8 @@ environment, tenant, request path, or test harness:
 - telemetry listener registration
 - computed field registry
 - natural vocabulary for plain-English field aliases
-- CSV adapter defaults for repeated file-boundary loads
+- delimited-text loader defaults for repeated CSV/TSV loads
+- JSON/JSONL loader defaults for repeated object-row loads
 - SQL-like parse cache and engine execution-plan cache behavior
 
 Two public construction patterns remain:
@@ -108,7 +111,9 @@ runtime.setNaturalVocabulary(NaturalVocabulary.builder()
     .field("department", "team")
     .build());
 NaturalQuery naturalQuery = runtime.natural().parse("show employees where active is true limit 10");
-List<Employee> csvRows = runtime.csv().read(Path.of("employees.csv"), Employee.class);
+List<Employee> csvRows = runtime.files().csv(Path.of("employees.csv"), Employee.class);
+List<Employee> tsvRows = runtime.files().tsv(Path.of("employees.tsv"), Employee.class);
+List<Employee> jsonRows = runtime.files().json(Path.of("employees.json"), Employee.class);
 ```
 
 Use the constructor when you want neutral defaults and explicit setup.

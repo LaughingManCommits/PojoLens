@@ -43,7 +43,7 @@ The families and tiers are related, but not the same thing:
 
 The default first-read story is SQL-like first:
 `PojoLensSql`, `PojoLensNatural`, `PojoLensRuntime`, `PojoLensChart`,
-`TypedQuery<T>`, `PojoLensTree`, and `ReportDefinition<T>`.
+`PojoLensFiles`, `TypedQuery<T>`, `PojoLensTree`, and `ReportDefinition<T>`.
 
 ## Stable Surface
 
@@ -54,12 +54,35 @@ The default first-read story is SQL-like first:
 - `PojoLensSql.parse(String)`
 - `PojoLensSql.template(String, String...)`
 - `PojoLensChart.toChartData(List<T>, ChartSpec)`
+- `PojoLensFiles`
+  - `csv(Path, Class<T>)`
+  - `csv(Path, Class<T>, CsvOptions)`
+  - `csvWithReport(Path, Class<T>)`
+  - `csvWithReport(Path, Class<T>, CsvOptions)`
+  - `tsv(Path, Class<T>)`
+  - `tsv(Path, Class<T>, CsvOptions)`
+  - `tsvWithReport(Path, Class<T>)`
+  - `tsvWithReport(Path, Class<T>, CsvOptions)`
+  - `json(Path, Class<T>)`
+  - `json(Path, Class<T>, JsonOptions)`
+  - `jsonWithReport(Path, Class<T>)`
+  - `jsonWithReport(Path, Class<T>, JsonOptions)`
+  - `jsonl(Path, Class<T>)`
+  - `jsonl(Path, Class<T>, JsonOptions)`
+  - `jsonlWithReport(Path, Class<T>)`
+  - `jsonlWithReport(Path, Class<T>, JsonOptions)`
+- `PojoLensCsv`
+  - `read(Path, Class<T>)`
+  - `read(Path, Class<T>, CsvOptions)`
+  - `readWithReport(Path, Class<T>)`
+  - `readWithReport(Path, Class<T>, CsvOptions)`
 - `PojoLensTree.fromFlat(List<T>, Function<T,K>, Function<T,K>)`
 - `PojoLensTree.subtreeOf(List<T>, Function<T,K>, Function<T,K>, K)`
 - `PojoLensRuntime`
   - constructor
   - `ofPreset(PojoLensRuntimePreset)`
   - `natural()`
+  - `files()`
   - `parse(String)`
   - `template(String, String...)`
   - `applyPreset(PojoLensRuntimePreset)`
@@ -68,6 +91,8 @@ The default first-read story is SQL-like first:
   - `getNaturalVocabulary()`
   - `setQueryExposurePolicy(QueryExposurePolicy)`
   - `getQueryExposurePolicy()`
+  - `setJsonDefaults(JsonOptions)`
+  - `getJsonDefaults()`
 - `DatasetBundle`
   - `of(List<?>)`
   - `of(List<?>, JoinBindings)`
@@ -186,6 +211,10 @@ The default first-read story is SQL-like first:
 
 - `NaturalVocabulary`
 - `PojoLensRuntimePreset`
+- file-boundary loader contracts:
+  - `CsvOptions`, `CsvCoercionPolicy`, `CsvLoadResult`, `CsvLoadReport`,
+    `CsvLoadException`, `JsonOptions`, `JsonLoadResult`, `JsonLoadReport`,
+    `JsonLoadException`, `CsvRuntime`, `FileLoadRuntime`
 - query enums:
   - `Clauses`, `Join`, `Metric`, `Separator`, `Sort`, `TimeBucket`
 - chart contracts:

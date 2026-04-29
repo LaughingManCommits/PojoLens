@@ -12,7 +12,7 @@ Public docs should lead with:
 - `PojoLensNatural` for guided plain-English text
 - `ReportDefinition.sql(...)` and `ReportDefinition.natural(...)` for reusable
   query contracts
-- `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, and runtime policy helpers
+- `PojoLensFiles`, `PojoLensTree`, `PojoLensChart`, and runtime policy helpers
   where those workflows apply
 
 ## Internal Role

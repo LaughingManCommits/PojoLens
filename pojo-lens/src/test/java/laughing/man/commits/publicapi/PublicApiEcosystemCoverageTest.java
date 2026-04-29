@@ -1,6 +1,7 @@
 package laughing.man.commits.publicapi;
 
 import laughing.man.commits.PojoLensCsv;
+import laughing.man.commits.PojoLensFiles;
 import laughing.man.commits.PojoLensNatural;
 import laughing.man.commits.PojoLensSql;
 
@@ -14,6 +15,8 @@ import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.files.JsonLoadResult;
+import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.report.ReportDefinition;
 import laughing.man.commits.snapshot.SnapshotComparison;
 import laughing.man.commits.sqllike.JoinBindings;
@@ -149,6 +152,69 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(List.of("employeeName", "annualSalary"), result.report().resolvedSchema());
         assertEquals(3, result.report().logicalRecordCount());
         assertEquals(2, result.report().loadedRowCount());
+    }
+
+    @Test
+    public void generalFileLoaderSurfaceShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path tsv = tempDir.resolve("employees.tsv");
+        Files.writeString(
+                tsv,
+                "employeeName\tannualSalary\n"
+                        + " Alice \t 120000 \n"
+                        + " Cara \t 130000 \n"
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setCsvDefaults(CsvOptions.builder().trim(true).build());
+
+        List<EmployeeSummary> directRows = PojoLensFiles.tsv(tsv, EmployeeSummary.class);
+        CsvLoadResult<EmployeeSummary> runtimeRows = runtime.files().tsvWithReport(tsv, EmployeeSummary.class);
+
+        assertEquals(2, directRows.size());
+        assertEquals("Alice", directRows.get(0).employeeName);
+        assertEquals(2, runtimeRows.rows().size());
+        assertTrue(runtimeRows.report().success());
+    }
+
+    @Test
+    public void jsonFileLoaderSurfaceShouldBeUsableFromPublicApi(@TempDir Path tempDir) throws IOException {
+        Path json = tempDir.resolve("employees.json");
+        Files.writeString(
+                json,
+                """
+                        [
+                          {"employeeName":"Alice","annualSalary":120000},
+                          {"employeeName":"Cara","annualSalary":130000}
+                        ]
+                        """
+        );
+        Path jsonl = tempDir.resolve("employees.jsonl");
+        Files.writeString(
+                jsonl,
+                """
+                        {"employeeName":"Alice","department":"engineering","annualSalary":120000}
+
+                        {"employeeName":"Cara","department":"engineering","annualSalary":130000}
+                        """
+        );
+
+        PojoLensRuntime runtime = new PojoLensRuntime();
+        runtime.setJsonDefaults(
+                JsonOptions.builder()
+                        .skipEmptyLines(true)
+                        .enumCaseInsensitive(true)
+                        .build()
+        );
+
+        List<EmployeeSummary> directRows = PojoLensFiles.json(json, EmployeeSummary.class);
+        JsonLoadResult<JsonFileRow> runtimeRows = runtime.files().jsonlWithReport(jsonl, JsonFileRow.class);
+
+        assertEquals(2, directRows.size());
+        assertEquals("Alice", directRows.get(0).employeeName);
+        assertEquals(2, runtimeRows.rows().size());
+        assertEquals(JsonFileDepartment.ENGINEERING, runtimeRows.rows().get(0).department);
+        assertTrue(runtimeRows.report().success());
+        assertTrue(runtime.getJsonDefaults().enumCaseInsensitive());
     }
 
     @Test
@@ -372,6 +438,20 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
     }
 
     enum CsvDepartmentCode {
+        ENGINEERING,
+        FINANCE
+    }
+
+    static final class JsonFileRow {
+        String employeeName;
+        JsonFileDepartment department;
+        int annualSalary;
+
+        JsonFileRow() {
+        }
+    }
+
+    enum JsonFileDepartment {
         ENGINEERING,
         FINANCE
     }

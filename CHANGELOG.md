@@ -37,6 +37,27 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Unified file-boundary loader surface** - added `PojoLensFiles` plus
+  `runtime.files()` / `FileLoadRuntime` as the single public file-boundary
+  loader story, while keeping `PojoLensCsv` and `runtime.csv()` as stable
+  CSV-only convenience routes.
+
+- **TSV boundary loading** - added `PojoLensFiles.tsv(...)` and
+  `tsvWithReport(...)`, reusing the existing typed-row diagnostics and
+  coercion model while forcing tab delimiters on the shared file loader
+  surface.
+
+- **JSON and JSONL boundary loading** - added `PojoLensFiles.json(...)`,
+  `jsonWithReport(...)`, `jsonl(...)`, and `jsonlWithReport(...)`, plus
+  runtime-owned `JsonOptions` defaults and structured `JsonLoadResult` /
+  `JsonLoadReport` / `JsonLoadException` diagnostics on the same shared
+  file-boundary surface.
+
+- **Shared file-loader row schema support** - added internal shared row-schema
+  binding support reused by CSV and JSON loaders so file-boundary schema and
+  primitive-field validation stay aligned without creating a second loader
+  abstraction layer.
+
 - **Virtual-thread boundary profiles** - added opt-in `virtual` Spring
   profiles for the quickstart, basic, and risk-console examples; extended the
   starter/basic/quickstart smoke surfaces to expose

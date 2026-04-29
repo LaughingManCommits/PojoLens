@@ -1,7 +1,11 @@
 # CSV Adapter Guide
 
-`PojoLensCsv` is a boundary adapter that loads UTF-8 CSV files into typed rows
-before they enter the existing in-memory engine.
+`PojoLensFiles.csv(...)` is the preferred CSV route on the shared file-boundary
+loader surface.
+`PojoLensCsv` remains the stable CSV-only convenience entry point over the same
+loader support.
+
+This guide is the CSV-specific reference for that loader surface.
 
 It is not a second query engine. Once the rows are loaded, SQL-like and
 plain-English query features work on them exactly as they do on any other
@@ -9,7 +13,7 @@ plain-English query features work on them exactly as they do on any other
 
 ## When To Use
 
-Use `PojoLensCsv` only at the file boundary - when data starts as a CSV file
+Use the file loader only at the file boundary - when data starts as a CSV file
 and you need to bring it into the engine as typed rows.
 
 For data that is already in Java objects or collections, use `PojoLensSql` or
@@ -18,7 +22,7 @@ For data that is already in Java objects or collections, use `PojoLensSql` or
 ## Basic Usage
 
 ```java
-List<Employee> rows = PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+List<Employee> rows = PojoLensFiles.csv(Path.of("employees.csv"), Employee.class);
 ```
 
 After loading, reuse the existing engine normally:
@@ -42,7 +46,7 @@ List<Employee> result = PojoLensNatural
 Use `CsvOptions` only when the defaults do not match the file:
 
 ```java
-List<Employee> rows = PojoLensCsv.read(
+List<Employee> rows = PojoLensFiles.csv(
     Path.of("employees.csv"),
     Employee.class,
     CsvOptions.builder()
@@ -63,7 +67,7 @@ List<Employee> rows = PojoLensCsv.read(
 
 ## Coercion Policy
 
-Defaults stay strict. `PojoLensCsv` does not widen null, enum, numeric, or
+Defaults stay strict. The CSV loader does not widen null, enum, numeric, or
 date handling unless you opt in through `CsvCoercionPolicy`.
 
 Use a coercion policy when the file boundary needs to adapt to common CSV
@@ -81,7 +85,7 @@ CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
     .dateTimePattern("dd/MM/uuuu HH:mm:ss")
     .build();
 
-List<Employee> rows = PojoLensCsv.read(
+List<Employee> rows = PojoLensFiles.csv(
     Path.of("employees.csv"),
     Employee.class,
     CsvOptions.builder()
@@ -101,8 +105,8 @@ Policy rules are explicit and opt-in:
 
 ## Runtime Defaults
 
-Use `PojoLensRuntime` when CSV load defaults should be owned by an application
-runtime instead of repeated at each call site:
+Use `PojoLensRuntime` when file-boundary defaults should be owned by an
+application runtime instead of repeated at each call site:
 
 ```java
 CsvCoercionPolicy policy = CsvCoercionPolicy.builder()
@@ -119,14 +123,14 @@ runtime.setCsvDefaults(
         .build()
 );
 
-List<Employee> rows = runtime.csv().read(Path.of("employees.csv"), Employee.class);
+List<Employee> rows = runtime.files().csv(Path.of("employees.csv"), Employee.class);
 ```
 
 For a one-off override on top of those runtime defaults, start from
 `runtime.getCsvDefaults().toBuilder()`:
 
 ```java
-List<Employee> rows = runtime.csv().read(
+List<Employee> rows = runtime.files().csv(
     Path.of("employees.csv"),
     Employee.class,
     runtime.getCsvDefaults().toBuilder()
@@ -141,7 +145,7 @@ Use `readWithReport(...)` when you need structured load diagnostics in addition
 to the typed rows:
 
 ```java
-CsvLoadResult<Employee> result = PojoLensCsv.readWithReport(
+CsvLoadResult<Employee> result = PojoLensFiles.csvWithReport(
     Path.of("employees.csv"),
     Employee.class
 );
@@ -164,7 +168,7 @@ The report is load-scoped. It captures:
 The runtime entry point supports the same diagnostics shape:
 
 ```java
-CsvLoadResult<Employee> result = runtime.csv().readWithReport(
+CsvLoadResult<Employee> result = runtime.files().csvWithReport(
     Path.of("employees.csv"),
     Employee.class
 );
@@ -175,7 +179,7 @@ The plain `read(...)` methods still throw on failure, and the exception is a
 
 ```java
 try {
-    PojoLensCsv.read(Path.of("employees.csv"), Employee.class);
+    PojoLensFiles.csv(Path.of("employees.csv"), Employee.class);
 } catch (CsvLoadException ex) {
     CsvLoadReport report = ex.report();
     System.out.println(report.failureStage());
@@ -195,7 +199,7 @@ use normal query `explain(...)` and query telemetry for engine-stage visibility.
 Quoted fields may contain delimiters, escaped quotes (`""`), and embedded line
 breaks.
 
-When a quoted field spans multiple physical lines, `PojoLensCsv` keeps reading
+When a quoted field spans multiple physical lines, the CSV loader keeps reading
 until the logical record closes. Embedded line breaks are normalized to `\n` in
 the loaded `String` values.
 
@@ -306,7 +310,9 @@ For multiline quoted records, the row number is the logical record start line.
 
 - It does not stream rows lazily or process out-of-core data.
 - It does not infer types from CSV content.
-- It does not support Excel, TSV as a distinct format, or multi-format abstraction.
+- It does not support Excel or a generic table platform.
+- JSON and JSONL live on the same file-boundary story through
+  `PojoLensFiles.json(...)` and `PojoLensFiles.jsonl(...)`; see [files.md](files.md).
 - It does not write back or export.
 - It does not perform schema evolution or data cleansing.
 
@@ -314,6 +320,7 @@ All of these would expand the adapter beyond its purpose as a boundary helper.
 
 ## See Also
 
+- Shared file-boundary route: [files.md](files.md)
 - Entry point selection: [docs/entry-points.md](entry-points.md)
 - Product surface classification: [docs/product-surface.md](product-surface.md)
 - SQL-like querying after load: [docs/sql-like.md](sql-like.md)

@@ -4,6 +4,8 @@ import laughing.man.commits.computed.ComputedFieldRegistry;
 import laughing.man.commits.csv.CsvOptions;
 import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.filter.FilterExecutionPlanCacheStore;
+import laughing.man.commits.files.FileLoadRuntime;
+import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.natural.NaturalVocabulary;
 import laughing.man.commits.natural.NaturalRuntime;
 import laughing.man.commits.sqllike.QueryExposurePolicy;
@@ -34,6 +36,7 @@ public final class PojoLensRuntime {
     private volatile NaturalVocabulary naturalVocabulary = NaturalVocabulary.empty();
     private volatile QueryExposurePolicy queryExposurePolicy = QueryExposurePolicy.unrestricted();
     private volatile CsvOptions csvDefaults = CsvOptions.defaults();
+    private volatile JsonOptions jsonDefaults = JsonOptions.defaults();
 
     public PojoLensRuntime() {
         this(new SqlLikeQueryCache(), new FilterExecutionPlanCacheStore());
@@ -65,6 +68,10 @@ public final class PojoLensRuntime {
 
     public CsvRuntime csv() {
         return new CsvRuntime(this);
+    }
+
+    public FileLoadRuntime files() {
+        return new FileLoadRuntime(this);
     }
 
     public SqlLikeQuery parse(String sqlLikeQuery) {
@@ -177,6 +184,17 @@ public final class PojoLensRuntime {
 
     public CsvOptions getCsvDefaults() {
         return csvDefaults;
+    }
+
+    public void setJsonDefaults(JsonOptions jsonDefaults) {
+        if (jsonDefaults == null) {
+            throw new IllegalArgumentException("jsonDefaults must not be null");
+        }
+        this.jsonDefaults = jsonDefaults;
+    }
+
+    public JsonOptions getJsonDefaults() {
+        return jsonDefaults;
     }
 
     public PojoLensRuntime applyPreset(PojoLensRuntimePreset preset) {

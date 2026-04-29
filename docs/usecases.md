@@ -9,6 +9,7 @@ Source guides:
 - SQL-like query guide: [docs/sql-like.md](sql-like.md)
 - natural query guide: [docs/natural.md](natural.md)
 - reusable wrappers: [docs/reusable-wrappers.md](reusable-wrappers.md)
+- file-boundary loaders: [docs/files.md](files.md)
 - output helpers: [docs/output-helpers.md](output-helpers.md)
 - optional advanced surface: [docs/advanced-features.md](advanced-features.md)
 
@@ -36,7 +37,7 @@ Output-helper guide:
 
 | If you need... | Choose... | Result |
 | --- | --- | --- |
-| Typed rows from a CSV file boundary | `PojoLensCsv.read(...)` | `List<T>` |
+| Typed rows from a CSV, TSV, JSON, or JSONL file boundary | `PojoLensFiles.csv(...)` / `tsv(...)` / `json(...)` / `jsonl(...)` | `List<T>` |
 | A subtree from flat parent-ID rows before query execution | `PojoLensTree.subtreeOf(...)` | `List<T>` |
 | Typed rows only | `.filter(...)` or `report.rows(...)` | `List<T>` |
 | Chart-ready payload | `.chart(...)`, `report.chart(...)`, or `preset.chart(...)` | `ChartData` |
@@ -394,7 +395,7 @@ Outcome:
 - Use `PojoLensSql` for the default public query path and templates.
 - Use `PojoLensNatural` for guided plain-English text queries.
 - Use `PojoLensSql` for config/admin-driven query strings and templates.
-- Use `PojoLensCsv` for typed CSV loading at the file boundary.
+- Use `PojoLensFiles` for typed CSV/TSV/JSON/JSONL loading at the file boundary.
 - Use `PojoLensTree` for subtree selection from flat parent-ID row lists.
 - Use `new PojoLensRuntime()` or `PojoLensRuntime.ofPreset(...)` when lint, cache, strict typing, telemetry, computed fields, or natural-query vocabulary should be instance-scoped.
 - Use `PojoLensChart` when rows already exist and only chart mapping remains.

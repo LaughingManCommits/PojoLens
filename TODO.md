@@ -23,7 +23,7 @@ Execution order is dependency-first, not ticket-number order.
 
 | WP  | Title                                        | Status  | Key deliverables                                                                      |
 |-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
-| WP25| Boundary Loader Consolidation And Expansion  | Pending | Single boundary-loader story with TSV + JSON/JSONL growth and explicit Excel decision |
+| WP25| Boundary Loader Consolidation And Expansion  | Completed | `PojoLensFiles` now owns CSV/TSV/JSON/JSONL, shared row-schema plumbing landed, and Excel is an explicit non-goal |
 | WP22| Developer Tooling And Static Validation      | Pending | First-party build integration, metamodel generation, saved-query validation           |
 | WP23| Typed DSL Aggregation And Join Expansion     | Pending | Typed joins, grouping, metrics, and dataset parity with SQL-like                      |
 | WP24| Typed DSL Advanced Analytics                 | Pending | Typed HAVING/window/subquery design and staged parity-backed rollout                  |
@@ -44,31 +44,37 @@ stays in `CHANGELOG.md` and git history.
 turning PojoLens into a dataframe or ETL framework.
 
 **Context:**
-- The CSV adapter is intentionally bounded and the docs explicitly call out
-  non-goals such as Excel and first-class TSV support.
+- The CSV adapter started intentionally bounded, and format expansion only
+  makes sense if it stays read-only, row-oriented, and subordinate to the same
+  in-memory engine story.
 - Competitive analytics-adjacent libraries gain adoption through format
   convenience even when their core engine story is different.
 - Any expansion here needs to stay read-only, boundary-only, and explicitly
   subordinate to the in-memory query engine story.
 - New format growth should not create a new peer public surface for each file
   type.
+- The first slice established `PojoLensFiles` / `runtime.files()` as the
+  single file-boundary loader story while keeping `PojoLensCsv` and
+  `runtime.csv()` as stable CSV-only convenience routes.
 
 **Tasks:**
-- [ ] Decide the single public boundary-loader surface for format-specific
+- [x] Decide the single public boundary-loader surface for format-specific
       loading so future adapters do not fragment into separate peer entry
       points.
-- [ ] Add first-party TSV and JSON/JSONL typed loading under that single
-      boundary-loader story, with load reports, coercion controls, and
-      runtime-owned defaults where the model stays bounded.
-- [ ] Factor shared diagnostics and coercion plumbing out of CSV internals
-      where reuse improves clarity and keeps error contracts aligned.
-- [ ] Decide whether Excel support is a bounded adapter worth owning or a
+- [x] Add first-party TSV typed loading under that single boundary-loader
+      story, with load reports, coercion controls, and runtime-owned defaults
+      where the model stays bounded.
+- [x] Add first-party JSON/JSONL typed loading under that same
+      boundary-loader story with bounded options and diagnostics.
+- [x] Factor shared row-schema diagnostics plumbing out of CSV internals where
+      reuse improves clarity and keeps error contracts aligned.
+- [x] Decide whether Excel support is a bounded adapter worth owning or a
       deliberate non-goal, and document that decision explicitly.
-- [ ] Keep adapters read-only, boundary-only, and schema-explicit rather than
+- [x] Keep adapters read-only, boundary-only, and schema-explicit rather than
       widening into a general table platform.
-- [ ] Add docs and example flows that feed loaded rows into the normal
+- [x] Add docs and example flows that feed loaded rows into the normal
       SQL-like, natural, and typed execution paths.
-- [ ] Do not add separate top-level peer product stories such as distinct
+- [x] Do not add separate top-level peer product stories such as distinct
       `PojoLensJson` or `PojoLensTsv` surfaces unless that decision is
       explicitly justified and reviewed.
 

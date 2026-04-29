@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T13:06:12.872655+02:00",
+  "generatedAt": "2026-04-29T16:39:35.820306+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 141,
-    "testClasses": 141
+    "testJavaFiles": 142,
+    "testClasses": 142
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 125
+      "testJavaFiles": 126
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -99,6 +99,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensBehaviorFixtures.java",
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensConcurrencyBehaviorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensCsvTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/PojoLensFilesTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensJoinBehaviorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensOrderGroupBehaviorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/PojoLensRuleBehaviorTest.java",

@@ -10,6 +10,7 @@
 - `docs/reusable-wrappers.md`
 - `docs/output-helpers.md`
 - `docs/usecases.md`
+- `docs/files.md`
 - `docs/csv.md`
 - `docs/tree.md`
 - `docs/charts.md`
