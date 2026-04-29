@@ -23,6 +23,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `StatsViewPresets` remain public as advanced convenience sugar rather than
   peer default workflow identities.
 
+- **Public surface layering guidance** - first-read docs now separate the
+  three primary authoring modes (`PojoLensSql`, `PojoLensNatural`,
+  `TypedQuery`) from reusable contracts, runtime policy, and output helpers.
+  Added `docs/output-helpers.md` so chart/table/schema guidance reads as one
+  layered helper story rather than multiple peer workflow identities.
+
 ### Fixed
 
 - **Window row materialization** - `FluentWindowSupport` now computes window values before wrapping `RawQueryRow`s, so fluent and SQL-like `ROW_NUMBER`, ranking, aggregate window, and `QUALIFY` queries keep populated aliases.

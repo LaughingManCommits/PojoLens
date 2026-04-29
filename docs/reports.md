@@ -10,6 +10,9 @@ SQL-like and natural queries are the public paths into it.
 `ChartQueryPreset<T>` and `StatsViewPreset<T>` remain available as advanced
 chart-first and table-first convenience wrappers that can bridge back to it.
 
+Output-helper route:
+- [output-helpers.md](output-helpers.md)
+
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
 

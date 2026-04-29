@@ -8,6 +8,7 @@
 - `docs/sql-like.md`
 - `docs/natural.md`
 - `docs/reusable-wrappers.md`
+- `docs/output-helpers.md`
 - `docs/usecases.md`
 - `docs/csv.md`
 - `docs/tree.md`

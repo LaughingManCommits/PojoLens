@@ -1,13 +1,16 @@
 # Spring Boot Starter Dashboard Example (Advanced)
 
-This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring Boot app and use the auto-configured `PojoLensRuntime` across a full dashboard workflow.
+This example shows how to wire `pojo-lens-spring-boot-starter` into a Spring
+Boot app, keep SQL-like and reusable report flows as the primary authoring
+surface, and let the auto-configured `PojoLensRuntime` supply integration
+defaults across a full dashboard workflow.
 
 For the minimal onboarding path, use:
 `examples/spring-boot-starter-quickstart`.
 
 The example is intentionally split so each file demonstrates one concern:
 - `EmployeeQueryController` stays as the HTTP adapter.
-- `EmployeeDashboardService` owns the PojoLens runtime, reusable stats presets, reusable chart presets, and the report-definition bridge.
+- `EmployeeDashboardService` owns the PojoLens runtime, reusable report definitions, and the advanced stats/chart preset sugar used by the dashboard.
 - `EmployeeStore` keeps the demo self-contained with an in-memory dataset.
 - `static/app.js` and `static/app.css` keep the frontend readable instead of hiding the behavior inside `index.html`.
 
@@ -80,7 +83,7 @@ dedicated virtual-mode smoke test for this example.
 
 - `PojoLensRuntime` is injected by Spring Boot auto-configuration from the starter.
 - Runtime behavior is controlled with `pojo-lens.*` properties.
-- Direct SQL-like endpoints and reusable preset-backed endpoints can coexist in one service.
+- Direct SQL-like endpoints and reusable report/preset-backed endpoints can coexist in one service.
 - The primary dashboard controls are user-facing: stats focus and chart type, not internal implementation modes.
 - `StatsViewPresets` are advanced table-first convenience factories with `schema()` and `totals()`.
 - `ChartQueryPresets` are advanced chart-first convenience factories and can emit `ChartJsPayload` directly.

@@ -1,10 +1,11 @@
 # Spring Boot Starter Quickstart Example
 
 This is the smallest runnable Spring Boot starter example in this repo.
-It shows one PojoLens query flow end-to-end:
+It shows one SQL-like PojoLens query flow end-to-end, with the starter runtime
+only supplying integration defaults:
 
-- starter auto-configures `PojoLensRuntime`
 - the app executes one SQL-like top-paid query over in-memory POJOs
+- starter auto-configures `PojoLensRuntime`
 - the endpoint returns typed rows
 
 For the full dashboard/presets/charts workflow, use:

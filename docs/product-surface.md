@@ -74,6 +74,9 @@ what is core, what is convenience, and what is advanced/tooling surface.
   expanding query `explain(...)` into file-ingestion semantics.
 - `PojoLensChart` and chart/table/report wrappers are workflow helpers layered
   on top of query execution, not separate product pillars.
+- Chart output, table payloads, and schema metadata form one output-helper
+  story layered over query execution; they should be documented as helper
+  routes, not as separate query-authoring modes.
 - `PojoLensTree` is a workflow helper for flat ID/parent-ID row shaping before
   query execution. It returns `List<T>` or `TreeEntry<T>` metadata and does not
   add parser syntax, graph algorithms, persistence behavior, or a second query

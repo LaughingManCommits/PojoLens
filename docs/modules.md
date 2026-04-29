@@ -25,9 +25,9 @@ Canonical product-surface classification:
 - [product-surface.md](product-surface.md)
 
 Docs starting points:
-- choose a path first in [usecases.md](usecases.md)
-- choose explicit entry points in [entry-points.md](entry-points.md)
-- choose reusable wrappers in [reusable-wrappers.md](reusable-wrappers.md)
+- choose an authoring mode first in [usecases.md](usecases.md)
+- choose explicit authoring and layering entry points in [entry-points.md](entry-points.md)
+- choose reusable contracts in [reusable-wrappers.md](reusable-wrappers.md)
 - use [advanced-features.md](advanced-features.md) only for optional follow-on
   surface
 
@@ -41,28 +41,33 @@ This page is an artifact and packaging reference, not the main onboarding path.
 - Not published:
   `pojo-lens-benchmarks`, `examples/*`
 
-## Public Runtime Layering
+## Public Surface Layers
 
-- `PojoLensNatural`:
-  core controlled plain-English query-engine entry point
-- `PojoLensSql`:
-  core SQL-like query-engine entry point
-- `PojoLensCsv`:
-  boundary adapter for loading typed rows from UTF-8 CSV files
-- `PojoLensRuntime`:
-  scoped runtime/configuration surface over the same engine
-- `PojoLensChart`:
-  chart-mapping workflow helper over query results
-- `PojoLensTree`:
-  flat parent-ID row-shaping helper before normal query execution
+- Primary authoring modes:
+  - `PojoLensSql`:
+    core SQL-like query-engine entry point
+  - `PojoLensNatural`:
+    core controlled plain-English query-engine entry point
+  - `TypedQuery`:
+    core Java-owned typed authoring surface
+- Scoped runtime and integration:
+  - `PojoLensRuntime`:
+    scoped runtime/configuration surface over the same engine
+- Boundary and workflow helpers:
+  - `PojoLensCsv`:
+    boundary adapter for loading typed rows from UTF-8 CSV files
+  - `PojoLensChart`:
+    chart-mapping workflow helper over query results
+  - `PojoLensTree`:
+    flat parent-ID row-shaping helper before normal query execution
 
 The fluent engine DSL now lives under `laughing.man.commits.internal`.
 Do not use it as the public entry point for docs or examples.
 
-Additional workflow helpers such as `ReportDefinition`, chart presets,
-stats presets, `DatasetBundle`, tree traversal, and schema metadata stay in
-the runtime artifact as convenience layers on top of the core engine; they are
-not separate modules.
+Reusable contracts and helper layers such as `ReportDefinition`,
+`SavedReport`, chart presets, stats presets, `DatasetBundle`, tree traversal,
+and schema metadata stay in the runtime artifact as convenience layers on top
+of the core engine; they are not separate modules.
 
 Compatibility tiers for these entry points and related contracts are defined in
 [public-api-stability.md](public-api-stability.md).

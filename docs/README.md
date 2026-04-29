@@ -1,10 +1,11 @@
 # PojoLens Docs
 
-Start with the root [README.md](../README.md#documentation-map) documentation map, then use the feature guide that matches your entry point.
+Start with the root [README.md](../README.md#documentation-map) documentation map, then use the feature guide that matches your authoring mode and only add the runtime/helper guides your workflow needs.
 
 Common routes:
-- query/runtime selection: [entry-points.md](entry-points.md), [sql-like.md](sql-like.md), [natural.md](natural.md), [reusable-wrappers.md](reusable-wrappers.md)
-- optional UI/workflow helpers: [charts.md](charts.md), [reports.md](reports.md), [facets.md](facets.md)
+- authoring-mode and reusable-contract selection: [entry-points.md](entry-points.md), [sql-like.md](sql-like.md), [natural.md](natural.md), [reusable-wrappers.md](reusable-wrappers.md)
+- output-helper route: [output-helpers.md](output-helpers.md), [charts.md](charts.md), [reports.md](reports.md), [stats-presets.md](stats-presets.md), [tabular-schema.md](tabular-schema.md)
+- optional UI/workflow helpers: [facets.md](facets.md)
 - optional integration helpers: [modules.md](modules.md), [jdbc.md](jdbc.md)
 
 Maintainer-only engine notes live in [internal-fluent-engine.md](internal-fluent-engine.md).

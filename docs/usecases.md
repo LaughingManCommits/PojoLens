@@ -1,17 +1,15 @@
 # Path Selection Guide
 
 If you are new to PojoLens, start here.
-Use this page to choose one path first, then jump to the deeper guide for that
-path.
-For new code, keep one default path per job:
-`PojoLensSql`, `PojoLensNatural`, `TypedQuery`, `PojoLensCsv`, `PojoLensTree`,
-`PojoLensRuntime`, `PojoLensChart`, or `ReportDefinition<T>`.
+Use this page to choose one authoring mode first, then add reusable contracts,
+runtime policy, or helpers only where the workflow actually needs them.
 
 Source guides:
 - entry points: [docs/entry-points.md](entry-points.md)
 - SQL-like query guide: [docs/sql-like.md](sql-like.md)
 - natural query guide: [docs/natural.md](natural.md)
 - reusable wrappers: [docs/reusable-wrappers.md](reusable-wrappers.md)
+- output helpers: [docs/output-helpers.md](output-helpers.md)
 - optional advanced surface: [docs/advanced-features.md](advanced-features.md)
 
 ## 1. Pick Query Style
@@ -22,10 +20,8 @@ Source guides:
 | Reusable SQL-like query shapes | `PojoLensSql.template(...)` | Keeps repeated query shapes on a fixed named-parameter schema. |
 | Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax, including explicit joins, bounded subquery/existence phrases, grouped aggregates, deterministic window phrases with `qualify`, time buckets, and chart phrases; see [docs/natural.md](natural.md). |
 | Code-owned typed filters and ordering | `TypedQuery.from(rowType)` | Stable Java-owned foundation for generated `TypedField<T,V>` constants, projection, filters, ordering, offset, limit, explain/schema, and execution guards. |
-| Runtime-scoped policy, DI, or multi-tenant behavior | `PojoLensRuntime.ofPreset(...)` | Keeps lint, strict typing, telemetry, caches, computed fields, and natural-query vocabulary scoped to a runtime instance. |
-| Rows already exist and only chart mapping remains | `PojoLensChart.toChartData(...)` | Uses the chart helper directly without re-entering query authoring. |
 
-## 2. Pick Reusable Wrapper
+## 2. Pick Reusable Contract
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
@@ -33,10 +29,15 @@ Source guides:
 | A saved/versioned reusable contract | `SavedReport` | Default when the contract must be stored, reviewed, or replayed across sessions. |
 | Advanced chart/table convenience after the reusable contract is already clear | `ChartQueryPresets` / `StatsViewPresets` | Optional sugar, not the default reusable-contract story. |
 
-## 3. Pick Output Contract
+## 3. Add Boundary Or Output Helper
+
+Output-helper guide:
+- [output-helpers.md](output-helpers.md)
 
 | If you need... | Choose... | Result |
 | --- | --- | --- |
+| Typed rows from a CSV file boundary | `PojoLensCsv.read(...)` | `List<T>` |
+| A subtree from flat parent-ID rows before query execution | `PojoLensTree.subtreeOf(...)` | `List<T>` |
 | Typed rows only | `.filter(...)` or `report.rows(...)` | `List<T>` |
 | Chart-ready payload | `.chart(...)`, `report.chart(...)`, or `preset.chart(...)` | `ChartData` |
 | Table payload with rows, totals, and schema | `StatsViewPreset.table(...)` | `StatsTable<T>` |
@@ -45,7 +46,7 @@ Source guides:
 
 | If you need... | Choose... | Why |
 | --- | --- | --- |
-| One shared app-level default policy | explicit entry points (`PojoLensSql` / `PojoLensNatural`) | Keeps the main query path simple. |
+| One shared app-level default policy | explicit entry points (`PojoLensSql` / `PojoLensNatural`) | Keeps the main query path simple after the authoring mode is chosen. |
 | Environment-, tenant-, or test-scoped policy | `PojoLensRuntime` | Instance-scoped configuration and execution. |
 | Optional diagnostics, cache tuning, telemetry, regression tooling, or build-time helpers | [docs/advanced-features.md](advanced-features.md) | Follow-on public surface after the main path is chosen. |
 

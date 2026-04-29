@@ -49,7 +49,7 @@ Notes:
 - timezone defaults to `UTC`
 - week buckets default to `MONDAY`
 
-## Chart Presets
+## Advanced Chart Preset Convenience
 
 ```java
 ChartQueryPreset<WeeklyHeadcount> preset = ChartQueryPresets

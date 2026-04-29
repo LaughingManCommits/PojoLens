@@ -23,7 +23,6 @@ Execution order is dependency-first, not ticket-number order.
 
 | WP  | Title                                        | Status  | Key deliverables                                                                      |
 |-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
-| WP21| Public Surface Consolidation                 | Pending | Canonical authoring modes, runtime role cleanup, reusable-contract consolidation      |
 | WP25| Boundary Loader Consolidation And Expansion  | Pending | Single boundary-loader story with TSV + JSON/JSONL growth and explicit Excel decision |
 | WP22| Developer Tooling And Static Validation      | Pending | First-party build integration, metamodel generation, saved-query validation           |
 | WP23| Typed DSL Aggregation And Join Expansion     | Pending | Typed joins, grouping, metrics, and dataset parity with SQL-like                      |
@@ -35,47 +34,6 @@ Execution order is dependency-first, not ticket-number order.
 
 Completed work packages were cleared from the active backlog. Historical detail
 stays in `CHANGELOG.md` and git history.
-
----
-
-## WP21: Public Surface Consolidation
-
-**Priority:** High
-**Goal:** Remove first-read overlap from docs and examples so developers see
-one primary query story, one scoped runtime story, and one canonical reusable
-contract.
-
-**Context:**
-- WP26 already settled the reusable wrapper shape: `ReportDefinition` /
-  `SavedReport` are the default reusable contracts, while chart/stats presets
-  remain advanced convenience sugar without deprecation in this release.
-- The current product-surface guidance already classifies wrappers and runtime
-  policy as layered helpers rather than separate product pillars.
-- This consolidation should land before more competitive feature surface is
-  added, otherwise the onboarding story will widen again.
-
-**Tasks:**
-- [ ] Rewrite `README.md`, `docs/entry-points.md`, `docs/usecases.md`,
-      `docs/reusable-wrappers.md`, and `docs/modules.md` around three
-      authoring modes: SQL-like, natural, and typed.
-- [ ] Reposition `PojoLensRuntime` in docs and examples as scoped policy and
-      configuration, not as a peer query-authoring mode.
-- [ ] Make `ReportDefinition` and `SavedReport` the default reusable-contract
-      story.
-- [ ] Audit examples and quickstarts so the default onboarding path starts from
-      `PojoLensSql`, `PojoLensNatural`, or `TypedQuery` rather than specialized
-      wrappers.
-- [ ] Remove "pick a path" wording that treats runtime, wrappers, and output
-      helpers as peer product identities when they are layered surfaces around
-      the same engine.
-- [ ] Consolidate chart/table/schema helper guidance under one output-helper
-      story instead of presenting multiple top-level workflow identities.
-- [ ] Carry the completed wrapper-direction decisions consistently through the
-      remaining docs, examples, migration notes, and entry-point guidance.
-
-**Validate:**
-- `mvn -B -ntp test`
-- `scripts/check-doc-consistency.ps1`
 
 ---
 

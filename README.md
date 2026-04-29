@@ -4,7 +4,7 @@ From `List<T>` to query and chart-ready results, without a database.
 `PojoLens` is a POJO-first in-memory query engine for Java. Its primary public query surface is SQL-like text over already-loaded Java objects, with a controlled plain-English surface for guided non-SQL authoring. Across those paths it covers filtering, ordering, grouping, joins, bounded subquery/existence predicates, aggregates, window analytics, `QUALIFY`, time buckets, and chart payload mapping. It also includes bounded helpers for loading UTF-8 CSV files into typed rows and shaping flat parent-ID lists before they enter the same engine.
 
 Core execution model:
-`query string -> tokens/AST -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
+`authoring mode -> validated execution plan -> in-memory row processing -> typed rows/chart/table output`
 
 ## Installation
 
@@ -88,38 +88,43 @@ Runnable example projects:
 
 ## Start Here
 
-- Need to choose the default query/runtime entry path:
+- Need to choose the default query authoring mode:
   [docs/entry-points.md](docs/entry-points.md)
 - Need SQL-like grammar, templates, joins, windows, and bounded subqueries:
   [docs/sql-like.md](docs/sql-like.md)
 - Need the controlled plain-English grammar and recipes:
   [docs/natural.md](docs/natural.md)
-- Need to choose between reusable report/chart/table wrappers:
+- Need reusable-contract guidance after the authoring mode is clear:
   [docs/reusable-wrappers.md](docs/reusable-wrappers.md)
+- Need chart/table/schema output-helper guidance after the query or reusable
+  contract is clear:
+  [docs/output-helpers.md](docs/output-helpers.md)
 - Need a scenario-driven selection guide:
   [docs/usecases.md](docs/usecases.md)
 - Need optional runtime tuning, testing, or tooling:
   [docs/advanced-features.md](docs/advanced-features.md)
 - See what has changed: [CHANGELOG.md](CHANGELOG.md)
 
-## Pick A Path
+## Choose Authoring Mode First
 
-For new code, prefer one default path per job:
-`PojoLensSql`, `PojoLensNatural`, `PojoLensCsv`, `PojoLensTree`, `PojoLensRuntime`, `PojoLensChart`, or
-`TypedQuery<T>`, or `ReportDefinition<T>`.
+For new code, choose one primary authoring mode first.
 
 | If you need...                                            | Choose...                                        | Read next                                                                                              |
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| Default query authoring over in-memory rows               | `PojoLensSql`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
-| Reusable SQL-like query templates                         | `PojoLensSql.template(...)`                      | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
-| Guided text queries for non-SQL users                     | `PojoLensNatural`                                | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                        |
+| Default query authoring over in-memory rows               | `PojoLensSql` (`parse(...)`, `template(...)`)    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
+| Guided text queries for non-SQL users                     | `PojoLensNatural` (`parse(...)`, `template(...)`) | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                       |
 | Code-owned typed filters and ordering                     | `TypedQuery`                                     | [docs/entry-points.md](docs/entry-points.md), [docs/metamodel.md](docs/metamodel.md)                   |
-| Typed CSV onboarding at the file boundary                | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
-| Flat parent-ID rows need subtree selection               | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
-| Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
-| Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
+
+Then add only the layer the workflow actually needs:
+
+| If you need...                                            | Choose...                                        | Read next                                                                                              |
+|-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A saved/versioned report for storage, admin review, or replay | `SavedReport`                              | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
+| Runtime-scoped policy, DI, or multi-tenant query behavior | `PojoLensRuntime`                                | [docs/entry-points.md](docs/entry-points.md), [docs/advanced-features.md](docs/advanced-features.md)   |
+| Typed CSV onboarding at the file boundary                 | `PojoLensCsv`                                    | [docs/entry-points.md](docs/entry-points.md), [docs/csv.md](docs/csv.md)                               |
+| Flat parent-ID rows need subtree selection                | `PojoLensTree`                                   | [docs/entry-points.md](docs/entry-points.md), [docs/tree.md](docs/tree.md)                             |
+| Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | Advanced chart-first convenience after the reusable contract is clear | `ChartQueryPresets` / `ChartQueryPreset` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
 | Advanced table-first convenience after the reusable contract is clear | `StatsViewPresets` / `StatsViewPreset` / `StatsTablePayload` / `StatsTable<T>` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
 | Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/natural.md](docs/natural.md), [docs/reports.md](docs/reports.md) |
@@ -279,16 +284,17 @@ rules live in the module docs linked beside each surface.
   [docs/caching.md](docs/caching.md), and
   [docs/reusable-wrappers.md](docs/reusable-wrappers.md).
 
-## API Entry Points
+## Public Surface Layers
 
-- `PojoLensSql`: default for new SQL-like and template-driven queries
-- `TypedQuery`: default for Java-owned typed filter/order/page composition
-- `PojoLensNatural`: default for guided plain-English text queries
-- `PojoLensCsv`: boundary adapter for loading typed rows from UTF-8 CSV files
-- `PojoLensTree`: helper for selecting subtrees from flat parent-ID row lists
-- `PojoLensRuntime`: default when query policy or configuration should be instance-scoped
-- `PojoLensChart`: chart-only helper when rows already exist
-- `ReportDefinition`: reusable business-query wrapper when the contract itself should be carried around
+- Primary authoring modes:
+  `PojoLensSql`, `PojoLensNatural`, `TypedQuery`
+- Reusable contracts:
+  `ReportDefinition`, `SavedReport`
+- Scoped runtime and integration:
+  `PojoLensRuntime`
+- Boundary and workflow helpers:
+  `PojoLensCsv`, `PojoLensTree`, `PojoLensChart`, `JoinBindings`,
+  `DatasetBundle`, `SqlLikeCursor`, `SnapshotComparison`
 
 Recommended defaults for new code are documented in
 [docs/entry-points.md](docs/entry-points.md).

@@ -1,6 +1,12 @@
 # Tabular Result Schema Metadata
 
 `PojoLens` can expose deterministic tabular metadata for query outputs.
+Schema is part of the output-helper layer, not a separate query path.
+Start from the query or reusable contract that already owns the rows, then ask
+that contract for schema metadata.
+
+Output-helper route:
+- [output-helpers.md](output-helpers.md)
 
 Types:
 - `TabularSchema`
@@ -14,6 +20,17 @@ Each column includes:
 - `order` — insertion-order index
 - optional `formatHint` — rendering hint (e.g. `"metric:COUNT"`)
 
+## Output-Helper Route
+
+Recommended defaults:
+- use `SqlLikeQuery.schema(...)` or `NaturalQuery.schema(...)` for one-off
+  query contracts
+- use `ReportDefinition.schema()` when the same reusable contract should serve
+  rows, chart output, and schema metadata
+- use `StatsViewPreset.schema()` or `StatsTable.schema()` when the consumer is
+  already table-first
+- use `ChartQueryPreset.schema()` only for advanced chart-first preset flows
+
 Entry points:
 - `SqlLikeQuery.schema(Projection.class)`
 - `NaturalQuery.schema(Projection.class)`
@@ -21,6 +38,8 @@ Entry points:
 - `NaturalQuery.schema(rows, joinBindings, Projection.class)`
 - `NaturalQuery.schema(datasetBundle, Projection.class)`
 - `ReportDefinition.schema()`
+- `StatsViewPreset.schema()`
+- `StatsTable.schema()`
 - `ChartQueryPreset.schema()`
 
 SQL-like example:
@@ -47,6 +66,16 @@ ReportDefinition<DepartmentCount> report = ReportDefinition.sql(
     DepartmentCount.class);
 
 TabularSchema schema = report.schema();
+```
+
+Table-first output example:
+
+```java
+StatsTable<DepartmentCount> table = StatsViewPresets
+    .by("department", DepartmentCount.class)
+    .table(source);
+
+TabularSchema schema = table.schema();
 ```
 
 Current format hints:
@@ -77,8 +106,10 @@ See [reports.md](reports.md) for the full `SavedReport` workflow.
 
 ## See Also
 
+- [output-helpers.md](output-helpers.md)
 - [reports.md](reports.md)
 - [stats-presets.md](stats-presets.md)
+- [charts.md](charts.md)
 - [entry-points.md](entry-points.md)
 
 

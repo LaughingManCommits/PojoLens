@@ -1,5 +1,12 @@
 # Chart Data Guide
 
+Chart mapping is one of PojoLens's output-helper layers.
+Start from a query or reusable report contract first, then add chart output
+when the consumer actually needs it.
+
+Output-helper route:
+- [output-helpers.md](output-helpers.md)
+
 ## Current Contract
 
 `PojoLens` chart support is data-contract mapping only (no internal renderer).
@@ -60,20 +67,27 @@ Interop policy:
 - `PojoLens` does not ship chart rendering.
 - integration with chart libraries is validated via tests/examples.
 
-Wrapper choice:
+Reusable-contract choice:
 - for docs and new code, treat `ReportDefinition<T>` as the default reusable
   contract
 - `ChartQueryPreset<T>` is advanced chart-first convenience when a preset
   factory already fits the workflow
-- `ReportDefinition<T>` is the general reusable wrapper when the same query may feed chart and non-chart consumers
+- `ReportDefinition<T>` is the general reusable wrapper when the same query may
+  feed chart and non-chart consumers
 - wrapper selection guide: [docs/reusable-wrappers.md](reusable-wrappers.md)
 
-## API Entry Points
+## Output-Helper Route
 
 Recommended defaults:
+- start from `SqlLikeQuery.chart(...)` or `NaturalQuery.chart(...)` when the
+  query itself owns the chart-producing workflow
+- start from `ReportDefinition.chart(...)` / `report.chartJs(...)` when the
+  same reusable contract should serve rows, chart output, and schema
 - start from `PojoLensSql.parse(...)` for SQL-like chart flows
 - start from `PojoLensNatural.parse(...)` for guided non-SQL chart flows when the query text already carries `as <type> chart`
 - use `PojoLensChart.toChartData(...)` when rows already exist and only chart mapping remains
+- use `ChartQueryPresets...` only as advanced convenience when the preset
+  family is itself the contract
 - for multi-source SQL-like chart execution, start with `JoinBindings` and
   promote to `DatasetBundle` when the same snapshot is reused
 
@@ -81,6 +95,12 @@ Recommended defaults:
 - `NaturalQuery.chart(List<?>, Class<T>)`
 - `NaturalQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `ChartJsAdapter.toPayload(ChartData)`
+- `ReportDefinition.chart(List<?>)`
+- `ReportDefinition.chart(List<?>, JoinBindings)`
+- `ReportDefinition.chart(DatasetBundle)`
+- `ReportDefinition.chartJs(List<?>)`
+- `ReportDefinition.chartJs(List<?>, JoinBindings)`
+- `ReportDefinition.chartJs(DatasetBundle)`
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
