@@ -12,10 +12,11 @@ import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 /**
- * Specialized chart-first reusable wrapper built from a SQL-like preset query.
+ * Advanced chart-first convenience wrapper built from a SQL-like preset query.
  *
- * <p>Use {@link ReportDefinition} when the same query should be carried as a
- * more general reusable row/chart contract rather than a chart-first preset.
+ * <p>Prefer {@link ReportDefinition} for new reusable workflows. This type
+ * remains public as lightweight sugar when a preset factory already expresses
+ * the chart-first flow you want.
  */
 public final class ChartQueryPreset<T> {
 

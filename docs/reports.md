@@ -7,8 +7,8 @@ It also exposes deterministic table metadata through `schema()`.
 It is the general reusable wrapper in PojoLens and the default reusable-query
 contract for docs and new code.
 SQL-like and natural queries are the public paths into it.
-`ChartQueryPreset<T>` and `StatsViewPreset<T>` are specialized chart-first and
-table-first wrappers that can bridge back to it.
+`ChartQueryPreset<T>` and `StatsViewPreset<T>` remain available as advanced
+chart-first and table-first convenience wrappers that can bridge back to it.
 
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -234,10 +234,11 @@ List<DeptCountRow> rows = def.rows(currentEmployees);
 ChartData chart         = def.chart(currentEmployees);
 ```
 
-## Relation To ChartQueryPreset
+## Advanced Chart Preset Convenience
 
-`ChartQueryPreset<T>` remains the lightweight preset API for chart-first SQL-like flows.
-Choose it when the preset factory already matches the chart workflow you want.
+`ChartQueryPreset<T>` remains available as lightweight advanced sugar for
+chart-first SQL-like flows.
+It is not the default reusable-contract story for new docs or new code.
 
 If you want the more general report abstraction, convert it:
 
@@ -246,9 +247,10 @@ ReportDefinition<DepartmentCount> report = preset.reportDefinition();
 TabularSchema schema = preset.schema();
 ```
 
-## Relation To StatsViewPreset
+## Advanced Stats Preset Convenience
 
-`StatsViewPreset<T>` is the table-first preset API for common summary/grouped/leaderboard query shapes.
+`StatsViewPreset<T>` remains available as table-first advanced sugar for common
+summary/grouped/leaderboard query shapes.
 Choose it when totals and `StatsTable<T>` are part of the contract.
 
 It adds optional totals and schema metadata through `StatsTable<T>`:

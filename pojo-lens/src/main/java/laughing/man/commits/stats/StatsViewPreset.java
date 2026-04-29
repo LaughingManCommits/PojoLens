@@ -13,10 +13,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Specialized table-first reusable wrapper built from a SQL-like stats query.
+ * Advanced table-first convenience wrapper built from a SQL-like stats query.
  *
- * <p>Use {@link ReportDefinition} when the reusable contract should be the row
- * query itself instead of the table/totals workflow.
+ * <p>Prefer {@link ReportDefinition} for new reusable row/query workflows.
+ * This type remains public when totals and table payload helpers are the
+ * primary contract.
  */
 public final class StatsViewPreset<T> {
 

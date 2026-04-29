@@ -63,7 +63,8 @@ Interop policy:
 Wrapper choice:
 - for docs and new code, treat `ReportDefinition<T>` as the default reusable
   contract
-- `ChartQueryPreset<T>` is the specialized chart-first reusable wrapper
+- `ChartQueryPreset<T>` is advanced chart-first convenience when a preset
+  factory already fits the workflow
 - `ReportDefinition<T>` is the general reusable wrapper when the same query may feed chart and non-chart consumers
 - wrapper selection guide: [docs/reusable-wrappers.md](reusable-wrappers.md)
 
@@ -83,10 +84,11 @@ Recommended defaults:
 - `SqlLikeQuery.chart(List<?>, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(List<?>, JoinBindings, Class<T>, ChartSpec)`
 - `SqlLikeQuery.chart(DatasetBundle, Class<T>, ChartSpec)`
-- `ChartQueryPresets.categoryCounts(...)`
-- `ChartQueryPresets.categoryTotals(...)`
-- `ChartQueryPresets.timeSeriesCounts(...)`
-- `ChartQueryPresets.timeSeriesTotals(...)`
+- advanced chart preset helpers:
+  `ChartQueryPresets.categoryCounts(...)`,
+  `ChartQueryPresets.categoryTotals(...)`,
+  `ChartQueryPresets.timeSeriesCounts(...)`,
+  `ChartQueryPresets.timeSeriesTotals(...)`
 - `TimeBucketPreset` for explicit timezone/week-start chart presets
 - `ChartQueryPresets.groupedBreakdown(...)`
 - `ChartQueryPreset.schema()`
@@ -115,7 +117,18 @@ ChartData chart = PojoLensNatural
     .chart(source, DepartmentCount.class);
 ```
 
-Preset-driven chart:
+Reusable report-driven chart:
+
+```java
+ReportDefinition<DepartmentHeadcount> report = ReportDefinition.sql(
+    PojoLensSql.parse("select department, count(*) as headcount group by department order by department asc"),
+    DepartmentHeadcount.class,
+    ChartSpec.of(ChartType.BAR, "department", "headcount"));
+
+ChartJsPayload payload = report.chartJs(source);
+```
+
+Advanced preset-driven chart:
 
 ```java
 ChartQueryPreset<DepartmentHeadcount> preset = ChartQueryPresets
@@ -125,7 +138,7 @@ List<DepartmentHeadcount> rows = preset.rows(source);
 ChartData chart = preset.chart(source);
 ```
 
-Projection-free preset with built-in Chart.js payload:
+Advanced projection-free preset with built-in Chart.js payload:
 
 ```java
 ChartJsPayload payload = ChartQueryPresets
@@ -133,7 +146,7 @@ ChartJsPayload payload = ChartQueryPresets
     .chartJs(source);
 ```
 
-Preset with a customized title/axis contract:
+Advanced preset with a customized title/axis contract:
 
 ```java
 ChartJsPayload payload = ChartQueryPresets

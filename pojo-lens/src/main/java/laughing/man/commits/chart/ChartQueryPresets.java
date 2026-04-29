@@ -10,7 +10,11 @@ import laughing.man.commits.util.StringUtil;
 import java.util.Objects;
 
 /**
- * Lightweight factories for common chart/report SQL-like query patterns.
+ * Advanced convenience factories for common chart-first SQL-like query
+ * patterns.
+ *
+ * <p>Prefer {@link laughing.man.commits.report.ReportDefinition} when the
+ * reusable contract should stay row-first or serve multiple consumers.
  */
 public final class ChartQueryPresets {
 

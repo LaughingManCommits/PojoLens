@@ -44,6 +44,34 @@ public final class RawQueryRow extends QueryRow {
     }
 
     @Override
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "RawQueryRow owns a cloned schema list and exposes it read-only for internal schema checks."
+    )
+    public List<String> getFieldNames() {
+        List<? extends QueryField> cached = super.getFields();
+        if (cached == null || cached.isEmpty()) {
+            return schema;
+        }
+        List<String> names = new ArrayList<>(cached.size());
+        for (QueryField field : cached) {
+            names.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
+        }
+        return List.copyOf(names);
+    }
+
+    /**
+     * Returns the cached schema names without materializing query fields.
+     */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "RawQueryRow owns a cloned schema list and exposes it read-only for internal schema checks."
+    )
+    public List<String> getSchema() {
+        return schema;
+    }
+
+    @Override
     public List<? extends QueryField> getFields() {
         List<? extends QueryField> cached = super.getFields();
         if (cached != null) {

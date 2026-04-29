@@ -120,12 +120,14 @@ For new code, prefer one default path per job:
 | Rows already exist and only chart mapping remains         | `PojoLensChart`                                  | [docs/entry-points.md](docs/entry-points.md), [docs/charts.md](docs/charts.md)                         |
 | A reusable business query contract                        | `ReportDefinition`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
 | A saved/versioned report for storage, admin review, or replay | `SavedReport`                              | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/reports.md](docs/reports.md)             |
-| A reusable chart-first preset                             | `ChartQueryPreset`                               | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
-| A reusable table payload with totals/schema               | `StatsViewPreset` / `StatsTablePayload` / `StatsTable<T>` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
+| Advanced chart-first convenience after the reusable contract is clear | `ChartQueryPresets` / `ChartQueryPreset` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/charts.md](docs/charts.md)               |
+| Advanced table-first convenience after the reusable contract is clear | `StatsViewPresets` / `StatsViewPreset` / `StatsTablePayload` / `StatsTable<T>` | [docs/reusable-wrappers.md](docs/reusable-wrappers.md), [docs/stats-presets.md](docs/stats-presets.md) |
 | Joined multi-source execution                             | `JoinBindings`, then `DatasetBundle` when reused | [docs/sql-like.md](docs/sql-like.md), [docs/natural.md](docs/natural.md), [docs/reports.md](docs/reports.md) |
 
 For stats tables, `StatsTablePayload` is the projection-free dashboard payload;
 `StatsTable<T>` keeps typed rows.
+For reusable workflows, the defaults are `ReportDefinition` and `SavedReport`;
+chart/table presets remain advanced convenience sugar.
 
 ## Product Shape
 

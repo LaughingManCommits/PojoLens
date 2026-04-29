@@ -33,6 +33,24 @@ public class QueryRow {
         return fields == null ? null : Collections.unmodifiableList(fields);
     }
 
+    /**
+     * Returns the field names for this row in schema order.
+     * <p>
+     * Subclasses may override this to avoid materializing {@link #getFields()}
+     * when names are already stored separately.
+     */
+    public List<String> getFieldNames() {
+        List<? extends QueryField> f = getFields();
+        if (f == null || f.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> names = new ArrayList<>(f.size());
+        for (QueryField field : f) {
+            names.add(field == null || field.getFieldName() == null ? "" : field.getFieldName());
+        }
+        return List.copyOf(names);
+    }
+
     public void setFields(List<? extends QueryField> fields) {
         this.fields = fields == null ? null : new ArrayList<>(fields);
     }

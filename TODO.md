@@ -19,83 +19,201 @@ wiring.
 
 ## Status Overview
 
-| WP  | Title                                       | Status   | Key deliverables                                                                     |
-|-----|---------------------------------------------|----------|--------------------------------------------------------------------------------------|
-| WP1 | Stable Embedded Reporting Contract          | Done     | SavedReport, SavedReportKind, TabularColumn.typeName(), 25 tests                     |
-| WP2 | Production Query Governance And Audit       | Done     | QueryExecutionGuard, QueryGuardOutcome, QueryComplexitySummary, 23 tests             |
-| WP3 | Stable Public Typed DSL                     | Done     | TypedField, TypedPredicate, TypedQuery, metamodel, 61 tests                          |
-| WP4 | Hybrid Adapters And Pushdown                | Done     | Pushdown preview, host adapter bridge, ResultSet ingestion, split execution          |
-| WP5 | Repeated-Workload Performance Upgrade       | Done     | Reflection caching, join reuse, window allocation, hotspot guardrails                |
-| WP6 | Expression Cache Contention Fix             | Done     | Replace synchronized LRU map; Caffeine in SqlExpressionEvaluator                    |
-| WP7 | Reflection Cache Bounds & Safety            | Done     | Size-bound all unbounded ConcurrentHashMaps in ReflectionUtil                        |
-| WP8 | Filter Hot-Path Field Index Pre-computation | Done     | Pre-index field positions at plan time; remove per-row O(n) lookups                 |
-| WP9 | Allocation Reduction in Hot Paths           | Done     | RawQueryRow output in AggregationEngine; confirmed FastPojoFilter clone is minimal   |
-| WP10| Cache Coherence Hardening                   | Done     | rebuildCache() atomic swap; concurrent test added; reset semantics follow-up in WP13 |
-| WP11| Java 25 Modernization                       | Done     | Internal records, sealed filter-expression AST, pattern switches, full tests         |
-| WP12| QueryRow Alias Projection Schema Safety     | Done     | Preferred-index hints now verify per-row field names; heterogeneous QueryRow tests  |
-| WP13| Stats Plan Cache Reset Semantics            | Done     | `resetStats()` now swaps to an empty cache; runtime/public reset regressions green  |
-| WP14| Expression Evaluator Input Validation Contract | Done    | Front-door null/blank validation restored before Caffeine cache access              |
-| Release Gate | Release Gate                         | Pending  | Scope decisions made; lint/chart parity cleared; final release guardrails pending    |
-| WP15| JDK 25 JFR Chart-Parity Profiling          | Done     | Scatter hotspot fix, JFR harness/recipe, chart parity rerun                          |
-| WP16| Virtual-Thread Boundary Evaluation         | Done     | Opt-in Spring `virtual` profiles, smoke coverage, cancellation/pinning audit         |
-| WP17| Internal Java 25 Cleanup Pass              | Done     | Internal utility/cursor switch cleanup; targeted regressions; full reactor green     |
-| WP18| JDK 25 Runtime Knob Evaluation             | Pending  | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix           |
-| WP19| Reusable Report Wrapper Consolidation      | Done     | `ReportDefinition` as shared row-query owner; preset wrappers delegate cleanly       |
-| WP20| Query Message Consolidation                | Done     | `SqlLikeFieldMessages`, natural helper dedupe, targeted message-contract tests green  |
+Execution order is dependency-first, not ticket-number order.
+
+| WP  | Title                                        | Status  | Key deliverables                                                                      |
+|-----|----------------------------------------------|---------|---------------------------------------------------------------------------------------|
+| WP21| Public Surface Consolidation                 | Pending | Canonical authoring modes, runtime role cleanup, reusable-contract consolidation      |
+| WP25| Boundary Loader Consolidation And Expansion  | Pending | Single boundary-loader story with TSV + JSON/JSONL growth and explicit Excel decision |
+| WP22| Developer Tooling And Static Validation      | Pending | First-party build integration, metamodel generation, saved-query validation           |
+| WP23| Typed DSL Aggregation And Join Expansion     | Pending | Typed joins, grouping, metrics, and dataset parity with SQL-like                      |
+| WP24| Typed DSL Advanced Analytics                 | Pending | Typed HAVING/window/subquery design and staged parity-backed rollout                  |
+| WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
+| Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
 ---
 
-## Review Findings (2026-04-26)
-
-- WP6-WP10 review found three correctness regressions; all three are now
-  resolved in WP12-WP14.
-- `SqlLikeExecutionSupport.projectAliasedRows(...)` previously reused the first
-  `QueryRow` schema across all rows; WP12 now validates preferred indexes
-  against each row and falls back to name lookup when the row-local schema
-  differs.
-- `FilterExecutionPlanCacheStore.resetStats()` previously preserved entries;
-  WP13 now swaps in a fresh empty cache so the next equivalent stats query
-  records a miss instead of a hit.
-- `SqlExpressionEvaluator` public entry points previously let null and blank
-  expressions reach Caffeine; WP14 now restores deterministic
-  `IllegalArgumentException("Expression must not be blank")` behavior before
-  cache access.
-- Review snapshot was `1037/1037`; after WP11-WP15 and the later follow-up
-  additions the full reactor is now `1067/1067`, and the remaining release
-  work is the final release guardrails.
+Completed work packages were cleared from the active backlog. Historical detail
+stays in `CHANGELOG.md` and git history.
 
 ---
 
-## Release Gate
+## WP21: Public Surface Consolidation
 
 **Priority:** High
-**Goal:** Cut the next release after the WP6-WP10 review follow-ups land and the
-performance work is backed by the final guardrails.
+**Goal:** Remove first-read overlap from docs and examples so developers see
+one primary query story, one scoped runtime story, and one canonical reusable
+contract.
+
+**Context:**
+- WP26 already settled the reusable wrapper shape: `ReportDefinition` /
+  `SavedReport` are the default reusable contracts, while chart/stats presets
+  remain advanced convenience sugar without deprecation in this release.
+- The current product-surface guidance already classifies wrappers and runtime
+  policy as layered helpers rather than separate product pillars.
+- This consolidation should land before more competitive feature surface is
+  added, otherwise the onboarding story will widen again.
 
 **Tasks:**
-- [x] Complete WP12 (QueryRow alias projection schema safety).
-- [x] Complete WP13 (stats plan cache reset semantics).
-- [x] Complete WP14 (expression evaluator input validation contract).
-- [x] Decide whether to backfill the missing WP6/WP8/WP9 JMH + threshold work
-      before the release cut.
-- [x] Decide whether WP11 lands before or after the release cut.
-- [x] Update release notes focusing on the Java 25 upgrade, the performance
-      work, and the post-review correctness fixes.
-- [ ] Run final release guardrails from `RELEASE.md`.
-- [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after release.
-
-**Current release-cut decisions (2026-04-26):**
-- Defer the unimplemented WP6/WP8/WP9 benchmark-backfill tasks until after the
-  next release cut. Existing strict core/chart guardrails already cover the
-  shipped performance surface, and adding new benchmark suites or threshold
-  entries would expand scope while the release gate is blocked elsewhere.
-- WP11 landed before the release cut on `2026-04-26`.
+- [ ] Rewrite `README.md`, `docs/entry-points.md`, `docs/usecases.md`,
+      `docs/reusable-wrappers.md`, and `docs/modules.md` around three
+      authoring modes: SQL-like, natural, and typed.
+- [ ] Reposition `PojoLensRuntime` in docs and examples as scoped policy and
+      configuration, not as a peer query-authoring mode.
+- [ ] Make `ReportDefinition` and `SavedReport` the default reusable-contract
+      story.
+- [ ] Audit examples and quickstarts so the default onboarding path starts from
+      `PojoLensSql`, `PojoLensNatural`, or `TypedQuery` rather than specialized
+      wrappers.
+- [ ] Remove "pick a path" wording that treats runtime, wrappers, and output
+      helpers as peer product identities when they are layered surfaces around
+      the same engine.
+- [ ] Consolidate chart/table/schema helper guidance under one output-helper
+      story instead of presenting multiple top-level workflow identities.
+- [ ] Carry the completed wrapper-direction decisions consistently through the
+      remaining docs, examples, migration notes, and entry-point guidance.
 
 **Validate:**
 - `mvn -B -ntp test`
-- `mvn -B -ntp -Plint verify -DskipTests`
 - `scripts/check-doc-consistency.ps1`
-- Release benchmark guardrails from `docs/benchmarking.md`.
+
+---
+
+## WP25: Boundary Loader Consolidation And Expansion
+
+**Priority:** Medium
+**Goal:** Broaden file-boundary onboarding under one loader surface without
+turning PojoLens into a dataframe or ETL framework.
+
+**Context:**
+- The CSV adapter is intentionally bounded and the docs explicitly call out
+  non-goals such as Excel and first-class TSV support.
+- Competitive analytics-adjacent libraries gain adoption through format
+  convenience even when their core engine story is different.
+- Any expansion here needs to stay read-only, boundary-only, and explicitly
+  subordinate to the in-memory query engine story.
+- New format growth should not create a new peer public surface for each file
+  type.
+
+**Tasks:**
+- [ ] Decide the single public boundary-loader surface for format-specific
+      loading so future adapters do not fragment into separate peer entry
+      points.
+- [ ] Add first-party TSV and JSON/JSONL typed loading under that single
+      boundary-loader story, with load reports, coercion controls, and
+      runtime-owned defaults where the model stays bounded.
+- [ ] Factor shared diagnostics and coercion plumbing out of CSV internals
+      where reuse improves clarity and keeps error contracts aligned.
+- [ ] Decide whether Excel support is a bounded adapter worth owning or a
+      deliberate non-goal, and document that decision explicitly.
+- [ ] Keep adapters read-only, boundary-only, and schema-explicit rather than
+      widening into a general table platform.
+- [ ] Add docs and example flows that feed loaded rows into the normal
+      SQL-like, natural, and typed execution paths.
+- [ ] Do not add separate top-level peer product stories such as distinct
+      `PojoLensJson` or `PojoLensTsv` surfaces unless that decision is
+      explicitly justified and reviewed.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `scripts/check-doc-consistency.ps1`
+
+---
+
+## WP22: Developer Tooling And Static Validation
+
+**Priority:** High
+**Goal:** Close the build-time and CI ergonomics gap with first-party code
+generation and query-validation hooks.
+
+**Context:**
+- `FieldMetamodelGenerator` exists today, but it is intentionally
+  library-level rather than annotation-processor-driven.
+- `SavedReport`, SQL-like diagnostics, natural diagnostics, and plan preview
+  already provide most of the raw pieces for static validation.
+- This work should target the consolidated first-read surface from WP21/WP25 so
+  build integration does not bake in avoidable naming churn.
+
+**Tasks:**
+- [ ] Decide the first-party build integration shape: Maven plugin, Gradle task
+      recipe, annotation processor, or a staged combination.
+- [ ] Add automated metamodel generation for typed-field and string-field
+      constants without requiring handwritten driver code.
+- [ ] Add build-time validation for `SavedReport` catalogs and config-owned
+      SQL-like/natural query text using diagnostics/plan preview without live
+      data execution.
+- [ ] Emit deterministic machine-readable diagnostics that can fail CI with
+      stable error contracts.
+- [ ] Ship at least one documented build integration example, including
+      generated-sources wiring and incremental-build behavior.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `scripts/check-doc-consistency.ps1`
+
+---
+
+## WP23: Typed DSL Aggregation And Join Expansion
+
+**Priority:** High
+**Goal:** Close the largest typed-authoring gap by bringing code-owned grouped
+and multi-source queries onto typed APIs.
+
+**Context:**
+- `TypedQuery` currently stops at projection, filters, ordering, offset, limit,
+  explain, schema, and execution guards.
+- SQL-like already owns grouping, joins, metrics, windows, and bounded
+  subqueries; typed code-owned use cases fall back to strings for those shapes.
+- WP22 should land first so metamodel/codegen and validation support can back
+  the larger typed surface.
+
+**Tasks:**
+- [ ] Design typed join bindings that reuse `JoinBindings` and `DatasetBundle`
+      concepts instead of inventing a parallel multi-source model.
+- [ ] Add typed grouping, aggregate selection, ordering by aggregate output,
+      and totals-style projection support.
+- [ ] Preserve parity with SQL-like validation, schema, explain, and execution
+      guards where query shapes overlap.
+- [ ] Generate or derive the typed field helpers needed for grouped and joined
+      projections.
+- [ ] Land parity/regression coverage against equivalent SQL-like queries
+      before exposing the new typed surface as stable guidance.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
+
+---
+
+## WP24: Typed DSL Advanced Analytics
+
+**Priority:** Medium
+**Goal:** Extend the typed story beyond grouped queries once the typed
+aggregation foundation is stable.
+
+**Context:**
+- Windows, `HAVING`, `QUALIFY`, and bounded subqueries are already
+  differentiators on the SQL-like surface.
+- Bringing those shapes to typed authoring only makes sense after grouped and
+  joined typed composition settles into a coherent API.
+- This package is about code-owned query composition, not replacing the text
+  surfaces for user-authored queries.
+
+**Tasks:**
+- [ ] Design typed `HAVING` and window expression APIs that map cleanly onto
+      the existing execution model.
+- [ ] Evaluate bounded typed subquery and existence predicates against API
+      readability, error reporting, and generic-type weight.
+- [ ] Keep user-authored text flows on SQL-like/natural while extending typed
+      composition only where code-owned queries clearly benefit.
+- [ ] Stage rollout behind parity tests and usage docs so the typed surface
+      grows in one direction instead of fragmenting.
+- [ ] Decide and document any advanced shapes that should remain text-only even
+      after the typed expansion work.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 
 ---
 
@@ -114,6 +232,9 @@ mandatory code changes.
   guidance.
 - The benchmark module and Spring examples provide a reasonable place to gather
   comparative startup and throughput numbers.
+- This package is intentionally late in the queue because it is experimental
+  and does not reduce product-surface overlap or unlock the developer-facing
+  API roadmap.
 
 **Tasks:**
 - [ ] Define a small runtime matrix covering default JVM settings, compact
@@ -131,3 +252,28 @@ mandatory code changes.
 **Validate:**
 - `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
 - `scripts/check-doc-consistency.ps1`
+
+---
+
+## Release Gate
+
+**Priority:** High
+**Goal:** Cut the next release after the active roadmap queue is complete and
+the final release guardrails are rerun.
+
+**Tasks:**
+- [ ] Run final release guardrails from `RELEASE.md`.
+- [ ] Update `ai/state/current-state.md` and `ai/state/handoff.md` after release.
+
+**Current release-cut decisions (2026-04-26):**
+- Defer the unimplemented WP6/WP8/WP9 benchmark-backfill tasks until after the
+  next release cut. Existing strict core/chart guardrails already cover the
+  shipped performance surface, and adding new benchmark suites or threshold
+  entries would expand scope while the release gate is blocked elsewhere.
+- WP11 landed before the release cut on `2026-04-26`.
+
+**Validate:**
+- `mvn -B -ntp test`
+- `mvn -B -ntp -Plint verify -DskipTests`
+- `scripts/check-doc-consistency.ps1`
+- Release benchmark guardrails from `docs/benchmarking.md`.

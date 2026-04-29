@@ -1,8 +1,10 @@
 # Reusable Wrapper Guide
 
-PojoLens has one general reusable wrapper and two specialized convenience
+PojoLens has two default reusable contracts and two advanced convenience
 wrappers.
-They all reuse the same in-memory query engine; the difference is the default output shape and the amount of preset convenience they add.
+They all reuse the same in-memory query engine; the difference is whether the
+contract itself is the durable thing or whether a preset/table-first shortcut
+is doing the work.
 
 ## Abstraction Ladder
 
@@ -11,14 +13,14 @@ They all reuse the same in-memory query engine; the difference is the default ou
   migration-safe replay
 - `ReportDefinition<T>`: the general reusable row-query contract for SQL-like
   or natural queries (in-process reuse)
-- `ChartQueryPreset<T>`: chart-first SQL-like convenience wrapper
-- `StatsViewPreset<T>`: table-first SQL-like convenience wrapper
+- `ChartQueryPreset<T>`: advanced chart-first SQL-like convenience wrapper
+- `StatsViewPreset<T>`: advanced table-first SQL-like convenience wrapper
 
 For in-process reuse, `ReportDefinition<T>` is the canonical contract.
 When the report must be stored, versioned, or reviewed without executing, start
 with `SavedReport` and replay it as `ReportDefinition<T>` when ready.
-Use the specialized presets only when the wrapper itself should encode a
-chart-first or table-first workflow.
+Use the specialized presets only when the preset itself materially reduces code
+and the chart-first or table-first identity is intentional.
 
 ## Capability Matrix
 
@@ -37,9 +39,13 @@ chart-first or table-first workflow.
   across requests or snapshots is enough.
 - Use `ReportDefinition<T>` when the query may be natural or SQL-like today,
   or may grow into multiple consumers later.
-- Use `ChartQueryPreset<T>` when the reusable thing is primarily a chart shape and one of the preset factories already expresses it well.
-- Use `StatsViewPreset<T>` when the reusable thing is primarily a table payload with optional totals and deterministic schema.
-- If a specialized preset starts accumulating more generic reuse needs, convert it to `ReportDefinition<T>` and keep the specialized preset only where the chart/table-first API still adds value.
+- Use `ChartQueryPreset<T>` only when the reusable thing is primarily a chart
+  shape and one of the preset factories already expresses it well.
+- Use `StatsViewPreset<T>` only when the reusable thing is primarily a table
+  payload with optional totals and deterministic schema.
+- If a specialized preset starts accumulating more generic reuse needs, convert
+  it to `ReportDefinition<T>` and keep the specialized preset only where the
+  chart/table-first API still adds value.
 
 ## Bridge Rules
 
@@ -63,7 +69,11 @@ Those overlaps are expected because the wrappers share one execution engine and 
 
 Current wrapper guidance:
 - keep `ReportDefinition<T>` as the default general reusable wrapper
-- keep `ChartQueryPreset<T>` as specialized chart-first convenience
-- keep `StatsViewPreset<T>` as specialized table-first convenience
-- de-emphasize the idea that these are separate product identities
+- keep `SavedReport` as the default persisted/reviewable reusable contract
+- keep `ChartQueryPreset<T>` as advanced chart-first convenience
+- keep `StatsViewPreset<T>` as advanced table-first convenience
+- do not treat the specialized wrappers as separate product identities
+- no wrapper deprecations are introduced in this release; the collapse is
+  guidance-first so existing integrations can keep working while new docs and
+  examples prefer `ReportDefinition<T>` / `SavedReport`
 

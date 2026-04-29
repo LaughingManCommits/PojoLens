@@ -68,12 +68,24 @@ public final class SchemaIndexUtil {
         }
         for (int i = 0; i < rows.size(); i++) {
             QueryRow row = rows.get(i);
-            if (row == null || row.getFields() == null || row.getFields().isEmpty()) {
+            List<String> fieldNames = row == null ? null : row.getFieldNames();
+            if (fieldNames == null || fieldNames.isEmpty()) {
                 continue;
             }
-            return queryFieldNames(row.getFields());
+            return normalizeFieldNames(fieldNames);
         }
         return List.of();
+    }
+
+    public static List<String> normalizeFieldNames(List<String> fieldNames) {
+        if (fieldNames == null || fieldNames.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> names = new ArrayList<>(fieldNames.size());
+        for (String fieldName : fieldNames) {
+            names.add(fieldName == null ? "" : fieldName);
+        }
+        return List.copyOf(names);
     }
 
     public static int findFieldIndex(Map<String, Integer> fieldIndexes, String fieldName) {

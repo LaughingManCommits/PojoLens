@@ -1,10 +1,13 @@
 # Stats View Presets
 
-`StatsViewPresets` provides predefined table-oriented query shapes for common dashboard/report workloads.
+`StatsViewPresets` provides predefined table-oriented query shapes for common
+dashboard/report workloads.
 
-Use it when you want reusable stats tables without hand-writing SQL-like strings for each endpoint.
-`StatsViewPreset<T>` is the specialized table-first reusable wrapper in PojoLens.
-If the reusable thing becomes a more general row query, bridge it to `ReportDefinition<T>`.
+Use it when you want table-first convenience without hand-writing SQL-like
+strings for each endpoint.
+`StatsViewPreset<T>` is an advanced table-first reusable wrapper in PojoLens.
+If the reusable thing becomes a more general row query, prefer
+`ReportDefinition<T>`.
 
 Wrapper selection guide:
 - [docs/reusable-wrappers.md](reusable-wrappers.md)
@@ -103,4 +106,7 @@ ReportDefinition<DepartmentPayrollRow> report = preset.reportDefinition();
 ```
 
 `reportDefinition()` keeps the reusable row query, but totals remain on `StatsViewPreset<T>` and `StatsTable<T>`.
+
+For new first-read docs and general reusable-query code, start with
+`ReportDefinition<T>` and treat stats presets as optional convenience.
 

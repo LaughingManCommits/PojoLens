@@ -147,6 +147,10 @@ Migration guidance:
 - For guided non-SQL text, use `PojoLensNatural`.
 - For reusable flows, use `ReportDefinition.sql(...)` or
   `ReportDefinition.natural(...)`.
+- `ChartQueryPreset` / `ChartQueryPresets` and `StatsViewPreset` /
+  `StatsViewPresets` remain public as advanced convenience sugar; prefer
+  `ReportDefinition` unless the chart-first or table-first preset itself is the
+  thing you want to reuse.
 - SQL-like validation is strict: unknown or `@Exclude` fields are rejected.
 - Current SQL-like support includes a single `JOIN` (`INNER`, `LEFT`, `RIGHT`), aggregate functions, `GROUP BY`, and date bucketing via `bucket(dateField,'...')`.
 - Current SQL-like support includes `HAVING` for grouped/aggregated queries (`AND`/`OR`).

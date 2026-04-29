@@ -1394,7 +1394,7 @@ public class FilterQueryBuilder implements QueryBuilder {
 
     public FilterQueryBuilder snapshotForRows(List<QueryRow> rows) {
         FilterQueryBuilder snapshot = snapshotForExecution();
-        snapshot.setRows(rows);
+        snapshot.setRows(rows, snapshot.getSourceFieldTypesForExecution());
         return snapshot;
     }
 

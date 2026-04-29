@@ -8,7 +8,12 @@ import laughing.man.commits.util.StringUtil;
 import java.util.Objects;
 
 /**
- * Lightweight factories for common table-stats query patterns.
+ * Advanced convenience factories for common table-first SQL-like stats query
+ * patterns.
+ *
+ * <p>Prefer {@link laughing.man.commits.report.ReportDefinition} when the
+ * reusable contract should stay row-first and table payload sugar is not the
+ * primary goal.
  */
 public final class StatsViewPresets {
 

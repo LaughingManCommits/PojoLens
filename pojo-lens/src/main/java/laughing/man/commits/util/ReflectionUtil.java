@@ -1,7 +1,6 @@
 package laughing.man.commits.util;
 
 import laughing.man.commits.annotations.Exclude;
-import laughing.man.commits.domain.QueryField;
 import laughing.man.commits.domain.QueryRow;
 import laughing.man.commits.domain.RawQueryRow;
 import org.slf4j.Logger;
@@ -396,18 +395,21 @@ public final class ReflectionUtil {
         LinkedHashMap<String, Class<?>> fieldTypes = new LinkedHashMap<>();
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             QueryRow row = rows.get(rowIndex);
-            if (row == null || row.getFields() == null) {
+            List<String> fieldNames = row == null ? null : row.getFieldNames();
+            if (fieldNames == null || fieldNames.isEmpty()) {
                 continue;
             }
-            List<? extends QueryField> fields = row.getFields();
-            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
-                QueryField field = fields.get(fieldIndex);
-                if (field == null || field.getFieldName() == null || field.getFieldName().isBlank()) {
+            for (int fieldIndex = 0; fieldIndex < fieldNames.size(); fieldIndex++) {
+                String fieldName = fieldNames.get(fieldIndex);
+                if (fieldName == null || fieldName.isBlank()) {
                     continue;
                 }
-                fieldTypes.putIfAbsent(field.getFieldName(), null);
-                if (fieldTypes.get(field.getFieldName()) == null && field.getValue() != null) {
-                    fieldTypes.put(field.getFieldName(), field.getValue().getClass());
+                fieldTypes.putIfAbsent(fieldName, null);
+                if (fieldTypes.get(fieldName) == null) {
+                    Object value = row.getValueAt(fieldIndex);
+                    if (value != null) {
+                        fieldTypes.put(fieldName, value.getClass());
+                    }
                 }
             }
         }

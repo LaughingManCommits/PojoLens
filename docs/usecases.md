@@ -30,8 +30,8 @@ Source guides:
 | If you need... | Choose... | Why |
 | --- | --- | --- |
 | A reusable business query contract | `ReportDefinition<T>` | Default reusable wrapper for row-first queries that may feed more than one consumer. |
-| A reusable chart-first preset | `ChartQueryPreset<T>` | Specialized SQL-like convenience wrapper for chart-shaped workflows. |
-| A reusable table payload with totals and schema | `StatsViewPreset<T>` / `StatsTable<T>` | Specialized table-first wrapper for grouped stats and leaderboard flows. |
+| A saved/versioned reusable contract | `SavedReport` | Default when the contract must be stored, reviewed, or replayed across sessions. |
+| Advanced chart/table convenience after the reusable contract is already clear | `ChartQueryPresets` / `StatsViewPresets` | Optional sugar, not the default reusable-contract story. |
 
 ## 3. Pick Output Contract
 
@@ -316,7 +316,7 @@ ChartJsPayload payload = ChartJsAdapter.toPayload(chartData);
 Outcome:
 - One PojoLens query can feed multiple chart libraries cleanly.
 
-Five-line chart addition with preset + Chart.js adapter:
+Five-line chart addition with advanced preset sugar + Chart.js adapter:
 
 ```java
 ChartJsPayload payload = ChartQueryPresets
@@ -335,7 +335,7 @@ Without PojoLens, the same endpoint usually means:
 Problem:
 - Teams need table payloads with rows, totals, and schema metadata without repeating aggregate query strings.
 
-Use grouped stats preset:
+Use grouped stats convenience preset:
 
 ```java
 StatsTablePayload table = StatsViewPresets
@@ -343,7 +343,7 @@ StatsTablePayload table = StatsViewPresets
     .tablePayload(employees);
 ```
 
-Use leaderboard preset:
+Use leaderboard convenience preset:
 
 ```java
 StatsTablePayload top3 = StatsViewPresets
