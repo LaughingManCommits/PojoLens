@@ -127,10 +127,11 @@ List<Employee> rows = TypedQuery.from(Employee.class)
     .filter(employees);
 ```
 
-The current typed DSL foundation covers projection, filters, ordering, offset,
+The current typed DSL foundation covers projection, filters, join
+declarations, `JoinBindings` / `DatasetBundle` execution, ordering, offset,
 limit, explain, schema, and execution guards. Keep SQL-like or natural queries
-for grouping, aggregation, joins, windows, subqueries, and user-authored query
-text until those typed shapes are stabilized.
+for grouping, aggregation, windows, subqueries, and user-authored query text
+until those typed shapes are stabilized.
 
 ## Batch Generation
 

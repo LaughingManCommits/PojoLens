@@ -15,6 +15,9 @@ import laughing.man.commits.chart.ChartQueryPreset;
 import laughing.man.commits.chart.ChartQueryPresets;
 import laughing.man.commits.chart.ChartType;
 import laughing.man.commits.computed.ComputedFieldRegistry;
+import laughing.man.commits.dsl.TypedField;
+import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.metamodel.MetamodelBatchGenerator;
@@ -29,6 +32,7 @@ import laughing.man.commits.testing.FluentSqlLikeParity;
 import laughing.man.commits.testing.QueryRegressionFixture;
 import laughing.man.commits.testing.QuerySnapshotFixture;
 import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import laughing.man.commits.testutil.BusinessFixtures.EmployeeSummary;
 import laughing.man.commits.tooling.SavedReportCatalogValidator;
@@ -359,6 +363,25 @@ public class PublicApiEcosystemCoverageTest extends AbstractPublicApiCoverageTes
         assertEquals(1, rows.size());
         assertTrue(bundle.hasJoinSources());
         assertEquals(1, bundle.joinSourceCount());
+    }
+
+    @Test
+    public void typedQueryShouldSupportJoinBindingsAndDatasetBundlesFromPublicApi() {
+        TypedField<Company, Integer> companyId = TypedField.of("id", Integer.class);
+        TypedField<CompanyEmployee, Integer> employeeCompanyId = TypedField.of("companyId", Integer.class);
+        TypedField<Company, String> joinedTitle = TypedField.of("title", String.class);
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        List<Company> rows = TypedQuery.from(Company.class)
+                .join("employees", companyId, employeeCompanyId, Join.LEFT_JOIN)
+                .where(joinedTitle.eq("Engineer"))
+                .filter(bundle);
+
+        assertEquals(1, rows.size());
+        assertEquals(1, rows.get(0).id);
     }
 
     @Test

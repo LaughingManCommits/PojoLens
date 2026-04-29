@@ -20,7 +20,7 @@ Source guides:
 | Default query authoring over in-memory rows | `PojoLensSql.parse(...).params(...)` | Primary public path for filtering, ordering, grouping, joins, windows, subqueries, charts, schemas, and explain payloads. |
 | Reusable SQL-like query shapes | `PojoLensSql.template(...)` | Keeps repeated query shapes on a fixed named-parameter schema. |
 | Guided text queries for non-SQL users | `PojoLensNatural.parse(...).params(...)` | Default controlled plain-English path for deterministic text-driven queries without SQL syntax, including explicit joins, bounded subquery/existence phrases, grouped aggregates, deterministic window phrases with `qualify`, time buckets, and chart phrases; see [docs/natural.md](natural.md). |
-| Code-owned typed filters and ordering | `TypedQuery.from(rowType)` | Stable Java-owned foundation for generated `TypedField<T,V>` constants, projection, filters, ordering, offset, limit, explain/schema, and execution guards. |
+| Code-owned typed filters, joins, and ordering | `TypedQuery.from(rowType)` | Stable Java-owned foundation for generated `TypedField<T,V>` constants, projection, filters, join declarations with `JoinBindings` / `DatasetBundle`, ordering, offset, limit, explain/schema, and execution guards. |
 
 ## 2. Pick Reusable Contract
 

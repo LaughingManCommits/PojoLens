@@ -117,7 +117,7 @@ For new code, choose one primary authoring mode first.
 |-----------------------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Default query authoring over in-memory rows               | `PojoLensSql` (`parse(...)`, `template(...)`)    | [docs/entry-points.md](docs/entry-points.md), [docs/sql-like.md](docs/sql-like.md)                     |
 | Guided text queries for non-SQL users                     | `PojoLensNatural` (`parse(...)`, `template(...)`) | [docs/entry-points.md](docs/entry-points.md), [docs/natural.md](docs/natural.md)                       |
-| Code-owned typed filters and ordering                     | `TypedQuery`                                     | [docs/entry-points.md](docs/entry-points.md), [docs/metamodel.md](docs/metamodel.md)                   |
+| Code-owned typed filters, joins, and ordering            | `TypedQuery`                                     | [docs/entry-points.md](docs/entry-points.md), [docs/metamodel.md](docs/metamodel.md)                   |
 
 Then add only the layer the workflow actually needs:
 

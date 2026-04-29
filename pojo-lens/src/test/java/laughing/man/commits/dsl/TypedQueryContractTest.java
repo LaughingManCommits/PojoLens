@@ -1,8 +1,14 @@
 package laughing.man.commits.dsl;
 
+import laughing.man.commits.DatasetBundle;
+import laughing.man.commits.PojoLensSql;
+import laughing.man.commits.enums.Join;
+import laughing.man.commits.sqllike.JoinBindings;
 import laughing.man.commits.sqllike.QueryExecutionGuard;
 import laughing.man.commits.sqllike.QueryExecutionGuardException;
 import laughing.man.commits.table.TabularSchema;
+import laughing.man.commits.testutil.BusinessFixtures.Company;
+import laughing.man.commits.testutil.BusinessFixtures.CompanyEmployee;
 import laughing.man.commits.testutil.BusinessFixtures.Employee;
 import org.junit.jupiter.api.Test;
 
@@ -11,6 +17,8 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
 
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanies;
+import static laughing.man.commits.testutil.BusinessFixtures.sampleCompanyEmployees;
 import static laughing.man.commits.testutil.BusinessFixtures.sampleEmployees;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +32,10 @@ public class TypedQueryContractTest {
     private static final TypedField<Employee, Integer> SALARY = TypedField.of("salary", Integer.class);
     private static final TypedField<Employee, Boolean> ACTIVE = TypedField.of("active", Boolean.class);
     private static final TypedField<Employee, String> DEPT = TypedField.of("department", String.class);
+    private static final TypedField<Company, Integer> COMPANY_ID = TypedField.of("id", Integer.class);
+    private static final TypedField<Company, String> JOINED_TITLE = TypedField.of("title", String.class);
+    private static final TypedField<CompanyEmployee, Integer> EMPLOYEE_COMPANY_ID =
+            TypedField.of("companyId", Integer.class);
 
     // fixtures: Alice(Eng,120k,active), Bob(Fin,90k,active), Cara(Eng,130k,active), Dan(Eng,110k,inactive)
 
@@ -34,22 +46,34 @@ public class TypedQueryContractTest {
         requirePublicStaticMethod(TypedQuery.class, "from", Class.class);
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
         requirePublicMethod(TypedQuery.class, "offset", int.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
+        requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "entityClass");
         requirePublicMethod(TypedQuery.class, "selectFields");
         requirePublicMethod(TypedQuery.class, "wherePredicate");
         requirePublicMethod(TypedQuery.class, "hasWhere");
         requirePublicMethod(TypedQuery.class, "hasSelect");
         requirePublicMethod(TypedQuery.class, "hasOrderBy");
+        requirePublicMethod(TypedQuery.class, "hasJoins");
         requirePublicMethod(TypedQuery.class, "hasLimit");
         requirePublicMethod(TypedQuery.class, "hasOffset");
     }
@@ -200,6 +224,15 @@ public class TypedQueryContractTest {
     }
 
     @Test
+    void joinBuilderIsImmutable() {
+        TypedQuery<Company> base = TypedQuery.from(Company.class);
+        TypedQuery<Company> joined = base.join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN);
+
+        assertFalse(base.hasJoins());
+        assertTrue(joined.hasJoins());
+    }
+
+    @Test
     void accessorsReflectConfiguredState() {
         TypedQuery<Employee> q = TypedQuery.from(Employee.class)
                 .where(SALARY.gt(100_000))
@@ -215,6 +248,67 @@ public class TypedQueryContractTest {
         assertEquals(5, q.limit());
         assertEquals(1, q.offset());
         assertFalse(q.hasSelect());
+    }
+
+    @Test
+    void typedJoinShouldSupportJoinBindingsExecution() {
+        List<Company> result = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .where(JOINED_TITLE.eq("Engineer"))
+                .filter(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()));
+
+        assertEquals(1, result.size());
+        assertEquals(1, result.get(0).id);
+    }
+
+    @Test
+    void typedJoinShouldSupportDatasetBundleExecution() {
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        List<Company> result = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .where(JOINED_TITLE.eq("Engineer"))
+                .filter(bundle);
+
+        assertEquals(1, result.size());
+        assertEquals(1, result.get(0).id);
+    }
+
+    @Test
+    void typedJoinShouldMatchEquivalentSqlLikeExecution() {
+        JoinBindings joinBindings = JoinBindings.of("employees", sampleCompanyEmployees());
+
+        List<Integer> typedIds = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .where(JOINED_TITLE.eq("Engineer"))
+                .filter(sampleCompanies(), joinBindings)
+                .stream()
+                .map(company -> company.id)
+                .toList();
+
+        List<Integer> sqlLikeIds = PojoLensSql
+                .parse("select * from companies left join employees on id = companyId where title = 'Engineer'")
+                .filter(sampleCompanies(), joinBindings, Company.class)
+                .stream()
+                .map(company -> company.id)
+                .toList();
+
+        assertEquals(sqlLikeIds, typedIds);
+    }
+
+    @Test
+    void typedJoinShouldFailWhenJoinSourceBindingIsMissing() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> TypedQuery.from(Company.class)
+                        .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                        .where(JOINED_TITLE.eq("Engineer"))
+                        .filter(sampleCompanies()));
+
+        assertTrue(ex.getMessage().contains("EQ-SQL-VAL-003"));
+        assertTrue(ex.getMessage().contains("Missing JOIN source binding for 'employees'"));
     }
 
     @Test
@@ -284,6 +378,21 @@ public class TypedQueryContractTest {
         assertNotNull(plan);
     }
 
+    @Test
+    void explainWithDatasetBundleReturnsMap() {
+        DatasetBundle bundle = DatasetBundle.of(
+                sampleCompanies(),
+                JoinBindings.of("employees", sampleCompanyEmployees())
+        );
+
+        Map<String, Object> plan = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .where(JOINED_TITLE.eq("Engineer"))
+                .explain(bundle);
+
+        assertNotNull(plan);
+    }
+
     // --- Schema interop ---
 
     @Test
@@ -298,6 +407,16 @@ public class TypedQueryContractTest {
     void schemaWithProjectionClassReturnsNonNull() {
         TabularSchema s = TypedQuery.from(Employee.class)
                 .schema(sampleEmployees(), Employee.class);
+        assertNotNull(s);
+    }
+
+    @Test
+    void schemaWithJoinBindingsReturnsNonNull() {
+        TabularSchema s = TypedQuery.from(Company.class)
+                .join("employees", COMPANY_ID, EMPLOYEE_COMPANY_ID, Join.LEFT_JOIN)
+                .where(JOINED_TITLE.eq("Engineer"))
+                .schema(sampleCompanies(), JoinBindings.of("employees", sampleCompanyEmployees()));
+
         assertNotNull(s);
     }
 

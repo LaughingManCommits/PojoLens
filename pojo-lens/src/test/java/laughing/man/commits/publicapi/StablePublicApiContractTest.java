@@ -20,6 +20,7 @@ import laughing.man.commits.csv.CsvRuntime;
 import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedPredicate;
 import laughing.man.commits.dsl.TypedQuery;
+import laughing.man.commits.enums.Join;
 import laughing.man.commits.files.FileLoadRuntime;
 import laughing.man.commits.files.JsonLoadException;
 import laughing.man.commits.files.JsonLoadReport;
@@ -550,6 +551,7 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(TypedQuery.class, "from", Class.class);
         requirePublicMethod(TypedQuery.class, "select", TypedField[].class);
         requirePublicMethod(TypedQuery.class, "where", TypedPredicate.class);
+        requirePublicMethod(TypedQuery.class, "join", String.class, TypedField.class, TypedField.class, Join.class);
         requirePublicMethod(TypedQuery.class, "orderBy", TypedField.class);
         requirePublicMethod(TypedQuery.class, "orderByDesc", TypedField.class);
         requirePublicMethod(TypedQuery.class, "limit", int.class);
@@ -557,9 +559,20 @@ public class StablePublicApiContractTest {
         requirePublicMethod(TypedQuery.class, "executionGuard", QueryExecutionGuard.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class);
         requirePublicMethod(TypedQuery.class, "filter", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "filter", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "filter", DatasetBundle.class, Class.class);
         requirePublicMethod(TypedQuery.class, "explain", List.class);
+        requirePublicMethod(TypedQuery.class, "explain", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "explain", DatasetBundle.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class);
         requirePublicMethod(TypedQuery.class, "schema", List.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class);
+        requirePublicMethod(TypedQuery.class, "schema", List.class, JoinBindings.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class);
+        requirePublicMethod(TypedQuery.class, "schema", DatasetBundle.class, Class.class);
+        requirePublicMethod(TypedQuery.class, "hasJoins");
 
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",

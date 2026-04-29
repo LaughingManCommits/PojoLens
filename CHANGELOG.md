@@ -43,6 +43,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TypedQuery join execution slice** - added `TypedQuery.join(...)` plus
+  `JoinBindings` / `DatasetBundle` execution, explain, and schema overloads so
+  code-owned typed queries can reuse the same named multi-source model as
+  SQL-like and natural flows without adding a parallel join surface.
+
 - **Library-first build tooling** - added
   `laughing.man.commits.metamodel.MetamodelBatchGenerator`,
   `MetamodelGenerationRequest`, `MetamodelGenerationResult`,
