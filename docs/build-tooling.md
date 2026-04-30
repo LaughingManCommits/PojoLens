@@ -11,7 +11,7 @@ The first-party shape is:
 - validation APIs in `laughing.man.commits.tooling`
 - deterministic generated source output
 - deterministic validation results for CI
-- build-tool recipes you can wire into Maven or Gradle without waiting for a
+- build-tool recipes you can wire into Maven or javac-based builds without waiting for a
   dedicated plugin
 
 Use this when you want stronger typed authoring support or when config-owned
@@ -65,7 +65,9 @@ public class Employee {
 }
 ```
 
-Maven compiler wiring:
+Maven compiler wiring uses explicit processor selection. PojoLens does not
+auto-register this processor through `META-INF/services`, so builds opt into
+typed-field generation deliberately.
 
 ```xml
 <plugin>
@@ -89,25 +91,26 @@ Maven compiler wiring:
 </plugin>
 ```
 
-Gradle Java compile wiring:
-
-```kotlin
-dependencies {
-    implementation("io.github.laughingmancommits:pojo-lens:$pojoLensVersion")
-    annotationProcessor("io.github.laughingmancommits:pojo-lens:$pojoLensVersion")
-}
-
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf(
-        "-processor",
-        "laughing.man.commits.metamodel.PojoLensTypedFieldsProcessor"
-    ))
-}
-```
-
 Compiler diagnostics use stable `PLM-AP-*` prefixes for invalid generated
 targets, duplicate targets in the same compile, graph-depth failures, and
 source-write failures.
+
+IDE behavior follows normal generated-source handling:
+
+- Maven imports should enable annotation processing and generated sources for
+  `target/generated-sources/annotations`.
+- IntelliJ IDEA should use the Maven compiler configuration on import; if
+  annotation processing is disabled globally, enable it for the project.
+- Eclipse/m2e should treat the Maven compiler generated-sources directory as
+  generated Java source when annotation processing is enabled.
+- The generated constants are ordinary `.java` files, so completion comes from
+  the IDE's existing javac/generated-source support.
+- The processor does not transform the annotated class or add members to it.
+
+Runnable Maven example:
+
+- `examples/typed-authoring-compiler` compiles an annotated `Employee` model
+  and consumes the generated `EmployeeTypedFields` from the same module.
 
 ## Batch Metamodel Generation
 
@@ -308,6 +311,8 @@ This release does not add:
 
 - a dedicated Maven plugin
 - a dedicated Gradle plugin
+- a dedicated `pojo-lens-processor` artifact
+- Gradle-specific incremental processor metadata
 - live data execution during validation
 
 If dedicated build plugins become necessary later, they should wrap these same

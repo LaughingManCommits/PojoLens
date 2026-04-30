@@ -53,8 +53,13 @@ public class Employee {
 
 The processor does not rewrite ASTs or change Java syntax. It only creates
 source files during compilation, so IDE completion works through the same
-generated-source support used by javac. Maven and Gradle wiring examples live
-in [build-tooling.md](build-tooling.md).
+generated-source support used by javac. Maven wiring examples live in
+[build-tooling.md](build-tooling.md). Gradle-specific incremental metadata is
+deferred.
+
+See `examples/typed-authoring-compiler` for a standalone Maven project that
+compiles an annotated model and consumes the generated typed constants in the
+same module.
 
 ## Manual Source Generation
 
@@ -243,7 +248,7 @@ step instead of annotation processing.
 You can run the manual generator from:
 
 - a small build-time Java main
-- a Maven/Gradle source-generation task
+- a Maven source-generation task or another explicit build step
 - a test or internal codegen tool
 
 Write generated source into a normal generated-sources directory and add that directory to compilation in the build tool you already use.

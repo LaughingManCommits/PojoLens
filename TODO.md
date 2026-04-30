@@ -218,6 +218,12 @@ rewriting.
 - [x] Add docs and regression coverage for the generated-source workflow and
       compiler diagnostics.
 
+**Future follow-up:**
+- Gradle-specific incremental annotation-processor metadata and dedicated
+  Gradle examples are deferred until after the current WP18/release path.
+- A dedicated `pojo-lens-processor` artifact remains deferred until processor
+  adoption justifies a module-topology change.
+
 **Validate:**
 - `mvn -B -ntp test`
 - `scripts/check-doc-consistency.ps1`

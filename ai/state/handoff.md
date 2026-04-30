@@ -16,6 +16,7 @@
 - `2026-04-30`: `TODO.md` order is WP18, then Release Gate.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 - `2026-04-30`: WP26 outcome: annotation processing emits ordinary generated Java source with `PLM-AP-*` compiler diagnostics for invalid targets, duplicate targets, graph-depth failures, and source-write failures; there is no Lombok-style AST transformation.
+- `2026-04-30`: WP26 hardening locks explicit processor opt-in; no `META-INF/services` auto-registration is expected, and Gradle-specific incremental metadata is deferred.
 - `2026-04-29`: `README.md` stays route-based and now includes a top `Quick Integration` section that points AI agents to `AGENTS.md`; do not reintroduce separate product-taxonomy sections there.
 
 ## Validate

@@ -17,6 +17,7 @@ Standalone runnable examples live under `examples/` and are intentionally not
 published as release artifacts.
 
 Current starter examples:
+- `examples/typed-authoring-compiler`: compiler-generated typed constants with explicit processor wiring
 - `examples/spring-boot-starter-quickstart`: minimal onboarding path
 - `examples/spring-boot-starter-basic`: advanced dashboard reference
 - `examples/spring-boot-starter-risk-console`: JDBC-backed reviewer/demo showcase with dashboard, reports, and Query Studio flows

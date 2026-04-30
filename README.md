@@ -51,6 +51,7 @@ pojo-lens:
 ```
 
 Runnable example projects:
+- `examples/typed-authoring-compiler` (compiler-generated typed field constants with explicit javac processor wiring)
 - `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
 - `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
 - `examples/spring-boot-starter-risk-console` (JDBC-backed reviewer/demo app with dashboard, reports, and Query Studio showcase)

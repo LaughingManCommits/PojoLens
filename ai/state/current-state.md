@@ -8,6 +8,7 @@
 - `2026-04-29`: Surface/tooling cleanup is complete: first-read docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL, and tooling is split between `metamodel` generation and `tooling` validation.
 - `2026-04-29`: WP23/WP24 completed typed joins, grouped aggregates, grouped `HAVING`, bounded subqueries, rank windows, aggregate window frames, `QUALIFY`, and `JoinBindings` / `DatasetBundle` reuse.
 - `2026-04-30`: WP26 completed compiler-time typed field generation through `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor`, with no AST rewriting and `FieldMetamodelGenerator` retained as fallback.
+- `2026-04-30`: WP26 hardening added processor parity, duplicate-constant, diagnostics, no-auto-discovery, no-eligible-field, and standalone Maven example coverage; Gradle-specific support remains deferred.
 - `2026-04-29`: `README.md` is route-based with a top `Quick Integration` section that points AI agents to `AGENTS.md`.
 
 ## Verified

@@ -17,6 +17,15 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   Lombok-style AST rewriting. The existing `FieldMetamodelGenerator` remains
   the documented manual fallback.
 
+- **Typed-field processor hardening** - expanded compiler-generation coverage
+  across primitive, boxed, enum, time, nested, excluded, static/final, no-field,
+  duplicate-target, invalid-target, and graph-depth cases, and documented the
+  explicit processor opt-in policy.
+
+- **Typed compiler example** - added `examples/typed-authoring-compiler` as a
+  standalone Maven project that compiles an annotated model and consumes the
+  generated typed constants from the same module.
+
 ## [2026.04.29.1809] - 2026-04-29
 
 ### Changed
