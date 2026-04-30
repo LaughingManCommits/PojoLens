@@ -24,10 +24,13 @@ This file defines the portable contract for recreating the repository's AI memor
 - `ai/orchestrator/README.md`: operating guide for local runs
 - `ai/orchestrator/agents.json`: reusable worker definitions
 - `ai/orchestrator/tasks/*.json`: tracked task-plan samples and reusable plans
-- `scripts/refresh-ai-memory.{ps1,py}`: rebuild and check derived memory artifacts
-- `scripts/query-ai-memory.{ps1,py}`: retrieve memory with tier and path facets
-- `scripts/benchmark-ai-memory.{ps1,py}`: benchmark refresh and retrieval quality
-- `scripts/claude-orchestrator.{ps1,py}`: validate, plan, and run local worker DAGs
+- `pyproject.toml` plus `scripts/ai/pojo_lens_agents/`: repo-local installable
+  CLI package exposing `pojolens-agents`
+- `scripts/ai/refresh-ai-memory.{ps1,py}`: rebuild and check derived memory artifacts
+- `scripts/ai/query-ai-memory.{ps1,py}`: retrieve memory with tier and path facets
+- `scripts/ai/benchmark-ai-memory.{ps1,py}`: benchmark refresh and retrieval quality
+- `scripts/ai/claude-orchestrator.{ps1,py}`: validate, plan, and run local worker DAGs
+- `scripts/ai/`: implementation home for AI memory and orchestration tooling
 - `.gitignore`: ignore the runtime root `/.claude-orchestrator/`
 
 ## Memory Model
@@ -44,13 +47,17 @@ This file defines the portable contract for recreating the repository's AI memor
 - `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts and must be regenerated, not hand-maintained.
 - Coordinator/project-manager memory lives in `AGENTS.md`, `ai/AGENTS.md`, and the `ai/state/*` snapshot; worker tasks must not depend on that memory implicitly.
 - After tracked AI memory changes, run:
-  - `scripts/refresh-ai-memory.ps1`
-  - `scripts/refresh-ai-memory.ps1 -Check`
+  - `scripts/ai/refresh-ai-memory.ps1`
+  - `scripts/ai/refresh-ai-memory.ps1 -Check`
 
 ## Orchestrator Model
 
 - `ai/orchestrator/` is the tracked control plane.
 - The default runtime root is repo-local `.claude-orchestrator/`.
+- The primary local operator command is `pojolens-agents`; direct script
+  execution remains available under `scripts/ai/`.
+- The CLI should resolve the repo root from `--repo-root`, `POJOLENS_REPO_ROOT`,
+  or the current working directory so it remains explicit in multi-repo shells.
 - Runtime paths are:
   - `.claude-orchestrator/runs/<run-id>/`
   - `.claude-orchestrator/workspaces/<run-id>/<task-id>/`
@@ -79,7 +86,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters to the task, it should be declared explicitly in `readPaths` or `writePaths`.
 - include task-local validation hints by default
 - dependency outputs should act as the bounded coordinator handoff from prior tasks, including a compact summary and a few key notes when needed, plus explicit unknown markers when an upstream worker could not verify those sections, so downstream workers do not depend on reading prior task artifacts directly
-- dependency handoff should remain `summary-only` by default; `dependencyMaterialization = apply-reviewed` should be opt-in for any downstream `copy` or `worktree` task — including reviewer tasks — that needs reviewed upstream code state materialized into its workspace before execution; use `apply-reviewed` on reviewer tasks when the upstream implementer creates new files that would otherwise be absent from the reviewer workspace
+- dependency handoff should remain `summary-only` by default; `dependencyMaterialization = apply-reviewed` should be opt-in for any downstream `copy` or `worktree` task â€” including reviewer tasks â€” that needs reviewed upstream code state materialized into its workspace before execution; use `apply-reviewed` on reviewer tasks when the upstream implementer creates new files that would otherwise be absent from the reviewer workspace
 - reviewer-oriented dependency handoff should also include bounded changed-file summaries and diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly; diff previews alone are insufficient when the upstream task creates new files, which is the primary reason to add `dependencyMaterialization = apply-reviewed` to a reviewer task
 - Minimal worker prompts should keep shared file lists out of the prompt body unless `contextMode = full`; shared summaries can stay visible without forcing every worker to reread the same file inventory.
 - Live Claude invocations should pass only the selected agent definition instead of the full agent catalog when a single planner or worker role is being invoked.
@@ -113,6 +120,7 @@ This file defines the portable contract for recreating the repository's AI memor
 ## Concurrency Contract
 
 - The coordinator may run ready tasks concurrently up to `--max-parallel`.
+- Parallel agent execution is a first-class requirement for independent tasks.
 - Parallel safety depends on isolated workspaces plus low-coupling task boundaries.
 - Workers that need to edit the same files must not be scheduled in parallel.
 - The coordinator should detect overlapping declared write scopes conservatively and serialize conflicting ready tasks.
@@ -164,12 +172,12 @@ This file defines the portable contract for recreating the repository's AI memor
 
 ## Minimum Validation Checklist
 
-- `python -m py_compile scripts/claude-orchestrator.py scripts/refresh-ai-memory.py scripts/query-ai-memory.py`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`
-- `scripts/refresh-ai-memory.ps1`
-- `scripts/refresh-ai-memory.ps1 -Check`
+- `python -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/refresh-ai-memory.py scripts/ai/query-ai-memory.py`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`
+- `scripts/ai/refresh-ai-memory.ps1`
+- `scripts/ai/refresh-ai-memory.ps1 -Check`
 
 ## Repo-Specific Inputs To Customize
 

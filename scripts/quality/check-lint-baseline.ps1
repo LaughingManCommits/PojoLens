@@ -1,6 +1,6 @@
 param(
     [string]$Report = "target/checkstyle-result.xml",
-    [string]$Baseline = "scripts/checkstyle-baseline.txt",
+    [string]$Baseline = "scripts/quality/checkstyle-baseline.txt",
     [string]$RepoRoot = ".",
     [switch]$WriteBaseline,
     [int]$MaxPrint = 30

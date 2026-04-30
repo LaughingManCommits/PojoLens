@@ -4,12 +4,12 @@ Load only when work touches benchmark suites, threshold budgets, or performance 
 
 ## Benchmark Surface
 
-- Core guardrail suite: `scripts/benchmark-suite-main.args` + `benchmarks/thresholds.json`
-- Chart guardrail suite: `scripts/benchmark-suite-chart.args` + `benchmarks/chart-thresholds.json`
-- Reflection hotspot guardrail suite: `scripts/benchmark-suite-hotspot-reflection.args` + `benchmarks/hotspot-thresholds.json`
-- Baseline suite: `scripts/benchmark-suite-baseline.args`
-- Cache suite: `scripts/benchmark-suite-cache.args`
-- Hotspot suite: `scripts/benchmark-suite-hotspots.args`
+- Core guardrail suite: `scripts/benchmarks/benchmark-suite-main.args` + `benchmarks/thresholds.json`
+- Chart guardrail suite: `scripts/benchmarks/benchmark-suite-chart.args` + `benchmarks/chart-thresholds.json`
+- Reflection hotspot guardrail suite: `scripts/benchmarks/benchmark-suite-hotspot-reflection.args` + `benchmarks/hotspot-thresholds.json`
+- Baseline suite: `scripts/benchmarks/benchmark-suite-baseline.args`
+- Cache suite: `scripts/benchmarks/benchmark-suite-cache.args`
+- Hotspot suite: `scripts/benchmarks/benchmark-suite-hotspots.args`
 
 ## Interpretation Rules
 

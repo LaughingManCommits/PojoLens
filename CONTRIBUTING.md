@@ -16,7 +16,7 @@ Generated navigation lives under `ai/indexes/*.json`, with optional cold search 
 Refresh derived AI memory artifacts:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1
 ```
 
 The default refresh is incremental: JSON indexes are reused when their inputs are unchanged, and SQLite is updated with per-file upserts.
@@ -24,19 +24,19 @@ The default refresh is incremental: JSON indexes are reused when their inputs ar
 Check AI memory freshness and hot-context budget:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1 -Check
 ```
 
 Force a full refresh when the derived schema changes or you need to rule out incremental state:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -ForceFull
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1 -ForceFull
 ```
 
 Compact older event-log history into monthly archives while keeping a small active log:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1 -CompactLog
 ```
 
 Archive compaction also regenerates `ai/log/archive/*-summary.md` so archive search can hit summaries before raw JSONL rows.
@@ -44,20 +44,20 @@ Archive compaction also regenerates `ai/log/archive/*-summary.md` so archive sea
 Search the optional cold-search database:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release retry"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/query-ai-memory.ps1 -Query "release retry"
 ```
 
 Narrow cold search with facets:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "single-join fast-path" -Path "ai/log/archive/*" -Tier "cold,archive"
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query "release" -Kind "release-doc,process-doc"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/query-ai-memory.ps1 -Query "single-join fast-path" -Path "ai/log/archive/*" -Tier "cold,archive"
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/query-ai-memory.ps1 -Query "release" -Kind "release-doc,process-doc"
 ```
 
 Benchmark the AI memory path and persist a report:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json
 ```
 
 If no local SQLite backend is available, the PowerShell query wrapper falls back to direct text search over the Markdown truth, warm validation ledger, active event log, and archived event logs.
@@ -90,13 +90,13 @@ mvn -B -ntp -Plint verify -DskipTests
 Check staged lint baseline (fails only on new violations or stale resolved entries):
 
 ```bash
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot .
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/quality/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/quality/checkstyle-baseline.txt -RepoRoot .
 ```
 
 Intentionally refresh baseline (planned rebaseline only):
 
 ```bash
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/checkstyle-baseline.txt -RepoRoot . -WriteBaseline
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/quality/check-lint-baseline.ps1 -Report target/checkstyle-result.xml -Baseline scripts/quality/checkstyle-baseline.txt -RepoRoot . -WriteBaseline
 ```
 
 ## Static Analysis
@@ -143,14 +143,14 @@ $BENCHMARK_JAR = (Get-ChildItem target -Filter *-benchmarks.jar | Select-Object 
 Core benchmark strict check:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
 ```
 
 Chart benchmark strict + parity checks:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.ChartParityChecker target/benchmarks/charts/chart-benchmarks.json target/benchmarks/charts/chart-parity-report.csv
 ```
@@ -158,7 +158,7 @@ java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.ChartParityChecker targ
 Cache concurrency benchmark flow:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
 ```
 
 ## Benchmark Reproducibility
@@ -185,8 +185,8 @@ Required repository secrets:
 Helper script to export GPG files and a GitHub secrets template:
 
 ```powershell
-./scripts/export-release-secrets.ps1 -ListKeys
-./scripts/export-release-secrets.ps1 -KeyId <KEY_ID>
+./scripts/release/export-release-secrets.ps1 -ListKeys
+./scripts/release/export-release-secrets.ps1 -KeyId <KEY_ID>
 ```
 
 The release workflow runs tests and publishes with:

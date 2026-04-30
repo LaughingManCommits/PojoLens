@@ -75,34 +75,34 @@ specific dated release filename in scripts or notes. Commands below assume
 Core guardrail suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-main.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks.json
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks.json benchmarks/thresholds.json target/benchmark-report.csv --strict
 ```
 
 Chart guardrail suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-chart.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/charts/chart-benchmarks.json
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/charts/chart-benchmarks.json benchmarks/chart-thresholds.json target/benchmarks/charts/chart-benchmark-report.csv --strict
 ```
 
 Stable warmed reflection hotspot guardrails:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspot-reflection.args -f 1 -wi 1 -i 3 -r 100ms -rf json -rff target/benchmarks/hotspot-reflection.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-hotspot-reflection.args -f 1 -wi 1 -i 3 -r 100ms -rf json -rff target/benchmarks/hotspot-reflection.json
 java -cp "$BENCHMARK_JAR" laughing.man.commits.benchmark.BenchmarkThresholdChecker target/benchmarks/hotspot-reflection.json benchmarks/hotspot-thresholds.json target/benchmarks/hotspot-reflection-report.csv --strict
 ```
 
 Cache concurrency scenario:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-cache.args -t 8 -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks-cache.json
 ```
 
 Hotspot microbenchmark suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-hotspots.args -f 1 -wi 1 -i 3 -r 100ms
 ```
 
 ## JFR Scatter Parity Recipe
@@ -177,7 +177,7 @@ For apples-to-apples comparisons, `PojoLens` now ships a dedicated JMH baseline 
 Baseline suite command:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-baseline.args -f 1 -wi 0 -i 1 -r 100ms -rf json -rff target/benchmarks/baselines.json
 ```
 
 Baseline workloads:
@@ -201,7 +201,7 @@ Streaming has two different behaviors depending on consumer usage:
 Dedicated benchmark suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-streaming.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/streaming-execution-forked.json
 ```
 
 Benchmark shape (`StreamingExecutionJmhBenchmark`):
@@ -229,7 +229,7 @@ Window queries are now benchmarked against an equivalent non-window SQL-like bas
 Dedicated suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-window.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/window-overhead-forked.json
 ```
 
 Benchmarks (`SqlLikePipelineJmhBenchmark`):
@@ -281,7 +281,7 @@ the suite isolates PojoLens completion overhead.
 Dedicated suite:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-pushdown.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/pushdown-bridge-forked.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-pushdown.args -p size=10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/pushdown-bridge-forked.json
 ```
 
 Benchmarks (`SqlLikePipelineJmhBenchmark`):
@@ -360,13 +360,13 @@ Optional fluent index hints are now benchmarked with a selective equality worklo
 Warm (repeated) run command:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-indexes.args -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-forked.json
 ```
 
 Cold run command:
 
 ```bash
-java -jar "$BENCHMARK_JAR" @scripts/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
+java -jar "$BENCHMARK_JAR" @scripts/benchmarks/benchmark-suite-indexes.args -f 1 -wi 0 -i 1 -r 100ms -prof gc -rf json -rff target/benchmarks/index-hint-cold.json
 ```
 
 Representative `2026-03-21` results (`size=10000`):
@@ -411,7 +411,7 @@ For hotspot tuning, capture both the JMH score and the `gc.alloc.rate.norm`
 output from `-prof gc`. The broader hotspot suite remains diagnostic-only. The
 reflection conversion pair is the current exception: those two warmed workloads
 now have conservative guardrails through
-`scripts/benchmark-suite-hotspot-reflection.args` and
+`scripts/benchmarks/benchmark-suite-hotspot-reflection.args` and
 `benchmarks/hotspot-thresholds.json`.
 
 Representative warmed `-prof gc` reflection numbers as of `2026-04-23` (after
@@ -447,7 +447,7 @@ Example local comparison run:
 java -jar "$BENCHMARK_JAR" 'laughing.man.commits.benchmark.PojoLensJoinJmhBenchmark.(pojoLensJoinLeftComputedField|manualHashJoinLeftComputedField)' -p size=1000,10000 -f 1 -wi 1 -i 3 -r 100ms -prof gc -rf json -rff target/benchmarks-computed-field-join-e2e.json
 ```
 
-The PojoLens path is part of the core guardrail suite through `scripts/benchmark-suite-main.args`.
+The PojoLens path is part of the core guardrail suite through `scripts/benchmarks/benchmark-suite-main.args`.
 
 As of 2026-03-20 (execution-only methodology), a strict-style cold run (`-f 1 -wi 0 -i 1 -r 100ms`) measured `2.232 ms/op` at `size=1000` and `32.074 ms/op` at `size=10000`. The core guardrail is at `82.2 ms/op` at `size=1000` and `205.7 ms/op` at `size=10000` in `benchmarks/thresholds.json`, preserving headroom for machine noise on the cold strict suite. The previous cold score at `size=10000` was `121.266 ms/op` under the old setup-bundled methodology; the reduction reflects query plan compilation being excluded from the measured iteration.
 

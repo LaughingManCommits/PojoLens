@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-03-31T22:00:41",
+  "generatedAt": "2026-04-30T18:15:18",
   "refresh": {
     "full": {
-      "durationMs": 1907.849,
+      "durationMs": 5361.094,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 5,
         "reused": 0
       },
       "sqlite": {
-        "updatedFiles": 47,
+        "updatedFiles": 62,
         "reusedFiles": 0,
         "removedFiles": 0
       }
     },
     "incremental": {
-      "durationMs": 328.291,
+      "durationMs": 461.906,
       "exitCode": 0,
       "jsonIndexes": {
         "rebuilt": 0,
@@ -23,65 +23,55 @@
       },
       "sqlite": {
         "updatedFiles": 0,
-        "reusedFiles": 47,
+        "reusedFiles": 62,
         "removedFiles": 0
       }
     }
   },
   "check": {
-    "durationMs": 121.109,
+    "durationMs": 144.327,
     "exitCode": 0
   },
   "queries": {
     "iterations": 3,
-    "avgQueryMs": 55.934,
-    "top1Rate": 1.0,
-    "top3Rate": 1.0,
+    "avgQueryMs": 59.714,
+    "top1Rate": 0.75,
+    "top3Rate": 0.75,
     "cases": [
       {
         "id": "release_retry",
         "query": "release retry",
         "pathGlobs": [],
-        "top1Hit": true,
-        "top3Hit": true,
+        "top1Hit": false,
+        "top3Hit": false,
         "timingsMs": [
-          55.94,
-          55.29,
-          55.658
+          60.117,
+          62.004,
+          59.194
         ],
-        "avgQueryMs": 55.629,
-        "bestQueryMs": 55.29,
-        "worstQueryMs": 55.94,
+        "avgQueryMs": 60.438,
+        "bestQueryMs": 59.194,
+        "worstQueryMs": 62.004,
         "topResults": [
           {
-            "path": "ai/state/handoff.md",
-            "title": "Focus",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
+            "path": "ai/state/recent-validations.md",
+            "title": "Recent Validations",
+            "sourceKind": "ai-validation-history",
+            "loadTier": "warm",
             "sortTs": "",
-            "lineStart": 11,
-            "lineEnd": 15,
-            "summary": "## Focus\n\n- [Release] [retry] or verification for the dated version/tag scheme is the pending repo task.\n- Keep context ... "
+            "lineStart": 1,
+            "lineEnd": 196,
+            "summary": " ... Hot memory was updated to note the new post-[release] backlog without changing the active [release] blocker (`SCATTER ... "
           },
           {
-            "path": "ai/state/current-state.md",
-            "title": "Focus",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
+            "path": "ai/log/archive/2026-03-summary.md",
+            "title": "Event Snapshots",
+            "sourceKind": "ai-archive-summary",
+            "loadTier": "cold",
             "sortTs": "",
-            "lineStart": 9,
-            "lineEnd": 13,
-            "summary": "## Focus\n\n- `WP9` context-loading hardening is complete and live.\n- Main repo task is Maven Central [release] [retry] or ... "
-          },
-          {
-            "path": "ai/state/current-state.md",
-            "title": "Next",
-            "sourceKind": "ai-hot-context",
-            "loadTier": "hot",
-            "sortTs": "",
-            "lineStart": 36,
-            "lineEnd": 42,
-            "summary": "## Next\n\n- [Retry] the [release] workflow or a manual [release] dispatch for `2026.03.28.1919`.\n- If benchmark work ... "
+            "lineStart": 7,
+            "lineEnd": 117,
+            "summary": " ... no active engineering roadmap and that the remaining [release] [retry] for `v1.0.0` is operational follow-up ... "
           }
         ]
       },
@@ -92,13 +82,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          56.941,
-          55.495,
-          57.163
+          59.694,
+          59.299,
+          59.532
         ],
-        "avgQueryMs": 56.533,
-        "bestQueryMs": 55.495,
-        "worstQueryMs": 57.163,
+        "avgQueryMs": 59.508,
+        "bestQueryMs": 59.299,
+        "worstQueryMs": 59.694,
         "topResults": [
           {
             "path": "ai/state/recent-validations.md",
@@ -107,28 +97,18 @@
             "loadTier": "warm",
             "sortTs": "",
             "lineStart": 1,
-            "lineEnd": 40,
+            "lineEnd": 196,
             "summary": " ... examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` passed after the dashboard UI, chart, and form ... "
           },
           {
-            "path": "ai/log/events.jsonl",
-            "title": "implementation 2026-03-26T18:23:44+01:00",
-            "sourceKind": "ai-log",
-            "loadTier": "warm",
-            "sortTs": "2026-03-26T18:23:44+01:00",
+            "path": "ai/log/archive/2026-03-summary.md",
+            "title": "Event Snapshots",
+            "sourceKind": "ai-archive-summary",
+            "loadTier": "cold",
+            "sortTs": "",
             "lineStart": 7,
-            "lineEnd": 7,
-            "summary": " ... Revalidated the refactor with `mvn -B -ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test`."
-          },
-          {
-            "path": "ai/log/events.jsonl",
-            "title": "implementation 2026-03-26T12:38:00+01:00",
-            "sourceKind": "ai-log",
-            "loadTier": "warm",
-            "sortTs": "2026-03-26T12:38:00+01:00",
-            "lineStart": 2,
-            "lineEnd": 2,
-            "summary": " ... ntp -f examples/spring-boot-starter-basic/pom.xml -Dtest=[DashboardPlaywrightE2eTest] test` plus `scripts/check-doc-consistency.ps1`."
+            "lineEnd": 117,
+            "summary": " ... Added Java-based Playwright E2E coverage for `examples/spring-boot-starter-basic` via `[DashboardPlaywrightE2eTest]` (API + UI flows, dashboard ... "
           }
         ]
       },
@@ -141,13 +121,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          56.006,
-          56.022,
-          55.585
+          59.824,
+          59.707,
+          59.779
         ],
-        "avgQueryMs": 55.871,
-        "bestQueryMs": 55.585,
-        "worstQueryMs": 56.022,
+        "avgQueryMs": 59.77,
+        "bestQueryMs": 59.707,
+        "worstQueryMs": 59.824,
         "topResults": [
           {
             "path": "ai/log/archive/2026-03-summary.md",
@@ -156,8 +136,18 @@
             "loadTier": "cold",
             "sortTs": "",
             "lineStart": 7,
-            "lineEnd": 81,
+            "lineEnd": 117,
             "summary": " ... Landed selective [single]-[join] [fast]-[path] improvements and kept full test suite green while reducing computed-[join] latency ... "
+          },
+          {
+            "path": "ai/log/archive/2026-04-summary.md",
+            "title": "Event Snapshots",
+            "sourceKind": "ai-archive-summary",
+            "loadTier": "cold",
+            "sortTs": "",
+            "lineStart": 7,
+            "lineEnd": 70,
+            "summary": " ... failing [fast] when any effective task still resolves to `workerValidationMode = compat` while leaving the compatibility [path] available by ... "
           },
           {
             "path": "ai/log/archive/2026-03.jsonl",
@@ -178,13 +168,13 @@
         "top1Hit": true,
         "top3Hit": true,
         "timingsMs": [
-          55.75,
-          55.63,
-          55.722
+          59.31,
+          58.376,
+          59.732
         ],
-        "avgQueryMs": 55.701,
-        "bestQueryMs": 55.63,
-        "worstQueryMs": 55.75,
+        "avgQueryMs": 59.139,
+        "bestQueryMs": 58.376,
+        "worstQueryMs": 59.732,
         "topResults": [
           {
             "path": "ai/core/module-index.md",

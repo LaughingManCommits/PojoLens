@@ -27,16 +27,16 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | Task signal                                                                                                                        | Also load                                                                                |
 |------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
 | release/publish/signing/versioning work or touching `RELEASE.md`, `.github/workflows/release.yml`, `pom.xml`, `pojo-lens*/pom.xml` | `ai/core/runbook.md`, `ai/state/recent-validations.md`                                   |
-| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmark-*`                                   | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`                            |
+| benchmark/JMH work or touching `pojo-lens-benchmarks/**`, `benchmarks/**`, `scripts/benchmarks/**`                                | `ai/state/benchmark-state.md`, `ai/core/benchmark-context.md`                            |
 | public API/docs alignment work or touching `README.md`, `MIGRATION.md`, `docs/**`                                                  | `ai/core/readme-alignment.md`, `ai/core/documentation-index.md`                          |
 | module topology/build boundary work or touching module structure and build wiring                                                  | `ai/core/module-index.md`, `ai/core/system-boundaries.md`, `ai/core/architecture-map.md` |
 | test strategy or validation history work                                                                                           | `ai/core/test-strategy.md`, `ai/state/recent-validations.md`                             |
-| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/claude-orchestrator*`                                       | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
-| AI memory maintenance or touching `ai/**`, `scripts/refresh-ai-memory*`, `scripts/query-ai-memory*`                                | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
+| local AI orchestration work or touching `ai/orchestrator/**`, `scripts/ai/**`                                                        | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
+| AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
 Routing fallback:
 - if task intent is broad or ambiguous after applying the matrix, run:
-  `scripts/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
+  `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
 - for domain-specific precision, add facets:
   `-Kind ai-core` for architecture/module facts
   `-Kind ai-orchestrator` for orchestration workflow docs
@@ -54,11 +54,11 @@ Memory rules:
 - follow `/ai/AGENTS.md` when updating memory
 - treat cross-references between `AGENTS.md` and `ai/AGENTS.md` as guidance links, not recursive load triggers
 - code, tests, and build config override `/ai` if facts conflict
-- `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/refresh-ai-memory.ps1` after structural or documentation changes
-- run `scripts/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
+- `ai/indexes/*.json` and optional `ai/indexes/cold-memory.db` are derived artifacts; refresh them with `scripts/ai/refresh-ai-memory.ps1` after structural or documentation changes
+- run `scripts/ai/benchmark-ai-memory.ps1 -Report ai/indexes/memory-benchmark.json` after changing the AI memory retrieval path
 
 Claude orchestration:
-- tracked orchestration specs live in `ai/orchestrator/`; the coordinator entrypoints live in `scripts/claude-orchestrator.py` and `scripts/claude-orchestrator.ps1`
+- tracked orchestration specs live in `ai/orchestrator/`; AI tooling implementations live under `scripts/ai/`; the primary operator command is `pojolens-agents`
 - the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
 - keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
 - only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
@@ -72,16 +72,16 @@ Context budget and summarization:
 - summarize state using short, date-stamped bullets; keep one fact per bullet
 - remove duplicated facts across `ai/state/current-state.md` and `ai/state/handoff.md` unless a repetition is operationally required
 - move durable multi-session facts from `ai/state/*` to `ai/core/*`
-- compact log history with `scripts/refresh-ai-memory.ps1 -CompactLog` when event noise grows
+- compact log history with `scripts/ai/refresh-ai-memory.ps1 -CompactLog` when event noise grows
 - after AI memory edits, run:
-  `scripts/refresh-ai-memory.ps1`
-  `scripts/refresh-ai-memory.ps1 -Check`
+  `scripts/ai/refresh-ai-memory.ps1`
+  `scripts/ai/refresh-ai-memory.ps1 -Check`
 
 End of session:
 - update `ai/state/current-state.md`
 - update `ai/state/handoff.md`
 - append significant discoveries to `ai/log/events.jsonl` if useful
-- compact older log history with `scripts/refresh-ai-memory.ps1 -CompactLog` when the active log grows noisy
+- compact older log history with `scripts/ai/refresh-ai-memory.ps1 -CompactLog` when the active log grows noisy
 
 Changelog:
 - update `CHANGELOG.md` when completing a work package or shipping a feature

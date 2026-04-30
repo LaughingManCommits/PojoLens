@@ -10,6 +10,9 @@
 - `2026-04-30`: WP26 completed compiler-time typed field generation through `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor`, with no AST rewriting and `FieldMetamodelGenerator` retained as fallback.
 - `2026-04-30`: `TODO.md` was reset to an active orchestration-tooling roadmap: WP27 CLI productization, WP28 runtime layering, WP29 LangGraph execution spike, and WP30 run visibility/operator UX.
 - `2026-04-30`: Parallel agent execution is an explicit orchestration requirement; independent tasks must remain concurrent-capable while dependency and write-scope conflicts serialize.
+- `2026-04-30`: WP27 first slice added the `pojolens-agents` Python console entrypoint with `--repo-root` bootstrap around the existing orchestrator script.
+- `2026-04-30`: AI tooling implementations now live under `scripts/ai/`; root AI script shims were removed so `pojolens-agents` and direct `scripts/ai/*` paths are canonical.
+- `2026-04-30`: Script tooling is organized by domain: `scripts/ai/`, `scripts/benchmarks/`, `scripts/docs/`, `scripts/quality/`, and `scripts/release/`.
 - `2026-04-30`: Example inventory is now curated to typed compiler Maven, typed compiler Gradle Java, typed compiler Gradle Kotlin, Spring quickstart, and Spring risk console.
 - `2026-04-30`: Spring risk-console Query Studio now consumes compiler-generated `TransactionRecordTypedFields` as a realistic integration proof.
 - `2026-04-29`: `README.md` is route-based with a top `Quick Integration` section that points AI agents to `AGENTS.md`.
@@ -27,4 +30,4 @@
 
 ## Next
 - `2026-04-30`: Roadmap order is WP27 -> WP28 -> WP29 -> WP30, with WP18 and Release Gate deferred.
-- `2026-04-30`: Next roadmap item is WP27 Orchestrator CLI Productization.
+- `2026-04-30`: Continue WP27 by moving internals into importable layers and tightening CLI/global-option contracts.

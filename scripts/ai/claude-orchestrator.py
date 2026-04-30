@@ -24,7 +24,7 @@ from typing import Any
 from uuid import uuid4
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
 DEFAULT_AGENTS_PATH = AI_ORCHESTRATOR_DIR / "agents.json"
 DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"

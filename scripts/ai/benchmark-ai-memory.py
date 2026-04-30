@@ -12,9 +12,9 @@ import time
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-REFRESH_SCRIPT = ROOT / "scripts" / "refresh-ai-memory.py"
-QUERY_SCRIPT = ROOT / "scripts" / "query-ai-memory.py"
+ROOT = Path(__file__).resolve().parents[2]
+REFRESH_SCRIPT = ROOT / "scripts" / "ai" / "refresh-ai-memory.py"
+QUERY_SCRIPT = ROOT / "scripts" / "ai" / "query-ai-memory.py"
 DEFAULT_REPORT_PATH = ROOT / "ai" / "indexes" / "memory-benchmark.json"
 JSON_INDEX_COUNTS_PATTERN = re.compile(r"json indexes rebuilt:\s*(\d+)\s*/\s*reused:\s*(\d+)")
 SQLITE_COUNTS_PATTERN = re.compile(

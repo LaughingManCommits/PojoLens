@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB_PATH = ROOT / "ai" / "indexes" / "cold-memory.db"
 DEFAULT_TIERS = ["hot", "warm", "cold"]
 SOURCE_KIND_PRIORITY = {

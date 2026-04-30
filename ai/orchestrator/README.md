@@ -7,6 +7,9 @@ Tracked files:
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
 - `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, and reviewer roles
 - `tasks/*.json`: task-plan files the coordinator can validate or execute
+- `scripts/ai/pojo_lens_agents/`: installable CLI package exposing the
+  `pojolens-agents` console command
+- `scripts/ai/`: implementation home for AI memory and orchestration tooling
 
 Runtime artifacts are intentionally kept outside `ai/` under a repo-local runtime root:
 - default runtime root: `.claude-orchestrator/`
@@ -20,28 +23,43 @@ Why this split:
 - workers can run in isolated `copy` or `worktree` workspaces
 - repo-copy workspaces ignore `.claude-orchestrator/`, which prevents recursive copying during parallel or overlapping runs
 
-Primary commands:
+Primary CLI:
 
 ```powershell
-scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json
-scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json
-scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
-scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
-scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
-scripts/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
-scripts/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
-scripts/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
-scripts/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
-scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
-scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --intents-only --dry-run --json
-scripts/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
-scripts/claude-orchestrator.ps1 inventory --json
-scripts/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json
-scripts/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
-scripts/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
+py -3 -m pip install -e .
+pojolens-agents validate ai/orchestrator/tasks/example-parallel.json --json
+pojolens-agents --repo-root C:\data\pojolens run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json
 ```
+
+The console command is repo-local by design. Run it from the repository root,
+set `POJOLENS_REPO_ROOT`, or pass `--repo-root <path>` so the wrapper can find
+`scripts/ai/claude-orchestrator.py`.
+
+Direct script commands:
+
+```powershell
+scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json
+scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
+scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
+scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
+scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --intents-only --dry-run --json
+scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --include-status blocked --allow-unsafe-commands --dry-run --json
+scripts/ai/claude-orchestrator.ps1 inventory --json
+scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json
+scripts/ai/claude-orchestrator.ps1 cleanup .claude-orchestrator/runs/<run-id> --json
+scripts/ai/claude-orchestrator.ps1 plan "Investigate scatter allocation follow-up" --dry-run
+```
+
+Root-level pointer scripts are intentionally not kept; use `pojolens-agents`
+for the operator CLI or the direct scripts under `scripts/ai/`.
 
 Tracked samples:
 - `ai/orchestrator/tasks/example-review.json`: one-task reviewer sample for direct contract review without an upstream analyst hop
@@ -81,7 +99,7 @@ Context discipline:
 - agent definitions may also preload repo-local `skills`; the tracked workers now pass through `caveman` so the model can load that skill after agent setup instead of repeating style instructions in every prompt
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
-- downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` on any `copy` or `worktree` task — including reviewer tasks — that needs reviewed upstream code state materialized into its workspace before execution; this is especially important when upstream tasks create new files that would otherwise be invisible to the downstream workspace
+- downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` on any `copy` or `worktree` task â€” including reviewer tasks â€” that needs reviewed upstream code state materialized into its workspace before execution; this is especially important when upstream tasks create new files that would otherwise be invisible to the downstream workspace
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
 - minimal-mode worker prompts now keep shared file lists out of the prompt body; workers still get the shared summary, but shared `readPaths` stay prompt-visible only in `contextMode = full`
@@ -120,6 +138,7 @@ Model selection:
 
 Concurrency:
 - ready tasks run in batches up to `--max-parallel`
+- parallel agent execution is a first-class requirement for independent tasks
 - each run gets a unique `run-id`, run manifest, and per-task workspace under `.claude-orchestrator/`
 - validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
 - overlapping write-capable tasks are serialized conservatively by declared `writePaths` scope even when they are dependency-ready together

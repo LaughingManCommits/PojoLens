@@ -11,10 +11,10 @@
     "readPaths": [
       "ai/orchestrator/README.md",
       "ai/orchestrator/SYSTEM-SPEC.md",
-      "scripts/claude-orchestrator.py"
+      "scripts/ai/claude-orchestrator.py"
     ],
     "validation": [
-      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json"
+      "scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json"
     ]
   },
   "tasks": [
@@ -27,7 +27,7 @@
       "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
+        "scripts/ai/claude-orchestrator.py"
       ],
       "writePaths": [
         "ai/orchestrator/README.md",
@@ -47,7 +47,7 @@
       "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
+        "scripts/ai/claude-orchestrator.py"
       ],
       "writePaths": [
         "ai/orchestrator/README.md",
@@ -68,7 +68,7 @@
       "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
+        "scripts/ai/claude-orchestrator.py"
       ],
       "workspaceMode": "copy"
     }

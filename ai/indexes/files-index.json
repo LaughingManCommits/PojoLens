@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-30T17:10:03.335612+02:00",
+  "generatedAt": "2026-04-30T18:15:50.188852+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 9,
     "mainJavaFiles": 284,
     "testJavaFiles": 161,
-    "markdownDocs": 58,
+    "markdownDocs": 59,
     "aiCoreFiles": 11,
     "aiIndexFiles": 7,
     "orchestratorTaskPlans": 3
@@ -244,6 +244,10 @@
       "kind": "memory-maintenance"
     },
     {
+      "path": "scripts/README.md",
+      "kind": "process-doc"
+    },
+    {
       "path": "ai/state/recent-validations.md",
       "kind": "ai-warm-state"
     },
@@ -268,32 +272,48 @@
       "kind": "ai-orchestration-task-plan"
     },
     {
-      "path": "scripts/refresh-ai-memory.py",
+      "path": "scripts/ai/refresh-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/query-ai-memory.py",
+      "path": "scripts/ai/query-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/claude-orchestrator.py",
+      "path": "scripts/ai/claude-orchestrator.py",
       "kind": "orchestration-script"
     },
     {
-      "path": "scripts/claude-orchestrator.ps1",
+      "path": "scripts/ai/pojo_lens_agents/cli.py",
       "kind": "orchestration-script"
     },
     {
-      "path": "scripts/benchmark-ai-memory.py",
+      "path": "scripts/ai/benchmark-ai-memory.py",
       "kind": "memory-script"
     },
     {
-      "path": "scripts/check-doc-consistency.ps1",
+      "path": "scripts/docs/check-doc-consistency.ps1",
       "kind": "validation-script"
     },
     {
-      "path": "scripts/check-lint-baseline.ps1",
+      "path": "scripts/docs/check-doc-consistency.py",
       "kind": "validation-script"
+    },
+    {
+      "path": "scripts/quality/check-lint-baseline.ps1",
+      "kind": "validation-script"
+    },
+    {
+      "path": "scripts/quality/checkstyle-baseline.txt",
+      "kind": "validation-config"
+    },
+    {
+      "path": "scripts/release/export-release-secrets.ps1",
+      "kind": "release-script"
+    },
+    {
+      "path": "scripts/benchmarks/benchmark-suite-main.args",
+      "kind": "benchmark-config"
     },
     {
       "path": "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",

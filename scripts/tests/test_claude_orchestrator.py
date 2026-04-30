@@ -15,10 +15,22 @@ from types import SimpleNamespace
 
 def load_orchestrator_module():
     root = pathlib.Path(__file__).resolve().parents[2]
-    module_path = root / "scripts" / "claude-orchestrator.py"
+    module_path = root / "scripts" / "ai" / "claude-orchestrator.py"
     spec = importlib.util.spec_from_file_location("claude_orchestrator", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load orchestrator module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_cli_module():
+    root = pathlib.Path(__file__).resolve().parents[2]
+    module_path = root / "scripts" / "ai" / "pojo_lens_agents" / "cli.py"
+    spec = importlib.util.spec_from_file_location("pojo_lens_agents_cli", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load CLI module from {module_path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -166,6 +178,49 @@ class ClaudeCommandTest(unittest.TestCase):
         self.assertEqual(["--", "review prompt"], command[-2:])
 
 
+class ConsoleEntrypointTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cli = load_cli_module()
+
+    def test_extract_repo_root_removes_global_option_anywhere(self):
+        repo_root, remaining = self.cli.extract_repo_root(
+            [
+                "validate",
+                "--repo-root",
+                "C:/data/pojolens",
+                "ai/orchestrator/tasks/example-parallel.json",
+                "--json",
+            ]
+        )
+
+        self.assertEqual("C:/data/pojolens", repo_root)
+        self.assertEqual(
+            ["validate", "ai/orchestrator/tasks/example-parallel.json", "--json"],
+            remaining,
+        )
+
+    def test_console_entrypoint_forwards_to_existing_validate_command(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        stdout_buffer = io.StringIO()
+        with contextlib.redirect_stdout(stdout_buffer):
+            exit_code = self.cli.main(
+                [
+                    "--repo-root",
+                    str(root),
+                    "validate",
+                    "ai/orchestrator/tasks/example-parallel.json",
+                    "--json",
+                ]
+            )
+
+        self.assertEqual(0, exit_code)
+        payload = json.loads(stdout_buffer.getvalue())
+        self.assertEqual("example-parallel", payload["planName"])
+        self.assertEqual(["inspect-memory-contract", "inspect-runtime-contract"], payload["taskIds"])
+        self.assertEqual(2, payload["topology"]["maxParallelWidth"])
+
+
 class SlopLoggingTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -247,7 +302,7 @@ class PromptBudgetTest(unittest.TestCase):
             agent="analyst",
             prompt="Review the orchestrator guidance and summarize the most important contract details.",
             read_paths=["AGENTS.md", "ai/orchestrator/README.md"],
-            validation=["scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"],
+            validation=["scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"],
         )
         plan = orchestrator.TaskPlan(
             version=1,
@@ -292,9 +347,9 @@ class PromptBudgetTest(unittest.TestCase):
                 claude_bin="claude",
                 goal="Inspect the orchestrator prompt contract.",
                 name="prompt-budget-check",
-                files=["scripts/claude-orchestrator.py"],
+                files=["scripts/ai/claude-orchestrator.py"],
                 constraints=["Keep the plan compact."],
-                validation=["scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"],
+                validation=["scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"],
                 out="",
             )
         )
@@ -532,7 +587,10 @@ class ValidateCommandTest(unittest.TestCase):
             payload["taskWorkerValidationModeSources"],
         )
         self.assertEqual(
-            {"inspect": "claude-haiku-4-5", "implement": "claude-haiku-4-5"},
+            {
+                "inspect": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
+                "implement": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
+            },
             payload["taskModels"],
         )
         self.assertEqual(
@@ -546,7 +604,7 @@ class ValidateCommandTest(unittest.TestCase):
                 {
                     "id": "inspect",
                     "agent": "analyst",
-                    "model": "claude-haiku-4-5",
+                    "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "readPaths": [],
                     "writePaths": [],
@@ -557,7 +615,7 @@ class ValidateCommandTest(unittest.TestCase):
                 {
                     "id": "implement",
                     "agent": "implementer",
-                    "model": "claude-haiku-4-5",
+                    "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "readPaths": [],
                     "writePaths": [],
@@ -645,7 +703,10 @@ class ValidateCommandTest(unittest.TestCase):
             )
 
         self.assertEqual(
-            {"inspect": "claude-sonnet-4-6", "deep-design": "claude-opus-4-6"},
+            {
+                "inspect": orchestrator.MODEL_PROFILE_TO_MODEL["balanced"],
+                "deep-design": orchestrator.MODEL_PROFILE_TO_MODEL["complex"],
+            },
             payload["taskModels"],
         )
         self.assertEqual(
@@ -1178,7 +1239,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertIn("key notes:", summary)
         self.assertIn("Rule one is protected-path enforcement.", summary)
         self.assertIn("... (1 more notes omitted)", summary)
-        self.assertNotIn("next:", summary)
+        self.assertIn("next: Open one follow-up issue.", summary)
 
     def test_dependency_summary_marks_unknown_notes_and_follow_ups(self):
         orchestrator = self.orchestrator
@@ -1532,7 +1593,7 @@ class ValidateCommandTest(unittest.TestCase):
             "validationIntents": [
                 {
                     "kind": "repo-script",
-                    "entrypoint": "scripts/check-doc-consistency.ps1",
+                    "entrypoint": "scripts/docs/check-doc-consistency.ps1",
                 },
                 {
                     "kind": "tool",
@@ -1602,7 +1663,7 @@ class ValidateCommandTest(unittest.TestCase):
             "validationIntents": [
                 {
                     "kind": "repo-script",
-                    "entrypoint": "scripts/check-doc-consistency.ps1",
+                    "entrypoint": "scripts/docs/check-doc-consistency.ps1",
                 },
                 {
                     "kind": "tool",
@@ -1656,10 +1717,10 @@ class ValidateCommandTest(unittest.TestCase):
     def test_validation_command_policy_accepts_repo_script(self):
         orchestrator = self.orchestrator
 
-        policy = orchestrator.validation_command_policy("scripts/refresh-ai-memory.ps1 -Check")
+        policy = orchestrator.validation_command_policy("scripts/ai/refresh-ai-memory.ps1 -Check")
 
         self.assertTrue(policy["accepted"])
-        self.assertEqual("scripts/refresh-ai-memory.ps1", policy["entrypoint"])
+        self.assertEqual("scripts/ai/refresh-ai-memory.ps1", policy["entrypoint"])
         self.assertEqual("repo-script", policy["intent"]["kind"])
 
     def test_validation_intent_policy_accepts_repo_script(self):
@@ -1668,13 +1729,13 @@ class ValidateCommandTest(unittest.TestCase):
         policy = orchestrator.validation_intent_policy(
             orchestrator.ValidationIntent(
                 kind="repo-script",
-                entrypoint="scripts/check-doc-consistency.ps1",
+                entrypoint="scripts/docs/check-doc-consistency.ps1",
                 args=[],
             )
         )
 
         self.assertTrue(policy["accepted"])
-        self.assertEqual("scripts/check-doc-consistency.ps1", policy["entrypoint"])
+        self.assertEqual("scripts/docs/check-doc-consistency.ps1", policy["entrypoint"])
 
     def test_validation_intent_policy_rejects_unknown_tool(self):
         orchestrator = self.orchestrator
@@ -1765,7 +1826,7 @@ class ValidateCommandTest(unittest.TestCase):
             status="completed",
             summary="Inspection finished with one direct validation command.",
         )
-        record.validation_commands = ["scripts/check-doc-consistency.ps1"]
+        record.validation_commands = ["scripts/docs/check-doc-consistency.ps1"]
 
         task_payloads, command_payloads = orchestrator.collect_validation_commands(
             [record],
@@ -1797,11 +1858,11 @@ class ValidateCommandTest(unittest.TestCase):
         record.validation_intents = [
             orchestrator.ValidationIntent(
                 kind="repo-script",
-                entrypoint="scripts/check-doc-consistency.ps1",
+                entrypoint="scripts/docs/check-doc-consistency.ps1",
                 args=[],
             )
         ]
-        record.validation_commands = ["scripts/check-doc-consistency.ps1"]
+        record.validation_commands = ["scripts/docs/check-doc-consistency.ps1"]
 
         task_payloads, command_payloads = orchestrator.collect_validation_commands(
             [record],
@@ -1809,7 +1870,7 @@ class ValidateCommandTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ["scripts/check-doc-consistency.ps1"],
+            ["scripts/docs/check-doc-consistency.ps1"],
             task_payloads[0]["renderedValidationIntents"],
         )
         self.assertEqual(1, len(command_payloads))
@@ -2642,7 +2703,7 @@ class ValidateCommandTest(unittest.TestCase):
                             "summary": "Worker returned a legacy command.",
                             "filesTouched": [],
                             "validationIntents": [],
-                            "validationCommands": ["scripts/check-doc-consistency.ps1"],
+                            "validationCommands": ["scripts/docs/check-doc-consistency.ps1"],
                             "followUps": [],
                             "notes": [],
                         }
@@ -3547,7 +3608,10 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("intents-only", payload["workerValidationModeOverride"])
         self.assertEqual({"inspect-a": "intents-only"}, payload["taskWorkerValidationModes"])
         self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
-        self.assertEqual({"inspect-a": "claude-haiku-4-5"}, payload["taskModels"])
+        self.assertEqual(
+            {"inspect-a": orchestrator.MODEL_PROFILE_TO_MODEL["simple"]},
+            payload["taskModels"],
+        )
         self.assertEqual({"inspect-a": "simple"}, payload["taskModelProfiles"])
         self.assertEqual([], payload["complexModelTaskIds"])
         self.assertEqual(0, payload["complexModelTaskCount"])
@@ -3642,11 +3706,17 @@ class ValidateCommandTest(unittest.TestCase):
                 (pathlib.Path(payload["runDir"]) / "manifest.json").read_text(encoding="utf-8")
             )
 
-        self.assertEqual({"deep-design": "claude-opus-4-6"}, payload["taskModels"])
+        self.assertEqual(
+            {"deep-design": orchestrator.MODEL_PROFILE_TO_MODEL["complex"]},
+            payload["taskModels"],
+        )
         self.assertEqual({"deep-design": "complex"}, payload["taskModelProfiles"])
         self.assertEqual(["deep-design"], payload["complexModelTaskIds"])
         self.assertEqual(1, payload["complexModelTaskCount"])
-        self.assertEqual({"deep-design": "claude-opus-4-6"}, manifest["taskModels"])
+        self.assertEqual(
+            {"deep-design": orchestrator.MODEL_PROFILE_TO_MODEL["complex"]},
+            manifest["taskModels"],
+        )
         self.assertEqual({"deep-design": "complex"}, manifest["taskModelProfiles"])
         self.assertEqual(["deep-design"], manifest["complexModelTaskIds"])
         self.assertEqual(1, manifest["complexModelTaskCount"])
@@ -5892,7 +5962,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["scripts/refresh-ai-memory.ps1 -Check"],
+                                "validation_commands": ["scripts/ai/refresh-ai-memory.ps1 -Check"],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -5927,7 +5997,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "files_touched": [],
                                 "actual_files_touched": [],
                                 "protected_path_violations": [],
-                                "validation_commands": ["py -3 -m py_compile scripts/claude-orchestrator.py"],
+                                "validation_commands": ["py -3 -m py_compile scripts/ai/claude-orchestrator.py"],
                                 "follow_ups": [],
                                 "notes": [],
                                 "model": "claude-haiku-4-5",
@@ -5969,7 +6039,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["completed"], payload["includedStatuses"])
         self.assertEqual(["task-completed"], payload["includedTaskIds"])
         self.assertEqual(["task-blocked"], payload["excludedTaskIds"])
-        self.assertEqual(["scripts/refresh-ai-memory.ps1 -Check"], payload["suggestedCommands"])
+        self.assertEqual(["scripts/ai/refresh-ai-memory.ps1 -Check"], payload["suggestedCommands"])
         self.assertEqual(1, payload["commandCount"])
         blocked_task = next(task for task in payload["tasks"] if task["id"] == "task-blocked")
         self.assertFalse(blocked_task["includedForValidation"])
@@ -5985,7 +6055,7 @@ class ValidateCommandTest(unittest.TestCase):
             repo_root.mkdir()
             run_dir.mkdir()
             manifest_path = run_dir / "manifest.json"
-            safe_cmd = "scripts/refresh-ai-memory.ps1 -Check"
+            safe_cmd = "scripts/ai/refresh-ai-memory.ps1 -Check"
             unsafe_cmd = "grep -n 'workers must not' ai/orchestrator/README.md | grep state"
             orchestrator.ROOT = repo_root
             try:
@@ -6066,7 +6136,7 @@ class ValidateCommandTest(unittest.TestCase):
             repo_root.mkdir()
             run_dir.mkdir()
             manifest_path = run_dir / "manifest.json"
-            raw_cmd = "scripts/check-doc-consistency.ps1"
+            raw_cmd = "scripts/docs/check-doc-consistency.ps1"
             orchestrator.ROOT = repo_root
             try:
                 orchestrator.write_json(
@@ -6092,7 +6162,7 @@ class ValidateCommandTest(unittest.TestCase):
                                 "validation_intents": [
                                     {
                                         "kind": "repo-script",
-                                        "entrypoint": "scripts/refresh-ai-memory.ps1",
+                                        "entrypoint": "scripts/ai/refresh-ai-memory.ps1",
                                         "args": ["-Check"],
                                     }
                                 ],

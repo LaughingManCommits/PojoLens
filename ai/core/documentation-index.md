@@ -55,7 +55,7 @@
 
 - `TODO.md` remains the backlog file for active planning and follow-up.
 - `MAINTENANCE.md` applies only to `/ai` cleanup passes.
-- `scripts/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
+- `scripts/ai/refresh-ai-memory.ps1` rebuilds derived AI JSON indexes and the optional cold-search database.
 - `ai/state/recent-validations.md` is the compact warm ledger for exact recent validation commands and results.
 - Keep `CONTRIBUTING.md`, `MIGRATION.md`, and `RELEASE.md` aligned with `pom.xml` and workflows.
 

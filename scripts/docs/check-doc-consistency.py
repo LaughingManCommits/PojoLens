@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 POM = ROOT / "pom.xml"
 README = ROOT / "README.md"
 CONTRIBUTING = ROOT / "CONTRIBUTING.md"
@@ -28,7 +28,7 @@ METAMODEL = ROOT / "docs/metamodel.md"
 MODULES = ROOT / "docs/modules.md"
 SQL_LIKE = ROOT / "docs/sql-like.md"
 BENCHMARKING = ROOT / "docs/benchmarking.md"
-BENCHMARK_MAIN_ARGS = ROOT / "scripts/benchmark-suite-main.args"
+BENCHMARK_MAIN_ARGS = ROOT / "scripts/benchmarks/benchmark-suite-main.args"
 QUICKSTART_POM = ROOT / "examples/spring-boot-starter-quickstart/pom.xml"
 RISK_CONSOLE_POM = ROOT / "examples/spring-boot-starter-risk-console/pom.xml"
 TYPED_COMPILER_MAVEN_POM = ROOT / "examples/typed-compiler-maven/pom.xml"

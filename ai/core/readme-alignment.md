@@ -16,7 +16,7 @@
 
 - `CONTRIBUTING.md` uses dynamic benchmark-jar resolution guidance.
 - `MIGRATION.md` and `RELEASE.md` match current SQL-like capability constraints and release flow.
-- `scripts/check-doc-consistency.ps1` and `scripts/check-doc-consistency.py` enforce key doc invariants.
+- `scripts/docs/check-doc-consistency.ps1` and `scripts/docs/check-doc-consistency.py` enforce key doc invariants.
 
 ## Current Boundary
 

@@ -33,7 +33,7 @@ Execution order is dependency-first, not ticket-number order.
 
 | WP  | Title                                | Status   | Key deliverables |
 |-----|--------------------------------------|----------|------------------|
-| WP27| Orchestrator CLI Productization      | Pending  | Installable local CLI around the existing multi-agent commands, with stable JSON and compatibility wrappers |
+| WP27| Orchestrator CLI Productization      | In Progress | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
 | WP28| Orchestrator Runtime Layering        | Pending  | Internal package split for plan loading, workspace management, provider calls, manifests, validation, and parallel scheduling |
 | WP29| LangGraph Execution Spike            | Pending  | Decision record and small prototype for checkpointed parallel graph execution without weakening repo safety rules |
 | WP30| Run Visibility And Operator UX       | Pending  | Better status, inventory, review, and validation surfaces for retained multi-agent runs |
@@ -51,42 +51,44 @@ history.
 **Priority:** High
 
 **Goal:** Turn the repo-local multi-agent scripts into a real local CLI while
-preserving the current command behavior and PowerShell entrypoint.
+preserving the current command behavior and keeping AI tooling organized under
+`scripts/ai/`.
 
 **Context:**
-- `scripts/claude-orchestrator.py` already has an argparse command surface.
-- `scripts/claude-orchestrator.ps1` is useful on Windows and should remain as a
-  compatibility shim.
+- `scripts/ai/claude-orchestrator.py` already has an argparse command surface.
+- `scripts/ai/claude-orchestrator.ps1` remains the direct Windows script
+  entrypoint for contributors who do not install the console command.
 - The current commands are powerful but still feel like repo scripts rather
   than an intentional tool.
 - Productizing the CLI should not move AI orchestration into the Java library
   modules or published artifacts.
 
 **Tasks:**
-- [ ] Choose the executable name and packaging shape, such as a Python
+- [x] Choose the executable name and packaging shape, such as a Python
       `pyproject.toml` console script under a repo-local tooling package.
-- [ ] Move CLI code into an importable package while keeping the existing PS1
-      wrapper and script path working.
-- [ ] Preserve existing subcommands: `validate`, `plan`, `run`, `resume`,
+- [x] Move CLI code into an importable package with the `pojolens-agents`
+      package wrapper around the existing script.
+- [x] Preserve existing subcommands: `validate`, `plan`, `run`, `resume`,
       `retry`, `review`, `export-patch`, `promote`, `validate-run`,
       `inventory`, `prune`, and `cleanup`.
 - [ ] Add consistent global options for repo root, runtime root, JSON output,
-      dry-run behavior, verbosity, and provider binary resolution.
+      dry-run behavior, verbosity, and provider binary resolution; first slice
+      adds package-level `--repo-root`.
 - [ ] Preserve `--max-parallel` behavior as a documented primary CLI feature
       for independent task execution.
 - [ ] Define stable exit-code semantics for validation errors, worker failures,
       blocked runs, unsafe promotion attempts, and unexpected tool crashes.
-- [ ] Add command help snapshots or focused CLI contract tests so future
+- [x] Add command help snapshots or focused CLI contract tests so future
       refactors do not drift the public tool surface by accident.
-- [ ] Update `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md`
+- [x] Update `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md`
       to describe the CLI as the primary operator interface.
 
 **Validate:**
-- `py -3 -m py_compile scripts/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
@@ -128,11 +130,11 @@ manifest handling harder to reason about.
 - [ ] Add tests around layer boundaries before changing runtime behavior.
 
 **Validate:**
-- `py -3 -m py_compile scripts/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`
-- `scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json --json`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json --json`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
@@ -173,10 +175,10 @@ and graph-state visibility.
       scheduler, or defer LangGraph until the CLI/runtime split is complete.
 
 **Validate:**
-- `py -3 -m py_compile scripts/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
@@ -211,11 +213,11 @@ and promote from the CLI without opening manifest JSON by hand.
       review, validation, promotion, and cleanup.
 
 **Validate:**
-- `py -3 -m py_compile scripts/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/claude-orchestrator.ps1 inventory --json`
-- `scripts/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/ai/claude-orchestrator.ps1 inventory --json`
+- `scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
@@ -239,7 +241,7 @@ mandatory code changes.
 
 **Validate when reactivated:**
 - `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
@@ -259,5 +261,5 @@ the final release guardrails are rerun.
 - `mvn -B -ntp test`
 - `mvn -B -ntp -Plint verify -DskipTests`
 - `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
-- `scripts/check-doc-consistency.ps1`
+- `scripts/docs/check-doc-consistency.ps1`
 - Release benchmark guardrails from `docs/benchmarking.md`.

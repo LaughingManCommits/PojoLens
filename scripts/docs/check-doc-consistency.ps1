@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path -Parent $PSScriptRoot
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $pomPath = Join-Path $root "pom.xml"
 $readmePath = Join-Path $root "README.md"
 $contributingPath = Join-Path $root "CONTRIBUTING.md"
@@ -21,7 +21,7 @@ $metamodelPath = Join-Path $root "docs/metamodel.md"
 $modulesPath = Join-Path $root "docs/modules.md"
 $sqlLikePath = Join-Path $root "docs/sql-like.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
-$benchmarkMainArgsPath = Join-Path $root "scripts/benchmark-suite-main.args"
+$benchmarkMainArgsPath = Join-Path $root "scripts/benchmarks/benchmark-suite-main.args"
 $quickstartPomPath = Join-Path $root "examples/spring-boot-starter-quickstart/pom.xml"
 $riskConsolePomPath = Join-Path $root "examples/spring-boot-starter-risk-console/pom.xml"
 $typedCompilerMavenPomPath = Join-Path $root "examples/typed-compiler-maven/pom.xml"
@@ -150,7 +150,7 @@ Require-Substring $sqlLike "docs/sql-like.md" 'and `WHERE [NOT] EXISTS (select .
 Require-Substring $sqlLike "docs/sql-like.md" 'chained joins are supported when each `JOIN ... ON ...` references the current plan or qualifies the source explicitly' $errors
 
 # Benchmark guide and suite should still cover the guarded benchmark path.
-Require-Substring $benchmarkMainArgs "scripts/benchmark-suite-main.args" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
+Require-Substring $benchmarkMainArgs "scripts/benchmarks/benchmark-suite-main.args" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "PojoLensJoinJmhBenchmark.pojoLensJoinLeftComputedField" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "BenchmarkThresholdChecker" $errors
 Require-Substring $benchmarking "docs/benchmarking.md" "benchmarks/chart-thresholds.json" $errors

@@ -21,3 +21,5 @@ ai/indexes/*.sqlite
 ai/indexes/*.sqlite3
 
 *.pyc
+__pycache__/
+*.egg-info/

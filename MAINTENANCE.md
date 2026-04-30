@@ -69,7 +69,7 @@ Do not preserve history in indexes.
 Regenerate them from the current repository structure.
 Overwrite stale entries.
 Rebuild the optional cold-search database if enabled.
-Prefer incremental refresh with `scripts/refresh-ai-memory.ps1`; use `-ForceFull` only when the refresh schema or derived artifact shape changes.
+Prefer incremental refresh with `scripts/ai/refresh-ai-memory.ps1`; use `-ForceFull` only when the refresh schema or derived artifact shape changes.
 
 ### 4. Compact event history
 Keep only recent significant events in `ai/log/events.jsonl`.
@@ -133,9 +133,9 @@ When this file is loaded, perform a memory maintenance pass on `/ai`:
 4. rebuild optional `ai/indexes/cold-memory.db` when used
 5. summarize redundant history in `ai/log/events.jsonl` and archive older entries
 6. refresh hot context files
-7. run `scripts/benchmark-ai-memory.ps1` when the memory retrieval path changes and keep the benchmark report current
+7. run `scripts/ai/benchmark-ai-memory.ps1` when the memory retrieval path changes and keep the benchmark report current
 
 Make the smallest correct edits necessary.
 Preserve useful knowledge.
 Remove redundancy and stale information.
-Use `scripts/refresh-ai-memory.ps1` to rebuild derived JSON indexes and optional cold-search artifacts after the Markdown truth is updated. Use `scripts/refresh-ai-memory.ps1 -CompactLog` when the active log needs to be reduced, `scripts/refresh-ai-memory.ps1 -ForceFull` for a full rebuild, `scripts/query-ai-memory.ps1 -Tier/-Kind/-Path` for targeted retrieval, and `scripts/benchmark-ai-memory.ps1` to prove refresh/query performance and hit quality.
+Use `scripts/ai/refresh-ai-memory.ps1` to rebuild derived JSON indexes and optional cold-search artifacts after the Markdown truth is updated. Use `scripts/ai/refresh-ai-memory.ps1 -CompactLog` when the active log needs to be reduced, `scripts/ai/refresh-ai-memory.ps1 -ForceFull` for a full rebuild, `scripts/ai/query-ai-memory.ps1 -Tier/-Kind/-Path` for targeted retrieval, and `scripts/ai/benchmark-ai-memory.ps1` to prove refresh/query performance and hit quality.

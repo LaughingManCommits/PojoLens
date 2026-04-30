@@ -10,7 +10,7 @@
     ],
     "readPaths": [],
     "validation": [
-      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"
+      "scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json"
     ]
   },
   "tasks": [
@@ -23,7 +23,7 @@
       "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
+        "scripts/ai/claude-orchestrator.py"
       ],
       "workspaceMode": "copy"
     }

@@ -10,8 +10,8 @@
     ],
     "readPaths": [],
     "validation": [
-      "scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json",
-      "scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2"
+      "scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json",
+      "scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2"
     ]
   },
   "tasks": [
@@ -37,7 +37,7 @@
       "readPaths": [
         "ai/orchestrator/README.md",
         "ai/orchestrator/SYSTEM-SPEC.md",
-        "scripts/claude-orchestrator.py"
+        "scripts/ai/claude-orchestrator.py"
       ],
       "workspaceMode": "copy"
     }

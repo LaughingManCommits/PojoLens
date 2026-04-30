@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $aiDir = Join-Path $repoRoot "ai"
 $indexDir = Join-Path $aiDir "indexes"
 $memoryStatePath = Join-Path $aiDir "memory-state.json"
@@ -29,6 +29,7 @@ $rootTextFiles = @(
     "MIGRATION.md",
     "README.md",
     "RELEASE.md",
+    "scripts/README.md",
     "TODO.md"
 )
 $moduleSpecs = @(
@@ -149,12 +150,32 @@ function Get-HashInputs() {
         "pojo-lens-spring-boot-starter/pom.xml",
         ".github/workflows/ci.yml",
         ".github/workflows/release.yml",
-        "scripts/refresh-ai-memory.py",
-        "scripts/refresh-ai-memory.ps1",
-        "scripts/query-ai-memory.py",
-        "scripts/query-ai-memory.ps1",
-        "scripts/claude-orchestrator.py",
-        "scripts/claude-orchestrator.ps1",
+        "scripts/ai/refresh-ai-memory.py",
+        "scripts/ai/refresh-ai-memory.ps1",
+        "scripts/ai/query-ai-memory.py",
+        "scripts/ai/query-ai-memory.ps1",
+        "scripts/ai/claude-orchestrator.py",
+        "scripts/ai/claude-orchestrator.ps1",
+        "scripts/ai/benchmark-ai-memory.py",
+        "scripts/ai/benchmark-ai-memory.ps1",
+        "scripts/ai/pojo_lens_agents/cli.py",
+        "scripts/docs/check-doc-consistency.py",
+        "scripts/docs/check-doc-consistency.ps1",
+        "scripts/quality/check-lint-baseline.ps1",
+        "scripts/quality/checkstyle-baseline.txt",
+        "scripts/release/export-release-secrets.ps1",
+        "scripts/benchmarks/benchmark-suite-main.args",
+        "scripts/benchmarks/benchmark-suite-chart.args",
+        "scripts/benchmarks/benchmark-suite-hotspot-reflection.args",
+        "scripts/benchmarks/benchmark-suite-hotspots.args",
+        "scripts/benchmarks/benchmark-suite-baseline.args",
+        "scripts/benchmarks/benchmark-suite-cache.args",
+        "scripts/benchmarks/benchmark-suite-indexes.args",
+        "scripts/benchmarks/benchmark-suite-pushdown.args",
+        "scripts/benchmarks/benchmark-suite-streaming.args",
+        "scripts/benchmarks/benchmark-suite-window.args",
+        "scripts/benchmarks/generate-benchmark-plots.ps1",
+        "scripts/benchmarks/generate-benchmark-plots.sh",
         "ai/orchestrator/agents.json"
     )) {
         $path = Join-Path $repoRoot $relative
@@ -442,18 +463,24 @@ function Build-FilesIndex([string]$generatedAt) {
         [ordered]@{ path = "RELEASE.md"; kind = "process-doc" },
         [ordered]@{ path = "TODO.md"; kind = "planning" },
         [ordered]@{ path = "MAINTENANCE.md"; kind = "memory-maintenance" },
+        [ordered]@{ path = "scripts/README.md"; kind = "process-doc" },
         [ordered]@{ path = "ai/state/recent-validations.md"; kind = "ai-warm-state" },
         [ordered]@{ path = "ai/orchestrator/README.md"; kind = "ai-orchestrator-guide" },
         [ordered]@{ path = "ai/orchestrator/SYSTEM-SPEC.md"; kind = "ai-orchestrator-guide" },
         [ordered]@{ path = "ai/orchestrator/agents.json"; kind = "ai-orchestration-config" },
         [ordered]@{ path = "ai/orchestrator/tasks/example-review.json"; kind = "ai-orchestration-task-plan" },
         [ordered]@{ path = "ai/orchestrator/tasks/example-parallel.json"; kind = "ai-orchestration-task-plan" },
-        [ordered]@{ path = "scripts/refresh-ai-memory.py"; kind = "memory-script" },
-        [ordered]@{ path = "scripts/query-ai-memory.py"; kind = "memory-script" },
-        [ordered]@{ path = "scripts/claude-orchestrator.py"; kind = "orchestration-script" },
-        [ordered]@{ path = "scripts/claude-orchestrator.ps1"; kind = "orchestration-script" },
-        [ordered]@{ path = "scripts/check-doc-consistency.ps1"; kind = "validation-script" },
-        [ordered]@{ path = "scripts/check-lint-baseline.ps1"; kind = "validation-script" },
+        [ordered]@{ path = "scripts/ai/refresh-ai-memory.py"; kind = "memory-script" },
+        [ordered]@{ path = "scripts/ai/query-ai-memory.py"; kind = "memory-script" },
+        [ordered]@{ path = "scripts/ai/claude-orchestrator.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/cli.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/benchmark-ai-memory.py"; kind = "memory-script" },
+        [ordered]@{ path = "scripts/docs/check-doc-consistency.ps1"; kind = "validation-script" },
+        [ordered]@{ path = "scripts/docs/check-doc-consistency.py"; kind = "validation-script" },
+        [ordered]@{ path = "scripts/quality/check-lint-baseline.ps1"; kind = "validation-script" },
+        [ordered]@{ path = "scripts/quality/checkstyle-baseline.txt"; kind = "validation-config" },
+        [ordered]@{ path = "scripts/release/export-release-secrets.ps1"; kind = "release-script" },
+        [ordered]@{ path = "scripts/benchmarks/benchmark-suite-main.args"; kind = "benchmark-config" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/PojoLens.java"; kind = "public-entry" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java"; kind = "public-entry" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java"; kind = "public-entry" },
@@ -672,10 +699,10 @@ function Build-ConfigIndex([string]$generatedAt) {
                 "ai/indexes/config-index.json"
             )
             optionalColdSearchDb = "ai/indexes/cold-memory.db"
-            refreshCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1"
-            checkCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -Check"
-            compactCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/refresh-ai-memory.ps1 -CompactLog"
-            searchCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/query-ai-memory.ps1 -Query <text>"
+            refreshCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1"
+            checkCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1 -Check"
+            compactCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/refresh-ai-memory.ps1 -CompactLog"
+            searchCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ai/query-ai-memory.ps1 -Query <text>"
             eventRetention = [ordered]@{
                 activeLog = "ai/log/events.jsonl"
                 archivePattern = "ai/log/archive/*.jsonl"
@@ -687,9 +714,9 @@ function Build-ConfigIndex([string]$generatedAt) {
             defaultAgentsPath = "ai/orchestrator/agents.json"
             taskPlanGlob = "ai/orchestrator/tasks/*.json"
             runtimeRoot = ".claude-orchestrator/"
-            validateCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<plan>.json"
-            planCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 plan <goal> --dry-run"
-            runCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/claude-orchestrator.ps1 run ai/orchestrator/tasks/<plan>.json --dry-run"
+            validateCommand = "pojolens-agents validate ai/orchestrator/tasks/<plan>.json"
+            planCommand = "pojolens-agents plan <goal> --dry-run"
+            runCommand = "pojolens-agents run ai/orchestrator/tasks/<plan>.json --dry-run"
             workerProtectionRules = @(
                 "Workers must not edit TODO.md.",
                 "Workers must not edit ai/state/*, ai/log/*, or ai/indexes/*.",
@@ -697,32 +724,39 @@ function Build-ConfigIndex([string]$generatedAt) {
             )
         }
         validationScripts = @(
-            "scripts/check-doc-consistency.ps1",
-            "scripts/check-doc-consistency.py",
-            "scripts/check-lint-baseline.ps1",
-            "scripts/refresh-ai-memory.ps1",
-            "scripts/refresh-ai-memory.py"
+            "scripts/docs/check-doc-consistency.ps1",
+            "scripts/docs/check-doc-consistency.py",
+            "scripts/quality/check-lint-baseline.ps1",
+            "scripts/ai/refresh-ai-memory.ps1",
+            "scripts/ai/refresh-ai-memory.py"
         )
         memoryScripts = @(
-            "scripts/query-ai-memory.ps1",
-            "scripts/query-ai-memory.py"
+            "scripts/ai/query-ai-memory.ps1",
+            "scripts/ai/query-ai-memory.py",
+            "scripts/ai/benchmark-ai-memory.ps1",
+            "scripts/ai/benchmark-ai-memory.py"
         )
         orchestrationScripts = @(
-            "scripts/claude-orchestrator.ps1",
-            "scripts/claude-orchestrator.py"
+            "scripts/ai/claude-orchestrator.ps1",
+            "scripts/ai/claude-orchestrator.py",
+            "scripts/ai/pojo_lens_agents/cli.py"
         )
-        releaseScripts = @("scripts/export-release-secrets.ps1")
+        releaseScripts = @("scripts/release/export-release-secrets.ps1")
         benchmarkConfigs = @(
             "benchmarks/thresholds.json",
             "benchmarks/chart-thresholds.json",
-            "scripts/benchmark-suite-main.args",
-            "scripts/benchmark-suite-chart.args",
-            "scripts/benchmark-suite-hotspots.args",
-            "scripts/benchmark-suite-baseline.args",
-            "scripts/benchmark-suite-cache.args",
-            "scripts/benchmark-suite-indexes.args",
-            "scripts/benchmark-suite-streaming.args",
-            "scripts/benchmark-suite-window.args"
+            "scripts/benchmarks/benchmark-suite-main.args",
+            "scripts/benchmarks/benchmark-suite-chart.args",
+            "scripts/benchmarks/benchmark-suite-hotspot-reflection.args",
+            "scripts/benchmarks/benchmark-suite-hotspots.args",
+            "scripts/benchmarks/benchmark-suite-baseline.args",
+            "scripts/benchmarks/benchmark-suite-cache.args",
+            "scripts/benchmarks/benchmark-suite-indexes.args",
+            "scripts/benchmarks/benchmark-suite-pushdown.args",
+            "scripts/benchmarks/benchmark-suite-streaming.args",
+            "scripts/benchmarks/benchmark-suite-window.args",
+            "scripts/benchmarks/generate-benchmark-plots.ps1",
+            "scripts/benchmarks/generate-benchmark-plots.sh"
         )
     }
 }
