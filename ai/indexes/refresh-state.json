@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-30T10:13:33.233060+02:00",
+  "generatedAt": "2026-04-30T17:10:03.335612+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "ac07c0de5b3b3f5e53c08be690cd4a87d60ca93ea37536040a8334298493d046",
+      "inputHash": "fe802e170de591c42bc27a258fcdc624935dea89b254e3c31335412ad9106332",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -24,9 +24,9 @@
         "ai/orchestrator/README.md": "bf429de83c0d4fb2f5f5ae353aa550f7c922def1e3db137624937fa5e6b75a8e",
         "ai/orchestrator/SYSTEM-SPEC.md": "8afde18e946c5393744b13a5b47bfa61587c01f5e448129238592d8df7683251",
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
-        "ai/state/current-state.md": "051b4abcc165656047a8e61211f0ba8b92a1812ee726f33a105f145838877b18",
-        "ai/state/handoff.md": "1213b407ae84ba4f7d5ec34e14e9a2d45b4659f63084a3ba7ae7fe2be972ab58",
-        "ai/state/recent-validations.md": "9e8eef23dcbc5a2006835020fe2018ff65a9e81030718493c63a25c6aa1632fc",
+        "ai/state/current-state.md": "44891bc1fa121ae55905cffd69af3903c4517594993cf4c78053d6e852f55dc5",
+        "ai/state/handoff.md": "67f8799d2492ca4304101b0c63aea9855f9f3c2442a6a3b2bad3956ecf193034",
+        "ai/state/recent-validations.md": "50337f92f34a831cd9c9bc33f864acc0711a38e9ae17e7e6dabd5733e79a25d2",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "ce089926f935c2b792eabbebb8c40530ecd1f98562425f07762a2e7d54a4807f",
@@ -64,12 +64,12 @@
         "README.md": "35d840262760c5f6468621babffc2dd46fd7b681de51da800bc01c2d934c53fa",
         "RELEASE.md": "3f1f665ffa11b135a967bf55156e29357e33851dc1de67db82b6ec859fd21412",
         "scripts/refresh-ai-memory.py": "d5613e108150f22921b62cc5f15b590ba4834f60ebf47779750a403b3fc4851c",
-        "TODO.md": "87d7ea57f3cb66b6192da6bd68e2ad08d0f5cf3bcb2c97e547639ff029ad84e1"
+        "TODO.md": "c055fb9e95bf4072c7f6e01b33caae953452a5e433b2b8973cfe03d7d0af9228"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "6836dad8bb2893901f932ee787ee29e182790ad74a1ed5faf6e860f60ffd5dbd",
+      "inputHash": "9127c14d96c38f3921a6ecb11f5e060a3e9d2d9764660b728f042bc02a60688d",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -95,9 +95,9 @@
         "ai/orchestrator/tasks/example-parallel.json": "863291fe9af4a791b2547a557340906d5d5c2756fbb2ca9aa24559ff7e097270",
         "ai/orchestrator/tasks/example-review.json": "8cad10845c2379944beae05142845101f9c0b4c258cfb34333b375ca019e2455",
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
-        "ai/state/current-state.md": "051b4abcc165656047a8e61211f0ba8b92a1812ee726f33a105f145838877b18",
-        "ai/state/handoff.md": "1213b407ae84ba4f7d5ec34e14e9a2d45b4659f63084a3ba7ae7fe2be972ab58",
-        "ai/state/recent-validations.md": "9e8eef23dcbc5a2006835020fe2018ff65a9e81030718493c63a25c6aa1632fc",
+        "ai/state/current-state.md": "44891bc1fa121ae55905cffd69af3903c4517594993cf4c78053d6e852f55dc5",
+        "ai/state/handoff.md": "67f8799d2492ca4304101b0c63aea9855f9f3c2442a6a3b2bad3956ecf193034",
+        "ai/state/recent-validations.md": "50337f92f34a831cd9c9bc33f864acc0711a38e9ae17e7e6dabd5733e79a25d2",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "ce089926f935c2b792eabbebb8c40530ecd1f98562425f07762a2e7d54a4807f",
@@ -590,7 +590,7 @@
         "scripts/claude-orchestrator.py": "3a1a3079428358d12fbc1e2a523499fdffaaa00269d283643f1c1c99f203fa6f",
         "scripts/refresh-ai-memory.ps1": "4fe9a56d87af868b9ad829f649ad7c7db9bdfbdab4cb21b0f767b19dad3fecad",
         "scripts/refresh-ai-memory.py": "d5613e108150f22921b62cc5f15b590ba4834f60ebf47779750a403b3fc4851c",
-        "TODO.md": "87d7ea57f3cb66b6192da6bd68e2ad08d0f5cf3bcb2c97e547639ff029ad84e1"
+        "TODO.md": "c055fb9e95bf4072c7f6e01b33caae953452a5e433b2b8973cfe03d7d0af9228"
       }
     },
     "symbols": {

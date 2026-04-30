@@ -8,6 +8,8 @@
 - `2026-04-29`: Surface/tooling cleanup is complete: first-read docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL, and tooling is split between `metamodel` generation and `tooling` validation.
 - `2026-04-29`: WP23/WP24 completed typed joins, grouped aggregates, grouped `HAVING`, bounded subqueries, rank windows, aggregate window frames, `QUALIFY`, and `JoinBindings` / `DatasetBundle` reuse.
 - `2026-04-30`: WP26 completed compiler-time typed field generation through `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor`, with no AST rewriting and `FieldMetamodelGenerator` retained as fallback.
+- `2026-04-30`: `TODO.md` was reset to an active orchestration-tooling roadmap: WP27 CLI productization, WP28 runtime layering, WP29 LangGraph execution spike, and WP30 run visibility/operator UX.
+- `2026-04-30`: Parallel agent execution is an explicit orchestration requirement; independent tasks must remain concurrent-capable while dependency and write-scope conflicts serialize.
 - `2026-04-30`: Example inventory is now curated to typed compiler Maven, typed compiler Gradle Java, typed compiler Gradle Kotlin, Spring quickstart, and Spring risk console.
 - `2026-04-30`: Spring risk-console Query Studio now consumes compiler-generated `TransactionRecordTypedFields` as a realistic integration proof.
 - `2026-04-29`: `README.md` is route-based with a top `Quick Integration` section that points AI agents to `AGENTS.md`.
@@ -24,5 +26,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-04-30`: Roadmap order is WP18 -> Release Gate.
-- `2026-04-30`: Next roadmap item is WP18 JDK 25 Runtime Knob Evaluation.
+- `2026-04-30`: Roadmap order is WP27 -> WP28 -> WP29 -> WP30, with WP18 and Release Gate deferred.
+- `2026-04-30`: Next roadmap item is WP27 Orchestrator CLI Productization.
