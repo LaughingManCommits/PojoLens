@@ -17,12 +17,11 @@ Standalone runnable examples live under `examples/` and are intentionally not
 published as release artifacts.
 
 Current starter examples:
-- `examples/typed-authoring-compiler`: compiler-generated typed constants with Maven compiler wiring
-- `examples/typed-authoring-gradle`: compiler-generated typed constants with Gradle Java annotation processing
-- `examples/typed-authoring-kotlin-gradle`: compiler-generated typed constants from Kotlin/JVM field models through kapt
+- `examples/typed-compiler-maven`: compiler-generated typed constants with Maven compiler wiring
+- `examples/typed-compiler-gradle-java`: compiler-generated typed constants with Gradle Java annotation processing
+- `examples/typed-compiler-gradle-kotlin`: compiler-generated typed constants from Kotlin/JVM field models through kapt
 - `examples/spring-boot-starter-quickstart`: minimal onboarding path
-- `examples/spring-boot-starter-basic`: advanced dashboard reference
-- `examples/spring-boot-starter-risk-console`: JDBC-backed reviewer/demo showcase with dashboard, reports, and Query Studio flows
+- `examples/spring-boot-starter-risk-console`: realistic JDBC-backed reviewer/demo showcase with dashboard, reports, and Query Studio flows
 
 Canonical product-surface classification:
 - [product-surface.md](product-surface.md)

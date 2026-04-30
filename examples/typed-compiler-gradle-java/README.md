@@ -1,4 +1,4 @@
-# Typed Authoring Gradle Example
+# Typed Compiler Gradle Java Example
 
 This standalone Gradle example shows compiler-generated typed field constants
 for a Java model.
@@ -14,7 +14,7 @@ the local Maven repository:
 
 ```bash
 mvn -B -ntp -pl pojo-lens install -DskipTests
-gradle -p examples/typed-authoring-gradle test
+gradle -p examples/typed-compiler-gradle-java test
 ```
 
 This example is not a published artifact.

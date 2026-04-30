@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "pojo-lens-typed-authoring-kotlin-gradle-example"
+rootProject.name = "pojo-lens-typed-compiler-gradle-java-example"

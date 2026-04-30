@@ -11,9 +11,9 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>pojo-lens-typed-authoring-compiler-example</artifactId>
+    <artifactId>pojo-lens-typed-compiler-maven-example</artifactId>
     <packaging>jar</packaging>
-    <name>PojoLens Typed Authoring Compiler Example</name>
+    <name>PojoLens Typed Compiler Maven Example</name>
     <description>Standalone Maven example for compiler-generated typed field constants.</description>
 
     <properties>

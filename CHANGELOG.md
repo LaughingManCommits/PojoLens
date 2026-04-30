@@ -22,7 +22,7 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   duplicate-target, invalid-target, and graph-depth cases, and documented the
   processor-path opt-in policy.
 
-- **Typed compiler example** - added `examples/typed-authoring-compiler` as a
+- **Typed compiler example** - added `examples/typed-compiler-maven` as a
   standalone Maven project that compiles an annotated model and consumes the
   generated typed constants from the same module.
 
@@ -32,6 +32,23 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   kapt examples. Kotlin support is intentionally field-model based in this
   slice: `@JvmField var` fields are supported, while Kotlin property/data-class
   generation remains a future KSP or property-metadata decision.
+
+### Changed
+
+- **Risk-console typed DSL** - switched the retained Spring risk-console Query
+  Studio typed query from hand-written `TypedField.of(...)` constants to
+  compiler-generated `TransactionRecordTypedFields` constants.
+
+### Removed
+
+- **Redundant Spring dashboard example** - removed
+  `examples/spring-boot-starter-basic` so the example set has a clearer
+  progression: Spring quickstart for onboarding, risk console for the full
+  dashboard/showcase, and typed compiler examples split by build tool.
+
+- **Risk-console reviewer packet references** - removed the stale reviewer-doc
+  consistency test and README handoff references from the retained risk-console
+  example so the example stays focused on runnable app behavior.
 
 ## [2026.04.29.1809] - 2026-04-29
 

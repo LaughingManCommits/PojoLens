@@ -56,11 +56,11 @@ source files during compilation, so IDE completion works through the same
 generated-source support used by javac. Maven, Gradle, and Kotlin/JVM kapt
 wiring examples live in [build-tooling.md](build-tooling.md).
 
-See `examples/typed-authoring-compiler` for a standalone Maven project that
+See `examples/typed-compiler-maven` for a standalone Maven project that
 compiles an annotated model and consumes the generated typed constants in the
 same module.
-See `examples/typed-authoring-gradle` and
-`examples/typed-authoring-kotlin-gradle` for equivalent Gradle Java and
+See `examples/typed-compiler-gradle-java` and
+`examples/typed-compiler-gradle-kotlin` for equivalent Gradle Java and
 Kotlin/JVM field-model examples.
 
 ## Manual Source Generation

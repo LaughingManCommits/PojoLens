@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T09:26:29.847614+02:00",
+  "generatedAt": "2026-04-30T10:13:33.233060+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -168,8 +168,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 27,
-      "byteCount": 1896,
+      "lineCount": 28,
+      "byteCount": 2039,
       "coldSearchEligible": true
     },
     {
@@ -177,8 +177,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 32,
-      "byteCount": 2294,
+      "lineCount": 34,
+      "byteCount": 2771,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +186,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 190,
-      "byteCount": 99203,
+      "lineCount": 192,
+      "byteCount": 100312,
       "coldSearchEligible": true
     },
     {
@@ -223,7 +223,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 385,
-      "byteCount": 12479,
+      "byteCount": 12478,
       "coldSearchEligible": true
     },
     {
@@ -313,7 +313,7 @@
       "relevance": "medium",
       "loadTier": null,
       "lineCount": 261,
-      "byteCount": 8199,
+      "byteCount": 8198,
       "coldSearchEligible": true
     },
     {
@@ -321,8 +321,8 @@
       "category": "product-doc",
       "relevance": "medium",
       "loadTier": null,
-      "lineCount": 128,
-      "byteCount": 4778,
+      "lineCount": 127,
+      "byteCount": 4718,
       "coldSearchEligible": true
     },
     {
@@ -501,8 +501,8 @@
       "category": "readme",
       "relevance": "high",
       "loadTier": null,
-      "lineCount": 244,
-      "byteCount": 11989,
+      "lineCount": 243,
+      "byteCount": 11874,
       "coldSearchEligible": true
     },
     {

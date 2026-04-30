@@ -51,12 +51,11 @@ pojo-lens:
 ```
 
 Runnable example projects:
-- `examples/typed-authoring-compiler` (compiler-generated typed field constants with Maven compiler wiring)
-- `examples/typed-authoring-gradle` (compiler-generated typed field constants with Gradle Java annotation processing)
-- `examples/typed-authoring-kotlin-gradle` (Kotlin/JVM kapt example for `@JvmField` field models)
+- `examples/typed-compiler-maven` (compiler-generated typed field constants with Maven compiler wiring)
+- `examples/typed-compiler-gradle-java` (compiler-generated typed field constants with Gradle Java annotation processing)
+- `examples/typed-compiler-gradle-kotlin` (Kotlin/JVM kapt example for `@JvmField` field models)
 - `examples/spring-boot-starter-quickstart` (minimal starter onboarding: one query flow + runtime flags)
-- `examples/spring-boot-starter-basic` (advanced dashboard: charts, presets, and richer API surface)
-- `examples/spring-boot-starter-risk-console` (JDBC-backed reviewer/demo app with dashboard, reports, and Query Studio showcase)
+- `examples/spring-boot-starter-risk-console` (realistic JDBC-backed dashboard, reports, and Query Studio showcase)
 
 ## Quick Integration
 

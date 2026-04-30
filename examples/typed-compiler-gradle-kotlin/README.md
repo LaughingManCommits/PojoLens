@@ -1,4 +1,4 @@
-# Typed Authoring Kotlin Gradle Example
+# Typed Compiler Gradle Kotlin Example
 
 This standalone Gradle example shows Kotlin/JVM code using compiler-generated
 typed field constants through kapt.
@@ -14,7 +14,7 @@ the local Maven repository:
 
 ```bash
 mvn -B -ntp -pl pojo-lens install -DskipTests
-gradle -p examples/typed-authoring-kotlin-gradle test
+gradle -p examples/typed-compiler-gradle-kotlin test
 ```
 
 This example is not a published artifact.

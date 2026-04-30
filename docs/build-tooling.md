@@ -168,14 +168,14 @@ IDE behavior follows normal generated-source handling:
 
 Runnable Maven example:
 
-- `examples/typed-authoring-compiler` compiles an annotated `Employee` model
+- `examples/typed-compiler-maven` compiles an annotated `Employee` model
   and consumes the generated `EmployeeTypedFields` from the same module.
 
 Runnable Gradle examples:
 
-- `examples/typed-authoring-gradle` compiles an annotated Java model through
+- `examples/typed-compiler-gradle-java` compiles an annotated Java model through
   Gradle's `annotationProcessor` path.
-- `examples/typed-authoring-kotlin-gradle` compiles a Kotlin/JVM field-model
+- `examples/typed-compiler-gradle-kotlin` compiles a Kotlin/JVM field-model
   example through kapt and consumes the generated typed constants from Kotlin.
 
 ## Batch Metamodel Generation

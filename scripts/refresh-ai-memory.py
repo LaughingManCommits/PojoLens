@@ -102,15 +102,33 @@ MODULE_SPECS = [
         "published": False,
     },
     {
-        "path": "examples/spring-boot-starter-basic",
-        "kind": "example-module",
-        "role": "starter-dashboard-example",
-        "published": False,
-    },
-    {
         "path": "examples/spring-boot-starter-quickstart",
         "kind": "example-module",
         "role": "starter-quickstart-example",
+        "published": False,
+    },
+    {
+        "path": "examples/spring-boot-starter-risk-console",
+        "kind": "example-module",
+        "role": "starter-risk-console-example",
+        "published": False,
+    },
+    {
+        "path": "examples/typed-compiler-maven",
+        "kind": "example-module",
+        "role": "typed-compiler-maven-example",
+        "published": False,
+    },
+    {
+        "path": "examples/typed-compiler-gradle-java",
+        "kind": "example-module",
+        "role": "typed-compiler-gradle-java-example",
+        "published": False,
+    },
+    {
+        "path": "examples/typed-compiler-gradle-kotlin",
+        "kind": "example-module",
+        "role": "typed-compiler-gradle-kotlin-example",
         "published": False,
     },
 ]
@@ -326,10 +344,16 @@ def collect_hash_inputs() -> list[Path]:
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/main/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/main/java",
-        "examples/spring-boot-starter-basic/src/test/java",
         "examples/spring-boot-starter-quickstart/src/main/java",
         "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/main/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/main/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/main/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/main/kotlin",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin",
     ))
     files.add(AI_DIR / "AGENTS.md")
     files.update(collect_event_log_files())
@@ -875,16 +899,20 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-benchmarks/src/main/java",
         "pojo-lens-spring-boot-autoconfigure/src/main/java",
         "pojo-lens-spring-boot-starter/src/main/java",
-        "examples/spring-boot-starter-basic/src/main/java",
         "examples/spring-boot-starter-quickstart/src/main/java",
+        "examples/spring-boot-starter-risk-console/src/main/java",
+        "examples/typed-compiler-maven/src/main/java",
+        "examples/typed-compiler-gradle-java/src/main/java",
     )
     test_java_files = collect_java_files(
         "pojo-lens/src/test/java",
         "pojo-lens-benchmarks/src/test/java",
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/test/java",
         "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
     )
 
     important_files = [
@@ -925,8 +953,9 @@ def build_files_index(generated_at: str) -> dict[str, object]:
         {"path": "pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPresets.java", "kind": "feature"},
         {"path": "pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java", "kind": "feature"},
         {"path": "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java", "kind": "feature"},
-        {"path": "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java", "kind": "example"},
         {"path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java", "kind": "example"},
+        {"path": "examples/spring-boot-starter-risk-console/src/main/java/laughing/man/commits/examples/spring/boot/riskconsole/RiskConsoleApplication.java", "kind": "example"},
+        {"path": "examples/typed-compiler-maven/src/main/java/laughing/man/commits/examples/typedcompiler/TypedCompilerExample.java", "kind": "example"},
     ]
 
     return {
@@ -955,8 +984,11 @@ def build_files_index(generated_at: str) -> dict[str, object]:
             {"path": "pojo-lens/src/main/java/laughing/man/commits", "kind": "runtime-source-root"},
             {"path": "pojo-lens/src/test/java/laughing/man/commits", "kind": "runtime-test-root"},
             {"path": "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark", "kind": "benchmark-source-root"},
-            {"path": "examples/spring-boot-starter-basic", "kind": "example"},
             {"path": "examples/spring-boot-starter-quickstart", "kind": "example"},
+            {"path": "examples/spring-boot-starter-risk-console", "kind": "example"},
+            {"path": "examples/typed-compiler-maven", "kind": "example"},
+            {"path": "examples/typed-compiler-gradle-java", "kind": "example"},
+            {"path": "examples/typed-compiler-gradle-kotlin", "kind": "example"},
         ],
         "moduleRoots": module_roots,
         "importantFiles": [entry for entry in important_files if path_exists(entry["path"])],
@@ -1014,8 +1046,11 @@ def build_test_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-benchmarks/src/test/resources/fixtures",
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/test/java",
         "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin",
     ]:
         if (ROOT / root).exists():
             test_roots.append(root)
@@ -1025,8 +1060,11 @@ def build_test_index(generated_at: str) -> dict[str, object]:
         "pojo-lens-benchmarks/src/test/java",
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/test/java",
         "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin",
     )
     categories: dict[str, list[str]] = {}
     for path in test_files:
@@ -1337,10 +1375,16 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-spring-boot-autoconfigure/src/test/java",
                     "pojo-lens-spring-boot-starter/src/main/java",
                     "pojo-lens-spring-boot-starter/src/test/java",
-                    "examples/spring-boot-starter-basic/src/main/java",
-                    "examples/spring-boot-starter-basic/src/test/java",
                     "examples/spring-boot-starter-quickstart/src/main/java",
                     "examples/spring-boot-starter-quickstart/src/test/java",
+                    "examples/spring-boot-starter-risk-console/src/main/java",
+                    "examples/spring-boot-starter-risk-console/src/test/java",
+                    "examples/typed-compiler-maven/src/main/java",
+                    "examples/typed-compiler-maven/src/test/java",
+                    "examples/typed-compiler-gradle-java/src/main/java",
+                    "examples/typed-compiler-gradle-java/src/test/java",
+                    "examples/typed-compiler-gradle-kotlin/src/main/kotlin",
+                    "examples/typed-compiler-gradle-kotlin/src/test/kotlin",
                 )
             )
         )
@@ -1352,8 +1396,10 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-benchmarks/src/main/java",
                     "pojo-lens-spring-boot-autoconfigure/src/main/java",
                     "pojo-lens-spring-boot-starter/src/main/java",
-                    "examples/spring-boot-starter-basic/src/main/java",
                     "examples/spring-boot-starter-quickstart/src/main/java",
+                    "examples/spring-boot-starter-risk-console/src/main/java",
+                    "examples/typed-compiler-maven/src/main/java",
+                    "examples/typed-compiler-gradle-java/src/main/java",
                 )
                 + [Path(__file__).resolve()]
             )
@@ -1366,8 +1412,10 @@ def index_input_paths(index_name: str) -> list[Path]:
                     "pojo-lens-benchmarks/src/test/java",
                     "pojo-lens-spring-boot-autoconfigure/src/test/java",
                     "pojo-lens-spring-boot-starter/src/test/java",
-                    "examples/spring-boot-starter-basic/src/test/java",
                     "examples/spring-boot-starter-quickstart/src/test/java",
+                    "examples/spring-boot-starter-risk-console/src/test/java",
+                    "examples/typed-compiler-maven/src/test/java",
+                    "examples/typed-compiler-gradle-java/src/test/java",
                 )
                 + [Path(__file__).resolve()]
             )

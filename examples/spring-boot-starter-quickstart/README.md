@@ -8,8 +8,8 @@ only supplying integration defaults:
 - starter auto-configures `PojoLensRuntime`
 - the endpoint returns typed rows
 
-For the full dashboard/presets/charts workflow, use:
-`examples/spring-boot-starter-basic`.
+For the full dashboard, reports, JDBC, and Query Studio workflow, use:
+`examples/spring-boot-starter-risk-console`.
 
 ## Run
 

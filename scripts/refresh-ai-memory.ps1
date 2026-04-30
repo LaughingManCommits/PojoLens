@@ -36,8 +36,11 @@ $moduleSpecs = @(
     [ordered]@{ path = "pojo-lens-spring-boot-autoconfigure"; kind = "boot-autoconfigure-module"; role = "spring-boot-autoconfigure"; published = $true },
     [ordered]@{ path = "pojo-lens-spring-boot-starter"; kind = "boot-starter-module"; role = "spring-boot-starter"; published = $true },
     [ordered]@{ path = "pojo-lens-benchmarks"; kind = "benchmark-module"; role = "benchmark-tooling"; published = $false },
-    [ordered]@{ path = "examples/spring-boot-starter-basic"; kind = "example-module"; role = "starter-dashboard-example"; published = $false },
-    [ordered]@{ path = "examples/spring-boot-starter-quickstart"; kind = "example-module"; role = "starter-quickstart-example"; published = $false }
+    [ordered]@{ path = "examples/spring-boot-starter-quickstart"; kind = "example-module"; role = "starter-quickstart-example"; published = $false },
+    [ordered]@{ path = "examples/spring-boot-starter-risk-console"; kind = "example-module"; role = "starter-risk-console-example"; published = $false },
+    [ordered]@{ path = "examples/typed-compiler-maven"; kind = "example-module"; role = "typed-compiler-maven-example"; published = $false },
+    [ordered]@{ path = "examples/typed-compiler-gradle-java"; kind = "example-module"; role = "typed-compiler-gradle-java-example"; published = $false },
+    [ordered]@{ path = "examples/typed-compiler-gradle-kotlin"; kind = "example-module"; role = "typed-compiler-gradle-kotlin-example"; published = $false }
 )
 $symbolGroups = [ordered]@{
     "facades" = @("PojoLens", "PojoLensCore", "PojoLensSql", "PojoLensChart", "PojoLensRuntime", "PojoLensRuntimePreset")
@@ -171,10 +174,16 @@ function Get-HashInputs() {
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/main/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/main/java",
-        "examples/spring-boot-starter-basic/src/test/java",
         "examples/spring-boot-starter-quickstart/src/main/java",
-        "examples/spring-boot-starter-quickstart/src/test/java"
+        "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/main/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/main/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/main/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/main/kotlin",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
     )) {
         $files.Add($path) | Out-Null
     }
@@ -457,16 +466,17 @@ function Build-FilesIndex([string]$generatedAt) {
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPresets.java"; kind = "feature" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java"; kind = "feature" },
         [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java"; kind = "feature" },
-        [ordered]@{ path = "examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java"; kind = "example" },
-        [ordered]@{ path = "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"; kind = "example" }
+        [ordered]@{ path = "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"; kind = "example" },
+        [ordered]@{ path = "examples/spring-boot-starter-risk-console/src/main/java/laughing/man/commits/examples/spring/boot/riskconsole/RiskConsoleApplication.java"; kind = "example" },
+        [ordered]@{ path = "examples/typed-compiler-maven/src/main/java/laughing/man/commits/examples/typedcompiler/TypedCompilerExample.java"; kind = "example" }
     ) | Where-Object { Test-RepoPath $_.path }
     return [ordered]@{
         generatedAt = $generatedAt
         notes = "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded."
         counts = [ordered]@{
             modules = $moduleSpecs.Count
-            mainJavaFiles = (Get-JavaFiles @("pojo-lens/src/main/java", "pojo-lens-benchmarks/src/main/java", "pojo-lens-spring-boot-autoconfigure/src/main/java", "pojo-lens-spring-boot-starter/src/main/java", "examples/spring-boot-starter-basic/src/main/java", "examples/spring-boot-starter-quickstart/src/main/java")).Count
-            testJavaFiles = (Get-JavaFiles @("pojo-lens/src/test/java", "pojo-lens-benchmarks/src/test/java", "pojo-lens-spring-boot-autoconfigure/src/test/java", "pojo-lens-spring-boot-starter/src/test/java", "examples/spring-boot-starter-basic/src/test/java", "examples/spring-boot-starter-quickstart/src/test/java")).Count
+            mainJavaFiles = (Get-JavaFiles @("pojo-lens/src/main/java", "pojo-lens-benchmarks/src/main/java", "pojo-lens-spring-boot-autoconfigure/src/main/java", "pojo-lens-spring-boot-starter/src/main/java", "examples/spring-boot-starter-quickstart/src/main/java", "examples/spring-boot-starter-risk-console/src/main/java", "examples/typed-compiler-maven/src/main/java", "examples/typed-compiler-gradle-java/src/main/java")).Count
+            testJavaFiles = (Get-JavaFiles @("pojo-lens/src/test/java", "pojo-lens-benchmarks/src/test/java", "pojo-lens-spring-boot-autoconfigure/src/test/java", "pojo-lens-spring-boot-starter/src/test/java", "examples/spring-boot-starter-quickstart/src/test/java", "examples/spring-boot-starter-risk-console/src/test/java", "examples/typed-compiler-maven/src/test/java", "examples/typed-compiler-gradle-java/src/test/java")).Count
             markdownDocs = (Get-MarkdownFiles).Count
             aiCoreFiles = (Get-ChildItem (Join-Path $aiDir "core") -Filter *.md -File).Count
             aiIndexFiles = (Get-ChildItem $indexDir -Filter *.json -File -ErrorAction SilentlyContinue).Count
@@ -486,8 +496,11 @@ function Build-FilesIndex([string]$generatedAt) {
             [ordered]@{ path = "pojo-lens/src/main/java/laughing/man/commits"; kind = "runtime-source-root" },
             [ordered]@{ path = "pojo-lens/src/test/java/laughing/man/commits"; kind = "runtime-test-root" },
             [ordered]@{ path = "pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark"; kind = "benchmark-source-root" },
-            [ordered]@{ path = "examples/spring-boot-starter-basic"; kind = "example" },
-            [ordered]@{ path = "examples/spring-boot-starter-quickstart"; kind = "example" }
+            [ordered]@{ path = "examples/spring-boot-starter-quickstart"; kind = "example" },
+            [ordered]@{ path = "examples/spring-boot-starter-risk-console"; kind = "example" },
+            [ordered]@{ path = "examples/typed-compiler-maven"; kind = "example" },
+            [ordered]@{ path = "examples/typed-compiler-gradle-java"; kind = "example" },
+            [ordered]@{ path = "examples/typed-compiler-gradle-kotlin"; kind = "example" }
         )
         moduleRoots = @($moduleRoots)
         importantFiles = @($importantFiles)
@@ -543,8 +556,11 @@ function Build-TestIndex([string]$generatedAt) {
         "pojo-lens-benchmarks/src/test/resources/fixtures",
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/test/java",
-        "examples/spring-boot-starter-quickstart/src/test/java"
+        "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
     )) {
         if (Test-Path (Join-Path $repoRoot $relative)) {
             $testRoots += $relative
@@ -555,8 +571,11 @@ function Build-TestIndex([string]$generatedAt) {
         "pojo-lens-benchmarks/src/test/java",
         "pojo-lens-spring-boot-autoconfigure/src/test/java",
         "pojo-lens-spring-boot-starter/src/test/java",
-        "examples/spring-boot-starter-basic/src/test/java",
-        "examples/spring-boot-starter-quickstart/src/test/java"
+        "examples/spring-boot-starter-quickstart/src/test/java",
+        "examples/spring-boot-starter-risk-console/src/test/java",
+        "examples/typed-compiler-maven/src/test/java",
+        "examples/typed-compiler-gradle-java/src/test/java",
+        "examples/typed-compiler-gradle-kotlin/src/test/kotlin"
     )
     $categories = [ordered]@{}
     foreach ($path in $testFiles) {

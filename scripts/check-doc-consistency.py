@@ -30,7 +30,10 @@ SQL_LIKE = ROOT / "docs/sql-like.md"
 BENCHMARKING = ROOT / "docs/benchmarking.md"
 BENCHMARK_MAIN_ARGS = ROOT / "scripts/benchmark-suite-main.args"
 QUICKSTART_POM = ROOT / "examples/spring-boot-starter-quickstart/pom.xml"
-BASIC_POM = ROOT / "examples/spring-boot-starter-basic/pom.xml"
+RISK_CONSOLE_POM = ROOT / "examples/spring-boot-starter-risk-console/pom.xml"
+TYPED_COMPILER_MAVEN_POM = ROOT / "examples/typed-compiler-maven/pom.xml"
+TYPED_COMPILER_GRADLE_JAVA_BUILD = ROOT / "examples/typed-compiler-gradle-java/build.gradle.kts"
+TYPED_COMPILER_GRADLE_KOTLIN_BUILD = ROOT / "examples/typed-compiler-gradle-kotlin/build.gradle.kts"
 
 
 def read_text(path: Path) -> str:
@@ -86,7 +89,10 @@ def main() -> int:
     benchmarking = read_text(BENCHMARKING)
     benchmark_main_args = read_text(BENCHMARK_MAIN_ARGS)
     quickstart_pom = read_text(QUICKSTART_POM)
-    basic_pom = read_text(BASIC_POM)
+    risk_console_pom = read_text(RISK_CONSOLE_POM)
+    typed_compiler_maven_pom = read_text(TYPED_COMPILER_MAVEN_POM)
+    read_text(TYPED_COMPILER_GRADLE_JAVA_BUILD)
+    read_text(TYPED_COMPILER_GRADLE_KOTLIN_BUILD)
 
     errors: list[str] = []
 
@@ -96,7 +102,8 @@ def main() -> int:
     require_substring(release, RELEASE, f"Git tag: `release-{version}`", errors)
     require_substring(changelog, CHANGELOG, f"## [{version}]", errors)
     require_substring(quickstart_pom, QUICKSTART_POM, f"<version>{version}</version>", errors)
-    require_substring(basic_pom, BASIC_POM, f"<version>{version}</version>", errors)
+    require_substring(risk_console_pom, RISK_CONSOLE_POM, f"<version>{version}</version>", errors)
+    require_substring(typed_compiler_maven_pom, TYPED_COMPILER_MAVEN_POM, f"<version>{version}</version>", errors)
 
     public_entry_docs = (
         (README, readme),

@@ -14,7 +14,7 @@ Current slice:
 - deterministic synthetic seed data
 - PojoLens-backed summary, trends, top-merchants, and transactions endpoints
 - PojoLens workbench for stats presets, computed fields, dataset-bundle joins, exposure policy, execution guard, telemetry, and runtime inspector metadata
-- PojoLens query studio for guided natural text, typed DSL, and cooperative cancellation demo on the same filtered snapshot
+- PojoLens query studio for guided natural text, compiler-generated typed DSL constants, and cooperative cancellation demo on the same filtered snapshot
 - responsive dashboard shell
 - saved reports and query inspector
 - Java Playwright smoke, overview, drilldown, merchant detail, review queue, filtering, sorting, responsive, analytics, and accessibility sanity checks
@@ -55,16 +55,6 @@ Notes:
 - Current pinning audit result: repository/service code does not hold long-lived `synchronized` blocks across JDBC calls. The remaining synchronized section is the in-memory telemetry buffer, which does not wrap database I/O.
 - Browser screenshots land in `target/playwright-screenshots/`.
 - H2 test profile is fallback for automated test runs.
-- Reviewer handoff lives in `examples/spring-boot-starter-risk-console/REVIEWER.md`.
-- Reviewer report template lives in `examples/spring-boot-starter-risk-console/REVIEW-REPORT-TEMPLATE.md`.
-- Latest completed review lives in `examples/spring-boot-starter-risk-console/REVIEW-REPORT.md`.
-
-Reviewer workflow:
-- Run `mvn -B -ntp -f examples/spring-boot-starter-risk-console/pom.xml test`.
-- Open `examples/spring-boot-starter-risk-console/REVIEWER.md`.
-- Check screenshots in `examples/spring-boot-starter-risk-console/target/playwright-screenshots/`.
-- Write final result with `examples/spring-boot-starter-risk-console/REVIEW-REPORT-TEMPLATE.md`.
-- Mark MySQL runtime deferred if Docker or local MySQL is not available.
 
 Main endpoints:
 - `GET /api/bootstrap`

@@ -18,6 +18,8 @@
 - `2026-04-30`: WP26 outcome: annotation processing emits ordinary generated Java source with `PLM-AP-*` compiler diagnostics for invalid targets, duplicate targets, graph-depth failures, and source-write failures; there is no Lombok-style AST transformation.
 - `2026-04-30`: WP26 now publishes `META-INF/services/javax.annotation.processing.Processor` and `META-INF/gradle/incremental.annotation.processors`; the annotation is `CLASS` retention so Gradle incremental APT can treat the processor as isolating.
 - `2026-04-30`: Kotlin/JVM support is through kapt over `@JvmField var` field models; Kotlin property/data-class-native generation remains deferred pending KSP or property-metadata design.
+- `2026-04-30`: Curated example projects are `examples/typed-compiler-maven`, `examples/typed-compiler-gradle-java`, `examples/typed-compiler-gradle-kotlin`, `examples/spring-boot-starter-quickstart`, and `examples/spring-boot-starter-risk-console`; the redundant Spring basic example was removed.
+- `2026-04-30`: Risk-console uses compiler-generated `TransactionRecordTypedFields` in Query Studio while the standalone typed-compiler examples remain the primary teaching path.
 - `2026-04-29`: `README.md` stays route-based and now includes a top `Quick Integration` section that points AI agents to `AGENTS.md`; do not reintroduce separate product-taxonomy sections there.
 
 ## Validate

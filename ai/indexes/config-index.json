@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T08:45:19.149931+02:00",
+  "generatedAt": "2026-04-30T09:59:06.679813+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -38,17 +38,24 @@
         "published": false
       },
       {
-        "path": "examples/spring-boot-starter-basic/pom.xml",
-        "artifactId": "pojo-lens-spring-boot-starter-basic-example",
-        "packaging": "jar",
-        "role": "starter-dashboard-example",
-        "published": false
-      },
-      {
         "path": "examples/spring-boot-starter-quickstart/pom.xml",
         "artifactId": "pojo-lens-spring-boot-starter-quickstart-example",
         "packaging": "jar",
         "role": "starter-quickstart-example",
+        "published": false
+      },
+      {
+        "path": "examples/spring-boot-starter-risk-console/pom.xml",
+        "artifactId": "pojo-lens-spring-boot-starter-risk-console-example",
+        "packaging": "jar",
+        "role": "starter-risk-console-example",
+        "published": false
+      },
+      {
+        "path": "examples/typed-compiler-maven/pom.xml",
+        "artifactId": "pojo-lens-typed-compiler-maven-example",
+        "packaging": "jar",
+        "role": "typed-compiler-maven-example",
         "published": false
       }
     ],

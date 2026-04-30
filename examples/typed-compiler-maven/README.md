@@ -1,4 +1,4 @@
-# Typed Authoring Compiler Example
+# Typed Compiler Maven Example
 
 This standalone Maven example shows compiler-generated typed field constants.
 
@@ -12,7 +12,7 @@ the local Maven repository:
 
 ```bash
 mvn -B -ntp -pl pojo-lens install -DskipTests
-mvn -B -ntp -f examples/typed-authoring-compiler/pom.xml test
+mvn -B -ntp -f examples/typed-compiler-maven/pom.xml test
 ```
 
 This example is not a published artifact.

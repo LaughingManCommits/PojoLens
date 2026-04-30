@@ -23,7 +23,10 @@ $sqlLikePath = Join-Path $root "docs/sql-like.md"
 $benchmarkingPath = Join-Path $root "docs/benchmarking.md"
 $benchmarkMainArgsPath = Join-Path $root "scripts/benchmark-suite-main.args"
 $quickstartPomPath = Join-Path $root "examples/spring-boot-starter-quickstart/pom.xml"
-$basicPomPath = Join-Path $root "examples/spring-boot-starter-basic/pom.xml"
+$riskConsolePomPath = Join-Path $root "examples/spring-boot-starter-risk-console/pom.xml"
+$typedCompilerMavenPomPath = Join-Path $root "examples/typed-compiler-maven/pom.xml"
+$typedCompilerGradleJavaBuildPath = Join-Path $root "examples/typed-compiler-gradle-java/build.gradle.kts"
+$typedCompilerGradleKotlinBuildPath = Join-Path $root "examples/typed-compiler-gradle-kotlin/build.gradle.kts"
 
 function Require-File([string]$path) {
     if (-not (Test-Path $path)) {
@@ -77,7 +80,10 @@ $sqlLike = Require-File $sqlLikePath
 $benchmarking = Require-File $benchmarkingPath
 $benchmarkMainArgs = Require-File $benchmarkMainArgsPath
 $quickstartPom = Require-File $quickstartPomPath
-$basicPom = Require-File $basicPomPath
+$riskConsolePom = Require-File $riskConsolePomPath
+$typedCompilerMavenPom = Require-File $typedCompilerMavenPomPath
+$null = Require-File $typedCompilerGradleJavaBuildPath
+$null = Require-File $typedCompilerGradleKotlinBuildPath
 $errors = [System.Collections.Generic.List[string]]::new()
 
 # Current release/version examples should track the root POM version.
@@ -87,7 +93,8 @@ Require-Substring $release "RELEASE.md" "Maven version: ``$projectVersion``" $er
 Require-Substring $release "RELEASE.md" "Git tag: ``release-$projectVersion``" $errors
 Require-Substring $changelog "CHANGELOG.md" "## [$projectVersion]" $errors
 Require-Substring $quickstartPom "examples/spring-boot-starter-quickstart/pom.xml" "<version>$projectVersion</version>" $errors
-Require-Substring $basicPom "examples/spring-boot-starter-basic/pom.xml" "<version>$projectVersion</version>" $errors
+Require-Substring $riskConsolePom "examples/spring-boot-starter-risk-console/pom.xml" "<version>$projectVersion</version>" $errors
+Require-Substring $typedCompilerMavenPom "examples/typed-compiler-maven/pom.xml" "<version>$projectVersion</version>" $errors
 
 # Public entry docs should keep the stable surface centered on SQL-like and guided natural language.
 $publicEntryDocs = @(

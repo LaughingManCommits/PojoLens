@@ -3,7 +3,6 @@ package laughing.man.commits.examples.spring.boot.riskconsole;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.chart.ChartType;
-import laughing.man.commits.dsl.TypedField;
 import laughing.man.commits.dsl.TypedQuery;
 import laughing.man.commits.enums.Metric;
 import laughing.man.commits.examples.spring.boot.riskconsole.RiskConsoleTypes.AnalystWorkloadRow;
@@ -40,14 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 class RiskConsoleWorkbenchService {
-
-    private static final TypedField<TransactionRecord, String> TX_ID = TypedField.of("id", String.class);
-    private static final TypedField<TransactionRecord, String> TX_MERCHANT_NAME = TypedField.of("merchantName", String.class);
-    private static final TypedField<TransactionRecord, String> TX_MERCHANT_REGION = TypedField.of("merchantRegion", String.class);
-    private static final TypedField<TransactionRecord, String> TX_REVIEW_STATUS = TypedField.of("reviewStatus", String.class);
-    private static final TypedField<TransactionRecord, String> TX_RISK_BAND = TypedField.of("riskBand", String.class);
-    private static final TypedField<TransactionRecord, Integer> TX_RISK_SCORE = TypedField.of("riskScore", Integer.class);
-    private static final TypedField<TransactionRecord, Double> TX_AMOUNT = TypedField.of("amount", Double.class);
 
     private final RiskConsoleQuerySupport support;
 
@@ -212,9 +203,16 @@ class RiskConsoleWorkbenchService {
 
     private TypedQueryStudioPayload typedQueryStudio(List<TransactionRecord> rows) {
         TypedQuery<TransactionRecord> query = TypedQuery.from(TransactionRecord.class)
-                .select(TX_ID, TX_MERCHANT_NAME, TX_MERCHANT_REGION, TX_REVIEW_STATUS, TX_RISK_BAND, TX_RISK_SCORE, TX_AMOUNT)
-                .where(TX_REVIEW_STATUS.in(List.of("OPEN", "ESCALATED")))
-                .orderByDesc(TX_RISK_SCORE)
+                .select(
+                        TransactionRecordTypedFields.ID,
+                        TransactionRecordTypedFields.MERCHANT_NAME,
+                        TransactionRecordTypedFields.MERCHANT_REGION,
+                        TransactionRecordTypedFields.REVIEW_STATUS,
+                        TransactionRecordTypedFields.RISK_BAND,
+                        TransactionRecordTypedFields.RISK_SCORE,
+                        TransactionRecordTypedFields.AMOUNT)
+                .where(TransactionRecordTypedFields.REVIEW_STATUS.in(List.of("OPEN", "ESCALATED")))
+                .orderByDesc(TransactionRecordTypedFields.RISK_SCORE)
                 .limit(8);
         if (rows.isEmpty()) {
             return new TypedQueryStudioPayload(
