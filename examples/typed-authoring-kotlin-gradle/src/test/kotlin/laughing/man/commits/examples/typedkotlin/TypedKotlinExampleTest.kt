@@ -1,7 +1,7 @@
 package laughing.man.commits.examples.typedkotlin
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class TypedKotlinExampleTest {
     @Test

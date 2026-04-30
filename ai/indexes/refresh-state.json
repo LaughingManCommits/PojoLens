@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-30T09:18:10.199888+02:00",
+  "generatedAt": "2026-04-30T09:26:29.847614+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "aa8c01e867edb9aa80d30e085d05632a9cad8505f9d7d77bb376c544b05ad890",
+      "inputHash": "f0e3dfdfbcaa30911fb95d0817840688887cb6e3a92767c7345f231e585b3c9f",
       "pathHashes": {
         "AGENTS.md": "f23416ec726d3e781a7191400b5c0b6a57403ea51de7474bba007194ab748d1f",
         "ai/AGENTS.md": "aadc2af6990a290b2682c78d5143eaaf4772cb4df6f999b5af2ea5e3bc6e5b32",
@@ -26,7 +26,7 @@
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
         "ai/state/current-state.md": "40dcc074f4c09485954e2fd52c7e4c774bc162144e2e3e64e0d2cd9ac6e302d6",
         "ai/state/handoff.md": "481f0634da5468ea3f6102ae431864f2581fe0e32e2916c489f63f7e7a3f9659",
-        "ai/state/recent-validations.md": "781162369621c64c566a41394154a4faf68f389fbe984c545e08bc45df7da904",
+        "ai/state/recent-validations.md": "c3e7a6c580fb67d7c90f99ea22b436563653cebcb04a890002588f42dc972791",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "ce089926f935c2b792eabbebb8c40530ecd1f98562425f07762a2e7d54a4807f",
@@ -69,7 +69,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "2d99172b513fda68447eb21dd134e73885b553c8d82762be9c0f1d9f2b20bfd6",
+      "inputHash": "a3e6bdaf4124b9bfbf7964967f1835dc974a937f74c5361a60be4c355be44aab",
       "pathHashes": {
         ".github/workflows/ci.yml": "72c96e166e9a2aa74d75c94dd2c74d2d2e1d8bc1e6cd31a40e84f6b1e43fa651",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -97,7 +97,7 @@
         "ai/state/benchmark-state.md": "fd023131e5b479b3937e488dc9142b2f7fc7749b434a91ac37f8ad6a028523ad",
         "ai/state/current-state.md": "40dcc074f4c09485954e2fd52c7e4c774bc162144e2e3e64e0d2cd9ac6e302d6",
         "ai/state/handoff.md": "481f0634da5468ea3f6102ae431864f2581fe0e32e2916c489f63f7e7a3f9659",
-        "ai/state/recent-validations.md": "781162369621c64c566a41394154a4faf68f389fbe984c545e08bc45df7da904",
+        "ai/state/recent-validations.md": "c3e7a6c580fb67d7c90f99ea22b436563653cebcb04a890002588f42dc972791",
         "CONTRIBUTING.md": "9d85abf4ee22d6487ac0e243c570645149f0f94e816690475152049ef1d0c74b",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "ce089926f935c2b792eabbebb8c40530ecd1f98562425f07762a2e7d54a4807f",

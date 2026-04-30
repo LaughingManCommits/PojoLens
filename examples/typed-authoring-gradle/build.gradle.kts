@@ -16,7 +16,7 @@ dependencies {
     annotationProcessor("io.github.laughingmancommits:pojo-lens:2026.04.29.1809")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.13.4")
     testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
 
