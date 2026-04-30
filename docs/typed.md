@@ -19,7 +19,22 @@ TypedField<Employee, Integer> SALARY = TypedField.of("salary", Integer.class);
 TypedField<Employee, Boolean> ACTIVE = TypedField.of("active", Boolean.class);
 ```
 
-For shared domain types, generate typed constants with
+For shared domain types, generate typed constants at compile time with
+`@GeneratePojoLensTypedFields`:
+
+```java
+import laughing.man.commits.annotations.GeneratePojoLensTypedFields;
+
+@GeneratePojoLensTypedFields
+public class Employee {
+    public String department;
+    public int salary;
+    public boolean active;
+}
+```
+
+This emits `EmployeeTypedFields` as ordinary generated Java source for javac
+and IDE completion. For explicit build-helper generation, use
 [metamodel.md](metamodel.md):
 
 ```java

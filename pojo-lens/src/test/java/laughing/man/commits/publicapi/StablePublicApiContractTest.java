@@ -10,6 +10,7 @@ import laughing.man.commits.PojoLensTree;
 import laughing.man.commits.DatasetBundle;
 import laughing.man.commits.PojoLensRuntime;
 import laughing.man.commits.PojoLensRuntimePreset;
+import laughing.man.commits.annotations.GeneratePojoLensTypedFields;
 import laughing.man.commits.chart.ChartSpec;
 import laughing.man.commits.csv.CsvCoercionPolicy;
 import laughing.man.commits.csv.CsvLoadException;
@@ -31,6 +32,7 @@ import laughing.man.commits.files.JsonLoadResult;
 import laughing.man.commits.files.JsonOptions;
 import laughing.man.commits.internal.builder.QueryWindowFrame;
 import laughing.man.commits.metamodel.FieldMetamodelGenerator;
+import laughing.man.commits.metamodel.PojoLensTypedFieldsProcessor;
 import laughing.man.commits.natural.NaturalBoundQuery;
 import laughing.man.commits.natural.NaturalQuery;
 import laughing.man.commits.natural.NaturalRuntime;
@@ -645,6 +647,9 @@ public class StablePublicApiContractTest {
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped", Class.class);
         requirePublicStaticMethod(FieldMetamodelGenerator.class, "generateTyped",
                 Class.class, String.class, String.class);
+        requirePublicMethod(GeneratePojoLensTypedFields.class, "packageName");
+        requirePublicMethod(GeneratePojoLensTypedFields.class, "simpleName");
+        requirePublicConstructor(PojoLensTypedFieldsProcessor.class);
     }
 
     @Test

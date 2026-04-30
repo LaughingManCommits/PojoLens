@@ -1,15 +1,18 @@
 # Build Tooling
 
-PojoLens build tooling stays library-first in this release.
+PojoLens build tooling stays library-first in this release, with one
+compiler-integrated path for typed-field constants.
 
 The first-party shape is:
 
+- a source-retention annotation and javac annotation processor for
+  compiler-time typed field generation
 - metamodel generation APIs in `laughing.man.commits.metamodel`
 - validation APIs in `laughing.man.commits.tooling`
 - deterministic generated source output
 - deterministic validation results for CI
 - build-tool recipes you can wire into Maven or Gradle without waiting for a
-  dedicated plugin or annotation processor
+  dedicated plugin
 
 Use this when you want stronger typed authoring support or when config-owned
 query catalogs should fail fast in CI before any live data is loaded.
@@ -21,10 +24,90 @@ query catalogs should fail fast in CI before any live data is loaded.
 - `MetamodelBatchGenerator`
 - `MetamodelGenerationRequest`
 - `MetamodelGenerationResult`
+- `GeneratePojoLensTypedFields`
+- `PojoLensTypedFieldsProcessor`
 - `SavedReportCatalogValidator`
 - `SavedReportValidationResult`
 - `SavedReportCatalogValidationResult`
 - `ToolingValidationIssue`
+
+## Compiler-Time Typed Field Generation
+
+Use `@GeneratePojoLensTypedFields` when typed constants should be generated as
+part of normal compilation. The processor writes ordinary Java source, so IDEs
+and javac see the generated constants without AST rewriting.
+
+```java
+import laughing.man.commits.annotations.GeneratePojoLensTypedFields;
+
+@GeneratePojoLensTypedFields
+public class Employee {
+    public String department;
+    public int salary;
+    public boolean active;
+}
+```
+
+Default output naming:
+
+- package: same package as the model class
+- class name: `<ModelSimpleName>TypedFields`
+
+Override the target when generated sources should live in a dedicated package:
+
+```java
+@GeneratePojoLensTypedFields(
+    packageName = "com.acme.generated",
+    simpleName = "EmployeeLens")
+public class Employee {
+    public String department;
+    public int salary;
+}
+```
+
+Maven compiler wiring:
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.15.0</version>
+  <configuration>
+    <annotationProcessorPaths>
+      <path>
+        <groupId>io.github.laughingmancommits</groupId>
+        <artifactId>pojo-lens</artifactId>
+        <version>${pojo-lens.version}</version>
+      </path>
+    </annotationProcessorPaths>
+    <annotationProcessors>
+      <annotationProcessor>
+        laughing.man.commits.metamodel.PojoLensTypedFieldsProcessor
+      </annotationProcessor>
+    </annotationProcessors>
+  </configuration>
+</plugin>
+```
+
+Gradle Java compile wiring:
+
+```kotlin
+dependencies {
+    implementation("io.github.laughingmancommits:pojo-lens:$pojoLensVersion")
+    annotationProcessor("io.github.laughingmancommits:pojo-lens:$pojoLensVersion")
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf(
+        "-processor",
+        "laughing.man.commits.metamodel.PojoLensTypedFieldsProcessor"
+    ))
+}
+```
+
+Compiler diagnostics use stable `PLM-AP-*` prefixes for invalid generated
+targets, duplicate targets in the same compile, graph-depth failures, and
+source-write failures.
 
 ## Batch Metamodel Generation
 
@@ -124,7 +207,7 @@ Machine-readable issue codes currently include:
 SQL-like raw-text validation preserves existing SQL-like parser and API error
 codes when those are already available.
 
-## Maven Build Recipe
+## Maven Build Recipe For Batch Generation And Validation
 
 One practical shape is a tiny build helper main plus normal generated-sources
 wiring.
@@ -223,10 +306,9 @@ Maven wiring:
 
 This release does not add:
 
-- an annotation processor
 - a dedicated Maven plugin
 - a dedicated Gradle plugin
 - live data execution during validation
 
-If those become necessary later, they should wrap these same public tooling
-contracts rather than creating a second build-time surface.
+If dedicated build plugins become necessary later, they should wrap these same
+public tooling contracts rather than creating a second build-time surface.

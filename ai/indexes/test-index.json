@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T20:17:39.315874+02:00",
+  "generatedAt": "2026-04-30T08:45:19.149931+02:00",
   "testRoots": [
     "pojo-lens/src/test/java",
     "pojo-lens/src/test/resources/fixtures",
@@ -11,13 +11,13 @@
     "examples/spring-boot-starter-quickstart/src/test/java"
   ],
   "counts": {
-    "testJavaFiles": 144,
-    "testClasses": 144
+    "testJavaFiles": 145,
+    "testClasses": 145
   },
   "modules": [
     {
       "path": "pojo-lens",
-      "testJavaFiles": 128
+      "testJavaFiles": 129
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",
@@ -127,6 +127,7 @@
         "pojo-lens/src/test/java/laughing/man/commits/internal/NameSuggestionsTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/internal/builder/FilterQueryBuilderSelectiveMaterializationTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/metamodel/MetamodelBatchGeneratorTest.java",
+        "pojo-lens/src/test/java/laughing/man/commits/metamodel/PojoLensTypedFieldsProcessorTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryContractTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/natural/NaturalQueryParserTest.java",
         "pojo-lens/src/test/java/laughing/man/commits/query/NestedPathQueryTest.java",

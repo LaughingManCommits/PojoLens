@@ -12,8 +12,54 @@ For day-to-day typed DSL composition, see [typed.md](typed.md).
 - SQL-like query builders that assemble controlled query text
 - typed DSL field constants
 
-Use `FieldMetamodelGenerator` to generate a Java constants class for a model or projection type.
-Use `generateTyped(...)` when code-owned typed queries should avoid hand-written field strings.
+For typed DSL constants, prefer compiler-time generation with
+`@GeneratePojoLensTypedFields`. Use `FieldMetamodelGenerator` when a build
+helper, test fixture, or internal codegen tool needs to write source manually.
+Use `generateTyped(...)` when code-owned typed queries should avoid hand-written
+field strings without enabling annotation processing.
+
+## Compiler-Time Typed Constants
+
+```java
+import laughing.man.commits.annotations.GeneratePojoLensTypedFields;
+
+@GeneratePojoLensTypedFields
+public class Employee {
+    public String department;
+    public int salary;
+    public boolean active;
+}
+```
+
+The annotation processor emits ordinary generated Java source:
+
+- package: same package as the model class
+- class name: `<ModelSimpleName>TypedFields`
+- one `TypedField<T,V>` constant per eligible field
+- `ALL` as `List<TypedField<T, ?>>` in deterministic order
+
+Override the generated package or class name when applications keep generated
+source in a dedicated namespace:
+
+```java
+@GeneratePojoLensTypedFields(
+    packageName = "com.acme.generated",
+    simpleName = "EmployeeLens")
+public class Employee {
+    public String department;
+    public int salary;
+}
+```
+
+The processor does not rewrite ASTs or change Java syntax. It only creates
+source files during compilation, so IDE completion works through the same
+generated-source support used by javac. Maven and Gradle wiring examples live
+in [build-tooling.md](build-tooling.md).
+
+## Manual Source Generation
+
+Use `FieldMetamodelGenerator` to generate a Java constants class for a model or
+projection type when annotation processing is not part of the build.
 
 ## Generate Source
 
@@ -190,9 +236,11 @@ MetamodelBatchGenerator.write(
 
 ## Build Integration
 
-The generator is intentionally library-level rather than annotation-processor-driven.
+The annotation processor is the compiler-integrated typed-field path. The
+manual generator remains the fallback for builds that want an explicit codegen
+step instead of annotation processing.
 
-That means you can run it from:
+You can run the manual generator from:
 
 - a small build-time Java main
 - a Maven/Gradle source-generation task

@@ -27,7 +27,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
 | WP24| Typed DSL Advanced Analytics                 | Completed | Typed `HAVING`, windows, bounded subqueries, `QUALIFY`, and aggregate window frames now share one `TypedQuery`/`TypedPredicate` story |
-| WP26| Typed Authoring Compiler Integration         | Pending | Compiler-integrated typed field generation and IDE-visible completion without Lombok-style AST rewriting |
+| WP26| Typed Authoring Compiler Integration         | Completed | `@GeneratePojoLensTypedFields` plus `PojoLensTypedFieldsProcessor` now emit IDE-visible typed constants during javac compilation without AST rewriting |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
@@ -92,8 +92,8 @@ turning PojoLens into a dataframe or ETL framework.
 generation and query-validation hooks.
 
 **Context:**
-- `FieldMetamodelGenerator` exists today, but it is intentionally
-  library-level rather than annotation-processor-driven.
+- `FieldMetamodelGenerator` started as library-level tooling; WP26 later added
+  compiler-time typed generation on top of it.
 - `SavedReport`, SQL-like diagnostics, natural diagnostics, and plan preview
   already provide most of the raw pieces for static validation.
 - This work should target the consolidated first-read surface from WP21/WP25 so
@@ -207,15 +207,15 @@ rewriting.
   creating a new public query surface.
 
 **Tasks:**
-- [ ] Decide the first-party delivery shape: annotation processor,
+- [x] Decide the first-party delivery shape: annotation processor,
       Maven/Gradle plugin, or a staged combination.
-- [ ] Wrap the existing metamodel generator so typed constants can be emitted
+- [x] Wrap the existing metamodel generator so typed constants can be emitted
       automatically during compilation.
-- [ ] Wire generated sources into build examples so IDE completion works
+- [x] Wire generated sources into build examples so IDE completion works
       without manual driver code.
-- [ ] Keep the library generator as the documented fallback, with no AST
+- [x] Keep the library generator as the documented fallback, with no AST
       rewriting or Lombok-style syntax expansion.
-- [ ] Add docs and regression coverage for the generated-source workflow and
+- [x] Add docs and regression coverage for the generated-source workflow and
       compiler diagnostics.
 
 **Validate:**

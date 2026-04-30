@@ -7,6 +7,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Typed authoring compiler integration** - added
+  `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor` so javac
+  can emit IDE-visible `TypedField<T,V>` constants during compilation without
+  Lombok-style AST rewriting. The existing `FieldMetamodelGenerator` remains
+  the documented manual fallback.
+
 ## [2026.04.29.1809] - 2026-04-29
 
 ### Changed
