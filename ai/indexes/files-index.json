@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T09:01:25.330114+02:00",
+  "generatedAt": "2026-04-30T09:18:10.199888+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 6,
@@ -80,10 +80,10 @@
       "published": true,
       "sourceRoot": "pojo-lens/src/main/java",
       "testRoot": "pojo-lens/src/test/java",
-      "resourceRoot": null,
+      "resourceRoot": "pojo-lens/src/main/resources",
       "mainJavaFiles": 230,
       "testJavaFiles": 129,
-      "resourceFiles": 0
+      "resourceFiles": 2
     },
     {
       "path": "pojo-lens-spring-boot-autoconfigure",

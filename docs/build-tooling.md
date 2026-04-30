@@ -5,14 +5,14 @@ compiler-integrated path for typed-field constants.
 
 The first-party shape is:
 
-- a source-retention annotation and javac annotation processor for
+- a class-retention annotation and javac annotation processor for
   compiler-time typed field generation
 - metamodel generation APIs in `laughing.man.commits.metamodel`
 - validation APIs in `laughing.man.commits.tooling`
 - deterministic generated source output
 - deterministic validation results for CI
-- build-tool recipes you can wire into Maven or javac-based builds without waiting for a
-  dedicated plugin
+- build-tool recipes you can wire into Maven, Gradle, or javac-based builds
+  without waiting for a dedicated plugin
 
 Use this when you want stronger typed authoring support or when config-owned
 query catalogs should fail fast in CI before any live data is loaded.
@@ -65,9 +65,10 @@ public class Employee {
 }
 ```
 
-Maven compiler wiring uses explicit processor selection. PojoLens does not
-auto-register this processor through `META-INF/services`, so builds opt into
-typed-field generation deliberately.
+Maven compiler wiring should keep the processor on the annotation-processor
+path. The processor is service-loadable from that path, so Maven can discover
+it there; explicit `<annotationProcessors>` remains a valid way to make the
+selected processor obvious in strict builds.
 
 ```xml
 <plugin>
@@ -91,6 +92,59 @@ typed-field generation deliberately.
 </plugin>
 ```
 
+Gradle Java wiring uses the standard `annotationProcessor` configuration. The
+processor ships Gradle incremental annotation-processor metadata and is marked
+`isolating`, because each generated type is derived from one annotated model and
+is written through javac's `Filer` API.
+
+```kotlin
+plugins {
+    java
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.laughingmancommits:pojo-lens:${pojoLensVersion}")
+    annotationProcessor("io.github.laughingmancommits:pojo-lens:${pojoLensVersion}")
+}
+```
+
+Kotlin/JVM projects can use the same javac processor through kapt. The current
+processor is field-model based, matching `FieldMetamodelGenerator`, so Kotlin
+model fields that should be visible to PojoLens should be declared as
+`@JvmField var`. Plain Kotlin properties and immutable `val` properties are not
+treated as equivalent to Java query fields in this release.
+
+```kotlin
+plugins {
+    kotlin("jvm") version "2.3.20"
+    kotlin("kapt") version "2.3.20"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.laughingmancommits:pojo-lens:${pojoLensVersion}")
+    kapt("io.github.laughingmancommits:pojo-lens:${pojoLensVersion}")
+}
+```
+
+```kotlin
+@GeneratePojoLensTypedFields
+class Employee {
+    @JvmField
+    var department: String = ""
+
+    @JvmField
+    var salary: Int = 0
+}
+```
+
 Compiler diagnostics use stable `PLM-AP-*` prefixes for invalid generated
 targets, duplicate targets in the same compile, graph-depth failures, and
 source-write failures.
@@ -99,6 +153,11 @@ IDE behavior follows normal generated-source handling:
 
 - Maven imports should enable annotation processing and generated sources for
   `target/generated-sources/annotations`.
+- Gradle Java imports should enable annotation processing and generated sources
+  through the `annotationProcessor` configuration.
+- Kotlin/JVM imports should delegate builds to Gradle when kapt needs to
+  regenerate Java sources; Kotlin's own kapt documentation notes that kapt is
+  not supported by IntelliJ IDEA's built-in build system.
 - IntelliJ IDEA should use the Maven compiler configuration on import; if
   annotation processing is disabled globally, enable it for the project.
 - Eclipse/m2e should treat the Maven compiler generated-sources directory as
@@ -111,6 +170,13 @@ Runnable Maven example:
 
 - `examples/typed-authoring-compiler` compiles an annotated `Employee` model
   and consumes the generated `EmployeeTypedFields` from the same module.
+
+Runnable Gradle examples:
+
+- `examples/typed-authoring-gradle` compiles an annotated Java model through
+  Gradle's `annotationProcessor` path.
+- `examples/typed-authoring-kotlin-gradle` compiles a Kotlin/JVM field-model
+  example through kapt and consumes the generated typed constants from Kotlin.
 
 ## Batch Metamodel Generation
 
@@ -312,7 +378,7 @@ This release does not add:
 - a dedicated Maven plugin
 - a dedicated Gradle plugin
 - a dedicated `pojo-lens-processor` artifact
-- Gradle-specific incremental processor metadata
+- KSP support or Kotlin data-class/property metamodel generation
 - live data execution during validation
 
 If dedicated build plugins become necessary later, they should wrap these same

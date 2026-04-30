@@ -27,7 +27,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP22| Developer Tooling And Static Validation      | Completed | Library-first build tooling now covers batch metamodel generation, saved-report/query validation, and documented build recipes |
 | WP23| Typed DSL Aggregation And Join Expansion     | Completed | Typed joins, grouped aggregates, totals-style metrics, and SQL-like parity on one `TypedQuery` surface |
 | WP24| Typed DSL Advanced Analytics                 | Completed | Typed `HAVING`, windows, bounded subqueries, `QUALIFY`, and aggregate window frames now share one `TypedQuery`/`TypedPredicate` story |
-| WP26| Typed Authoring Compiler Integration         | Completed | `@GeneratePojoLensTypedFields` plus `PojoLensTypedFieldsProcessor` now emit IDE-visible typed constants during javac compilation without AST rewriting |
+| WP26| Typed Authoring Compiler Integration         | Completed | `@GeneratePojoLensTypedFields` plus `PojoLensTypedFieldsProcessor` now emit IDE-visible typed constants during javac/Gradle/kapt compilation without AST rewriting |
 | WP18| JDK 25 Runtime Knob Evaluation               | Pending | Compact headers, generational Shenandoah, AOT cache startup/runtime matrix            |
 | Release Gate | Release Gate                          | Pending | Scope decisions made; lint/chart parity cleared; final release guardrails pending     |
 
@@ -218,11 +218,12 @@ rewriting.
 - [x] Add docs and regression coverage for the generated-source workflow and
       compiler diagnostics.
 
-**Future follow-up:**
-- Gradle-specific incremental annotation-processor metadata and dedicated
-  Gradle examples are deferred until after the current WP18/release path.
+**Follow-up kept deferred:**
 - A dedicated `pojo-lens-processor` artifact remains deferred until processor
   adoption justifies a module-topology change.
+- Kotlin property/data-class-native generation remains deferred pending a KSP
+  or property-metadata design; the current Kotlin/JVM support is field-model
+  based through kapt and `@JvmField var`.
 
 **Validate:**
 - `mvn -B -ntp test`

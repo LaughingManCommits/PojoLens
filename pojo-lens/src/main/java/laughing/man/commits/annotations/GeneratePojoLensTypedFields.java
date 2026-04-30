@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * Requests compile-time generation of PojoLens {@code TypedField<T,V>} constants for a model type.
  */
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface GeneratePojoLensTypedFields {
 

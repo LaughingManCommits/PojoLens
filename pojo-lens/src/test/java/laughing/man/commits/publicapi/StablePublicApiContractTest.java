@@ -75,6 +75,8 @@ import laughing.man.commits.tree.TreeEntry;
 import laughing.man.commits.tree.TreeTraversalBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -649,6 +651,8 @@ public class StablePublicApiContractTest {
                 Class.class, String.class, String.class);
         requirePublicMethod(GeneratePojoLensTypedFields.class, "packageName");
         requirePublicMethod(GeneratePojoLensTypedFields.class, "simpleName");
+        assertEquals(RetentionPolicy.CLASS,
+                GeneratePojoLensTypedFields.class.getAnnotation(Retention.class).value());
         requirePublicConstructor(PojoLensTypedFieldsProcessor.class);
     }
 

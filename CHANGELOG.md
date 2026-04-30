@@ -20,11 +20,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 - **Typed-field processor hardening** - expanded compiler-generation coverage
   across primitive, boxed, enum, time, nested, excluded, static/final, no-field,
   duplicate-target, invalid-target, and graph-depth cases, and documented the
-  explicit processor opt-in policy.
+  processor-path opt-in policy.
 
 - **Typed compiler example** - added `examples/typed-authoring-compiler` as a
   standalone Maven project that compiles an annotated model and consumes the
   generated typed constants from the same module.
+
+- **Gradle and Kotlin typed-generation support** - added service-loader and
+  Gradle incremental annotation-processor descriptors for
+  `PojoLensTypedFieldsProcessor`, plus standalone Gradle Java and Kotlin/JVM
+  kapt examples. Kotlin support is intentionally field-model based in this
+  slice: `@JvmField var` fields are supported, while Kotlin property/data-class
+  generation remains a future KSP or property-metadata decision.
 
 ## [2026.04.29.1809] - 2026-04-29
 

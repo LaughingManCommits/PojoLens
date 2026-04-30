@@ -344,17 +344,31 @@ public class PojoLensTypedFieldsProcessorTest {
     }
 
     @Test
-    public void processorShouldRequireExplicitCompilerConfiguration() throws Exception {
+    public void processorShouldPublishServiceAndGradleIncrementalDescriptors() throws Exception {
         Enumeration<java.net.URL> resources = PojoLensTypedFieldsProcessor.class.getClassLoader()
                 .getResources("META-INF/services/javax.annotation.processing.Processor");
 
+        boolean foundProcessorService = false;
         while (resources.hasMoreElements()) {
             String serviceFile;
             try (InputStream stream = resources.nextElement().openStream()) {
                 serviceFile = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             }
-            assertFalse(serviceFile.contains(PojoLensTypedFieldsProcessor.class.getName()),
-                    "PojoLens processor should not auto-register; docs require explicit -processor wiring");
+            foundProcessorService = foundProcessorService
+                    || serviceFile.contains(PojoLensTypedFieldsProcessor.class.getName());
+        }
+
+        assertTrue(foundProcessorService,
+                "PojoLens processor should be service-loadable for Gradle and kapt processor paths");
+
+        try (InputStream stream = PojoLensTypedFieldsProcessor.class.getClassLoader()
+                .getResourceAsStream("META-INF/gradle/incremental.annotation.processors")) {
+            assertNotNull(stream, "Gradle incremental annotation processor metadata should be packaged");
+            String metadata = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(metadata.lines()
+                            .anyMatch(line -> line.equals(PojoLensTypedFieldsProcessor.class.getName()
+                                    + ",isolating")),
+                    "PojoLens processor should declare Gradle isolating incremental processing");
         }
     }
 

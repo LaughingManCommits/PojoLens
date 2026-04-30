@@ -53,13 +53,15 @@ public class Employee {
 
 The processor does not rewrite ASTs or change Java syntax. It only creates
 source files during compilation, so IDE completion works through the same
-generated-source support used by javac. Maven wiring examples live in
-[build-tooling.md](build-tooling.md). Gradle-specific incremental metadata is
-deferred.
+generated-source support used by javac. Maven, Gradle, and Kotlin/JVM kapt
+wiring examples live in [build-tooling.md](build-tooling.md).
 
 See `examples/typed-authoring-compiler` for a standalone Maven project that
 compiles an annotated model and consumes the generated typed constants in the
 same module.
+See `examples/typed-authoring-gradle` and
+`examples/typed-authoring-kotlin-gradle` for equivalent Gradle Java and
+Kotlin/JVM field-model examples.
 
 ## Manual Source Generation
 
