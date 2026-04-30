@@ -33,7 +33,7 @@ Execution order is dependency-first, not ticket-number order.
 
 | WP  | Title                                | Status   | Key deliverables |
 |-----|--------------------------------------|----------|------------------|
-| WP27| Orchestrator CLI Productization      | In Progress | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
+| WP27| Orchestrator CLI Productization      | Complete    | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
 | WP28| Orchestrator Runtime Layering        | Pending  | Internal package split for plan loading, workspace management, provider calls, manifests, validation, and parallel scheduling |
 | WP29| LangGraph Execution Spike            | Pending  | Decision record and small prototype for checkpointed parallel graph execution without weakening repo safety rules |
 | WP30| Run Visibility And Operator UX       | Pending  | Better status, inventory, review, and validation surfaces for retained multi-agent runs |
@@ -71,12 +71,12 @@ preserving the current command behavior and keeping AI tooling organized under
 - [x] Preserve existing subcommands: `validate`, `plan`, `run`, `resume`,
       `retry`, `review`, `export-patch`, `promote`, `validate-run`,
       `inventory`, `prune`, and `cleanup`.
-- [ ] Add consistent global options for repo root, runtime root, JSON output,
+- [x] Add consistent global options for repo root, runtime root, JSON output,
       dry-run behavior, verbosity, and provider binary resolution; first slice
       adds package-level `--repo-root`.
-- [ ] Preserve `--max-parallel` behavior as a documented primary CLI feature
+- [x] Preserve `--max-parallel` behavior as a documented primary CLI feature
       for independent task execution.
-- [ ] Define stable exit-code semantics for validation errors, worker failures,
+- [x] Define stable exit-code semantics for validation errors, worker failures,
       blocked runs, unsafe promotion attempts, and unexpected tool crashes.
 - [x] Add command help snapshots or focused CLI contract tests so future
       refactors do not drift the public tool surface by accident.

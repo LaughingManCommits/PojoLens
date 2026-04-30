@@ -221,6 +221,274 @@ class ConsoleEntrypointTest(unittest.TestCase):
         self.assertEqual(2, payload["topology"]["maxParallelWidth"])
 
 
+class ExitCodeConstantsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.orchestrator = load_orchestrator_module()
+
+    def test_exit_code_constants_are_defined(self):
+        o = self.orchestrator
+        self.assertEqual(0, o.EXIT_SUCCESS)
+        self.assertEqual(1, o.EXIT_ERROR)
+        self.assertEqual(2, o.EXIT_BOOTSTRAP)
+        self.assertEqual(3, o.EXIT_VALIDATION)
+        self.assertEqual(4, o.EXIT_WORKER_FAILURE)
+        self.assertEqual(5, o.EXIT_BLOCKED)
+        self.assertEqual(6, o.EXIT_UNSAFE_PROMOTION)
+        self.assertEqual(7, o.EXIT_CRASH)
+
+    def test_worker_run_exit_code_success_when_no_failures(self):
+        o = self.orchestrator
+        self.assertEqual(o.EXIT_SUCCESS, o._worker_run_exit_code({"completed": 3}))
+
+    def test_worker_run_exit_code_failure_when_failed_present(self):
+        o = self.orchestrator
+        self.assertEqual(o.EXIT_WORKER_FAILURE, o._worker_run_exit_code({"completed": 2, "failed": 1}))
+
+    def test_worker_run_exit_code_blocked_when_only_blocked(self):
+        o = self.orchestrator
+        self.assertEqual(o.EXIT_BLOCKED, o._worker_run_exit_code({"completed": 1, "blocked": 1}))
+
+    def test_worker_run_exit_code_failure_takes_priority_over_blocked(self):
+        o = self.orchestrator
+        self.assertEqual(o.EXIT_WORKER_FAILURE, o._worker_run_exit_code({"failed": 1, "blocked": 1}))
+
+    def test_worker_run_exit_code_empty_counts_is_success(self):
+        o = self.orchestrator
+        self.assertEqual(o.EXIT_SUCCESS, o._worker_run_exit_code({}))
+
+    def test_promotion_blocked_error_is_subclass_of_orchestrator_error(self):
+        o = self.orchestrator
+        self.assertTrue(issubclass(o.PromotionBlockedError, o.OrchestratorError))
+
+    def test_validation_error_is_subclass_of_orchestrator_error(self):
+        o = self.orchestrator
+        self.assertTrue(issubclass(o.ValidationError, o.OrchestratorError))
+
+    def test_main_returns_validation_exit_code_for_invalid_plan(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        cli = load_cli_module()
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False, encoding="utf-8") as f:
+            json.dump({"version": 99, "bad": True}, f)
+            bad_plan = f.name
+        try:
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                exit_code = cli.main([
+                    "--repo-root", str(root),
+                    "validate", bad_plan, "--json",
+                ])
+            self.assertEqual(cli.EXIT_BOOTSTRAP, 2)
+            self.assertIn(exit_code, {1, 3})
+        finally:
+            pathlib.Path(bad_plan).unlink(missing_ok=True)
+
+    def test_main_returns_unsafe_promotion_exit_code_when_promotion_blocked(self):
+        o = self.orchestrator
+        import tempfile
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            run_dir = temp_path / "run"
+            workspace_a = temp_path / "workspace-a"
+            workspace_b = temp_path / "workspace-b"
+            run_dir.mkdir()
+            workspace_a.mkdir()
+            workspace_b.mkdir()
+            (workspace_a / "shared.txt").write_text("from a\n", encoding="utf-8")
+            (workspace_b / "shared.txt").write_text("from b\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            old_root = o.ROOT
+            repo_root = temp_path / "repo"
+            repo_root.mkdir()
+            o.ROOT = repo_root
+            try:
+                o.write_json(manifest_path, {
+                    "runId": "run-x",
+                    "tasks": {
+                        "task-a": {
+                            "id": "task-a", "title": "A", "agent": "implementer",
+                            "status": "completed", "summary": "done",
+                            "workspace_mode": "copy", "workspace_path": str(workspace_a),
+                            "started_at": "2026-04-30T00:00:00+00:00",
+                            "finished_at": "2026-04-30T00:00:01+00:00",
+                            "files_touched": ["shared.txt"],
+                            "actual_files_touched": ["shared.txt"],
+                            "protected_path_violations": [], "write_scope_violations": [],
+                            "validation_commands": [], "validation_intents": [],
+                            "follow_ups": [], "notes": [],
+                            "model": "claude-haiku-4-5-20251001", "model_profile": "simple",
+                            "prompt_chars": 1, "prompt_estimated_tokens": 1,
+                            "prompt_sections": [],
+                            "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                            "usage": None, "return_code": 0,
+                            "prompt_path": "", "command_path": "",
+                            "stdout_path": None, "stderr_path": None, "result_path": None,
+                            "stdout_bytes": 0, "stderr_bytes": 0, "result_bytes": 0,
+                            "dependency_materialization_mode": "summary-only",
+                            "dependency_layers_applied": [], "unknown_fields": [],
+                            "worker_validation_mode": "intents-only",
+                            "worker_validation_mode_source": None,
+                        },
+                        "task-b": {
+                            "id": "task-b", "title": "B", "agent": "implementer",
+                            "status": "completed", "summary": "done",
+                            "workspace_mode": "copy", "workspace_path": str(workspace_b),
+                            "started_at": "2026-04-30T00:00:00+00:00",
+                            "finished_at": "2026-04-30T00:00:01+00:00",
+                            "files_touched": ["shared.txt"],
+                            "actual_files_touched": ["shared.txt"],
+                            "protected_path_violations": [], "write_scope_violations": [],
+                            "validation_commands": [], "validation_intents": [],
+                            "follow_ups": [], "notes": [],
+                            "model": "claude-haiku-4-5-20251001", "model_profile": "simple",
+                            "prompt_chars": 1, "prompt_estimated_tokens": 1,
+                            "prompt_sections": [],
+                            "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                            "usage": None, "return_code": 0,
+                            "prompt_path": "", "command_path": "",
+                            "stdout_path": None, "stderr_path": None, "result_path": None,
+                            "stdout_bytes": 0, "stderr_bytes": 0, "result_bytes": 0,
+                            "dependency_materialization_mode": "summary-only",
+                            "dependency_layers_applied": [], "unknown_fields": [],
+                            "worker_validation_mode": "intents-only",
+                            "worker_validation_mode_source": None,
+                        },
+                    },
+                })
+                with self.assertRaises(o.PromotionBlockedError):
+                    o.plan_promotion(o.selected_run_records({"tasks": {
+                        "task-a": {"id": "task-a", "title": "A", "agent": "implementer",
+                            "status": "completed", "summary": "done",
+                            "workspace_mode": "copy", "workspace_path": str(workspace_a),
+                            "started_at": "2026-04-30T00:00:00+00:00",
+                            "finished_at": "2026-04-30T00:00:01+00:00",
+                            "files_touched": ["shared.txt"], "actual_files_touched": ["shared.txt"],
+                            "protected_path_violations": [], "write_scope_violations": [],
+                            "validation_commands": [], "validation_intents": [],
+                            "follow_ups": [], "notes": [],
+                            "model": "claude-haiku-4-5-20251001", "model_profile": "simple",
+                            "prompt_chars": 1, "prompt_estimated_tokens": 1,
+                            "prompt_sections": [],
+                            "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                            "usage": None, "return_code": 0,
+                            "prompt_path": "", "command_path": "",
+                            "stdout_path": None, "stderr_path": None, "result_path": None,
+                            "stdout_bytes": 0, "stderr_bytes": 0, "result_bytes": 0,
+                            "dependency_materialization_mode": "summary-only",
+                            "dependency_layers_applied": [], "unknown_fields": [],
+                            "worker_validation_mode": "intents-only", "worker_validation_mode_source": None},
+                        "task-b": {"id": "task-b", "title": "B", "agent": "implementer",
+                            "status": "completed", "summary": "done",
+                            "workspace_mode": "copy", "workspace_path": str(workspace_b),
+                            "started_at": "2026-04-30T00:00:00+00:00",
+                            "finished_at": "2026-04-30T00:00:01+00:00",
+                            "files_touched": ["shared.txt"], "actual_files_touched": ["shared.txt"],
+                            "protected_path_violations": [], "write_scope_violations": [],
+                            "validation_commands": [], "validation_intents": [],
+                            "follow_ups": [], "notes": [],
+                            "model": "claude-haiku-4-5-20251001", "model_profile": "simple",
+                            "prompt_chars": 1, "prompt_estimated_tokens": 1,
+                            "prompt_sections": [],
+                            "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                            "usage": None, "return_code": 0,
+                            "prompt_path": "", "command_path": "",
+                            "stdout_path": None, "stderr_path": None, "result_path": None,
+                            "stdout_bytes": 0, "stderr_bytes": 0, "result_bytes": 0,
+                            "dependency_materialization_mode": "summary-only",
+                            "dependency_layers_applied": [], "unknown_fields": [],
+                            "worker_validation_mode": "intents-only", "worker_validation_mode_source": None},
+                    }}, []))
+            finally:
+                o.ROOT = old_root
+
+
+class GlobalOptionsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.orchestrator = load_orchestrator_module()
+
+    def _parse(self, *args):
+        return self.orchestrator.parse_args.__wrapped__(*args) if hasattr(
+            self.orchestrator.parse_args, "__wrapped__"
+        ) else self.orchestrator.parse_args()
+
+    def _parse_argv(self, argv):
+        import sys as _sys
+        old = _sys.argv[:]
+        _sys.argv = ["claude-orchestrator"] + list(argv)
+        try:
+            return self.orchestrator.parse_args()
+        finally:
+            _sys.argv = old
+
+    def test_verbose_flag_accepted_by_validate(self):
+        args = self._parse_argv(["validate", "-v"])
+        self.assertTrue(args.verbose)
+
+    def test_verbose_flag_long_form_accepted_by_run(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--verbose"])
+        self.assertTrue(args.verbose)
+
+    def test_verbose_defaults_to_false_on_inventory(self):
+        args = self._parse_argv(["inventory"])
+        self.assertFalse(args.verbose)
+
+    def test_provider_bin_accepted_by_validate(self):
+        args = self._parse_argv(["validate", "--provider-bin", "anthropic-cli"])
+        self.assertEqual("anthropic-cli", args.claude_bin)
+
+    def test_provider_bin_accepted_by_run(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--provider-bin", "my-cli"])
+        self.assertEqual("my-cli", args.claude_bin)
+
+    def test_claude_bin_legacy_alias_still_works(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--claude-bin", "legacy-claude"])
+        self.assertEqual("legacy-claude", args.claude_bin)
+
+    def test_dry_run_accepted_by_validate(self):
+        args = self._parse_argv(["validate", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
+    def test_dry_run_accepted_by_review(self):
+        args = self._parse_argv(["review", "some/run/dir", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
+    def test_dry_run_accepted_by_inventory(self):
+        args = self._parse_argv(["inventory", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
+    def test_dry_run_accepted_by_cleanup(self):
+        args = self._parse_argv(["cleanup", "some/run/dir", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
+    def test_dry_run_accepted_by_export_patch(self):
+        args = self._parse_argv(["export-patch", "some/run/dir", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
+    def test_json_accepted_by_cleanup(self):
+        args = self._parse_argv(["cleanup", "some/run/dir", "--json"])
+        self.assertTrue(args.json)
+
+    def test_max_parallel_default_is_two(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan])
+        self.assertEqual(2, args.max_parallel)
+
+    def test_max_parallel_can_be_overridden(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--max-parallel", "4"])
+        self.assertEqual(4, args.max_parallel)
+
+
 class SlopLoggingTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

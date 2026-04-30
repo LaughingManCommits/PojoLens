@@ -39,6 +39,21 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   Studio typed query from hand-written `TypedField.of(...)` constants to
   compiler-generated `TransactionRecordTypedFields` constants.
 
+- **Orchestrator CLI global options** - all 12 subcommands now accept
+  `--verbose`/`-v`, `--provider-bin` (with `--claude-bin` as a legacy alias),
+  `--dry-run`, and `--json` consistently. Previously several commands lacked
+  `--dry-run` (`validate`, `review`, `export-patch`, `inventory`, `cleanup`) or
+  `--json` (`cleanup`). `--max-parallel` is now documented in the root CLI
+  description as the primary feature for independent parallel task execution.
+
+- **Orchestrator exit codes** - `main()` now returns distinct codes:
+  `EXIT_SUCCESS` (0), `EXIT_ERROR` (1), `EXIT_BOOTSTRAP` (2, reserved for
+  `cli.py`), `EXIT_VALIDATION` (3, plan schema invalid), `EXIT_WORKER_FAILURE`
+  (4, tasks returned "failed"), `EXIT_BLOCKED` (5, tasks blocked), 
+  `EXIT_UNSAFE_PROMOTION` (6, promotion refused), and `EXIT_CRASH` (7,
+  unexpected Python exception). `PromotionBlockedError` and `ValidationError`
+  are new `OrchestratorError` subclasses that route to their respective codes.
+
 ### Removed
 
 - **Redundant Spring dashboard example** - removed

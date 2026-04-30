@@ -5,21 +5,20 @@
 - Current release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-04-29`: Surface/tooling cleanup is complete: first-read docs are authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL, and tooling is split between `metamodel` generation and `tooling` validation.
-- `2026-04-29`: WP23/WP24 completed typed joins, grouped aggregates, grouped `HAVING`, bounded subqueries, rank windows, aggregate window frames, `QUALIFY`, and `JoinBindings` / `DatasetBundle` reuse.
-- `2026-04-30`: WP26 completed compiler-time typed field generation through `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor`, with no AST rewriting and `FieldMetamodelGenerator` retained as fallback.
-- `2026-04-30`: `TODO.md` was reset to an active orchestration-tooling roadmap: WP27 CLI productization, WP28 runtime layering, WP29 LangGraph execution spike, and WP30 run visibility/operator UX.
-- `2026-04-30`: Parallel agent execution is an explicit orchestration requirement; independent tasks must remain concurrent-capable while dependency and write-scope conflicts serialize.
-- `2026-04-30`: WP27 first slice added the `pojolens-agents` Python console entrypoint with `--repo-root` bootstrap around the existing orchestrator script.
-- `2026-04-30`: AI tooling implementations now live under `scripts/ai/`; root AI script shims were removed so `pojolens-agents` and direct `scripts/ai/*` paths are canonical.
-- `2026-04-30`: Script tooling is organized by domain: `scripts/ai/`, `scripts/benchmarks/`, `scripts/docs/`, `scripts/quality/`, and `scripts/release/`.
-- `2026-04-30`: Example inventory is now curated to typed compiler Maven, typed compiler Gradle Java, typed compiler Gradle Kotlin, Spring quickstart, and Spring risk console.
-- `2026-04-30`: Spring risk-console Query Studio now consumes compiler-generated `TransactionRecordTypedFields` as a realistic integration proof.
-- `2026-04-29`: `README.md` is route-based with a top `Quick Integration` section that points AI agents to `AGENTS.md`.
+- `2026-04-29`: Surface/tooling cleanup complete; first-read docs authoring-first, `PojoLensFiles` owns CSV/TSV/JSON/JSONL.
+- `2026-04-29`: WP23/WP24 completed typed joins, aggregates, `HAVING`, subqueries, windows, `QUALIFY`, `JoinBindings`/`DatasetBundle`.
+- `2026-04-30`: WP26 completed compiler-time typed fields via `@GeneratePojoLensTypedFields` + `PojoLensTypedFieldsProcessor`.
+- `2026-04-30`: WP27 complete: global options (`--verbose`, `--provider-bin`, `--dry-run`, `--json`) on all 12 subcommands; exit codes 0–7; `--max-parallel` in root help; 122 tests pass.
+- `2026-04-30`: Orchestration roadmap active: WP28 runtime layering, WP29 LangGraph spike, WP30 operator UX.
+- `2026-04-30`: Parallel execution required; independent tasks concurrent, write-scope conflicts serialized.
+- `2026-04-30`: Script tooling by domain: `scripts/ai/`, `scripts/benchmarks/`, `scripts/docs/`, `scripts/quality/`, `scripts/release/`.
+- `2026-04-30`: Examples curated: typed-compiler Maven/Gradle Java/Gradle Kotlin, Spring quickstart, Spring risk console.
+- `2026-04-29`: `README.md` route-based with `Quick Integration` → `AGENTS.md` pointer.
 
 ## Verified
-- `2026-04-29`: WP21-WP25 passed focused coverage, `mvn -B -ntp test`, static-analysis where applicable, and docs consistency.
-- `2026-04-30`: WP26 and curated examples passed focused compiler/public-API tests, Maven/Gradle/Kotlin example tests using a temporary Gradle 9.3.0 distribution under `target/tools`, full reactor `mvn -B -ntp test`, docs consistency, lint, static-analysis, jar descriptor inspection, and `git diff --check`.
+- `2026-04-29`: WP21-WP25 passed focused coverage, `mvn -B -ntp test`, static-analysis, docs consistency.
+- `2026-04-30`: WP26 + examples passed compiler tests, Gradle 9.3.0 build, reactor `mvn -B -ntp test`, lint, static-analysis.
+- `2026-04-30`: WP27 passed py_compile, 122 unittest, validate+dry-run CLI smoke, doc-consistency.
 
 ## Release
 - Latest cut is `2026.04.29.1809`.
@@ -29,5 +28,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-04-30`: Roadmap order is WP27 -> WP28 -> WP29 -> WP30, with WP18 and Release Gate deferred.
-- `2026-04-30`: Continue WP27 by moving internals into importable layers and tightening CLI/global-option contracts.
+- `2026-04-30`: Roadmap order is WP28 → WP29 → WP30, then deferred WP18 and Release Gate.
+- `2026-04-30`: WP27 complete; begin WP28 — extract plan/agent loading, workspace, provider, manifest, scheduler into layers.

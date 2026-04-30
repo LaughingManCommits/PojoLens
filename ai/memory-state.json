@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-04-30T18:15:50.188852+02:00",
+  "generatedAt": "2026-04-30T19:25:26.961629+02:00",
   "git": {
-    "headCommit": "40ef5c942feb8ff16a1e25a1e641dcd1f1c4c2a9",
+    "headCommit": "e8fe6bdf2b031c4a8aa292bcda3054dd0222e5ef",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "94ffb248fb1c135a331389071360c75195467e1c62bc3c6d0256b86cf29ead3c",
+  "inputsHash": "cb7e7a73c6e536b74208123a5a59737be2927247ea5c14976f47bc58bb3466d7",
   "hotContext": {
     "files": [
       {
@@ -21,8 +21,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 33,
-        "bytes": 2996,
+        "lines": 32,
+        "bytes": 2100,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 36,
-        "bytes": 2935,
+        "lines": 35,
+        "bytes": 2799,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 99,
-    "totalBytes": 8572,
+    "totalLines": 97,
+    "totalBytes": 7540,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -141,13 +141,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "6db5480e9bc24e9e6d0b906991d29fc18cb9a80d8c9240a6abb864d300b2176d",
+        "inputHash": "5a120896007a56b32c8d5d4658dee70a50f1a295caf8b4cd132f93bb9336daed",
         "inputFiles": 60
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "6c1fab027cc19273c9f97fa7d0eaa63e83163c9079ae176aa4800c8ea81b8088",
+        "inputHash": "3401523023ece2e2a9f9c876c5618d50661b50bb7a85d7c52edaa51a5be660a2",
         "inputFiles": 537
       },
       {
@@ -165,7 +165,7 @@
       {
         "path": "ai/indexes/config-index.json",
         "status": "reused",
-        "inputHash": "ed42fe6ed75ddf8964df7764c653ed3e301f7194f25019df617c3f57c8f02ac6",
+        "inputHash": "4a9d827821f227f9a80a7af81aea47fc0c600a8ce8dc4b4e4d4dcab3344fbfac",
         "inputFiles": 36
       }
     ],

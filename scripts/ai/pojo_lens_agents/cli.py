@@ -10,6 +10,10 @@ from types import ModuleType
 REPO_ROOT_ENV = "POJOLENS_REPO_ROOT"
 ORCHESTRATOR_RELATIVE_PATH = Path("scripts") / "ai" / "claude-orchestrator.py"
 
+# Exit codes — EXIT_BOOTSTRAP (2) is reserved here; orchestrator defines the rest.
+EXIT_SUCCESS = 0
+EXIT_BOOTSTRAP = 2
+
 
 class CliBootstrapError(RuntimeError):
     """Raised when the repo-local orchestrator script cannot be resolved."""
@@ -29,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.argv = previous_argv
     except CliBootstrapError as exc:
         print(f"[pojolens-agents] {exc}", file=sys.stderr)
-        return 2
+        return EXIT_BOOTSTRAP
 
 
 def extract_repo_root(args: list[str]) -> tuple[str | None, list[str]]:

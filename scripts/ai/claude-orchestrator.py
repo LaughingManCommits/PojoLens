@@ -119,6 +119,16 @@ WORKER_UNKNOWNABLE_FIELDS = (
 SLOP_PROGRESS_DOTS = (".", "..", "...")
 SLOP_PROGRESS_INTERVAL_SEC = 1.0
 SLOP_LOG_LOCK = threading.Lock()
+
+# Exit codes
+EXIT_SUCCESS = 0
+EXIT_ERROR = 1           # general orchestrator error (config, args, missing files)
+EXIT_BOOTSTRAP = 2       # reserved for cli.py bootstrap failure
+EXIT_VALIDATION = 3      # plan schema invalid or agent config invalid
+EXIT_WORKER_FAILURE = 4  # one or more tasks returned "failed"
+EXIT_BLOCKED = 5         # tasks blocked, no failures
+EXIT_UNSAFE_PROMOTION = 6  # promotion refused (scope violations, protected paths)
+EXIT_CRASH = 7           # unexpected Python exception
 WORKER_RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -246,6 +256,14 @@ PLAN_RESULT_SCHEMA = {
 
 class OrchestratorError(RuntimeError):
     pass
+
+
+class ValidationError(OrchestratorError):
+    """Raised when a plan schema or agent config is structurally invalid."""
+
+
+class PromotionBlockedError(OrchestratorError):
+    """Raised when promotion is refused due to scope violations or protected paths."""
 
 
 @dataclass(frozen=True)
@@ -451,12 +469,37 @@ class TaskRunRecord:
     worker_validation_mode_source: str | None = None
 
 
-def _add_claude_bin_arg(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--claude-bin", default=DEFAULT_CLAUDE_BIN, help="Claude CLI executable to invoke.")
+def _add_provider_bin_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--provider-bin",
+        "--claude-bin",
+        default=DEFAULT_CLAUDE_BIN,
+        dest="claude_bin",
+        metavar="BIN",
+        help="AI provider CLI executable (default: claude). --claude-bin is a legacy alias.",
+    )
+
+
+def _add_verbose_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Emit extra diagnostic details to stderr.",
+    )
 
 
 def _add_max_parallel_arg(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--max-parallel", type=int, default=2, help="Maximum number of ready tasks to run concurrently.")
+    parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=2,
+        help=(
+            "Maximum number of independent ready tasks to run concurrently. "
+            "Parallel execution is the default; only tasks with declared dependencies "
+            "or overlapping write scopes are serialized. (Primary CLI feature.)"
+        ),
+    )
 
 
 def _add_continue_on_error_arg(parser: argparse.ArgumentParser) -> None:
@@ -469,7 +512,12 @@ def _add_continue_on_error_arg(parser: argparse.ArgumentParser) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Coordinate local Claude Code workers from tracked repo task specs."
+        description=(
+            "Coordinate local Claude Code workers from tracked repo task specs. "
+            "Independent tasks run in parallel by default; use --max-parallel on run, "
+            "resume, and retry to control concurrency. Only tasks with declared "
+            "dependencies or overlapping write scopes are serialized automatically."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -488,10 +536,17 @@ def parse_args() -> argparse.Namespace:
         help="Path to the tracked agents JSON file.",
     )
     validate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate without writing any output files.",
+    )
+    validate_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the validation summary as JSON.",
     )
+    _add_verbose_arg(validate_parser)
+    _add_provider_bin_arg(validate_parser)
 
     plan_parser = subparsers.add_parser(
         "plan",
@@ -539,7 +594,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Validation command hint. Repeatable.",
     )
-    _add_claude_bin_arg(plan_parser)
+    _add_provider_bin_arg(plan_parser)
     plan_parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -550,6 +605,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the planner request/result as JSON.",
     )
+    _add_verbose_arg(plan_parser)
 
     run_parser = subparsers.add_parser(
         "run",
@@ -561,7 +617,7 @@ def parse_args() -> argparse.Namespace:
         default=str(DEFAULT_AGENTS_PATH),
         help="Path to the tracked agents JSON file.",
     )
-    _add_claude_bin_arg(run_parser)
+    _add_provider_bin_arg(run_parser)
     run_parser.add_argument(
         "--runtime-root",
         default=str(DEFAULT_RUNTIME_ROOT),
@@ -592,6 +648,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the run summary as JSON.",
     )
+    _add_verbose_arg(run_parser)
 
     resume_parser = subparsers.add_parser(
         "resume",
@@ -606,7 +663,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
     )
-    _add_claude_bin_arg(resume_parser)
+    _add_provider_bin_arg(resume_parser)
     _add_max_parallel_arg(resume_parser)
     resume_parser.add_argument(
         "--task",
@@ -632,6 +689,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the resume summary as JSON.",
     )
+    _add_verbose_arg(resume_parser)
 
     retry_parser = subparsers.add_parser(
         "retry",
@@ -646,7 +704,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Override the agents JSON path. Defaults to the original run manifest agentsPath.",
     )
-    _add_claude_bin_arg(retry_parser)
+    _add_provider_bin_arg(retry_parser)
     retry_parser.add_argument(
         "--runtime-root",
         default="",
@@ -677,6 +735,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the retry run summary as JSON.",
     )
+    _add_verbose_arg(retry_parser)
 
     review_parser = subparsers.add_parser(
         "review",
@@ -700,10 +759,17 @@ def parse_args() -> argparse.Namespace:
         help="Context lines to use when generating per-file patch previews.",
     )
     review_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Summarize diffs without writing review output.",
+    )
+    review_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the review summary as JSON.",
     )
+    _add_verbose_arg(review_parser)
+    _add_provider_bin_arg(review_parser)
 
     export_patch_parser = subparsers.add_parser(
         "export-patch",
@@ -732,10 +798,17 @@ def parse_args() -> argparse.Namespace:
         help="Destination patch path. Defaults under the run directory review/ subfolder.",
     )
     export_patch_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Summarize patch without writing it to disk.",
+    )
+    export_patch_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the export summary as JSON.",
     )
+    _add_verbose_arg(export_patch_parser)
+    _add_provider_bin_arg(export_patch_parser)
 
     promote_parser = subparsers.add_parser(
         "promote",
@@ -762,6 +835,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the promotion summary as JSON.",
     )
+    _add_verbose_arg(promote_parser)
+    _add_provider_bin_arg(promote_parser)
 
     cleanup_parser = subparsers.add_parser(
         "cleanup",
@@ -772,10 +847,17 @@ def parse_args() -> argparse.Namespace:
         help="Path to a run directory or its manifest.json file.",
     )
     cleanup_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be removed without deleting anything.",
+    )
+    cleanup_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the cleanup summary as JSON.",
     )
+    _add_verbose_arg(cleanup_parser)
+    _add_provider_bin_arg(cleanup_parser)
 
     inventory_parser = subparsers.add_parser(
         "inventory",
@@ -793,10 +875,17 @@ def parse_args() -> argparse.Namespace:
         help="Maximum number of runs to show. Use 0 to show all discovered runs.",
     )
     inventory_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List inventory candidates without any side effects.",
+    )
+    inventory_parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the inventory summary as JSON.",
     )
+    _add_verbose_arg(inventory_parser)
+    _add_provider_bin_arg(inventory_parser)
 
     prune_parser = subparsers.add_parser(
         "prune",
@@ -839,6 +928,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the prune summary as JSON.",
     )
+    _add_verbose_arg(prune_parser)
+    _add_provider_bin_arg(prune_parser)
 
     validate_run_parser = subparsers.add_parser(
         "validate-run",
@@ -900,6 +991,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the validation summary as JSON.",
     )
+    _add_verbose_arg(validate_run_parser)
+    _add_provider_bin_arg(validate_run_parser)
 
     return parser.parse_args()
 
@@ -2810,7 +2903,7 @@ def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], 
             counts[str(operation["action"])] += 1
             all_operations.append(operation)
     if issues:
-        raise OrchestratorError(format_issue_block("Promotion blocked", issues))
+        raise PromotionBlockedError(format_issue_block("Promotion blocked", issues))
     return task_payloads, all_operations, counts
 
 
@@ -6109,49 +6202,72 @@ def print_payload(payload: dict[str, Any], *, as_json: bool) -> None:
         print(json.dumps(payload, indent=2))
 
 
+def _worker_run_exit_code(status_counts: dict[str, int]) -> int:
+    """Derive exit code from a run/resume/retry statusCounts payload."""
+    if status_counts.get("failed", 0) > 0:
+        return EXIT_WORKER_FAILURE
+    if status_counts.get("blocked", 0) > 0:
+        return EXIT_BLOCKED
+    return EXIT_SUCCESS
+
+
 def main() -> int:
     args = parse_args()
     try:
         if args.command == "validate":
-            print_payload(validate_command(args), as_json=args.json)
-            return 0
+            try:
+                payload = validate_command(args)
+            except OrchestratorError as exc:
+                print(f"[claude-orchestrator] {exc}", file=sys.stderr)
+                return EXIT_VALIDATION
+            print_payload(payload, as_json=args.json)
+            return EXIT_SUCCESS
         if args.command == "plan":
             print_payload(plan_with_claude(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "run":
-            print_payload(run_plan(args), as_json=args.json)
-            return 0
+            payload = run_plan(args)
+            print_payload(payload, as_json=args.json)
+            return _worker_run_exit_code(payload.get("statusCounts", {}))
         if args.command == "resume":
-            print_payload(resume_run(args), as_json=args.json)
-            return 0
+            payload = resume_run(args)
+            print_payload(payload, as_json=args.json)
+            return _worker_run_exit_code(payload.get("statusCounts", {}))
         if args.command == "retry":
-            print_payload(retry_run(args), as_json=args.json)
-            return 0
+            payload = retry_run(args)
+            print_payload(payload, as_json=args.json)
+            return _worker_run_exit_code(payload.get("statusCounts", {}))
         if args.command == "review":
             print_payload(review_run(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "export-patch":
             print_payload(export_patch(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "promote":
             print_payload(promote_run(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "cleanup":
             print_payload(cleanup_run(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "inventory":
             print_payload(inventory_runs(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "prune":
             print_payload(prune_runs(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         if args.command == "validate-run":
             print_payload(validate_run(args), as_json=args.json)
-            return 0
+            return EXIT_SUCCESS
         raise OrchestratorError(f"Unknown command '{args.command}'")
+    except PromotionBlockedError as exc:
+        print(f"[claude-orchestrator] {exc}", file=sys.stderr)
+        return EXIT_UNSAFE_PROMOTION
     except OrchestratorError as exc:
         print(f"[claude-orchestrator] {exc}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
+    except Exception as exc:
+        print(f"[claude-orchestrator] unexpected error: {exc}", file=sys.stderr)
+        return EXIT_CRASH
 
 
 if __name__ == "__main__":
