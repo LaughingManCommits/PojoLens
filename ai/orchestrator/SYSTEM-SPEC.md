@@ -172,7 +172,7 @@ This file defines the portable contract for recreating the repository's AI memor
 
 ## Minimum Validation Checklist
 
-- `python -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/refresh-ai-memory.py scripts/ai/query-ai-memory.py`
+- `python -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/pojo_lens_agents/governance.py scripts/ai/pojo_lens_agents/path_safety.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/run_store.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/workspace_review.py scripts/ai/refresh-ai-memory.py scripts/ai/query-ai-memory.py`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json`
 - `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2`

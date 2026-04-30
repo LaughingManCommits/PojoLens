@@ -54,6 +54,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   unexpected Python exception). `PromotionBlockedError` and `ValidationError`
   are new `OrchestratorError` subclasses that route to their respective codes.
 
+- **Orchestrator runtime layering** - split the monolithic local multi-agent
+  script behind package layers for scheduling, provider subprocess/JSON
+  handling, path safety, run manifests, workspace review primitives, and
+  run-governance checks while preserving the existing CLI JSON contracts and
+  bounded parallel execution semantics.
+
 ### Removed
 
 - **Redundant Spring dashboard example** - removed

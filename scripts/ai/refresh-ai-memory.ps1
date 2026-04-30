@@ -159,6 +159,12 @@ function Get-HashInputs() {
         "scripts/ai/benchmark-ai-memory.py",
         "scripts/ai/benchmark-ai-memory.ps1",
         "scripts/ai/pojo_lens_agents/cli.py",
+        "scripts/ai/pojo_lens_agents/governance.py",
+        "scripts/ai/pojo_lens_agents/path_safety.py",
+        "scripts/ai/pojo_lens_agents/provider.py",
+        "scripts/ai/pojo_lens_agents/run_store.py",
+        "scripts/ai/pojo_lens_agents/runtime.py",
+        "scripts/ai/pojo_lens_agents/workspace_review.py",
         "scripts/docs/check-doc-consistency.py",
         "scripts/docs/check-doc-consistency.ps1",
         "scripts/quality/check-lint-baseline.ps1",
@@ -474,6 +480,12 @@ function Build-FilesIndex([string]$generatedAt) {
         [ordered]@{ path = "scripts/ai/query-ai-memory.py"; kind = "memory-script" },
         [ordered]@{ path = "scripts/ai/claude-orchestrator.py"; kind = "orchestration-script" },
         [ordered]@{ path = "scripts/ai/pojo_lens_agents/cli.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/governance.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/path_safety.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/provider.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/run_store.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/runtime.py"; kind = "orchestration-script" },
+        [ordered]@{ path = "scripts/ai/pojo_lens_agents/workspace_review.py"; kind = "orchestration-script" },
         [ordered]@{ path = "scripts/ai/benchmark-ai-memory.py"; kind = "memory-script" },
         [ordered]@{ path = "scripts/docs/check-doc-consistency.ps1"; kind = "validation-script" },
         [ordered]@{ path = "scripts/docs/check-doc-consistency.py"; kind = "validation-script" },
@@ -739,7 +751,13 @@ function Build-ConfigIndex([string]$generatedAt) {
         orchestrationScripts = @(
             "scripts/ai/claude-orchestrator.ps1",
             "scripts/ai/claude-orchestrator.py",
-            "scripts/ai/pojo_lens_agents/cli.py"
+            "scripts/ai/pojo_lens_agents/cli.py",
+            "scripts/ai/pojo_lens_agents/governance.py",
+            "scripts/ai/pojo_lens_agents/path_safety.py",
+            "scripts/ai/pojo_lens_agents/provider.py",
+            "scripts/ai/pojo_lens_agents/run_store.py",
+            "scripts/ai/pojo_lens_agents/runtime.py",
+            "scripts/ai/pojo_lens_agents/workspace_review.py"
         )
         releaseScripts = @("scripts/release/export-release-secrets.ps1")
         benchmarkConfigs = @(

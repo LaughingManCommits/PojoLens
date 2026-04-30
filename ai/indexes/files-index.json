@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T19:25:26.961629+02:00",
+  "generatedAt": "2026-04-30T19:55:31.575034+02:00",
   "notes": "Generated navigation anchors for the current multi-module layout. Markdown remains the source of truth; target/ outputs are excluded.",
   "counts": {
     "modules": 9,
@@ -285,6 +285,30 @@
     },
     {
       "path": "scripts/ai/pojo_lens_agents/cli.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/governance.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/path_safety.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/provider.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/run_store.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/runtime.py",
+      "kind": "orchestration-script"
+    },
+    {
+      "path": "scripts/ai/pojo_lens_agents/workspace_review.py",
       "kind": "orchestration-script"
     },
     {

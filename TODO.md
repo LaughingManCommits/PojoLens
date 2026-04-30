@@ -34,7 +34,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP  | Title                                | Status   | Key deliverables |
 |-----|--------------------------------------|----------|------------------|
 | WP27| Orchestrator CLI Productization      | Complete    | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
-| WP28| Orchestrator Runtime Layering        | Pending  | Internal package split for plan loading, workspace management, provider calls, manifests, validation, and parallel scheduling |
+| WP28| Orchestrator Runtime Layering        | Complete | Internal package split for plan governance, workspace safety, provider calls, manifests, validation, and parallel scheduling |
 | WP29| LangGraph Execution Spike            | Pending  | Decision record and small prototype for checkpointed parallel graph execution without weakening repo safety rules |
 | WP30| Run Visibility And Operator UX       | Pending  | Better status, inventory, review, and validation surfaces for retained multi-agent runs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
@@ -84,7 +84,7 @@ preserving the current command behavior and keeping AI tooling organized under
       to describe the CLI as the primary operator interface.
 
 **Validate:**
-- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/pojo_lens_agents/governance.py scripts/ai/pojo_lens_agents/path_safety.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/run_store.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/workspace_review.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`
 - `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
@@ -112,25 +112,29 @@ manifest handling harder to reason about.
   tasks with overlapping scopes must still serialize conservatively.
 
 **Tasks:**
-- [ ] Extract plan and agent loading, schema validation, topology analysis, and
-      run-policy evaluation into a package layer with focused tests.
-- [ ] Extract ready-task batching and conservative parallel scheduling into a
-      runtime layer that can preserve `--max-parallel` semantics outside the
-      CLI parser.
-- [ ] Extract workspace hydration, dependency materialization, diff auditing,
-      patch export, and promotion into a workspace/review layer.
-- [ ] Extract provider invocation and worker-result parsing into a provider
-      adapter layer that can support more than one execution backend.
-- [ ] Extract manifest persistence, run inventory, resume, retry, prune, and
-      cleanup into a run-store layer.
-- [ ] Keep path traversal, protected-path, duplicate ownership, and out-of-scope
+- [x] Extract plan contract support, topology analysis, and run-policy
+      governance into package layers with focused tests.
+- [x] Extract ready-task batching and conservative parallel scheduling into a
+      runtime layer that preserves `--max-parallel` semantics outside the CLI
+      parser; first slice added `pojo_lens_agents.runtime`.
+- [x] Extract workspace hydration, diff auditing, artifact sizing, and
+      review/promotion safety primitives into workspace and path-safety layers.
+- [x] Extract provider invocation, provider JSON extraction, and usage parsing
+      into a provider adapter layer that can support more than one execution
+      backend.
+- [x] Extract retained-run manifest path resolution, selected-plan fallback, and
+      workspace directory derivation into a run-store layer used by run
+      inventory, resume, retry, prune, cleanup, review, promotion, and
+      validation commands.
+- [x] Keep path traversal, protected-path, duplicate ownership, and out-of-scope
       write checks independent of the CLI command parser.
-- [ ] Preserve the current JSON output contracts or document any intentional
+- [x] Preserve the current JSON output contracts or document any intentional
       versioned changes.
-- [ ] Add tests around layer boundaries before changing runtime behavior.
+- [x] Add tests around layer boundaries before changing runtime behavior; first
+      slice covers topology, conflict detection, and ready-batch selection.
 
 **Validate:**
-- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/pojo_lens_agents/governance.py scripts/ai/pojo_lens_agents/path_safety.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/run_store.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/workspace_review.py scripts/tests/test_agent_governance.py scripts/tests/test_agent_path_safety.py scripts/tests/test_agent_provider.py scripts/tests/test_agent_run_store.py scripts/tests/test_agent_runtime.py scripts/tests/test_agent_workspace_review.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-review.json --json`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materialized-chain.json --json`
@@ -175,7 +179,7 @@ and graph-state visibility.
       scheduler, or defer LangGraph until the CLI/runtime split is complete.
 
 **Validate:**
-- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/pojo_lens_agents/governance.py scripts/ai/pojo_lens_agents/path_safety.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/run_store.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/workspace_review.py scripts/tests/test_agent_governance.py scripts/tests/test_agent_path_safety.py scripts/tests/test_agent_provider.py scripts/tests/test_agent_run_store.py scripts/tests/test_agent_runtime.py scripts/tests/test_agent_workspace_review.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
 - `scripts/docs/check-doc-consistency.ps1`
@@ -213,7 +217,7 @@ and promote from the CLI without opening manifest JSON by hand.
       review, validation, promotion, and cleanup.
 
 **Validate:**
-- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/cli.py scripts/ai/pojo_lens_agents/governance.py scripts/ai/pojo_lens_agents/path_safety.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/run_store.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/workspace_review.py scripts/tests/test_agent_governance.py scripts/tests/test_agent_path_safety.py scripts/tests/test_agent_provider.py scripts/tests/test_agent_run_store.py scripts/tests/test_agent_runtime.py scripts/tests/test_agent_workspace_review.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 inventory --json`
 - `scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json`

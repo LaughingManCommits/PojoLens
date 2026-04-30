@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T19:03:35.521490+02:00",
+  "generatedAt": "2026-04-30T19:55:31.575034+02:00",
   "build": {
     "path": "pom.xml",
     "groupId": "io.github.laughingmancommits",
@@ -169,7 +169,13 @@
   "orchestrationScripts": [
     "scripts/ai/claude-orchestrator.ps1",
     "scripts/ai/claude-orchestrator.py",
-    "scripts/ai/pojo_lens_agents/cli.py"
+    "scripts/ai/pojo_lens_agents/cli.py",
+    "scripts/ai/pojo_lens_agents/governance.py",
+    "scripts/ai/pojo_lens_agents/path_safety.py",
+    "scripts/ai/pojo_lens_agents/provider.py",
+    "scripts/ai/pojo_lens_agents/run_store.py",
+    "scripts/ai/pojo_lens_agents/runtime.py",
+    "scripts/ai/pojo_lens_agents/workspace_review.py"
   ],
   "releaseScripts": [
     "scripts/release/export-release-secrets.ps1"

@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import copy
 import difflib
-import hashlib
 import json
 import os
 import re
@@ -14,7 +13,6 @@ import subprocess
 import sys
 import textwrap
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -25,6 +23,17 @@ from uuid import uuid4
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from pojo_lens_agents import governance as governance_layer
+from pojo_lens_agents import path_safety as path_safety_layer
+from pojo_lens_agents import provider as provider_layer
+from pojo_lens_agents import runtime as runtime_layer
+from pojo_lens_agents import run_store as run_store_layer
+from pojo_lens_agents import workspace_review as workspace_review_layer
+
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
 DEFAULT_AGENTS_PATH = AI_ORCHESTRATOR_DIR / "agents.json"
 DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"
@@ -1033,29 +1042,15 @@ def read_bytes(path: Path) -> bytes:
 
 
 def file_sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return workspace_review_layer.file_sha256(path)
 
 
 def normalize_relative_path(path_value: str, *, location: str) -> str:
-    candidate = Path(path_value)
-    if candidate.is_absolute():
-        raise OrchestratorError(f"{location}: absolute paths are not allowed: {path_value}")
-    parts: list[str] = []
-    for part in candidate.parts:
-        if part in {"", "."}:
-            continue
-        if part == "..":
-            raise OrchestratorError(
-                f"{location}: parent-directory traversal is not allowed: {path_value}"
-            )
-        parts.append(part)
-    if not parts:
-        raise OrchestratorError(f"{location}: expected non-empty relative path")
-    return Path(*parts).as_posix()
+    return path_safety_layer.normalize_relative_path(
+        path_value,
+        location=location,
+        error_factory=OrchestratorError,
+    )
 
 
 def require_string(payload: dict[str, Any], key: str, *, location: str) -> str:
@@ -1424,48 +1419,15 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
 
 
 def topological_batches(tasks: list[TaskDefinition]) -> list[list[TaskDefinition]]:
-    by_id = {task.id: task for task in tasks}
-    pending = {task.id: set(task.depends_on) for task in tasks}
-    batches: list[list[TaskDefinition]] = []
-    while pending:
-        ready_ids = sorted(task_id for task_id, dependencies in pending.items() if not dependencies)
-        if not ready_ids:
-            raise OrchestratorError("Task plan contains a dependency cycle")
-        batches.append([by_id[task_id] for task_id in ready_ids])
-        for task_id in ready_ids:
-            pending.pop(task_id)
-        for dependencies in pending.values():
-            dependencies.difference_update(ready_ids)
-    return batches
+    return runtime_layer.topological_batches(tasks, error_factory=OrchestratorError)
 
 
 def task_dependency_hops(tasks: list[TaskDefinition]) -> dict[str, int]:
-    by_id = {task.id: task for task in tasks}
-    memo: dict[str, int] = {}
-
-    def hops(task_id: str) -> int:
-        cached = memo.get(task_id)
-        if cached is not None:
-            return cached
-        task = by_id[task_id]
-        value = 0 if not task.depends_on else 1 + max(hops(dependency_id) for dependency_id in task.depends_on)
-        memo[task_id] = value
-        return value
-
-    return {task.id: hops(task.id) for task in tasks}
+    return runtime_layer.task_dependency_hops(tasks)
 
 
 def upstream_task_ids(tasks: list[TaskDefinition], task_id: str) -> set[str]:
-    by_id = {task.id: task for task in tasks}
-    seen: set[str] = set()
-    stack = list(by_id[task_id].depends_on)
-    while stack:
-        dependency_id = stack.pop()
-        if dependency_id in seen:
-            continue
-        seen.add(dependency_id)
-        stack.extend(by_id[dependency_id].depends_on)
-    return seen
+    return runtime_layer.upstream_task_ids(tasks, task_id)
 
 
 def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> dict[str, Any]:
@@ -1601,19 +1563,15 @@ def effective_task_write_scope(task: TaskDefinition) -> list[str]:
 
 
 def path_within_scope(path: str, scope: str) -> bool:
-    return scope == "." or path == scope or path.startswith(f"{scope}/")
+    return path_safety_layer.path_within_scope(path, scope)
 
 
 def paths_outside_scope(paths: list[str], declared_scope: list[str]) -> list[str]:
-    if "." in declared_scope:
-        return []
-    outside = []
-    for path in dedupe_strings(paths):
-        normalized = normalize_relative_path(path, location=f"scope audit path '{path}'")
-        if any(path_within_scope(normalized, scope) for scope in declared_scope):
-            continue
-        outside.append(normalized)
-    return outside
+    return path_safety_layer.paths_outside_scope(
+        paths,
+        declared_scope,
+        error_factory=OrchestratorError,
+    )
 
 
 def analyze_copy_hydration_inputs(
@@ -1719,46 +1677,16 @@ def validate_scope_contract(plan: TaskPlan, agents: dict[str, AgentDefinition]) 
 
 
 def overlapping_scope_entries(left: list[str], right: list[str]) -> list[str]:
-    overlaps: list[str] = []
-    for left_item in left:
-        for right_item in right:
-            if (
-                left_item == "."
-                or right_item == "."
-                or left_item == right_item
-                or left_item.startswith(f"{right_item}/")
-                or right_item.startswith(f"{left_item}/")
-            ):
-                overlaps.extend([left_item, right_item])
-    return dedupe_strings(overlaps)
+    return runtime_layer.overlapping_scope_entries(left, right)
 
 
 def detect_parallel_scope_conflicts(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> list[dict[str, Any]]:
-    conflicts: list[dict[str, Any]] = []
-    for batch_index, batch in enumerate(topological_batches(plan.tasks), start=1):
-        for left_index, left_task in enumerate(batch):
-            left_agent = agents[left_task.agent]
-            if not task_may_write(plan, left_task, left_agent):
-                continue
-            left_scopes = effective_task_write_scope(left_task)
-            for right_task in batch[left_index + 1 :]:
-                right_agent = agents[right_task.agent]
-                if not task_may_write(plan, right_task, right_agent):
-                    continue
-                overlaps = overlapping_scope_entries(
-                    left_scopes,
-                    effective_task_write_scope(right_task),
-                )
-                if not overlaps:
-                    continue
-                conflicts.append(
-                    {
-                        "batch": batch_index,
-                        "taskIds": [left_task.id, right_task.id],
-                        "overlappingScopes": overlaps,
-                    }
-                )
-    return conflicts
+    return runtime_layer.detect_parallel_scope_conflicts(
+        plan.tasks,
+        task_may_write=lambda task: task_may_write(plan, task, agents[task.agent]),
+        task_write_scope=effective_task_write_scope,
+        error_factory=OrchestratorError,
+    )
 
 
 def select_parallel_ready_batch(
@@ -1768,29 +1696,12 @@ def select_parallel_ready_batch(
     *,
     max_parallel: int,
 ) -> list[TaskDefinition]:
-    ordered = sorted(ready, key=lambda task: task.id)
-    selected: list[TaskDefinition] = []
-    for candidate in ordered:
-        if len(selected) >= max_parallel:
-            break
-        candidate_agent = agents[candidate.agent]
-        if not task_may_write(plan, candidate, candidate_agent):
-            selected.append(candidate)
-            continue
-        candidate_scopes = effective_task_write_scope(candidate)
-        if any(
-            task_may_write(plan, chosen, agents[chosen.agent])
-            and overlapping_scope_entries(
-                candidate_scopes,
-                effective_task_write_scope(chosen),
-            )
-            for chosen in selected
-        ):
-            continue
-        selected.append(candidate)
-    if selected:
-        return selected
-    return ordered[:1]
+    return runtime_layer.select_parallel_ready_batch(
+        ready,
+        max_parallel=max_parallel,
+        task_may_write=lambda task: task_may_write(plan, task, agents[task.agent]),
+        task_write_scope=effective_task_write_scope,
+    )
 
 
 def agent_payload_for_claude(
@@ -1952,42 +1863,27 @@ def ensure_clean_for_worktrees() -> None:
 
 
 def path_is_relative_to(path: Path, parent: Path) -> bool:
-    try:
-        path.relative_to(parent)
-        return True
-    except ValueError:
-        return False
+    return path_safety_layer.path_is_relative_to(path, parent)
 
 
 def resolve_relative_path(root: Path, relative_path: str, *, location: str) -> tuple[str, Path]:
-    normalized = normalize_relative_path(relative_path, location=location)
-    root_resolved = root.resolve()
-    candidate = (root / normalized).resolve()
-    if not path_is_relative_to(candidate, root_resolved):
-        raise OrchestratorError(f"{location}: path escapes root '{root_resolved}'")
-    return normalized, candidate
+    return path_safety_layer.resolve_relative_path(
+        root,
+        relative_path,
+        location=location,
+        error_factory=OrchestratorError,
+    )
 
 
 def hydrate_copy_workspace(workspace_path: Path, file_paths: list[str]) -> None:
-    copied: set[Path] = set()
-    workspace_path.mkdir(parents=True, exist_ok=True)
-    for hint in dedupe_strings([*SPARSE_COPY_BASE_FILES, *file_paths]):
-        relative = Path(hint)
-        if relative.is_absolute():
-            continue
-        source = (ROOT / relative).resolve()
-        if not source.exists() or not path_is_relative_to(source, ROOT.resolve()):
-            continue
-        if source.is_dir():
-            continue
-        if source.stat().st_size > MAX_HYDRATED_FILE_BYTES:
-            continue
-        destination = workspace_path / relative
-        if destination.exists() or source in copied:
-            continue
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
-        copied.add(source)
+    workspace_review_layer.hydrate_copy_workspace(
+        source_root=ROOT,
+        workspace_path=workspace_path,
+        file_paths=file_paths,
+        base_files=SPARSE_COPY_BASE_FILES,
+        max_file_bytes=MAX_HYDRATED_FILE_BYTES,
+        path_is_relative_to=path_is_relative_to,
+    )
 
 
 def prepare_workspace(
@@ -2062,26 +1958,14 @@ def prepare_workspace(
 
 
 def snapshot_workspace_files(workspace_root: Path) -> dict[str, str]:
-    if not workspace_root.exists():
-        return {}
-    snapshots: dict[str, str] = {}
-    for current_root, dir_names, file_names in os.walk(workspace_root, topdown=True):
-        dir_names[:] = sorted(
-            name for name in dir_names if name not in WORKSPACE_AUDIT_IGNORE_DIR_NAMES
-        )
-        current_path = Path(current_root)
-        for file_name in sorted(file_names):
-            file_path = current_path / file_name
-            snapshots[file_path.relative_to(workspace_root).as_posix()] = file_sha256(file_path)
-    return snapshots
+    return workspace_review_layer.snapshot_workspace_files(
+        workspace_root,
+        ignore_dir_names=WORKSPACE_AUDIT_IGNORE_DIR_NAMES,
+    )
 
 
 def diff_workspace_snapshots(before: dict[str, str], after: dict[str, str]) -> list[str]:
-    changed = []
-    for relative_path in sorted(set(before) | set(after)):
-        if before.get(relative_path) != after.get(relative_path):
-            changed.append(relative_path)
-    return changed
+    return workspace_review_layer.diff_workspace_snapshots(before, after)
 
 
 def summarize_paths(paths: list[str], *, limit: int = 4) -> str:
@@ -2096,12 +1980,12 @@ def summarize_paths(paths: list[str], *, limit: int = 4) -> str:
 
 
 def protected_path_violations(paths: list[str]) -> list[str]:
-    violations = []
-    for path in paths:
-        normalized = normalize_relative_path(path, location=f"changed path '{path}'")
-        if normalized in PROTECTED_PATH_EXACT or normalized.startswith(PROTECTED_PATH_PREFIXES):
-            violations.append(normalized)
-    return dedupe_strings(violations)
+    return path_safety_layer.protected_path_violations(
+        paths,
+        exact_paths=PROTECTED_PATH_EXACT,
+        path_prefixes=PROTECTED_PATH_PREFIXES,
+        error_factory=OrchestratorError,
+    )
 
 
 def write_scope_violations(paths: list[str], declared_scope: list[str]) -> list[str]:
@@ -2184,47 +2068,41 @@ def apply_repository_isolation_audit(
 
 
 def resolve_manifest_path(run_ref: str) -> Path:
-    candidate = Path(run_ref).resolve()
-    if candidate.is_dir():
-        candidate = candidate / "manifest.json"
-    if not candidate.exists():
-        raise OrchestratorError(f"Run manifest '{candidate}' does not exist")
-    if candidate.name != "manifest.json":
-        raise OrchestratorError("Run commands expect a run directory or manifest.json path")
-    return candidate
+    return run_store_layer.resolve_manifest_path(
+        run_ref,
+        error_factory=OrchestratorError,
+    )
 
 
 def load_run_manifest(run_ref: str) -> tuple[Path, dict[str, Any]]:
     manifest_path = resolve_manifest_path(run_ref)
     payload = read_json(manifest_path)
-    if not isinstance(payload, dict):
-        raise OrchestratorError(f"{manifest_path}: expected JSON object")
-    tasks = payload.get("tasks")
-    if not isinstance(tasks, dict):
-        raise OrchestratorError(f"{manifest_path}: expected object 'tasks'")
-    return manifest_path, payload
+    return manifest_path, run_store_layer.validate_manifest_payload(
+        payload,
+        manifest_path=manifest_path,
+        error_factory=OrchestratorError,
+    )
 
 
 def manifest_required_path(manifest: dict[str, Any], key: str, *, location: str) -> Path:
-    value = str(manifest.get(key, "")).strip()
-    if not value:
-        raise OrchestratorError(f"{location}: run manifest is missing '{key}'")
-    return Path(value).resolve()
+    return run_store_layer.manifest_required_path(
+        manifest,
+        key,
+        location=location,
+        error_factory=OrchestratorError,
+    )
 
 
 def manifest_run_dir(manifest_path: Path, manifest: dict[str, Any]) -> Path:
-    value = str(manifest.get("runDir", "")).strip()
-    return Path(value).resolve() if value else manifest_path.parent.resolve()
+    return run_store_layer.manifest_run_dir(manifest_path, manifest)
 
 
 def manifest_workspaces_dir(manifest: dict[str, Any], *, run_dir: Path) -> Path:
-    value = str(manifest.get("workspacesDir", "")).strip()
-    if value:
-        return Path(value).resolve()
-    run_id = str(manifest.get("runId", "")).strip()
-    if not run_id:
-        raise OrchestratorError("Run manifest is missing 'workspacesDir' and 'runId'")
-    return (run_dir.parent.parent / "workspaces" / run_id).resolve()
+    return run_store_layer.manifest_workspaces_dir(
+        manifest,
+        run_dir=run_dir,
+        error_factory=OrchestratorError,
+    )
 
 
 def manifest_selected_plan_path(
@@ -2233,11 +2111,12 @@ def manifest_selected_plan_path(
     *,
     location: str,
 ) -> Path:
-    run_dir = manifest_run_dir(manifest_path, manifest)
-    selected_plan_path = (run_dir / "selected-plan.json").resolve()
-    if selected_plan_path.exists():
-        return selected_plan_path
-    return manifest_required_path(manifest, "planPath", location=location)
+    return run_store_layer.manifest_selected_plan_path(
+        manifest_path,
+        manifest,
+        location=location,
+        error_factory=OrchestratorError,
+    )
 
 
 def manifest_worker_validation_override(
@@ -2262,9 +2141,7 @@ def count_statuses(values: list[str]) -> dict[str, int]:
 
 
 def task_cost_usd(record: TaskRunRecord) -> float:
-    if not record.usage:
-        return 0.0
-    return float(record.usage.get("totalCostUsd", 0.0) or 0.0)
+    return governance_layer.task_cost_usd(record)
 
 
 def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
@@ -3847,18 +3724,10 @@ def claude_command(
 
 
 def extract_json_payload(text: str) -> Any:
-    stripped = text.strip()
-    if not stripped:
-        raise OrchestratorError("Claude returned empty output")
-    decoder = json.JSONDecoder()
-    for match in re.finditer(r"[{\[]", stripped):
-        try:
-            payload, end = decoder.raw_decode(stripped[match.start():])
-        except JSONDecodeError:
-            continue
-        if not stripped[match.start() + end:].strip():
-            return payload
-    raise OrchestratorError("Claude output did not contain a standalone JSON payload")
+    return provider_layer.extract_json_payload(
+        text,
+        error_factory=OrchestratorError,
+    )
 
 
 def coerce_worker_result(
@@ -3944,211 +3813,30 @@ def coerce_worker_result(
 
 
 def extract_usage(payload: Any) -> dict[str, Any] | None:
-    if not isinstance(payload, dict):
-        return None
-    usage = payload.get("usage")
-    model_usage = payload.get("modelUsage")
-    total_cost = payload.get("total_cost_usd")
-    if usage is None and model_usage is None and total_cost is None:
-        return None
-    summary: dict[str, Any] = {
-        "inputTokens": int(usage.get("input_tokens", 0)) if isinstance(usage, dict) else 0,
-        "outputTokens": int(usage.get("output_tokens", 0)) if isinstance(usage, dict) else 0,
-        "cacheReadInputTokens": int(usage.get("cache_read_input_tokens", 0)) if isinstance(usage, dict) else 0,
-        "cacheCreationInputTokens": int(usage.get("cache_creation_input_tokens", 0))
-        if isinstance(usage, dict)
-        else 0,
-        "serviceTier": usage.get("service_tier") if isinstance(usage, dict) else None,
-        "durationMs": payload.get("duration_ms"),
-        "durationApiMs": payload.get("duration_api_ms"),
-        "numTurns": payload.get("num_turns"),
-        "stopReason": payload.get("stop_reason"),
-        "isError": payload.get("is_error"),
-        "totalCostUsd": float(total_cost) if isinstance(total_cost, (int, float)) else None,
-        "modelUsage": model_usage if isinstance(model_usage, dict) else {},
-    }
-    return summary
+    return provider_layer.extract_usage(payload)
 
 
 def aggregate_usage(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
-    totals: dict[str, Any] = {
-        "tasksWithUsage": 0,
-        "promptEstimatedTokens": 0,
-        "inputTokens": 0,
-        "outputTokens": 0,
-        "cacheReadInputTokens": 0,
-        "cacheCreationInputTokens": 0,
-        "totalCostUsd": 0.0,
-        "perModel": {},
-    }
-    for record in records.values():
-        totals["promptEstimatedTokens"] += record.prompt_estimated_tokens
-        if not record.usage:
-            continue
-        totals["tasksWithUsage"] += 1
-        totals["inputTokens"] += int(record.usage.get("inputTokens", 0) or 0)
-        totals["outputTokens"] += int(record.usage.get("outputTokens", 0) or 0)
-        totals["cacheReadInputTokens"] += int(record.usage.get("cacheReadInputTokens", 0) or 0)
-        totals["cacheCreationInputTokens"] += int(record.usage.get("cacheCreationInputTokens", 0) or 0)
-        totals["totalCostUsd"] += float(record.usage.get("totalCostUsd", 0.0) or 0.0)
-        model_usage = record.usage.get("modelUsage", {})
-        if not isinstance(model_usage, dict):
-            continue
-        per_model = totals["perModel"]
-        for model_name, model_record in model_usage.items():
-            if not isinstance(model_record, dict):
-                continue
-            bucket = per_model.setdefault(
-                model_name,
-                {
-                    "inputTokens": 0,
-                    "outputTokens": 0,
-                    "cacheReadInputTokens": 0,
-                    "cacheCreationInputTokens": 0,
-                    "costUsd": 0.0,
-                },
-            )
-            bucket["inputTokens"] += int(model_record.get("inputTokens", 0) or 0)
-            bucket["outputTokens"] += int(model_record.get("outputTokens", 0) or 0)
-            bucket["cacheReadInputTokens"] += int(model_record.get("cacheReadInputTokens", 0) or 0)
-            bucket["cacheCreationInputTokens"] += int(model_record.get("cacheCreationInputTokens", 0) or 0)
-            bucket["costUsd"] += float(model_record.get("costUSD", 0.0) or 0.0)
-    totals["totalCostUsd"] = round(totals["totalCostUsd"], 6)
-    for model_name, model_totals in totals["perModel"].items():
-        model_totals["costUsd"] = round(float(model_totals["costUsd"]), 6)
-    return totals
+    return governance_layer.aggregate_usage(records)
 
 
 def aggregate_artifacts(records: dict[str, TaskRunRecord]) -> dict[str, Any]:
-    totals: dict[str, Any] = {
-        "tasksWithArtifacts": 0,
-        "stdoutBytes": 0,
-        "stderrBytes": 0,
-        "resultBytes": 0,
-        "totalBytes": 0,
-        "largestTasks": [],
-    }
-    task_summaries: list[dict[str, Any]] = []
-    for record in records.values():
-        task_total = record.stdout_bytes + record.stderr_bytes + record.result_bytes
-        totals["stdoutBytes"] += record.stdout_bytes
-        totals["stderrBytes"] += record.stderr_bytes
-        totals["resultBytes"] += record.result_bytes
-        totals["totalBytes"] += task_total
-        if task_total > 0:
-            totals["tasksWithArtifacts"] += 1
-        task_summaries.append(
-            {
-                "taskId": record.id,
-                "status": record.status,
-                "stdoutBytes": record.stdout_bytes,
-                "stderrBytes": record.stderr_bytes,
-                "resultBytes": record.result_bytes,
-                "totalBytes": task_total,
-            }
-        )
-    task_summaries.sort(
-        key=lambda item: (
-            int(item["totalBytes"]),
-            str(item["taskId"]),
-        ),
-        reverse=True,
+    return governance_layer.aggregate_artifacts(
+        records,
+        top_task_limit=MAX_RUN_SUMMARY_TOP_TASKS,
     )
-    totals["largestTasks"] = [
-        item for item in task_summaries[:MAX_RUN_SUMMARY_TOP_TASKS] if int(item["totalBytes"]) > 0
-    ]
-    return totals
 
 
 def evaluate_run_governance(
     records: dict[str, TaskRunRecord],
     run_policy: RunPolicy,
 ) -> dict[str, Any]:
-    usage_totals = aggregate_usage(records)
-    artifact_totals = aggregate_artifacts(records)
-    highest_cost_tasks = []
-    for record in sorted(
-        records.values(),
-        key=lambda item: (task_cost_usd(item), item.id),
-        reverse=True,
-    ):
-        cost_usd = task_cost_usd(record)
-        if cost_usd <= 0:
-            continue
-        highest_cost_tasks.append(
-            {
-                "taskId": record.id,
-                "status": record.status,
-                "model": record.model,
-                "costUsd": round(cost_usd, 6),
-                "inputTokens": int(record.usage.get("inputTokens", 0) or 0) if record.usage else 0,
-                "outputTokens": int(record.usage.get("outputTokens", 0) or 0) if record.usage else 0,
-            }
-        )
-        if len(highest_cost_tasks) >= MAX_RUN_SUMMARY_TOP_TASKS:
-            break
-    alerts: list[dict[str, Any]] = []
-    if run_policy.run_budget_usd is not None:
-        total_cost = float(usage_totals.get("totalCostUsd", 0.0) or 0.0)
-        if total_cost >= run_policy.run_budget_usd:
-            alerts.append(
-                {
-                    "kind": "budget",
-                    "severity": run_policy.budget_behavior,
-                    "message": (
-                        f"Run cost ${total_cost:.6f} reached configured budget "
-                        f"${run_policy.run_budget_usd:.6f}"
-                    ),
-                    "actualUsd": round(total_cost, 6),
-                    "limitUsd": run_policy.run_budget_usd,
-                }
-            )
-    artifact_limits = {
-        "stdout": run_policy.max_task_stdout_bytes,
-        "stderr": run_policy.max_task_stderr_bytes,
-        "result": run_policy.max_task_result_bytes,
-    }
-    for record in sorted(records.values(), key=lambda item: item.id):
-        artifact_values = {
-            "stdout": record.stdout_bytes,
-            "stderr": record.stderr_bytes,
-            "result": record.result_bytes,
-        }
-        for artifact_kind, limit in artifact_limits.items():
-            actual_bytes = artifact_values[artifact_kind]
-            if limit is None or actual_bytes <= limit:
-                continue
-            alerts.append(
-                {
-                    "kind": "artifact",
-                    "severity": run_policy.artifact_behavior,
-                    "message": (
-                        f"Task '{record.id}' {artifact_kind} artifact {actual_bytes} B "
-                        f"exceeds configured limit {limit} B"
-                    ),
-                    "taskId": record.id,
-                    "artifact": artifact_kind,
-                    "actualBytes": actual_bytes,
-                    "limitBytes": limit,
-                }
-            )
-    blocking_alerts = [alert for alert in alerts if alert.get("severity") == "stop"]
-    status = "ok"
-    if blocking_alerts:
-        status = "stop"
-    elif alerts:
-        status = "warn"
-    return {
-        "status": status,
-        "policy": serialize_run_policy(run_policy),
-        "alertCount": len(alerts),
-        "blockingAlertCount": len(blocking_alerts),
-        "alerts": alerts,
-        "blockingAlerts": blocking_alerts,
-        "highestCostTasks": highest_cost_tasks,
-        "artifactTotals": artifact_totals,
-        "shouldStopScheduling": bool(blocking_alerts),
-    }
+    return governance_layer.evaluate_run_governance(
+        records,
+        run_policy,
+        serialize_run_policy=serialize_run_policy,
+        top_task_limit=MAX_RUN_SUMMARY_TOP_TASKS,
+    )
 
 
 def slop_log_action(actor: str, phase: str, phrase: str, reason: str) -> SlopLogAction:
@@ -4226,42 +3914,20 @@ def run_process(
     progress_action: SlopLogAction | None = None,
     timeout_error: str,
 ) -> subprocess.CompletedProcess[str]:
-    process = subprocess.Popen(
+    return provider_layer.run_process(
         command,
         cwd=cwd,
+        timeout_sec=timeout_sec,
         shell=shell,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
+        timeout_error=timeout_error,
+        on_progress_frame=(
+            (lambda frame: emit_slop_log(progress_action, frame=frame))
+            if progress_action is not None
+            else None
+        ),
+        progress_interval_sec=SLOP_PROGRESS_INTERVAL_SEC,
+        error_factory=OrchestratorError,
     )
-    frame = 0
-    if progress_action is not None:
-        emit_slop_log(progress_action, frame=frame)
-    deadline = time.monotonic() + timeout_sec
-    stdout = ""
-    stderr = ""
-    try:
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise subprocess.TimeoutExpired(process.args, timeout_sec)
-            try:
-                stdout, stderr = process.communicate(
-                    timeout=min(SLOP_PROGRESS_INTERVAL_SEC, remaining)
-                )
-                break
-            except subprocess.TimeoutExpired:
-                if progress_action is None:
-                    continue
-                frame += 1
-                emit_slop_log(progress_action, frame=frame)
-        return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
-    except subprocess.TimeoutExpired as exc:
-        process.kill()
-        stdout, stderr = process.communicate()
-        raise OrchestratorError(timeout_error) from exc
 
 
 def run_subprocess(
@@ -4271,13 +3937,18 @@ def run_subprocess(
     timeout_sec: int,
     progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return run_process(
+    return provider_layer.run_subprocess(
         command,
         cwd=cwd,
         timeout_sec=timeout_sec,
-        shell=False,
-        progress_action=progress_action,
         timeout_error=f"Claude timed out after {timeout_sec} seconds",
+        on_progress_frame=(
+            (lambda frame: emit_slop_log(progress_action, frame=frame))
+            if progress_action is not None
+            else None
+        ),
+        progress_interval_sec=SLOP_PROGRESS_INTERVAL_SEC,
+        error_factory=OrchestratorError,
     )
 
 
@@ -4483,9 +4154,7 @@ def planned_record(
 
 
 def artifact_file_size(path: Path | None) -> int:
-    if path is None or not path.exists() or not path.is_file():
-        return 0
-    return int(path.stat().st_size)
+    return workspace_review_layer.artifact_file_size(path)
 
 
 def _make_execute_record(
