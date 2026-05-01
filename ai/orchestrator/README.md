@@ -2,6 +2,11 @@
 
 This directory is the tracked control plane for local multi-Claude runs.
 
+Scope:
+- `ai/orchestrator/*` is control-plane memory for the local multi-agent system
+- `ai/core/*`, `ai/state/*`, and `ai/log/*` remain project memory for repo facts, active state, validation history, and handoff
+- do not use this directory as a duplicate roadmap or session-state store; link back to project memory when the operator contract needs repo context
+
 Tracked files:
 - `README.md`: operating guide for local runs
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
@@ -45,6 +50,7 @@ scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
 scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
@@ -79,7 +85,8 @@ Lifecycle helpers:
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
-- `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, and cost fields
+- `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
+- `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
 Workspace modes:
@@ -170,3 +177,13 @@ Coordinator rules:
 - `ai/orchestrator/tasks/example-materialized-chain.json` is the tracked sample for a sequential implementer chain that opts into reviewed dependency materialization
 - `ai/orchestrator/tasks/wp13-live-materialized-prompt-proof.json` is the tracked live proof for a chained same-file regression slice that promotes only the downstream materialized workspace
 - review worker outputs before live promotion; use `promote --dry-run` when you want the adoption summary without mutating the repo
+
+Recommended operator flow:
+- `validate` the tracked plan before a live run
+- `run` or `resume` it, keeping `--json` for machine-readable stdout when scripting
+- use `status` for one retained run and `inventory` across the runtime root to find failed, blocked, resumable, costly, or promotion-ready runs quickly
+- use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
+- use `validate-run` to execute accepted validation intents
+- use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked
+- use `promote` only after review and validation are complete
+- use `cleanup` or `prune` to retire runtime artifacts you no longer need

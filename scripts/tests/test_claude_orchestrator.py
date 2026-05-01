@@ -436,6 +436,10 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["inventory"])
         self.assertFalse(args.verbose)
 
+    def test_json_accepted_by_status(self):
+        args = self._parse_argv(["status", "some/run/dir", "--json"])
+        self.assertTrue(args.json)
+
     def test_provider_bin_accepted_by_validate(self):
         args = self._parse_argv(["validate", "--provider-bin", "anthropic-cli"])
         self.assertEqual("anthropic-cli", args.claude_bin)
@@ -3440,6 +3444,105 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(1, payload["runGovernance"]["alertCount"])
         self.assertEqual(0, payload["runGovernance"]["blockingAlertCount"])
 
+    def test_run_loaded_plan_emits_event_trace_with_lineage(self):
+        orchestrator = self.orchestrator
+        old_ensure_claude_available = orchestrator.ensure_claude_available
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            agent = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task_a = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            task_b = orchestrator.TaskDefinition(
+                id="inspect-b",
+                title="Inspect B",
+                agent="analyst",
+                prompt="Inspect B.",
+                depends_on=["inspect-a"],
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="event-trace",
+                goal="Emit run events.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Event trace test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task_a, task_b],
+            )
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+            ):
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="completed",
+                    summary=f"Completed {task.id}.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.ensure_claude_available = lambda claude_bin: None
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": agent},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=2,
+                    continue_on_error=False,
+                    dry_run=False,
+                )
+            finally:
+                orchestrator.ensure_claude_available = old_ensure_claude_available
+                orchestrator.execute_task = old_execute_task
+
+        phases = [event["phase"] for event in payload["events"]]
+        self.assertEqual("run-start", phases[0])
+        self.assertIn("batch-ready", phases)
+        finished = [event for event in payload["events"] if event["phase"] == "task-finished"]
+        self.assertEqual([], finished[0]["parentTaskIds"])
+        self.assertEqual(["inspect-a"], finished[1]["parentTaskIds"])
+        self.assertEqual("run-finished", phases[-1])
+
     def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
         orchestrator = self.orchestrator
         old_ensure_claude_available = orchestrator.ensure_claude_available
@@ -4318,6 +4421,8 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(1, payload["taskCount"])
         self.assertEqual(1, payload["tasks"][0]["diffStats"]["filesChanged"])
         self.assertEqual("modified", payload["tasks"][0]["files"][0]["status"])
+        self.assertEqual(1, payload["summary"]["changedTaskCount"])
+        self.assertEqual(1, payload["summary"]["changedFileCount"])
 
     def test_export_patch_writes_patch_file(self):
         orchestrator = self.orchestrator
@@ -4477,7 +4582,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("added\n", add_text)
         self.assertFalse(deleted_exists)
 
-    def test_promote_run_rejects_duplicate_file_ownership(self):
+    def test_promote_run_dry_run_reports_duplicate_file_ownership(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
         with tempfile.TemporaryDirectory() as tempdir:
@@ -4574,19 +4679,18 @@ class ValidateCommandTest(unittest.TestCase):
                         },
                     },
                 )
-                with self.assertRaisesRegex(
-                    orchestrator.OrchestratorError,
-                    "also changed by task 'edit-foo-a'",
-                ):
-                    orchestrator.promote_run(
-                        SimpleNamespace(
-                            run_ref=str(run_dir),
-                            selected_tasks=[],
-                            dry_run=True,
-                        )
+                payload = orchestrator.promote_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        dry_run=True,
                     )
+                )
             finally:
                 orchestrator.ROOT = old_root
+
+        self.assertFalse(payload["promotionAllowed"])
+        self.assertIn("also changed by task 'edit-foo-a'", "\n".join(payload["blockedReasons"]))
 
     def test_retry_run_seeds_completed_dependency_and_replans_failed_task(self):
         orchestrator = self.orchestrator
@@ -5643,6 +5747,72 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["task-b"], payload["runs"][0]["resumeCandidateTaskIds"])
         self.assertEqual({"failed": 1}, payload["runs"][0]["statusCounts"])
         self.assertEqual([], payload["runs"][1]["resumeCandidateTaskIds"])
+        self.assertIn("failed", payload["runs"][0]["flags"])
+        self.assertIn("resumable", payload["runs"][0]["flags"])
+        self.assertFalse(payload["runs"][0]["promotionReady"])
+
+    def test_status_run_reports_compact_task_and_promotion_summary(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            run_dir = temp_path / "run"
+            workspaces_dir = temp_path / "workspaces"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            run_dir.mkdir()
+            workspaces_dir.mkdir()
+            (repo_root / "foo.txt").write_text("old\n", encoding="utf-8")
+            (workspace_root / "foo.txt").write_text("new\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "status-run",
+                        "generatedAt": "2026-04-07T10:00:00+00:00",
+                        "dryRun": False,
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "plan": {"name": "status-plan", "goal": "Status goal", "taskIds": ["task-a"]},
+                        "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
+                        "tasks": {
+                            "task-a": asdict(
+                                make_task_run_record(
+                                    orchestrator,
+                                    orchestrator.TaskDefinition(
+                                        id="task-a",
+                                        title="Task A",
+                                        agent="implementer",
+                                        prompt="A.",
+                                    ),
+                                    status="completed",
+                                    summary="Done.",
+                                    workspace_path=str(workspace_root),
+                                    files_touched=["foo.txt"],
+                                    actual_files_touched=["foo.txt"],
+                                )
+                            )
+                        },
+                    },
+                )
+                payload = orchestrator.status_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("status-run", payload["run"]["runId"])
+        self.assertTrue(payload["run"]["promotionReady"])
+        self.assertIn("promotion-ready", payload["run"]["flags"])
+        self.assertEqual(1, payload["taskCount"])
+        self.assertEqual(1, payload["tasks"][0]["filesChanged"])
 
     def test_prune_runs_removes_only_old_completed_runs_by_default(self):
         orchestrator = self.orchestrator

@@ -36,7 +36,8 @@ Execution order is dependency-first, not ticket-number order.
 | WP27| Orchestrator CLI Productization      | Complete    | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
 | WP28| Orchestrator Runtime Layering        | Complete | Internal package split for plan governance, workspace safety, provider calls, manifests, validation, and parallel scheduling |
 | WP29| LangGraph Execution Spike            | Complete | Decision record and prototype for checkpointed parallel graph execution; keep the custom scheduler and manifest model as the production path for now |
-| WP30| Run Visibility And Operator UX       | Pending  | Better status, inventory, review, and validation surfaces for retained multi-agent runs |
+| WP30| Run Visibility And Operator UX       | Complete | Added `status`, richer inventory/review/promotion summaries, and documented the retained-run operator flow |
+| WP31| Orchestrator Trace And Evaluation    | Active   | Add run-event lineage traces, then build evaluator and branch-context quality checks around orchestration behavior |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -218,18 +219,35 @@ and promote from the CLI without opening manifest JSON by hand.
 - This package should stay terminal-first. A web UI is not needed for the next
   slice.
 
+**Decision:** Complete. The retained-run CLI now has a dedicated `status`
+surface, richer inventory/review/promotion summaries, and documented operator
+flow while keeping `--json` machine-readable.
+
+**Work done:**
+- Added a `status` command for one retained run with compact task summaries,
+      review counts, resumability, governance, and promotion readiness.
+- Enriched `inventory` summaries with operator flags plus failed, blocked,
+      resumable, costly, and promotion-ready counts.
+- Added grouped review summaries for changed files, protected-path violations,
+      write-scope violations, dependency materialization modes, and validation
+      suggestions.
+- Changed dry-run promotion to return an explicit allowed/refused summary with
+      blocked reasons instead of only raising.
+- Documented the recommended retained-run operator flow in
+      `ai/orchestrator/README.md`.
+
 **Tasks:**
-- [ ] Add or refine a compact `status` view for a single retained run.
-- [ ] Improve `inventory` output so incomplete, blocked, resumable, costly, and
+- [x] Add or refine a compact `status` view for a single retained run.
+- [x] Improve `inventory` output so incomplete, blocked, resumable, costly, and
       promotion-ready runs are obvious in text and JSON modes.
-- [ ] Add a concise review summary that groups changed files, scope violations,
+- [x] Add a concise review summary that groups changed files, scope violations,
       protected-path violations, dependency materialization, and validation
       suggestions.
-- [ ] Add a dry-run promotion summary that clearly explains why promotion is
+- [x] Add a dry-run promotion summary that clearly explains why promotion is
       allowed or refused.
-- [ ] Keep stdout machine-readable in `--json` mode and send interactive
+- [x] Keep stdout machine-readable in `--json` mode and send interactive
       progress/status details to stderr only.
-- [ ] Document the recommended operator flow from plan validation through run,
+- [x] Document the recommended operator flow from plan validation through run,
       review, validation, promotion, and cleanup.
 
 **Validate:**
@@ -237,6 +255,46 @@ and promote from the CLI without opening manifest JSON by hand.
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 inventory --json`
 - `scripts/ai/claude-orchestrator.ps1 prune --older-than-days 14 --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP31: Orchestrator Trace And Evaluation
+
+**Priority:** Medium
+
+**Goal:** Make orchestration behavior easier to understand, evaluate, and
+improve by adding explicit run-event lineage plus bounded quality/eval surfaces
+ for decomposition, handoffs, retries, and approvals.
+
+**Context:**
+- The orchestrator already tracks manifests, task summaries, governance, review
+  output, and validation outcomes, but it does not yet expose a first-class
+  event trace of how a run progressed batch by batch and task by task.
+- External agent stacks increasingly expose traces, handoff lineage, and
+  workflow-state visibility because debugging multi-agent behavior without them
+  is slow and imprecise.
+- This package should improve observability and evaluation without replacing the
+  current scheduler or weakening manifest-first operator semantics.
+
+**Tasks:**
+- [x] Add a manifest-backed run-event trace that records run start, ready
+      batches, task completion/blocking, lineage via parent task ids, and run
+      finish.
+- [ ] Surface compact trace summaries in retained-run operator views where
+      useful without making `--json` noisy or unstable.
+- [ ] Add branch-local lineage/context identifiers so downstream tasks can tell
+      which upstream path produced a summary or reviewed layer.
+- [ ] Add an evaluator harness for orchestration quality: over-delegation,
+      unnecessary reviewer hops, invalid validation suggestions, retry/resume
+      correctness, and promotion false positives/negatives.
+- [ ] Add at least one tracked sample or regression fixture that proves the
+      event/lineage contract on a small multi-batch run.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---

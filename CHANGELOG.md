@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Run-event lineage trace** - added manifest-backed run events for orchestration
+  start, ready batches, task completion/blocking, parent-task lineage, and run
+  finish so retained runs can be debugged and evaluated without inferring
+  scheduler behavior from task records alone.
+
+- **Run visibility and operator UX** - added a `status` command for retained
+  runs, richer inventory flags and counts, grouped review summaries, dry-run
+  promotion allow/refuse summaries, and documented operator flow for validate,
+  run, review, validate-run, promote, cleanup, and prune.
+
 - **LangGraph execution spike** - added
   `pojo_lens_agents.langgraph_spike` and focused tests to map the current
   orchestrator lifecycle onto candidate graph nodes, compare manifest-backed

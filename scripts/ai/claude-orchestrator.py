@@ -896,6 +896,29 @@ def parse_args() -> argparse.Namespace:
     _add_verbose_arg(inventory_parser)
     _add_provider_bin_arg(inventory_parser)
 
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Show a compact operator summary for one retained run.",
+    )
+    status_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    status_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict status details to one or more task ids. Repeatable.",
+    )
+    status_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the run status summary as JSON.",
+    )
+    _add_verbose_arg(status_parser)
+    _add_provider_bin_arg(status_parser)
+
     prune_parser = subparsers.add_parser(
         "prune",
         help="Prune retained run directories and workspaces by age under the runtime root.",
@@ -2471,14 +2494,36 @@ def review_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     records = selected_run_records(manifest, args.selected_tasks)
     task_payloads = []
+    changed_task_count = 0
+    changed_files = 0
+    protected_violations = 0
+    write_scope_violations = 0
+    validation_suggestion_count = 0
+    dependency_materialization_modes: dict[str, int] = {}
     for record in records:
         review_payload, _ = task_review_summary(record, context_lines=args.context_lines)
         task_payloads.append(review_payload)
+        if int(review_payload["diffStats"]["filesChanged"]) > 0:
+            changed_task_count += 1
+        changed_files += int(review_payload["diffStats"]["filesChanged"])
+        protected_violations += len(review_payload["protectedPathViolations"])
+        write_scope_violations += len(review_payload["writeScopeViolations"])
+        validation_suggestion_count += len(record.validation_intents) + len(record.validation_commands)
+        mode = str(review_payload["dependencyMaterializationMode"] or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE)
+        dependency_materialization_modes[mode] = dependency_materialization_modes.get(mode, 0) + 1
     return {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
         "runDir": str(manifest_path.parent),
         "taskCount": len(task_payloads),
+        "summary": {
+            "changedTaskCount": changed_task_count,
+            "changedFileCount": changed_files,
+            "protectedPathViolationCount": protected_violations,
+            "writeScopeViolationCount": write_scope_violations,
+            "validationSuggestionCount": validation_suggestion_count,
+            "dependencyMaterializationModes": dependency_materialization_modes,
+        },
         "tasks": task_payloads,
     }
 
@@ -2784,6 +2829,28 @@ def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], 
     return task_payloads, all_operations, counts
 
 
+def summarize_promotion_readiness(records: list[TaskRunRecord]) -> dict[str, Any]:
+    try:
+        task_payloads, operations, counts = plan_promotion(records)
+        return {
+            "allowed": True,
+            "blockedReasons": [],
+            "promotableTaskIds": [payload["id"] for payload in task_payloads if payload["filesPromotable"]],
+            "filesPromotable": len(operations),
+            "operationCounts": counts,
+        }
+    except PromotionBlockedError as exc:
+        return {
+            "allowed": False,
+            "blockedReasons": dedupe_strings(
+                [line[2:] if line.startswith("- ") else line for line in str(exc).splitlines() if line.strip() and not line.endswith(":")]
+            ),
+            "promotableTaskIds": [],
+            "filesPromotable": 0,
+            "operationCounts": {"added": 0, "modified": 0, "deleted": 0},
+        }
+
+
 def apply_promotion_operation(record: TaskRunRecord, operation: dict[str, Any]) -> None:
     apply_workspace_operation(
         str(record.workspace_path),
@@ -2800,8 +2867,19 @@ def apply_promotion_operation(record: TaskRunRecord, operation: dict[str, Any]) 
 def promote_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     records = selected_run_records(manifest, args.selected_tasks)
-    task_payloads, operations, counts = plan_promotion(records)
-    promotable_task_ids = [payload["id"] for payload in task_payloads if payload["filesPromotable"]]
+    readiness = summarize_promotion_readiness(records)
+    if not readiness["allowed"] and not args.dry_run:
+        raise PromotionBlockedError(format_issue_block("Promotion blocked", list(readiness["blockedReasons"])))
+    task_payloads, operations, counts = (
+        plan_promotion(records)
+        if readiness["allowed"]
+        else ([task_promotion_operations(record)[0] for record in records], [], {"added": 0, "modified": 0, "deleted": 0})
+    )
+    promotable_task_ids = (
+        [payload["id"] for payload in task_payloads if payload["filesPromotable"]]
+        if readiness["allowed"]
+        else []
+    )
     if not args.dry_run:
         records_by_id = {record.id: record for record in records}
         for operation in operations:
@@ -2813,6 +2891,8 @@ def promote_run(args: argparse.Namespace) -> dict[str, Any]:
         "dryRun": args.dry_run,
         "taskCount": len(task_payloads),
         "taskIds": [record.id for record in records],
+        "promotionAllowed": bool(readiness["allowed"]),
+        "blockedReasons": list(readiness["blockedReasons"]),
         "promotableTaskIds": promotable_task_ids,
         "promotedTaskIds": [] if args.dry_run else promotable_task_ids,
         "filesPromotable": len(operations),
@@ -4521,6 +4601,7 @@ def manifest_payload(
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
+    run_events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     worker_validation_override = (
         normalize_worker_validation_mode(
@@ -4576,6 +4657,7 @@ def manifest_payload(
             "taskIds": [task.id for task in plan.tasks],
             "parallelConflicts": parallel_conflicts,
         },
+        "events": list(run_events or []),
         "usageTotals": usage_totals,
         "tasks": {task_id: asdict(record) for task_id, record in sorted(records.items())},
     }
@@ -4604,6 +4686,7 @@ def write_manifest(
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
+    run_events: list[dict[str, Any]] | None = None,
 ) -> None:
     write_json(
         run_dir / "manifest.json",
@@ -4623,6 +4706,7 @@ def write_manifest(
             requested_task_ids=requested_task_ids,
             retried_task_ids=retried_task_ids,
             seeded_task_ids=seeded_task_ids,
+            run_events=run_events,
         ),
     )
 
@@ -4739,6 +4823,19 @@ def run_loaded_plan(
         for name in agents
     }
     records: dict[str, TaskRunRecord] = dict(initial_records or {})
+    run_events: list[dict[str, Any]] = []
+    append_run_event(
+        run_events,
+        phase="run-start",
+        task_ids=[task.id for task in plan.tasks],
+        details={
+            "dryRun": dry_run,
+            "maxParallel": max(max_parallel, 1),
+            "resume": existing_run_id is not None,
+            "retryOfRunId": retry_of_run_id,
+            "seededTaskIds": seeded_task_ids,
+        },
+    )
     pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
     stop_scheduling_reason: str | None = None
@@ -4764,6 +4861,14 @@ def run_loaded_plan(
                     reason="Dependency failed or was blocked.",
                     worker_validation_mode=worker_validation_override,
                 )
+                append_run_event(
+                    run_events,
+                    phase="task-blocked",
+                    task_id=task.id,
+                    parent_task_ids=task.depends_on,
+                    status="blocked",
+                    message="Dependency failed or was blocked.",
+                )
                 pending.pop(task_id)
                 newly_blocked = True
         if newly_blocked:
@@ -4783,6 +4888,7 @@ def run_loaded_plan(
                 requested_task_ids=requested_task_ids,
                 retried_task_ids=retried_task_ids,
                 seeded_task_ids=seeded_task_ids,
+                run_events=run_events,
             )
             continue
 
@@ -4796,6 +4902,15 @@ def run_loaded_plan(
                     reason=stop_scheduling_reason
                     or "Coordinator stopped scheduling new tasks after a worker failure.",
                     worker_validation_mode=worker_validation_override,
+                )
+                append_run_event(
+                    run_events,
+                    phase="task-blocked",
+                    task_id=task.id,
+                    parent_task_ids=task.depends_on,
+                    status="blocked",
+                    message=stop_scheduling_reason
+                    or "Coordinator stopped scheduling new tasks after a worker failure.",
                 )
                 pending.pop(task_id)
             break
@@ -4814,6 +4929,12 @@ def run_loaded_plan(
             ready,
             agents,
             max_parallel=max(max_parallel, 1),
+        )
+        append_run_event(
+            run_events,
+            phase="batch-ready",
+            task_ids=[task.id for task in batch],
+            details={"pendingTaskIds": sorted(pending)},
         )
         with ThreadPoolExecutor(max_workers=max(1, min(max_parallel, len(batch)))) as executor:
             future_map = {
@@ -4836,6 +4957,14 @@ def run_loaded_plan(
             for future in as_completed(future_map):
                 task = future_map[future]
                 records[task.id] = future.result()
+                append_run_event(
+                    run_events,
+                    phase="task-finished",
+                    task_id=task.id,
+                    parent_task_ids=task.depends_on,
+                    status=records[task.id].status,
+                    message=records[task.id].summary,
+                )
                 pending.pop(task.id, None)
                 write_manifest(
                     run_id,
@@ -4853,11 +4982,17 @@ def run_loaded_plan(
                     requested_task_ids=requested_task_ids,
                     retried_task_ids=retried_task_ids,
                     seeded_task_ids=seeded_task_ids,
+                    run_events=run_events,
                 )
                 if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
                     fail_fast_triggered = True
                     stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
 
+    append_run_event(
+        run_events,
+        phase="run-finished",
+        details={"remainingTaskIds": sorted(pending)},
+    )
     write_manifest(
         run_id,
         plan_path,
@@ -4874,6 +5009,7 @@ def run_loaded_plan(
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
         seeded_task_ids=seeded_task_ids,
+        run_events=run_events,
     )
     status_counts: dict[str, int] = {}
     for record in records.values():
@@ -4907,6 +5043,7 @@ def run_loaded_plan(
         "runGovernance": run_governance,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
+        "events": list(run_events),
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
     }
     if retry_of_run_id:
@@ -5247,6 +5384,7 @@ def summarize_run_manifest(
         if isinstance(run_governance.get("artifactTotals"), dict)
         else {}
     )
+    promotion_readiness = summarize_promotion_readiness(records)
     candidate_times = [
         datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
     ]
@@ -5260,6 +5398,23 @@ def summarize_run_manifest(
                 candidate_times.append(parsed)
     last_updated_at = max(candidate_times)
     age_days = max((now - last_updated_at).total_seconds(), 0.0) / 86400.0
+    has_failures = status_counts.get("failed", 0) > 0
+    has_blocked = status_counts.get("blocked", 0) > 0
+    is_resumable = len(resume_candidate_task_ids) > 0
+    is_costly = float(usage_totals.get("totalCostUsd", 0.0) or 0.0) > 0.0
+    flags: list[str] = []
+    if has_failures:
+        flags.append("failed")
+    if has_blocked:
+        flags.append("blocked")
+    if is_resumable:
+        flags.append("resumable")
+    if promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0:
+        flags.append("promotion-ready")
+    if is_costly:
+        flags.append("costly")
+    if int(run_governance.get("blockingAlertCount", 0) or 0) > 0:
+        flags.append("governance-blocked")
     summary = {
         "runId": str(manifest.get("runId", "")),
         "manifestPath": str(manifest_path),
@@ -5275,6 +5430,9 @@ def summarize_run_manifest(
         "taskCount": len(records),
         "taskIds": plan_task_ids or [record.id for record in records],
         "statusCounts": status_counts,
+        "hasFailures": has_failures,
+        "hasBlocked": has_blocked,
+        "isResumable": is_resumable,
         "resumeCandidateTaskIds": resume_candidate_task_ids,
         "resumeCandidateTaskCount": len(resume_candidate_task_ids),
         "allTasksCompleted": bool(records) and not resume_candidate_task_ids,
@@ -5290,8 +5448,87 @@ def summarize_run_manifest(
         "topologyBatchCount": int(topology.get("batchCount", 0) or 0),
         "topologyMaxParallelWidth": int(topology.get("maxParallelWidth", 0) or 0),
         "topologyWarningCount": int(topology.get("warningCount", 0) or 0),
+        "isCostly": is_costly,
+        "promotionReady": bool(promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0),
+        "promotionSummary": promotion_readiness,
+        "flags": flags,
     }
     return summary, last_updated_at
+
+
+def append_run_event(
+    events: list[dict[str, Any]],
+    *,
+    phase: str,
+    task_id: str | None = None,
+    task_ids: list[str] | None = None,
+    parent_task_ids: list[str] | None = None,
+    status: str | None = None,
+    message: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "ts": iso_now(),
+        "phase": phase,
+    }
+    if task_id:
+        payload["taskId"] = task_id
+    if task_ids:
+        payload["taskIds"] = list(task_ids)
+    if parent_task_ids is not None:
+        payload["parentTaskIds"] = list(parent_task_ids)
+    if status:
+        payload["status"] = status
+    if message:
+        payload["message"] = message
+    if details:
+        payload["details"] = details
+    events.append(payload)
+
+
+def status_run(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    summary, _ = summarize_run_manifest(
+        manifest_path,
+        manifest,
+        now=datetime.now(timezone.utc).astimezone(),
+    )
+    records = selected_run_records(manifest, args.selected_tasks)
+    task_payloads: list[dict[str, Any]] = []
+    review_summary = {
+        "changedTaskCount": 0,
+        "changedFileCount": 0,
+        "protectedPathViolationCount": 0,
+        "writeScopeViolationCount": 0,
+        "validationSuggestionCount": 0,
+    }
+    for record in records:
+        review_payload, _ = task_review_summary(record, context_lines=0)
+        review_summary["changedTaskCount"] += 1 if int(review_payload["diffStats"]["filesChanged"]) > 0 else 0
+        review_summary["changedFileCount"] += int(review_payload["diffStats"]["filesChanged"])
+        review_summary["protectedPathViolationCount"] += len(record.protected_path_violations)
+        review_summary["writeScopeViolationCount"] += len(record.write_scope_violations)
+        review_summary["validationSuggestionCount"] += len(record.validation_intents) + len(record.validation_commands)
+        task_payloads.append(
+            {
+                "id": record.id,
+                "title": record.title,
+                "agent": record.agent,
+                "status": record.status,
+                "summary": record.summary,
+                "filesChanged": int(review_payload["diffStats"]["filesChanged"]),
+                "protectedPathViolationCount": len(record.protected_path_violations),
+                "writeScopeViolationCount": len(record.write_scope_violations),
+                "validationSuggestionCount": len(record.validation_intents) + len(record.validation_commands),
+                "filesPromotable": int(task_promotion_operations(record)[0]["filesPromotable"]),
+            }
+        )
+    return {
+        "run": summary,
+        "reviewSummary": review_summary,
+        "taskCount": len(task_payloads),
+        "tasks": task_payloads,
+    }
 
 
 def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
@@ -5313,6 +5550,10 @@ def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
         "resumableRunCount": sum(
             1 for summary, _, _, _ in entries if summary["resumeCandidateTaskCount"] > 0
         ),
+        "failedRunCount": sum(1 for summary, _, _, _ in entries if summary["hasFailures"]),
+        "blockedRunCount": sum(1 for summary, _, _, _ in entries if summary["hasBlocked"]),
+        "promotionReadyRunCount": sum(1 for summary, _, _, _ in entries if summary["promotionReady"]),
+        "costlyRunCount": sum(1 for summary, _, _, _ in entries if summary["isCostly"]),
         "runs": run_summaries,
     }
 
@@ -5920,6 +6161,9 @@ def main() -> int:
             return EXIT_SUCCESS
         if args.command == "inventory":
             print_payload(inventory_runs(args), as_json=args.json)
+            return EXIT_SUCCESS
+        if args.command == "status":
+            print_payload(status_run(args), as_json=args.json)
             return EXIT_SUCCESS
         if args.command == "prune":
             print_payload(prune_runs(args), as_json=args.json)

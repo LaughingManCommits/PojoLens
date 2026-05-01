@@ -21,6 +21,14 @@ log/events.jsonl -> recent discovery history
 log/archive/*-summary.md -> derived monthly archive summaries
 log/archive/*.jsonl -> archived discovery history
 
+Scope split:
+
+- `core/`, `state/`, and `log/` are **project memory**
+- `orchestrator/` is **orchestrator control-plane memory**
+- project memory owns repo facts, active roadmap state, validation history, and session handoff
+- orchestrator memory owns the local multi-agent contract, operator flow, task-plan format, worker roles, and control-plane rules
+- neither side should duplicate the other's volatile state
+
 Conceptually:
 
 log -> state -> core -> regenerated indexes
@@ -83,6 +91,10 @@ Conditional cold-load triggers (additive hints, not hard gates):
 | local AI orchestration work or touching `ai/orchestrator/**`, `scripts/ai/**` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*` | `ai/core/discovery-notes.md`, `ai/state/recent-validations.md` |
 
+For broad orchestration work, also load:
+- `ai/orchestrator/README.md`
+- `ai/orchestrator/SYSTEM-SPEC.md`
+
 Routing fallback:
 - if task intent is broad or ambiguous after applying the trigger table, run:
   `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
@@ -128,6 +140,7 @@ Use `scripts/ai/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is re
 
 - `ai/orchestrator/` is tracked control plane, not transient worker output
 - the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
+- `ai/orchestrator/` is not a second copy of `ai/state/*`; keep active repo state in project memory and keep operator-contract behavior in orchestrator memory
 - keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
 - workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs

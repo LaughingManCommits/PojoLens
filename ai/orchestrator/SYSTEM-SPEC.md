@@ -36,6 +36,12 @@ This file defines the portable contract for recreating the repository's AI memor
 ## Memory Model
 
 - Source-of-truth order is code, then tests, then build configuration, then `/ai`.
+- The memory model is intentionally split:
+  - `ai/core/*`, `ai/state/*`, and `ai/log/*` are project memory
+  - `ai/orchestrator/*` is orchestrator control-plane memory
+- Project memory owns repo facts, active state, validation history, and handoff.
+- Orchestrator memory owns the local multi-agent contract, operator flow, task-plan format, and worker rules.
+- These layers may reference each other, but they should not become duplicate stores for the same volatile state.
 - Hot context is exactly:
   - `ai/core/agent-invariants.md`
   - `ai/core/repo-purpose.md`

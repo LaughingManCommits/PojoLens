@@ -34,6 +34,13 @@ Conditional cold-load matrix (additive hints, not hard gates):
 | local AI orchestration work or touching `ai/orchestrator/**`, `scripts/ai/**`                                                        | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 | AI memory maintenance or touching `ai/**`, `scripts/ai/refresh-ai-memory*`, `scripts/ai/query-ai-memory*`                            | `ai/AGENTS.md`, `ai/core/discovery-notes.md`, `ai/state/recent-validations.md`           |
 
+Split-memory rule:
+- treat `ai/core/*`, `ai/state/*`, and `ai/log/*` as **project memory** for repo facts, active state, validation history, and session handoff
+- treat `ai/orchestrator/*` as **orchestrator control-plane memory** for the local multi-agent contract, operator flow, task-plan format, and worker rules
+- do not use `ai/orchestrator/*` as a second project-state snapshot
+- do not copy roadmap or handoff state into `ai/orchestrator/*`
+- do not move operator-contract rules into `ai/state/*` unless they are startup-critical for the next session
+
 Routing fallback:
 - if task intent is broad or ambiguous after applying the matrix, run:
   `scripts/ai/query-ai-memory.ps1 -Query "<task keywords>" -Limit 5`
@@ -60,6 +67,8 @@ Memory rules:
 Claude orchestration:
 - tracked orchestration specs live in `ai/orchestrator/`; AI tooling implementations live under `scripts/ai/`; the primary operator command is `pojolens-agents`
 - the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
+- when working on orchestration behavior, load the project-memory rules from `AGENTS.md` + `ai/AGENTS.md`, then load the control-plane contract from `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` as needed
+- keep project memory and orchestrator control-plane memory separate; cross-reference them, but do not let either become a duplicate state store for the other
 - keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
 - only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
 - default workers to isolated `copy` workspaces; use `worktree` only when a clean repo and git metadata are required; use `repo` only as an explicit high-risk exception
