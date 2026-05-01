@@ -5,10 +5,12 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import subprocess
 import sys
+import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
@@ -21,6 +23,7 @@ INDEX_DIR = AI_DIR / "indexes"
 MEMORY_STATE_PATH = AI_DIR / "memory-state.json"
 SQLITE_DB_PATH = INDEX_DIR / "cold-memory.db"
 REFRESH_CACHE_PATH = INDEX_DIR / "refresh-state.json"
+PUBLISH_STATE_PATH = INDEX_DIR / "publish-state.json"
 ACTIVE_LOG_PATH = AI_DIR / "log" / "events.jsonl"
 LOG_ARCHIVE_DIR = AI_DIR / "log" / "archive"
 RECENT_VALIDATIONS_PATH = AI_DIR / "state" / "recent-validations.md"
@@ -40,6 +43,9 @@ HOT_CONTEXT_MAX_BYTES = 24 * 1024
 ACTIVE_EVENT_RETENTION = 12
 SCHEMA_VERSION = 5
 REFRESH_CACHE_SCHEMA_VERSION = 1
+PUBLISH_STATE_SCHEMA_VERSION = 1
+CHECK_WAIT_TIMEOUT_SEC = 10.0
+CHECK_WAIT_POLL_SEC = 0.1
 
 HOT_CONTEXT_FILE_SPECS = {
     "ai/state/current-state.md": {
@@ -211,9 +217,27 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def write_json(path: Path, data: object) -> None:
+def write_text_atomic(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    temp_path = path.with_name(f"{path.name}.tmp-{os.getpid()}-{time.time_ns()}")
+    try:
+        temp_path.write_text(text, encoding="utf-8")
+        os.replace(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def write_json(path: Path, data: object) -> None:
+    write_text_atomic(path, json.dumps(data, indent=2) + "\n")
+
+
+def replace_file_atomic(source_path: Path, destination_path: Path) -> None:
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source_path, destination_path)
+
+
+def snapshot_generation_id() -> str:
+    return f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{time.time_ns()}"
 
 
 def file_sha256(path: Path) -> str:
@@ -259,15 +283,73 @@ def load_refresh_cache() -> dict[str, object]:
     }
 
 
-def write_refresh_cache(generated_at: str, cache_payload: dict[str, object]) -> None:
+def write_refresh_cache(path: Path, generated_at: str, cache_payload: dict[str, object]) -> None:
     write_json(
-        REFRESH_CACHE_PATH,
+        path,
         {
             "schemaVersion": REFRESH_CACHE_SCHEMA_VERSION,
             "generatedAt": generated_at,
             "indexes": cache_payload,
         },
     )
+
+
+def load_publish_state() -> dict[str, object]:
+    if not PUBLISH_STATE_PATH.exists():
+        return {
+            "schemaVersion": PUBLISH_STATE_SCHEMA_VERSION,
+            "status": "ready",
+            "generation": None,
+        }
+    try:
+        payload = json.loads(read_text(PUBLISH_STATE_PATH))
+    except json.JSONDecodeError:
+        return {
+            "schemaVersion": PUBLISH_STATE_SCHEMA_VERSION,
+            "status": "refreshing",
+            "generation": None,
+        }
+    if payload.get("schemaVersion") != PUBLISH_STATE_SCHEMA_VERSION:
+        return {
+            "schemaVersion": PUBLISH_STATE_SCHEMA_VERSION,
+            "status": "refreshing",
+            "generation": None,
+        }
+    return payload
+
+
+def write_publish_state(
+    *,
+    status: str,
+    generation: str | None,
+    started_at: str | None = None,
+    published_at: str | None = None,
+) -> None:
+    payload: dict[str, object] = {
+        "schemaVersion": PUBLISH_STATE_SCHEMA_VERSION,
+        "status": status,
+        "generation": generation,
+    }
+    if started_at is not None:
+        payload["startedAt"] = started_at
+    if published_at is not None:
+        payload["publishedAt"] = published_at
+    write_json(PUBLISH_STATE_PATH, payload)
+
+
+def wait_for_publish_ready(
+    *,
+    timeout_sec: float = CHECK_WAIT_TIMEOUT_SEC,
+    poll_sec: float = CHECK_WAIT_POLL_SEC,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    state = load_publish_state()
+    while str(state.get("status", "ready")) == "refreshing":
+        if time.monotonic() >= deadline:
+            raise RuntimeError("timed out waiting for ai memory publish to finish")
+        time.sleep(poll_sec)
+        state = load_publish_state()
+    return state
 
 
 def markdown_heading_titles(text: str, level: int = 2) -> list[str]:
@@ -1553,7 +1635,6 @@ def build_or_reuse_json_index(
             pass
 
     payload = builder(generated_at)
-    write_json(output_path, payload)
     return (
         payload,
         {
@@ -1863,6 +1944,8 @@ def build_memory_state(
     json_index_states: list[dict[str, object]],
     sqlite_state: dict[str, object],
     path_check_errors: list[str],
+    *,
+    generation: str | None = None,
 ) -> dict[str, object]:
     branch = git_output("branch", "--show-current")
     head_commit = git_output("rev-parse", "HEAD")
@@ -1880,6 +1963,7 @@ def build_memory_state(
     return {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": generated_at,
+        "generation": generation,
         "git": {
             "headCommit": head_commit,
             "branch": branch,
@@ -1914,87 +1998,185 @@ def validate_generated_paths(index_payloads: list[dict[str, object]]) -> list[st
     return sorted(missing)
 
 
+def staging_root_for_generation(generation: str) -> Path:
+    return INDEX_DIR / ".staging" / generation
+
+
+def reset_staging_root(staging_root: Path) -> None:
+    if staging_root.exists():
+        for path in sorted(staging_root.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                path.rmdir()
+        staging_root.rmdir()
+    staging_root.mkdir(parents=True, exist_ok=True)
+
+
+def stage_snapshot_artifacts(
+    staging_root: Path,
+    *,
+    docs_index: dict[str, object],
+    files_index: dict[str, object],
+    symbols_index: dict[str, object],
+    test_index: dict[str, object],
+    config_index: dict[str, object],
+    sqlite_enabled: bool,
+    sqlite_generated: bool,
+    generated_at: str,
+    refresh_cache_payload: dict[str, object],
+    memory_state: dict[str, object],
+) -> dict[str, Path]:
+    index_stage_dir = staging_root / "indexes"
+    index_stage_dir.mkdir(parents=True, exist_ok=True)
+    stage_paths = {
+        "memoryState": staging_root / "memory-state.json",
+        "refreshCache": index_stage_dir / "refresh-state.json",
+        "docs": index_stage_dir / "docs-index.json",
+        "files": index_stage_dir / "files-index.json",
+        "symbols": index_stage_dir / "symbols-index.json",
+        "test": index_stage_dir / "test-index.json",
+        "config": index_stage_dir / "config-index.json",
+    }
+    write_json(stage_paths["docs"], docs_index)
+    write_json(stage_paths["files"], files_index)
+    write_json(stage_paths["symbols"], symbols_index)
+    write_json(stage_paths["test"], test_index)
+    write_json(stage_paths["config"], config_index)
+    write_refresh_cache(stage_paths["refreshCache"], generated_at, refresh_cache_payload)
+    write_json(stage_paths["memoryState"], memory_state)
+    if sqlite_enabled and sqlite_generated:
+        stage_paths["sqlite"] = index_stage_dir / "cold-memory.db"
+    return stage_paths
+
+
+def publish_staged_snapshot(stage_paths: dict[str, Path]) -> None:
+    replace_file_atomic(stage_paths["docs"], INDEX_OUTPUTS["docs"])
+    replace_file_atomic(stage_paths["files"], INDEX_OUTPUTS["files"])
+    replace_file_atomic(stage_paths["symbols"], INDEX_OUTPUTS["symbols"])
+    replace_file_atomic(stage_paths["test"], INDEX_OUTPUTS["test"])
+    replace_file_atomic(stage_paths["config"], INDEX_OUTPUTS["config"])
+    replace_file_atomic(stage_paths["refreshCache"], REFRESH_CACHE_PATH)
+    if "sqlite" in stage_paths:
+        replace_file_atomic(stage_paths["sqlite"], SQLITE_DB_PATH)
+    replace_file_atomic(stage_paths["memoryState"], MEMORY_STATE_PATH)
+
+
+def cleanup_staging_root(staging_root: Path) -> None:
+    if not staging_root.exists():
+        return
+    for path in sorted(staging_root.rglob("*"), reverse=True):
+        if path.is_file():
+            path.unlink(missing_ok=True)
+        elif path.is_dir():
+            path.rmdir()
+    staging_root.rmdir()
+
+
 def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool, force_full: bool) -> int:
     compaction_state = compact_event_logs() if compact_log else None
     if compaction_state is None:
         sync_archive_summaries_from_disk()
     generated_at = now_iso()
+    generation = snapshot_generation_id()
+    staging_root = staging_root_for_generation(generation)
+    reset_staging_root(staging_root)
+    write_publish_state(status="refreshing", generation=generation, started_at=generated_at)
     cold_search_paths = {rel_path(path) for path in collect_cold_search_files()}
     inputs_hash = sha256_for_files(collect_hash_inputs())
     refresh_cache = {} if force_full else load_refresh_cache().get("indexes", {})
+    try:
+        docs_index, docs_state, docs_cache = build_or_reuse_json_index(
+            "docs",
+            generated_at,
+            refresh_cache,
+            lambda ts: build_docs_index(cold_search_paths, ts),
+        )
+        files_index, files_state, files_cache = build_or_reuse_json_index(
+            "files",
+            generated_at,
+            refresh_cache,
+            build_files_index,
+        )
+        symbols_index, symbols_state, symbols_cache = build_or_reuse_json_index(
+            "symbols",
+            generated_at,
+            refresh_cache,
+            build_symbols_index,
+        )
+        test_index, test_state, test_cache = build_or_reuse_json_index(
+            "test",
+            generated_at,
+            refresh_cache,
+            build_test_index,
+        )
+        config_index, config_state, config_cache = build_or_reuse_json_index(
+            "config",
+            generated_at,
+            refresh_cache,
+            build_config_index,
+        )
+        json_index_states = [docs_state, files_state, symbols_state, test_state, config_state]
 
-    docs_index, docs_state, docs_cache = build_or_reuse_json_index(
-        "docs",
-        generated_at,
-        refresh_cache,
-        lambda ts: build_docs_index(cold_search_paths, ts),
-    )
-    files_index, files_state, files_cache = build_or_reuse_json_index(
-        "files",
-        generated_at,
-        refresh_cache,
-        build_files_index,
-    )
-    symbols_index, symbols_state, symbols_cache = build_or_reuse_json_index(
-        "symbols",
-        generated_at,
-        refresh_cache,
-        build_symbols_index,
-    )
-    test_index, test_state, test_cache = build_or_reuse_json_index(
-        "test",
-        generated_at,
-        refresh_cache,
-        build_test_index,
-    )
-    config_index, config_state, config_cache = build_or_reuse_json_index(
-        "config",
-        generated_at,
-        refresh_cache,
-        build_config_index,
-    )
-    json_index_states = [docs_state, files_state, symbols_state, test_state, config_state]
+        missing_paths = validate_generated_paths(
+            [docs_index, files_index, symbols_index, test_index, config_index]
+        )
+        hot_stats = hot_context_stats()
+        sqlite_state = {
+            "status": "skipped",
+            "path": rel_path(SQLITE_DB_PATH),
+            "ftsEnabled": False,
+            "documents": 0,
+            "sections": 0,
+        }
+        sqlite_stage_path = staging_root / "indexes" / "cold-memory.db"
+        if not no_sqlite:
+            sqlite_state = create_sqlite_db(
+                sqlite_stage_path,
+                generated_at,
+                inputs_hash,
+                require_sqlite,
+                force_full=force_full,
+            )
+            if sqlite_state.get("status") == "built":
+                sqlite_state["path"] = rel_path(SQLITE_DB_PATH)
 
-    missing_paths = validate_generated_paths(
-        [docs_index, files_index, symbols_index, test_index, config_index]
-    )
-    hot_stats = hot_context_stats()
-    sqlite_state = {
-        "status": "skipped",
-        "path": rel_path(SQLITE_DB_PATH),
-        "ftsEnabled": False,
-        "documents": 0,
-        "sections": 0,
-    }
-    if not no_sqlite:
-        sqlite_state = create_sqlite_db(
-            SQLITE_DB_PATH,
+        memory_state = build_memory_state(
             generated_at,
             inputs_hash,
-            require_sqlite,
-            force_full=force_full,
+            hot_stats,
+            json_index_states,
+            sqlite_state,
+            missing_paths,
+            generation=generation,
         )
 
-    memory_state = build_memory_state(
-        generated_at,
-        inputs_hash,
-        hot_stats,
-        json_index_states,
-        sqlite_state,
-        missing_paths,
-    )
-
-    write_refresh_cache(
-        generated_at,
-        {
-            "docs": docs_cache,
-            "files": files_cache,
-            "symbols": symbols_cache,
-            "test": test_cache,
-            "config": config_cache,
-        },
-    )
-    write_json(MEMORY_STATE_PATH, memory_state)
+        stage_paths = stage_snapshot_artifacts(
+            staging_root,
+            docs_index=docs_index,
+            files_index=files_index,
+            symbols_index=symbols_index,
+            test_index=test_index,
+            config_index=config_index,
+            sqlite_enabled=not no_sqlite,
+            sqlite_generated=sqlite_state.get("status") == "built",
+            generated_at=generated_at,
+            refresh_cache_payload={
+                "docs": docs_cache,
+                "files": files_cache,
+                "symbols": symbols_cache,
+                "test": test_cache,
+                "config": config_cache,
+            },
+            memory_state=memory_state,
+        )
+        publish_staged_snapshot(stage_paths)
+        write_publish_state(status="ready", generation=generation, published_at=now_iso())
+    except Exception:
+        write_publish_state(status="ready", generation=None, published_at=now_iso())
+        cleanup_staging_root(staging_root)
+        raise
+    cleanup_staging_root(staging_root)
 
     print("[ai-memory] refreshed markdown truth indexes")
     if compaction_state is not None:
@@ -2032,15 +2214,13 @@ def run_refresh(no_sqlite: bool, require_sqlite: bool, compact_log: bool, force_
     return 0
 
 
-def run_check() -> int:
+def check_memory_state() -> tuple[list[str], list[str], str | None, dict[str, object], dict[str, object]]:
     if not MEMORY_STATE_PATH.exists():
-        print("[ai-memory] missing ai/memory-state.json")
-        return 1
+        return ["missing-memory-state"], [], None, hot_context_stats(), {}
     try:
         memory_state = json.loads(read_text(MEMORY_STATE_PATH))
     except json.JSONDecodeError as exc:
-        print(f"[ai-memory] invalid ai/memory-state.json: {exc}")
-        return 1
+        return [f"invalid-memory-state:{exc}"], [], None, hot_context_stats(), {}
 
     reasons = []
     expected_hash = sha256_for_files(collect_hash_inputs())
@@ -2092,19 +2272,58 @@ def run_check() -> int:
         reasons.append("missing-sqlite-db")
 
     if reasons:
-        print("[ai-memory] STALE")
-        for reason in reasons:
-            print(f"- {reason}")
-        for path in missing_paths:
-            print(f"- missing path: {path}")
-        print(f"- hot context: {hot_stats['totalLines']} lines / {hot_stats['totalBytes']} bytes")
-        return 1
+        return reasons, missing_paths, stored_hash, hot_stats, sqlite_state
 
-    print("[ai-memory] OK")
-    print(f"- inputs hash: {stored_hash}")
-    print(f"- hot context: {hot_stats['totalLines']} lines / {hot_stats['totalBytes']} bytes")
-    print(f"- sqlite: {sqlite_state.get('status', 'unknown')}")
-    return 0
+    return [], [], stored_hash, hot_stats, sqlite_state
+
+
+def run_check() -> int:
+    publish_state_before = load_publish_state()
+    if str(publish_state_before.get("status", "ready")) == "refreshing":
+        try:
+            publish_state_before = wait_for_publish_ready()
+        except RuntimeError as exc:
+            print("[ai-memory] STALE")
+            print(f"- publish-timeout: {exc}")
+            return 1
+
+    for attempt in range(2):
+        reasons, missing_paths, stored_hash, hot_stats, sqlite_state = check_memory_state()
+        publish_state_after = load_publish_state()
+        generation_changed = publish_state_after.get("generation") != publish_state_before.get("generation")
+        if (
+            reasons
+            and attempt == 0
+            and (
+                str(publish_state_after.get("status", "ready")) == "refreshing"
+                or generation_changed
+            )
+        ):
+            try:
+                publish_state_before = wait_for_publish_ready()
+            except RuntimeError as exc:
+                print("[ai-memory] STALE")
+                print(f"- publish-timeout: {exc}")
+                return 1
+            continue
+        if reasons:
+            print("[ai-memory] STALE")
+            for reason in reasons:
+                print(f"- {reason}")
+            for path in missing_paths:
+                print(f"- missing path: {path}")
+            print(f"- hot context: {hot_stats['totalLines']} lines / {hot_stats['totalBytes']} bytes")
+            return 1
+
+        print("[ai-memory] OK")
+        print(f"- inputs hash: {stored_hash}")
+        print(f"- hot context: {hot_stats['totalLines']} lines / {hot_stats['totalBytes']} bytes")
+        print(f"- sqlite: {sqlite_state.get('status', 'unknown')}")
+        return 0
+
+    print("[ai-memory] STALE")
+    print("- check-retry-exhausted")
+    return 1
 
 
 def parse_args() -> argparse.Namespace:

@@ -621,6 +621,7 @@ class PromptBudgetTest(unittest.TestCase):
                 planner_agent="planner",
                 dry_run=True,
                 claude_bin="claude",
+                effort="medium",
                 goal="Inspect the orchestrator prompt contract.",
                 name="prompt-budget-check",
                 files=["scripts/ai/claude-orchestrator.py"],
@@ -639,6 +640,9 @@ class PromptBudgetTest(unittest.TestCase):
         planner_agents_index = payload["command"].index("--agents")
         planner_agents_payload = json.loads(payload["command"][planner_agents_index + 1])
         self.assertEqual(["planner"], sorted(planner_agents_payload))
+        self.assertEqual("medium", payload["effort"])
+        self.assertIn("--effort", payload["command"])
+        self.assertEqual("medium", payload["command"][payload["command"].index("--effort") + 1])
 
 
 class ValidateCommandTest(unittest.TestCase):
@@ -882,6 +886,8 @@ class ValidateCommandTest(unittest.TestCase):
                     "agent": "analyst",
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
+                    "effort": "high",
+                    "effortSource": "agent",
                     "readPaths": [],
                     "writePaths": [],
                     "dependencyMaterialization": "summary-only",
@@ -893,6 +899,8 @@ class ValidateCommandTest(unittest.TestCase):
                     "agent": "implementer",
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
+                    "effort": "high",
+                    "effortSource": "agent",
                     "readPaths": [],
                     "writePaths": [],
                     "dependencyMaterialization": "summary-only",
@@ -3204,6 +3212,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -3309,6 +3318,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -3413,6 +3423,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -3519,6 +3530,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 return make_task_run_record(
                     orchestrator,
@@ -3646,6 +3658,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 executed_task_ids.append(task.id)
                 return make_task_run_record(
@@ -3754,6 +3767,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 executed_task_ids.append(task.id)
                 status = "failed" if task.id == "a-fail" else "completed"
@@ -3869,6 +3883,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 seen_modes[task.id] = str(worker_validation_mode)
                 record = make_task_run_record(
@@ -3981,6 +3996,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 seen_modes.append(str(worker_validation_mode))
                 record = make_task_run_record(
@@ -4090,6 +4106,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 record = make_task_run_record(
                     orchestrator,
@@ -4193,6 +4210,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 return make_task_run_record(
                     orchestrator,
@@ -4294,6 +4312,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 return make_task_run_record(
                     orchestrator,
@@ -5005,6 +5024,7 @@ class ValidateCommandTest(unittest.TestCase):
                 continue_on_error,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
@@ -5015,12 +5035,14 @@ class ValidateCommandTest(unittest.TestCase):
                 write_plan_snapshot=True,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
+                captured["effort_override"] = effort_override
                 return {
                     "runId": "retry-run",
                     "plan": plan.name,
                     "goal": plan.goal,
                     "dryRun": dry_run,
                     "workerValidationMode": worker_validation_mode,
+                    "effortOverride": effort_override,
                     "runtimeRoot": str(runtime_root),
                     "runDir": str(runtime_root / "runs" / "retry-run"),
                     "workspacesDir": str(runtime_root / "workspaces" / "retry-run"),
@@ -5103,6 +5125,7 @@ class ValidateCommandTest(unittest.TestCase):
                         selected_tasks=[],
                         continue_on_error=False,
                         worker_validation_mode="",
+                        effort="low",
                         dry_run=True,
                     )
                 )
@@ -5112,6 +5135,8 @@ class ValidateCommandTest(unittest.TestCase):
 
         self.assertEqual("intents-only", captured["worker_validation_mode"])
         self.assertEqual("intents-only", payload["workerValidationMode"])
+        self.assertEqual("low", captured["effort_override"])
+        self.assertEqual("low", payload["effortOverride"])
 
     def test_retry_run_drops_legacy_compat_manifest_mode(self):
         orchestrator = self.orchestrator
@@ -5196,6 +5221,7 @@ class ValidateCommandTest(unittest.TestCase):
                 continue_on_error,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
@@ -5582,6 +5608,7 @@ class ValidateCommandTest(unittest.TestCase):
                 continue_on_error,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
                 initial_records=None,
                 retry_of_run_id=None,
                 requested_task_ids=None,
@@ -5592,6 +5619,7 @@ class ValidateCommandTest(unittest.TestCase):
                 write_plan_snapshot=True,
             ):
                 captured["plan_path"] = pathlib.Path(plan_path_arg)
+                captured["effort_override"] = effort_override
                 captured["plan_task_ids"] = [task.id for task in plan.tasks]
                 captured["requested_task_ids"] = list(requested_task_ids or [])
                 captured["initial_record_statuses"] = {
@@ -5610,6 +5638,7 @@ class ValidateCommandTest(unittest.TestCase):
                     "goal": plan.goal,
                     "dryRun": dry_run,
                     "workerValidationMode": worker_validation_mode or "intents-only",
+                    "effortOverride": effort_override,
                     "runtimeRoot": str(runtime_root),
                     "runDir": str(existing_run_dir),
                     "workspacesDir": str(existing_workspaces_dir),
@@ -5682,6 +5711,7 @@ class ValidateCommandTest(unittest.TestCase):
                         selected_tasks=["retry-b"],
                         continue_on_error=False,
                         worker_validation_mode="",
+                        effort="medium",
                         dry_run=True,
                     )
                 )
@@ -5701,7 +5731,9 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(str(run_dir), captured["existing_run_dir"])
         self.assertEqual(str(workspaces_dir), captured["existing_workspaces_dir"])
         self.assertFalse(captured["write_plan_snapshot"])
+        self.assertEqual("medium", captured["effort_override"])
         self.assertEqual("same-run", payload["runId"])
+        self.assertEqual("medium", payload["effortOverride"])
         self.assertEqual(["retry-b"], payload["requestedTaskIds"])
         self.assertEqual(["retry-b"], payload["resumedTaskIds"])
         self.assertEqual(["inspect-a", "later-c"], payload["preservedTaskIds"])
@@ -5729,6 +5761,8 @@ class ValidateCommandTest(unittest.TestCase):
                     "runDir": str(old_run_dir),
                     "workspacesDir": str(old_workspaces_dir),
                     "plan": {"name": "old-plan", "goal": "Old goal", "taskIds": ["task-a"]},
+                    "taskEfforts": {"task-a": "medium"},
+                    "taskEffortSources": {"task-a": "task"},
                     "usageTotals": {"promptEstimatedTokens": 123, "totalCostUsd": 0.12},
                     "events": [
                         {"ts": "2026-04-01T10:00:00+00:00", "phase": "run-start"},
@@ -5761,6 +5795,8 @@ class ValidateCommandTest(unittest.TestCase):
                     "runDir": str(new_run_dir),
                     "workspacesDir": str(new_workspaces_dir),
                     "plan": {"name": "new-plan", "goal": "New goal", "taskIds": ["task-b"]},
+                    "taskEfforts": {"task-b": "high"},
+                    "taskEffortSources": {"task-b": "agent"},
                     "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
                     "events": [
                         {"ts": "2026-04-07T10:00:00+00:00", "phase": "run-start"},
@@ -5812,6 +5848,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(3, payload["runs"][0]["traceSummary"]["eventCount"])
         self.assertEqual("task-failed", payload["runs"][0]["traceSummary"]["latestPhase"])
         self.assertEqual({"run-start": 1, "batch-ready": 1, "task-failed": 1}, payload["runs"][0]["traceSummary"]["phaseCounts"])
+        self.assertEqual({"high": 1}, payload["runs"][0]["effortCounts"])
         self.assertIn("failed", payload["runs"][0]["flags"])
         self.assertIn("resumable", payload["runs"][0]["flags"])
         self.assertFalse(payload["runs"][0]["promotionReady"])
@@ -5843,6 +5880,8 @@ class ValidateCommandTest(unittest.TestCase):
                         "runDir": str(run_dir),
                         "workspacesDir": str(workspaces_dir),
                         "plan": {"name": "status-plan", "goal": "Status goal", "taskIds": ["task-a"]},
+                        "taskEfforts": {"task-a": "medium"},
+                        "taskEffortSources": {"task-a": "override"},
                         "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
                         "events": [
                             {"ts": "2026-04-07T10:00:00+00:00", "phase": "run-start"},
@@ -5888,6 +5927,9 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["task-a"], payload["traceSummary"]["taskIdsReferenced"])
         self.assertEqual(1, payload["branchSummary"]["contextCount"])
         self.assertEqual("task-a", payload["tasks"][0]["branchContextId"])
+        self.assertEqual("medium", payload["tasks"][0]["effort"])
+        self.assertEqual("override", payload["tasks"][0]["effortSource"])
+        self.assertEqual({"medium": 1}, payload["run"]["effortCounts"])
         self.assertTrue(payload["run"]["promotionReady"])
         self.assertIn("promotion-ready", payload["run"]["flags"])
         self.assertEqual(1, payload["taskCount"])
@@ -5932,9 +5974,13 @@ class ValidateCommandTest(unittest.TestCase):
                         "runDir": str(run_dir),
                         "workspacesDir": str(workspaces_dir),
                         "plan": {"name": "eval-plan", "goal": "Eval goal", "taskIds": ["task-a", "task-b"]},
+                        "taskEfforts": {"task-a": "high", "task-b": "high"},
+                        "taskEffortSources": {"task-a": "agent", "task-b": "agent"},
+                        "taskModelProfiles": {"task-a": "simple", "task-b": "simple"},
                         "topology": {
                             "reviewerTaskCount": 1,
                             "writeTaskCount": 0,
+                            "readOnlyTaskIds": ["task-a", "task-b"],
                             "warnings": [
                                 {
                                     "kind": "read-only-review-optional",
@@ -6012,6 +6058,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("warn", by_name["over-delegation"]["status"])
         self.assertEqual("warn", by_name["reviewer-hops"]["status"])
         self.assertEqual("warn", by_name["validation-suggestions"]["status"])
+        self.assertEqual("warn", by_name["effort-fit"]["status"])
         self.assertEqual("pass", by_name["retry-resume-contract"]["status"])
 
     def test_prune_runs_removes_only_old_completed_runs_by_default(self):
@@ -7349,6 +7396,7 @@ class ValidateCommandTest(unittest.TestCase):
                 agents_json,
                 dry_run,
                 worker_validation_mode=None,
+                effort_override=None,
             ):
                 return make_task_run_record(
                     orchestrator,

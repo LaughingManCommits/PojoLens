@@ -48,6 +48,7 @@ scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materi
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
 scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
@@ -81,12 +82,14 @@ Dry runs:
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
+- `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution
 - `validate --json` also reports `topology` so you can inspect agent mix, read-only vs write-capable task count, batch shape, and conservative lean-plan warnings before a run
 
 Lifecycle helpers:
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
+- `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
@@ -129,6 +132,7 @@ Token and cost visibility:
 - `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
+- `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively

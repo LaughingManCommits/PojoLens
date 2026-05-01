@@ -11,6 +11,18 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Atomic AI memory publish handshake** - `refresh-ai-memory` now stages
+  derived artifacts before publishing them, updates a derived
+  `ai/indexes/publish-state.json` marker, and lets `refresh-ai-memory -Check`
+  wait/retry across an in-flight publish instead of reporting a false stale
+  state during concurrent refresh/check runs.
+
+- **Effort override and visibility for orchestration** - added `--effort` to
+  `plan`, `run`, `resume`, and `retry`; retained manifests and retained-run
+  views now surface resolved per-task effort/source plus `effortCounts`; and
+  `evaluate-run` now warns when read-only tasks use high effort on non-complex
+  model profiles.
+
 - **Run-event lineage trace** - added manifest-backed run events for orchestration
   start, ready batches, task completion/blocking, parent-task lineage, and run
   finish so retained runs can be debugged and evaluated without inferring

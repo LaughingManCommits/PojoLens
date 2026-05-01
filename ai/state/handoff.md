@@ -7,6 +7,8 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-01`: AI memory refresh now stages derived files and uses `ai/indexes/publish-state.json` so `refresh-ai-memory -Check` can wait/retry across an active publish.
+- `2026-05-01`: Orchestrator hardening now supports `--effort` overrides on `plan`, `run`, `resume`, and `retry`; retained manifests plus `inventory`/`status` expose resolved effort/source and `effortCounts`; and `evaluate-run` warns when read-only tasks keep high effort on non-complex model profiles.
 - `2026-05-01`: WP31 is complete. Manifests now emit run-event lineage, retained-run `inventory`/`status` output includes compact `traceSummary` and `branchSummary` rollups, `evaluate-run` scores retained orchestration quality, and `example-trace-multibatch` is the tracked multi-batch lineage fixture.
 - `2026-05-01`: WP30 is complete. Retained-run UX now includes `status`, richer inventory flags/counts, grouped review summaries, dry-run promotion allow/refuse summaries, and documented operator flow.
 - `2026-05-01`: WP29 is complete. `pojo_lens_agents.langgraph_spike` covers lifecycle mapping, checkpointed ready-batch simulation, manifest-first `resume`/`retry` comparison, interrupt evaluation, and the decision to keep the custom scheduler in production for now.
@@ -17,7 +19,7 @@
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-05-01`: `TODO.md` order is deferred WP18, then Release Gate.
-- `2026-05-01`: `scripts/ai/refresh-ai-memory.ps1 -Check` is green again after fixing cache reuse in `refresh-ai-memory.py` so stale derived indexes rebuild when they reference missing paths.
+- `2026-05-01`: `scripts/ai/refresh-ai-memory.ps1 -Check` is green again after the cache-reuse fix in `refresh-ai-memory.py`.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 - `2026-05-01`: There was no prior LangGraph implementation footprint in the repo; the current spike stays dependency-free and treats LangGraph as an optional wrapper around checkpointing, replay, and interrupts rather than a replacement for repo-owned safety logic.
 

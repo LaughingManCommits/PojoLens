@@ -478,6 +478,8 @@ class TaskRunRecord:
     write_scope_violations: list[str] = field(default_factory=list)
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE
     worker_validation_mode_source: str | None = None
+    effort: str | None = None
+    effort_source: str | None = None
 
 
 def _add_provider_bin_arg(parser: argparse.ArgumentParser) -> None:
@@ -518,6 +520,14 @@ def _add_continue_on_error_arg(parser: argparse.ArgumentParser) -> None:
         "--continue-on-error",
         action="store_true",
         help="Continue running independent tasks after a worker fails or reports blocked.",
+    )
+
+
+def _add_effort_arg(parser: argparse.ArgumentParser, *, help_text: str) -> None:
+    parser.add_argument(
+        "--effort",
+        default="",
+        help=help_text,
     )
 
 
@@ -606,6 +616,10 @@ def parse_args() -> argparse.Namespace:
         help="Validation command hint. Repeatable.",
     )
     _add_provider_bin_arg(plan_parser)
+    _add_effort_arg(
+        plan_parser,
+        help_text="Override planner reasoning effort for this request. Defaults to the planner agent definition.",
+    )
     plan_parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -635,6 +649,10 @@ def parse_args() -> argparse.Namespace:
         help="Runtime root for generated manifests, logs, and isolated workspaces.",
     )
     _add_max_parallel_arg(run_parser)
+    _add_effort_arg(
+        run_parser,
+        help_text="Override worker reasoning effort for this run. Defaults to task definitions, then agent definitions.",
+    )
     run_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -676,6 +694,10 @@ def parse_args() -> argparse.Namespace:
     )
     _add_provider_bin_arg(resume_parser)
     _add_max_parallel_arg(resume_parser)
+    _add_effort_arg(
+        resume_parser,
+        help_text="Override worker reasoning effort for the resumed run. Defaults to task definitions, then agent definitions.",
+    )
     resume_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -722,6 +744,10 @@ def parse_args() -> argparse.Namespace:
         help="Override runtime root for the retry run. Defaults to the original run manifest runtimeRoot.",
     )
     _add_max_parallel_arg(retry_parser)
+    _add_effort_arg(
+        retry_parser,
+        help_text="Override worker reasoning effort for the retry run. Defaults to task definitions, then agent definitions.",
+    )
     retry_parser.add_argument(
         "--task",
         dest="selected_tasks",
@@ -2339,6 +2365,11 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
             payload.get("worker_validation_mode_source"),
             location=f"{location}:worker_validation_mode_source",
         ),
+        effort=normalize_effort_override(
+            payload.get("effort"),
+            location=f"{location}:effort",
+        ),
+        effort_source=require_optional_string(payload, "effort_source", location=location),
     )
 
 
@@ -3241,6 +3272,32 @@ def resolved_model(task: TaskDefinition, agent: AgentDefinition) -> str | None:
     return None
 
 
+def normalize_effort_override(value: str | None, *, location: str) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if any(char.isspace() for char in normalized):
+        raise OrchestratorError(f"{location}: effort override must not contain whitespace")
+    return normalized
+
+
+def resolve_effort(
+    task: TaskDefinition | None,
+    agent: AgentDefinition,
+    *,
+    run_override: str | None = None,
+) -> tuple[str | None, str]:
+    if run_override:
+        return run_override, "override"
+    if task is not None and task.effort:
+        return task.effort, "task"
+    if agent.effort:
+        return agent.effort, "agent"
+    return None, "default"
+
+
 def effective_plan_model_profiles(
     plan: TaskPlan,
     agents: dict[str, AgentDefinition],
@@ -3257,6 +3314,30 @@ def effective_plan_models(
 ) -> dict[str, str | None]:
     return {
         task.id: resolved_model(task, agents[task.agent])
+        for task in plan.tasks
+    }
+
+
+def effective_plan_efforts(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+    *,
+    run_override: str | None = None,
+) -> dict[str, str | None]:
+    return {
+        task.id: resolve_effort(task, agents[task.agent], run_override=run_override)[0]
+        for task in plan.tasks
+    }
+
+
+def effective_plan_effort_sources(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+    *,
+    run_override: str | None = None,
+) -> dict[str, str]:
+    return {
+        task.id: resolve_effort(task, agents[task.agent], run_override=run_override)[1]
         for task in plan.tasks
     }
 
@@ -4128,6 +4209,10 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         agents,
     )
     agent = agents[args.planner_agent]
+    planner_effort = normalize_effort_override(
+        getattr(args, "effort", None),
+        location="planner effort override",
+    ) or agent.effort
     prompt_budget = evaluate_prompt_budget(
         prompt_chars=prompt_render.chars,
         prompt_estimated_tokens=prompt_render.estimated_tokens,
@@ -4144,7 +4229,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         prompt_render.text,
         plan_output_schema_json(),
         model=planner_model,
-        effort=agent.effort,
+        effort=planner_effort,
         permission_mode=agent.permission_mode,
         allowed_tools=agent.allowed_tools,
         disallowed_tools=agent.disallowed_tools,
@@ -4158,6 +4243,7 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
         "prompt": prompt_render.text,
         "model": planner_model,
         "modelProfile": agent.model_profile,
+        "effort": planner_effort,
         "promptChars": prompt_render.chars,
         "promptEstimatedTokens": prompt_render.estimated_tokens,
         "promptSections": [asdict(section) for section in prompt_render.sections],
@@ -4206,6 +4292,7 @@ def blocked_record(
     reason: str,
     dependency_records: dict[str, TaskRunRecord] | None = None,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
 ) -> TaskRunRecord:
     now = iso_now()
     validation_resolution = resolve_worker_validation_mode(
@@ -4213,6 +4300,7 @@ def blocked_record(
         agent,
         run_override=worker_validation_mode,
     )
+    resolved_effort, effort_source = resolve_effort(task, agent, run_override=effort_override)
     dependency_materialization_mode = effective_dependency_materialization_mode(task)
     return TaskRunRecord(
         id=task.id,
@@ -4254,6 +4342,8 @@ def blocked_record(
         dependency_materialization_mode=dependency_materialization_mode,
         worker_validation_mode=validation_resolution.mode,
         worker_validation_mode_source=validation_resolution.source,
+        effort=resolved_effort,
+        effort_source=effort_source,
     )
 
 
@@ -4267,6 +4357,7 @@ def planned_record(
     summary: str,
     dependency_records: dict[str, TaskRunRecord] | None = None,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
 ) -> TaskRunRecord:
     now = iso_now()
     validation_resolution = resolve_worker_validation_mode(
@@ -4274,6 +4365,7 @@ def planned_record(
         agent,
         run_override=worker_validation_mode,
     )
+    resolved_effort, effort_source = resolve_effort(task, agent, run_override=effort_override)
     dependency_materialization_mode = effective_dependency_materialization_mode(task)
     return TaskRunRecord(
         id=task.id,
@@ -4316,6 +4408,8 @@ def planned_record(
         dependency_layers_applied=[],
         worker_validation_mode=validation_resolution.mode,
         worker_validation_mode_source=validation_resolution.source,
+        effort=resolved_effort,
+        effort_source=effort_source,
     )
 
 
@@ -4339,6 +4433,8 @@ def _make_execute_record(
     dependency_materialization_mode: str,
     prepared_dependency_layers: list[DependencyLayerRecord],
     dependency_records: dict[str, TaskRunRecord],
+    effort: str | None,
+    effort_source: str,
     effective_validation_mode: str,
     validation_resolution: WorkerValidationModeResolution,
     *,
@@ -4400,6 +4496,8 @@ def _make_execute_record(
         dependency_layers_applied=prepared_dependency_layers,
         worker_validation_mode=effective_validation_mode,
         worker_validation_mode_source=validation_resolution.source,
+        effort=effort,
+        effort_source=effort_source,
     )
 
 
@@ -4416,6 +4514,7 @@ def execute_task(
     agents_json: str,
     dry_run: bool,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
 ) -> TaskRunRecord:
     agent = agents[task.agent]
     validation_resolution = resolve_worker_validation_mode(
@@ -4424,6 +4523,11 @@ def execute_task(
         run_override=worker_validation_mode,
     )
     effective_validation_mode = validation_resolution.mode
+    resolved_effort, effort_source = resolve_effort(
+        task,
+        agent,
+        run_override=effort_override,
+    )
     dependency_materialization_mode = effective_dependency_materialization_mode(task)
     model_name = resolved_model(task, agent)
     model_profile = resolved_model_profile(task, agent)
@@ -4474,7 +4578,7 @@ def execute_task(
         prompt,
         task_output_schema_json(effective_validation_mode),
         model=model_name,
-        effort=task.effort or agent.effort,
+        effort=resolved_effort,
         permission_mode=task.permission_mode or agent.permission_mode,
         allowed_tools=_task_allowed,
         disallowed_tools=_task_disallowed,
@@ -4493,6 +4597,7 @@ def execute_task(
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
             dependency_materialization_mode, prepared_dependency_layers, dependency_records,
+            resolved_effort, effort_source,
             effective_validation_mode, validation_resolution,
             status="failed",
             summary=prompt_budget_failure_summary(prompt_budget),
@@ -4506,6 +4611,7 @@ def execute_task(
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
             dependency_materialization_mode, prepared_dependency_layers, dependency_records,
+            resolved_effort, effort_source,
             effective_validation_mode, validation_resolution,
             status="planned",
             summary="Dry run only; Claude was not invoked.",
@@ -4557,6 +4663,7 @@ def execute_task(
                 model_name, model_profile, prompt_chars, prompt_estimated_tokens,
                 prompt_render, prompt_budget, prompt_path, command_path,
                 dependency_materialization_mode, prepared_dependency_layers, dependency_records,
+                resolved_effort, effort_source,
                 effective_validation_mode, validation_resolution,
                 status="failed",
                 summary=completed.stderr.strip() or completed.stdout.strip() or "Claude failed",
@@ -4594,6 +4701,7 @@ def execute_task(
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
             dependency_materialization_mode, prepared_dependency_layers, dependency_records,
+            resolved_effort, effort_source,
             effective_validation_mode, validation_resolution,
             status=str(payload["status"]),
             summary=str(payload["summary"]),
@@ -4647,6 +4755,7 @@ def execute_task(
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
             dependency_materialization_mode, prepared_dependency_layers, dependency_records,
+            resolved_effort, effort_source,
             effective_validation_mode, validation_resolution,
             status="failed",
             summary=str(exc),
@@ -4686,6 +4795,7 @@ def manifest_payload(
     *,
     dry_run: bool,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
@@ -4700,6 +4810,10 @@ def manifest_payload(
         if worker_validation_mode
         else None
     )
+    normalized_effort_override = normalize_effort_override(
+        effort_override,
+        location="manifest effort override",
+    )
     task_worker_validation_modes = effective_plan_worker_validation_modes(
         plan,
         agents,
@@ -4709,6 +4823,16 @@ def manifest_payload(
         plan,
         agents,
         run_override=worker_validation_override,
+    )
+    task_efforts = effective_plan_efforts(
+        plan,
+        agents,
+        run_override=normalized_effort_override,
+    )
+    task_effort_sources = effective_plan_effort_sources(
+        plan,
+        agents,
+        run_override=normalized_effort_override,
     )
     task_model_profiles = effective_plan_model_profiles(plan, agents)
     task_models = effective_plan_models(plan, agents)
@@ -4725,8 +4849,11 @@ def manifest_payload(
             list(task_worker_validation_modes.values())
         ),
         "workerValidationModeOverride": worker_validation_override,
+        "effortOverride": normalized_effort_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskEfforts": task_efforts,
+        "taskEffortSources": task_effort_sources,
         "taskModels": task_models,
         "taskModelProfiles": task_model_profiles,
         "complexModelTaskIds": complex_model_tasks,
@@ -4771,6 +4898,7 @@ def write_manifest(
     *,
     dry_run: bool,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
@@ -4791,6 +4919,7 @@ def write_manifest(
             records,
             dry_run=dry_run,
             worker_validation_mode=worker_validation_mode,
+            effort_override=effort_override,
             retry_of_run_id=retry_of_run_id,
             requested_task_ids=requested_task_ids,
             retried_task_ids=retried_task_ids,
@@ -4858,6 +4987,7 @@ def run_loaded_plan(
     continue_on_error: bool,
     dry_run: bool,
     worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
     initial_records: dict[str, TaskRunRecord] | None = None,
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
@@ -4875,6 +5005,10 @@ def run_loaded_plan(
         if worker_validation_mode
         else None
     )
+    normalized_effort_override = normalize_effort_override(
+        effort_override,
+        location="run effort override",
+    )
     task_worker_validation_modes = effective_plan_worker_validation_modes(
         plan,
         agents,
@@ -4884,6 +5018,16 @@ def run_loaded_plan(
         plan,
         agents,
         run_override=worker_validation_override,
+    )
+    task_efforts = effective_plan_efforts(
+        plan,
+        agents,
+        run_override=normalized_effort_override,
+    )
+    task_effort_sources = effective_plan_effort_sources(
+        plan,
+        agents,
+        run_override=normalized_effort_override,
     )
     topological_batches(plan.tasks)
     validate_scope_contract(plan, agents)
@@ -4951,6 +5095,7 @@ def run_loaded_plan(
                     reason="Dependency failed or was blocked.",
                     dependency_records=records,
                     worker_validation_mode=worker_validation_override,
+                    effort_override=normalized_effort_override,
                 )
                 append_run_event(
                     run_events,
@@ -4976,6 +5121,7 @@ def run_loaded_plan(
                 records,
                 dry_run=dry_run,
                 worker_validation_mode=worker_validation_override,
+                effort_override=normalized_effort_override,
                 retry_of_run_id=retry_of_run_id,
                 requested_task_ids=requested_task_ids,
                 retried_task_ids=retried_task_ids,
@@ -4995,6 +5141,7 @@ def run_loaded_plan(
                     or "Coordinator stopped scheduling new tasks after a worker failure.",
                     dependency_records=records,
                     worker_validation_mode=worker_validation_override,
+                    effort_override=normalized_effort_override,
                 )
                 append_run_event(
                     run_events,
@@ -5046,6 +5193,7 @@ def run_loaded_plan(
                     agents_json=agents_json_by_name[task.agent],
                     dry_run=dry_run,
                     worker_validation_mode=worker_validation_override,
+                    effort_override=normalized_effort_override,
                 ): task
                 for task in batch
             }
@@ -5074,6 +5222,7 @@ def run_loaded_plan(
                     records,
                     dry_run=dry_run,
                     worker_validation_mode=worker_validation_override,
+                    effort_override=normalized_effort_override,
                     retry_of_run_id=retry_of_run_id,
                     requested_task_ids=requested_task_ids,
                     retried_task_ids=retried_task_ids,
@@ -5101,6 +5250,7 @@ def run_loaded_plan(
         records,
         dry_run=dry_run,
         worker_validation_mode=worker_validation_override,
+        effort_override=normalized_effort_override,
         retry_of_run_id=retry_of_run_id,
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
@@ -5125,8 +5275,11 @@ def run_loaded_plan(
             list(task_worker_validation_modes.values())
         ),
         "workerValidationModeOverride": worker_validation_override,
+        "effortOverride": normalized_effort_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskEfforts": task_efforts,
+        "taskEffortSources": task_effort_sources,
         "taskModels": task_models,
         "taskModelProfiles": task_model_profiles,
         "complexModelTaskIds": complex_model_tasks,
@@ -5167,6 +5320,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
         worker_validation_mode=args.worker_validation_mode,
+        effort_override=getattr(args, "effort", None),
     )
 
 
@@ -5250,6 +5404,10 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
             summary="Pending from the existing run; not selected for this resume.",
             dependency_records=initial_records,
             worker_validation_mode=resume_worker_validation_mode,
+            effort_override=normalize_effort_override(
+                getattr(args, "effort", None),
+                location="resume effort override",
+            ),
         )
     if not resumed_task_ids:
         raise OrchestratorError("Nothing to resume; all selected tasks are already completed")
@@ -5265,6 +5423,7 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
         worker_validation_mode=resume_worker_validation_mode,
+        effort_override=getattr(args, "effort", None),
         initial_records=initial_records,
         requested_task_ids=requested_task_ids,
         existing_run_id=str(manifest.get("runId", "")).strip() or None,
@@ -5353,6 +5512,7 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
             if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override)
             else None
         ),
+        effort_override=getattr(args, "effort", None),
         initial_records=initial_records,
         retry_of_run_id=str(manifest.get("runId", "")),
         requested_task_ids=requested_task_ids,
@@ -5525,6 +5685,29 @@ def summarize_run_manifest(
         plan_goal = str(manifest.get("goal", ""))
         plan_task_ids = [record.id for record in records]
     status_counts = count_statuses([record.status for record in records])
+    manifest_task_efforts = (
+        manifest.get("taskEfforts")
+        if isinstance(manifest.get("taskEfforts"), dict)
+        else {}
+    )
+    manifest_task_effort_sources = (
+        manifest.get("taskEffortSources")
+        if isinstance(manifest.get("taskEffortSources"), dict)
+        else {}
+    )
+    resolved_task_efforts = {
+        record.id: record.effort if record.effort is not None else manifest_task_efforts.get(record.id)
+        for record in records
+    }
+    resolved_task_effort_sources = {
+        record.id: (
+            record.effort_source
+            if record.effort_source is not None
+            else manifest_task_effort_sources.get(record.id)
+        )
+        for record in records
+    }
+    effort_counts = count_statuses([str(resolved_task_efforts.get(record.id) or "unset") for record in records])
     resume_candidate_task_ids = [record.id for record in records if record.status != "completed"]
     usage_totals = manifest.get("usageTotals") if isinstance(manifest.get("usageTotals"), dict) else {}
     run_governance = manifest.get("runGovernance") if isinstance(manifest.get("runGovernance"), dict) else {}
@@ -5582,6 +5765,7 @@ def summarize_run_manifest(
         "taskCount": len(records),
         "taskIds": plan_task_ids or [record.id for record in records],
         "statusCounts": status_counts,
+        "effortCounts": effort_counts,
         "hasFailures": has_failures,
         "hasBlocked": has_blocked,
         "isResumable": is_resumable,
@@ -5593,6 +5777,8 @@ def summarize_run_manifest(
         "coordinatorValidationPresent": isinstance(manifest.get("coordinatorValidation"), dict),
         "promptEstimatedTokens": int(usage_totals.get("promptEstimatedTokens", 0) or 0),
         "totalCostUsd": float(usage_totals.get("totalCostUsd", 0.0) or 0.0),
+        "taskEfforts": resolved_task_efforts,
+        "taskEffortSources": resolved_task_effort_sources,
         "governanceStatus": str(run_governance.get("status", "ok") or "ok"),
         "governanceAlertCount": int(run_governance.get("alertCount", 0) or 0),
         "governanceBlockingAlertCount": int(run_governance.get("blockingAlertCount", 0) or 0),
@@ -5653,6 +5839,8 @@ def status_run(args: argparse.Namespace) -> dict[str, Any]:
         manifest,
         now=datetime.now(timezone.utc).astimezone(),
     )
+    task_efforts = summary.get("taskEfforts", {})
+    task_effort_sources = summary.get("taskEffortSources", {})
     records = selected_run_records(manifest, args.selected_tasks)
     task_payloads: list[dict[str, Any]] = []
     review_summary = {
@@ -5676,6 +5864,12 @@ def status_run(args: argparse.Namespace) -> dict[str, Any]:
                 "agent": record.agent,
                 "branchContextId": record.branch_context_id,
                 "branchParentContextIds": list(record.branch_parent_context_ids),
+                "effort": record.effort if record.effort is not None else task_efforts.get(record.id),
+                "effortSource": (
+                    record.effort_source
+                    if record.effort_source is not None
+                    else task_effort_sources.get(record.id)
+                ),
                 "status": record.status,
                 "summary": record.summary,
                 "filesChanged": int(review_payload["diffStats"]["filesChanged"]),
@@ -5810,6 +6004,51 @@ def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
                 "Validation suggestions stayed on structured intents or were absent.",
                 evidence={
                     "intentTaskCount": sum(1 for record in records if record.validation_intents),
+                },
+            )
+        )
+
+    task_efforts = (
+        manifest.get("taskEfforts")
+        if isinstance(manifest.get("taskEfforts"), dict)
+        else summary.get("taskEfforts", {})
+    )
+    task_model_profiles = (
+        manifest.get("taskModelProfiles")
+        if isinstance(manifest.get("taskModelProfiles"), dict)
+        else {}
+    )
+    read_only_task_ids = [str(task_id) for task_id in topology.get("readOnlyTaskIds", []) or []]
+    overspecified_effort_task_ids = sorted(
+        task_id
+        for task_id in read_only_task_ids
+        if str(task_efforts.get(task_id, "") or "") in {"high", "xhigh"}
+        and str(task_model_profiles.get(task_id, "") or "") in {"simple", "balanced"}
+    )
+    if overspecified_effort_task_ids:
+        checks.append(
+            _evaluation_check(
+                "effort-fit",
+                "warn",
+                "Read-only tasks are using high effort on non-complex model profiles.",
+                evidence={
+                    "taskIds": overspecified_effort_task_ids,
+                    "taskEfforts": {task_id: task_efforts.get(task_id) for task_id in overspecified_effort_task_ids},
+                    "taskModelProfiles": {
+                        task_id: task_model_profiles.get(task_id)
+                        for task_id in overspecified_effort_task_ids
+                    },
+                },
+            )
+        )
+    else:
+        checks.append(
+            _evaluation_check(
+                "effort-fit",
+                "pass",
+                "Resolved effort looks proportionate to the retained task shape.",
+                evidence={
+                    "taskEffortCounts": summary.get("effortCounts", {}),
                 },
             )
         )
@@ -6444,6 +6683,8 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                 "taskIds": [task.id for task in plan.tasks],
                 "taskWorkerValidationModes": task_worker_validation_modes,
                 "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+                "taskEfforts": effective_plan_efforts(plan, agents),
+                "taskEffortSources": effective_plan_effort_sources(plan, agents),
                 "taskModels": task_models,
                 "taskModelProfiles": task_model_profiles,
                 "complexModelTaskIds": complex_model_tasks,
@@ -6455,6 +6696,8 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
                         "agent": task.agent,
                         "model": task_models[task.id],
                         "modelProfile": task_model_profiles[task.id],
+                        "effort": effective_plan_efforts(plan, agents)[task.id],
+                        "effortSource": effective_plan_effort_sources(plan, agents)[task.id],
                         "readPaths": effective_task_read_paths(plan, task),
                         "writePaths": effective_task_write_scope(task),
                         "dependencyMaterialization": effective_dependency_materialization_mode(task),

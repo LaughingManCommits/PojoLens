@@ -15,6 +15,7 @@ state/ -> current markdown snapshot
 indexes/ -> derived JSON navigation data
 indexes/cold-memory.db -> optional derived SQLite/FTS cold-search artifact
 indexes/refresh-state.json -> derived per-file hash cache for incremental refresh
+indexes/publish-state.json -> derived publish marker for staged refresh/check handoff
 orchestrator/ -> tracked orchestration specs and guide
 state/recent-validations.md -> warm validation ledger
 log/events.jsonl -> recent discovery history
@@ -174,6 +175,7 @@ indexes/
 - regenerate instead of editing
 - `scripts/ai/refresh-ai-memory.ps1` rebuilds `ai/indexes/*.json`
 - `scripts/ai/refresh-ai-memory.ps1` updates `ai/indexes/refresh-state.json` for incremental reuse
+- `scripts/ai/refresh-ai-memory.ps1` also updates `ai/indexes/publish-state.json` so `-Check` can wait for an in-flight staged publish instead of reading a half-published snapshot
 - optional SQLite cold search under `ai/indexes/cold-memory.db` is derived only
 - `scripts/ai/refresh-ai-memory.ps1 -CompactLog` compacts the recent event log into monthly archives
 - `scripts/ai/query-ai-memory.ps1` supports `-Tier`, `-Kind`, and `-Path` facets for cold retrieval
