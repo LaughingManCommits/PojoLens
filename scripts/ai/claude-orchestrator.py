@@ -970,6 +970,29 @@ def parse_args() -> argparse.Namespace:
     _add_verbose_arg(evaluate_run_parser)
     _add_provider_bin_arg(evaluate_run_parser)
 
+    evaluate_corpus_parser = subparsers.add_parser(
+        "evaluate-corpus",
+        help="Evaluate retained-run quality across the runtime root and report aggregate benchmark signals.",
+    )
+    evaluate_corpus_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="Runtime root whose retained runs should be evaluated.",
+    )
+    evaluate_corpus_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of retained runs to include. Use 0 to include all discovered runs.",
+    )
+    evaluate_corpus_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the retained-run corpus evaluation summary as JSON.",
+    )
+    _add_verbose_arg(evaluate_corpus_parser)
+    _add_provider_bin_arg(evaluate_corpus_parser)
+
     prune_parser = subparsers.add_parser(
         "prune",
         help="Prune retained run directories and workspaces by age under the runtime root.",
@@ -5934,14 +5957,76 @@ def summarize_evaluation_score(
     }
 
 
-def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
-    manifest_path, manifest = load_run_manifest(args.run_ref)
+def benchmark_dimensions_for_evaluation(
+    checks: list[dict[str, Any]],
+    *,
+    run_summary: dict[str, Any],
+) -> dict[str, Any]:
+    by_name = {str(check.get("name", "")): check for check in checks}
+
+    def worst_status(names: list[str]) -> str:
+        rank = {"pass": 0, "warn": 1, "fail": 2}
+        return max(
+            (str(by_name.get(name, {}).get("status", "pass") or "pass") for name in names),
+            key=lambda item: rank[item],
+            default="pass",
+        )
+
+    decomposition_status = worst_status(["over-delegation", "reviewer-hops", "effort-fit"])
+    retry_status = str(by_name.get("retry-resume-contract", {}).get("status", "pass") or "pass")
+    promotion_status = str(by_name.get("promotion-readiness", {}).get("status", "pass") or "pass")
+    task_count = int(run_summary.get("taskCount", 0) or 0)
+    batch_count = int(run_summary.get("topologyBatchCount", 0) or 0)
+    parallel_width = int(run_summary.get("topologyMaxParallelWidth", 0) or 0)
+    if task_count <= 1:
+        parallel_status = "pass"
+        parallel_summary = "Single-task run had no parallel opportunity requirement."
+    elif parallel_width > 1:
+        parallel_status = "pass"
+        parallel_summary = "Run exposed concurrent-ready width greater than one."
+    else:
+        parallel_status = "warn"
+        parallel_summary = "Run stayed fully serial; compare dependency shape and task split for missed parallel opportunity."
+    return {
+        "decompositionQuality": {
+            "status": decomposition_status,
+            "summary": "Composition quality across delegation, reviewer hops, and effort fit.",
+            "checkNames": ["over-delegation", "reviewer-hops", "effort-fit"],
+        },
+        "retryCorrectness": {
+            "status": retry_status,
+            "summary": "Retry/resume metadata consistency.",
+            "checkNames": ["retry-resume-contract"],
+        },
+        "reviewPromotionAccuracy": {
+            "status": promotion_status,
+            "summary": "Promotion-readiness accuracy against retained run state.",
+            "checkNames": ["promotion-readiness"],
+        },
+        "parallelEfficiency": {
+            "status": parallel_status,
+            "summary": parallel_summary,
+            "evidence": {
+                "taskCount": task_count,
+                "batchCount": batch_count,
+                "parallelWidth": parallel_width,
+            },
+        },
+    }
+
+
+def evaluate_loaded_run_quality(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    *,
+    selected_tasks: list[str],
+) -> dict[str, Any]:
     summary, _ = summarize_run_manifest(
         manifest_path,
         manifest,
         now=datetime.now(timezone.utc).astimezone(),
     )
-    records = selected_run_records(manifest, args.selected_tasks)
+    records = selected_run_records(manifest, selected_tasks)
     topology = manifest.get("topology") if isinstance(manifest.get("topology"), dict) else {}
     run_start_event = next(
         (
@@ -6154,17 +6239,28 @@ def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
     status_rank = {"pass": 0, "warn": 1, "fail": 2}
     overall_status = max((check["status"] for check in checks), key=lambda item: status_rank[item], default="pass")
     score_summary = summarize_evaluation_score(checks, run_summary=summary)
+    benchmark_dimensions = benchmark_dimensions_for_evaluation(checks, run_summary=summary)
     return {
         "run": summary,
         "traceSummary": summary["traceSummary"],
         "branchSummary": summary["branchSummary"],
         "status": overall_status,
         "scoreSummary": score_summary,
+        "benchmarkDimensions": benchmark_dimensions,
         "checkCount": len(checks),
         "warningCheckCount": sum(1 for check in checks if check["status"] == "warn"),
         "failingCheckCount": sum(1 for check in checks if check["status"] == "fail"),
         "checks": checks,
     }
+
+
+def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    return evaluate_loaded_run_quality(
+        manifest_path,
+        manifest,
+        selected_tasks=list(args.selected_tasks),
+    )
 
 
 def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
@@ -6191,6 +6287,64 @@ def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
         "promotionReadyRunCount": sum(1 for summary, _, _, _ in entries if summary["promotionReady"]),
         "costlyRunCount": sum(1 for summary, _, _, _ in entries if summary["isCostly"]),
         "runs": run_summaries,
+    }
+
+
+def evaluate_run_corpus(args: argparse.Namespace) -> dict[str, Any]:
+    runtime_root = Path(args.runtime_root).resolve()
+    now = datetime.now(timezone.utc).astimezone()
+    entries = [
+        (*summarize_run_manifest(manifest_path, manifest, now=now), manifest_path, manifest)
+        for manifest_path, manifest in runtime_manifest_entries(runtime_root)
+    ]
+    entries.sort(key=lambda item: item[1], reverse=True)
+    limit = max(int(args.limit), 0)
+    visible = entries[:limit] if limit else entries
+    run_evaluations = [
+        evaluate_loaded_run_quality(manifest_path, manifest, selected_tasks=[])
+        for _, _, manifest_path, manifest in visible
+    ]
+    corpus_status_counts = count_statuses([str(item["status"]) for item in run_evaluations])
+    score_status_counts = count_statuses([str(item["scoreSummary"]["status"]) for item in run_evaluations])
+    dimension_status_counts: dict[str, dict[str, int]] = {}
+    for item in run_evaluations:
+        for dimension_name, dimension in item["benchmarkDimensions"].items():
+            if not isinstance(dimension, dict):
+                continue
+            dimension_status_counts.setdefault(dimension_name, {})
+            status = str(dimension.get("status", "pass") or "pass")
+            dimension_status_counts[dimension_name][status] = (
+                dimension_status_counts[dimension_name].get(status, 0) + 1
+            )
+    average_score_percent = round(
+        (
+            sum(float(item["scoreSummary"]["scorePercent"]) for item in run_evaluations)
+            / len(run_evaluations)
+        ),
+        1,
+    ) if run_evaluations else 100.0
+    return {
+        "runtimeRoot": str(runtime_root),
+        "runCount": len(entries),
+        "shownRunCount": len(run_evaluations),
+        "statusCounts": corpus_status_counts,
+        "scoreStatusCounts": score_status_counts,
+        "averageScorePercent": average_score_percent,
+        "dimensionStatusCounts": dimension_status_counts,
+        "runs": [
+            {
+                "runId": item["run"]["runId"],
+                "plan": item["run"]["plan"],
+                "generatedAt": item["run"]["generatedAt"],
+                "status": item["status"],
+                "scoreSummary": item["scoreSummary"],
+                "benchmarkDimensions": item["benchmarkDimensions"],
+                "traceSummary": item["traceSummary"],
+                "branchSummary": item["branchSummary"],
+                "flags": item["run"]["flags"],
+            }
+            for item in run_evaluations
+        ],
     }
 
 
@@ -6807,6 +6961,9 @@ def main() -> int:
             return EXIT_SUCCESS
         if args.command == "evaluate-run":
             print_payload(evaluate_run_quality(args), as_json=args.json)
+            return EXIT_SUCCESS
+        if args.command == "evaluate-corpus":
+            print_payload(evaluate_run_corpus(args), as_json=args.json)
             return EXIT_SUCCESS
         if args.command == "prune":
             print_payload(prune_runs(args), as_json=args.json)

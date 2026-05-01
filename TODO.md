@@ -38,7 +38,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP29| LangGraph Execution Spike            | Complete | Decision record and prototype for checkpointed parallel graph execution; keep the custom scheduler and manifest model as the production path for now |
 | WP30| Run Visibility And Operator UX       | Complete | Added `status`, richer inventory/review/promotion summaries, and documented the retained-run operator flow |
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
-| WP32| Orchestrator Bench And Evals         | Active   | Build a machine-readable orchestration score surface, tracked eval fixtures, and the first benchmark corpus for comparing decomposition, retries, and parallel execution quality |
+| WP32| Orchestrator Bench And Evals         | Complete | Added a machine-readable run-quality score surface, tracked eval fixtures, and a retained-run corpus view for comparing decomposition, retries, review/promotion accuracy, and parallel efficiency |
 | WP33| Approval State Machine               | Planned  | Persist explicit `awaiting_review`, `awaiting_validation`, and `awaiting_promotion` states with resumable approval checkpoints |
 | WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
@@ -338,23 +338,41 @@ plus a small tracked evaluation corpus.
 - This package should keep the current scheduler and manifest model while
   making orchestration quality measurable.
 
+**Decision:** Complete. The orchestrator now exposes per-run `scoreSummary`,
+first-pass benchmark dimensions, a retained-run corpus evaluation command, and
+the first tracked eval fixture for regression anchoring.
+
+**Work done:**
+- Added `evaluate-run.scoreSummary` with pass/warn/fail counts, score percent,
+      and retained run-shape fields.
+- Added first-pass benchmark dimensions for decomposition quality, retry
+      correctness, review/promotion accuracy, and parallel efficiency.
+- Added `evaluate-corpus` to aggregate retained-run score status, average score
+      percent, and benchmark-dimension counts across the runtime root.
+- Added `ai/orchestrator/tasks/example-eval-readonly-review.json` as the first
+      tracked eval-corpus fixture.
+- Documented the stable operator-facing benchmark fields in
+      `ai/orchestrator/README.md`.
+
 **Tasks:**
 - [x] Extend `evaluate-run` with a machine-readable score summary that can be
       compared across retained runs.
 - [x] Add at least one tracked eval-oriented sample fixture so the score
       surface has a stable regression anchor.
-- [ ] Add a retained-run corpus workflow or helper that can evaluate multiple
+- [x] Add a retained-run corpus workflow or helper that can evaluate multiple
       runs and report aggregate quality counts.
-- [ ] Add first-pass benchmark dimensions for decomposition quality, retry
+- [x] Add first-pass benchmark dimensions for decomposition quality, retry
       correctness, review/promotion accuracy, and parallel efficiency.
-- [ ] Decide which score fields are stable enough to treat as operator-facing
+- [x] Decide which score fields are stable enough to treat as operator-facing
       benchmark outputs in `ai/orchestrator/README.md`.
 
 **Validate:**
 - `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest scripts.tests.test_claude_orchestrator`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-eval-readonly-review.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-eval-readonly-review.json --dry-run --json`
 - `scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json`
+- `scripts/ai/claude-orchestrator.ps1 evaluate-corpus --json`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---

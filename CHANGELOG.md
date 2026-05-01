@@ -11,6 +11,10 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Retained-run corpus evaluation** - added `evaluate-corpus` so the
+  orchestrator can aggregate retained-run `scoreSummary` status, average score
+  percent, and benchmark-dimension counts across the runtime root.
+
 - **Orchestrator score summary and eval fixture** - added a compact
   `scoreSummary` to `evaluate-run` so retained runs expose trendable
   pass/warn/fail counts and a simple quality percentage, and added the tracked

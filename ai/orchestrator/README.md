@@ -53,6 +53,7 @@ scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --d
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json
+scripts/ai/claude-orchestrator.ps1 evaluate-corpus --json
 scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
@@ -92,6 +93,7 @@ Lifecycle helpers:
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
+- `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
@@ -134,6 +136,7 @@ Token and cost visibility:
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
 - `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
+- operator-facing benchmark fields for WP32 are now `scoreSummary.status`, `scoreSummary.statusCounts`, `scoreSummary.scorePercent`, `scoreSummary.taskCount`, `scoreSummary.batchCount`, `scoreSummary.parallelWidth`, plus `benchmarkDimensions.{decompositionQuality,retryCorrectness,reviewPromotionAccuracy,parallelEfficiency}`
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
@@ -193,6 +196,7 @@ Recommended operator flow:
 - `run` or `resume` it, keeping `--json` for machine-readable stdout when scripting
 - use `status` for one retained run and `inventory` across the runtime root to find failed, blocked, resumable, costly, or promotion-ready runs quickly
 - use `evaluate-run` when you need a compact quality check over retained topology, branch lineage, validation suggestions, retry/resume metadata, and promotion-readiness signals
+- use `evaluate-corpus` when you need aggregate score status, average score percent, or first-pass benchmark-dimension counts across many retained runs
 - use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
 - use `validate-run` to execute accepted validation intents
 - use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked

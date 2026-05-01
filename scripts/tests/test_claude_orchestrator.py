@@ -6055,6 +6055,10 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertTrue(payload["scoreSummary"]["promotionReady"])
         self.assertFalse(payload["scoreSummary"]["resumable"])
         self.assertEqual(2, payload["scoreSummary"]["taskCount"])
+        self.assertEqual("warn", payload["benchmarkDimensions"]["decompositionQuality"]["status"])
+        self.assertEqual("pass", payload["benchmarkDimensions"]["retryCorrectness"]["status"])
+        self.assertEqual("pass", payload["benchmarkDimensions"]["reviewPromotionAccuracy"]["status"])
+        self.assertEqual("warn", payload["benchmarkDimensions"]["parallelEfficiency"]["status"])
         self.assertEqual(3, payload["traceSummary"]["eventCount"])
         self.assertEqual(2, payload["branchSummary"]["contextCount"])
         self.assertEqual(
@@ -6067,6 +6071,135 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("warn", by_name["validation-suggestions"]["status"])
         self.assertEqual("warn", by_name["effort-fit"]["status"])
         self.assertEqual("pass", by_name["retry-resume-contract"]["status"])
+
+    def test_evaluate_run_corpus_aggregates_scores_and_dimensions(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            run_one_dir = runtime_root / "runs" / "run-one"
+            run_two_dir = runtime_root / "runs" / "run-two"
+            workspaces_one = runtime_root / "workspaces" / "run-one"
+            workspaces_two = runtime_root / "workspaces" / "run-two"
+            run_one_dir.mkdir(parents=True)
+            run_two_dir.mkdir(parents=True)
+            workspaces_one.mkdir(parents=True)
+            workspaces_two.mkdir(parents=True)
+            orchestrator.write_json(
+                run_one_dir / "manifest.json",
+                {
+                    "runId": "run-one",
+                    "generatedAt": "2026-04-07T10:00:00+00:00",
+                    "dryRun": True,
+                    "runDir": str(run_one_dir),
+                    "workspacesDir": str(workspaces_one),
+                    "plan": {"name": "eval-a", "goal": "A", "taskIds": ["task-a", "task-b"]},
+                    "taskEfforts": {"task-a": "high", "task-b": "high"},
+                    "taskEffortSources": {"task-a": "agent", "task-b": "agent"},
+                    "taskModelProfiles": {"task-a": "balanced", "task-b": "balanced"},
+                    "topology": {
+                        "reviewerTaskCount": 1,
+                        "writeTaskCount": 0,
+                        "readOnlyTaskIds": ["task-a", "task-b"],
+                        "batchCount": 2,
+                        "maxParallelWidth": 1,
+                        "warnings": [
+                            {
+                                "kind": "read-only-review-optional",
+                                "taskIds": ["task-b"],
+                                "message": "Reviewer hop is optional.",
+                            }
+                        ],
+                    },
+                    "events": [
+                        {"ts": "2026-04-07T10:00:00+00:00", "phase": "run-start"},
+                        {"ts": "2026-04-07T10:01:00+00:00", "phase": "run-finished"},
+                    ],
+                    "tasks": {
+                        "task-a": asdict(
+                            make_task_run_record(
+                                orchestrator,
+                                orchestrator.TaskDefinition(id="task-a", title="Task A", agent="analyst", prompt="A."),
+                                status="planned",
+                                summary="A.",
+                                workspace_path=str(workspaces_one / "task-a"),
+                            )
+                        ),
+                        "task-b": asdict(
+                            make_task_run_record(
+                                orchestrator,
+                                orchestrator.TaskDefinition(
+                                    id="task-b",
+                                    title="Task B",
+                                    agent="reviewer",
+                                    prompt="B.",
+                                    depends_on=["task-a"],
+                                ),
+                                status="planned",
+                                summary="B.",
+                                branch_context_id="task-b<-task-a",
+                                branch_parent_context_ids=["task-a"],
+                                workspace_path=str(workspaces_one / "task-b"),
+                            )
+                        ),
+                    },
+                },
+            )
+            orchestrator.write_json(
+                run_two_dir / "manifest.json",
+                {
+                    "runId": "run-two",
+                    "generatedAt": "2026-04-08T10:00:00+00:00",
+                    "dryRun": True,
+                    "runDir": str(run_two_dir),
+                    "workspacesDir": str(workspaces_two),
+                    "plan": {"name": "eval-b", "goal": "B", "taskIds": ["task-c"]},
+                    "taskEfforts": {"task-c": "medium"},
+                    "taskEffortSources": {"task-c": "task"},
+                    "taskModelProfiles": {"task-c": "balanced"},
+                    "topology": {
+                        "reviewerTaskCount": 0,
+                        "writeTaskCount": 0,
+                        "readOnlyTaskIds": ["task-c"],
+                        "batchCount": 1,
+                        "maxParallelWidth": 1,
+                        "warnings": [],
+                    },
+                    "events": [
+                        {"ts": "2026-04-08T10:00:00+00:00", "phase": "run-start"},
+                        {"ts": "2026-04-08T10:01:00+00:00", "phase": "run-finished"},
+                    ],
+                    "tasks": {
+                        "task-c": asdict(
+                            make_task_run_record(
+                                orchestrator,
+                                orchestrator.TaskDefinition(id="task-c", title="Task C", agent="analyst", prompt="C."),
+                                status="planned",
+                                summary="C.",
+                                workspace_path=str(workspaces_two / "task-c"),
+                            )
+                        ),
+                    },
+                },
+            )
+
+            payload = orchestrator.evaluate_run_corpus(
+                SimpleNamespace(
+                    runtime_root=str(runtime_root),
+                    limit=20,
+                )
+            )
+
+        self.assertEqual(2, payload["runCount"])
+        self.assertEqual(2, payload["shownRunCount"])
+        self.assertEqual({"pass": 1, "warn": 1}, payload["statusCounts"])
+        self.assertEqual({"pass": 1, "warn": 1}, payload["scoreStatusCounts"])
+        self.assertEqual(87.5, payload["averageScorePercent"])
+        self.assertEqual({"pass": 1, "warn": 1}, payload["dimensionStatusCounts"]["decompositionQuality"])
+        self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["retryCorrectness"])
+        self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["reviewPromotionAccuracy"])
+        self.assertEqual({"pass": 1, "warn": 1}, payload["dimensionStatusCounts"]["parallelEfficiency"])
+        self.assertEqual(["run-one", "run-two"], [run["runId"] for run in payload["runs"]])
 
     def test_prune_runs_removes_only_old_completed_runs_by_default(self):
         orchestrator = self.orchestrator
