@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import difflib
+import re
 import shutil
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
+
+DOC_TEXT_SUFFIXES = frozenset({".md", ".txt", ".adoc", ".rst"})
+COMMON_TEXT_MOJIBAKE_RE = re.compile(r"(?:\u00c3.|\u00c2.|\u00e2..)")
 
 
 def decode_text_or_none(content: bytes) -> str | None:
@@ -12,6 +16,61 @@ def decode_text_or_none(content: bytes) -> str | None:
         return content.decode("utf-8")
     except UnicodeDecodeError:
         return None
+
+
+def is_doc_text_path(relative_path: str) -> bool:
+    path = Path(relative_path)
+    suffix = path.suffix.lower()
+    if suffix in DOC_TEXT_SUFFIXES:
+        return True
+    return path.name.lower() in {"readme", "changelog", "contributing", "license"}
+
+
+def _sample_mojibake_fragments(text: str, *, limit: int = 3) -> list[str]:
+    samples: list[str] = []
+    seen: set[str] = set()
+    for match in COMMON_TEXT_MOJIBAKE_RE.finditer(text):
+        fragment = match.group(0)
+        if fragment in seen:
+            continue
+        seen.add(fragment)
+        samples.append(ascii(fragment))
+        if len(samples) >= limit:
+            break
+    return samples
+
+
+def text_quality_findings(relative_path: str, workspace_text: str, repo_text: str) -> list[dict[str, str]]:
+    if not is_doc_text_path(relative_path):
+        return []
+    findings: list[dict[str, str]] = []
+    mojibake_samples = _sample_mojibake_fragments(workspace_text)
+    if mojibake_samples:
+        findings.append(
+            {
+                "kind": "mojibake",
+                "severity": "block",
+                "message": (
+                    f"{relative_path}: suspicious mojibake-like text found "
+                    f"({', '.join(mojibake_samples)})"
+                ),
+            }
+        )
+        return findings
+    workspace_has_non_ascii = any(ord(char) > 127 for char in workspace_text)
+    repo_has_non_ascii = any(ord(char) > 127 for char in repo_text)
+    if workspace_has_non_ascii and not repo_has_non_ascii:
+        findings.append(
+            {
+                "kind": "non-ascii-doc-text",
+                "severity": "warn",
+                "message": (
+                    f"{relative_path}: doc text introduced non-ASCII characters; "
+                    "prefer ASCII unless the content clearly requires Unicode"
+                ),
+            }
+        )
+    return findings
 
 
 def diff_file_against_workspace(
@@ -36,6 +95,7 @@ def diff_file_against_workspace(
         "addedLines": 0,
         "removedLines": 0,
         "patchable": False,
+        "textQualityFindings": [],
     }
     if record.workspace_mode == "repo":
         summary["status"] = "unsupported"
@@ -95,6 +155,12 @@ def diff_file_against_workspace(
     summary["addedLines"] = added_lines
     summary["removedLines"] = removed_lines
     summary["patchable"] = True
+    if summary["status"] in {"added", "modified"}:
+        summary["textQualityFindings"] = text_quality_findings(
+            normalized,
+            workspace_text,
+            repo_text,
+        )
     return summary, ("\n".join(diff_lines) + "\n") if diff_lines else None
 
 
@@ -112,6 +178,9 @@ def task_review_summary(
     binary_files = 0
     added_lines = 0
     removed_lines = 0
+    text_quality_findings_payloads: list[dict[str, str]] = []
+    text_quality_severity_counts: dict[str, int] = {}
+    text_quality_kind_counts: dict[str, int] = {}
     for relative_path in reviewed_paths:
         summary, patch_text = diff_file_against_workspace_fn(
             record,
@@ -124,6 +193,23 @@ def task_review_summary(
             binary_files += 1
         added_lines += int(summary.get("addedLines", 0) or 0)
         removed_lines += int(summary.get("removedLines", 0) or 0)
+        for finding in summary.get("textQualityFindings", []) or []:
+            if not isinstance(finding, dict):
+                continue
+            text_quality_findings_payloads.append(
+                {
+                    "path": str(summary.get("path", relative_path)),
+                    "kind": str(finding.get("kind", "")),
+                    "severity": str(finding.get("severity", "")),
+                    "message": str(finding.get("message", "")),
+                }
+            )
+            severity = str(finding.get("severity", "")).strip()
+            if severity:
+                text_quality_severity_counts[severity] = text_quality_severity_counts.get(severity, 0) + 1
+            kind = str(finding.get("kind", "")).strip()
+            if kind:
+                text_quality_kind_counts[kind] = text_quality_kind_counts.get(kind, 0) + 1
         file_summaries.append(summary)
         if patch_text:
             patch_chunks.append(patch_text)
@@ -149,9 +235,13 @@ def task_review_summary(
                 "binaryFiles": binary_files,
                 "addedLines": added_lines,
                 "removedLines": removed_lines,
+                "textQualityFindingCount": len(text_quality_findings_payloads),
             },
             "files": file_summaries,
             "reviewerFindings": [asdict(f) for f in (record.reviewer_findings or [])],
+            "textQualityFindings": text_quality_findings_payloads,
+            "textQualitySeverityCounts": text_quality_severity_counts,
+            "textQualityKindCounts": text_quality_kind_counts,
         },
         patch_chunks,
     )
@@ -186,6 +276,8 @@ def review_run(
     validation_suggestion_count = 0
     dependency_materialization_modes: dict[str, int] = {}
     finding_severity_counts: dict[str, int] = {}
+    text_quality_severity_counts: dict[str, int] = {}
+    text_quality_kind_counts: dict[str, int] = {}
     for record in records:
         review_payload, _ = task_review_summary_fn(record, context_lines=context_lines)
         task_payloads.append(review_payload)
@@ -200,6 +292,14 @@ def review_run(
         for finding in (record.reviewer_findings or []):
             sev = str(getattr(finding, "severity", ""))
             finding_severity_counts[sev] = finding_severity_counts.get(sev, 0) + 1
+        for severity, count in (review_payload.get("textQualitySeverityCounts") or {}).items():
+            normalized = str(severity).strip()
+            if normalized:
+                text_quality_severity_counts[normalized] = text_quality_severity_counts.get(normalized, 0) + int(count or 0)
+        for kind, count in (review_payload.get("textQualityKindCounts") or {}).items():
+            normalized = str(kind).strip()
+            if normalized:
+                text_quality_kind_counts[normalized] = text_quality_kind_counts.get(normalized, 0) + int(count or 0)
     payload = {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
@@ -213,6 +313,8 @@ def review_run(
             "validationSuggestionCount": validation_suggestion_count,
             "dependencyMaterializationModes": dependency_materialization_modes,
             "reviewerFindingSeverityCounts": finding_severity_counts,
+            "textQualitySeverityCounts": text_quality_severity_counts,
+            "textQualityKindCounts": text_quality_kind_counts,
         },
         "tasks": task_payloads,
     }
@@ -308,6 +410,7 @@ def task_promotion_operations(
             "dependencyLayersApplied": [asdict(layer) for layer in record.dependency_layers_applied],
             "protectedPathViolations": record.protected_path_violations,
             "writeScopeViolations": record.write_scope_violations,
+            "textQualityFindings": review_payload.get("textQualityFindings", []),
             "filesPromotable": len(operations),
             "unsupportedFiles": unsupported_paths,
             "operations": operations,
@@ -423,6 +526,21 @@ def plan_promotion(
                 f"{record.id}: workspaceMode='{record.workspace_mode}' cannot be promoted for "
                 f"{summarize_paths(task_payload['unsupportedFiles'])}"
             )
+        blocking_text_quality = [
+            finding
+            for finding in (task_payload.get("textQualityFindings") or [])
+            if str(finding.get("severity", "")) == "block"
+        ]
+        if blocking_text_quality:
+            messages = "; ".join(
+                str(finding.get("message", ""))[:120]
+                for finding in blocking_text_quality[:3]
+                if str(finding.get("message", ""))
+            )
+            issues.append(
+                f"{record.id}: text-quality guardrails blocked promotion"
+                + (f": {messages}" if messages else "")
+            )
         if str(record.agent) == reviewer_agent_name:
             blocking_findings = [
                 f for f in (record.reviewer_findings or [])
@@ -479,12 +597,19 @@ def summarize_promotion_readiness(
         if str(record.agent) == reviewer_agent_name
         for f in (record.reviewer_findings or [])
     )
+    text_quality_blocked = False
+    for record in records:
+        task_payload, _ = task_promotion_operations_fn(record)
+        if any(str(finding.get("severity", "")) == "block" for finding in (task_payload.get("textQualityFindings") or [])):
+            text_quality_blocked = True
+            break
     try:
         task_payloads, operations, counts = plan_promotion_fn(records)
         return {
             "allowed": True,
             "blockedReasons": [],
             "reviewerFindingsBlocked": reviewer_findings_blocked,
+            "textQualityBlocked": text_quality_blocked,
             "promotableTaskIds": [
                 payload["id"]
                 for payload in task_payloads
@@ -500,6 +625,7 @@ def summarize_promotion_readiness(
                 [line[2:] if line.startswith("- ") else line for line in str(exc).splitlines() if line.strip() and not line.endswith(":")]
             ),
             "reviewerFindingsBlocked": reviewer_findings_blocked,
+            "textQualityBlocked": text_quality_blocked,
             "promotableTaskIds": [],
             "filesPromotable": 0,
             "operationCounts": {"added": 0, "modified": 0, "deleted": 0},

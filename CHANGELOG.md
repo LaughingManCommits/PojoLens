@@ -11,6 +11,15 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Docs/text quality guardrails** - reviewer diff summaries now surface
+  `textQualityFindings` for docs-like text files, block promotion on common
+  mojibake patterns, warn when new non-ASCII doc text is introduced into an
+  ASCII baseline, add `text-quality-blocked` retained-run lifecycle visibility,
+  and teach `validate-run` to synthesize
+  `scripts/docs/check-doc-consistency.ps1` as a coordinator helper for
+  docs-only retained changes when no equivalent validation was already
+  suggested.
+
 - **Structured reviewer findings and promotion governance** - reviewer worker
   output now supports a structured `findings` array with `severity` (`info`,
   `warn`, `block`) and `message` fields; blocking findings from reviewer tasks

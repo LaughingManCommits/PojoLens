@@ -44,7 +44,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Complete | Added `export-trace`, a stable `pojo-lens-orchestrator-trace/v1` span export, and parent-child task/batch/checkpoint lineage derived from retained events and branch contexts |
 | WP37| Reviewer Findings And Promotion Governance | Complete | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
-| WP38| Docs And Text Quality Guardrails     | Planned | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
+| WP38| Docs And Text Quality Guardrails     | Complete | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
 | WP39| Low-Cost Worker Profiles And Output Discipline | Planned | Lean docs-oriented worker/reviewer profiles, tighter output contracts, and lower-cost prompt/result behavior for small live proofs |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
@@ -653,17 +653,17 @@ common low-signal content failures do not get promoted silently.
   that preference enforceable for common docs workflows.
 
 **Tasks:**
-- [ ] Add a text-sanity check for common mojibake and encoding-corruption
+- [x] Add a text-sanity check for common mojibake and encoding-corruption
       patterns in promoted text files.
-- [ ] Add a docs-oriented coordinator validation helper that can run against
+- [x] Add a docs-oriented coordinator validation helper that can run against
       selected promoted files or retained workspaces before promotion.
-- [ ] Decide where ASCII-safe enforcement should apply by default and where
+- [x] Decide where ASCII-safe enforcement should apply by default and where
       Unicode is acceptable, then encode that policy in the orchestrator.
-- [ ] Surface text-quality failures in review, dry-run promotion, and
+- [x] Surface text-quality failures in review, dry-run promotion, and
       retained-run status instead of forcing operators to spot them manually.
-- [ ] Add regression tests for mojibake detection, ASCII-safe docs behavior,
+- [x] Add regression tests for mojibake detection, ASCII-safe docs behavior,
       and non-doc false-positive avoidance.
-- [ ] Update operator docs so contributors know when docs/text checks are
+- [x] Update operator docs so contributors know when docs/text checks are
       expected in a run plan.
 
 **Validate:**

@@ -770,6 +770,47 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(0, topology["warningCount"])
         self.assertEqual([], topology["warnings"])
 
+    def test_analyze_plan_topology_flags_docs_validation_missing(self):
+        orchestrator = self.orchestrator
+        implementer = orchestrator.AgentDefinition(
+            name="implementer",
+            description="implementation",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="edit-docs",
+            title="Edit docs",
+            agent="implementer",
+            prompt="Improve docs.",
+            write_paths=["docs/guide.md"],
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="docs-validation-missing",
+            goal="Warn when docs-only plans skip docs validation.",
+            shared_context=orchestrator.SharedContext(
+                summary="Docs plan.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        topology = orchestrator.analyze_plan_topology(plan, {"implementer": implementer})
+
+        warning = next(item for item in topology["warnings"] if item["kind"] == "docs-validation-missing")
+        self.assertEqual(["edit-docs"], warning["taskIds"])
+        self.assertIn("check-doc-consistency", warning["message"])
+
     def test_analyze_plan_topology_flags_reviewer_prompt_budget_risk(self):
         orchestrator = self.orchestrator
         implementer = orchestrator.AgentDefinition(
@@ -2250,6 +2291,61 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(1, len(command_payloads))
         self.assertEqual("intent", command_payloads[0]["sourceKind"])
         self.assertEqual(["inspect"], command_payloads[0]["taskIds"])
+
+    def test_collect_validation_commands_adds_docs_consistency_helper_for_docs_only_changes(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="edit-docs",
+            title="Edit docs",
+            agent="implementer",
+            prompt="Improve quickstart docs.",
+        )
+        record = make_task_run_record(
+            orchestrator,
+            task,
+            status="completed",
+            summary="Improved README.",
+            files_touched=["examples/spring-boot-starter-quickstart/README.md"],
+            actual_files_touched=["examples/spring-boot-starter-quickstart/README.md"],
+        )
+
+        task_payloads, command_payloads = orchestrator.collect_validation_commands(
+            [record],
+            included_statuses={"completed"},
+        )
+
+        self.assertTrue(task_payloads[0]["docsOnlyTouchedFiles"])
+        self.assertTrue(task_payloads[0]["docsValidationRecommended"])
+        helper = next(command for command in command_payloads if command["sourceKind"] == "coordinator-helper")
+        self.assertEqual("docs-consistency", helper["helperKind"])
+        self.assertEqual("scripts/docs/check-doc-consistency.ps1", helper["command"])
+        self.assertEqual(["edit-docs"], helper["taskIds"])
+
+    def test_collect_validation_commands_does_not_add_docs_helper_for_non_doc_changes(self):
+        orchestrator = self.orchestrator
+        task = orchestrator.TaskDefinition(
+            id="edit-code",
+            title="Edit code",
+            agent="implementer",
+            prompt="Improve controller.",
+        )
+        record = make_task_run_record(
+            orchestrator,
+            task,
+            status="completed",
+            summary="Improved controller.",
+            files_touched=["examples/spring-boot-starter-quickstart/src/main/java/App.java"],
+            actual_files_touched=["examples/spring-boot-starter-quickstart/src/main/java/App.java"],
+        )
+
+        task_payloads, command_payloads = orchestrator.collect_validation_commands(
+            [record],
+            included_statuses={"completed"},
+        )
+
+        self.assertFalse(task_payloads[0]["docsOnlyTouchedFiles"])
+        self.assertFalse(task_payloads[0]["docsValidationRecommended"])
+        self.assertEqual([], [command for command in command_payloads if command["sourceKind"] == "coordinator-helper"])
 
     def test_select_parallel_ready_batch_serializes_overlapping_write_tasks(self):
         orchestrator = self.orchestrator
@@ -7344,6 +7440,81 @@ class ValidateCommandTest(unittest.TestCase):
             updated_manifest["coordinatorValidation"]["suggestedCommands"],
         )
 
+    def test_validate_run_adds_docs_consistency_helper_for_docs_only_changes(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "validate-run-docs-helper",
+                        "runDir": str(run_dir),
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Updated README.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(run_dir / "workspace-a"),
+                                "started_at": "2026-04-04T00:00:00+00:00",
+                                "finished_at": "2026-04-04T00:00:01+00:00",
+                                "files_touched": ["examples/spring-boot-starter-quickstart/README.md"],
+                                "actual_files_touched": ["examples/spring-boot-starter-quickstart/README.md"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-haiku-4-5",
+                                "model_profile": "simple",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.validate_run(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        include_statuses=[],
+                        allow_unsafe_commands=False,
+                        continue_on_error=False,
+                        timeout_sec=60,
+                        dry_run=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertIn("scripts/docs/check-doc-consistency.ps1", payload["suggestedCommands"])
+        helper = next(command for command in payload["commands"] if command["sourceKind"] == "coordinator-helper")
+        self.assertEqual("planned", helper["status"])
+        self.assertEqual("docs-consistency", helper["helperKind"])
+
     def test_validate_run_executes_commands_and_stops_after_failure(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
@@ -8724,6 +8895,187 @@ class ReviewerFindingsTest(unittest.TestCase):
         self.assertEqual(2, len(task_findings))
         self.assertEqual("warn", task_findings[0]["severity"])
         self.assertEqual("block", task_findings[1]["severity"])
+
+    def test_task_review_summary_flags_mojibake_in_docs_text(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            (repo_root / "README.md").write_text("hello\n", encoding="utf-8")
+            (workspace_root / "README.md").write_text("salary \u00e2\u2030\u00a5 100k\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                record = make_task_run_record(
+                    orchestrator,
+                    self._make_impl_task(),
+                    status="completed",
+                    summary="Updated README.",
+                    workspace_path=str(workspace_root),
+                    files_touched=["README.md"],
+                    actual_files_touched=["README.md"],
+                )
+                payload, _ = orchestrator.task_review_summary(record, context_lines=3)
+            finally:
+                orchestrator.ROOT = old_root
+
+        findings = payload["textQualityFindings"]
+        self.assertEqual(1, len(findings))
+        self.assertEqual("mojibake", findings[0]["kind"])
+        self.assertEqual("block", findings[0]["severity"])
+        self.assertIn("README.md", findings[0]["message"])
+
+    def test_task_review_summary_warns_on_new_non_ascii_docs_text(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            (repo_root / "guide.md").write_text("plain ascii\n", encoding="utf-8")
+            (workspace_root / "guide.md").write_text("cafe \u00e9\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                record = make_task_run_record(
+                    orchestrator,
+                    self._make_impl_task(),
+                    status="completed",
+                    summary="Updated guide.",
+                    workspace_path=str(workspace_root),
+                    files_touched=["guide.md"],
+                    actual_files_touched=["guide.md"],
+                )
+                payload, _ = orchestrator.task_review_summary(record, context_lines=3)
+            finally:
+                orchestrator.ROOT = old_root
+
+        findings = payload["textQualityFindings"]
+        self.assertEqual(1, len(findings))
+        self.assertEqual("non-ascii-doc-text", findings[0]["kind"])
+        self.assertEqual("warn", findings[0]["severity"])
+
+    def test_plan_promotion_blocks_on_text_quality_guardrail(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            (repo_root / "README.md").write_text("hello\n", encoding="utf-8")
+            (workspace_root / "README.md").write_text("salary \u00e2\u2030\u00a5 100k\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                record = make_task_run_record(
+                    orchestrator,
+                    self._make_impl_task(),
+                    status="completed",
+                    summary="Updated README.",
+                    workspace_path=str(workspace_root),
+                    files_touched=["README.md"],
+                    actual_files_touched=["README.md"],
+                )
+                with self.assertRaises(orchestrator.PromotionBlockedError) as ctx:
+                    orchestrator.plan_promotion([record])
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertIn("text-quality guardrails blocked promotion", str(ctx.exception))
+
+    def test_summarize_promotion_readiness_reflects_text_quality_block(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            repo_root.mkdir()
+            workspace_root.mkdir()
+            (repo_root / "README.md").write_text("hello\n", encoding="utf-8")
+            (workspace_root / "README.md").write_text("salary \u00e2\u2030\u00a5 100k\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            try:
+                record = make_task_run_record(
+                    orchestrator,
+                    self._make_impl_task(),
+                    status="completed",
+                    summary="Updated README.",
+                    workspace_path=str(workspace_root),
+                    files_touched=["README.md"],
+                    actual_files_touched=["README.md"],
+                )
+                readiness = orchestrator.summarize_promotion_readiness([record])
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertFalse(readiness["allowed"])
+        self.assertTrue(readiness["textQualityBlocked"])
+        self.assertTrue(any("text-quality guardrails blocked promotion" in item for item in readiness["blockedReasons"]))
+
+    def test_derive_run_lifecycle_state_text_quality_blocked(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            run_dir = pathlib.Path(tempdir) / "run"
+            run_dir.mkdir()
+            workspace = pathlib.Path(tempdir) / "ws"
+            workspace.mkdir()
+            (workspace / "README.md").write_text("salary \u00e2\u2030\u00a5 100k\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.write_json(
+                manifest_path,
+                {
+                    "runId": "run-wp38",
+                    "tasks": {
+                        "edit-docs": {
+                            "id": "edit-docs",
+                            "title": "Edit docs",
+                            "agent": "implementer",
+                            "status": "completed",
+                            "summary": "Edited docs.",
+                            "workspace_mode": "copy",
+                            "workspace_path": str(workspace),
+                            "started_at": "2026-05-01T00:00:00+00:00",
+                            "finished_at": "2026-05-01T00:00:01+00:00",
+                            "files_touched": ["README.md"],
+                            "actual_files_touched": ["README.md"],
+                            "protected_path_violations": [],
+                            "validation_commands": [],
+                            "follow_ups": [],
+                            "notes": [],
+                            "model": "claude-sonnet-4-6",
+                            "model_profile": "balanced",
+                            "prompt_chars": 1,
+                            "prompt_estimated_tokens": 1,
+                            "prompt_sections": [],
+                            "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                            "usage": None,
+                            "return_code": 0,
+                            "prompt_path": "",
+                            "command_path": "",
+                            "stdout_path": None,
+                            "stderr_path": None,
+                            "result_path": None
+                        }
+                    },
+                },
+            )
+            old_root = orchestrator.ROOT
+            orchestrator.ROOT = pathlib.Path(tempdir)
+            try:
+                manifest_path, manifest = orchestrator.load_run_manifest(str(run_dir))
+                summary, _ = orchestrator.summarize_run_manifest(manifest_path, manifest)
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("review-blocked", summary["lifecycleState"])
+        self.assertIn("Text-quality guardrails blocked promotion", summary["lifecycleStateReason"])
+        self.assertIn("text-quality-blocked", summary["flags"])
 
     def test_worker_result_schema_allows_findings(self):
         orchestrator = self.orchestrator

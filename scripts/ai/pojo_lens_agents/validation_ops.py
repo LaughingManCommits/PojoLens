@@ -7,6 +7,22 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 
+DOC_TEXT_SUFFIXES = frozenset({".md", ".txt", ".adoc", ".rst"})
+DOC_TEXT_FILENAMES = frozenset({"readme", "changelog", "contributing", "license"})
+DOCS_CONSISTENCY_COMMAND = "scripts/docs/check-doc-consistency.ps1"
+
+
+def is_doc_text_path(path_value: str) -> bool:
+    path = Path(path_value)
+    return path.suffix.lower() in DOC_TEXT_SUFFIXES or path.name.lower() in DOC_TEXT_FILENAMES
+
+
+def effective_changed_paths(record: Any) -> list[str]:
+    actual_paths = [str(path).strip() for path in (record.actual_files_touched or []) if str(path).strip()]
+    if actual_paths:
+        return actual_paths
+    return [str(path).strip() for path in (record.files_touched or []) if str(path).strip()]
+
 
 def validation_execution_target(
     record: Any,
@@ -80,6 +96,13 @@ def collect_validation_commands(
         execution_target = validation_execution_target_fn(record, execution_scope=execution_scope)
         commands = dedupe_strings(record.validation_commands)
         rendered_intents = dedupe_strings([validation_intent_command_text(intent) for intent in record.validation_intents])
+        changed_paths = effective_changed_paths(record)
+        docs_only_touched_files = bool(changed_paths) and all(
+            is_doc_text_path(path_value) for path_value in changed_paths
+        )
+        has_docs_validation_suggestion = (
+            DOCS_CONSISTENCY_COMMAND in commands or DOCS_CONSISTENCY_COMMAND in rendered_intents
+        )
         included = record.status in included_statuses
         task_payloads.append(
             {
@@ -100,6 +123,14 @@ def collect_validation_commands(
                 "executionCwd": execution_target.get("cwd"),
                 "executionTargetAccepted": bool(execution_target.get("accepted", False)),
                 "executionTargetReason": execution_target.get("reason"),
+                "changedPaths": changed_paths,
+                "docsOnlyTouchedFiles": docs_only_touched_files,
+                "docsValidationRecommended": (
+                    included
+                    and execution_scope == "repo"
+                    and docs_only_touched_files
+                    and not has_docs_validation_suggestion
+                ),
                 "excludedReason": None if included else f"status '{record.status}' is excluded by the current validation policy",
             }
         )
@@ -152,6 +183,28 @@ def collect_validation_commands(
                     "workspacePath": execution_target.get("workspacePath"),
                     "executionTargetAccepted": bool(execution_target.get("accepted", False)),
                     "executionTargetReason": execution_target.get("reason"),
+                }
+                suggestions_by_command[aggregate_key] = payload
+                suggestion_order.append(aggregate_key)
+            payload["taskIds"].append(record.id)
+        if execution_scope == "repo" and docs_only_touched_files and not has_docs_validation_suggestion:
+            aggregate_key = (DOCS_CONSISTENCY_COMMAND, default_validate_run_execution_scope)
+            payload = suggestions_by_command.get(aggregate_key)
+            if payload is None:
+                payload = {
+                    "sourceKind": "coordinator-helper",
+                    "helperKind": "docs-consistency",
+                    "command": DOCS_CONSISTENCY_COMMAND,
+                    "taskIds": [],
+                    "policy": validation_command_policy(DOCS_CONSISTENCY_COMMAND),
+                    "intent": None,
+                    "compatibilityOnly": False,
+                    "executionScope": execution_scope,
+                    "cwd": execution_target.get("cwd"),
+                    "workspaceMode": "repo",
+                    "workspacePath": str(Path(default_validate_run_execution_scope)),
+                    "executionTargetAccepted": True,
+                    "executionTargetReason": None,
                 }
                 suggestions_by_command[aggregate_key] = payload
                 suggestion_order.append(aggregate_key)
@@ -309,6 +362,7 @@ def validate_run(
         result_payload: dict[str, Any] = {
             "index": index,
             "sourceKind": source_kind,
+            "helperKind": command_payload.get("helperKind"),
             "command": command_text,
             "taskIds": list(command_payload["taskIds"]),
             "intent": intent_payload if isinstance(intent_payload, dict) else None,

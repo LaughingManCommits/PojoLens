@@ -347,9 +347,43 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
                     "message": (
                         f"Plan has one write-capable task ('{sole_write_task_id}') plus upstream analyst work; "
                         "consider folding analysis into the implementer unless implementation uncertainty is high."
-                ),
-            }
+                    ),
+                }
+            )
+    doc_like_suffixes = {".md", ".txt", ".adoc", ".rst"}
+
+    def _doc_like_path(path_value: str) -> bool:
+        path = Path(path_value)
+        return path.suffix.lower() in doc_like_suffixes or path.name.lower() in {
+            "readme",
+            "changelog",
+            "contributing",
+            "license",
+        }
+
+    docs_only_write_task_ids = [
+        task.id
+        for task in plan.tasks
+        if task.id in write_task_ids
+        and effective_task_write_scope(task)
+        and all(_doc_like_path(path_value) for path_value in effective_task_write_scope(task))
+    ]
+    if docs_only_write_task_ids and len(docs_only_write_task_ids) == len(write_task_ids):
+        validation_hints = dedupe_strings(
+            list(plan.shared_context.validation)
+            + [hint for task in plan.tasks for hint in task.validation]
         )
+        if not any("check-doc-consistency" in hint for hint in validation_hints):
+            warnings.append(
+                {
+                    "kind": "docs-validation-missing",
+                    "taskIds": sorted(docs_only_write_task_ids),
+                    "message": (
+                        "Plan writes only documentation-like files but does not declare a docs consistency validation "
+                        "step such as `scripts/docs/check-doc-consistency.ps1`."
+                    ),
+                }
+            )
     tasks_by_id = {task.id: task for task in plan.tasks}
     for reviewer_task_id in reviewer_task_ids:
         reviewer_task = tasks_by_id[reviewer_task_id]
