@@ -97,7 +97,7 @@ Lifecycle helpers:
 - `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
-- the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic now live in `pojo_lens_agents.run_summary`, `review_ops`, `validation_ops`, and `evals`
+- the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but it is now a thin shim that lazy-loads `pojo_lens_agents.orchestrator_app`; retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic live in `run_summary`, `review_ops`, `validation_ops`, and `evals`
 
 Workspace modes:
 - `copy`: isolated sparse filesystem copy seeded only with declared `readPaths` and any existing files inside declared `writePaths`; safe default

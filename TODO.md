@@ -535,12 +535,25 @@ mostly CLI wiring plus thin orchestration glue.
   not make the remaining entrypoint bigger again.
 
 **Tasks:**
+- [x] Keep `scripts/ai/claude-orchestrator.py` as a thin compatibility shim
+      under the 1000-line target by moving the full implementation behind
+      package modules.
 - [x] Extract `run_loaded_plan`, `run_plan`, `resume_run`, and `retry_run`
       into a dedicated run-ops module.
-- [ ] Extract planner prompt/build/invocation flow into a dedicated planner
+- [x] Switch extracted `pojo_lens_agents` layers to lazy loading so the
+      entrypoint imports modules on demand instead of loading the full split
+      stack up front.
+- [x] Extract planner prompt/build/invocation flow into a dedicated planner
       module.
-- [ ] Extract cleanup/prune/runtime inventory helpers into a runtime-admin
+- [x] Extract cleanup/prune/runtime inventory helpers into a runtime-admin
       module.
+- [x] Extract retained run-record coercion plus branch-context helpers into a
+      manifest-records module so runtime admin and review surfaces stop
+      rebuilding that logic inline.
+- [x] Extract prompt/model/effort shaping plus worker-contract parsing into
+      dedicated prompt/worker contract modules.
+- [x] Extract task execution/workspace preparation and run manifest
+      serialization into dedicated execution/manifest IO modules.
 - [ ] Keep the entrypoint focused on argparse, dispatch, and high-level glue.
 - [ ] Preserve CLI arguments, exit codes, manifest fields, and JSON contracts
       with focused regression coverage.

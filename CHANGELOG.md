@@ -17,6 +17,27 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   while keeping `scripts/ai/claude-orchestrator.py` as the compatibility
   entrypoint with the existing CLI and JSON contracts.
 
+- **Lazy orchestrator layer loading** - the compatibility entrypoint now uses
+  on-demand loading for extracted `pojo_lens_agents` modules so the full split
+  stack is not imported until a command path actually touches it.
+
+- **Thin orchestrator compatibility shim** - `scripts/ai/claude-orchestrator.py`
+  is now a small compatibility wrapper that delegates to
+  `pojo_lens_agents.orchestrator_app`, keeping the operator entrypoint well
+  below the 1000-line target while preserving existing callers and tests.
+
+- **Orchestrator planner/runtime-admin decomposition** - extracted planner
+  prompt/invocation flow into `pojo_lens_agents.planner_ops`, cleanup/status/
+  inventory/prune logic into `runtime_admin`, and retained run-record coercion
+  plus branch-context helpers into `manifest_records` so the oversized
+  `orchestrator_app` stops owning those command surfaces inline.
+
+- **Orchestrator prompt/execution/manifest decomposition** - extracted prompt
+  and worker-contract logic into `prompt_contracts`, `worker_contracts`, and
+  `validate_cli`, task execution/workspace prep into `task_execution`, and run
+  manifest serialization into `manifest_io`, reducing the remaining
+  `pojo_lens_agents.orchestrator_app` control-plane surface again.
+
 - **Approval lifecycle state machine** - retained runs now expose explicit
   `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
   coordinator persists `coordinatorReview`, `coordinatorValidation`, and
