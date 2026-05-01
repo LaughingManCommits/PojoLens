@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "name": "example-parallel-implement-review-quickstart-docs",
+  "goal": "Demonstrate a low-cost real parallel implementer run plus reviewed promotion for quickstart developer-facing documentation.",
+  "sharedContext": {
+    "summary": "Improve the Spring Boot starter quickstart documentation so a developer can understand what the example does, which files matter first, and how to extend it without reading the whole repo. Keep the work bounded to the quickstart example docs.",
+    "constraints": [
+      "Keep work bounded to examples/spring-boot-starter-quickstart.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes.",
+      "Task write scopes must stay disjoint so the two implementers can run in parallel.",
+      "Keep changes documentation-only."
+    ],
+    "readPaths": [
+      "examples/spring-boot-starter-quickstart/README.md",
+      "examples/spring-boot-starter-quickstart/pom.xml",
+      "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+    ],
+    "validation": [
+      "scripts/docs/check-doc-consistency.ps1"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "improve-quickstart-readme-flow",
+      "title": "Improve the quickstart README onboarding flow",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Tighten the quickstart README so a developer can scan it and immediately understand what the example demonstrates, which endpoints are worth trying first, and what to inspect in code after the app starts. Add high-signal orientation without turning it into a long guide.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/README.md"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "add-quickstart-developer-notes",
+      "title": "Add focused quickstart developer notes",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Add a small developer-oriented notes file for the quickstart example that explains the main source file to inspect, how the in-memory employee flow is shaped, and where a developer would extend the example with one more endpoint. Keep it concrete and repo-specific.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/pom.xml",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/DEVELOPER-NOTES.md"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-quickstart-docs-change",
+      "title": "Review the combined quickstart docs change",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "maxPromptEstimatedTokens": 1800,
+      "prompt": "Review the combined quickstart documentation change for clarity, accuracy, and whether the README plus developer notes make the example easier to understand without contradicting the implementation. Focus on misleading statements, missing orientation, and promotion risks.",
+      "dependsOn": [
+        "improve-quickstart-readme-flow",
+        "add-quickstart-developer-notes"
+      ],
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "workspaceMode": "copy",
+      "dependencyMaterialization": "apply-reviewed"
+    }
+  ]
+}

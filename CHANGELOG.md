@@ -16,6 +16,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   PojoLens query, with README curl docs and coverage in both default and
   virtual-thread integration tests.
 
+- **Quickstart onboarding docs** - the Spring Boot starter quickstart README
+  now includes a guided "try these first" flow, code-structure pointers, and
+  extension guidance so developers can understand the example faster without
+  reading the whole repo.
+
 - **Quickstart implementer-reviewer sample plan** - added
   `ai/orchestrator/tasks/example-implement-review-quickstart.json` as the
   smallest tracked coding-plus-review orchestration sample tied to a real repo

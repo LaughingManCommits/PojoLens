@@ -43,6 +43,10 @@ Execution order is dependency-first, not ticket-number order.
 | WP36| Orchestrator Run And Planner Decomposition | Complete | Reduced `claude-orchestrator.py` to a 50-line shim, brought `pojo_lens_agents.orchestrator_app` down to 863 lines, and split parser/contracts/utils/plan/review-provider support into focused `pojo_lens_agents` modules |
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Complete | Added `export-trace`, a stable `pojo-lens-orchestrator-trace/v1` span export, and parent-child task/batch/checkpoint lineage derived from retained events and branch contexts |
+| WP37| Reviewer Findings And Promotion Governance | Planned | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
+| WP38| Docs And Text Quality Guardrails     | Planned | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
+| WP39| Low-Cost Worker Profiles And Output Discipline | Planned | Lean docs-oriented worker/reviewer profiles, tighter output contracts, and lower-cost prompt/result behavior for small live proofs |
+| WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -52,6 +56,7 @@ history.
 
 Post-WP live-run hardening:
 - `2026-05-01`: Coordinator contract hardening landed after the real quickstart coding runs: `validate` now warns about risky reviewer prompt budgets, promotion dedupes exact duplicate reviewer/materialized file ownership, and promoted coding runs stay `awaiting_validation` until repo-scope validation is recorded after promotion.
+- `2026-05-01`: The next orchestration queue is now broader than a narrow patch pass: reviewer governance, docs/text guardrails, low-cost worker tuning, and end-to-end coding run reliability are all tracked explicitly as WP37-WP40.
 
 ---
 
@@ -585,6 +590,171 @@ mostly CLI wiring plus thin orchestration glue.
 - `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/*.py scripts/tests/test_claude_orchestrator.py`
 - `py -3 -m unittest scripts.tests.test_claude_orchestrator`
 - `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP37: Reviewer Findings And Promotion Governance
+
+**Priority:** High
+
+**Goal:** Make reviewer conclusions machine-meaningful so promotion readiness
+and retained-run status do not depend on prose-only summaries.
+
+**Context:**
+- Real quickstart coding and docs runs showed that reviewers can identify real
+  promotion risks while still returning a `completed` task and a human-only
+  summary.
+- The coordinator currently has no structured way to distinguish "review
+  passed" from "review found a material issue" other than manual operator
+  reading.
+- Promotion already supports task-level selection and coordinator-owned
+  checkpoints; this package should strengthen that governance rather than
+  replace it with automatic merging.
+
+**Tasks:**
+- [ ] Extend reviewer worker output with structured findings that include
+      severity such as `info`, `warn`, and `block`.
+- [ ] Persist reviewer findings in task records, review summaries, and
+      retained-run manifests without breaking existing JSON contracts more than
+      necessary.
+- [ ] Make promotion readiness and dry-run promotion summaries surface blocking
+      reviewer findings explicitly.
+- [ ] Decide whether blocking reviewer findings should refuse promotion by
+      default or require an explicit coordinator override flag, and implement
+      the chosen behavior.
+- [ ] Reflect reviewer finding severity in retained-run `status`,
+      `inventory`, `approvalSummary`, and `evaluate-run` where useful.
+- [ ] Add focused regression coverage for prose-only warnings, blocking review
+      findings, selective promotion after mixed review outcomes, and retained
+      lifecycle visibility.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/prompt_contracts.py scripts/ai/pojo_lens_agents/worker_contracts.py scripts/ai/pojo_lens_agents/review_ops.py scripts/ai/pojo_lens_agents/run_summary.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json`
+- `scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP38: Docs And Text Quality Guardrails
+
+**Priority:** High
+
+**Goal:** Add coordinator-side safeguards for documentation/text quality so
+common low-signal content failures do not get promoted silently.
+
+**Context:**
+- The live quickstart docs run produced mojibake in promoted README text even
+  though the substantive content was useful.
+- Documentation-oriented runs currently rely on general review and generic doc
+  checks, but they do not have text-sanity rules specific to AI-authored docs.
+- The repo already prefers ASCII edits by default; this package should make
+  that preference enforceable for common docs workflows.
+
+**Tasks:**
+- [ ] Add a text-sanity check for common mojibake and encoding-corruption
+      patterns in promoted text files.
+- [ ] Add a docs-oriented coordinator validation helper that can run against
+      selected promoted files or retained workspaces before promotion.
+- [ ] Decide where ASCII-safe enforcement should apply by default and where
+      Unicode is acceptable, then encode that policy in the orchestrator.
+- [ ] Surface text-quality failures in review, dry-run promotion, and
+      retained-run status instead of forcing operators to spot them manually.
+- [ ] Add regression tests for mojibake detection, ASCII-safe docs behavior,
+      and non-doc false-positive avoidance.
+- [ ] Update operator docs so contributors know when docs/text checks are
+      expected in a run plan.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/review_ops.py scripts/ai/pojo_lens_agents/validation_ops.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/docs/check-doc-consistency.ps1`
+- `scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json`
+- `scripts/ai/refresh-ai-memory.ps1`
+- `scripts/ai/refresh-ai-memory.ps1 -Check`
+
+---
+
+## WP39: Low-Cost Worker Profiles And Output Discipline
+
+**Priority:** Medium
+
+**Goal:** Reduce token cost and verbosity for small real-world orchestration
+proofs without weakening correctness or governance.
+
+**Context:**
+- Even `simple` plus `--effort low` runs are still producing large outputs and
+  higher-than-desired cost for bounded docs/read-only work.
+- The current worker contract already caps fields, but live runs still show
+  excessive summaries, notes, and reviewer prose.
+- The orchestrator needs a practical "cheap proof" path for repeated live
+  validation of multi-agent behavior.
+
+**Tasks:**
+- [ ] Add leaner docs-oriented implementer/reviewer profiles or prompt modes
+      for bounded documentation and read-only tasks.
+- [ ] Tighten worker output expectations for `summary`, `notes`,
+      `followUps`, and reviewer findings where the task shape is small.
+- [ ] Review whether default task/agent effort should remain `high` for all
+      roles or whether selected orchestration profiles should default lower.
+- [ ] Add retained-run visibility for "unexpectedly verbose" tasks so cost
+      debugging is easier.
+- [ ] Add at least one tracked low-cost live-proof task plan explicitly aimed
+      at repeated cheap orchestration validation.
+- [ ] Add regression coverage for the cheaper profile/contract behavior.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/prompt_contracts.py scripts/ai/pojo_lens_agents/worker_contracts.py scripts/ai/pojo_lens_agents/evals.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/<cheap-proof-plan>.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/<cheap-proof-plan>.json --max-parallel 2 --effort low --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP40: End-To-End Coding Run Reliability
+
+**Priority:** High
+
+**Goal:** Close the remaining gaps between "the orchestrator can run" and "the
+orchestrator is dependable for real coding work from plan to promoted repo
+state".
+
+**Context:**
+- The repo now has real proofs for read-only runs, parallel runs, coding runs,
+  selective promotion, and post-promotion validation, but each proof also
+  exposed governance or content-quality gaps.
+- The remaining work is not one bug. It is an end-to-end reliability pass
+  across planning, execution, review, promotion, and validation.
+- This package should use tracked real-world examples in this repo rather than
+  synthetic plans only.
+
+**Tasks:**
+- [ ] Revisit the tracked quickstart coding/doc plans and align them with the
+      stronger reviewer and docs guardrails from WP37-WP39.
+- [ ] Add at least one clean end-to-end coding proof where implementer output,
+      reviewer approval, promotion, and post-promotion validation all succeed
+      without manual coordinator patching.
+- [ ] Add at least one clean end-to-end docs proof where multiple parallel
+      implementers plus a reviewer succeed without leaving unpromoted fixes.
+- [ ] Expand `evaluate-run` and/or corpus evaluation to reflect the new
+      reviewer-governance and text-quality signals.
+- [ ] Decide which retained-run outcomes are release-grade proof points for
+      the orchestrator and document them in `ai/orchestrator/README.md`.
+- [ ] Update `CHANGELOG.md`, memory state, and tracked validations to reflect
+      the final reliability baseline.
+
+**Validate:**
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel-implement-review-quickstart.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel-implement-review-quickstart.json --max-parallel 2 --json`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel-implement-review-quickstart-docs.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel-implement-review-quickstart-docs.json --max-parallel 2 --json`
+- `mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml test`
+- `scripts/docs/check-doc-consistency.ps1`
+- `scripts/ai/refresh-ai-memory.ps1`
+- `scripts/ai/refresh-ai-memory.ps1 -Check`
 
 ---
 
