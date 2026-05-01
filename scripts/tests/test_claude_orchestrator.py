@@ -5685,6 +5685,10 @@ class ValidateCommandTest(unittest.TestCase):
                     "workspacesDir": str(old_workspaces_dir),
                     "plan": {"name": "old-plan", "goal": "Old goal", "taskIds": ["task-a"]},
                     "usageTotals": {"promptEstimatedTokens": 123, "totalCostUsd": 0.12},
+                    "events": [
+                        {"ts": "2026-04-01T10:00:00+00:00", "phase": "run-start"},
+                        {"ts": "2026-04-01T10:01:00+00:00", "phase": "run-finished"},
+                    ],
                     "tasks": {
                         "task-a": asdict(
                             make_task_run_record(
@@ -5713,6 +5717,19 @@ class ValidateCommandTest(unittest.TestCase):
                     "workspacesDir": str(new_workspaces_dir),
                     "plan": {"name": "new-plan", "goal": "New goal", "taskIds": ["task-b"]},
                     "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
+                    "events": [
+                        {"ts": "2026-04-07T10:00:00+00:00", "phase": "run-start"},
+                        {
+                            "ts": "2026-04-07T10:01:00+00:00",
+                            "phase": "batch-ready",
+                            "taskIds": ["task-b"],
+                        },
+                        {
+                            "ts": "2026-04-07T10:02:00+00:00",
+                            "phase": "task-failed",
+                            "taskId": "task-b",
+                        },
+                    ],
                     "tasks": {
                         "task-b": asdict(
                             make_task_run_record(
@@ -5747,6 +5764,9 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(["task-b"], payload["runs"][0]["resumeCandidateTaskIds"])
         self.assertEqual({"failed": 1}, payload["runs"][0]["statusCounts"])
         self.assertEqual([], payload["runs"][1]["resumeCandidateTaskIds"])
+        self.assertEqual(3, payload["runs"][0]["traceSummary"]["eventCount"])
+        self.assertEqual("task-failed", payload["runs"][0]["traceSummary"]["latestPhase"])
+        self.assertEqual({"run-start": 1, "batch-ready": 1, "task-failed": 1}, payload["runs"][0]["traceSummary"]["phaseCounts"])
         self.assertIn("failed", payload["runs"][0]["flags"])
         self.assertIn("resumable", payload["runs"][0]["flags"])
         self.assertFalse(payload["runs"][0]["promotionReady"])
@@ -5779,6 +5799,15 @@ class ValidateCommandTest(unittest.TestCase):
                         "workspacesDir": str(workspaces_dir),
                         "plan": {"name": "status-plan", "goal": "Status goal", "taskIds": ["task-a"]},
                         "usageTotals": {"promptEstimatedTokens": 456, "totalCostUsd": 0.34},
+                        "events": [
+                            {"ts": "2026-04-07T10:00:00+00:00", "phase": "run-start"},
+                            {
+                                "ts": "2026-04-07T10:01:00+00:00",
+                                "phase": "task-finished",
+                                "taskId": "task-a",
+                            },
+                            {"ts": "2026-04-07T10:02:00+00:00", "phase": "run-finished"},
+                        ],
                         "tasks": {
                             "task-a": asdict(
                                 make_task_run_record(
@@ -5809,6 +5838,9 @@ class ValidateCommandTest(unittest.TestCase):
                 orchestrator.ROOT = old_root
 
         self.assertEqual("status-run", payload["run"]["runId"])
+        self.assertEqual(3, payload["traceSummary"]["eventCount"])
+        self.assertEqual("run-finished", payload["traceSummary"]["latestPhase"])
+        self.assertEqual(["task-a"], payload["traceSummary"]["taskIdsReferenced"])
         self.assertTrue(payload["run"]["promotionReady"])
         self.assertIn("promotion-ready", payload["run"]["flags"])
         self.assertEqual(1, payload["taskCount"])

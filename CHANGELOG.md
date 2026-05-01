@@ -16,6 +16,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   finish so retained runs can be debugged and evaluated without inferring
   scheduler behavior from task records alone.
 
+- **Trace summaries in retained-run views** - added compact `traceSummary`
+  rollups to run inventory and status payloads so operators can see event
+  counts, phase counts, latest phase, and referenced task lineage without
+  opening full manifest event arrays.
+
 - **Run visibility and operator UX** - added a `status` command for retained
   runs, richer inventory flags and counts, grouped review summaries, dry-run
   promotion allow/refuse summaries, and documented operator flow for validate,

@@ -281,7 +281,7 @@ improve by adding explicit run-event lineage plus bounded quality/eval surfaces
 - [x] Add a manifest-backed run-event trace that records run start, ready
       batches, task completion/blocking, lineage via parent task ids, and run
       finish.
-- [ ] Surface compact trace summaries in retained-run operator views where
+- [x] Surface compact trace summaries in retained-run operator views where
       useful without making `--json` noisy or unstable.
 - [ ] Add branch-local lineage/context identifiers so downstream tasks can tell
       which upstream path produced a summary or reviewed layer.

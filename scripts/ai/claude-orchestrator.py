@@ -5355,6 +5355,49 @@ def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, A
     return entries
 
 
+def summarize_run_events(events_payload: Any) -> dict[str, Any]:
+    events = events_payload if isinstance(events_payload, list) else []
+    phase_counts: dict[str, int] = {}
+    task_ids_referenced: list[str] = []
+    parent_task_ids_referenced: list[str] = []
+    latest_phase: str | None = None
+    latest_ts: str | None = None
+    event_count = 0
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        event_count += 1
+        phase = str(event.get("phase", "")).strip()
+        if phase:
+            phase_counts[phase] = phase_counts.get(phase, 0) + 1
+            latest_phase = phase
+        ts = str(event.get("ts", "")).strip()
+        if ts:
+            latest_ts = ts
+        task_id = str(event.get("taskId", "")).strip()
+        if task_id and task_id not in task_ids_referenced:
+            task_ids_referenced.append(task_id)
+        for referenced_task_id in event.get("taskIds", []) or []:
+            normalized_task_id = str(referenced_task_id).strip()
+            if normalized_task_id and normalized_task_id not in task_ids_referenced:
+                task_ids_referenced.append(normalized_task_id)
+        for parent_task_id in event.get("parentTaskIds", []) or []:
+            normalized_parent_task_id = str(parent_task_id).strip()
+            if (
+                normalized_parent_task_id
+                and normalized_parent_task_id not in parent_task_ids_referenced
+            ):
+                parent_task_ids_referenced.append(normalized_parent_task_id)
+    return {
+        "eventCount": event_count,
+        "phaseCounts": phase_counts,
+        "latestPhase": latest_phase,
+        "latestTs": latest_ts,
+        "taskIdsReferenced": task_ids_referenced,
+        "parentTaskIdsReferenced": parent_task_ids_referenced,
+    }
+
+
 def summarize_run_manifest(
     manifest_path: Path,
     manifest: dict[str, Any],
@@ -5384,6 +5427,7 @@ def summarize_run_manifest(
         if isinstance(run_governance.get("artifactTotals"), dict)
         else {}
     )
+    trace_summary = summarize_run_events(manifest.get("events"))
     promotion_readiness = summarize_promotion_readiness(records)
     candidate_times = [
         datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
@@ -5451,6 +5495,7 @@ def summarize_run_manifest(
         "isCostly": is_costly,
         "promotionReady": bool(promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0),
         "promotionSummary": promotion_readiness,
+        "traceSummary": trace_summary,
         "flags": flags,
     }
     return summary, last_updated_at
@@ -5525,6 +5570,7 @@ def status_run(args: argparse.Namespace) -> dict[str, Any]:
         )
     return {
         "run": summary,
+        "traceSummary": summary["traceSummary"],
         "reviewSummary": review_summary,
         "taskCount": len(task_payloads),
         "tasks": task_payloads,

@@ -7,7 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-01`: WP31 started. Manifests now emit run-event lineage for run start, ready batches, task completion/blocking, parent task ids, and run finish.
+- `2026-05-01`: WP31 is active. Manifests now emit run-event lineage, and retained-run `inventory`/`status` output now includes compact `traceSummary` rollups.
 - `2026-05-01`: WP30 is complete. Retained-run UX now includes `status`, richer inventory flags/counts, grouped review summaries, dry-run promotion allow/refuse summaries, and documented operator flow.
 - `2026-05-01`: WP29 is complete. `pojo_lens_agents.langgraph_spike` covers lifecycle mapping, checkpointed ready-batch simulation, manifest-first `resume`/`retry` comparison, interrupt evaluation, and the decision to keep the custom scheduler in production for now.
 - `2026-04-30`: Parallel agent execution remains required; keep `--max-parallel`, ready batches, isolated workspaces, and conservative write-scope serialization.
