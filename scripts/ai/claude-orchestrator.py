@@ -2644,7 +2644,7 @@ def review_run(args: argparse.Namespace) -> dict[str, Any]:
         validation_suggestion_count += len(record.validation_intents) + len(record.validation_commands)
         mode = str(review_payload["dependencyMaterializationMode"] or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE)
         dependency_materialization_modes[mode] = dependency_materialization_modes.get(mode, 0) + 1
-    return {
+    payload = {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
         "runDir": str(manifest_path.parent),
@@ -2659,6 +2659,14 @@ def review_run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "tasks": task_payloads,
     }
+    write_run_checkpoint(
+        manifest_path,
+        manifest,
+        checkpoint_name="coordinatorReview",
+        directory_name="review",
+        payload=payload,
+    )
+    return payload
 
 
 def export_patch(args: argparse.Namespace) -> dict[str, Any]:
@@ -3017,7 +3025,7 @@ def promote_run(args: argparse.Namespace) -> dict[str, Any]:
         records_by_id = {record.id: record for record in records}
         for operation in operations:
             apply_promotion_operation(records_by_id[str(operation["taskId"])], operation)
-    return {
+    payload = {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
         "repoRoot": str(ROOT),
@@ -3033,6 +3041,14 @@ def promote_run(args: argparse.Namespace) -> dict[str, Any]:
         "operationCounts": counts,
         "tasks": task_payloads,
     }
+    write_run_checkpoint(
+        manifest_path,
+        manifest,
+        checkpoint_name="coordinatorPromotion",
+        directory_name="promotion",
+        payload=payload,
+    )
+    return payload
 
 
 def planner_output_path(name: str, explicit_path: str) -> Path:
@@ -5688,6 +5704,88 @@ def summarize_run_events(events_payload: Any) -> dict[str, Any]:
     }
 
 
+def summarize_approval_checkpoints(manifest: dict[str, Any]) -> dict[str, Any]:
+    review_payload = manifest.get("coordinatorReview") if isinstance(manifest.get("coordinatorReview"), dict) else None
+    validation_payload = (
+        manifest.get("coordinatorValidation")
+        if isinstance(manifest.get("coordinatorValidation"), dict)
+        else None
+    )
+    promotion_payload = (
+        manifest.get("coordinatorPromotion")
+        if isinstance(manifest.get("coordinatorPromotion"), dict)
+        else None
+    )
+    promotion_allowed = None
+    promotion_dry_run = None
+    promotion_applied = False
+    promotion_files = None
+    if promotion_payload is not None:
+        promotion_allowed = bool(promotion_payload.get("promotionAllowed", False))
+        promotion_dry_run = bool(promotion_payload.get("dryRun", False))
+        promotion_files = int(promotion_payload.get("filesPromoted", 0) or 0)
+        promotion_applied = promotion_allowed and not promotion_dry_run and promotion_files > 0
+    validation_passed = None
+    if validation_payload is not None:
+        validation_passed = bool(validation_payload.get("allPassed", False))
+    return {
+        "reviewRecorded": review_payload is not None,
+        "reviewSummaryPath": review_payload.get("summaryPath") if review_payload is not None else None,
+        "validationRecorded": validation_payload is not None,
+        "validationPassed": validation_passed,
+        "validationSummaryPath": validation_payload.get("summaryPath") if validation_payload is not None else None,
+        "promotionRecorded": promotion_payload is not None,
+        "promotionAllowed": promotion_allowed,
+        "promotionDryRun": promotion_dry_run,
+        "promotionApplied": promotion_applied,
+        "promotionFilesPromoted": promotion_files,
+        "promotionSummaryPath": promotion_payload.get("summaryPath") if promotion_payload is not None else None,
+    }
+
+
+def derive_run_lifecycle_state(
+    *,
+    manifest: dict[str, Any],
+    records: list[TaskRunRecord],
+    summary_base: dict[str, Any],
+    promotion_readiness: dict[str, Any],
+    approval_summary: dict[str, Any],
+) -> tuple[str, str]:
+    if summary_base["hasFailures"]:
+        return "failed", "At least one retained task failed."
+    if summary_base["hasBlocked"]:
+        return "blocked", "At least one retained task is blocked."
+    if summary_base["isResumable"]:
+        return "awaiting_execution", "Run still has planned or incomplete retained tasks."
+
+    changed_completed_task_ids = sorted(
+        record.id
+        for record in records
+        if record.status == "completed" and (record.actual_files_touched or record.files_touched)
+    )
+    if not changed_completed_task_ids:
+        return "completed", "Run completed without promotable file changes."
+
+    if approval_summary["promotionApplied"]:
+        return "completed", "Coordinator promotion has already been applied."
+
+    if not approval_summary["reviewRecorded"]:
+        return "awaiting_review", "Completed changes are present but coordinator validation has not been recorded yet."
+
+    if not approval_summary["validationRecorded"]:
+        return "awaiting_validation", "Coordinator review is recorded, but validation has not been run yet."
+
+    if not bool(approval_summary["validationPassed"]):
+        return "awaiting_validation", "Coordinator validation is present but not yet passing."
+
+    if promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0:
+        if approval_summary["promotionRecorded"] and not bool(approval_summary["promotionAllowed"]):
+            return "awaiting_promotion", "Validated changes still need coordinator promotion after the latest promotion refusal."
+        return "awaiting_promotion", "Validated changes are ready for coordinator promotion."
+
+    return "completed", "Coordinator validation passed, but there are no promotable retained file changes."
+
+
 def summarize_run_manifest(
     manifest_path: Path,
     manifest: dict[str, Any],
@@ -5743,6 +5841,7 @@ def summarize_run_manifest(
     trace_summary = summarize_run_events(manifest.get("events"))
     branch_summary = summarize_branch_contexts(records)
     promotion_readiness = summarize_promotion_readiness(records)
+    approval_summary = summarize_approval_checkpoints(manifest)
     candidate_times = [
         datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
     ]
@@ -5760,6 +5859,18 @@ def summarize_run_manifest(
     has_blocked = status_counts.get("blocked", 0) > 0
     is_resumable = len(resume_candidate_task_ids) > 0
     is_costly = float(usage_totals.get("totalCostUsd", 0.0) or 0.0) > 0.0
+    summary_base = {
+        "hasFailures": has_failures,
+        "hasBlocked": has_blocked,
+        "isResumable": is_resumable,
+    }
+    lifecycle_state, lifecycle_state_reason = derive_run_lifecycle_state(
+        manifest=manifest,
+        records=records,
+        summary_base=summary_base,
+        promotion_readiness=promotion_readiness,
+        approval_summary=approval_summary,
+    )
     flags: list[str] = []
     if has_failures:
         flags.append("failed")
@@ -5773,6 +5884,7 @@ def summarize_run_manifest(
         flags.append("costly")
     if int(run_governance.get("blockingAlertCount", 0) or 0) > 0:
         flags.append("governance-blocked")
+    flags.append(f"state:{lifecycle_state}")
     summary = {
         "runId": str(manifest.get("runId", "")),
         "manifestPath": str(manifest_path),
@@ -5810,10 +5922,13 @@ def summarize_run_manifest(
         "topologyMaxParallelWidth": int(topology.get("maxParallelWidth", 0) or 0),
         "topologyWarningCount": int(topology.get("warningCount", 0) or 0),
         "isCostly": is_costly,
+        "lifecycleState": lifecycle_state,
+        "lifecycleStateReason": lifecycle_state_reason,
         "promotionReady": bool(promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0),
         "promotionSummary": promotion_readiness,
         "traceSummary": trace_summary,
         "branchSummary": branch_summary,
+        "approvalSummary": approval_summary,
         "flags": flags,
     }
     return summary, last_updated_at
@@ -6627,21 +6742,39 @@ def run_validation_intent(
     )
 
 
+def write_run_checkpoint(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    *,
+    checkpoint_name: str,
+    directory_name: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    checkpoint_dir = manifest_path.parent / directory_name
+    summary_path = checkpoint_dir / "summary.json"
+    write_json(summary_path, payload)
+    updated_manifest = dict(manifest)
+    updated_manifest[checkpoint_name] = {
+        **payload,
+        "summaryPath": str(summary_path),
+    }
+    write_json(manifest_path, updated_manifest)
+    return updated_manifest
+
+
 def write_coordinator_validation_summary(
     manifest_path: Path,
     manifest: dict[str, Any],
     summary: dict[str, Any],
 ) -> dict[str, Any]:
-    validation_dir = manifest_path.parent / "validation"
-    summary_path = validation_dir / "summary.json"
-    write_json(summary_path, summary)
     updated_manifest = dict(manifest)
-    updated_manifest["coordinatorValidation"] = {
-        **summary,
-        "summaryPath": str(summary_path),
-    }
-    write_json(manifest_path, updated_manifest)
-    return updated_manifest
+    return write_run_checkpoint(
+        manifest_path,
+        updated_manifest,
+        checkpoint_name="coordinatorValidation",
+        directory_name="validation",
+        payload=summary,
+    )
 
 
 def validate_run(args: argparse.Namespace) -> dict[str, Any]:

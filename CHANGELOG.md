@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Approval lifecycle state machine** - retained runs now expose explicit
+  `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
+  coordinator persists `coordinatorReview`, `coordinatorValidation`, and
+  `coordinatorPromotion` checkpoints with run-local summary artifacts so
+  review, validation, and promotion gates are resumable and inspectable.
+
 - **Retained-run corpus evaluation** - added `evaluate-corpus` so the
   orchestrator can aggregate retained-run `scoreSummary` status, average score
   percent, and benchmark-dimension counts across the runtime root.

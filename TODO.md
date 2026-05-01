@@ -39,7 +39,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP30| Run Visibility And Operator UX       | Complete | Added `status`, richer inventory/review/promotion summaries, and documented the retained-run operator flow |
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
 | WP32| Orchestrator Bench And Evals         | Complete | Added a machine-readable run-quality score surface, tracked eval fixtures, and a retained-run corpus view for comparing decomposition, retries, review/promotion accuracy, and parallel efficiency |
-| WP33| Approval State Machine               | Planned  | Persist explicit `awaiting_review`, `awaiting_validation`, and `awaiting_promotion` states with resumable approval checkpoints |
+| WP33| Approval State Machine               | Complete | Persist explicit approval lifecycle states, coordinator review/validation/promotion checkpoints, and retained-run approval summaries |
 | WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -384,13 +384,37 @@ the first tracked eval fixture for regression anchoring.
 **Goal:** Make review, validation, and promotion gates first-class persisted
 run states rather than only follow-on commands over retained manifests.
 
+**Decision:** Complete. Retained runs now derive explicit approval lifecycle
+states, `review`/`validate-run`/`promote` persist coordinator checkpoints into
+the run manifest, and retained summaries expose approval checkpoint visibility
+without moving review or promotion ownership out of the coordinator.
+
+**Work done:**
+- Added explicit retained lifecycle states `awaiting_review`,
+      `awaiting_validation`, and `awaiting_promotion`, plus a terminal
+      `completed` state once promotion is applied or no promotable changes
+      remain.
+- Persisted `coordinatorReview`, `coordinatorValidation`, and
+      `coordinatorPromotion` checkpoint summaries alongside their run-local
+      `summary.json` artifacts.
+- Surfaced `approvalSummary`, `lifecycleState`, and `lifecycleStateReason` in
+      retained manifests plus `status`/`inventory` output.
+- Added focused regression coverage for review checkpoint persistence,
+      promotion checkpoint persistence, and lifecycle progression across
+      review, validation, and promotion.
+
 **Tasks:**
-- [ ] Add explicit retained states such as `awaiting_review`,
+- [x] Add explicit retained states such as `awaiting_review`,
       `awaiting_validation`, and `awaiting_promotion`.
-- [ ] Persist resumable approval checkpoints and operator decisions in the run
+- [x] Persist resumable approval checkpoints and operator decisions in the run
       manifest.
-- [ ] Keep review/promotion ownership in the coordinator while making the
+- [x] Keep review/promotion ownership in the coordinator while making the
       interrupt states visible in retained-run summaries.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 

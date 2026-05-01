@@ -92,6 +92,7 @@ Lifecycle helpers:
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
+- retained-run summaries now also expose `lifecycleState`, `lifecycleStateReason`, and `approvalSummary` so review, validation, and promotion gates are visible without opening the raw manifest
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
 - `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
@@ -134,6 +135,7 @@ Token and cost visibility:
 - `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
+- `review`, `validate-run`, and `promote` now persist coordinator checkpoints back into the run manifest as `coordinatorReview`, `coordinatorValidation`, and `coordinatorPromotion`, each with a run-local `summary.json` path for replayable operator evidence
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
 - `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
 - operator-facing benchmark fields for WP32 are now `scoreSummary.status`, `scoreSummary.statusCounts`, `scoreSummary.scorePercent`, `scoreSummary.taskCount`, `scoreSummary.batchCount`, `scoreSummary.parallelWidth`, plus `benchmarkDimensions.{decompositionQuality,retryCorrectness,reviewPromotionAccuracy,parallelEfficiency}`

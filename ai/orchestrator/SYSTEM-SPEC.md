@@ -140,6 +140,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Same-run resume should default to unfinished or missing tasks, preserve already-completed task records, reuse the same run id and runtime directories, and allow explicit task narrowing.
 - Same-run resume is run continuity rather than partial sandbox continuity; resumed `copy` or `worktree` tasks may rebuild fresh workspaces before rerun.
 - Run inventory should expose compact status, resume-candidate, coordinator-validation, prompt, and cost summaries across the runtime root.
+- Retained-run manifests and summaries should expose explicit approval lifecycle state plus persisted coordinator review, validation, and promotion checkpoints so interrupts stay resumable and inspectable without reopening every artifact directory.
 - Validate surfaces should expose tracked `runPolicy`, and run/retry/manifests plus retained-run summaries should expose run-governance status, alert counts, highest-cost tasks, and aggregate artifact totals.
 - Retained-run summaries should also surface compact topology fields such as batch count, max parallel width, and topology warning count so inventory remains useful without opening each manifest.
 - Run/retry/manifests plus retained-run summaries should expose compact event-trace and branch-lineage rollups, and raw event arrays should record branch-context ids alongside task ids when available.

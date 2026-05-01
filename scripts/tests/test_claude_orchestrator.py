@@ -4478,6 +4478,10 @@ class ValidateCommandTest(unittest.TestCase):
                         context_lines=3,
                     )
                 )
+                updated_manifest = orchestrator.read_json(manifest_path)
+                review_summary_exists = pathlib.Path(
+                    updated_manifest["coordinatorReview"]["summaryPath"]
+                ).exists()
             finally:
                 orchestrator.ROOT = old_root
 
@@ -4487,6 +4491,8 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("modified", payload["tasks"][0]["files"][0]["status"])
         self.assertEqual(1, payload["summary"]["changedTaskCount"])
         self.assertEqual(1, payload["summary"]["changedFileCount"])
+        self.assertIn("coordinatorReview", updated_manifest)
+        self.assertTrue(review_summary_exists)
 
     def test_export_patch_writes_patch_file(self):
         orchestrator = self.orchestrator
@@ -4633,6 +4639,7 @@ class ValidateCommandTest(unittest.TestCase):
                         dry_run=False,
                     )
                 )
+                updated_manifest = orchestrator.read_json(manifest_path)
                 foo_text = (repo_root / "foo.txt").read_text(encoding="utf-8")
                 add_text = (repo_root / "add.txt").read_text(encoding="utf-8")
                 deleted_exists = (repo_root / "delete.txt").exists()
@@ -4645,6 +4652,8 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("new\nline\n", foo_text)
         self.assertEqual("added\n", add_text)
         self.assertFalse(deleted_exists)
+        self.assertIn("coordinatorPromotion", updated_manifest)
+        self.assertEqual(3, updated_manifest["coordinatorPromotion"]["filesPromoted"])
 
     def test_promote_run_dry_run_reports_duplicate_file_ownership(self):
         orchestrator = self.orchestrator
@@ -5849,6 +5858,8 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("task-failed", payload["runs"][0]["traceSummary"]["latestPhase"])
         self.assertEqual({"run-start": 1, "batch-ready": 1, "task-failed": 1}, payload["runs"][0]["traceSummary"]["phaseCounts"])
         self.assertEqual({"high": 1}, payload["runs"][0]["effortCounts"])
+        self.assertEqual("failed", payload["runs"][0]["lifecycleState"])
+        self.assertIn("state:failed", payload["runs"][0]["flags"])
         self.assertIn("failed", payload["runs"][0]["flags"])
         self.assertIn("resumable", payload["runs"][0]["flags"])
         self.assertFalse(payload["runs"][0]["promotionReady"])
@@ -5930,10 +5941,121 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual("medium", payload["tasks"][0]["effort"])
         self.assertEqual("override", payload["tasks"][0]["effortSource"])
         self.assertEqual({"medium": 1}, payload["run"]["effortCounts"])
+        self.assertEqual("awaiting_review", payload["run"]["lifecycleState"])
+        self.assertIn("state:awaiting_review", payload["run"]["flags"])
         self.assertTrue(payload["run"]["promotionReady"])
         self.assertIn("promotion-ready", payload["run"]["flags"])
         self.assertEqual(1, payload["taskCount"])
         self.assertEqual(1, payload["tasks"][0]["filesChanged"])
+
+    def test_summarize_run_manifest_derives_awaiting_validation_and_promotion_states(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "state-run"
+            workspaces_dir = runtime_root / "workspaces" / "state-run"
+            repo_root = temp_path / "repo"
+            run_dir.mkdir(parents=True)
+            workspaces_dir.mkdir(parents=True)
+            repo_root.mkdir()
+            old_root = orchestrator.ROOT
+            orchestrator.ROOT = repo_root
+            (repo_root / "foo.txt").write_text("old\n", encoding="utf-8")
+            task_workspace = workspaces_dir / "task-a"
+            task_workspace.mkdir(parents=True)
+            (task_workspace / "foo.txt").write_text("new\n", encoding="utf-8")
+            task = orchestrator.TaskDefinition(
+                id="task-a",
+                title="Task A",
+                agent="implementer",
+                prompt="A.",
+            )
+            manifest_path = run_dir / "manifest.json"
+            base_task_payload = asdict(
+                make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="completed",
+                    summary="Done.",
+                    workspace_path=str(task_workspace),
+                    files_touched=["foo.txt"],
+                    actual_files_touched=["foo.txt"],
+                )
+            )
+            try:
+                base_manifest = {
+                    "runId": "state-run",
+                    "generatedAt": "2026-04-07T10:00:00+00:00",
+                    "dryRun": False,
+                    "runDir": str(run_dir),
+                    "workspacesDir": str(workspaces_dir),
+                    "plan": {"name": "state-plan", "goal": "State goal", "taskIds": ["task-a"]},
+                    "tasks": {"task-a": base_task_payload},
+                }
+                orchestrator.write_json(manifest_path, base_manifest)
+                awaiting_review_summary, _ = orchestrator.summarize_run_manifest(
+                    manifest_path,
+                    orchestrator.read_json(manifest_path),
+                )
+                orchestrator.write_json(
+                    manifest_path,
+                    base_manifest
+                    | {
+                        "coordinatorReview": {
+                            "summaryPath": str(run_dir / "review" / "summary.json"),
+                        },
+                    },
+                )
+                review_recorded_summary, _ = orchestrator.summarize_run_manifest(
+                    manifest_path,
+                    orchestrator.read_json(manifest_path),
+                )
+                orchestrator.write_json(
+                    manifest_path,
+                    base_manifest
+                    | {
+                        "coordinatorReview": {
+                            "summaryPath": str(run_dir / "review" / "summary.json"),
+                        },
+                        "coordinatorValidation": {
+                            "allPassed": False,
+                            "statusCounts": {"failed": 1},
+                        },
+                    },
+                )
+                awaiting_validation_summary, _ = orchestrator.summarize_run_manifest(
+                    manifest_path,
+                    orchestrator.read_json(manifest_path),
+                )
+                orchestrator.write_json(
+                    manifest_path,
+                    base_manifest
+                    | {
+                        "coordinatorReview": {
+                            "summaryPath": str(run_dir / "review" / "summary.json"),
+                        },
+                        "coordinatorValidation": {
+                            "allPassed": True,
+                            "statusCounts": {"completed": 1},
+                        },
+                    },
+                )
+                awaiting_promotion_summary, _ = orchestrator.summarize_run_manifest(
+                    manifest_path,
+                    orchestrator.read_json(manifest_path),
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("awaiting_review", awaiting_review_summary["lifecycleState"])
+        self.assertEqual("awaiting_validation", review_recorded_summary["lifecycleState"])
+        self.assertEqual("awaiting_validation", awaiting_validation_summary["lifecycleState"])
+        self.assertTrue(review_recorded_summary["approvalSummary"]["reviewRecorded"])
+        self.assertFalse(review_recorded_summary["approvalSummary"]["validationRecorded"])
+        self.assertIn("state:awaiting_validation", awaiting_validation_summary["flags"])
+        self.assertEqual("awaiting_promotion", awaiting_promotion_summary["lifecycleState"])
+        self.assertIn("state:awaiting_promotion", awaiting_promotion_summary["flags"])
 
     def test_evaluate_run_reports_branch_lineage_and_quality_warnings(self):
         orchestrator = self.orchestrator
@@ -6199,7 +6321,7 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["retryCorrectness"])
         self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["reviewPromotionAccuracy"])
         self.assertEqual({"pass": 1, "warn": 1}, payload["dimensionStatusCounts"]["parallelEfficiency"])
-        self.assertEqual(["run-one", "run-two"], [run["runId"] for run in payload["runs"]])
+        self.assertEqual(["run-one", "run-two"], sorted(run["runId"] for run in payload["runs"]))
 
     def test_prune_runs_removes_only_old_completed_runs_by_default(self):
         orchestrator = self.orchestrator
