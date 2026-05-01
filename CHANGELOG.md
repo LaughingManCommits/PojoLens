@@ -38,6 +38,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   manifest serialization into `manifest_io`, reducing the remaining
   `pojo_lens_agents.orchestrator_app` control-plane surface again.
 
+- **Orchestrator task-plan governance decomposition** - extracted run-policy,
+  agent/task-plan loading, effective read/write scope helpers, and scope
+  validation into `pojo_lens_agents.task_plan_ops`, further reducing the
+  remaining orchestration app surface while keeping CLI contracts and focused
+  tests intact.
+
 - **Approval lifecycle state machine** - retained runs now expose explicit
   `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
   coordinator persists `coordinatorReview`, `coordinatorValidation`, and

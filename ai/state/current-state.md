@@ -5,13 +5,13 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-05-01`: WP36 is active. `scripts/ai/claude-orchestrator.py` is a 50-line shim; planner flow, runtime admin, prompt/worker contracts, task execution, and manifest IO now delegate to focused `pojo_lens_agents` modules.
+- `2026-05-01`: WP36 is complete. `scripts/ai/claude-orchestrator.py` is a 50-line shim; planner flow, runtime admin, prompt/worker contracts, task execution, manifest IO, and task-plan governance now delegate to focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP35 is complete. Retained-run summary, review/promote, validation checkpoints, and evals now live in focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP33 is complete. Retained runs now expose approval lifecycle states, and `review`/`validate-run`/`promote` persist coordinator checkpoints in the manifest.
 - `2026-05-01`: WP32 is complete. The orchestrator now exposes `scoreSummary`, benchmark dimensions, `evaluate-corpus`, and the tracked eval fixture.
 - `2026-05-01`: AI memory refresh now stages derived artifacts and `refresh-ai-memory -Check` tolerates in-flight refresh.
 - `2026-05-01`: Effort hardening added `--effort` overrides plus retained effort/source visibility and `evaluate-run` effort-fit warnings.
-- `2026-05-01`: Roadmap queue is now active WP36, planned WP34, deferred WP18, then Release Gate.
+- `2026-05-01`: Roadmap queue is now planned WP34, deferred WP18, then Release Gate.
 - `2026-04-30`: Parallel execution remains required; preserve `--max-parallel`, isolated workspaces, and conservative write-scope serialization.
 
 ## Verified
@@ -28,5 +28,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-05-01`: Roadmap order is active WP36 -> planned WP34 -> deferred WP18 -> Release Gate.
-- `2026-05-01`: The next WP36 slice is pushing plan loading/scope validation and the remaining argparse/dispatch glue out of `pojo_lens_agents.orchestrator_app`.
+- `2026-05-01`: Roadmap order is planned WP34 -> deferred WP18 -> Release Gate.
+- `2026-05-01`: Next roadmap item is WP34 trace export.

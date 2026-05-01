@@ -57,6 +57,7 @@ runtime_layer = _LazyModuleProxy("pojo_lens_agents.runtime")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
 task_execution_layer = _LazyModuleProxy("pojo_lens_agents.task_execution")
+task_plan_ops_layer = _LazyModuleProxy("pojo_lens_agents.task_plan_ops")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 worker_contracts_layer = _LazyModuleProxy("pojo_lens_agents.worker_contracts")
@@ -1295,27 +1296,19 @@ def ensure_model_profile(value: str | None, *, location: str) -> str | None:
 
 
 def load_run_policy(payload: Any, *, location: str) -> RunPolicy:
-    if payload is None:
-        return RunPolicy()
-    if not isinstance(payload, dict):
-        raise OrchestratorError(f"{location}: runPolicy must be an object")
-    return RunPolicy(
-        run_budget_usd=require_optional_float(payload, "runBudgetUsd", location=location),
-        budget_behavior=normalize_run_policy_behavior(
-            require_optional_string(payload, "budgetBehavior", location=location),
-            location=location,
-            key="budgetBehavior",
-            default=DEFAULT_RUN_BUDGET_BEHAVIOR,
-        ),
-        max_task_stdout_bytes=require_optional_int(payload, "maxTaskStdoutBytes", location=location),
-        max_task_stderr_bytes=require_optional_int(payload, "maxTaskStderrBytes", location=location),
-        max_task_result_bytes=require_optional_int(payload, "maxTaskResultBytes", location=location),
-        artifact_behavior=normalize_run_policy_behavior(
-            require_optional_string(payload, "artifactBehavior", location=location),
-            location=location,
-            key="artifactBehavior",
-            default=DEFAULT_ARTIFACT_BEHAVIOR,
-        ),
+    return task_plan_ops_layer.load_run_policy(
+        payload,
+        location=location,
+        deps={
+            "run_policy_factory": RunPolicy,
+            "error_factory": OrchestratorError,
+            "require_optional_float": require_optional_float,
+            "require_optional_string": require_optional_string,
+            "require_optional_int": require_optional_int,
+            "normalize_run_policy_behavior": normalize_run_policy_behavior,
+            "default_run_budget_behavior": DEFAULT_RUN_BUDGET_BEHAVIOR,
+            "default_artifact_behavior": DEFAULT_ARTIFACT_BEHAVIOR,
+        },
     )
 
 
@@ -1343,203 +1336,53 @@ def serialize_run_policy(run_policy: RunPolicy) -> dict[str, Any]:
 
 
 def load_agents(path: Path) -> dict[str, AgentDefinition]:
-    payload = read_json(path)
-    if not isinstance(payload, dict):
-        raise OrchestratorError(f"{path}: expected JSON object")
-    if payload.get("version") != 1:
-        raise OrchestratorError(f"{path}: expected version=1")
-    raw_agents = payload.get("agents")
-    if not isinstance(raw_agents, dict) or not raw_agents:
-        raise OrchestratorError(f"{path}: expected non-empty 'agents' object")
-
-    agents: dict[str, AgentDefinition] = {}
-    for name, definition in raw_agents.items():
-        location = f"{path}:{name}"
-        if not isinstance(name, str) or not name.strip():
-            raise OrchestratorError(f"{location}: invalid agent name")
-        if not isinstance(definition, dict):
-            raise OrchestratorError(f"{location}: expected object definition")
-        workspace_mode = ensure_workspace_mode(
-            require_optional_string(definition, "workspaceMode", location=location) or "copy",
-            location=location,
-        )
-        worker_validation_mode = require_optional_string(
-            definition,
-            "workerValidationMode",
-            location=location,
-        )
-        agent = AgentDefinition(
-            name=name.strip(),
-            description=require_string(definition, "description", location=location),
-            prompt=require_string(definition, "prompt", location=location),
-            skills=require_string_list(definition, "skills", location=location),
-            model=require_optional_string(definition, "model", location=location),
-            model_profile=ensure_model_profile(
-                require_optional_string(definition, "modelProfile", location=location),
-                location=location,
-            ),
-            effort=require_optional_string(definition, "effort", location=location),
-            permission_mode=require_optional_string(definition, "permissionMode", location=location),
-            workspace_mode=workspace_mode or "copy",
-            context_mode=ensure_context_mode(
-                require_optional_string(definition, "contextMode", location=location) or DEFAULT_CONTEXT_MODE,
-                location=location,
-            )
-            or DEFAULT_CONTEXT_MODE,
-            worker_validation_mode=normalize_worker_validation_mode(
-                worker_validation_mode,
-                location=f"{location}:workerValidationMode",
-            )
-            if worker_validation_mode is not None
-            else None,
-            timeout_sec=require_optional_int(definition, "timeoutSec", location=location) or DEFAULT_TASK_TIMEOUT_SEC,
-            max_budget_usd=require_optional_float(definition, "maxBudgetUsd", location=location),
-            max_prompt_chars=require_optional_int(definition, "maxPromptChars", location=location),
-            max_prompt_estimated_tokens=require_optional_int(
-                definition, "maxPromptEstimatedTokens", location=location
-            ),
-            allowed_tools=require_string_list(definition, "allowedTools", location=location),
-            disallowed_tools=require_string_list(definition, "disallowedTools", location=location),
-        )
-        agents[agent.name] = agent
-
-    if PLANNER_TASK_ID not in agents:
-        raise OrchestratorError(f"{path}: required agent '{PLANNER_TASK_ID}' is missing")
-    return agents
+    return task_plan_ops_layer.load_agents(
+        path,
+        deps={
+            "read_json": read_json,
+            "error_factory": OrchestratorError,
+            "agent_definition_factory": AgentDefinition,
+            "require_optional_string": require_optional_string,
+            "require_optional_int": require_optional_int,
+            "require_optional_float": require_optional_float,
+            "require_string": require_string,
+            "require_string_list": require_string_list,
+            "ensure_workspace_mode": ensure_workspace_mode,
+            "ensure_context_mode": ensure_context_mode,
+            "ensure_model_profile": ensure_model_profile,
+            "normalize_worker_validation_mode": normalize_worker_validation_mode,
+            "default_context_mode": DEFAULT_CONTEXT_MODE,
+            "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
+            "planner_task_id": PLANNER_TASK_ID,
+        },
+    )
 
 
 def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
-    payload = read_json(path)
-    if not isinstance(payload, dict):
-        raise OrchestratorError(f"{path}: expected JSON object")
-    if payload.get("version") != 1:
-        raise OrchestratorError(f"{path}: expected version=1")
-    shared_context_payload = payload.get("sharedContext", {})
-    if not isinstance(shared_context_payload, dict):
-        raise OrchestratorError(f"{path}: sharedContext must be an object")
-    if "files" in shared_context_payload:
-        raise OrchestratorError(
-            f"{path}:sharedContext: legacy 'files' was replaced by 'readPaths'"
-        )
-    shared_context = SharedContext(
-        summary=require_string(shared_context_payload, "summary", location=f"{path}:sharedContext"),
-        constraints=require_string_list(shared_context_payload, "constraints", location=f"{path}:sharedContext"),
-        read_paths=require_scope_path_list(
-            shared_context_payload,
-            "readPaths",
-            location=f"{path}:sharedContext",
-            allow_repo_root=True,
-        ),
-        validation=require_string_list(shared_context_payload, "validation", location=f"{path}:sharedContext"),
-    )
-    run_policy = load_run_policy(payload.get("runPolicy"), location=str(path))
-    raw_tasks = payload.get("tasks")
-    if not isinstance(raw_tasks, list) or not raw_tasks:
-        raise OrchestratorError(f"{path}: expected non-empty tasks list")
-
-    tasks: list[TaskDefinition] = []
-    seen_ids: set[str] = set()
-    for index, task_payload in enumerate(raw_tasks):
-        location = f"{path}:tasks[{index}]"
-        if not isinstance(task_payload, dict):
-            raise OrchestratorError(f"{location}: expected task object")
-        task_id = require_string(task_payload, "id", location=location)
-        if not TASK_ID_RE.match(task_id):
-            raise OrchestratorError(
-                f"{location}: task id '{task_id}' must match {TASK_ID_RE.pattern}"
-            )
-        if task_id in seen_ids:
-            raise OrchestratorError(f"{location}: duplicate task id '{task_id}'")
-        seen_ids.add(task_id)
-        agent_name = require_string(task_payload, "agent", location=location)
-        if agent_name not in agents:
-            raise OrchestratorError(f"{location}: unknown agent '{agent_name}'")
-        if "files" in task_payload:
-            raise OrchestratorError(
-                f"{location}: legacy 'files' was replaced by 'readPaths' and 'writePaths'"
-            )
-        worker_validation_mode = require_optional_string(
-            task_payload,
-            "workerValidationMode",
-            location=location,
-        )
-        dependency_materialization = require_optional_string(
-            task_payload,
-            "dependencyMaterialization",
-            location=location,
-        )
-        task = TaskDefinition(
-            id=task_id,
-            title=require_string(task_payload, "title", location=location),
-            agent=agent_name,
-            prompt=require_string(task_payload, "prompt", location=location),
-            depends_on=require_string_list(task_payload, "dependsOn", location=location),
-            read_paths=require_scope_path_list(
-                task_payload,
-                "readPaths",
-                location=location,
-                allow_repo_root=True,
-            ),
-            write_paths=require_scope_path_list(
-                task_payload,
-                "writePaths",
-                location=location,
-                allow_repo_root=True,
-            ),
-            constraints=require_string_list(task_payload, "constraints", location=location),
-            validation=require_string_list(task_payload, "validation", location=location),
-            workspace_mode=ensure_workspace_mode(
-                require_optional_string(task_payload, "workspaceMode", location=location),
-                location=location,
-            ),
-            model=require_optional_string(task_payload, "model", location=location),
-            model_profile=ensure_model_profile(
-                require_optional_string(task_payload, "modelProfile", location=location),
-                location=location,
-            ),
-            effort=require_optional_string(task_payload, "effort", location=location),
-            permission_mode=require_optional_string(task_payload, "permissionMode", location=location),
-            context_mode=ensure_context_mode(
-                require_optional_string(task_payload, "contextMode", location=location),
-                location=location,
-            ),
-            dependency_materialization=normalize_dependency_materialization_mode(
-                dependency_materialization,
-                location=f"{location}:dependencyMaterialization",
-            ),
-            worker_validation_mode=normalize_worker_validation_mode(
-                worker_validation_mode,
-                location=f"{location}:workerValidationMode",
-            )
-            if worker_validation_mode is not None
-            else None,
-            timeout_sec=require_optional_int(task_payload, "timeoutSec", location=location),
-            max_budget_usd=require_optional_float(task_payload, "maxBudgetUsd", location=location),
-            max_prompt_chars=require_optional_int(task_payload, "maxPromptChars", location=location),
-            max_prompt_estimated_tokens=require_optional_int(
-                task_payload, "maxPromptEstimatedTokens", location=location
-            ),
-            allowed_tools=require_string_list(task_payload, "allowedTools", location=location),
-            disallowed_tools=require_string_list(task_payload, "disallowedTools", location=location),
-        )
-        tasks.append(task)
-
-    task_ids = {task.id for task in tasks}
-    for task in tasks:
-        missing_dependencies = [dependency for dependency in task.depends_on if dependency not in task_ids]
-        if missing_dependencies:
-            raise OrchestratorError(f"{path}:{task.id}: unknown dependencies {missing_dependencies}")
-        if task.id in task.depends_on:
-            raise OrchestratorError(f"{path}:{task.id}: task cannot depend on itself")
-    topological_batches(tasks)
-
-    return TaskPlan(
-        version=1,
-        name=require_string(payload, "name", location=str(path)),
-        goal=require_string(payload, "goal", location=str(path)),
-        shared_context=shared_context,
-        tasks=tasks,
-        run_policy=run_policy,
+    return task_plan_ops_layer.load_task_plan(
+        path,
+        agents,
+        deps={
+            "read_json": read_json,
+            "error_factory": OrchestratorError,
+            "shared_context_factory": SharedContext,
+            "task_definition_factory": TaskDefinition,
+            "task_plan_factory": TaskPlan,
+            "require_string": require_string,
+            "require_string_list": require_string_list,
+            "require_optional_string": require_optional_string,
+            "require_optional_int": require_optional_int,
+            "require_optional_float": require_optional_float,
+            "require_scope_path_list": require_scope_path_list,
+            "ensure_workspace_mode": ensure_workspace_mode,
+            "ensure_context_mode": ensure_context_mode,
+            "ensure_model_profile": ensure_model_profile,
+            "normalize_dependency_materialization_mode": normalize_dependency_materialization_mode,
+            "normalize_worker_validation_mode": normalize_worker_validation_mode,
+            "load_run_policy": load_run_policy,
+            "topological_batches": topological_batches,
+            "task_id_re": TASK_ID_RE,
+        },
     )
 
 
@@ -1674,17 +1517,24 @@ def task_may_write(plan: TaskPlan, task: TaskDefinition, agent: AgentDefinition)
 
 
 def effective_task_read_paths(plan: TaskPlan, task: TaskDefinition) -> list[str]:
-    return dedupe_strings(plan.shared_context.read_paths + task.read_paths)
+    return task_plan_ops_layer.effective_task_read_paths(
+        plan,
+        task,
+        dedupe_strings=dedupe_strings,
+    )
 
 
 def prompt_task_read_paths(plan: TaskPlan, task: TaskDefinition, *, context_mode: str) -> list[str]:
-    if context_mode == "minimal":
-        return dedupe_strings(task.read_paths)
-    return effective_task_read_paths(plan, task)
+    return task_plan_ops_layer.prompt_task_read_paths(
+        plan,
+        task,
+        context_mode=context_mode,
+        dedupe_strings=dedupe_strings,
+    )
 
 
 def effective_task_write_scope(task: TaskDefinition) -> list[str]:
-    return dedupe_strings(task.write_paths)
+    return task_plan_ops_layer.effective_task_write_scope(task, dedupe_strings=dedupe_strings)
 
 
 def path_within_scope(path: str, scope: str) -> bool:
@@ -1743,62 +1593,39 @@ def validate_task_scope_contract(
     tasks_by_id: dict[str, TaskDefinition],
     agents: dict[str, AgentDefinition],
 ) -> list[str]:
-    issues: list[str] = []
-    if task_may_write(plan, task, agent) and not effective_task_write_scope(task):
-        issues.append("write-capable tasks must declare non-empty writePaths")
-    workspace_mode = effective_workspace_mode(task, agent)
-    dependency_materialization = effective_dependency_materialization_mode(task)
-    if dependency_materialization == "apply-reviewed":
-        if not task.depends_on:
-            issues.append("dependencyMaterialization='apply-reviewed' requires non-empty dependsOn")
-        if workspace_mode == "repo":
-            issues.append("dependencyMaterialization='apply-reviewed' is not allowed for workspaceMode='repo'")
-        for dependency_id in task.depends_on:
-            dependency = tasks_by_id[dependency_id]
-            dependency_workspace_mode = effective_workspace_mode(
-                dependency,
-                agents[dependency.agent],
-            )
-            if dependency_workspace_mode not in {"copy", "worktree"}:
-                issues.append(
-                    "dependencyMaterialization='apply-reviewed' requires reviewable dependency workspaces; "
-                    f"dependency '{dependency_id}' resolves to workspaceMode='{dependency_workspace_mode}'"
-                )
-    if workspace_mode == "copy":
-        hydration = analyze_copy_hydration_inputs(plan, task)
-        if hydration["missingReadPaths"]:
-            issues.append(
-                "copy readPaths are missing from the repo: "
-                f"{summarize_paths(hydration['missingReadPaths'])}"
-            )
-        if hydration["directoryReadPaths"]:
-            issues.append(
-                "copy readPaths must be concrete files, not directories: "
-                f"{summarize_paths(hydration['directoryReadPaths'])}"
-            )
-        if hydration["oversizedPaths"]:
-            issues.append(
-                "copy workspace inputs exceed the hydration size limit: "
-                f"{summarize_paths(hydration['oversizedPaths'])}"
-            )
-    return issues
+    return task_plan_ops_layer.validate_task_scope_contract(
+        plan,
+        task,
+        agent,
+        tasks_by_id=tasks_by_id,
+        agents=agents,
+        deps={
+            "task_may_write": task_may_write,
+            "effective_task_write_scope": effective_task_write_scope,
+            "effective_workspace_mode": effective_workspace_mode,
+            "effective_dependency_materialization_mode": effective_dependency_materialization_mode,
+            "analyze_copy_hydration_inputs": analyze_copy_hydration_inputs,
+            "summarize_paths": summarize_paths,
+        },
+    )
 
 
 def validate_scope_contract(plan: TaskPlan, agents: dict[str, AgentDefinition]) -> None:
-    issues: list[str] = []
-    tasks_by_id = {task.id: task for task in plan.tasks}
-    for task in plan.tasks:
-        task_issues = validate_task_scope_contract(
-            plan,
-            task,
-            agents[task.agent],
-            tasks_by_id=tasks_by_id,
-            agents=agents,
-        )
-        for issue in task_issues:
-            issues.append(f"{task.id}: {issue}")
-    if issues:
-        raise OrchestratorError(format_issue_block("Task scope validation failed", issues))
+    task_plan_ops_layer.validate_scope_contract(
+        plan,
+        agents,
+        deps={
+            "error_factory": OrchestratorError,
+            "format_issue_block": format_issue_block,
+            "validate_task_scope_contract": validate_task_scope_contract,
+            "task_may_write": task_may_write,
+            "effective_task_write_scope": effective_task_write_scope,
+            "effective_workspace_mode": effective_workspace_mode,
+            "effective_dependency_materialization_mode": effective_dependency_materialization_mode,
+            "analyze_copy_hydration_inputs": analyze_copy_hydration_inputs,
+            "summarize_paths": summarize_paths,
+        },
+    )
 
 
 def overlapping_scope_entries(left: list[str], right: list[str]) -> list[str]:
