@@ -5,12 +5,13 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-01`: WP37 complete — reviewer worker output now carries structured findings (`severity`: `info`/`warn`/`block`); blocking findings refuse promotion, add `review-blocked` lifecycle state, and appear in review-run severity counts.
 - `2026-05-01`: A low-cost parallel docs run promoted a better quickstart README onboarding flow; the separate developer-notes file was not promoted after reviewer feedback.
 - `2026-05-01`: The quickstart example now includes the promoted `/api/employees/by-salary-range` endpoint with the docs/tests fix-up completed through a follow-up orchestrator run.
 - `2026-05-01`: Live-run hardening is in place: reviewer budget warnings, exact-duplicate promotion dedupe, and post-promotion `awaiting_validation` until repo-scope validation is recorded.
-- `2026-05-01`: The next roadmap queue is broader follow-on orchestrator quality work: WP37 reviewer/promotion governance, WP38 docs/text guardrails, WP39 low-cost worker tuning, then WP40 end-to-end coding run reliability.
+- `2026-05-01`: The next roadmap queue is broader follow-on orchestrator quality work: WP38 docs/text guardrails, WP39 low-cost worker tuning, then WP40 end-to-end coding run reliability.
 - `2026-05-01`: The orchestrator now places default copy/worktree workspaces in an external temp-backed root recorded in `workspacesDir`; manifests and task artifacts remain under repo-local `.claude-orchestrator`.
-- `2026-05-01`: WP32-WP36 are complete: retained runs now expose evals, approval checkpoints, trace export, and a thin orchestrator entrypoint with the split control-plane modules behind it.
+- `2026-05-01`: WP32-WP37 are complete: retained runs now expose evals, approval checkpoints, trace export, a thin orchestrator entrypoint with the split control-plane modules, and structured reviewer findings with promotion governance.
 - `2026-04-30`: Parallel execution remains required; preserve `--max-parallel`, isolated workspaces, and conservative write-scope serialization.
 
 ## Verified
@@ -26,5 +27,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-05-01`: Roadmap order is WP37 -> WP38 -> WP39 -> WP40 -> deferred WP18 -> Release Gate.
-- `2026-05-01`: Next decision is whether to start with structured reviewer findings and promotion blocking in WP37 or batch multiple review-governance changes together.
+- `2026-05-01`: Roadmap order is WP38 -> WP39 -> WP40 -> deferred WP18 -> Release Gate.
+- `2026-05-01`: WP38 is next: mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs.

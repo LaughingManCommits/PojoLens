@@ -50,6 +50,9 @@ DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT = 2
 DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT = 120
 DEFAULT_REVIEW_DEPENDENCY_CONTEXT_LINES = 1
 DEFAULT_REVIEW_DEPENDENCY_PATCH_CHAR_LIMIT = 900
+REVIEWER_FINDING_SEVERITIES: frozenset[str] = frozenset({"block", "info", "warn"})
+MAX_WORKER_FINDINGS = 10
+MAX_WORKER_FINDING_MESSAGE_CHARS = 280
 WORKER_STATUSES = {"completed", "blocked", "failed"}
 DEFAULT_VALIDATE_RUN_STATUSES = ("completed",)
 VALIDATE_RUN_EXECUTION_SCOPES = {"repo", "task-workspace"}
@@ -141,6 +144,18 @@ WORKER_RESULT_SCHEMA = {
         },
         "followUps": {"type": ["array", "null"], "items": {"type": "string"}},
         "notes": {"type": ["array", "null"], "items": {"type": "string"}},
+        "findings": {
+            "type": ["array", "null"],
+            "items": {
+                "type": "object",
+                "properties": {
+                    "severity": {"type": "string", "enum": sorted(REVIEWER_FINDING_SEVERITIES)},
+                    "message": {"type": "string"},
+                },
+                "required": ["severity", "message"],
+                "additionalProperties": False,
+            },
+        },
     },
     "required": [
         "status",
@@ -381,6 +396,12 @@ class ValidationIntent:
 
 
 @dataclass(frozen=True)
+class ReviewFinding:
+    severity: str
+    message: str
+
+
+@dataclass(frozen=True)
 class DependencyLayerOperation:
     path: str
     action: str
@@ -459,5 +480,6 @@ class TaskRunRecord:
     worker_validation_mode_source: str | None = None
     effort: str | None = None
     effort_source: str | None = None
+    reviewer_findings: list[ReviewFinding] = field(default_factory=list)
 
 

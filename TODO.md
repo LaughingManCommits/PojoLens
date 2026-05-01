@@ -43,7 +43,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP36| Orchestrator Run And Planner Decomposition | Complete | Reduced `claude-orchestrator.py` to a 50-line shim, brought `pojo_lens_agents.orchestrator_app` down to 863 lines, and split parser/contracts/utils/plan/review-provider support into focused `pojo_lens_agents` modules |
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Complete | Added `export-trace`, a stable `pojo-lens-orchestrator-trace/v1` span export, and parent-child task/batch/checkpoint lineage derived from retained events and branch contexts |
-| WP37| Reviewer Findings And Promotion Governance | Planned | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
+| WP37| Reviewer Findings And Promotion Governance | Complete | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
 | WP38| Docs And Text Quality Guardrails     | Planned | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
 | WP39| Low-Cost Worker Profiles And Output Discipline | Planned | Lean docs-oriented worker/reviewer profiles, tighter output contracts, and lower-cost prompt/result behavior for small live proofs |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
@@ -612,19 +612,19 @@ and retained-run status do not depend on prose-only summaries.
   replace it with automatic merging.
 
 **Tasks:**
-- [ ] Extend reviewer worker output with structured findings that include
+- [x] Extend reviewer worker output with structured findings that include
       severity such as `info`, `warn`, and `block`.
-- [ ] Persist reviewer findings in task records, review summaries, and
+- [x] Persist reviewer findings in task records, review summaries, and
       retained-run manifests without breaking existing JSON contracts more than
       necessary.
-- [ ] Make promotion readiness and dry-run promotion summaries surface blocking
+- [x] Make promotion readiness and dry-run promotion summaries surface blocking
       reviewer findings explicitly.
-- [ ] Decide whether blocking reviewer findings should refuse promotion by
+- [x] Decide whether blocking reviewer findings should refuse promotion by
       default or require an explicit coordinator override flag, and implement
       the chosen behavior.
-- [ ] Reflect reviewer finding severity in retained-run `status`,
+- [x] Reflect reviewer finding severity in retained-run `status`,
       `inventory`, `approvalSummary`, and `evaluate-run` where useful.
-- [ ] Add focused regression coverage for prose-only warnings, blocking review
+- [x] Add focused regression coverage for prose-only warnings, blocking review
       findings, selective promotion after mixed review outcomes, and retained
       lifecycle visibility.
 

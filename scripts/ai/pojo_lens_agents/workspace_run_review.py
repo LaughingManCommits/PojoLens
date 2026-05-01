@@ -33,6 +33,8 @@ from pojo_lens_agents.orchestrator_contracts import (
     PROTECTED_PATH_EXACT,
     PROTECTED_PATH_PREFIXES,
     PromotionBlockedError,
+    ReviewFinding,
+    REVIEWER_AGENT_NAME,
     ROOT,
     SPARSE_COPY_BASE_FILES,
     TaskDefinition,
@@ -442,6 +444,7 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
             "normalize_worker_validation_mode_source": normalize_worker_validation_mode_source,
             "normalize_effort_override": normalize_effort_override,
             "require_optional_string": require_optional_string,
+            "reviewer_finding_factory": ReviewFinding,
         },
     )
 
@@ -761,6 +764,7 @@ def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], 
         format_issue_block=format_issue_block,
         task_promotion_operations_fn=task_promotion_operations,
         blocked_error_factory=PromotionBlockedError,
+        reviewer_agent_name=REVIEWER_AGENT_NAME,
     )
 
 
@@ -771,6 +775,7 @@ def summarize_promotion_readiness(records: list[TaskRunRecord]) -> dict[str, Any
         plan_promotion_fn=plan_promotion,
         blocked_error_factory=PromotionBlockedError,
         dedupe_strings=dedupe_strings,
+        reviewer_agent_name=REVIEWER_AGENT_NAME,
     )
 
 

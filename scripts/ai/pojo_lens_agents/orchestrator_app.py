@@ -287,6 +287,7 @@ def execute_task(
             "apply_repository_isolation_audit": apply_repository_isolation_audit,
             "coerce_worker_result": coerce_worker_result,
             "coerce_validation_intent_payload": coerce_validation_intent_payload,
+            "reviewer_finding_factory": ReviewFinding,
             "prepare_workspace": prepare_workspace,
             "error_factory": OrchestratorError,
             "asdict": asdict,

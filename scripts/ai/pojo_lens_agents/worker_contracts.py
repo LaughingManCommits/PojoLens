@@ -244,6 +244,42 @@ def coerce_validation_intent_payload(
     return validation_intent_factory(kind=kind, entrypoint=cleaned_entrypoint, args=args)
 
 
+def normalize_worker_findings(
+    payload: Any,
+    *,
+    max_items: int,
+    max_chars: int,
+    reviewer_finding_severities: frozenset,
+    reviewer_finding_factory,
+    truncate_text,
+    error_factory,
+) -> list[Any]:
+    if payload is None:
+        return []
+    if not isinstance(payload, list):
+        raise error_factory("Claude JSON output field 'findings' must be an array or null")
+    findings: list[Any] = []
+    for index, item in enumerate(payload, start=1):
+        if not isinstance(item, dict):
+            raise error_factory(f"Claude JSON output field 'findings[{index}]' must be an object")
+        severity = item.get("severity")
+        if not isinstance(severity, str) or severity not in reviewer_finding_severities:
+            raise error_factory(
+                f"Claude JSON output field 'findings[{index}].severity' must be one of "
+                f"{sorted(reviewer_finding_severities)}"
+            )
+        message = item.get("message")
+        if not isinstance(message, str) or not message.strip():
+            raise error_factory(
+                f"Claude JSON output field 'findings[{index}].message' must be a non-empty string"
+            )
+        message_text, _ = truncate_text(message.strip(), max_chars)
+        findings.append(reviewer_finding_factory(severity=severity, message=message_text))
+        if len(findings) >= max_items:
+            break
+    return findings
+
+
 def normalize_worker_validation_intents(
     payload: Any,
     *,
@@ -365,6 +401,7 @@ def coerce_worker_result(
     normalize_worker_files_touched,
     normalize_worker_text_list,
     normalize_worker_validation_intents,
+    normalize_worker_findings,
     truncate_text,
     asdict,
     error_factory,
@@ -426,6 +463,7 @@ def coerce_worker_result(
     if not notes_known:
         unknown_fields.append("notes")
     validation_intents = normalize_worker_validation_intents(payload.get("validationIntents"))
+    findings = normalize_worker_findings(payload.get("findings"))
     return {
         "status": status,
         "summary": summary,
@@ -435,4 +473,5 @@ def coerce_worker_result(
         "followUps": follow_ups,
         "notes": notes,
         "unknownFields": unknown_fields,
+        "findings": [asdict(f) for f in findings],
     }

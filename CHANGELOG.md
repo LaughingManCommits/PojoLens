@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Structured reviewer findings and promotion governance** - reviewer worker
+  output now supports a structured `findings` array with `severity` (`info`,
+  `warn`, `block`) and `message` fields; blocking findings from reviewer tasks
+  refuse promotion by default, surface in dry-run summaries, add a
+  `review-blocked` lifecycle state to retained runs, and are counted per
+  severity in review-run reports. `ReviewFinding` is persisted in task records
+  and manifests and round-trips cleanly through existing JSON contracts.
+
 - **Quickstart grouped salary summary** - the Spring Boot starter quickstart
   example now exposes a department salary-summary endpoint backed by a grouped
   PojoLens query, with README curl docs and coverage in both default and

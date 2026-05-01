@@ -128,6 +128,14 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
             location=f"{location}:effort",
         ),
         effort_source=deps["require_optional_string"](payload, "effort_source", location=location),
+        reviewer_findings=[
+            deps["reviewer_finding_factory"](
+                severity=str(item.get("severity", "")),
+                message=str(item.get("message", "")),
+            )
+            for item in payload.get("reviewer_findings", []) or []
+            if isinstance(item, dict)
+        ],
     )
 
 

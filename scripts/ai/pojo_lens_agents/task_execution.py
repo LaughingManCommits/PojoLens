@@ -242,6 +242,7 @@ def make_execute_record(
     validation_commands: list[str] = (),
     follow_ups: list[str] = (),
     notes: list[str] = (),
+    reviewer_findings: list[Any] = (),
     usage: dict[str, Any] | None = None,
     return_code: int | None = None,
     stdout_path: str | None = None,
@@ -273,6 +274,7 @@ def make_execute_record(
         validation_commands=list(validation_commands),
         follow_ups=list(follow_ups),
         notes=list(notes),
+        reviewer_findings=list(reviewer_findings),
         model=model_name,
         model_profile=model_profile,
         prompt_chars=prompt_chars,
@@ -504,6 +506,14 @@ def execute_task(
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
             notes=[str(item) for item in payload["notes"]],
+            reviewer_findings=[
+                deps["reviewer_finding_factory"](
+                    severity=str(item.get("severity", "")),
+                    message=str(item.get("message", "")),
+                )
+                for item in payload.get("findings", []) or []
+                if isinstance(item, dict)
+            ],
             usage=usage,
             return_code=return_code,
             stdout_path=str(stdout_path),

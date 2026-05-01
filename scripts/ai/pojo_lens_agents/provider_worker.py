@@ -28,6 +28,8 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_WORKER_VALIDATION_MODE,
     MAX_RUN_SUMMARY_TOP_TASKS,
+    MAX_WORKER_FINDINGS,
+    MAX_WORKER_FINDING_MESSAGE_CHARS,
     MAX_WORKER_FOLLOW_UPS,
     MAX_WORKER_FOLLOW_UP_CHARS,
     MAX_WORKER_NOTES,
@@ -46,7 +48,9 @@ from pojo_lens_agents.orchestrator_contracts import (
     PromptRenderResult,
     PromptSection,
     PromptSectionMetric,
+    ReviewFinding,
     REVIEWER_AGENT_NAME,
+    REVIEWER_FINDING_SEVERITIES,
     ROOT,
     SLOP_LOG_LOCK,
     SLOP_PROGRESS_INTERVAL_SEC,
@@ -389,6 +393,18 @@ def normalize_worker_text_list(
     )
 
 
+def normalize_worker_findings(payload: Any) -> list[Any]:
+    return worker_contracts_layer.normalize_worker_findings(
+        payload,
+        max_items=MAX_WORKER_FINDINGS,
+        max_chars=MAX_WORKER_FINDING_MESSAGE_CHARS,
+        reviewer_finding_severities=REVIEWER_FINDING_SEVERITIES,
+        reviewer_finding_factory=ReviewFinding,
+        truncate_text=truncate_text,
+        error_factory=OrchestratorError,
+    )
+
+
 def normalize_worker_files_touched(payload: Any) -> tuple[list[str], bool]:
     return worker_contracts_layer.normalize_worker_files_touched(
         payload,
@@ -601,6 +617,7 @@ def coerce_worker_result(
         normalize_worker_files_touched=normalize_worker_files_touched,
         normalize_worker_text_list=normalize_worker_text_list,
         normalize_worker_validation_intents=normalize_worker_validation_intents,
+        normalize_worker_findings=normalize_worker_findings,
         truncate_text=truncate_text,
         asdict=asdict,
         error_factory=OrchestratorError,

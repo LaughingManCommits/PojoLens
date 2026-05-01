@@ -151,6 +151,7 @@ def task_review_summary(
                 "removedLines": removed_lines,
             },
             "files": file_summaries,
+            "reviewerFindings": [asdict(f) for f in (record.reviewer_findings or [])],
         },
         patch_chunks,
     )
@@ -184,6 +185,7 @@ def review_run(
     write_scope_violations = 0
     validation_suggestion_count = 0
     dependency_materialization_modes: dict[str, int] = {}
+    finding_severity_counts: dict[str, int] = {}
     for record in records:
         review_payload, _ = task_review_summary_fn(record, context_lines=context_lines)
         task_payloads.append(review_payload)
@@ -195,6 +197,9 @@ def review_run(
         validation_suggestion_count += len(record.validation_intents) + len(record.validation_commands)
         mode = str(review_payload["dependencyMaterializationMode"] or default_dependency_materialization_mode)
         dependency_materialization_modes[mode] = dependency_materialization_modes.get(mode, 0) + 1
+        for finding in (record.reviewer_findings or []):
+            sev = str(getattr(finding, "severity", ""))
+            finding_severity_counts[sev] = finding_severity_counts.get(sev, 0) + 1
     payload = {
         "runId": manifest.get("runId"),
         "manifestPath": str(manifest_path),
@@ -207,6 +212,7 @@ def review_run(
             "writeScopeViolationCount": write_scope_violations,
             "validationSuggestionCount": validation_suggestion_count,
             "dependencyMaterializationModes": dependency_materialization_modes,
+            "reviewerFindingSeverityCounts": finding_severity_counts,
         },
         "tasks": task_payloads,
     }
@@ -390,6 +396,7 @@ def plan_promotion(
     format_issue_block: Callable[[str, list[str]], str],
     task_promotion_operations_fn: Callable[[Any], tuple[dict[str, Any], list[dict[str, Any]]]],
     blocked_error_factory: type[Exception],
+    reviewer_agent_name: str = "reviewer",
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
     issues: list[str] = []
     task_payloads: list[dict[str, Any]] = []
@@ -416,6 +423,21 @@ def plan_promotion(
                 f"{record.id}: workspaceMode='{record.workspace_mode}' cannot be promoted for "
                 f"{summarize_paths(task_payload['unsupportedFiles'])}"
             )
+        if str(record.agent) == reviewer_agent_name:
+            blocking_findings = [
+                f for f in (record.reviewer_findings or [])
+                if str(getattr(f, "severity", "")) == "block"
+            ]
+            if blocking_findings:
+                msgs = "; ".join(
+                    str(getattr(f, "message", ""))[:120]
+                    for f in blocking_findings[:3]
+                    if str(getattr(f, "message", ""))
+                )
+                issues.append(
+                    f"{record.id}: reviewer blocked promotion"
+                    + (f": {msgs}" if msgs else "")
+                )
         if operations and record.status != "completed":
             issues.append(f"{record.id}: only completed tasks can be promoted, found status '{record.status}'")
         if operations and record.workspace_mode not in {"copy", "worktree"}:
@@ -449,12 +471,20 @@ def summarize_promotion_readiness(
     plan_promotion_fn: Callable[[list[Any]], tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]],
     blocked_error_factory: type[Exception],
     dedupe_strings: Callable[[list[str]], list[str]],
+    reviewer_agent_name: str = "reviewer",
 ) -> dict[str, Any]:
+    reviewer_findings_blocked = any(
+        str(getattr(f, "severity", "")) == "block"
+        for record in records
+        if str(record.agent) == reviewer_agent_name
+        for f in (record.reviewer_findings or [])
+    )
     try:
         task_payloads, operations, counts = plan_promotion_fn(records)
         return {
             "allowed": True,
             "blockedReasons": [],
+            "reviewerFindingsBlocked": reviewer_findings_blocked,
             "promotableTaskIds": [
                 payload["id"]
                 for payload in task_payloads
@@ -469,6 +499,7 @@ def summarize_promotion_readiness(
             "blockedReasons": dedupe_strings(
                 [line[2:] if line.startswith("- ") else line for line in str(exc).splitlines() if line.strip() and not line.endswith(":")]
             ),
+            "reviewerFindingsBlocked": reviewer_findings_blocked,
             "promotableTaskIds": [],
             "filesPromotable": 0,
             "operationCounts": {"added": 0, "modified": 0, "deleted": 0},

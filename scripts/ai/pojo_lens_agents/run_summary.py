@@ -153,6 +153,8 @@ def derive_run_lifecycle_state(
     )
     if not changed_completed_task_ids:
         return "completed", "Run completed without promotable file changes."
+    if promotion_readiness.get("reviewerFindingsBlocked") and not approval_summary.get("promotionApplied"):
+        return "review-blocked", "Reviewer has blocking findings; coordinator review required before promotion."
     if approval_summary["promotionApplied"]:
         validation_scope = str(approval_summary.get("validationExecutionScope") or "").strip()
         validation_generated_at = approval_summary.get("validationGeneratedAt")
@@ -268,6 +270,8 @@ def summarize_run_manifest(
         flags.append("resumable")
     if promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0:
         flags.append("promotion-ready")
+    if promotion_readiness.get("reviewerFindingsBlocked"):
+        flags.append("review-blocked")
     if is_costly:
         flags.append("costly")
     if int(run_governance.get("blockingAlertCount", 0) or 0) > 0:

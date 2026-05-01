@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-01T18:02:32.589037+02:00",
-  "generation": "20260501T160232-27256-1777651352592351500",
+  "generatedAt": "2026-05-01T20:23:06.697258+02:00",
+  "generation": "20260501T182306-16664-1777659786700313000",
   "git": {
-    "headCommit": "154ccb09bc3b894ba97026b17f57175fbe563d04",
+    "headCommit": "0fe296d52e6380365f976b54445b6f02ad284a5d",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "fb5e718ba417983b10280f329b54703c209c5530867852fc0687973db0dbd6fe",
+  "inputsHash": "02d270ab5c12e0ee56a2c90b36598e3a69b61e2db79ef916ee3915e7b486d8da",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 30,
-        "bytes": 2685,
+        "lines": 31,
+        "bytes": 2913,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 36,
-        "bytes": 3045,
+        "lines": 37,
+        "bytes": 3254,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -100,16 +100,18 @@
         "missingHeadings": [],
         "extraHeadings": [],
         "headingOrderMatches": true,
-        "withinShape": true
+        "withinShape": false
       }
     ],
-    "totalLines": 96,
-    "totalBytes": 8371,
+    "totalLines": 98,
+    "totalBytes": 8808,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
-    "shapeViolations": [],
-    "shapeValid": true
+    "shapeViolations": [
+      "ai/state/handoff.md:bytes"
+    ],
+    "shapeValid": false
   },
   "eventLog": {
     "activeLog": {
@@ -142,18 +144,18 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "8deb41ec6d600fd17a449e2456f7d527e826322e656342eda856630fa33f99f0",
+        "inputHash": "7dc5e68de13eb3f8cd0138c42d3c93e075dc693101de78dc5ee910cccab74308",
         "inputFiles": 60
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "d802540f7ff78f6af8ef74faaf0903c0e763c8d364cc8cee87374651b025b16e",
+        "inputHash": "263eae391f2fd95771e08ebd07cea7c227cfd2680e45647f354536c9d2745bfd",
         "inputFiles": 550
       },
       {
         "path": "ai/indexes/symbols-index.json",
-        "status": "reused",
+        "status": "rebuilt",
         "inputHash": "eceb807ba952ecf8ccb24f1126e5bea536a444b52e6a9443f0dfd4ddfe96ef94",
         "inputFiles": 285
       },
@@ -183,8 +185,10 @@
     }
   },
   "freshness": {
-    "status": "fresh",
-    "reasons": [],
+    "status": "warning",
+    "reasons": [
+      "hot-context-shape-invalid"
+    ],
     "missingPaths": []
   }
 }
