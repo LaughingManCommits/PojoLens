@@ -455,7 +455,7 @@ JSON contracts.
   package boundaries.
 
 **Tasks:**
-- [ ] Extract retained-run summary and lifecycle helpers into a dedicated
+- [x] Extract retained-run summary and lifecycle helpers into a dedicated
       package module.
 - [ ] Extract `review`, `export-patch`, and `promote` command behavior into a
       focused review/promotion module.
