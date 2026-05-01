@@ -21,6 +21,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   counts, phase counts, latest phase, and referenced task lineage without
   opening full manifest event arrays.
 
+- **Branch-context lineage and run evaluation** - added task-level
+  `branch_context_id` lineage, compact `branchSummary` rollups, branch-aware
+  dependency handoff text, an `evaluate-run` command for orchestration quality
+  checks, and the tracked `example-trace-multibatch` regression fixture.
+
 - **Run visibility and operator UX** - added a `status` command for retained
   runs, richer inventory flags and counts, grouped review summaries, dry-run
   promotion allow/refuse summaries, and documented operator flow for validate,

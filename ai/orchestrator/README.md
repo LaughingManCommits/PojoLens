@@ -51,6 +51,7 @@ scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.js
 scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
+scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
@@ -70,6 +71,7 @@ for the operator CLI or the direct scripts under `scripts/ai/`.
 Tracked samples:
 - `ai/orchestrator/tasks/example-review.json`: one-task reviewer sample for direct contract review without an upstream analyst hop
 - `ai/orchestrator/tasks/example-parallel.json`: two concurrent-ready analyst tasks with no automatic downstream reviewer stage
+- `ai/orchestrator/tasks/example-trace-multibatch.json`: small two-batch analyst fixture that proves retained event traces and branch-context lineage
 - `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
 - `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
 - `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
@@ -86,6 +88,7 @@ Lifecycle helpers:
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
+- `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
@@ -106,6 +109,7 @@ Context discipline:
 - agent definitions may also preload repo-local `skills`; the tracked workers now pass through `caveman` so the model can load that skill after agent setup instead of repeating style instructions in every prompt
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
+- dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer
 - downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` on any `copy` or `worktree` task â€” including reviewer tasks â€” that needs reviewed upstream code state materialized into its workspace before execution; this is especially important when upstream tasks create new files that would otherwise be invisible to the downstream workspace
 - full shared file and validation context is opt-in via `contextMode = full`
 - dependency summaries and prompt-facing list sections are compacted so worker prompts stay bounded as plans grow
@@ -124,6 +128,7 @@ Token and cost visibility:
 - `runPolicy.maxTaskStdoutBytes`, `maxTaskStderrBytes`, and `maxTaskResultBytes` govern per-task artifact size; `artifactBehavior = "stop"` blocks later scheduling after an oversized completed task, while `warn` keeps the run moving
 - `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
+- `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively
@@ -182,6 +187,7 @@ Recommended operator flow:
 - `validate` the tracked plan before a live run
 - `run` or `resume` it, keeping `--json` for machine-readable stdout when scripting
 - use `status` for one retained run and `inventory` across the runtime root to find failed, blocked, resumable, costly, or promotion-ready runs quickly
+- use `evaluate-run` when you need a compact quality check over retained topology, branch lineage, validation suggestions, retry/resume metadata, and promotion-readiness signals
 - use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
 - use `validate-run` to execute accepted validation intents
 - use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked

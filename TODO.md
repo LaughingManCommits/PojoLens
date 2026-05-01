@@ -37,7 +37,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP28| Orchestrator Runtime Layering        | Complete | Internal package split for plan governance, workspace safety, provider calls, manifests, validation, and parallel scheduling |
 | WP29| LangGraph Execution Spike            | Complete | Decision record and prototype for checkpointed parallel graph execution; keep the custom scheduler and manifest model as the production path for now |
 | WP30| Run Visibility And Operator UX       | Complete | Added `status`, richer inventory/review/promotion summaries, and documented the retained-run operator flow |
-| WP31| Orchestrator Trace And Evaluation    | Active   | Add run-event lineage traces, then build evaluator and branch-context quality checks around orchestration behavior |
+| WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -277,18 +277,37 @@ improve by adding explicit run-event lineage plus bounded quality/eval surfaces
 - This package should improve observability and evaluation without replacing the
   current scheduler or weakening manifest-first operator semantics.
 
+**Decision:** Complete. The orchestrator now records run-event lineage plus
+branch-context lineage, surfaces compact retained-run trace and branch
+summaries, exposes an operator-facing `evaluate-run` quality check, and keeps a
+tracked multi-batch fixture that proves the contract.
+
+**Work done:**
+- Added manifest-backed run events for run start, ready batches, task
+      completion/blocking, parent-task lineage, and run finish.
+- Added task-level branch-context ids plus parent-context ids, surfaced them in
+      retained task records and dependency handoff text, and summarized them in
+      `branchSummary`.
+- Added compact `traceSummary` and `branchSummary` rollups to retained-run
+      inventory and status output.
+- Added `evaluate-run` to score retained runs for over-delegation, optional
+      reviewer hops, validation suggestion quality, retry/resume contract
+      consistency, and promotion-readiness consistency.
+- Added `ai/orchestrator/tasks/example-trace-multibatch.json` plus focused
+      regression coverage as the tracked multi-batch trace/lineage fixture.
+
 **Tasks:**
 - [x] Add a manifest-backed run-event trace that records run start, ready
       batches, task completion/blocking, lineage via parent task ids, and run
       finish.
 - [x] Surface compact trace summaries in retained-run operator views where
       useful without making `--json` noisy or unstable.
-- [ ] Add branch-local lineage/context identifiers so downstream tasks can tell
+- [x] Add branch-local lineage/context identifiers so downstream tasks can tell
       which upstream path produced a summary or reviewed layer.
-- [ ] Add an evaluator harness for orchestration quality: over-delegation,
+- [x] Add an evaluator harness for orchestration quality: over-delegation,
       unnecessary reviewer hops, invalid validation suggestions, retry/resume
       correctness, and promotion false positives/negatives.
-- [ ] Add at least one tracked sample or regression fixture that proves the
+- [x] Add at least one tracked sample or regression fixture that proves the
       event/lineage contract on a small multi-batch run.
 
 **Validate:**

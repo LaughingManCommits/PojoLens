@@ -441,6 +441,8 @@ class TaskRunRecord:
     id: str
     title: str
     agent: str
+    branch_context_id: str
+    branch_parent_context_ids: list[str]
     status: str
     summary: str
     workspace_mode: str
@@ -918,6 +920,29 @@ def parse_args() -> argparse.Namespace:
     )
     _add_verbose_arg(status_parser)
     _add_provider_bin_arg(status_parser)
+
+    evaluate_run_parser = subparsers.add_parser(
+        "evaluate-run",
+        help="Evaluate retained-run orchestration quality and contract signals.",
+    )
+    evaluate_run_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    evaluate_run_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict evaluation details to one or more task ids. Repeatable.",
+    )
+    evaluate_run_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the run evaluation summary as JSON.",
+    )
+    _add_verbose_arg(evaluate_run_parser)
+    _add_provider_bin_arg(evaluate_run_parser)
 
     prune_parser = subparsers.add_parser(
         "prune",
@@ -2163,6 +2188,56 @@ def count_statuses(values: list[str]) -> dict[str, int]:
     return counts
 
 
+def task_branch_parent_context_ids(
+    task: TaskDefinition,
+    dependency_records: dict[str, TaskRunRecord] | None = None,
+) -> list[str]:
+    dependency_records = dependency_records or {}
+    parent_context_ids: list[str] = []
+    for dependency_id in task.depends_on:
+        dependency_record = dependency_records.get(dependency_id)
+        context_id = dependency_record.branch_context_id if dependency_record is not None else dependency_id
+        if context_id and context_id not in parent_context_ids:
+            parent_context_ids.append(context_id)
+    return parent_context_ids
+
+
+def task_branch_context_id(
+    task: TaskDefinition,
+    dependency_records: dict[str, TaskRunRecord] | None = None,
+) -> str:
+    parent_context_ids = task_branch_parent_context_ids(task, dependency_records)
+    if not parent_context_ids:
+        return task.id
+    return f"{task.id}<-{','.join(parent_context_ids)}"
+
+
+def summarize_branch_contexts(records: list[TaskRunRecord]) -> dict[str, Any]:
+    by_context: dict[str, dict[str, Any]] = {}
+    root_context_ids: list[str] = []
+    leaf_context_ids: list[str] = []
+    all_parent_context_ids: set[str] = set()
+    for record in records:
+        by_context[record.branch_context_id] = {
+            "taskId": record.id,
+            "status": record.status,
+            "parentContextIds": list(record.branch_parent_context_ids),
+        }
+        if not record.branch_parent_context_ids:
+            root_context_ids.append(record.branch_context_id)
+        for parent_context_id in record.branch_parent_context_ids:
+            all_parent_context_ids.add(parent_context_id)
+    for record in records:
+        if record.branch_context_id not in all_parent_context_ids:
+            leaf_context_ids.append(record.branch_context_id)
+    return {
+        "contextCount": len(by_context),
+        "rootContextIds": root_context_ids,
+        "leafContextIds": leaf_context_ids,
+        "contexts": by_context,
+    }
+
+
 def task_cost_usd(record: TaskRunRecord) -> float:
     return governance_layer.task_cost_usd(record)
 
@@ -2176,6 +2251,10 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
         id=str(payload.get("id", "")),
         title=str(payload.get("title", "")),
         agent=str(payload.get("agent", "")),
+        branch_context_id=str(payload.get("branch_context_id", payload.get("id", ""))),
+        branch_parent_context_ids=[
+            str(item) for item in payload.get("branch_parent_context_ids", []) or []
+        ],
         status=str(payload.get("status", "")),
         summary=str(payload.get("summary", "")),
         workspace_mode=str(payload.get("workspace_mode", "")),
@@ -3189,6 +3268,7 @@ def complex_model_task_ids(task_model_profiles: dict[str, str | None]) -> list[s
 def dependency_handoff(record: TaskRunRecord) -> str:
     summary, _ = truncate_text(record.summary, DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT)
     parts = [f"`{record.id}` ({record.status}): {summary}"]
+    parts.append(f"context: `{record.branch_context_id}`")
     notes = dedupe_strings(record.notes)
     if notes:
         visible_notes: list[str] = []
@@ -4124,6 +4204,7 @@ def blocked_record(
     workspace_mode: str,
     *,
     reason: str,
+    dependency_records: dict[str, TaskRunRecord] | None = None,
     worker_validation_mode: str | None = None,
 ) -> TaskRunRecord:
     now = iso_now()
@@ -4137,6 +4218,8 @@ def blocked_record(
         id=task.id,
         title=task.title,
         agent=agent_name,
+        branch_context_id=task_branch_context_id(task, dependency_records),
+        branch_parent_context_ids=task_branch_parent_context_ids(task, dependency_records),
         status="blocked",
         summary=reason,
         workspace_mode=workspace_mode,
@@ -4182,6 +4265,7 @@ def planned_record(
     workspace_path: str,
     *,
     summary: str,
+    dependency_records: dict[str, TaskRunRecord] | None = None,
     worker_validation_mode: str | None = None,
 ) -> TaskRunRecord:
     now = iso_now()
@@ -4195,6 +4279,8 @@ def planned_record(
         id=task.id,
         title=task.title,
         agent=agent_name,
+        branch_context_id=task_branch_context_id(task, dependency_records),
+        branch_parent_context_ids=task_branch_parent_context_ids(task, dependency_records),
         status="planned",
         summary=summary,
         workspace_mode=workspace_mode,
@@ -4252,6 +4338,7 @@ def _make_execute_record(
     command_path: Path,
     dependency_materialization_mode: str,
     prepared_dependency_layers: list[DependencyLayerRecord],
+    dependency_records: dict[str, TaskRunRecord],
     effective_validation_mode: str,
     validation_resolution: WorkerValidationModeResolution,
     *,
@@ -4276,6 +4363,8 @@ def _make_execute_record(
         id=task.id,
         title=task.title,
         agent=task.agent,
+        branch_context_id=task_branch_context_id(task, dependency_records),
+        branch_parent_context_ids=task_branch_parent_context_ids(task, dependency_records),
         status=status,
         summary=summary,
         workspace_mode=workspace_mode,
@@ -4403,7 +4492,7 @@ def execute_task(
             task, workspace_mode, prepared_workspace, started_at,
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
-            dependency_materialization_mode, prepared_dependency_layers,
+            dependency_materialization_mode, prepared_dependency_layers, dependency_records,
             effective_validation_mode, validation_resolution,
             status="failed",
             summary=prompt_budget_failure_summary(prompt_budget),
@@ -4416,7 +4505,7 @@ def execute_task(
             task, workspace_mode, prepared_workspace, started_at,
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
-            dependency_materialization_mode, prepared_dependency_layers,
+            dependency_materialization_mode, prepared_dependency_layers, dependency_records,
             effective_validation_mode, validation_resolution,
             status="planned",
             summary="Dry run only; Claude was not invoked.",
@@ -4467,7 +4556,7 @@ def execute_task(
                 task, workspace_mode, prepared_workspace, started_at,
                 model_name, model_profile, prompt_chars, prompt_estimated_tokens,
                 prompt_render, prompt_budget, prompt_path, command_path,
-                dependency_materialization_mode, prepared_dependency_layers,
+                dependency_materialization_mode, prepared_dependency_layers, dependency_records,
                 effective_validation_mode, validation_resolution,
                 status="failed",
                 summary=completed.stderr.strip() or completed.stdout.strip() or "Claude failed",
@@ -4504,7 +4593,7 @@ def execute_task(
             task, workspace_mode, prepared_workspace, started_at,
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
-            dependency_materialization_mode, prepared_dependency_layers,
+            dependency_materialization_mode, prepared_dependency_layers, dependency_records,
             effective_validation_mode, validation_resolution,
             status=str(payload["status"]),
             summary=str(payload["summary"]),
@@ -4557,7 +4646,7 @@ def execute_task(
             task, workspace_mode, prepared_workspace, started_at,
             model_name, model_profile, prompt_chars, prompt_estimated_tokens,
             prompt_render, prompt_budget, prompt_path, command_path,
-            dependency_materialization_mode, prepared_dependency_layers,
+            dependency_materialization_mode, prepared_dependency_layers, dependency_records,
             effective_validation_mode, validation_resolution,
             status="failed",
             summary=str(exc),
@@ -4828,6 +4917,7 @@ def run_loaded_plan(
         run_events,
         phase="run-start",
         task_ids=[task.id for task in plan.tasks],
+        branch_context_ids=[task_branch_context_id(task, records) for task in plan.tasks],
         details={
             "dryRun": dry_run,
             "maxParallel": max(max_parallel, 1),
@@ -4859,6 +4949,7 @@ def run_loaded_plan(
                     agents[task.agent],
                     effective_workspace_mode(task, agents[task.agent]),
                     reason="Dependency failed or was blocked.",
+                    dependency_records=records,
                     worker_validation_mode=worker_validation_override,
                 )
                 append_run_event(
@@ -4866,6 +4957,7 @@ def run_loaded_plan(
                     phase="task-blocked",
                     task_id=task.id,
                     parent_task_ids=task.depends_on,
+                    branch_context_id=records[task_id].branch_context_id,
                     status="blocked",
                     message="Dependency failed or was blocked.",
                 )
@@ -4901,6 +4993,7 @@ def run_loaded_plan(
                     effective_workspace_mode(task, agents[task.agent]),
                     reason=stop_scheduling_reason
                     or "Coordinator stopped scheduling new tasks after a worker failure.",
+                    dependency_records=records,
                     worker_validation_mode=worker_validation_override,
                 )
                 append_run_event(
@@ -4908,6 +5001,7 @@ def run_loaded_plan(
                     phase="task-blocked",
                     task_id=task.id,
                     parent_task_ids=task.depends_on,
+                    branch_context_id=records[task_id].branch_context_id,
                     status="blocked",
                     message=stop_scheduling_reason
                     or "Coordinator stopped scheduling new tasks after a worker failure.",
@@ -4934,6 +5028,7 @@ def run_loaded_plan(
             run_events,
             phase="batch-ready",
             task_ids=[task.id for task in batch],
+            branch_context_ids=[task_branch_context_id(task, records) for task in batch],
             details={"pendingTaskIds": sorted(pending)},
         )
         with ThreadPoolExecutor(max_workers=max(1, min(max_parallel, len(batch)))) as executor:
@@ -4962,6 +5057,7 @@ def run_loaded_plan(
                     phase="task-finished",
                     task_id=task.id,
                     parent_task_ids=task.depends_on,
+                    branch_context_id=records[task.id].branch_context_id,
                     status=records[task.id].status,
                     message=records[task.id].summary,
                 )
@@ -5043,6 +5139,7 @@ def run_loaded_plan(
         "runGovernance": run_governance,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
+        "branchSummary": summarize_branch_contexts(list(records.values())),
         "events": list(run_events),
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
     }
@@ -5151,6 +5248,7 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
             if effective_workspace_mode(task, agents[task.agent]) != "repo"
             else str(ROOT),
             summary="Pending from the existing run; not selected for this resume.",
+            dependency_records=initial_records,
             worker_validation_mode=resume_worker_validation_mode,
         )
     if not resumed_task_ids:
@@ -5360,6 +5458,7 @@ def summarize_run_events(events_payload: Any) -> dict[str, Any]:
     phase_counts: dict[str, int] = {}
     task_ids_referenced: list[str] = []
     parent_task_ids_referenced: list[str] = []
+    branch_context_ids_referenced: list[str] = []
     latest_phase: str | None = None
     latest_ts: str | None = None
     event_count = 0
@@ -5377,10 +5476,17 @@ def summarize_run_events(events_payload: Any) -> dict[str, Any]:
         task_id = str(event.get("taskId", "")).strip()
         if task_id and task_id not in task_ids_referenced:
             task_ids_referenced.append(task_id)
+        branch_context_id = str(event.get("branchContextId", "")).strip()
+        if branch_context_id and branch_context_id not in branch_context_ids_referenced:
+            branch_context_ids_referenced.append(branch_context_id)
         for referenced_task_id in event.get("taskIds", []) or []:
             normalized_task_id = str(referenced_task_id).strip()
             if normalized_task_id and normalized_task_id not in task_ids_referenced:
                 task_ids_referenced.append(normalized_task_id)
+        for referenced_context_id in event.get("branchContextIds", []) or []:
+            normalized_context_id = str(referenced_context_id).strip()
+            if normalized_context_id and normalized_context_id not in branch_context_ids_referenced:
+                branch_context_ids_referenced.append(normalized_context_id)
         for parent_task_id in event.get("parentTaskIds", []) or []:
             normalized_parent_task_id = str(parent_task_id).strip()
             if (
@@ -5395,6 +5501,7 @@ def summarize_run_events(events_payload: Any) -> dict[str, Any]:
         "latestTs": latest_ts,
         "taskIdsReferenced": task_ids_referenced,
         "parentTaskIdsReferenced": parent_task_ids_referenced,
+        "branchContextIdsReferenced": branch_context_ids_referenced,
     }
 
 
@@ -5428,6 +5535,7 @@ def summarize_run_manifest(
         else {}
     )
     trace_summary = summarize_run_events(manifest.get("events"))
+    branch_summary = summarize_branch_contexts(records)
     promotion_readiness = summarize_promotion_readiness(records)
     candidate_times = [
         datetime.fromtimestamp(manifest_path.stat().st_mtime, tz=timezone.utc).astimezone()
@@ -5496,6 +5604,7 @@ def summarize_run_manifest(
         "promotionReady": bool(promotion_readiness["allowed"] and promotion_readiness["filesPromotable"] > 0),
         "promotionSummary": promotion_readiness,
         "traceSummary": trace_summary,
+        "branchSummary": branch_summary,
         "flags": flags,
     }
     return summary, last_updated_at
@@ -5508,6 +5617,8 @@ def append_run_event(
     task_id: str | None = None,
     task_ids: list[str] | None = None,
     parent_task_ids: list[str] | None = None,
+    branch_context_id: str | None = None,
+    branch_context_ids: list[str] | None = None,
     status: str | None = None,
     message: str | None = None,
     details: dict[str, Any] | None = None,
@@ -5522,6 +5633,10 @@ def append_run_event(
         payload["taskIds"] = list(task_ids)
     if parent_task_ids is not None:
         payload["parentTaskIds"] = list(parent_task_ids)
+    if branch_context_id:
+        payload["branchContextId"] = branch_context_id
+    if branch_context_ids:
+        payload["branchContextIds"] = list(branch_context_ids)
     if status:
         payload["status"] = status
     if message:
@@ -5559,6 +5674,8 @@ def status_run(args: argparse.Namespace) -> dict[str, Any]:
                 "id": record.id,
                 "title": record.title,
                 "agent": record.agent,
+                "branchContextId": record.branch_context_id,
+                "branchParentContextIds": list(record.branch_parent_context_ids),
                 "status": record.status,
                 "summary": record.summary,
                 "filesChanged": int(review_payload["diffStats"]["filesChanged"]),
@@ -5571,9 +5688,211 @@ def status_run(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "run": summary,
         "traceSummary": summary["traceSummary"],
+        "branchSummary": summary["branchSummary"],
         "reviewSummary": review_summary,
         "taskCount": len(task_payloads),
         "tasks": task_payloads,
+    }
+
+
+def _evaluation_check(
+    name: str,
+    status: str,
+    summary: str,
+    *,
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "status": status,
+        "summary": summary,
+        "evidence": evidence or {},
+    }
+
+
+def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    summary, _ = summarize_run_manifest(
+        manifest_path,
+        manifest,
+        now=datetime.now(timezone.utc).astimezone(),
+    )
+    records = selected_run_records(manifest, args.selected_tasks)
+    topology = manifest.get("topology") if isinstance(manifest.get("topology"), dict) else {}
+    run_start_event = next(
+        (
+            event
+            for event in (manifest.get("events") or [])
+            if isinstance(event, dict) and str(event.get("phase", "")) == "run-start"
+        ),
+        None,
+    )
+    run_start_details = (
+        run_start_event.get("details")
+        if isinstance(run_start_event, dict) and isinstance(run_start_event.get("details"), dict)
+        else {}
+    )
+    checks: list[dict[str, Any]] = []
+
+    reviewer_task_count = int(topology.get("reviewerTaskCount", 0) or 0)
+    write_task_count = int(topology.get("writeTaskCount", 0) or 0)
+    if reviewer_task_count > 0 and write_task_count == 0 and len(records) > reviewer_task_count:
+        checks.append(
+            _evaluation_check(
+                "over-delegation",
+                "warn",
+                "Read-only run still allocated reviewer-only work.",
+                evidence={
+                    "reviewerTaskCount": reviewer_task_count,
+                    "writeTaskCount": write_task_count,
+                    "taskCount": len(records),
+                },
+            )
+        )
+    else:
+        checks.append(
+            _evaluation_check(
+                "over-delegation",
+                "pass",
+                "Task split is proportionate to the run shape.",
+                evidence={
+                    "reviewerTaskCount": reviewer_task_count,
+                    "writeTaskCount": write_task_count,
+                    "taskCount": len(records),
+                },
+            )
+        )
+
+    topology_warnings = [
+        warning
+        for warning in (topology.get("warnings") or [])
+        if isinstance(warning, dict)
+    ]
+    optional_reviewer_warnings = [
+        warning
+        for warning in topology_warnings
+        if str(warning.get("kind", "")) == "read-only-review-optional"
+    ]
+    if optional_reviewer_warnings:
+        checks.append(
+            _evaluation_check(
+                "reviewer-hops",
+                "warn",
+                "Topology marks at least one reviewer hop as optional.",
+                evidence={"warnings": optional_reviewer_warnings},
+            )
+        )
+    else:
+        checks.append(
+            _evaluation_check(
+                "reviewer-hops",
+                "pass",
+                "No optional reviewer hop warning was detected.",
+                evidence={"warningCount": len(topology_warnings)},
+            )
+        )
+
+    legacy_validation_tasks = sorted(record.id for record in records if record.validation_commands)
+    if legacy_validation_tasks:
+        checks.append(
+            _evaluation_check(
+                "validation-suggestions",
+                "warn",
+                "Legacy raw validation commands are still present in the run record.",
+                evidence={"taskIds": legacy_validation_tasks},
+            )
+        )
+    else:
+        checks.append(
+            _evaluation_check(
+                "validation-suggestions",
+                "pass",
+                "Validation suggestions stayed on structured intents or were absent.",
+                evidence={
+                    "intentTaskCount": sum(1 for record in records if record.validation_intents),
+                },
+            )
+        )
+
+    retry_of_run_id = str(manifest.get("retryOfRunId", "")).strip()
+    requested_task_ids = [str(task_id) for task_id in manifest.get("requestedTaskIds", []) or []]
+    retried_task_ids = [str(task_id) for task_id in manifest.get("retriedTaskIds", []) or []]
+    seeded_task_ids = [str(task_id) for task_id in manifest.get("seededTaskIds", []) or []]
+    is_resume = bool(run_start_details.get("resume", False))
+    contract_status = "pass"
+    contract_summary = "Resume/retry metadata is internally consistent."
+    contract_evidence: dict[str, Any] = {
+        "retryOfRunId": retry_of_run_id or None,
+        "requestedTaskIds": requested_task_ids,
+        "retriedTaskIds": retried_task_ids,
+        "seededTaskIds": seeded_task_ids,
+        "resume": is_resume,
+    }
+    if retry_of_run_id and not retried_task_ids:
+        contract_status = "fail"
+        contract_summary = "Retry run is missing retried task ids."
+    elif retry_of_run_id and is_resume:
+        contract_status = "fail"
+        contract_summary = "Run metadata claims both retry and in-place resume."
+    elif requested_task_ids and retry_of_run_id and not set(retried_task_ids).issubset(set(requested_task_ids)):
+        contract_status = "fail"
+        contract_summary = "Retried task ids are not a subset of the requested retry scope."
+    checks.append(
+        _evaluation_check(
+            "retry-resume-contract",
+            contract_status,
+            contract_summary,
+            evidence=contract_evidence,
+        )
+    )
+
+    promotion_summary = summary["promotionSummary"]
+    changed_completed_tasks = sorted(
+        record.id
+        for record in records
+        if record.status == "completed" and (record.actual_files_touched or record.files_touched)
+    )
+    promotion_status = "pass"
+    promotion_check_summary = "Promotion readiness is consistent with task state and promotable files."
+    if summary["promotionReady"] and (summary["hasFailures"] or summary["hasBlocked"]):
+        promotion_status = "fail"
+        promotion_check_summary = "Promotion is marked ready even though the run still has failed or blocked tasks."
+    elif not summary["promotionReady"] and promotion_summary["allowed"] and promotion_summary["filesPromotable"] > 0:
+        promotion_status = "fail"
+        promotion_check_summary = "Promotion summary reports promotable files but the run summary is not marked ready."
+    elif (
+        not summary["promotionReady"]
+        and changed_completed_tasks
+        and not summary["hasFailures"]
+        and not summary["hasBlocked"]
+        and promotion_summary["filesPromotable"] == 0
+    ):
+        promotion_status = "warn"
+        promotion_check_summary = "Completed tasks changed files, but nothing is promotable; review ownership and scope evidence."
+    checks.append(
+        _evaluation_check(
+            "promotion-readiness",
+            promotion_status,
+            promotion_check_summary,
+            evidence={
+                "promotionReady": summary["promotionReady"],
+                "promotionSummary": promotion_summary,
+                "changedCompletedTaskIds": changed_completed_tasks,
+            },
+        )
+    )
+
+    status_rank = {"pass": 0, "warn": 1, "fail": 2}
+    overall_status = max((check["status"] for check in checks), key=lambda item: status_rank[item], default="pass")
+    return {
+        "run": summary,
+        "traceSummary": summary["traceSummary"],
+        "branchSummary": summary["branchSummary"],
+        "status": overall_status,
+        "checkCount": len(checks),
+        "warningCheckCount": sum(1 for check in checks if check["status"] == "warn"),
+        "failingCheckCount": sum(1 for check in checks if check["status"] == "fail"),
+        "checks": checks,
     }
 
 
@@ -6210,6 +6529,9 @@ def main() -> int:
             return EXIT_SUCCESS
         if args.command == "status":
             print_payload(status_run(args), as_json=args.json)
+            return EXIT_SUCCESS
+        if args.command == "evaluate-run":
+            print_payload(evaluate_run_quality(args), as_json=args.json)
             return EXIT_SUCCESS
         if args.command == "prune":
             print_payload(prune_runs(args), as_json=args.json)

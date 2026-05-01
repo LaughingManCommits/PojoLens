@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "example-trace-multibatch",
+  "goal": "Demonstrate a small multi-batch run whose retained manifest proves event and branch-context lineage.",
+  "sharedContext": {
+    "summary": "Use this plan as the smallest tracked multi-batch trace fixture. The root analyst task fans out into two downstream read-only tasks so retained events show multiple ready batches and explicit branch lineage.",
+    "constraints": [
+      "Keep the run read-only.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "ai/orchestrator/README.md",
+      "scripts/ai/claude-orchestrator.py"
+    ],
+    "validation": [
+      "scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-trace-multibatch.json --json"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "inspect-trace-contract",
+      "title": "Inspect the retained trace contract",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Read the orchestrator docs and script. Summarize what retained run manifests currently expose about event traces and branch lineage.",
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "scripts/ai/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "inspect-status-surface",
+      "title": "Inspect the retained status surface",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Use the upstream trace-contract summary as context. Summarize what the retained status command should surface for operators who need compact run lineage.",
+      "dependsOn": [
+        "inspect-trace-contract"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "scripts/ai/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "inspect-evaluator-surface",
+      "title": "Inspect the retained evaluation surface",
+      "agent": "analyst",
+      "modelProfile": "simple",
+      "prompt": "Use the upstream trace-contract summary as context. Summarize what an operator-focused run evaluator should flag about orchestration quality.",
+      "dependsOn": [
+        "inspect-trace-contract"
+      ],
+      "readPaths": [
+        "ai/orchestrator/README.md",
+        "scripts/ai/claude-orchestrator.py"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

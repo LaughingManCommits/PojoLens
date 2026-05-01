@@ -44,6 +44,8 @@ def make_task_run_record(
     status,
     summary,
     agent_name=None,
+    branch_context_id=None,
+    branch_parent_context_ids=None,
     workspace_mode="copy",
     workspace_path="",
     files_touched=None,
@@ -62,6 +64,8 @@ def make_task_run_record(
         id=task.id,
         title=task.title,
         agent=agent_name or task.agent,
+        branch_context_id=branch_context_id or task.id,
+        branch_parent_context_ids=list(branch_parent_context_ids or []),
         status=status,
         summary=summary,
         workspace_mode=workspace_mode,
@@ -1420,6 +1424,8 @@ class ValidateCommandTest(unittest.TestCase):
             id="inspect",
             title="Inspect",
             agent="analyst",
+            branch_context_id="inspect",
+            branch_parent_context_ids=[],
             status="completed",
             summary="very long summary " * 40,
             workspace_mode="copy",
@@ -1456,6 +1462,7 @@ class ValidateCommandTest(unittest.TestCase):
 
         self.assertIn("...", summary)
         self.assertIn("inspect", summary)
+        self.assertIn("context: `inspect`", summary)
 
     def test_dependency_summary_includes_key_notes_from_dependencies(self):
         orchestrator = self.orchestrator
@@ -1470,6 +1477,8 @@ class ValidateCommandTest(unittest.TestCase):
             id="inspect",
             title="Inspect",
             agent="analyst",
+            branch_context_id="inspect",
+            branch_parent_context_ids=[],
             status="completed",
             summary="Inspected the coordinator rules.",
             workspace_mode="copy",
@@ -2229,6 +2238,8 @@ class ValidateCommandTest(unittest.TestCase):
             id="edit-docs",
             title="Edit docs",
             agent="implementer",
+            branch_context_id="edit-docs",
+            branch_parent_context_ids=[],
             status="completed",
             summary="Completed safely.",
             workspace_mode="copy",
@@ -3542,6 +3553,40 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual([], finished[0]["parentTaskIds"])
         self.assertEqual(["inspect-a"], finished[1]["parentTaskIds"])
         self.assertEqual("run-finished", phases[-1])
+
+    def test_example_trace_multibatch_fixture_proves_event_and_branch_lineage(self):
+        orchestrator = self.orchestrator
+        root = pathlib.Path(__file__).resolve().parents[2]
+        task_plan = root / "ai" / "orchestrator" / "tasks" / "example-trace-multibatch.json"
+        agents = root / "ai" / "orchestrator" / "agents.json"
+        with tempfile.TemporaryDirectory() as tempdir:
+            payload = orchestrator.run_plan(
+                SimpleNamespace(
+                    agents=str(agents),
+                    task_plan=str(task_plan),
+                    selected_tasks=[],
+                    claude_bin="claude",
+                    runtime_root=tempdir,
+                    max_parallel=2,
+                    continue_on_error=False,
+                    dry_run=True,
+                    worker_validation_mode=None,
+                )
+            )
+
+        batch_ready_events = [event for event in payload["events"] if event["phase"] == "batch-ready"]
+        self.assertEqual(2, len(batch_ready_events))
+        self.assertEqual(["inspect-trace-contract"], batch_ready_events[0]["taskIds"])
+        self.assertEqual(
+            ["inspect-evaluator-surface<-inspect-trace-contract", "inspect-status-surface<-inspect-trace-contract"],
+            sorted(batch_ready_events[1]["branchContextIds"]),
+        )
+        self.assertEqual(3, payload["branchSummary"]["contextCount"])
+        self.assertEqual(["inspect-trace-contract"], payload["branchSummary"]["rootContextIds"])
+        self.assertEqual(
+            ["inspect-evaluator-surface<-inspect-trace-contract", "inspect-status-surface<-inspect-trace-contract"],
+            sorted(payload["branchSummary"]["leafContextIds"]),
+        )
 
     def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
         orchestrator = self.orchestrator
@@ -5841,10 +5886,133 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(3, payload["traceSummary"]["eventCount"])
         self.assertEqual("run-finished", payload["traceSummary"]["latestPhase"])
         self.assertEqual(["task-a"], payload["traceSummary"]["taskIdsReferenced"])
+        self.assertEqual(1, payload["branchSummary"]["contextCount"])
+        self.assertEqual("task-a", payload["tasks"][0]["branchContextId"])
         self.assertTrue(payload["run"]["promotionReady"])
         self.assertIn("promotion-ready", payload["run"]["flags"])
         self.assertEqual(1, payload["taskCount"])
         self.assertEqual(1, payload["tasks"][0]["filesChanged"])
+
+    def test_evaluate_run_reports_branch_lineage_and_quality_warnings(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            workspaces_dir = temp_path / "workspaces"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            workspaces_dir.mkdir()
+            (repo_root / "foo.txt").write_text("old\n", encoding="utf-8")
+            (workspaces_dir / "task-a").mkdir()
+            (workspaces_dir / "task-b").mkdir()
+            ((workspaces_dir / "task-a") / "foo.txt").write_text("new\n", encoding="utf-8")
+            orchestrator.ROOT = repo_root
+            task_a = orchestrator.TaskDefinition(
+                id="task-a",
+                title="Task A",
+                agent="analyst",
+                prompt="A.",
+            )
+            task_b = orchestrator.TaskDefinition(
+                id="task-b",
+                title="Task B",
+                agent="reviewer",
+                prompt="B.",
+                depends_on=["task-a"],
+            )
+            try:
+                orchestrator.write_json(
+                    run_dir / "manifest.json",
+                    {
+                        "runId": "eval-run",
+                        "generatedAt": "2026-04-07T10:00:00+00:00",
+                        "dryRun": False,
+                        "runDir": str(run_dir),
+                        "workspacesDir": str(workspaces_dir),
+                        "plan": {"name": "eval-plan", "goal": "Eval goal", "taskIds": ["task-a", "task-b"]},
+                        "topology": {
+                            "reviewerTaskCount": 1,
+                            "writeTaskCount": 0,
+                            "warnings": [
+                                {
+                                    "kind": "read-only-review-optional",
+                                    "taskIds": ["task-b"],
+                                    "message": "Reviewer hop is optional.",
+                                }
+                            ],
+                        },
+                        "events": [
+                            {
+                                "ts": "2026-04-07T10:00:00+00:00",
+                                "phase": "run-start",
+                                "taskIds": ["task-a", "task-b"],
+                                "branchContextIds": ["task-a", "task-b<-task-a"],
+                                "details": {"resume": False, "retryOfRunId": None, "seededTaskIds": []},
+                            },
+                            {
+                                "ts": "2026-04-07T10:01:00+00:00",
+                                "phase": "task-finished",
+                                "taskId": "task-a",
+                                "branchContextId": "task-a",
+                            },
+                            {
+                                "ts": "2026-04-07T10:02:00+00:00",
+                                "phase": "task-finished",
+                                "taskId": "task-b",
+                                "branchContextId": "task-b<-task-a",
+                                "parentTaskIds": ["task-a"],
+                            },
+                        ],
+                        "tasks": {
+                            "task-a": asdict(
+                                make_task_run_record(
+                                    orchestrator,
+                                    task_a,
+                                    status="completed",
+                                    summary="Done.",
+                                    workspace_path=str(workspaces_dir / "task-a"),
+                                    files_touched=["foo.txt"],
+                                    actual_files_touched=["foo.txt"],
+                                )
+                            ),
+                            "task-b": asdict(
+                                make_task_run_record(
+                                    orchestrator,
+                                    task_b,
+                                    status="completed",
+                                    summary="Reviewed.",
+                                    branch_context_id="task-b<-task-a",
+                                    branch_parent_context_ids=["task-a"],
+                                    workspace_path=str(workspaces_dir / "task-b"),
+                                )
+                            )
+                            | {"validation_commands": ["mvn test"]},
+                        },
+                    },
+                )
+                payload = orchestrator.evaluate_run_quality(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("warn", payload["status"])
+        self.assertEqual(3, payload["traceSummary"]["eventCount"])
+        self.assertEqual(2, payload["branchSummary"]["contextCount"])
+        self.assertEqual(
+            ["task-b<-task-a"],
+            payload["branchSummary"]["leafContextIds"],
+        )
+        by_name = {check["name"]: check for check in payload["checks"]}
+        self.assertEqual("warn", by_name["over-delegation"]["status"])
+        self.assertEqual("warn", by_name["reviewer-hops"]["status"])
+        self.assertEqual("warn", by_name["validation-suggestions"]["status"])
+        self.assertEqual("pass", by_name["retry-resume-contract"]["status"])
 
     def test_prune_runs_removes_only_old_completed_runs_by_default(self):
         orchestrator = self.orchestrator
