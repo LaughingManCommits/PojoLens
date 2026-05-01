@@ -77,6 +77,8 @@ Tracked samples:
 - `ai/orchestrator/tasks/example-trace-multibatch.json`: small two-batch analyst fixture that proves retained event traces and branch-context lineage
 - `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
 - `ai/orchestrator/tasks/example-implement-review-quickstart.json`: minimal implementer-to-reviewer coding sample that adds one grouped-query feature to the Spring Boot quickstart example
+- `ai/orchestrator/tasks/example-parallel-implement-review-quickstart-salary-range.json`: parallel implementer-plus-reviewer coding sample that adds and promotes a real salary-range quickstart endpoint
+- `ai/orchestrator/tasks/example-implement-review-quickstart-salary-range-fixup.json`: follow-up implementer-plus-reviewer sample that fixes docs/tests against an already-promoted controller contract
 - `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
 - `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
 
@@ -133,6 +135,7 @@ Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
 - task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
 - agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
+- `validate --json` topology warnings now also flag reviewer prompt-budget risk when a reviewer materializes multiple write-capable dependencies with `apply-reviewed` but does not set an explicit `maxPromptEstimatedTokens`
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
 - `runPolicy.runBudgetUsd` now governs aggregate `usage.totalCostUsd` across completed tasks; `budgetBehavior = "stop"` blocks unscheduled tasks before the next batch, while `warn` records the alert and continues
 - `runPolicy.maxTaskStdoutBytes`, `maxTaskStderrBytes`, and `maxTaskResultBytes` govern per-task artifact size; `artifactBehavior = "stop"` blocks later scheduling after an oversized completed task, while `warn` keeps the run moving
@@ -188,9 +191,10 @@ Coordinator rules:
 - run manifests and `run --json` / `retry --json` payloads now include the summarized `workerValidationMode`, any explicit `workerValidationModeOverride`, `taskWorkerValidationModes`, and `taskWorkerValidationModeSources`; task records also carry `worker_validation_mode_source`
 - `validate-run` still enforces command quality by default: direct repo-script or approved tool invocations are allowed, while shell-composed commands (`|`, `&&`, redirection, etc.) or unknown entrypoints are rejected unless `--allow-unsafe-commands` is used explicitly
 - worker prompts now tell workers to mirror approved validation hints exactly, avoid swapping entrypoints like `mvn` and `mvnw`, use `repo-script` only for `scripts/...` or `mvnw(.cmd)`, use `tool` only for approved executables, and emit `[]` instead of inventing `grep`, pseudo scripts, or shell fragments
+- worker prompts now also require explicit notes for parameter/default/normalization semantics, require tests to match the implemented contract rather than guessed behavior, and require README/docs updates or explicit follow-ups for user-visible example/API changes
 - worker JSON is normalized coordinator-side before it becomes a task record: summaries are compacted, `notes` / `followUps` / `validationIntents` are capped, malformed status or list fields fail the task, structured `validationIntents` are normalized, and nullable list fields preserve explicit unknowns instead of collapsing into `[]`
 - `review` summarizes per-task file diffs from worker workspaces; `export-patch` writes unified diffs for copy/worktree runs; `promote` applies reviewed copy/worktree changes back into the repo
-- `promote` refuses protected-path violations, repo-mode records, path traversal, and ambiguous multi-task ownership of the same changed file
+- `promote` refuses protected-path violations, repo-mode records, path traversal, and conflicting multi-task ownership of the same changed file; exact duplicate operations with matching workspace content are deduped automatically so reviewer materialization does not force a `--task` workaround
 - `cleanup` removes run artifacts and deletes detached worktrees created for that run
 - the coordinator owns memory updates, final summaries, and merge decisions
 - prefer `copy` mode unless a task clearly needs git metadata
@@ -207,5 +211,5 @@ Recommended operator flow:
 - use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
 - use `validate-run` to execute accepted validation intents
 - use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked
-- use `promote` only after review and validation are complete
+- use `promote` only after review and validation are complete; for coding runs, treat the run as complete only after a repo-scope `validate-run` pass is recorded after promotion
 - use `cleanup` or `prune` to retire runtime artifacts you no longer need

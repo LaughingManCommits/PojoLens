@@ -34,6 +34,12 @@ Fetch employees from a specific department, ordered by salary (descending). The 
 curl "http://localhost:8080/api/employees/by-department?department=Engineering&limit=2"
 ```
 
+### Employees by Salary Range
+Fetch employees within a salary range, ordered by salary (descending). The `limit` parameter defaults to 10 and is capped at 25. The salary range is inclusive. Note: `minSalary` is clamped to 0 (negative values become 0), and `maxSalary` is normalized to be at least `minSalary` (if `maxSalary < minSalary`, it becomes `minSalary`).
+```bash
+curl "http://localhost:8080/api/employees/by-salary-range?minSalary=100000&maxSalary=140000&limit=2"
+```
+
 ### Department Salary Summary
 ```bash
 curl "http://localhost:8080/api/employees/department-salary-summary?minSalary=90000"

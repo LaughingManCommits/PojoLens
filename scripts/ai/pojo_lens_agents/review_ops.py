@@ -354,6 +354,35 @@ def dependency_layers_for_record(
     return layers
 
 
+def _workspace_operation_bytes(record: Any, operation: dict[str, Any]) -> bytes | None:
+    if str(operation.get("action", "")) == "deleted":
+        return None
+    workspace_path = getattr(record, "workspace_path", None)
+    if not workspace_path:
+        return None
+    candidate = Path(str(workspace_path)).resolve().joinpath(*str(operation["path"]).split("/"))
+    if not candidate.exists() or not candidate.is_file():
+        return None
+    return candidate.read_bytes()
+
+
+def equivalent_promotion_operation(
+    left_record: Any,
+    left_operation: dict[str, Any],
+    right_record: Any,
+    right_operation: dict[str, Any],
+) -> bool:
+    if str(left_operation.get("path", "")) != str(right_operation.get("path", "")):
+        return False
+    if str(left_operation.get("action", "")) != str(right_operation.get("action", "")):
+        return False
+    if str(left_operation.get("action", "")) == "deleted":
+        return True
+    left_bytes = _workspace_operation_bytes(left_record, left_operation)
+    right_bytes = _workspace_operation_bytes(right_record, right_operation)
+    return left_bytes is not None and right_bytes is not None and left_bytes == right_bytes
+
+
 def plan_promotion(
     records: list[Any],
     *,
@@ -365,10 +394,12 @@ def plan_promotion(
     issues: list[str] = []
     task_payloads: list[dict[str, Any]] = []
     all_operations: list[dict[str, Any]] = []
-    owners_by_path: dict[str, str] = {}
+    owners_by_path: dict[str, tuple[Any, dict[str, Any]]] = {}
     counts = {"added": 0, "modified": 0, "deleted": 0}
     for record in records:
         task_payload, operations = task_promotion_operations_fn(record)
+        task_payload["filesPromotableSelected"] = 0
+        task_payload["dedupedDuplicatePaths"] = []
         task_payloads.append(task_payload)
         if record.protected_path_violations:
             issues.append(
@@ -392,11 +423,18 @@ def plan_promotion(
                 f"{record.id}: workspaceMode='{record.workspace_mode}' is not promotable; use copy or worktree"
             )
         for operation in operations:
-            owner = owners_by_path.get(operation["path"])
-            if owner is not None and owner != record.id:
-                issues.append(f"{record.id}: '{operation['path']}' is also changed by task '{owner}'")
+            owner_entry = owners_by_path.get(operation["path"])
+            if owner_entry is not None:
+                owner_record, owner_operation = owner_entry
+                if owner_record.id != record.id:
+                    if equivalent_promotion_operation(owner_record, owner_operation, record, operation):
+                        task_payload["dedupedDuplicatePaths"].append(str(operation["path"]))
+                        continue
+                    issues.append(f"{record.id}: '{operation['path']}' is also changed by task '{owner_record.id}'")
+                    continue
             else:
-                owners_by_path[operation["path"]] = record.id
+                owners_by_path[operation["path"]] = (record, operation)
+            task_payload["filesPromotableSelected"] += 1
             counts[str(operation["action"])] += 1
             all_operations.append(operation)
     if issues:
@@ -417,7 +455,11 @@ def summarize_promotion_readiness(
         return {
             "allowed": True,
             "blockedReasons": [],
-            "promotableTaskIds": [payload["id"] for payload in task_payloads if payload["filesPromotable"]],
+            "promotableTaskIds": [
+                payload["id"]
+                for payload in task_payloads
+                if int(payload.get("filesPromotableSelected", payload["filesPromotable"]) or 0) > 0
+            ],
             "filesPromotable": len(operations),
             "operationCounts": counts,
         }
@@ -510,7 +552,11 @@ def promote_run(
         if readiness["allowed"]
         else ([task_promotion_operations_fn(record)[0] for record in records], [], {"added": 0, "modified": 0, "deleted": 0})
     )
-    promotable_task_ids = [payload["id"] for payload in task_payloads if payload["filesPromotable"]] if readiness["allowed"] else []
+    promotable_task_ids = [
+        payload["id"]
+        for payload in task_payloads
+        if int(payload.get("filesPromotableSelected", payload["filesPromotable"]) or 0) > 0
+    ] if readiness["allowed"] else []
     if not dry_run:
         records_by_id = {record.id: record for record in records}
         for operation in operations:
@@ -529,6 +575,7 @@ def promote_run(
         "filesPromotable": len(operations),
         "filesPromoted": 0 if dry_run else len(operations),
         "operationCounts": counts,
+        "generatedAt": __import__("datetime").datetime.now().astimezone().isoformat(),
         "tasks": task_payloads,
     }
     write_run_checkpoint(

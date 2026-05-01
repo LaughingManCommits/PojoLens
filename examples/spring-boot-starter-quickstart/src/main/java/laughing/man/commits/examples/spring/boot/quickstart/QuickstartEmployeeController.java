@@ -28,6 +28,9 @@ public class QuickstartEmployeeController {
     private static final String BY_DEPARTMENT_QUERY = "select id, name, department, salary "
             + "where department = :department "
             + "order by salary desc limit :limit";
+    private static final String BY_SALARY_RANGE_QUERY = "select id, name, department, salary "
+            + "where salary >= :minSalary and salary <= :maxSalary "
+            + "order by salary desc limit :limit";
 
     private final PojoLensRuntime pojoLensRuntime;
     private final boolean virtualThreadsEnabled;
@@ -70,6 +73,23 @@ public class QuickstartEmployeeController {
                 .parse(BY_DEPARTMENT_QUERY)
                 .params(Map.of(
                         "department", department,
+                        "limit", cappedLimit
+                ))
+                .filter(employees, EmployeeView.class);
+    }
+
+    @GetMapping("/by-salary-range")
+    public List<EmployeeView> bySalaryRange(@RequestParam(name = "minSalary", defaultValue = "0") int minSalary,
+                                            @RequestParam(name = "maxSalary", defaultValue = "999999") int maxSalary,
+                                            @RequestParam(name = "limit", defaultValue = "10") int limit) {
+        int clampedMinSalary = Math.max(0, minSalary);
+        int clampedMaxSalary = Math.max(clampedMinSalary, maxSalary);
+        int cappedLimit = Math.max(1, Math.min(limit, 25));
+        return pojoLensRuntime
+                .parse(BY_SALARY_RANGE_QUERY)
+                .params(Map.of(
+                        "minSalary", clampedMinSalary,
+                        "maxSalary", clampedMaxSalary,
                         "limit", cappedLimit
                 ))
                 .filter(employees, EmployeeView.class);

@@ -105,18 +105,28 @@ def summarize_approval_checkpoints(manifest: dict[str, Any]) -> dict[str, Any]:
         promotion_files = int(promotion_payload.get("filesPromoted", 0) or 0)
         promotion_applied = promotion_allowed and not promotion_dry_run and promotion_files > 0
     validation_passed = None
+    validation_execution_scope = None
+    validation_generated_at = None
     if validation_payload is not None:
         validation_passed = bool(validation_payload.get("allPassed", False))
+        validation_execution_scope = str(validation_payload.get("executionScope", "")).strip() or None
+        validation_generated_at = str(validation_payload.get("generatedAt", "")).strip() or None
+    promotion_generated_at = None
+    if promotion_payload is not None:
+        promotion_generated_at = str(promotion_payload.get("generatedAt", "")).strip() or None
     return {
         "reviewRecorded": review_payload is not None,
         "reviewSummaryPath": review_payload.get("summaryPath") if review_payload is not None else None,
         "validationRecorded": validation_payload is not None,
         "validationPassed": validation_passed,
+        "validationExecutionScope": validation_execution_scope,
+        "validationGeneratedAt": validation_generated_at,
         "validationSummaryPath": validation_payload.get("summaryPath") if validation_payload is not None else None,
         "promotionRecorded": promotion_payload is not None,
         "promotionAllowed": promotion_allowed,
         "promotionDryRun": promotion_dry_run,
         "promotionApplied": promotion_applied,
+        "promotionGeneratedAt": promotion_generated_at,
         "promotionFilesPromoted": promotion_files,
         "promotionSummaryPath": promotion_payload.get("summaryPath") if promotion_payload is not None else None,
     }
@@ -144,7 +154,22 @@ def derive_run_lifecycle_state(
     if not changed_completed_task_ids:
         return "completed", "Run completed without promotable file changes."
     if approval_summary["promotionApplied"]:
-        return "completed", "Coordinator promotion has already been applied."
+        validation_scope = str(approval_summary.get("validationExecutionScope") or "").strip()
+        validation_generated_at = approval_summary.get("validationGeneratedAt")
+        promotion_generated_at = approval_summary.get("promotionGeneratedAt")
+        if validation_scope != "repo":
+            return "awaiting_validation", "Promotion is applied, but repo-scope coordinator validation has not been recorded yet."
+        if (
+            isinstance(validation_generated_at, str)
+            and isinstance(promotion_generated_at, str)
+            and validation_generated_at
+            and promotion_generated_at
+            and validation_generated_at < promotion_generated_at
+        ):
+            return "awaiting_validation", "Promotion is applied, but the latest repo-scope validation predates promotion."
+        if not bool(approval_summary["validationPassed"]):
+            return "awaiting_validation", "Promotion is applied, but the latest repo-scope coordinator validation is not yet passing."
+        return "completed", "Coordinator promotion is applied and repo-scope validation is passing."
     if not approval_summary["reviewRecorded"]:
         return "awaiting_review", "Completed changes are present but coordinator validation has not been recorded yet."
     if not approval_summary["validationRecorded"]:

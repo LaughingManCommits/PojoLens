@@ -7,8 +7,9 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-01`: The quickstart salary-range feature is now promoted in the repo, and the docs/tests fix-up was completed through a second live orchestrator run after post-promotion Maven validation caught a contract mismatch.
+- `2026-05-01`: Contract hardening is in place after those runs: reviewer budget risk now surfaces in `validate`, exact duplicate reviewer/materialized promotion ops are deduped, and promoted coding runs stay `awaiting_validation` until repo-scope validation is recorded after promotion.
 - `2026-05-01`: Default copy/worktree worker sandboxes now live in an external temp-backed root recorded in `workspacesDir`; manifests and prompts stay under repo-local `.claude-orchestrator`.
-- `2026-05-01`: The tracked live proof `example-parallel-implement-review-quickstart` now completes end to end with two parallel implementers, one reviewer, promotion, and passing quickstart tests.
 - `2026-05-01`: Retained runs now expose evals, approval checkpoints, trace export, effort/source visibility, and the split orchestrator modules behind the thin entrypoint.
 
 ## Facts
@@ -16,7 +17,7 @@
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-05-01`: `TODO.md` order is deferred WP18, Release Gate.
 - `2026-05-01`: `ai/orchestrator/tasks/example-implement-review-quickstart.json` is the smallest tracked implementer-to-reviewer coding sample and targets the Spring Boot quickstart example.
-- `2026-05-01`: `ai/orchestrator/tasks/example-parallel-implement-review-quickstart.json` is the tracked live proof for two parallel implementers followed by a reviewer on a bounded quickstart change.
+- `2026-05-01`: `ai/orchestrator/tasks/example-parallel-implement-review-quickstart-salary-range.json` is the tracked live proof for a parallel two-implementer plus reviewer quickstart feature slice, and `example-implement-review-quickstart-salary-range-fixup.json` is the follow-up docs/tests correction slice.
 - `2026-05-01`: `pojo_lens_agents.orchestrator_app` is now 863 lines after the final WP36 split into focused helper modules.
 - `2026-05-01`: LangGraph is still only a spike in `pojo_lens_agents.langgraph_spike`; it is not a live runtime backend.
 - `2026-05-01`: The first failed parallel implementer proof was caused by repo-local copy sandboxes; the fix moved default worker sandboxes out of the repo while keeping legacy manifest fallback for older retained runs.

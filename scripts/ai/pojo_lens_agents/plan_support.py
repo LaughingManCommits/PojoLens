@@ -347,9 +347,39 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
                     "message": (
                         f"Plan has one write-capable task ('{sole_write_task_id}') plus upstream analyst work; "
                         "consider folding analysis into the implementer unless implementation uncertainty is high."
-                    ),
-                }
-            )
+                ),
+            }
+        )
+    tasks_by_id = {task.id: task for task in plan.tasks}
+    for reviewer_task_id in reviewer_task_ids:
+        reviewer_task = tasks_by_id[reviewer_task_id]
+        if effective_dependency_materialization_mode(reviewer_task) != "apply-reviewed":
+            continue
+        direct_write_dependencies = [
+            dependency_id
+            for dependency_id in reviewer_task.depends_on
+            if task_may_write(plan, tasks_by_id[dependency_id], agents[tasks_by_id[dependency_id].agent])
+        ]
+        if len(direct_write_dependencies) < 2:
+            continue
+        reviewer_budget = prompt_contracts_layer.resolved_max_prompt_estimated_tokens(
+            reviewer_task,
+            agents[reviewer_task.agent],
+        )
+        if reviewer_task.max_prompt_estimated_tokens is not None:
+            continue
+        warnings.append(
+            {
+                "kind": "reviewer-prompt-budget-risk",
+                "taskIds": [*sorted(direct_write_dependencies), reviewer_task_id],
+                "message": (
+                    f"Reviewer task '{reviewer_task_id}' materializes {len(direct_write_dependencies)} write-capable "
+                    "dependencies with apply-reviewed but does not override maxPromptEstimatedTokens; "
+                    f"it currently inherits {reviewer_budget if reviewer_budget is not None else 'no'} prompt-token budget. "
+                    "Set an explicit reviewer budget or reduce dependency payload size."
+                ),
+            }
+        )
     return {
         "taskCount": len(plan.tasks),
         "dependencyEdgeCount": sum(len(task.depends_on) for task in plan.tasks),

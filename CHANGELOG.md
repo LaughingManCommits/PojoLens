@@ -21,6 +21,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   smallest tracked coding-plus-review orchestration sample tied to a real repo
   example module.
 
+- **Quickstart salary-range endpoint** - the Spring Boot starter quickstart
+  example now exposes `/api/employees/by-salary-range`, with README coverage,
+  focused controller and virtual-thread integration tests, and two tracked
+  orchestration proofs for the feature plus its docs/tests fix-up.
+
 - **Orchestrator trace export** - added `pojo_lens_agents.trace_export` and
   the `export-trace` command, which writes a stable
   `pojo-lens-orchestrator-trace/v1` JSON span graph for retained runs using
@@ -74,6 +79,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   in `workspacesDir` instead of under repo-local `.claude-orchestrator`,
   closing the live-repo escape that let a failed parallel implementer run
   mutate tracked files outside its sandbox.
+
+- **Orchestrator live-run contract hardening** - `validate` now warns about
+  reviewer prompt-budget risk for multi-dependency `apply-reviewed` review
+  tasks, worker prompts now require explicit parameter-semantic notes and
+  contract-aligned tests/docs, promotion now dedupes exact duplicate reviewer
+  materialization instead of blocking on safe duplicates, and promoted coding
+  runs remain `awaiting_validation` until repo-scope validation is recorded
+  after promotion.
 
 - **Live parallel coding proof** - the tracked
   `example-parallel-implement-review-quickstart.json` run now completes with

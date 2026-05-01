@@ -50,6 +50,9 @@ Completed implementation detail is intentionally not kept here. Historical
 detail stays in `CHANGELOG.md`, `ai/state/recent-validations.md`, and git
 history.
 
+Post-WP live-run hardening:
+- `2026-05-01`: Coordinator contract hardening landed after the real quickstart coding runs: `validate` now warns about risky reviewer prompt budgets, promotion dedupes exact duplicate reviewer/materialized file ownership, and promoted coding runs stay `awaiting_validation` until repo-scope validation is recorded after promotion.
+
 ---
 
 ## WP27: Orchestrator CLI Productization

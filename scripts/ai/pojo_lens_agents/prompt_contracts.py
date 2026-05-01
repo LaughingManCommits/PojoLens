@@ -305,6 +305,9 @@ def worker_prompt(
             "In copy/worktree mode, do not inspect the source repo root, other task workspaces, or prior run artifacts.",
             "Treat `writePaths` as the edit contract. Dependency outputs are the coordinator handoff.",
             "If dependency layers are materialized, workspace state overrides prompt summaries for those upstream files.",
+            "When parameter defaults, range handling, or normalization change, record the exact rule in `notes`.",
+            "For parameter-behavior tests, derive assertions from the implementation and written contract. If behavior is ambiguous, return `blocked`.",
+            "If user-visible example or API behavior changes, update matching README/docs in scope or call out the missing doc work in `followUps`.",
             "If validation hints already show an approved command, mirror that exact entrypoint and args in `validationIntents`. Do not swap `mvn` and `mvnw` or invent alternate wrappers.",
             "Suggest only coordinator-accepted validation shapes: `repo-script` for `scripts/...` or `mvnw(.cmd)`, `tool` for approved executables like `git`, `java`, `mvn`, `py`, or `pytest`.",
             "If no approved validation shape fits, emit `[]`. Do not invent scripts or use `grep`, `findstr`, or shell fragments.",
@@ -312,7 +315,7 @@ def worker_prompt(
             "Do not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`. Keep changes tightly scoped to the task.",
         ],
         empty_line="- none",
-        max_items=10,
+        max_items=16,
     )
     return deps["render_prompt"](
         [

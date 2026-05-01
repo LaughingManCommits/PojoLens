@@ -101,6 +101,83 @@ class QuickstartEmployeeControllerTest {
         assertThat(body.get(0).get("topSalary").asInt()).isGreaterThanOrEqualTo(body.get(1).get("topSalary").asInt());
     }
 
+    @Test
+    void bySalaryRangeFiltersInclusiveRange() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=100000&maxSalary=140000&limit=5");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(2);
+        assertThat(body.get(0).get("name").asText()).isEqualTo("Milan");
+        assertThat(body.get(0).get("salary").asInt()).isEqualTo(132000);
+        assertThat(body.get(1).get("name").asText()).isEqualTo("Lina");
+        assertThat(body.get(1).get("salary").asInt()).isEqualTo(125000);
+    }
+
+    @Test
+    void bySalaryRangeOrdersBySalaryDesc() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=90000&maxSalary=150000&limit=5");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isGreaterThan(1);
+        for (int i = 0; i < body.size() - 1; i++) {
+            int current = body.get(i).get("salary").asInt();
+            int next = body.get(i + 1).get("salary").asInt();
+            assertThat(current).isGreaterThanOrEqualTo(next);
+        }
+    }
+
+    @Test
+    void bySalaryRangeUsesDefaultLimitOfTen() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=0&maxSalary=200000");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(5);
+    }
+
+    @Test
+    void bySalaryRangeCapLimitAt25() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=0&maxSalary=200000&limit=100");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(5);
+    }
+
+    @Test
+    void bySalaryRangeNormalizesMaxSalaryWhenBelowMinSalary() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=125000&maxSalary=100000&limit=5");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(1);
+        assertThat(body.get(0).get("name").asText()).isEqualTo("Lina");
+        assertThat(body.get(0).get("salary").asInt()).isEqualTo(125000);
+    }
+
+    @Test
+    void bySalaryRangeClampsMinSalaryToZero() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=-50000&maxSalary=150000&limit=10");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(5);
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + path))

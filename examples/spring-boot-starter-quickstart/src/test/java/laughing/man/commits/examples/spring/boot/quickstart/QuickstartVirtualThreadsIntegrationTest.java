@@ -68,6 +68,18 @@ class QuickstartVirtualThreadsIntegrationTest {
         assertThat(body.size()).isEqualTo(3);
     }
 
+    @Test
+    void bySalaryRangeEndpointRemainsFunctionalInVirtualMode() throws Exception {
+        HttpResponse<String> response = get("/api/employees/by-salary-range?minSalary=100000&maxSalary=140000&limit=2");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = JSON_MAPPER.readTree(response.body());
+        assertThat(body).isNotNull();
+        assertThat(body.isArray()).isTrue();
+        assertThat(body.size()).isEqualTo(2);
+        assertThat(body.get(0).get("salary").asInt()).isGreaterThanOrEqualTo(body.get(1).get("salary").asInt());
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + path))
