@@ -56,6 +56,7 @@ scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-i
 scripts/ai/claude-orchestrator.ps1 evaluate-corpus --json
 scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
+scripts/ai/claude-orchestrator.ps1 export-trace .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 validate-run .claude-orchestrator/runs/<run-id> --execution-scope task-workspace --json
@@ -96,6 +97,7 @@ Lifecycle helpers:
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
 - `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
+- `export-trace` writes `pojo-lens-orchestrator-trace/v1` JSON under the run `trace/` directory by default, exporting run, batch, task, validation, and approval spans without changing the retained manifest
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 - the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but it is now a thin shim that lazy-loads `pojo_lens_agents.orchestrator_app`; retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic live in `run_summary`, `review_ops`, `validation_ops`, and `evals`
 
@@ -137,6 +139,7 @@ Token and cost visibility:
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
 - `review`, `validate-run`, and `promote` now persist coordinator checkpoints back into the run manifest as `coordinatorReview`, `coordinatorValidation`, and `coordinatorPromotion`, each with a run-local `summary.json` path for replayable operator evidence
+- `export-trace` maps those retained events plus coordinator checkpoints into stable span ids and parent span ids so external tooling can compare runs without learning the manifest internals
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
 - `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
 - operator-facing benchmark fields for WP32 are now `scoreSummary.status`, `scoreSummary.statusCounts`, `scoreSummary.scorePercent`, `scoreSummary.taskCount`, `scoreSummary.batchCount`, `scoreSummary.parallelWidth`, plus `benchmarkDimensions.{decompositionQuality,retryCorrectness,reviewPromotionAccuracy,parallelEfficiency}`

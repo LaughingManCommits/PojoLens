@@ -480,6 +480,10 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["export-patch", "some/run/dir", "--dry-run"])
         self.assertTrue(args.dry_run)
 
+    def test_dry_run_accepted_by_export_trace(self):
+        args = self._parse_argv(["export-trace", "some/run/dir", "--dry-run"])
+        self.assertTrue(args.dry_run)
+
     def test_json_accepted_by_cleanup(self):
         args = self._parse_argv(["cleanup", "some/run/dir", "--json"])
         self.assertTrue(args.json)
@@ -3599,6 +3603,176 @@ class ValidateCommandTest(unittest.TestCase):
             ["inspect-evaluator-surface<-inspect-trace-contract", "inspect-status-surface<-inspect-trace-contract"],
             sorted(payload["branchSummary"]["leafContextIds"]),
         )
+
+    def test_export_trace_writes_span_graph_for_events_and_checkpoints(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            run_dir = runtime_root / "runs" / "trace-run"
+            run_dir.mkdir(parents=True)
+            manifest_path = run_dir / "manifest.json"
+            review_dir = run_dir / "review"
+            validation_dir = run_dir / "validation"
+            promotion_dir = run_dir / "promotion"
+            review_dir.mkdir()
+            validation_dir.mkdir()
+            promotion_dir.mkdir()
+            review_summary_path = review_dir / "summary.json"
+            validation_summary_path = validation_dir / "summary.json"
+            promotion_summary_path = promotion_dir / "summary.json"
+            review_summary_path.write_text("{}\n", encoding="utf-8")
+            validation_summary_path.write_text("{}\n", encoding="utf-8")
+            promotion_summary_path.write_text("{}\n", encoding="utf-8")
+            workspace_a = runtime_root / "workspaces" / "trace-run" / "inspect-a" / "docs"
+            workspace_b = runtime_root / "workspaces" / "trace-run" / "inspect-b" / "docs"
+            workspace_a.mkdir(parents=True)
+            workspace_b.mkdir(parents=True)
+            repo_docs = pathlib.Path(__file__).resolve().parents[2] / "docs"
+            repo_docs.mkdir(exist_ok=True)
+            (workspace_a / "a.md").write_text("trace a\n", encoding="utf-8")
+            (workspace_b / "b.md").write_text("trace b\n", encoding="utf-8")
+
+            task_a = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            task_b = orchestrator.TaskDefinition(
+                id="inspect-b",
+                title="Inspect B",
+                agent="analyst",
+                prompt="Inspect B.",
+                depends_on=["inspect-a"],
+            )
+            record_a = make_task_run_record(
+                orchestrator,
+                task_a,
+                status="completed",
+                summary="Completed A.",
+                workspace_path=str(runtime_root / "workspaces" / "trace-run" / "inspect-a"),
+                files_touched=["docs/a.md"],
+                actual_files_touched=["docs/a.md"],
+            )
+            record_b = make_task_run_record(
+                orchestrator,
+                task_b,
+                status="completed",
+                summary="Completed B.",
+                branch_context_id="inspect-b<-inspect-a",
+                branch_parent_context_ids=["inspect-a"],
+                workspace_path=str(runtime_root / "workspaces" / "trace-run" / "inspect-b"),
+                files_touched=["docs/b.md"],
+                actual_files_touched=["docs/b.md"],
+            )
+            manifest = {
+                "runId": "trace-run",
+                "generatedAt": "2026-05-01T10:00:00+00:00",
+                "dryRun": False,
+                "plan": {
+                    "name": "trace-export",
+                    "goal": "Export trace spans.",
+                    "taskIds": ["inspect-a", "inspect-b"],
+                },
+                "usageTotals": {},
+                "runGovernance": {"status": "ok", "alertCount": 0, "blockingAlertCount": 0, "artifactTotals": {"totalBytes": 0}},
+                "topology": {"batchCount": 2, "maxParallelWidth": 1, "warningCount": 0},
+                "events": [
+                    {"ts": "2026-05-01T10:00:00+00:00", "phase": "run-start"},
+                    {
+                        "ts": "2026-05-01T10:00:01+00:00",
+                        "phase": "batch-ready",
+                        "taskIds": ["inspect-a"],
+                        "branchContextIds": ["inspect-a"],
+                        "details": {"pendingTaskIds": ["inspect-a", "inspect-b"]},
+                    },
+                    {
+                        "ts": "2026-05-01T10:00:02+00:00",
+                        "phase": "task-finished",
+                        "taskId": "inspect-a",
+                        "parentTaskIds": [],
+                        "branchContextId": "inspect-a",
+                        "status": "completed",
+                    },
+                    {
+                        "ts": "2026-05-01T10:00:03+00:00",
+                        "phase": "batch-ready",
+                        "taskIds": ["inspect-b"],
+                        "branchContextIds": ["inspect-b<-inspect-a"],
+                        "details": {"pendingTaskIds": ["inspect-b"]},
+                    },
+                    {
+                        "ts": "2026-05-01T10:00:04+00:00",
+                        "phase": "task-finished",
+                        "taskId": "inspect-b",
+                        "parentTaskIds": ["inspect-a"],
+                        "branchContextId": "inspect-b<-inspect-a",
+                        "status": "completed",
+                    },
+                    {"ts": "2026-05-01T10:00:05+00:00", "phase": "run-finished"},
+                ],
+                "coordinatorReview": {
+                    "runId": "trace-run",
+                    "taskCount": 2,
+                    "summary": {"changedTaskCount": 2, "changedFileCount": 2},
+                    "summaryPath": str(review_summary_path),
+                },
+                "coordinatorValidation": {
+                    "generatedAt": "2026-05-01T10:00:06+00:00",
+                    "runId": "trace-run",
+                    "executionScope": "repo",
+                    "dryRun": False,
+                    "commandCount": 1,
+                    "acceptedCommandCount": 1,
+                    "rejectedCommandCount": 0,
+                    "selectedTaskIds": ["inspect-a", "inspect-b"],
+                    "allPassed": True,
+                    "summaryPath": str(validation_summary_path),
+                },
+                "coordinatorPromotion": {
+                    "runId": "trace-run",
+                    "dryRun": True,
+                    "promotionAllowed": True,
+                    "filesPromotable": 2,
+                    "filesPromoted": 0,
+                    "promotableTaskIds": ["inspect-a", "inspect-b"],
+                    "blockedReasons": [],
+                    "summaryPath": str(promotion_summary_path),
+                },
+                "tasks": {
+                    "inspect-a": asdict(record_a),
+                    "inspect-b": asdict(record_b),
+                },
+            }
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+            payload = orchestrator.export_trace(
+                SimpleNamespace(
+                    run_ref=str(manifest_path),
+                    selected_tasks=[],
+                    out="",
+                    dry_run=False,
+                    json=True,
+                )
+            )
+
+            trace_path = pathlib.Path(payload["tracePath"])
+            self.assertTrue(trace_path.exists())
+            self.assertEqual("pojo-lens-orchestrator-trace/v1", payload["traceFormat"])
+            self.assertEqual({"run": 1, "batch": 2, "task": 2, "validation": 1, "approval": 2}, payload["kindCounts"])
+            spans_by_id = {span["id"]: span for span in payload["spans"]}
+            self.assertEqual(["run:trace-run"], spans_by_id["batch:trace-run:1"]["parentSpanIds"])
+            self.assertEqual(
+                ["batch:trace-run:2", "task:trace-run:inspect-a"],
+                spans_by_id["task:trace-run:inspect-b"]["parentSpanIds"],
+            )
+            self.assertEqual("passed", spans_by_id["validation:trace-run"]["status"])
+            self.assertEqual("allowed", spans_by_id["approval:trace-run:promotion"]["status"])
+            self.assertEqual(
+                ["inspect-a"],
+                spans_by_id["task:trace-run:inspect-b"]["attributes"]["dependencyTaskIds"],
+            )
 
     def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
         orchestrator = self.orchestrator

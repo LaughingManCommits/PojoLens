@@ -39,6 +39,7 @@ evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
+trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 
@@ -590,6 +591,20 @@ def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, A
     )
 
 
+def export_trace(args: argparse.Namespace) -> dict[str, Any]:
+    return trace_export_layer.export_trace_run(
+        args,
+        deps={
+            "load_run_manifest": load_run_manifest,
+            "selected_run_records": selected_run_records,
+            "summarize_run_manifest": summarize_run_manifest,
+            "parse_iso_datetime": parse_iso_datetime,
+            "datetime_to_iso": datetime_to_iso,
+            "write_json": write_json,
+        },
+    )
+
+
 def summarize_run_events(events_payload: Any) -> dict[str, Any]:
     return run_summary_layer.summarize_run_events(events_payload)
 
@@ -940,6 +955,7 @@ def main() -> int:
             'retry': retry_run,
             'review': review_run,
             'export-patch': export_patch,
+            'export-trace': export_trace,
             'promote': promote_run,
             'cleanup': cleanup_run,
             'inventory': inventory_runs,

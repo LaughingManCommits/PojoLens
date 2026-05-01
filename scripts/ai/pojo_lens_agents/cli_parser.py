@@ -379,6 +379,39 @@ def parse_args() -> argparse.Namespace:
     _add_verbose_arg(export_patch_parser)
     _add_provider_bin_arg(export_patch_parser)
 
+    export_trace_parser = subparsers.add_parser(
+        "export-trace",
+        help="Export a span-style JSON trace from a retained run manifest.",
+    )
+    export_trace_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    export_trace_parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict exported task spans to one or more task ids. Repeatable.",
+    )
+    export_trace_parser.add_argument(
+        "--out",
+        default="",
+        help="Destination trace path. Defaults under the run directory trace/ subfolder.",
+    )
+    export_trace_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Build the trace payload without writing it to disk.",
+    )
+    export_trace_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the trace export summary as JSON.",
+    )
+    _add_verbose_arg(export_trace_parser)
+    _add_provider_bin_arg(export_trace_parser)
+
     promote_parser = subparsers.add_parser(
         "promote",
         help="Apply reviewed worker workspace changes back into the live repo.",

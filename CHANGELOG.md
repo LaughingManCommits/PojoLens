@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Orchestrator trace export** - added `pojo_lens_agents.trace_export` and
+  the `export-trace` command, which writes a stable
+  `pojo-lens-orchestrator-trace/v1` JSON span graph for retained runs using
+  existing event lineage plus persisted review, validation, and promotion
+  checkpoints.
+
 - **Orchestrator command decomposition** - split retained-run summary/lifecycle,
   review/export/promote, validation/checkpoint persistence, and eval logic into
   `pojo_lens_agents.run_summary`, `review_ops`, `validation_ops`, and `evals`

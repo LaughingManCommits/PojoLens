@@ -42,7 +42,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP33| Approval State Machine               | Complete | Persist explicit approval lifecycle states, coordinator review/validation/promotion checkpoints, and retained-run approval summaries |
 | WP36| Orchestrator Run And Planner Decomposition | Complete | Reduced `claude-orchestrator.py` to a 50-line shim, brought `pojo_lens_agents.orchestrator_app` down to 863 lines, and split parser/contracts/utils/plan/review-provider support into focused `pojo_lens_agents` modules |
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
-| WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
+| WP34| Trace Export                         | Complete | Added `export-trace`, a stable `pojo-lens-orchestrator-trace/v1` span export, and parent-child task/batch/checkpoint lineage derived from retained events and branch contexts |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -427,11 +427,28 @@ without moving review or promotion ownership out of the coordinator.
 **Goal:** Export span-style traces from retained orchestration events so runs
 can be compared outside the manifest format.
 
+**Decision:** Complete. Retained runs now export a stable
+`pojo-lens-orchestrator-trace/v1` JSON payload through `export-trace`, keeping
+the manifest contract unchanged while mapping run, batch, task, validation,
+and approval checkpoints into one span graph.
+
+**Work done:**
+- Added `pojo_lens_agents.trace_export` as the dedicated export layer so WP34
+  does not grow `orchestrator_app` again.
+- Added `export-trace` with `--task`, `--out`, `--dry-run`, and `--json`.
+- Exported stable run, batch, task, validation, and approval span kinds with
+  status, timestamps, task metadata, and retained checkpoint paths.
+- Mapped retained event batches plus branch-context dependency lineage into
+  parent span ids so downstream analysis can reconstruct run structure and task
+  handoffs.
+- Added focused regression coverage that proves batch/task lineage plus
+  review/validation/promotion checkpoint spans from a retained manifest.
+
 **Tasks:**
-- [ ] Define a stable export shape for run, batch, task, validation, and
+- [x] Define a stable export shape for run, batch, task, validation, and
       approval spans.
-- [ ] Map retained event/branch lineage into parent-child trace relationships.
-- [ ] Add one CLI export surface that writes trace data without changing the
+- [x] Map retained event/branch lineage into parent-child trace relationships.
+- [x] Add one CLI export surface that writes trace data without changing the
       core run manifest contract.
 
 ---
