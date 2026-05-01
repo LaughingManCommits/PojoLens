@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-01T13:44:18.280838+02:00",
+  "generatedAt": "2026-05-01T13:51:00.201869+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "b7d0a779ca7e14e96a34c5c05e5160559a389dd2c992616470b694e2e681f10d",
+      "inputHash": "65bdec056992d72e07f62e8005ed3f169a7ac42172bb61cf12533f0811d4b30a",
       "pathHashes": {
         "AGENTS.md": "6911ab13c8a3b6999f0f7886b5d157734451ef82b674ca5cd705aaec631758cb",
         "ai/AGENTS.md": "1c02d1e47121ffc7f29f9619351642722f0244baabc33abd9346e01d71255ff2",
@@ -24,8 +24,8 @@
         "ai/orchestrator/README.md": "d7a2b8ca9e999ba5cb5adae76fc667c50be57ea3a29dd3110a78ddde45e2e997",
         "ai/orchestrator/SYSTEM-SPEC.md": "afb9e9a5166a16375840eebd800a0a0f4a78f3a2b325a2eac9a98d37c8382562",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "fef424da6cbe34089e9bb4968672e40828618a099033058ad9692ca8f2c66e42",
-        "ai/state/handoff.md": "1b8e52a7034d62cf2e2d82b9e5c7898bd866958d3bf56a1116627bb9d983fc26",
+        "ai/state/current-state.md": "fedd86e24054be63f16eb95e79a193792870a394c1920fd377f4c488b1c41633",
+        "ai/state/handoff.md": "907b2ee0ba381dd6155a94c69421da1626723b7f72850a6fba2fc771e6273c16",
         "ai/state/recent-validations.md": "a00f5e20aabaa7f9959fea7d55ced88ea898a545f6d9e22905a590fa7e3b8166",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -65,12 +65,12 @@
         "RELEASE.md": "fa49783f76b2911d4133959eb335e65287e87cb76c01540599e3489bc363247c",
         "scripts/ai/refresh-ai-memory.py": "3861ece631a3334d90bc50046955c3862b5c518d322272cc79d2869f22c2ce5d",
         "scripts/README.md": "5a6f82ee3501f22df6c8d43401912eec4260a6f00a68456fe48afa8f57515c96",
-        "TODO.md": "cf25d086be24cf4a3c6a25d520b92b3c9640d3052c68a6f84a79975e0fc1a5b6"
+        "TODO.md": "06a17b1a16f119a2ffa9be7074a153217d02c9bab3ecffbe57896922fa5cf1fb"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "55fe6a2327483269be70644eba81067ea99a1c69bc3c8281b4f026fd4ab64088",
+      "inputHash": "cc835ae88d2cd6b2e2194a09cabecb949bd944fca4e3a83d0ad5207df3804da0",
       "pathHashes": {
         ".github/workflows/ci.yml": "a043bf6658e83e96f2e59db90d505d144437371462c99100299585bf46bc1c77",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -98,8 +98,8 @@
         "ai/orchestrator/tasks/example-review.json": "f3b7b9ede7af3fcb27665fe1ebfe24ca8036ba7d7b8e57d9921a0e1725c67531",
         "ai/orchestrator/tasks/example-trace-multibatch.json": "6992e800d5c7d27bf8a474958e86633b06af08ffb0220e026e59890575561c35",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "fef424da6cbe34089e9bb4968672e40828618a099033058ad9692ca8f2c66e42",
-        "ai/state/handoff.md": "1b8e52a7034d62cf2e2d82b9e5c7898bd866958d3bf56a1116627bb9d983fc26",
+        "ai/state/current-state.md": "fedd86e24054be63f16eb95e79a193792870a394c1920fd377f4c488b1c41633",
+        "ai/state/handoff.md": "907b2ee0ba381dd6155a94c69421da1626723b7f72850a6fba2fc771e6273c16",
         "ai/state/recent-validations.md": "a00f5e20aabaa7f9959fea7d55ced88ea898a545f6d9e22905a590fa7e3b8166",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -616,7 +616,7 @@
         "scripts/quality/check-lint-baseline.ps1": "d98b8810001c01af065b44e5629f06a10ffb250b0897a4f824b13a672c6073b1",
         "scripts/quality/checkstyle-baseline.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "scripts/README.md": "5a6f82ee3501f22df6c8d43401912eec4260a6f00a68456fe48afa8f57515c96",
-        "TODO.md": "cf25d086be24cf4a3c6a25d520b92b3c9640d3052c68a6f84a79975e0fc1a5b6"
+        "TODO.md": "06a17b1a16f119a2ffa9be7074a153217d02c9bab3ecffbe57896922fa5cf1fb"
       }
     },
     "symbols": {

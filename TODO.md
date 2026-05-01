@@ -40,6 +40,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
 | WP32| Orchestrator Bench And Evals         | Complete | Added a machine-readable run-quality score surface, tracked eval fixtures, and a retained-run corpus view for comparing decomposition, retries, review/promotion accuracy, and parallel efficiency |
 | WP33| Approval State Machine               | Complete | Persist explicit approval lifecycle states, coordinator review/validation/promotion checkpoints, and retained-run approval summaries |
+| WP35| Orchestrator Command Decomposition   | Active   | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -431,6 +432,46 @@ can be compared outside the manifest format.
 - [ ] Map retained event/branch lineage into parent-child trace relationships.
 - [ ] Add one CLI export surface that writes trace data without changing the
       core run manifest contract.
+
+---
+
+## WP35: Orchestrator Command Decomposition
+
+**Priority:** High
+
+**Goal:** Split `scripts/ai/claude-orchestrator.py` into focused package
+modules so retained-run features stay manageable without changing the CLI or
+JSON contracts.
+
+**Context:**
+- WP28 split out runtime, provider, run-store, governance, path-safety, and
+  workspace-review layers, but the top-level orchestrator file still owns too
+  much command and retained-run behavior.
+- WP30-WP33 added status, inventory, evaluation, approval state, and
+  checkpoint persistence, which increases merge pressure and review cost inside
+  one large file.
+- Further work such as WP34 trace export will be safer if retained-run
+  summarization, review/promotion, validation, and evals are isolated behind
+  package boundaries.
+
+**Tasks:**
+- [ ] Extract retained-run summary and lifecycle helpers into a dedicated
+      package module.
+- [ ] Extract `review`, `export-patch`, and `promote` command behavior into a
+      focused review/promotion module.
+- [ ] Extract `validate-run` and checkpoint-persistence helpers into a
+      validation module.
+- [ ] Extract `evaluate-run` / `evaluate-corpus` score helpers into an evals
+      module.
+- [ ] Leave `claude-orchestrator.py` as a thin compatibility entrypoint plus
+      CLI wiring.
+- [ ] Preserve existing CLI arguments, exit codes, manifest fields, and JSON
+      output contracts with focused regression coverage.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/*.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
