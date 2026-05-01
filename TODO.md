@@ -40,6 +40,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
 | WP32| Orchestrator Bench And Evals         | Complete | Added a machine-readable run-quality score surface, tracked eval fixtures, and a retained-run corpus view for comparing decomposition, retries, review/promotion accuracy, and parallel efficiency |
 | WP33| Approval State Machine               | Complete | Persist explicit approval lifecycle states, coordinator review/validation/promotion checkpoints, and retained-run approval summaries |
+| WP36| Orchestrator Run And Planner Decomposition | Active | Extract the remaining run/planner/admin control flow out of `claude-orchestrator.py` so the entrypoint stops carrying the largest orchestration paths |
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
@@ -512,6 +513,41 @@ mandatory code changes.
 
 **Validate when reactivated:**
 - `mvn -B -ntp -Pbenchmark-runner -DskipTests package`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP36: Orchestrator Run And Planner Decomposition
+
+**Priority:** High
+
+**Goal:** Extract the remaining run, retry/resume, planner, and runtime-admin
+control flow out of `scripts/ai/claude-orchestrator.py` so the entrypoint is
+mostly CLI wiring plus thin orchestration glue.
+
+**Context:**
+- WP35 removed retained-run summaries, review/promotion, validation, and evals,
+  but the entrypoint still carries the largest orchestration paths: live run
+  scheduling, resume/retry shaping, planner flow, and runtime admin helpers.
+- The support burden is now concentrated in the run-control block, which is
+  still the hardest part of the file to review and change safely.
+- WP34 trace export should sit on top of cleaner run/control-plane boundaries,
+  not make the remaining entrypoint bigger again.
+
+**Tasks:**
+- [x] Extract `run_loaded_plan`, `run_plan`, `resume_run`, and `retry_run`
+      into a dedicated run-ops module.
+- [ ] Extract planner prompt/build/invocation flow into a dedicated planner
+      module.
+- [ ] Extract cleanup/prune/runtime inventory helpers into a runtime-admin
+      module.
+- [ ] Keep the entrypoint focused on argparse, dispatch, and high-level glue.
+- [ ] Preserve CLI arguments, exit codes, manifest fields, and JSON contracts
+      with focused regression coverage.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/ai/pojo_lens_agents/*.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---
