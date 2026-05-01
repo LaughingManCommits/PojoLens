@@ -12,6 +12,7 @@
 - `2026-04-30`: Parallel execution remains required; preserve `--max-parallel`, isolated workspaces, and conservative write-scope serialization.
 
 ## Verified
+- `2026-05-01`: AI memory refresh/check is passing again after fixing `scripts/ai/refresh-ai-memory.py` so cached derived indexes no longer survive when they reference missing paths like the removed `.perf/baseline-*` tree.
 - `2026-05-01`: WP31 completion passed focused `py_compile`, `unittest scripts.tests.test_claude_orchestrator` (127 tests), `validate example-trace-multibatch --json`, `run example-trace-multibatch --dry-run --max-parallel 2 --json`, and doc consistency.
 - `2026-05-01`: WP31 trace-summary slice passed focused `py_compile`, `unittest scripts.tests.test_claude_orchestrator` (125 tests), `inventory --json`, `run example-parallel --dry-run --max-parallel 2 --json`, and doc consistency.
 - `2026-05-01`: WP31 first slice passed focused `py_compile`, `unittest scripts.tests.test_claude_orchestrator` (125 tests), and added manifest-backed run-event lineage coverage.

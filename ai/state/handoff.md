@@ -17,6 +17,7 @@
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-05-01`: `TODO.md` order is deferred WP18, then Release Gate.
+- `2026-05-01`: `scripts/ai/refresh-ai-memory.ps1 -Check` is green again after fixing cache reuse in `refresh-ai-memory.py` so stale derived indexes rebuild when they reference missing paths.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 - `2026-05-01`: There was no prior LangGraph implementation footprint in the repo; the current spike stays dependency-free and treats LangGraph as an optional wrapper around checkpointing, replay, and interrupts rather than a replacement for repo-owned safety logic.
 

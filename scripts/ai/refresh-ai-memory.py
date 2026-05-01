@@ -1528,20 +1528,27 @@ def build_or_reuse_json_index(
     ):
         try:
             payload = json.loads(read_text(output_path))
-            return (
-                payload,
-                {
-                    "path": rel_path(output_path),
-                    "status": "reused",
-                    "inputHash": input_hash,
-                    "inputFiles": len(path_hashes),
-                },
-                {
-                    "outputPath": rel_path(output_path),
-                    "inputHash": input_hash,
-                    "pathHashes": path_hashes,
-                },
-            )
+            referenced_paths = collect_path_values(payload)
+            missing_paths = [
+                path
+                for path in referenced_paths
+                if "*" not in path and not path.startswith("target/") and not path_exists(path)
+            ]
+            if not missing_paths:
+                return (
+                    payload,
+                    {
+                        "path": rel_path(output_path),
+                        "status": "reused",
+                        "inputHash": input_hash,
+                        "inputFiles": len(path_hashes),
+                    },
+                    {
+                        "outputPath": rel_path(output_path),
+                        "inputHash": input_hash,
+                        "pathHashes": path_hashes,
+                    },
+                )
         except json.JSONDecodeError:
             pass
 

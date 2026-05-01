@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-01T11:25:45.710127+02:00",
+  "generatedAt": "2026-05-01T11:33:59.099964+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "a6050d666b0a0aa664a7136e64f3be5435497d7db18a8cd9b95591cc0ff53ef2",
+      "inputHash": "29642f1dbfe15ea318397964da8c0c37edb7b14008cc12313a6009bd36c8242d",
       "pathHashes": {
         "AGENTS.md": "6911ab13c8a3b6999f0f7886b5d157734451ef82b674ca5cd705aaec631758cb",
         "ai/AGENTS.md": "88bdcdf53be12f1f5e0ce5bb5007e18f23c2c1832d0d32c432fadb0c1b388fc3",
@@ -24,9 +24,9 @@
         "ai/orchestrator/README.md": "48e9a863905baa5192b95dc5d64b13555e9a63c4baf295772940292f0dd42446",
         "ai/orchestrator/SYSTEM-SPEC.md": "ab8b5fe3b52356beb9be49e7c336041965309e1b6fb62af95b571d5e9e15be79",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "70e8b3137280bd4fe9765742557a296aa8c662b58244f5b3c6ffa95d133308dd",
-        "ai/state/handoff.md": "3af43c7645e7238ad42214fb4b5fc2aed5d4481152679c93e20734e101b15243",
-        "ai/state/recent-validations.md": "960cd7b9255155ec59d67fd2a1959423b1c69ff8e17403bbecbcc507e7223ca5",
+        "ai/state/current-state.md": "8e18dcfa874233c24779a154b27e46ea8e10c9ff4f364d238f3baf853a8d6b07",
+        "ai/state/handoff.md": "7507ef1a30efd0c8b2364ca397eb514955a0eb123b79551f1dbe6e8597eae2ce",
+        "ai/state/recent-validations.md": "207bdd280e777b91487b9402e24c7402bd8cf9b2b4c9454b963e2779b1baae75",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "8f4ea6eb54c1400dda6f9bf58c529c7d07aa73439804d4cfe07f30a5c426d936",
@@ -63,14 +63,14 @@
         "MIGRATION.md": "70b0a18a79bb3786cfa060097b5587fab540ab24f7d401593d76b3e9da30c628",
         "README.md": "35d840262760c5f6468621babffc2dd46fd7b681de51da800bc01c2d934c53fa",
         "RELEASE.md": "fa49783f76b2911d4133959eb335e65287e87cb76c01540599e3489bc363247c",
-        "scripts/ai/refresh-ai-memory.py": "90ca4f7d60722a34a9d9363e99c3e001baaf7dc3c151f42c54f5e6eb5c5d484c",
+        "scripts/ai/refresh-ai-memory.py": "85096e5eae7110f809cba4c4b56825c921b90b17a571efa551398fc66ec72b4e",
         "scripts/README.md": "5a6f82ee3501f22df6c8d43401912eec4260a6f00a68456fe48afa8f57515c96",
         "TODO.md": "77aa03dc32fddc34b140d36b7da43af6c535938b6ea780e1bcaceac03505ea39"
       }
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "487a5ccd0c6a17b321e33f7e2cce0a910373d54008b911e9fec171f48c28adbb",
+      "inputHash": "8602d279194051cd1d06a59de1073657270d9a2a58bc7310c975bed39ac533d5",
       "pathHashes": {
         ".github/workflows/ci.yml": "a043bf6658e83e96f2e59db90d505d144437371462c99100299585bf46bc1c77",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -97,9 +97,9 @@
         "ai/orchestrator/tasks/example-review.json": "f3b7b9ede7af3fcb27665fe1ebfe24ca8036ba7d7b8e57d9921a0e1725c67531",
         "ai/orchestrator/tasks/example-trace-multibatch.json": "6992e800d5c7d27bf8a474958e86633b06af08ffb0220e026e59890575561c35",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "70e8b3137280bd4fe9765742557a296aa8c662b58244f5b3c6ffa95d133308dd",
-        "ai/state/handoff.md": "3af43c7645e7238ad42214fb4b5fc2aed5d4481152679c93e20734e101b15243",
-        "ai/state/recent-validations.md": "960cd7b9255155ec59d67fd2a1959423b1c69ff8e17403bbecbcc507e7223ca5",
+        "ai/state/current-state.md": "8e18dcfa874233c24779a154b27e46ea8e10c9ff4f364d238f3baf853a8d6b07",
+        "ai/state/handoff.md": "7507ef1a30efd0c8b2364ca397eb514955a0eb123b79551f1dbe6e8597eae2ce",
+        "ai/state/recent-validations.md": "207bdd280e777b91487b9402e24c7402bd8cf9b2b4c9454b963e2779b1baae75",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
         "docs/benchmarking.md": "8f4ea6eb54c1400dda6f9bf58c529c7d07aa73439804d4cfe07f30a5c426d936",
@@ -597,7 +597,7 @@
         "scripts/ai/pojo_lens_agents/runtime.py": "18d038cdefc0f2204a16585dc18e8530c39b476f2b5859078bb258022d03b163",
         "scripts/ai/pojo_lens_agents/workspace_review.py": "50e23e85d01e4d1391a56478b23a88ab1d08d43db8f9bd7cca31b29ffe866f71",
         "scripts/ai/refresh-ai-memory.ps1": "511eb5de83f11ee7ea9374c002c498670be4b81d942ee0d5fb57fe81ff07a138",
-        "scripts/ai/refresh-ai-memory.py": "90ca4f7d60722a34a9d9363e99c3e001baaf7dc3c151f42c54f5e6eb5c5d484c",
+        "scripts/ai/refresh-ai-memory.py": "85096e5eae7110f809cba4c4b56825c921b90b17a571efa551398fc66ec72b4e",
         "scripts/benchmarks/benchmark-suite-baseline.args": "3da6a44bc79545a2117068521ec0b187198ed1ed2904bdf171d5d0d7215980c2",
         "scripts/benchmarks/benchmark-suite-cache.args": "241ed9069c41e1d60c4b16a51a157d31046feb1bcf3e3dab3ba98034e019dba2",
         "scripts/benchmarks/benchmark-suite-chart.args": "65ccc00af039adb6503481bec7db097e7f917a45d7270b3f94f731f123d08221",
@@ -620,7 +620,7 @@
     },
     "symbols": {
       "outputPath": "ai/indexes/symbols-index.json",
-      "inputHash": "3e911cbb7be4b15c543091ce64a1e74358209db83d829c69078c83bb5f12c80c",
+      "inputHash": "19e8a7387a8c6d6e06ecea944363405b81b9ee55c3e3e0cbf2949f0b27d0d39a",
       "pathHashes": {
         "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java": "58de2e1644814e8ba27f74f4877f31984f5bc760d05cdb3aeb86c5c3390e87d2",
         "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java": "a66406ec20c527cb3ff83a06aa954c91ae3558d6bb30debb8b285319d5162ec8",
@@ -906,12 +906,12 @@
         "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensProperties.java": "928daa46b42eff4d80ce92ec52f5bed275c4db43dc92264f7bf892589c33b9e7",
         "pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfiguration.java": "9eb72968009b6480bccd4d0f1f84a5bda5f364582421bbc899f0f4d3f3a7897d",
         "pojo-lens-spring-boot-starter/src/main/java/laughing/man/commits/spring/boot/starter/PojoLensSpringBootStarterMarker.java": "365fe5e59612679734b6c09e12037cb95f66498ef195d93a584df150e8a6a6c3",
-        "scripts/ai/refresh-ai-memory.py": "90ca4f7d60722a34a9d9363e99c3e001baaf7dc3c151f42c54f5e6eb5c5d484c"
+        "scripts/ai/refresh-ai-memory.py": "85096e5eae7110f809cba4c4b56825c921b90b17a571efa551398fc66ec72b4e"
       }
     },
     "test": {
       "outputPath": "ai/indexes/test-index.json",
-      "inputHash": "3c8818bcb4a52b572fb828c98deff48e855691fe15eb556f6a4ee6db256b45fa",
+      "inputHash": "674a355ab75521977d49b9d693c26e40375d343881c2b3f6647a91f924c08091",
       "pathHashes": {
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java": "2bac3534ea201823466155e0778fd9690606a13d76141da1368bd0d146f02856",
         "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java": "e1e4c2d45242a700d0df2521fdd63adfc7e32d91e5cd58b2fe3fb84edd276352",
@@ -1074,12 +1074,12 @@
         "pojo-lens-spring-boot-autoconfigure/src/test/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfigurationTest.java": "87abfbac0b2783ab70138d8be43a88158288e552e00b8bcc029743a56046088e",
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterSmokeIntegrationTest.java": "a2221adea49e8e2ddd5df8083b0ca90dab40a160bb3c9c615d316bddd0b2485a",
         "pojo-lens-spring-boot-starter/src/test/java/laughing/man/commits/spring/boot/starter/PojoLensStarterVirtualThreadsIntegrationTest.java": "cd307a8bbd49b2be3713234db9db0f2c8a5cbcf6cf51bc8ce430838f5fa922c8",
-        "scripts/ai/refresh-ai-memory.py": "90ca4f7d60722a34a9d9363e99c3e001baaf7dc3c151f42c54f5e6eb5c5d484c"
+        "scripts/ai/refresh-ai-memory.py": "85096e5eae7110f809cba4c4b56825c921b90b17a571efa551398fc66ec72b4e"
       }
     },
     "config": {
       "outputPath": "ai/indexes/config-index.json",
-      "inputHash": "01b12efe11ff1fedf2636455c5c964c161af10b57d1c37f649c44e4cdc652857",
+      "inputHash": "a5c4de5ac3b39e1b4538bd31d8137ffc4fbd177e7c438191f60ffe48c44203c8",
       "pathHashes": {
         ".github/workflows/ci.yml": "a043bf6658e83e96f2e59db90d505d144437371462c99100299585bf46bc1c77",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -1106,7 +1106,7 @@
         "scripts/ai/query-ai-memory.ps1": "63459dd2592520372bd33b8cce65fc1eb85af18ba74c3f1579150d9624da1523",
         "scripts/ai/query-ai-memory.py": "69f7ed1c5d1e23eecbe7210fe4e3bbdba20e180b49e8f957ae2791b76d198ec0",
         "scripts/ai/refresh-ai-memory.ps1": "511eb5de83f11ee7ea9374c002c498670be4b81d942ee0d5fb57fe81ff07a138",
-        "scripts/ai/refresh-ai-memory.py": "90ca4f7d60722a34a9d9363e99c3e001baaf7dc3c151f42c54f5e6eb5c5d484c",
+        "scripts/ai/refresh-ai-memory.py": "85096e5eae7110f809cba4c4b56825c921b90b17a571efa551398fc66ec72b4e",
         "scripts/benchmarks/benchmark-suite-baseline.args": "3da6a44bc79545a2117068521ec0b187198ed1ed2904bdf171d5d0d7215980c2",
         "scripts/benchmarks/benchmark-suite-cache.args": "241ed9069c41e1d60c4b16a51a157d31046feb1bcf3e3dab3ba98034e019dba2",
         "scripts/benchmarks/benchmark-suite-chart.args": "65ccc00af039adb6503481bec7db097e7f917a45d7270b3f94f731f123d08221",

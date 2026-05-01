@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-01T11:25:45.710127+02:00",
+  "generatedAt": "2026-05-01T11:33:59.099964+02:00",
   "git": {
-    "headCommit": "0d275b8c8081b76160002d800f45093866d5607e",
+    "headCommit": "faf7f9b61c61751739945fe6a162366019b6a6cf",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "ae9a76a18f59f0a96758b1eff4c30eea79d9374938f3ef2f287ac6e959d123ed",
+  "inputsHash": "f879bccbe4c057610a4547c9a4ed5c9ccfef2a31bb5f41ea57440c451f3eff1f",
   "hotContext": {
     "files": [
       {
@@ -21,8 +21,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 31,
-        "bytes": 2620,
+        "lines": 32,
+        "bytes": 2844,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -64,8 +64,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 32,
-        "bytes": 2418,
+        "lines": 33,
+        "bytes": 2610,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -102,8 +102,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 93,
-    "totalBytes": 7679,
+    "totalLines": 95,
+    "totalBytes": 8095,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -113,8 +113,8 @@
   "eventLog": {
     "activeLog": {
       "path": "ai/log/events.jsonl",
-      "entries": 110,
-      "bytes": 56489
+      "entries": 111,
+      "bytes": 56806
     },
     "archiveFiles": [
       {
@@ -133,39 +133,39 @@
       "ai/log/archive/2026-04-summary.md"
     ],
     "retention": 12,
-    "totalEntries": 283
+    "totalEntries": 284
   },
   "derivedArtifacts": {
     "refreshCache": "ai/indexes/refresh-state.json",
     "jsonIndexes": [
       {
         "path": "ai/indexes/docs-index.json",
-        "status": "rebuilt",
-        "inputHash": "a6050d666b0a0aa664a7136e64f3be5435497d7db18a8cd9b95591cc0ff53ef2",
+        "status": "reused",
+        "inputHash": "29642f1dbfe15ea318397964da8c0c37edb7b14008cc12313a6009bd36c8242d",
         "inputFiles": 60
       },
       {
         "path": "ai/indexes/files-index.json",
-        "status": "rebuilt",
-        "inputHash": "487a5ccd0c6a17b321e33f7e2cce0a910373d54008b911e9fec171f48c28adbb",
+        "status": "reused",
+        "inputHash": "8602d279194051cd1d06a59de1073657270d9a2a58bc7310c975bed39ac533d5",
         "inputFiles": 544
       },
       {
         "path": "ai/indexes/symbols-index.json",
         "status": "reused",
-        "inputHash": "3e911cbb7be4b15c543091ce64a1e74358209db83d829c69078c83bb5f12c80c",
+        "inputHash": "19e8a7387a8c6d6e06ecea944363405b81b9ee55c3e3e0cbf2949f0b27d0d39a",
         "inputFiles": 285
       },
       {
         "path": "ai/indexes/test-index.json",
         "status": "reused",
-        "inputHash": "3c8818bcb4a52b572fb828c98deff48e855691fe15eb556f6a4ee6db256b45fa",
+        "inputHash": "674a355ab75521977d49b9d693c26e40375d343881c2b3f6647a91f924c08091",
         "inputFiles": 162
       },
       {
         "path": "ai/indexes/config-index.json",
-        "status": "rebuilt",
-        "inputHash": "01b12efe11ff1fedf2636455c5c964c161af10b57d1c37f649c44e4cdc652857",
+        "status": "reused",
+        "inputHash": "a5c4de5ac3b39e1b4538bd31d8137ffc4fbd177e7c438191f60ffe48c44203c8",
         "inputFiles": 43
       }
     ],
@@ -174,67 +174,16 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 62,
-      "sections": 766,
-      "updatedFiles": 7,
-      "reusedFiles": 55,
+      "sections": 767,
+      "updatedFiles": 0,
+      "reusedFiles": 62,
       "removedFiles": 0,
       "mode": "incremental"
     }
   },
   "freshness": {
-    "status": "warning",
-    "reasons": [
-      "indexed-paths-missing"
-    ],
-    "missingPaths": [
-      ".perf/baseline-head/examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/BasicExampleApplication.java",
-      ".perf/baseline-head/examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeDashboardService.java",
-      ".perf/baseline-head/examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeQueryController.java",
-      ".perf/baseline-head/examples/spring-boot-starter-basic/src/main/java/laughing/man/commits/examples/spring/boot/basic/EmployeeStore.java",
-      ".perf/baseline-head/examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
-      ".perf/baseline-head/examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartExampleApplication.java",
-      ".perf/baseline-head/pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkMetricsPlotGenerator.java",
-      ".perf/baseline-head/pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/BenchmarkThresholdChecker.java",
-      ".perf/baseline-head/pojo-lens-benchmarks/src/main/java/laughing/man/commits/benchmark/JmhRunner.java",
-      ".perf/baseline-head/pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/MicrometerQueryTelemetryListener.java",
-      ".perf/baseline-head/pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensProperties.java",
-      ".perf/baseline-head/pojo-lens-spring-boot-autoconfigure/src/main/java/laughing/man/commits/spring/boot/autoconfigure/PojoLensSpringBootAutoConfiguration.java",
-      ".perf/baseline-head/pojo-lens-spring-boot-starter/src/main/java/laughing/man/commits/spring/boot/starter/PojoLensSpringBootStarterMarker.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/DatasetBundle.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/PojoLensChart.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntime.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/PojoLensRuntimePreset.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/PojoLensSql.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/chart/ChartMapper.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/chart/ChartQueryPreset.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/chart/ChartQueryPresets.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsAdapter.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/chartjs/ChartJsPayload.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/filter/FastArrayQuerySupport.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/filter/FastStatsQuerySupport.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/filter/FilterImpl.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/filter/JoinEngine.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/internal/builder/FilterQueryBuilder.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/internal/builder/QueryBuilder.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/metamodel/FieldMetamodelGenerator.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/report/ReportDefinition.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/snapshot/SnapshotComparison.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeBoundQuery.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeCursor.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeQuery.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/SqlLikeTemplate.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/binding/SqlLikeBinder.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/expression/SqlExpressionEvaluator.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/internal/validation/SqlLikeValidator.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/sqllike/parser/SqlLikeParser.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/stats/StatsTable.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/stats/StatsTablePayload.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPreset.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/stats/StatsViewPresets.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/table/TabularRows.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/telemetry/QueryTelemetryListener.java",
-      ".perf/baseline-head/pojo-lens/src/main/java/laughing/man/commits/testing/QueryRegressionFixture.java",
-      ".perf/baseline-release/pojo-lens/src/main/java/laughing/man/commits/PojoLensCore.java"
-    ]
+    "status": "fresh",
+    "reasons": [],
+    "missingPaths": []
   }
 }
