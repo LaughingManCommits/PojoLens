@@ -5,7 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-05-01`: WP36 is complete. `scripts/ai/claude-orchestrator.py` is a 50-line shim; planner flow, runtime admin, prompt/worker contracts, task execution, manifest IO, and task-plan governance now delegate to focused `pojo_lens_agents` modules.
+- `2026-05-01`: WP36 is fully complete. `scripts/ai/claude-orchestrator.py` is a 50-line shim, `pojo_lens_agents.orchestrator_app` is down to 863 lines, and parser/contracts/utils/plan/review-provider support now live in focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP35 is complete. Retained-run summary, review/promote, validation checkpoints, and evals now live in focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP33 is complete. Retained runs now expose approval lifecycle states, and `review`/`validate-run`/`promote` persist coordinator checkpoints in the manifest.
 - `2026-05-01`: WP32 is complete. The orchestrator now exposes `scoreSummary`, benchmark dimensions, `evaluate-corpus`, and the tracked eval fixture.
@@ -15,9 +15,8 @@
 - `2026-04-30`: Parallel execution remains required; preserve `--max-parallel`, isolated workspaces, and conservative write-scope serialization.
 
 ## Verified
-- `2026-05-01`: WP36 prompt/execution/manifest split passed `py -3 -m py_compile`, `py -3 -m unittest scripts.tests.test_claude_orchestrator` (129 tests), and `scripts/docs/check-doc-consistency.ps1`. `pojo_lens_agents.orchestrator_app` dropped from 4618 to 3792 lines.
-- `2026-05-01`: WP36 planner/runtime-admin split passed `py -3 -m py_compile`, `py -3 -m unittest scripts.tests.test_claude_orchestrator` (129 tests), and `scripts/docs/check-doc-consistency.ps1`. `pojo_lens_agents.orchestrator_app` dropped from 5016 to 4618 lines.
-- `2026-05-01`: The compatibility entrypoint is still 50 lines and the focused orchestrator suite remains green.
+- `2026-05-01`: The final WP36 split passed `py -3 -m py_compile scripts/ai/pojo_lens_agents/orchestrator_app.py scripts/ai/pojo_lens_agents/orchestrator_contracts.py scripts/ai/pojo_lens_agents/cli_parser.py scripts/ai/pojo_lens_agents/orchestrator_utils.py scripts/ai/pojo_lens_agents/plan_support.py scripts/ai/pojo_lens_agents/workspace_run_review.py scripts/ai/pojo_lens_agents/provider_worker.py scripts/ai/pojo_lens_agents/command_dispatch.py`, `py -3 -m unittest scripts.tests.test_claude_orchestrator` (129 tests), and `scripts/docs/check-doc-consistency.ps1`. `pojo_lens_agents.orchestrator_app` is now 863 lines.
+- `2026-05-01`: Earlier WP36 prompt/execution/manifest and planner/runtime-admin splits remain green; see `ai/state/recent-validations.md` for the intermediate cut points.
 - `2026-04-30`: WP26-WP28 previously passed reactor/script validation; see `ai/state/recent-validations.md` for exact commands.
 
 ## Release

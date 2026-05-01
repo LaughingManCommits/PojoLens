@@ -44,6 +44,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   remaining orchestration app surface while keeping CLI contracts and focused
   tests intact.
 
+- **Orchestrator app hard split** - continued WP36 past the 50-line
+  compatibility shim by extracting shared contracts, parser wiring, common
+  utilities, plan/scope support, and retained-run workspace/review/provider
+  support into dedicated `pojo_lens_agents` modules; the remaining
+  `pojo_lens_agents.orchestrator_app` is now 863 lines and the focused
+  orchestrator suite is green again.
+
 - **Approval lifecycle state machine** - retained runs now expose explicit
   `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
   coordinator persists `coordinatorReview`, `coordinatorValidation`, and

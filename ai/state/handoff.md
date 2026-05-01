@@ -7,7 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-01`: WP36 is complete. `scripts/ai/claude-orchestrator.py` is a 50-line shim; planner flow, runtime admin, prompt/worker contracts, task execution, manifest IO, and task-plan governance now delegate to focused `pojo_lens_agents` modules.
+- `2026-05-01`: WP36 is fully complete. `scripts/ai/claude-orchestrator.py` is a 50-line shim, `pojo_lens_agents.orchestrator_app` is down to 863 lines, and parser/contracts/utils/plan/review-provider support now live in focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP35 is complete. `claude-orchestrator.py` now delegates retained-run summary, review/promote, validation checkpoints, and evals to focused `pojo_lens_agents` modules.
 - `2026-05-01`: WP33 is complete. Retained runs now derive approval lifecycle states, and `review`/`validate-run`/`promote` persist coordinator checkpoints plus run-local summaries.
 - `2026-05-01`: WP32 is complete. The orchestrator now exposes `scoreSummary`, benchmark dimensions, and `evaluate-corpus`.
@@ -20,7 +20,7 @@
 - `2026-04-27`: `-Plint` points at `config/checkstyle/checkstyle.xml`.
 - `2026-04-27`: `-Pstatic-analysis verify -DskipTests` passes cleanly on Java 25.
 - `2026-05-01`: `TODO.md` order is planned WP34, deferred WP18, Release Gate.
-- `2026-05-01`: `pojo_lens_agents.orchestrator_app` dropped from 5016 to 3792 lines after moving planner flow, runtime admin, prompt/worker contracts, task execution, and manifest IO into focused modules.
+- `2026-05-01`: `pojo_lens_agents.orchestrator_app` is now 863 lines after the final WP36 split into `orchestrator_contracts`, `cli_parser`, `orchestrator_utils`, `plan_support`, `workspace_run_review`, `provider_worker`, and `command_dispatch`.
 - `2026-05-01`: Next roadmap item is WP34 trace export.
 - `2026-05-01`: `scripts/ai/refresh-ai-memory.ps1 -Check` is green again after the cache-reuse fix in `refresh-ai-memory.py`.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).

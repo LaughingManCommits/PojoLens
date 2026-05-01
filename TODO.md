@@ -40,7 +40,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
 | WP32| Orchestrator Bench And Evals         | Complete | Added a machine-readable run-quality score surface, tracked eval fixtures, and a retained-run corpus view for comparing decomposition, retries, review/promotion accuracy, and parallel efficiency |
 | WP33| Approval State Machine               | Complete | Persist explicit approval lifecycle states, coordinator review/validation/promotion checkpoints, and retained-run approval summaries |
-| WP36| Orchestrator Run And Planner Decomposition | Complete | Reduced `claude-orchestrator.py` to a 50-line shim and split planner, runtime admin, prompt/worker contracts, task execution, manifest IO, and task-plan governance into focused `pojo_lens_agents` modules |
+| WP36| Orchestrator Run And Planner Decomposition | Complete | Reduced `claude-orchestrator.py` to a 50-line shim, brought `pojo_lens_agents.orchestrator_app` down to 863 lines, and split parser/contracts/utils/plan/review-provider support into focused `pojo_lens_agents` modules |
 | WP35| Orchestrator Command Decomposition   | Complete | Split `claude-orchestrator.py` into focused package modules while preserving CLI and JSON contracts |
 | WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
@@ -555,6 +555,9 @@ mostly CLI wiring plus thin orchestration glue.
 - [x] Extract task execution/workspace preparation and run manifest
       serialization into dedicated execution/manifest IO modules.
 - [x] Keep the entrypoint focused on argparse, dispatch, and high-level glue.
+- [x] Continue the split until `pojo_lens_agents.orchestrator_app` itself is
+      below the 1000-line target instead of stopping at the 50-line
+      compatibility shim.
 - [x] Preserve CLI arguments, exit codes, manifest fields, and JSON contracts
       with focused regression coverage.
 
