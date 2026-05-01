@@ -6048,6 +6048,13 @@ class ValidateCommandTest(unittest.TestCase):
                 orchestrator.ROOT = old_root
 
         self.assertEqual("warn", payload["status"])
+        self.assertEqual("warn", payload["scoreSummary"]["status"])
+        self.assertEqual({"pass": 2, "warn": 4}, payload["scoreSummary"]["statusCounts"])
+        self.assertEqual(6, payload["scoreSummary"]["totalChecks"])
+        self.assertEqual(66.7, payload["scoreSummary"]["scorePercent"])
+        self.assertTrue(payload["scoreSummary"]["promotionReady"])
+        self.assertFalse(payload["scoreSummary"]["resumable"])
+        self.assertEqual(2, payload["scoreSummary"]["taskCount"])
         self.assertEqual(3, payload["traceSummary"]["eventCount"])
         self.assertEqual(2, payload["branchSummary"]["contextCount"])
         self.assertEqual(

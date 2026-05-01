@@ -38,6 +38,9 @@ Execution order is dependency-first, not ticket-number order.
 | WP29| LangGraph Execution Spike            | Complete | Decision record and prototype for checkpointed parallel graph execution; keep the custom scheduler and manifest model as the production path for now |
 | WP30| Run Visibility And Operator UX       | Complete | Added `status`, richer inventory/review/promotion summaries, and documented the retained-run operator flow |
 | WP31| Orchestrator Trace And Evaluation    | Complete | Added run-event lineage, retained trace/branch summaries, branch-context handoff IDs, a run evaluator surface, and a tracked multi-batch regression fixture |
+| WP32| Orchestrator Bench And Evals         | Active   | Build a machine-readable orchestration score surface, tracked eval fixtures, and the first benchmark corpus for comparing decomposition, retries, and parallel execution quality |
+| WP33| Approval State Machine               | Planned  | Persist explicit `awaiting_review`, `awaiting_validation`, and `awaiting_promotion` states with resumable approval checkpoints |
+| WP34| Trace Export                         | Planned  | Export span-style traces from retained run events, handoffs, validations, and approval gates for external analysis |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -315,6 +318,77 @@ tracked multi-batch fixture that proves the contract.
 - `py -3 -m unittest scripts.tests.test_claude_orchestrator`
 - `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
 - `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP32: Orchestrator Bench And Evals
+
+**Priority:** Medium
+
+**Goal:** Turn retained orchestration output into something benchmarkable
+against itself over time by adding a machine-readable run-quality score surface
+plus a small tracked evaluation corpus.
+
+**Context:**
+- `evaluate-run` already emits useful checks, but it is still oriented around
+  one-off human review rather than trendable scoring.
+- Comparing the orchestrator against other multi-agent stacks requires stable
+  eval fixtures and compact metrics for pass/warn/fail balance, promotability,
+  resumability, and retained execution shape.
+- This package should keep the current scheduler and manifest model while
+  making orchestration quality measurable.
+
+**Tasks:**
+- [x] Extend `evaluate-run` with a machine-readable score summary that can be
+      compared across retained runs.
+- [x] Add at least one tracked eval-oriented sample fixture so the score
+      surface has a stable regression anchor.
+- [ ] Add a retained-run corpus workflow or helper that can evaluate multiple
+      runs and report aggregate quality counts.
+- [ ] Add first-pass benchmark dimensions for decomposition quality, retry
+      correctness, review/promotion accuracy, and parallel efficiency.
+- [ ] Decide which score fields are stable enough to treat as operator-facing
+      benchmark outputs in `ai/orchestrator/README.md`.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/claude-orchestrator.py scripts/tests/test_claude_orchestrator.py`
+- `py -3 -m unittest scripts.tests.test_claude_orchestrator`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-eval-readonly-review.json --json`
+- `scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP33: Approval State Machine
+
+**Priority:** Medium
+
+**Goal:** Make review, validation, and promotion gates first-class persisted
+run states rather than only follow-on commands over retained manifests.
+
+**Tasks:**
+- [ ] Add explicit retained states such as `awaiting_review`,
+      `awaiting_validation`, and `awaiting_promotion`.
+- [ ] Persist resumable approval checkpoints and operator decisions in the run
+      manifest.
+- [ ] Keep review/promotion ownership in the coordinator while making the
+      interrupt states visible in retained-run summaries.
+
+---
+
+## WP34: Trace Export
+
+**Priority:** Medium
+
+**Goal:** Export span-style traces from retained orchestration events so runs
+can be compared outside the manifest format.
+
+**Tasks:**
+- [ ] Define a stable export shape for run, batch, task, validation, and
+      approval spans.
+- [ ] Map retained event/branch lineage into parent-child trace relationships.
+- [ ] Add one CLI export surface that writes trace data without changing the
+      core run manifest contract.
 
 ---
 

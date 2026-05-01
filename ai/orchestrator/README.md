@@ -91,7 +91,7 @@ Lifecycle helpers:
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
-- `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency
+- `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 
@@ -133,6 +133,7 @@ Token and cost visibility:
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now expose compact `traceSummary` and `branchSummary` rollups so event and branch lineage are visible without opening the raw event array
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
+- `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run
 - per-task usage lives in the task record `usage` field; dry runs still show prompt estimates even when usage is `null`
 - live doc-summary runs showed prompt text itself staying well under the configured ceilings; the larger cost driver is worker exploration and oversized JSON payloads, so worker prompts now cap `summary`, `notes`, `followUps`, and validation suggestions aggressively

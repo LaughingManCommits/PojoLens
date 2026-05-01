@@ -11,6 +11,11 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Orchestrator score summary and eval fixture** - added a compact
+  `scoreSummary` to `evaluate-run` so retained runs expose trendable
+  pass/warn/fail counts and a simple quality percentage, and added the tracked
+  `example-eval-readonly-review` fixture as the first WP32 eval-corpus anchor.
+
 - **Atomic AI memory publish handshake** - `refresh-ai-memory` now stages
   derived artifacts before publishing them, updates a derived
   `ai/indexes/publish-state.json` marker, and lets `refresh-ai-memory -Check`

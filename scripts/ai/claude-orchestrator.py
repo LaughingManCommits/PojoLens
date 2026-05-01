@@ -5904,6 +5904,36 @@ def _evaluation_check(
     }
 
 
+def summarize_evaluation_score(
+    checks: list[dict[str, Any]],
+    *,
+    run_summary: dict[str, Any],
+) -> dict[str, Any]:
+    status_counts = count_statuses([str(check.get("status", "pass") or "pass") for check in checks])
+    weights = {"pass": 1.0, "warn": 0.5, "fail": 0.0}
+    earned_points = sum(weights.get(str(check.get("status", "pass") or "pass"), 0.0) for check in checks)
+    max_points = float(len(checks))
+    score_percent = round((earned_points / max_points) * 100.0, 1) if max_points else 100.0
+    status = "pass"
+    if int(status_counts.get("fail", 0) or 0) > 0:
+        status = "fail"
+    elif int(status_counts.get("warn", 0) or 0) > 0:
+        status = "warn"
+    return {
+        "status": status,
+        "statusCounts": status_counts,
+        "totalChecks": len(checks),
+        "earnedPoints": round(earned_points, 3),
+        "maxPoints": round(max_points, 3),
+        "scorePercent": score_percent,
+        "promotionReady": bool(run_summary.get("promotionReady", False)),
+        "resumable": bool(run_summary.get("isResumable", False)),
+        "taskCount": int(run_summary.get("taskCount", 0) or 0),
+        "batchCount": int((run_summary.get("topologyBatchCount", 0) or 0)),
+        "parallelWidth": int((run_summary.get("topologyMaxParallelWidth", 0) or 0)),
+    }
+
+
 def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     summary, _ = summarize_run_manifest(
@@ -6123,11 +6153,13 @@ def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
 
     status_rank = {"pass": 0, "warn": 1, "fail": 2}
     overall_status = max((check["status"] for check in checks), key=lambda item: status_rank[item], default="pass")
+    score_summary = summarize_evaluation_score(checks, run_summary=summary)
     return {
         "run": summary,
         "traceSummary": summary["traceSummary"],
         "branchSummary": summary["branchSummary"],
         "status": overall_status,
+        "scoreSummary": score_summary,
         "checkCount": len(checks),
         "warningCheckCount": sum(1 for check in checks if check["status"] == "warn"),
         "failingCheckCount": sum(1 for check in checks if check["status"] == "fail"),
