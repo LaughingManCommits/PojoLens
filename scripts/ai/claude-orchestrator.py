@@ -28,11 +28,14 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pojo_lens_agents import governance as governance_layer
+from pojo_lens_agents import evals as evals_layer
 from pojo_lens_agents import path_safety as path_safety_layer
 from pojo_lens_agents import provider as provider_layer
+from pojo_lens_agents import review_ops as review_ops_layer
 from pojo_lens_agents import run_summary as run_summary_layer
 from pojo_lens_agents import runtime as runtime_layer
 from pojo_lens_agents import run_store as run_store_layer
+from pojo_lens_agents import validation_ops as validation_ops_layer
 from pojo_lens_agents import workspace_review as workspace_review_layer
 
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
@@ -2395,10 +2398,7 @@ def selected_run_records(
 
 
 def decode_text_or_none(content: bytes) -> str | None:
-    try:
-        return content.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
+    return review_ops_layer.decode_text_or_none(content)
 
 
 def diff_file_against_workspace(
@@ -2407,129 +2407,23 @@ def diff_file_against_workspace(
     *,
     context_lines: int,
 ) -> tuple[dict[str, Any], str | None]:
-    normalized, repo_file = resolve_relative_path(
-        ROOT,
+    return review_ops_layer.diff_file_against_workspace(
+        record,
         relative_path,
-        location=f"{record.id}: review path",
+        context_lines=context_lines,
+        root=ROOT,
+        resolve_relative_path=resolve_relative_path,
+        read_bytes=read_bytes,
+        error_factory=OrchestratorError,
     )
-    summary: dict[str, Any] = {
-        "path": normalized,
-        "status": "unchanged",
-        "isBinary": False,
-        "addedLines": 0,
-        "removedLines": 0,
-        "patchable": False,
-    }
-    if record.workspace_mode == "repo":
-        summary["status"] = "unsupported"
-        summary["reason"] = "repo-mode runs do not preserve an isolated review baseline"
-        return summary, None
-    if not record.workspace_path:
-        raise OrchestratorError(f"{record.id}: workspace path missing for reviewable task output")
-    workspace_root = Path(record.workspace_path)
-    if not workspace_root.exists():
-        raise OrchestratorError(
-            f"{record.id}: workspace path '{workspace_root}' does not exist for review/export"
-        )
-    _, workspace_file = resolve_relative_path(
-        workspace_root,
-        normalized,
-        location=f"{record.id}: workspace review path",
-    )
-    repo_exists = repo_file.exists()
-    workspace_exists = workspace_file.exists()
-    if not repo_exists and not workspace_exists:
-        summary["status"] = "missing"
-        return summary, None
-    repo_bytes = read_bytes(repo_file) if repo_exists else b""
-    workspace_bytes = read_bytes(workspace_file) if workspace_exists else b""
-    if repo_exists and workspace_exists and repo_bytes == workspace_bytes:
-        return summary, None
-    if not repo_exists and workspace_exists:
-        summary["status"] = "added"
-    elif repo_exists and not workspace_exists:
-        summary["status"] = "deleted"
-    else:
-        summary["status"] = "modified"
-    repo_text = decode_text_or_none(repo_bytes) if repo_exists else ""
-    workspace_text = decode_text_or_none(workspace_bytes) if workspace_exists else ""
-    if (repo_exists and repo_text is None) or (workspace_exists and workspace_text is None):
-        summary["isBinary"] = True
-        return summary, None
-    diff_lines = list(
-        difflib.unified_diff(
-            repo_text.splitlines(),
-            workspace_text.splitlines(),
-            fromfile=f"a/{normalized}",
-            tofile=f"b/{normalized}",
-            n=max(context_lines, 0),
-            lineterm="",
-        )
-    )
-    added_lines = 0
-    removed_lines = 0
-    for line in diff_lines:
-        if line.startswith(("+++", "---", "@@")):
-            continue
-        if line.startswith("+"):
-            added_lines += 1
-        elif line.startswith("-"):
-            removed_lines += 1
-    summary["addedLines"] = added_lines
-    summary["removedLines"] = removed_lines
-    summary["patchable"] = True
-    return summary, ("\n".join(diff_lines) + "\n") if diff_lines else None
 
 
 def task_review_summary(record: TaskRunRecord, *, context_lines: int) -> tuple[dict[str, Any], list[str]]:
-    reviewed_paths = dedupe_strings(record.actual_files_touched or record.files_touched)
-    file_summaries: list[dict[str, Any]] = []
-    patch_chunks: list[str] = []
-    changed_files = 0
-    binary_files = 0
-    added_lines = 0
-    removed_lines = 0
-    for relative_path in reviewed_paths:
-        summary, patch_text = diff_file_against_workspace(
-            record,
-            relative_path,
-            context_lines=context_lines,
-        )
-        if summary["status"] not in {"unchanged", "missing"}:
-            changed_files += 1
-        if summary.get("isBinary"):
-            binary_files += 1
-        added_lines += int(summary.get("addedLines", 0) or 0)
-        removed_lines += int(summary.get("removedLines", 0) or 0)
-        file_summaries.append(summary)
-        if patch_text:
-            patch_chunks.append(patch_text)
-    return (
-        {
-            "id": record.id,
-            "title": record.title,
-            "agent": record.agent,
-            "status": record.status,
-            "summary": record.summary,
-            "workspaceMode": record.workspace_mode,
-            "workspacePath": record.workspace_path,
-            "dependencyMaterializationMode": record.dependency_materialization_mode,
-            "dependencyLayersApplied": [asdict(layer) for layer in record.dependency_layers_applied],
-            "protectedPathViolations": record.protected_path_violations,
-            "writeScopeViolations": record.write_scope_violations,
-            "unknownFields": record.unknown_fields,
-            "filesReported": record.files_touched,
-            "filesObserved": record.actual_files_touched,
-            "diffStats": {
-                "filesReviewed": len(reviewed_paths),
-                "filesChanged": changed_files,
-                "binaryFiles": binary_files,
-                "addedLines": added_lines,
-                "removedLines": removed_lines,
-            },
-            "files": file_summaries,
-        },
-        patch_chunks,
+    return review_ops_layer.task_review_summary(
+        record,
+        context_lines=context_lines,
+        dedupe_strings=dedupe_strings,
+        diff_file_against_workspace_fn=diff_file_against_workspace,
     )
 
 
@@ -2592,97 +2486,41 @@ def dependency_review_context(record: TaskRunRecord) -> list[str]:
 
 
 def default_patch_output_path(manifest_path: Path, task_ids: list[str]) -> Path:
-    review_dir = manifest_path.parent / "review"
-    if not task_ids:
-        filename = "combined.patch"
-    elif len(task_ids) == 1:
-        filename = f"{slugify(task_ids[0])}.patch"
-    else:
-        filename = f"selected-{slugify('-'.join(task_ids))}.patch"
-    return review_dir / filename
+    return review_ops_layer.default_patch_output_path(
+        manifest_path,
+        task_ids,
+        slugify=slugify,
+    )
 
 
 def review_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     records = selected_run_records(manifest, args.selected_tasks)
-    task_payloads = []
-    changed_task_count = 0
-    changed_files = 0
-    protected_violations = 0
-    write_scope_violations = 0
-    validation_suggestion_count = 0
-    dependency_materialization_modes: dict[str, int] = {}
-    for record in records:
-        review_payload, _ = task_review_summary(record, context_lines=args.context_lines)
-        task_payloads.append(review_payload)
-        if int(review_payload["diffStats"]["filesChanged"]) > 0:
-            changed_task_count += 1
-        changed_files += int(review_payload["diffStats"]["filesChanged"])
-        protected_violations += len(review_payload["protectedPathViolations"])
-        write_scope_violations += len(review_payload["writeScopeViolations"])
-        validation_suggestion_count += len(record.validation_intents) + len(record.validation_commands)
-        mode = str(review_payload["dependencyMaterializationMode"] or DEFAULT_DEPENDENCY_MATERIALIZATION_MODE)
-        dependency_materialization_modes[mode] = dependency_materialization_modes.get(mode, 0) + 1
-    payload = {
-        "runId": manifest.get("runId"),
-        "manifestPath": str(manifest_path),
-        "runDir": str(manifest_path.parent),
-        "taskCount": len(task_payloads),
-        "summary": {
-            "changedTaskCount": changed_task_count,
-            "changedFileCount": changed_files,
-            "protectedPathViolationCount": protected_violations,
-            "writeScopeViolationCount": write_scope_violations,
-            "validationSuggestionCount": validation_suggestion_count,
-            "dependencyMaterializationModes": dependency_materialization_modes,
-        },
-        "tasks": task_payloads,
-    }
-    write_run_checkpoint(
-        manifest_path,
-        manifest,
-        checkpoint_name="coordinatorReview",
-        directory_name="review",
-        payload=payload,
+    return review_ops_layer.review_run(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        records=records,
+        context_lines=args.context_lines,
+        default_dependency_materialization_mode=DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
+        write_run_checkpoint=write_run_checkpoint,
+        task_review_summary_fn=task_review_summary,
     )
-    return payload
 
 
 def export_patch(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     records = selected_run_records(manifest, args.selected_tasks)
-    patch_chunks: list[str] = []
-    exported_task_ids: list[str] = []
-    binary_files: list[str] = []
-    changed_files = 0
-    for record in records:
-        review_payload, task_patches = task_review_summary(record, context_lines=args.context_lines)
-        if any(file_payload.get("isBinary") for file_payload in review_payload["files"]):
-            binary_files.extend(
-                file_payload["path"]
-                for file_payload in review_payload["files"]
-                if file_payload.get("isBinary")
-            )
-        if review_payload["diffStats"]["filesChanged"]:
-            exported_task_ids.append(record.id)
-        changed_files += int(review_payload["diffStats"]["filesChanged"])
-        patch_chunks.extend(task_patches)
-    output_path = Path(args.out).resolve() if args.out else default_patch_output_path(
-        manifest_path,
-        exported_task_ids or [record.id for record in records],
+    return review_ops_layer.export_patch(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        records=records,
+        context_lines=args.context_lines,
+        out=args.out,
+        default_patch_output_path_fn=default_patch_output_path,
+        write_text=write_text,
+        dedupe_strings=dedupe_strings,
+        task_review_summary_fn=task_review_summary,
     )
-    patch_text = "".join(patch_chunks)
-    if patch_text:
-        write_text(output_path, patch_text)
-    return {
-        "runId": manifest.get("runId"),
-        "manifestPath": str(manifest_path),
-        "patchPath": str(output_path),
-        "taskIds": exported_task_ids or [record.id for record in records],
-        "filesChanged": changed_files,
-        "binaryFilesSkipped": dedupe_strings(binary_files),
-        "patchBytes": output_path.stat().st_size if output_path.exists() else 0,
-    }
 
 
 def format_issue_block(header: str, issues: list[str]) -> str:
@@ -2691,42 +2529,9 @@ def format_issue_block(header: str, issues: list[str]) -> str:
 
 
 def task_promotion_operations(record: TaskRunRecord) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    review_payload, _ = task_review_summary(record, context_lines=0)
-    unsupported_paths: list[str] = []
-    operations: list[dict[str, Any]] = []
-    for file_payload in review_payload["files"]:
-        status = str(file_payload.get("status", ""))
-        if status == "unsupported":
-            unsupported_paths.append(str(file_payload.get("path", "")))
-            continue
-        if status not in {"added", "modified", "deleted"}:
-            continue
-        operations.append(
-            {
-                "taskId": record.id,
-                "path": str(file_payload["path"]),
-                "action": status,
-                "isBinary": bool(file_payload.get("isBinary", False)),
-            }
-        )
-    return (
-        {
-            "id": record.id,
-            "title": record.title,
-            "agent": record.agent,
-            "status": record.status,
-            "summary": record.summary,
-            "workspaceMode": record.workspace_mode,
-            "workspacePath": record.workspace_path,
-            "dependencyMaterializationMode": record.dependency_materialization_mode,
-            "dependencyLayersApplied": [asdict(layer) for layer in record.dependency_layers_applied],
-            "protectedPathViolations": record.protected_path_violations,
-            "writeScopeViolations": record.write_scope_violations,
-            "filesPromotable": len(operations),
-            "unsupportedFiles": unsupported_paths,
-            "operations": operations,
-        },
-        operations,
+    return review_ops_layer.task_promotion_operations(
+        record,
+        task_review_summary_fn=task_review_summary,
     )
 
 
@@ -2787,36 +2592,20 @@ def coerce_dependency_layer_record_payload(
 
 
 def own_dependency_layer(record: TaskRunRecord) -> DependencyLayerRecord | None:
-    _, operations = task_promotion_operations(record)
-    if not operations:
-        return None
-    if record.workspace_mode not in {"copy", "worktree"}:
-        raise OrchestratorError(
-            f"{record.id}: workspaceMode='{record.workspace_mode}' is not materializable"
-        )
-    if not record.workspace_path:
-        raise OrchestratorError(f"{record.id}: workspace path missing for dependency materialization")
-    return DependencyLayerRecord(
-        task_id=record.id,
-        workspace_mode=record.workspace_mode,
-        workspace_path=record.workspace_path,
-        operations=[
-            DependencyLayerOperation(
-                path=str(operation["path"]),
-                action=str(operation["action"]),
-                is_binary=bool(operation.get("isBinary", False)),
-            )
-            for operation in operations
-        ],
+    return review_ops_layer.own_dependency_layer(
+        record,
+        task_promotion_operations_fn=task_promotion_operations,
+        dependency_layer_record_factory=DependencyLayerRecord,
+        dependency_layer_operation_factory=DependencyLayerOperation,
+        error_factory=OrchestratorError,
     )
 
 
 def dependency_layers_for_record(record: TaskRunRecord) -> list[DependencyLayerRecord]:
-    layers = list(record.dependency_layers_applied)
-    own_layer = own_dependency_layer(record)
-    if own_layer is not None:
-        layers.append(own_layer)
-    return layers
+    return review_ops_layer.dependency_layers_for_record(
+        record,
+        own_dependency_layer_fn=own_dependency_layer,
+    )
 
 
 def dependency_layer_conflicts(task: TaskDefinition, records: dict[str, TaskRunRecord]) -> list[str]:
@@ -2905,129 +2694,52 @@ def materialize_dependency_layers(
 
 
 def plan_promotion(records: list[TaskRunRecord]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
-    issues: list[str] = []
-    task_payloads: list[dict[str, Any]] = []
-    all_operations: list[dict[str, Any]] = []
-    owners_by_path: dict[str, str] = {}
-    counts = {"added": 0, "modified": 0, "deleted": 0}
-    for record in records:
-        task_payload, operations = task_promotion_operations(record)
-        task_payloads.append(task_payload)
-        if record.protected_path_violations:
-            issues.append(
-                f"{record.id}: protected-path violations must be reviewed manually: "
-                f"{summarize_paths(record.protected_path_violations)}"
-            )
-        if record.write_scope_violations:
-            issues.append(
-                f"{record.id}: write-scope violations must be reviewed manually: "
-                f"{summarize_paths(record.write_scope_violations)}"
-            )
-        if task_payload["unsupportedFiles"]:
-            issues.append(
-                f"{record.id}: workspaceMode='{record.workspace_mode}' cannot be promoted for "
-                f"{summarize_paths(task_payload['unsupportedFiles'])}"
-            )
-        if operations and record.status != "completed":
-            issues.append(f"{record.id}: only completed tasks can be promoted, found status '{record.status}'")
-        if operations and record.workspace_mode not in {"copy", "worktree"}:
-            issues.append(
-                f"{record.id}: workspaceMode='{record.workspace_mode}' is not promotable; use copy or worktree"
-            )
-        for operation in operations:
-            owner = owners_by_path.get(operation["path"])
-            if owner is not None and owner != record.id:
-                issues.append(
-                    f"{record.id}: '{operation['path']}' is also changed by task '{owner}'"
-                )
-            else:
-                owners_by_path[operation["path"]] = record.id
-            counts[str(operation["action"])] += 1
-            all_operations.append(operation)
-    if issues:
-        raise PromotionBlockedError(format_issue_block("Promotion blocked", issues))
-    return task_payloads, all_operations, counts
+    return review_ops_layer.plan_promotion(
+        records,
+        summarize_paths=summarize_paths,
+        format_issue_block=format_issue_block,
+        task_promotion_operations_fn=task_promotion_operations,
+        blocked_error_factory=PromotionBlockedError,
+    )
 
 
 def summarize_promotion_readiness(records: list[TaskRunRecord]) -> dict[str, Any]:
-    try:
-        task_payloads, operations, counts = plan_promotion(records)
-        return {
-            "allowed": True,
-            "blockedReasons": [],
-            "promotableTaskIds": [payload["id"] for payload in task_payloads if payload["filesPromotable"]],
-            "filesPromotable": len(operations),
-            "operationCounts": counts,
-        }
-    except PromotionBlockedError as exc:
-        return {
-            "allowed": False,
-            "blockedReasons": dedupe_strings(
-                [line[2:] if line.startswith("- ") else line for line in str(exc).splitlines() if line.strip() and not line.endswith(":")]
-            ),
-            "promotableTaskIds": [],
-            "filesPromotable": 0,
-            "operationCounts": {"added": 0, "modified": 0, "deleted": 0},
-        }
+    return review_ops_layer.summarize_promotion_readiness(
+        records,
+        task_promotion_operations_fn=task_promotion_operations,
+        plan_promotion_fn=plan_promotion,
+        blocked_error_factory=PromotionBlockedError,
+        dedupe_strings=dedupe_strings,
+    )
 
 
 def apply_promotion_operation(record: TaskRunRecord, operation: dict[str, Any]) -> None:
-    apply_workspace_operation(
-        str(record.workspace_path),
-        DependencyLayerOperation(
-            path=str(operation["path"]),
-            action=str(operation["action"]),
-            is_binary=bool(operation.get("isBinary", False)),
-        ),
-        target_root=ROOT,
-        location=f"{record.id}: promote",
+    review_ops_layer.apply_promotion_operation(
+        record,
+        operation,
+        root=ROOT,
+        dependency_layer_operation_factory=DependencyLayerOperation,
+        apply_workspace_operation_fn=apply_workspace_operation,
     )
 
 
 def promote_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     records = selected_run_records(manifest, args.selected_tasks)
-    readiness = summarize_promotion_readiness(records)
-    if not readiness["allowed"] and not args.dry_run:
-        raise PromotionBlockedError(format_issue_block("Promotion blocked", list(readiness["blockedReasons"])))
-    task_payloads, operations, counts = (
-        plan_promotion(records)
-        if readiness["allowed"]
-        else ([task_promotion_operations(record)[0] for record in records], [], {"added": 0, "modified": 0, "deleted": 0})
+    return review_ops_layer.promote_run(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        records=records,
+        dry_run=args.dry_run,
+        root=ROOT,
+        format_issue_block=format_issue_block,
+        task_promotion_operations_fn=task_promotion_operations,
+        summarize_promotion_readiness_fn=summarize_promotion_readiness,
+        plan_promotion_fn=plan_promotion,
+        apply_promotion_operation_fn=apply_promotion_operation,
+        blocked_error_factory=PromotionBlockedError,
+        write_run_checkpoint=write_run_checkpoint,
     )
-    promotable_task_ids = (
-        [payload["id"] for payload in task_payloads if payload["filesPromotable"]]
-        if readiness["allowed"]
-        else []
-    )
-    if not args.dry_run:
-        records_by_id = {record.id: record for record in records}
-        for operation in operations:
-            apply_promotion_operation(records_by_id[str(operation["taskId"])], operation)
-    payload = {
-        "runId": manifest.get("runId"),
-        "manifestPath": str(manifest_path),
-        "repoRoot": str(ROOT),
-        "dryRun": args.dry_run,
-        "taskCount": len(task_payloads),
-        "taskIds": [record.id for record in records],
-        "promotionAllowed": bool(readiness["allowed"]),
-        "blockedReasons": list(readiness["blockedReasons"]),
-        "promotableTaskIds": promotable_task_ids,
-        "promotedTaskIds": [] if args.dry_run else promotable_task_ids,
-        "filesPromotable": len(operations),
-        "filesPromoted": 0 if args.dry_run else len(operations),
-        "operationCounts": counts,
-        "tasks": task_payloads,
-    }
-    write_run_checkpoint(
-        manifest_path,
-        manifest,
-        checkpoint_name="coordinatorPromotion",
-        directory_name="promotion",
-        payload=payload,
-    )
-    return payload
 
 
 def planner_output_path(name: str, explicit_path: str) -> Path:
@@ -5776,12 +5488,7 @@ def _evaluation_check(
     *,
     evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
-        "name": name,
-        "status": status,
-        "summary": summary,
-        "evidence": evidence or {},
-    }
+    return evals_layer.evaluation_check(name, status, summary, evidence=evidence)
 
 
 def summarize_evaluation_score(
@@ -5789,29 +5496,7 @@ def summarize_evaluation_score(
     *,
     run_summary: dict[str, Any],
 ) -> dict[str, Any]:
-    status_counts = count_statuses([str(check.get("status", "pass") or "pass") for check in checks])
-    weights = {"pass": 1.0, "warn": 0.5, "fail": 0.0}
-    earned_points = sum(weights.get(str(check.get("status", "pass") or "pass"), 0.0) for check in checks)
-    max_points = float(len(checks))
-    score_percent = round((earned_points / max_points) * 100.0, 1) if max_points else 100.0
-    status = "pass"
-    if int(status_counts.get("fail", 0) or 0) > 0:
-        status = "fail"
-    elif int(status_counts.get("warn", 0) or 0) > 0:
-        status = "warn"
-    return {
-        "status": status,
-        "statusCounts": status_counts,
-        "totalChecks": len(checks),
-        "earnedPoints": round(earned_points, 3),
-        "maxPoints": round(max_points, 3),
-        "scorePercent": score_percent,
-        "promotionReady": bool(run_summary.get("promotionReady", False)),
-        "resumable": bool(run_summary.get("isResumable", False)),
-        "taskCount": int(run_summary.get("taskCount", 0) or 0),
-        "batchCount": int((run_summary.get("topologyBatchCount", 0) or 0)),
-        "parallelWidth": int((run_summary.get("topologyMaxParallelWidth", 0) or 0)),
-    }
+    return evals_layer.summarize_evaluation_score(checks, run_summary=run_summary)
 
 
 def benchmark_dimensions_for_evaluation(
@@ -5819,57 +5504,7 @@ def benchmark_dimensions_for_evaluation(
     *,
     run_summary: dict[str, Any],
 ) -> dict[str, Any]:
-    by_name = {str(check.get("name", "")): check for check in checks}
-
-    def worst_status(names: list[str]) -> str:
-        rank = {"pass": 0, "warn": 1, "fail": 2}
-        return max(
-            (str(by_name.get(name, {}).get("status", "pass") or "pass") for name in names),
-            key=lambda item: rank[item],
-            default="pass",
-        )
-
-    decomposition_status = worst_status(["over-delegation", "reviewer-hops", "effort-fit"])
-    retry_status = str(by_name.get("retry-resume-contract", {}).get("status", "pass") or "pass")
-    promotion_status = str(by_name.get("promotion-readiness", {}).get("status", "pass") or "pass")
-    task_count = int(run_summary.get("taskCount", 0) or 0)
-    batch_count = int(run_summary.get("topologyBatchCount", 0) or 0)
-    parallel_width = int(run_summary.get("topologyMaxParallelWidth", 0) or 0)
-    if task_count <= 1:
-        parallel_status = "pass"
-        parallel_summary = "Single-task run had no parallel opportunity requirement."
-    elif parallel_width > 1:
-        parallel_status = "pass"
-        parallel_summary = "Run exposed concurrent-ready width greater than one."
-    else:
-        parallel_status = "warn"
-        parallel_summary = "Run stayed fully serial; compare dependency shape and task split for missed parallel opportunity."
-    return {
-        "decompositionQuality": {
-            "status": decomposition_status,
-            "summary": "Composition quality across delegation, reviewer hops, and effort fit.",
-            "checkNames": ["over-delegation", "reviewer-hops", "effort-fit"],
-        },
-        "retryCorrectness": {
-            "status": retry_status,
-            "summary": "Retry/resume metadata consistency.",
-            "checkNames": ["retry-resume-contract"],
-        },
-        "reviewPromotionAccuracy": {
-            "status": promotion_status,
-            "summary": "Promotion-readiness accuracy against retained run state.",
-            "checkNames": ["promotion-readiness"],
-        },
-        "parallelEfficiency": {
-            "status": parallel_status,
-            "summary": parallel_summary,
-            "evidence": {
-                "taskCount": task_count,
-                "batchCount": batch_count,
-                "parallelWidth": parallel_width,
-            },
-        },
-    }
+    return evals_layer.benchmark_dimensions_for_evaluation(checks, run_summary=run_summary)
 
 
 def evaluate_loaded_run_quality(
@@ -5878,237 +5513,13 @@ def evaluate_loaded_run_quality(
     *,
     selected_tasks: list[str],
 ) -> dict[str, Any]:
-    summary, _ = summarize_run_manifest(
+    return evals_layer.evaluate_loaded_run_quality(
         manifest_path,
         manifest,
-        now=datetime.now(timezone.utc).astimezone(),
+        selected_tasks=selected_tasks,
+        summarize_run_manifest=summarize_run_manifest,
+        selected_run_records=selected_run_records,
     )
-    records = selected_run_records(manifest, selected_tasks)
-    topology = manifest.get("topology") if isinstance(manifest.get("topology"), dict) else {}
-    run_start_event = next(
-        (
-            event
-            for event in (manifest.get("events") or [])
-            if isinstance(event, dict) and str(event.get("phase", "")) == "run-start"
-        ),
-        None,
-    )
-    run_start_details = (
-        run_start_event.get("details")
-        if isinstance(run_start_event, dict) and isinstance(run_start_event.get("details"), dict)
-        else {}
-    )
-    checks: list[dict[str, Any]] = []
-
-    reviewer_task_count = int(topology.get("reviewerTaskCount", 0) or 0)
-    write_task_count = int(topology.get("writeTaskCount", 0) or 0)
-    if reviewer_task_count > 0 and write_task_count == 0 and len(records) > reviewer_task_count:
-        checks.append(
-            _evaluation_check(
-                "over-delegation",
-                "warn",
-                "Read-only run still allocated reviewer-only work.",
-                evidence={
-                    "reviewerTaskCount": reviewer_task_count,
-                    "writeTaskCount": write_task_count,
-                    "taskCount": len(records),
-                },
-            )
-        )
-    else:
-        checks.append(
-            _evaluation_check(
-                "over-delegation",
-                "pass",
-                "Task split is proportionate to the run shape.",
-                evidence={
-                    "reviewerTaskCount": reviewer_task_count,
-                    "writeTaskCount": write_task_count,
-                    "taskCount": len(records),
-                },
-            )
-        )
-
-    topology_warnings = [
-        warning
-        for warning in (topology.get("warnings") or [])
-        if isinstance(warning, dict)
-    ]
-    optional_reviewer_warnings = [
-        warning
-        for warning in topology_warnings
-        if str(warning.get("kind", "")) == "read-only-review-optional"
-    ]
-    if optional_reviewer_warnings:
-        checks.append(
-            _evaluation_check(
-                "reviewer-hops",
-                "warn",
-                "Topology marks at least one reviewer hop as optional.",
-                evidence={"warnings": optional_reviewer_warnings},
-            )
-        )
-    else:
-        checks.append(
-            _evaluation_check(
-                "reviewer-hops",
-                "pass",
-                "No optional reviewer hop warning was detected.",
-                evidence={"warningCount": len(topology_warnings)},
-            )
-        )
-
-    legacy_validation_tasks = sorted(record.id for record in records if record.validation_commands)
-    if legacy_validation_tasks:
-        checks.append(
-            _evaluation_check(
-                "validation-suggestions",
-                "warn",
-                "Legacy raw validation commands are still present in the run record.",
-                evidence={"taskIds": legacy_validation_tasks},
-            )
-        )
-    else:
-        checks.append(
-            _evaluation_check(
-                "validation-suggestions",
-                "pass",
-                "Validation suggestions stayed on structured intents or were absent.",
-                evidence={
-                    "intentTaskCount": sum(1 for record in records if record.validation_intents),
-                },
-            )
-        )
-
-    task_efforts = (
-        manifest.get("taskEfforts")
-        if isinstance(manifest.get("taskEfforts"), dict)
-        else summary.get("taskEfforts", {})
-    )
-    task_model_profiles = (
-        manifest.get("taskModelProfiles")
-        if isinstance(manifest.get("taskModelProfiles"), dict)
-        else {}
-    )
-    read_only_task_ids = [str(task_id) for task_id in topology.get("readOnlyTaskIds", []) or []]
-    overspecified_effort_task_ids = sorted(
-        task_id
-        for task_id in read_only_task_ids
-        if str(task_efforts.get(task_id, "") or "") in {"high", "xhigh"}
-        and str(task_model_profiles.get(task_id, "") or "") in {"simple", "balanced"}
-    )
-    if overspecified_effort_task_ids:
-        checks.append(
-            _evaluation_check(
-                "effort-fit",
-                "warn",
-                "Read-only tasks are using high effort on non-complex model profiles.",
-                evidence={
-                    "taskIds": overspecified_effort_task_ids,
-                    "taskEfforts": {task_id: task_efforts.get(task_id) for task_id in overspecified_effort_task_ids},
-                    "taskModelProfiles": {
-                        task_id: task_model_profiles.get(task_id)
-                        for task_id in overspecified_effort_task_ids
-                    },
-                },
-            )
-        )
-    else:
-        checks.append(
-            _evaluation_check(
-                "effort-fit",
-                "pass",
-                "Resolved effort looks proportionate to the retained task shape.",
-                evidence={
-                    "taskEffortCounts": summary.get("effortCounts", {}),
-                },
-            )
-        )
-
-    retry_of_run_id = str(manifest.get("retryOfRunId", "")).strip()
-    requested_task_ids = [str(task_id) for task_id in manifest.get("requestedTaskIds", []) or []]
-    retried_task_ids = [str(task_id) for task_id in manifest.get("retriedTaskIds", []) or []]
-    seeded_task_ids = [str(task_id) for task_id in manifest.get("seededTaskIds", []) or []]
-    is_resume = bool(run_start_details.get("resume", False))
-    contract_status = "pass"
-    contract_summary = "Resume/retry metadata is internally consistent."
-    contract_evidence: dict[str, Any] = {
-        "retryOfRunId": retry_of_run_id or None,
-        "requestedTaskIds": requested_task_ids,
-        "retriedTaskIds": retried_task_ids,
-        "seededTaskIds": seeded_task_ids,
-        "resume": is_resume,
-    }
-    if retry_of_run_id and not retried_task_ids:
-        contract_status = "fail"
-        contract_summary = "Retry run is missing retried task ids."
-    elif retry_of_run_id and is_resume:
-        contract_status = "fail"
-        contract_summary = "Run metadata claims both retry and in-place resume."
-    elif requested_task_ids and retry_of_run_id and not set(retried_task_ids).issubset(set(requested_task_ids)):
-        contract_status = "fail"
-        contract_summary = "Retried task ids are not a subset of the requested retry scope."
-    checks.append(
-        _evaluation_check(
-            "retry-resume-contract",
-            contract_status,
-            contract_summary,
-            evidence=contract_evidence,
-        )
-    )
-
-    promotion_summary = summary["promotionSummary"]
-    changed_completed_tasks = sorted(
-        record.id
-        for record in records
-        if record.status == "completed" and (record.actual_files_touched or record.files_touched)
-    )
-    promotion_status = "pass"
-    promotion_check_summary = "Promotion readiness is consistent with task state and promotable files."
-    if summary["promotionReady"] and (summary["hasFailures"] or summary["hasBlocked"]):
-        promotion_status = "fail"
-        promotion_check_summary = "Promotion is marked ready even though the run still has failed or blocked tasks."
-    elif not summary["promotionReady"] and promotion_summary["allowed"] and promotion_summary["filesPromotable"] > 0:
-        promotion_status = "fail"
-        promotion_check_summary = "Promotion summary reports promotable files but the run summary is not marked ready."
-    elif (
-        not summary["promotionReady"]
-        and changed_completed_tasks
-        and not summary["hasFailures"]
-        and not summary["hasBlocked"]
-        and promotion_summary["filesPromotable"] == 0
-    ):
-        promotion_status = "warn"
-        promotion_check_summary = "Completed tasks changed files, but nothing is promotable; review ownership and scope evidence."
-    checks.append(
-        _evaluation_check(
-            "promotion-readiness",
-            promotion_status,
-            promotion_check_summary,
-            evidence={
-                "promotionReady": summary["promotionReady"],
-                "promotionSummary": promotion_summary,
-                "changedCompletedTaskIds": changed_completed_tasks,
-            },
-        )
-    )
-
-    status_rank = {"pass": 0, "warn": 1, "fail": 2}
-    overall_status = max((check["status"] for check in checks), key=lambda item: status_rank[item], default="pass")
-    score_summary = summarize_evaluation_score(checks, run_summary=summary)
-    benchmark_dimensions = benchmark_dimensions_for_evaluation(checks, run_summary=summary)
-    return {
-        "run": summary,
-        "traceSummary": summary["traceSummary"],
-        "branchSummary": summary["branchSummary"],
-        "status": overall_status,
-        "scoreSummary": score_summary,
-        "benchmarkDimensions": benchmark_dimensions,
-        "checkCount": len(checks),
-        "warningCheckCount": sum(1 for check in checks if check["status"] == "warn"),
-        "failingCheckCount": sum(1 for check in checks if check["status"] == "fail"),
-        "checks": checks,
-    }
 
 
 def evaluate_run_quality(args: argparse.Namespace) -> dict[str, Any]:
@@ -6149,60 +5560,18 @@ def inventory_runs(args: argparse.Namespace) -> dict[str, Any]:
 
 def evaluate_run_corpus(args: argparse.Namespace) -> dict[str, Any]:
     runtime_root = Path(args.runtime_root).resolve()
-    now = datetime.now(timezone.utc).astimezone()
-    entries = [
-        (*summarize_run_manifest(manifest_path, manifest, now=now), manifest_path, manifest)
-        for manifest_path, manifest in runtime_manifest_entries(runtime_root)
-    ]
-    entries.sort(key=lambda item: item[1], reverse=True)
     limit = max(int(args.limit), 0)
-    visible = entries[:limit] if limit else entries
-    run_evaluations = [
-        evaluate_loaded_run_quality(manifest_path, manifest, selected_tasks=[])
-        for _, _, manifest_path, manifest in visible
-    ]
-    corpus_status_counts = count_statuses([str(item["status"]) for item in run_evaluations])
-    score_status_counts = count_statuses([str(item["scoreSummary"]["status"]) for item in run_evaluations])
-    dimension_status_counts: dict[str, dict[str, int]] = {}
-    for item in run_evaluations:
-        for dimension_name, dimension in item["benchmarkDimensions"].items():
-            if not isinstance(dimension, dict):
-                continue
-            dimension_status_counts.setdefault(dimension_name, {})
-            status = str(dimension.get("status", "pass") or "pass")
-            dimension_status_counts[dimension_name][status] = (
-                dimension_status_counts[dimension_name].get(status, 0) + 1
-            )
-    average_score_percent = round(
-        (
-            sum(float(item["scoreSummary"]["scorePercent"]) for item in run_evaluations)
-            / len(run_evaluations)
+    return evals_layer.evaluate_run_corpus(
+        runtime_root=runtime_root,
+        limit=limit,
+        runtime_manifest_entries=runtime_manifest_entries,
+        summarize_run_manifest=summarize_run_manifest,
+        evaluate_loaded_run_quality_fn=lambda manifest_path, manifest, selected_tasks: evaluate_loaded_run_quality(
+            manifest_path,
+            manifest,
+            selected_tasks=selected_tasks,
         ),
-        1,
-    ) if run_evaluations else 100.0
-    return {
-        "runtimeRoot": str(runtime_root),
-        "runCount": len(entries),
-        "shownRunCount": len(run_evaluations),
-        "statusCounts": corpus_status_counts,
-        "scoreStatusCounts": score_status_counts,
-        "averageScorePercent": average_score_percent,
-        "dimensionStatusCounts": dimension_status_counts,
-        "runs": [
-            {
-                "runId": item["run"]["runId"],
-                "plan": item["run"]["plan"],
-                "generatedAt": item["run"]["generatedAt"],
-                "status": item["status"],
-                "scoreSummary": item["scoreSummary"],
-                "benchmarkDimensions": item["benchmarkDimensions"],
-                "traceSummary": item["traceSummary"],
-                "branchSummary": item["branchSummary"],
-                "flags": item["run"]["flags"],
-            }
-            for item in run_evaluations
-        ],
-    }
+    )
 
 
 def prune_runs(args: argparse.Namespace) -> dict[str, Any]:
@@ -6279,107 +5648,18 @@ def collect_validation_commands(
     included_statuses: set[str],
     execution_scope: str = DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    task_payloads: list[dict[str, Any]] = []
-    suggestions_by_command: dict[tuple[str, str | None], dict[str, Any]] = {}
-    suggestion_order: list[tuple[str, str | None]] = []
-    for record in records:
-        execution_target = validation_execution_target(record, execution_scope=execution_scope)
-        commands = dedupe_strings(record.validation_commands)
-        rendered_intents = dedupe_strings(
-            [validation_intent_command_text(intent) for intent in record.validation_intents]
-        )
-        included = record.status in included_statuses
-        task_payloads.append(
-            {
-                "id": record.id,
-                "status": record.status,
-                "summary": record.summary,
-                "unknownFields": record.unknown_fields,
-                "validationIntents": [asdict(intent) for intent in record.validation_intents],
-                "renderedValidationIntents": rendered_intents,
-                "validationCommands": commands,
-                "validationCommandsKnown": not worker_field_unknown(record, "validationCommands"),
-                "legacyValidationCommandCount": len(commands),
-                "legacyValidationCommandsPresent": bool(commands),
-                "includedForValidation": included,
-                "workspaceMode": record.workspace_mode,
-                "workspacePath": record.workspace_path,
-                "executionScope": execution_scope,
-                "executionCwd": execution_target.get("cwd"),
-                "executionTargetAccepted": bool(execution_target.get("accepted", False)),
-                "executionTargetReason": execution_target.get("reason"),
-                "excludedReason": (
-                    None
-                    if included
-                    else f"status '{record.status}' is excluded by the current validation policy"
-                ),
-            }
-        )
-        if not included:
-            continue
-        for intent in record.validation_intents:
-            command_text = validation_intent_command_text(intent)
-            aggregate_key = (
-                command_text,
-                str(execution_target.get("cwd") or "")
-                if execution_scope == "task-workspace"
-                else DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
-            )
-            payload = suggestions_by_command.get(aggregate_key)
-            if payload is None:
-                payload = {
-                    "sourceKind": "intent",
-                    "command": command_text,
-                    "taskIds": [],
-                    "policy": validation_intent_policy(intent),
-                    "intent": asdict(intent),
-                    "compatibilityOnly": False,
-                    "executionScope": execution_scope,
-                    "cwd": execution_target.get("cwd"),
-                    "workspaceMode": execution_target.get("workspaceMode"),
-                    "workspacePath": execution_target.get("workspacePath"),
-                    "executionTargetAccepted": bool(execution_target.get("accepted", False)),
-                    "executionTargetReason": execution_target.get("reason"),
-                }
-                suggestions_by_command[aggregate_key] = payload
-                suggestion_order.append(aggregate_key)
-            payload["taskIds"].append(record.id)
-        for command in commands:
-            policy = validation_command_policy(command)
-            aggregate_key = (
-                command,
-                str(execution_target.get("cwd") or "")
-                if execution_scope == "task-workspace"
-                else DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
-            )
-            payload = suggestions_by_command.get(aggregate_key)
-            if payload is None:
-                payload = {
-                    "sourceKind": "command",
-                    "command": command,
-                    "taskIds": [],
-                    "policy": policy,
-                    "intent": None,
-                    "compatibilityOnly": True,
-                    "normalizedIntent": (
-                        policy.get("intent") if isinstance(policy.get("intent"), dict) else None
-                    ),
-                    "executionScope": execution_scope,
-                    "cwd": execution_target.get("cwd"),
-                    "workspaceMode": execution_target.get("workspaceMode"),
-                    "workspacePath": execution_target.get("workspacePath"),
-                    "executionTargetAccepted": bool(execution_target.get("accepted", False)),
-                    "executionTargetReason": execution_target.get("reason"),
-                }
-                suggestions_by_command[aggregate_key] = payload
-                suggestion_order.append(aggregate_key)
-            payload["taskIds"].append(record.id)
-    command_payloads = []
-    for aggregate_key in suggestion_order:
-        payload = suggestions_by_command[aggregate_key]
-        payload["taskIds"] = dedupe_strings([str(task_id) for task_id in payload["taskIds"]])
-        command_payloads.append(payload)
-    return task_payloads, command_payloads
+    return validation_ops_layer.collect_validation_commands(
+        records,
+        included_statuses=included_statuses,
+        execution_scope=execution_scope,
+        default_validate_run_execution_scope=DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+        validation_execution_target_fn=validation_execution_target,
+        dedupe_strings=dedupe_strings,
+        validation_intent_command_text=validation_intent_command_text,
+        validation_intent_policy=validation_intent_policy,
+        validation_command_policy=validation_command_policy,
+        worker_field_unknown=worker_field_unknown,
+    )
 
 
 def validation_execution_target(
@@ -6387,50 +5667,13 @@ def validation_execution_target(
     *,
     execution_scope: str,
 ) -> dict[str, Any]:
-    if execution_scope not in VALIDATE_RUN_EXECUTION_SCOPES:
-        raise OrchestratorError(
-            f"validate-run: unsupported execution scope '{execution_scope}'"
-        )
-    if execution_scope == "repo":
-        return {
-            "cwd": str(ROOT),
-            "workspaceMode": "repo",
-            "workspacePath": str(ROOT),
-            "accepted": True,
-            "reason": None,
-        }
-    if record.workspace_mode == "repo":
-        return {
-            "cwd": str(ROOT),
-            "workspaceMode": "repo",
-            "workspacePath": str(ROOT),
-            "accepted": True,
-            "reason": None,
-        }
-    if not record.workspace_path:
-        return {
-            "cwd": None,
-            "workspaceMode": record.workspace_mode,
-            "workspacePath": None,
-            "accepted": False,
-            "reason": f"{record.id}: task workspace path is missing",
-        }
-    workspace_root = Path(record.workspace_path).resolve()
-    if not workspace_root.exists():
-        return {
-            "cwd": str(workspace_root),
-            "workspaceMode": record.workspace_mode,
-            "workspacePath": str(workspace_root),
-            "accepted": False,
-            "reason": f"{record.id}: task workspace '{workspace_root}' does not exist",
-        }
-    return {
-        "cwd": str(workspace_root),
-        "workspaceMode": record.workspace_mode,
-        "workspacePath": str(workspace_root),
-        "accepted": True,
-        "reason": None,
-    }
+    return validation_ops_layer.validation_execution_target(
+        record,
+        execution_scope=execution_scope,
+        validate_run_execution_scopes=VALIDATE_RUN_EXECUTION_SCOPES,
+        root=ROOT,
+        error_factory=OrchestratorError,
+    )
 
 
 def run_shell_command_text(
@@ -6440,27 +5683,12 @@ def run_shell_command_text(
     timeout_sec: int,
     progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    try:
-        tokens = shlex.split(command_text, posix=(os.name != "nt"))
-    except ValueError:
-        tokens = None
-    timeout_error = f"Validation command timed out after {timeout_sec} seconds: {command_text}"
-    if tokens:
-        return run_process(
-            tokens,
-            cwd=cwd,
-            timeout_sec=timeout_sec,
-            shell=False,
-            progress_action=progress_action,
-            timeout_error=timeout_error,
-        )
-    return run_process(
+    return validation_ops_layer.run_shell_command_text(
         command_text,
         cwd=cwd,
         timeout_sec=timeout_sec,
-        shell=True,
         progress_action=progress_action,
-        timeout_error=timeout_error,
+        run_process=run_process,
     )
 
 
@@ -6471,16 +5699,14 @@ def run_validation_intent(
     timeout_sec: int,
     progress_action: SlopLogAction | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return run_process(
-        validation_intent_execution_tokens(intent),
+    return validation_ops_layer.run_validation_intent(
+        intent,
         cwd=cwd,
         timeout_sec=timeout_sec,
-        shell=False,
         progress_action=progress_action,
-        timeout_error=(
-            "Validation intent timed out after "
-            f"{timeout_sec} seconds: {validation_intent_command_text(intent)}"
-        ),
+        run_process=run_process,
+        validation_intent_execution_tokens=validation_intent_execution_tokens,
+        validation_intent_command_text=validation_intent_command_text,
     )
 
 
@@ -6492,16 +5718,14 @@ def write_run_checkpoint(
     directory_name: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    checkpoint_dir = manifest_path.parent / directory_name
-    summary_path = checkpoint_dir / "summary.json"
-    write_json(summary_path, payload)
-    updated_manifest = dict(manifest)
-    updated_manifest[checkpoint_name] = {
-        **payload,
-        "summaryPath": str(summary_path),
-    }
-    write_json(manifest_path, updated_manifest)
-    return updated_manifest
+    return validation_ops_layer.write_run_checkpoint(
+        manifest_path,
+        manifest,
+        checkpoint_name=checkpoint_name,
+        directory_name=directory_name,
+        payload=payload,
+        write_json=write_json,
+    )
 
 
 def write_coordinator_validation_summary(
@@ -6509,13 +5733,11 @@ def write_coordinator_validation_summary(
     manifest: dict[str, Any],
     summary: dict[str, Any],
 ) -> dict[str, Any]:
-    updated_manifest = dict(manifest)
-    return write_run_checkpoint(
+    return validation_ops_layer.write_coordinator_validation_summary(
         manifest_path,
-        updated_manifest,
-        checkpoint_name="coordinatorValidation",
-        directory_name="validation",
-        payload=summary,
+        manifest,
+        summary,
+        write_run_checkpoint_fn=write_run_checkpoint,
     )
 
 
@@ -6523,194 +5745,31 @@ def validate_run(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
     run_dir = manifest_run_dir(manifest_path, manifest)
     records = selected_run_records(manifest, args.selected_tasks)
-    intents_only = bool(getattr(args, "intents_only", False))
-    execution_scope = str(
-        getattr(args, "execution_scope", DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE)
-        or DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE
+    return validation_ops_layer.validate_run(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        run_dir=run_dir,
+        records=records,
+        intents_only=bool(getattr(args, "intents_only", False)),
+        execution_scope=str(getattr(args, "execution_scope", DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE) or DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE),
+        included_statuses={str(status) for status in (getattr(args, "include_statuses", None) or list(DEFAULT_VALIDATE_RUN_STATUSES))},
+        allow_unsafe_commands=bool(args.allow_unsafe_commands),
+        continue_on_error=bool(args.continue_on_error),
+        timeout_sec=int(args.timeout_sec),
+        dry_run=bool(args.dry_run),
+        root=ROOT,
+        default_validate_run_execution_scope=DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+        collect_validation_commands_fn=collect_validation_commands,
+        coerce_validation_intent_payload=coerce_validation_intent_payload,
+        run_validation_intent_fn=run_validation_intent,
+        run_shell_command_text_fn=run_shell_command_text,
+        write_text=write_text,
+        write_json=write_json,
+        slugify=slugify,
+        validation_wait_action=validation_wait_action,
+        count_statuses=count_statuses,
+        write_coordinator_validation_summary_fn=write_coordinator_validation_summary,
     )
-    included_statuses = {
-        str(status)
-        for status in (getattr(args, "include_statuses", None) or list(DEFAULT_VALIDATE_RUN_STATUSES))
-    }
-    task_payloads, commands = collect_validation_commands(
-        records,
-        included_statuses=included_statuses,
-        execution_scope=execution_scope,
-    )
-    validation_dir = run_dir / "validation"
-    command_results: list[dict[str, Any]] = []
-    stop_after_failure = False
-    for index, command_payload in enumerate(commands, start=1):
-        command_text = str(command_payload["command"])
-        source_kind = str(command_payload.get("sourceKind", "command"))
-        intent_payload = command_payload.get("intent")
-        normalized_intent_payload = command_payload.get("normalizedIntent")
-        execution_intent_payload = (
-            intent_payload
-            if isinstance(intent_payload, dict)
-            else normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
-        )
-        execution_cwd = command_payload.get("cwd")
-        execution_target_accepted = bool(command_payload.get("executionTargetAccepted", False))
-        execution_target_reason = command_payload.get("executionTargetReason")
-        quality_policy = command_payload["policy"] if isinstance(command_payload.get("policy"), dict) else {
-            "accepted": True,
-            "reason": None,
-            "entrypoint": None,
-        }
-        policy = dict(quality_policy)
-        intents_only_rejected = source_kind == "command" and intents_only
-        if intents_only_rejected:
-            policy = {
-                "accepted": False,
-                "reason": (
-                    "raw validationCommands are compatibility-only under --intents-only; "
-                    "emit structured validationIntents instead"
-                ),
-                "entrypoint": quality_policy.get("entrypoint"),
-            }
-        policy_accepted = bool(policy.get("accepted", False))
-        policy_override = bool(args.allow_unsafe_commands and not policy_accepted and not intents_only_rejected)
-        result_payload: dict[str, Any] = {
-            "index": index,
-            "sourceKind": source_kind,
-            "command": command_text,
-            "taskIds": list(command_payload["taskIds"]),
-            "intent": intent_payload if isinstance(intent_payload, dict) else None,
-            "normalizedIntent": (
-                normalized_intent_payload if isinstance(normalized_intent_payload, dict) else None
-            ),
-            "compatibilityOnly": bool(command_payload.get("compatibilityOnly", source_kind == "command")),
-            "executionScope": execution_scope,
-            "cwd": execution_cwd,
-            "workspaceMode": command_payload.get("workspaceMode"),
-            "workspacePath": command_payload.get("workspacePath"),
-            "executionTargetAccepted": execution_target_accepted,
-            "executionTargetReason": execution_target_reason,
-            "intentsOnlyRejected": intents_only_rejected,
-            "executionKind": "argv" if execution_intent_payload is not None else "shell",
-            "qualityPolicyAccepted": bool(quality_policy.get("accepted", False)),
-            "qualityPolicyReason": quality_policy.get("reason"),
-            "policyAccepted": policy_accepted,
-            "policyReason": policy.get("reason"),
-            "policyOverride": policy_override,
-            "entrypoint": policy.get("entrypoint"),
-            "status": "planned" if args.dry_run else "completed",
-            "returnCode": None,
-            "stdoutPath": None,
-            "stderrPath": None,
-        }
-        if not execution_target_accepted:
-            result_payload["status"] = "rejected"
-            command_results.append(result_payload)
-            continue
-        if not policy_accepted and not policy_override:
-            result_payload["status"] = "rejected"
-            command_results.append(result_payload)
-            continue
-        if stop_after_failure:
-            result_payload["status"] = "skipped"
-            command_results.append(result_payload)
-            continue
-        if args.dry_run:
-            command_results.append(result_payload)
-            continue
-        command_dir = validation_dir / f"{index:02d}-{slugify(command_text[:48])}"
-        stdout_path = command_dir / "stdout.txt"
-        stderr_path = command_dir / "stderr.txt"
-        command_path = command_dir / "command.txt"
-        write_text(command_path, command_text + "\n")
-        if execution_intent_payload is not None:
-            write_json(command_dir / "intent.json", execution_intent_payload)
-        command_cwd = Path(str(execution_cwd)).resolve()
-        try:
-            if execution_intent_payload is not None:
-                completed = run_validation_intent(
-                    coerce_validation_intent_payload(
-                        execution_intent_payload,
-                        location=f"validate-run:{index}:intent",
-                    ),
-                    cwd=command_cwd,
-                    timeout_sec=max(args.timeout_sec, 1),
-                    progress_action=validation_wait_action(command_text, "intent"),
-                )
-            else:
-                completed = run_shell_command_text(
-                    command_text,
-                    cwd=command_cwd,
-                    timeout_sec=max(args.timeout_sec, 1),
-                    progress_action=validation_wait_action(command_text, "command"),
-                )
-            write_text(stdout_path, completed.stdout)
-            write_text(stderr_path, completed.stderr)
-            result_payload["returnCode"] = completed.returncode
-            result_payload["stdoutPath"] = str(stdout_path)
-            result_payload["stderrPath"] = str(stderr_path)
-            if completed.returncode != 0:
-                result_payload["status"] = "failed"
-                if not args.continue_on_error:
-                    stop_after_failure = True
-            command_results.append(result_payload)
-        except OrchestratorError as exc:
-            write_text(stderr_path, str(exc) + "\n")
-            result_payload["status"] = "failed"
-            result_payload["returnCode"] = None
-            result_payload["stdoutPath"] = str(stdout_path) if stdout_path.exists() else None
-            result_payload["stderrPath"] = str(stderr_path)
-            command_results.append(result_payload)
-            if not args.continue_on_error:
-                stop_after_failure = True
-    summary = {
-        "generatedAt": iso_now(),
-        "runId": manifest.get("runId"),
-        "manifestPath": str(manifest_path),
-        "repoRoot": str(ROOT),
-        "executionScope": execution_scope,
-        "dryRun": args.dry_run,
-        "intentsOnly": intents_only,
-        "selectedTaskIds": [record.id for record in records],
-        "includedStatuses": sorted(included_statuses),
-        "taskCount": len(task_payloads),
-        "tasks": task_payloads,
-        "includedTaskIds": [payload["id"] for payload in task_payloads if payload["includedForValidation"]],
-        "excludedTaskIds": [payload["id"] for payload in task_payloads if not payload["includedForValidation"]],
-        "legacyValidationCommandCount": sum(
-            int(payload.get("legacyValidationCommandCount", 0) or 0) for payload in task_payloads
-        ),
-        "includedLegacyValidationCommandCount": sum(
-            int(payload.get("legacyValidationCommandCount", 0) or 0)
-            for payload in task_payloads
-            if payload["includedForValidation"]
-        ),
-        "legacyValidationCommandTaskIds": [
-            payload["id"] for payload in task_payloads if payload.get("legacyValidationCommandsPresent")
-        ],
-        "includedLegacyValidationCommandTaskIds": [
-            payload["id"]
-            for payload in task_payloads
-            if payload["includedForValidation"] and payload.get("legacyValidationCommandsPresent")
-        ],
-        "commandCount": len(command_results),
-        "acceptedCommandCount": sum(
-            1
-            for payload in command_results
-            if payload.get("policyAccepted") and payload.get("executionTargetAccepted")
-        ),
-        "rejectedCommandCount": sum(1 for payload in command_results if payload["status"] == "rejected"),
-        "intentsOnlyRejectedCommandCount": sum(
-            1 for payload in command_results if payload.get("intentsOnlyRejected")
-        ),
-        "allowUnsafeCommands": bool(args.allow_unsafe_commands),
-        "suggestedCommands": [payload["command"] for payload in commands],
-        "suggestedValidationIntents": [
-            payload["intent"] for payload in commands if isinstance(payload.get("intent"), dict)
-        ],
-        "commands": command_results,
-        "statusCounts": count_statuses([str(payload["status"]) for payload in command_results]),
-        "allPassed": all(payload["status"] in {"planned", "completed"} for payload in command_results),
-    }
-    write_coordinator_validation_summary(manifest_path, manifest, summary)
-    return summary
 
 
 def validate_command(args: argparse.Namespace) -> dict[str, Any]:

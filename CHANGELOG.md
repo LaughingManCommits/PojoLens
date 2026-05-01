@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Orchestrator command decomposition** - split retained-run summary/lifecycle,
+  review/export/promote, validation/checkpoint persistence, and eval logic into
+  `pojo_lens_agents.run_summary`, `review_ops`, `validation_ops`, and `evals`
+  while keeping `scripts/ai/claude-orchestrator.py` as the compatibility
+  entrypoint with the existing CLI and JSON contracts.
+
 - **Approval lifecycle state machine** - retained runs now expose explicit
   `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the
   coordinator persists `coordinatorReview`, `coordinatorValidation`, and
