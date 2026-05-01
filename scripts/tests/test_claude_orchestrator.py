@@ -4527,6 +4527,101 @@ class ValidateCommandTest(unittest.TestCase):
         self.assertEqual(str(run_dir.resolve()), manifest["runDir"])
         self.assertEqual(str(workspaces_dir.resolve()), manifest["workspacesDir"])
 
+    def test_run_loaded_plan_uses_external_workspaces_dir_by_default(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            runtime_root = temp_path / "runtime"
+            repo_root.mkdir()
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="external-workspaces",
+                goal="Use external workspaces by default.",
+                shared_context=orchestrator.SharedContext(
+                    summary="External workspace test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+                effort_override=None,
+            ):
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.ROOT = repo_root
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+                orchestrator.ROOT = old_root
+
+            workspaces_dir = pathlib.Path(payload["workspacesDir"]).resolve()
+            manifest = orchestrator.read_json(pathlib.Path(payload["runDir"]) / "manifest.json")
+
+        self.assertTrue(workspaces_dir.name.startswith(payload["runId"]))
+        self.assertFalse(str(workspaces_dir).startswith(str(repo_root.resolve())))
+        self.assertNotEqual((runtime_root / "workspaces" / payload["runId"]).resolve(), workspaces_dir)
+        self.assertEqual(str(workspaces_dir), manifest["workspacesDir"])
+
     def test_run_loaded_plan_rejects_compat_worker_validation_override(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:

@@ -39,6 +39,7 @@ evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
+run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
@@ -54,6 +55,14 @@ from pojo_lens_agents.workspace_run_review import *
 
 def effective_workspace_mode(task: TaskDefinition, agent: AgentDefinition) -> str:
     return task_execution_layer.effective_workspace_mode(task, agent)
+
+
+def default_workspaces_dir(*, runtime_root: Path, run_id: str) -> Path:
+    return run_store_layer.default_workspaces_dir(
+        runtime_root=runtime_root,
+        run_id=run_id,
+        repo_root=current_root(),
+    )
 
 
 def blocked_record(
@@ -489,6 +498,7 @@ def run_loaded_plan(
         serialize_run_policy=serialize_run_policy,
         summarized_worker_validation_mode=summarized_worker_validation_mode,
         summarize_branch_contexts=summarize_branch_contexts,
+        default_workspaces_dir=default_workspaces_dir,
         slugify=slugify,
         error_factory=OrchestratorError,
     )

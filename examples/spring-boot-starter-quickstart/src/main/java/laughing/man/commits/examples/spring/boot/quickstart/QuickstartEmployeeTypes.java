@@ -39,6 +39,23 @@ public final class QuickstartEmployeeTypes {
         }
     }
 
+    public static final class DepartmentSalarySummaryView {
+        public String department;
+        public long headcount;
+        public double averageSalary;
+        public int topSalary;
+
+        public DepartmentSalarySummaryView() {
+        }
+
+        public DepartmentSalarySummaryView(String department, long headcount, double averageSalary, int topSalary) {
+            this.department = department;
+            this.headcount = headcount;
+            this.averageSalary = averageSalary;
+            this.topSalary = topSalary;
+        }
+    }
+
     public static final class RuntimeInfo {
         public boolean strictParameterTypes;
         public boolean lintMode;

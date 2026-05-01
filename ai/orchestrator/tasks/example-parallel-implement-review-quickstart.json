@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "name": "example-parallel-implement-review-quickstart",
+  "goal": "Demonstrate a real parallel implementer run plus reviewed promotion against the Spring Boot quickstart example.",
+  "sharedContext": {
+    "summary": "Add a new quickstart endpoint `GET /api/employees/by-department?department=Engineering&limit=2` that returns `EmployeeView` rows for the exact department, ordered by salary descending, with `limit` defaulting to 10 and capped at 25. Keep the change bounded to the quickstart example and make the reviewer inspect the combined upstream changes before promotion.",
+    "constraints": [
+      "Keep work bounded to the Spring Boot starter quickstart example.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes.",
+      "Task write scopes must stay disjoint so the two implementers can run in parallel."
+    ],
+    "readPaths": [
+      "examples/spring-boot-starter-quickstart/README.md",
+      "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+      "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+      "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+    ],
+    "validation": [
+      "mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml test"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "implement-quickstart-department-endpoint",
+      "title": "Implement the quickstart department endpoint",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Implement `GET /api/employees/by-department`. Reuse the existing in-memory employee dataset and return `EmployeeView` rows filtered by exact department match, sorted by salary descending, with `limit` defaulting to 10 and capped at 25.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "document-and-test-department-endpoint",
+      "title": "Document and test the quickstart department endpoint",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Using the shared endpoint contract, update the quickstart README curl examples and add focused default plus virtual-thread integration coverage for `GET /api/employees/by-department?department=Engineering&limit=2`. Assume the endpoint returns `EmployeeView` rows sorted by salary descending with `limit` default 10 and max 25.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-quickstart-department-endpoint",
+      "title": "Review the combined quickstart department change",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "prompt": "Review the combined quickstart department-endpoint change for correctness, test sufficiency, and whether the README contract matches the implementation. Focus on regressions, missing validation, and promotion risks.",
+      "dependsOn": [
+        "implement-quickstart-department-endpoint",
+        "document-and-test-department-endpoint"
+      ],
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "workspaceMode": "copy",
+      "dependencyMaterialization": "apply-reviewed"
+    }
+  ]
+}

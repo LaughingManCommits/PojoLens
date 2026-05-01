@@ -142,7 +142,7 @@ Use `scripts/ai/refresh-ai-memory.ps1 -ForceFull` only when a full rebuild is re
 - `ai/orchestrator/` is tracked control plane, not transient worker output
 - the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
 - `ai/orchestrator/` is not a second copy of `ai/state/*`; keep active repo state in project memory and keep operator-contract behavior in orchestrator memory
-- keep runtime manifests, prompts, transcripts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
+- keep runtime manifests, prompts, transcripts, and stdout/stderr outside `ai/` under repo-local `.claude-orchestrator/`; keep isolated worker workspaces outside the repo root in the orchestrator-managed external workspace root recorded in each manifest
 - workers may edit `ai/orchestrator/**` when explicitly assigned, but must not edit `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`
 - the coordinator owns review, merge decisions, final summaries, and all memory updates after worker runs
 

@@ -1,6 +1,7 @@
 package laughing.man.commits.examples.spring.boot.quickstart;
 
 import laughing.man.commits.PojoLensRuntime;
+import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.DepartmentSalarySummaryView;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.Employee;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.EmployeeView;
 import laughing.man.commits.examples.spring.boot.quickstart.QuickstartEmployeeTypes.RuntimeInfo;
@@ -19,6 +20,13 @@ public class QuickstartEmployeeController {
 
     private static final String TOP_PAID_QUERY = "select id, name, department, salary "
             + "where salary >= :minSalary "
+            + "order by salary desc limit :limit";
+    private static final String DEPARTMENT_SALARY_SUMMARY_QUERY =
+            "select department, count(*) as headcount, avg(salary) as averageSalary, max(salary) as topSalary "
+                    + "where salary >= :minSalary "
+                    + "group by department order by topSalary desc";
+    private static final String BY_DEPARTMENT_QUERY = "select id, name, department, salary "
+            + "where department = :department "
             + "order by salary desc limit :limit";
 
     private final PojoLensRuntime pojoLensRuntime;
@@ -52,6 +60,28 @@ public class QuickstartEmployeeController {
                         "limit", cappedLimit
                 ))
                 .filter(employees, EmployeeView.class);
+    }
+
+    @GetMapping("/by-department")
+    public List<EmployeeView> byDepartment(@RequestParam(name = "department") String department,
+                                            @RequestParam(name = "limit", defaultValue = "10") int limit) {
+        int cappedLimit = Math.max(1, Math.min(limit, 25));
+        return pojoLensRuntime
+                .parse(BY_DEPARTMENT_QUERY)
+                .params(Map.of(
+                        "department", department,
+                        "limit", cappedLimit
+                ))
+                .filter(employees, EmployeeView.class);
+    }
+
+    @GetMapping("/department-salary-summary")
+    public List<DepartmentSalarySummaryView> departmentSalarySummary(
+            @RequestParam(name = "minSalary", defaultValue = "0") int minSalary) {
+        return pojoLensRuntime
+                .parse(DEPARTMENT_SALARY_SUMMARY_QUERY)
+                .params(Map.of("minSalary", Math.max(0, minSalary)))
+                .filter(employees, DepartmentSalarySummaryView.class);
     }
 
     @GetMapping("/runtime")

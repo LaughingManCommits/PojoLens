@@ -5,6 +5,7 @@ It shows one SQL-like PojoLens query flow end-to-end, with the starter runtime
 only supplying integration defaults:
 
 - the app executes one SQL-like top-paid query over in-memory POJOs
+- the app also exposes one grouped salary-summary query by department
 - starter auto-configures `PojoLensRuntime`
 - the endpoint returns typed rows
 
@@ -22,8 +23,24 @@ mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml spring-boot:run
 
 ## Try It
 
+### Top-Paid Employees
 ```bash
 curl "http://localhost:8080/api/employees/top-paid?minSalary=100000&limit=3"
+```
+
+### Employees by Department
+Fetch employees from a specific department, ordered by salary (descending). The `limit` parameter defaults to 10 and is capped at 25.
+```bash
+curl "http://localhost:8080/api/employees/by-department?department=Engineering&limit=2"
+```
+
+### Department Salary Summary
+```bash
+curl "http://localhost:8080/api/employees/department-salary-summary?minSalary=90000"
+```
+
+### Runtime Info
+```bash
 curl "http://localhost:8080/api/employees/runtime"
 ```
 

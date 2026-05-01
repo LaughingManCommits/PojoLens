@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "example-implement-review-quickstart",
+  "goal": "Demonstrate a minimal implementer-to-reviewer coding flow against the Spring Boot quickstart example.",
+  "sharedContext": {
+    "summary": "Use this file as a template for a small real-world coding task in this repo. The change should stay inside the quickstart example and remain cheap enough for live orchestrator proof runs.",
+    "constraints": [
+      "Keep work bounded to the quickstart example and its tests.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "examples/spring-boot-starter-quickstart/README.md",
+      "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+      "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java",
+      "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java"
+    ],
+    "validation": [
+      "mvn -B -ntp -f examples/spring-boot-starter-quickstart/pom.xml test"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "implement-quickstart-summary-endpoint",
+      "title": "Implement a grouped quickstart salary-summary endpoint",
+      "agent": "implementer",
+      "modelProfile": "simple",
+      "prompt": "Add one useful grouped-query feature to the Spring Boot starter quickstart example. Prefer a small endpoint that demonstrates PojoLens aggregation over the existing in-memory employee dataset, update the related typed view, add or update focused tests, and document the new curl example in the quickstart README.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-quickstart-summary-endpoint",
+      "title": "Review the quickstart grouped-query change",
+      "agent": "reviewer",
+      "modelProfile": "simple",
+      "prompt": "Review the quickstart grouped-query implementation for correctness, test sufficiency, and whether the feature still fits the quickstart scope. Focus on regressions, ambiguous API behavior, and whether the docs match the code.",
+      "dependsOn": [
+        "implement-quickstart-summary-endpoint"
+      ],
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeTypes.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeControllerTest.java",
+        "examples/spring-boot-starter-quickstart/src/test/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartVirtualThreadsIntegrationTest.java"
+      ],
+      "workspaceMode": "copy"
+    }
+  ]
+}

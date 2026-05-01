@@ -56,6 +56,7 @@ def run_loaded_plan(
     serialize_run_policy: Callable[[Any], dict[str, Any]] = None,
     summarized_worker_validation_mode: Callable[[list[str]], str] = None,
     summarize_branch_contexts: Callable[[list[Any]], dict[str, Any]] = None,
+    default_workspaces_dir: Callable[..., Path] = None,
     slugify: Callable[[str], str] = None,
     error_factory: type[Exception] = RuntimeError,
 ) -> dict[str, Any]:
@@ -76,7 +77,11 @@ def run_loaded_plan(
     runtime_root = runtime_root.resolve()
     run_id = existing_run_id or (f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}" f"-{slugify(plan.name)}-{uuid4().hex[:8]}")
     run_dir = existing_run_dir.resolve() if existing_run_dir is not None else runtime_root / "runs" / run_id
-    workspaces_dir = existing_workspaces_dir.resolve() if existing_workspaces_dir is not None else runtime_root / "workspaces" / run_id
+    workspaces_dir = (
+        existing_workspaces_dir.resolve()
+        if existing_workspaces_dir is not None
+        else default_workspaces_dir(runtime_root=runtime_root, run_id=run_id)
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     workspaces_dir.mkdir(parents=True, exist_ok=True)
     if write_plan_snapshot:

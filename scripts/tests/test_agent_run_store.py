@@ -40,6 +40,19 @@ class RunStoreTest(unittest.TestCase):
             run_store.manifest_workspaces_dir({"runId": "run-1"}, run_dir=run_dir),
         )
 
+    def test_default_workspaces_dir_uses_external_repo_scoped_root(self):
+        runtime_root = (ROOT / ".claude-orchestrator").resolve()
+        workspaces_dir = run_store.default_workspaces_dir(
+            runtime_root=runtime_root,
+            run_id="run-1",
+            repo_root=ROOT,
+            env={},
+        )
+
+        self.assertEqual("run-1", workspaces_dir.name)
+        self.assertNotEqual((runtime_root / "workspaces" / "run-1").resolve(), workspaces_dir)
+        self.assertFalse(str(workspaces_dir).startswith(str(ROOT.resolve())))
+
     def test_manifest_selected_plan_prefers_snapshot(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             run_dir = pathlib.Path(temp_dir)

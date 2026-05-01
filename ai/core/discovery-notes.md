@@ -7,4 +7,4 @@
 - `target/` contains generated outputs and is not source of truth.
 - Maven Central publishing is implemented via `release-central` profile in `pom.xml` and `.github/workflows/release.yml`.
 - Benchmark runner usage should resolve `target/*-benchmarks.jar` dynamically instead of hardcoding a versioned filename.
-- The Claude orchestrator runtime is repo-local under `.claude-orchestrator/`; copy-mode workspaces must exclude that tree so parallel or overlapping runs do not copy runtime artifacts back into worker sandboxes.
+- The Claude orchestrator keeps manifests and task artifacts under repo-local `.claude-orchestrator/`, but default copy/worktree worker sandboxes now live in an external temp-backed workspace root recorded in `workspacesDir`; this prevents copy-mode workers from mutating the live repo by escaping a repo-local sandbox.

@@ -1,11 +1,40 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
 
 class RunStoreError(RuntimeError):
     """Raised when retained run manifests are missing or structurally invalid."""
+
+
+def external_workspaces_root(
+    *,
+    repo_root: Path,
+    env: dict[str, str] | None = None,
+) -> Path:
+    variables = env if env is not None else os.environ
+    override = str(variables.get("POJOLENS_AGENT_WORKSPACES_ROOT", "")).strip()
+    if override:
+        return Path(override).resolve()
+    resolved_repo_root = repo_root.resolve()
+    repo_slug = resolved_repo_root.name or "repo"
+    repo_hash = hashlib.sha1(str(resolved_repo_root).encode("utf-8")).hexdigest()[:12]
+    return (Path(tempfile.gettempdir()) / "pojolens-agent-workspaces" / f"{repo_slug}-{repo_hash}").resolve()
+
+
+def default_workspaces_dir(
+    *,
+    runtime_root: Path,
+    run_id: str,
+    repo_root: Path,
+    env: dict[str, str] | None = None,
+) -> Path:
+    _ = runtime_root
+    return external_workspaces_root(repo_root=repo_root, env=env) / run_id
 
 
 def resolve_manifest_path(

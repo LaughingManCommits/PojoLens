@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-01T12:05:59.345697+02:00",
+  "generatedAt": "2026-05-01T17:16:28.171260+02:00",
   "groups": [
     {
       "component": "facades",
@@ -232,7 +232,7 @@
         {
           "name": "QuickstartEmployeeController",
           "kind": "class",
-          "path": "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+          "path": ".claude-orchestrator/workspaces/20260501T145931Z-example-parallel-implement-review-quickstart-6ead87af/document-and-test-department-endpoint/examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
         }
       ]
     },

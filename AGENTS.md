@@ -69,7 +69,7 @@ Claude orchestration:
 - the reusable AI memory plus orchestration contract lives in `ai/orchestrator/SYSTEM-SPEC.md`
 - when working on orchestration behavior, load the project-memory rules from `AGENTS.md` + `ai/AGENTS.md`, then load the control-plane contract from `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` as needed
 - keep project memory and orchestrator control-plane memory separate; cross-reference them, but do not let either become a duplicate state store for the other
-- keep runtime manifests, prompts, stdout/stderr, and isolated worker workspaces outside `ai/`, under repo-local `.claude-orchestrator/`
+- keep runtime manifests, prompts, and stdout/stderr outside `ai/` under repo-local `.claude-orchestrator/`; keep isolated worker workspaces outside the repo root in the orchestrator-managed external workspace root recorded in each manifest
 - only split work into low-coupling tasks; do not schedule parallel workers that need to edit the same files
 - default workers to isolated `copy` workspaces; use `worktree` only when a clean repo and git metadata are required; use `repo` only as an explicit high-risk exception
 - workers must not update `TODO.md`, `ai/state/*`, `ai/log/*`, or `ai/indexes/*`

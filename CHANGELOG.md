@@ -11,6 +11,16 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Quickstart grouped salary summary** - the Spring Boot starter quickstart
+  example now exposes a department salary-summary endpoint backed by a grouped
+  PojoLens query, with README curl docs and coverage in both default and
+  virtual-thread integration tests.
+
+- **Quickstart implementer-reviewer sample plan** - added
+  `ai/orchestrator/tasks/example-implement-review-quickstart.json` as the
+  smallest tracked coding-plus-review orchestration sample tied to a real repo
+  example module.
+
 - **Orchestrator trace export** - added `pojo_lens_agents.trace_export` and
   the `export-trace` command, which writes a stable
   `pojo-lens-orchestrator-trace/v1` JSON span graph for retained runs using
@@ -56,6 +66,20 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   support into dedicated `pojo_lens_agents` modules; the remaining
   `pojo_lens_agents.orchestrator_app` is now 863 lines and the focused
   orchestrator suite is green again.
+
+### Fixed
+
+- **External worker workspace isolation** - copy/worktree runs now allocate
+  default worker sandboxes in an external temp-backed workspace root recorded
+  in `workspacesDir` instead of under repo-local `.claude-orchestrator`,
+  closing the live-repo escape that let a failed parallel implementer run
+  mutate tracked files outside its sandbox.
+
+- **Live parallel coding proof** - the tracked
+  `example-parallel-implement-review-quickstart.json` run now completes with
+  two parallel implementers plus a reviewer, promotes the reviewed quickstart
+  README and test changes, and revalidates with the quickstart Maven test
+  suite.
 
 - **Approval lifecycle state machine** - retained runs now expose explicit
   `lifecycleState` / `lifecycleStateReason` plus `approvalSummary`, and the

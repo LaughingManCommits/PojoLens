@@ -76,6 +76,7 @@ Tracked samples:
 - `ai/orchestrator/tasks/example-parallel.json`: two concurrent-ready analyst tasks with no automatic downstream reviewer stage
 - `ai/orchestrator/tasks/example-trace-multibatch.json`: small two-batch analyst fixture that proves retained event traces and branch-context lineage
 - `ai/orchestrator/tasks/example-materialized-chain.json`: heavier chained implementer sample that keeps reviewed dependency materialization and downstream review visible
+- `ai/orchestrator/tasks/example-implement-review-quickstart.json`: minimal implementer-to-reviewer coding sample that adds one grouped-query feature to the Spring Boot quickstart example
 - `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
 - `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
 
@@ -165,7 +166,7 @@ Model selection:
 Concurrency:
 - ready tasks run in batches up to `--max-parallel`
 - parallel agent execution is a first-class requirement for independent tasks
-- each run gets a unique `run-id`, run manifest, and per-task workspace under `.claude-orchestrator/`
+- each run gets a unique `run-id` plus a repo-local run manifest under `.claude-orchestrator/`; the manifest records an absolute external `workspacesDir` for copy/worktree sandboxes so workers cannot escape into the live repo by traversing parent directories
 - validate and run manifests expose `parallelConflicts` for overlapping write-capable task scopes
 - overlapping write-capable tasks are serialized conservatively by declared `writePaths` scope even when they are dependency-ready together
 - `ai/orchestrator/tasks/example-parallel.json` is the tracked sample for concurrent-ready tasks without a forced reviewer hop

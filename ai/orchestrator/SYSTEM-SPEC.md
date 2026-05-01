@@ -66,7 +66,7 @@ This file defines the portable contract for recreating the repository's AI memor
   or the current working directory so it remains explicit in multi-repo shells.
 - Runtime paths are:
   - `.claude-orchestrator/runs/<run-id>/`
-  - `.claude-orchestrator/workspaces/<run-id>/<task-id>/`
+  - manifests store an absolute `workspacesDir` for each run; new runs default worker workspaces to an orchestrator-managed external temp-backed root outside the repo, while older manifests may still resolve legacy repo-local `.claude-orchestrator/workspaces/<run-id>/`
 - Worker task plans declare:
   - task id, title, agent, and prompt
   - optional top-level `runPolicy` with `runBudgetUsd`, `budgetBehavior`, per-task artifact byte limits (`maxTaskStdoutBytes`, `maxTaskStderrBytes`, `maxTaskResultBytes`), and `artifactBehavior`
