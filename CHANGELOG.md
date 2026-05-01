@@ -11,6 +11,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **LangGraph execution spike** - added
+  `pojo_lens_agents.langgraph_spike` and focused tests to map the current
+  orchestrator lifecycle onto candidate graph nodes, compare manifest-backed
+  `resume`/`retry` semantics and review/promotion interrupts, simulate
+  checkpointed parallel execution, and record the decision to keep the custom
+  scheduler and manifest model as the production path for now.
+
 - **Typed authoring compiler integration** - added
   `@GeneratePojoLensTypedFields` and `PojoLensTypedFieldsProcessor` so javac
   can emit IDE-visible `TypedField<T,V>` constants during compilation without

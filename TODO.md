@@ -35,7 +35,7 @@ Execution order is dependency-first, not ticket-number order.
 |-----|--------------------------------------|----------|------------------|
 | WP27| Orchestrator CLI Productization      | Complete    | Installable local CLI around the existing multi-agent commands, with stable JSON and one canonical `scripts/ai` implementation home |
 | WP28| Orchestrator Runtime Layering        | Complete | Internal package split for plan governance, workspace safety, provider calls, manifests, validation, and parallel scheduling |
-| WP29| LangGraph Execution Spike            | Pending  | Decision record and small prototype for checkpointed parallel graph execution without weakening repo safety rules |
+| WP29| LangGraph Execution Spike            | Complete | Decision record and prototype for checkpointed parallel graph execution; keep the custom scheduler and manifest model as the production path for now |
 | WP30| Run Visibility And Operator UX       | Pending  | Better status, inventory, review, and validation surfaces for retained multi-agent runs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -162,20 +162,36 @@ and graph-state visibility.
   repo-owned.
 - This work is a decision spike first, not a wholesale rewrite.
 
+**Decision:** Complete. The spike produced a tracked decision record and
+prototype, then concluded that PojoLens should keep the current custom
+scheduler and manifest model as the production path for now. LangGraph remains
+an optional future wrapper candidate for checkpointing, replay, and
+graph-state visibility only.
+
+**Work done:**
+- Added `scripts/ai/pojo_lens_agents/langgraph_spike.py` as a dependency-free
+      prototype boundary around lifecycle mapping, scheduler comparison, and
+      decision readout.
+- Recorded the final decision inline in this work package and the retained
+      orchestration/memory state.
+- Added focused tests covering lifecycle mapping, checkpointed parallel
+      scheduling, manifest-first resume/retry semantics, and the final
+      recommendation.
+
 **Tasks:**
-- [ ] Map the current run lifecycle onto graph nodes: load plan, validate
+- [x] Map the current run lifecycle onto graph nodes: load plan, validate
       scope, hydrate workspace, invoke worker, parse result, audit diff,
       checkpoint, review interrupt, validate-run, and promote.
-- [ ] Prototype the smallest checkpointed graph that can execute a dry-run
+- [x] Prototype the smallest checkpointed graph that can execute a dry-run
       worker plan or simulated two-task parallel run.
-- [ ] Compare LangGraph parallel node execution with the current ready-batch
+- [x] Compare LangGraph parallel node execution with the current ready-batch
       scheduler, including failure, retry, and partial-checkpoint behavior.
-- [ ] Evaluate human-in-the-loop interrupts for review and promotion approval.
-- [ ] Evaluate replay/resume semantics against the current manifest-based
+- [x] Evaluate human-in-the-loop interrupts for review and promotion approval.
+- [x] Evaluate replay/resume semantics against the current manifest-based
       `resume` and `retry` behavior.
-- [ ] Document what LangGraph would replace, what it would wrap, and what must
+- [x] Document what LangGraph would replace, what it would wrap, and what must
       remain custom.
-- [ ] Decide whether to proceed with an optional backend, keep the custom
+- [x] Decide whether to proceed with an optional backend, keep the custom
       scheduler, or defer LangGraph until the CLI/runtime split is complete.
 
 **Validate:**
