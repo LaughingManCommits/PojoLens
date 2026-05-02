@@ -52,6 +52,17 @@ Execution order is dependency-first, not ticket-number order.
 | WP44| Async Task Execution                 | Complete | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
 | WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
 | WP46| Typed Agent Contracts                | Complete | Added Pydantic v2 contract models, Pydantic-backed dataclasses, typed plan/agent/manifest validation boundaries, `py.typed`, and mypy coverage |
+| WP47| Human-in-the-Loop Approval Gates     | Planned | Mid-run human checkpoint: pause after any batch, inspect workspace diffs, approve/reject/modify before the next batch dispatches |
+| WP48| Pre-Flight Cost Estimation           | Planned | Estimate token spend and USD cost from plan topology before a run starts, with model/effort/prompt-size inputs and per-task breakdowns |
+| WP49| Dynamic Plan Mutation                | Planned | Coordinator consumes task `followUps` at runtime to inject new tasks or modify the pending DAG mid-run without restarting |
+| WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
+| WP51| Cross-Run Memory and Pattern Learning | Planned | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
+| WP52| Diff-Aware Incremental Replay        | Planned | On resume or retry, skip tasks whose inputs (prompt, read paths, dependency outputs) are identical to a prior successful execution |
+| WP53| CLI Ergonomics                       | Planned | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
+| WP54| TUI Dashboard                        | Planned | Live `textual`-based terminal dashboard during runs: task status grid, rolling cost, active-task log tail, and key bindings for HITL gate approval |
+| WP55| Guided Wizard Mode                   | Planned | No-args interactive wizard that walks the operator through the full validate → run → review → promote lifecycle without needing to know any commands |
+| WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
+| WP57| Human Diff View Before Promote       | Planned | `diff-run <run-id>` command that renders git-style file diffs of workspace vs repo so the operator sees exactly what changed before promoting |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -1135,6 +1146,572 @@ shape mismatches at the type layer rather than at runtime.
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`
 - `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP47: Human-in-the-Loop Approval Gates
+
+**Priority:** High
+
+**Goal:** Allow the operator to pause a run at any batch boundary, inspect
+workspace diffs and task outputs, then approve or reject continuation before
+the next batch dispatches — closing the gap between post-hoc review and
+mid-run oversight.
+
+**Context:**
+- The current review/promotion flow is post-hoc: all tasks run, then the
+  operator reviews the full run before promoting. This is fine for read-only
+  or low-risk docs runs, but for coding runs with many tasks the risk
+  accumulates across the whole DAG before any human sees it.
+- Tools like LangGraph supervisor patterns, Temporal workflow signals, and
+  Claude Code's multi-agent interrupt model all support mid-run escalation.
+  The gap is not that we lack approval state (WP33 added that) but that there
+  is no mechanism to pause before the next batch and ask the operator.
+- The right boundary is the batch: after each batch completes, before the
+  next `batch-ready` event fires, allow an optional gate that blocks until
+  the operator explicitly continues, aborts, or modifies the plan.
+- This does not require a UI — a CLI prompt or a sentinel file the operator
+  touches is sufficient for the repo-local case.
+
+**Tasks:**
+- [ ] Add `hitl` and `hitl_mode` fields to `RunPolicy`: `"none"` (default),
+      `"batch"` (pause after every batch), `"on-failure"` (pause after any
+      failed task), `"always"` (pause after first batch only).
+- [ ] Add `--hitl` CLI flag to `run` and `resume` commands; add a
+      `--hitl-mode` option defaulting to `"batch"`.
+- [ ] In `run_ops.run_loaded_plan`, after each batch result loop, check
+      `hitl` policy; if triggered, emit a `hitl-gate` run event, write
+      current manifest, and block on operator input (stdin prompt or sentinel
+      file at `run_dir/hitl-gate.lock`).
+- [ ] Add `hitl-approved` and `hitl-aborted` lifecycle events to the event
+      trace so retained runs record where operator gates fired.
+- [ ] Support `--hitl-auto-approve` for unattended CI runs that set the flag
+      but want HITL gates to pass silently (for testing gate logic without
+      blocking).
+- [ ] Add regression coverage for gate emission, manifest state at gate, and
+      continue/abort paths without requiring interactive stdin.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP48: Pre-Flight Cost Estimation
+
+**Priority:** High
+
+**Goal:** Estimate token spend and USD cost from a plan before the run starts,
+based on plan topology, model selection, effort tiers, and prompt budgets, so
+the operator knows the expected bill before committing.
+
+**Context:**
+- Every modern LLM platform (Vercel AI Gateway, LangSmith, OpenAI usage
+  estimators) surfaces cost prediction before dispatch. The orchestrator has
+  excellent post-run cost tracking (`totalCostUsd`, per-task usage records,
+  run governance limits) but no pre-run estimate.
+- The inputs needed for a useful estimate already exist: model per task (from
+  `modelProfile`), effort tier (maps to approximate context and output tokens
+  per turn), task count, number of agentic turns (bounded by tool loop), and
+  prompt budget size. A simple linear model over these produces estimates
+  accurate to ±30%, which is enough for "will this cost $1 or $100?".
+- The planner already exposes a `--dry-run` path that skips Claude invocation.
+  Pre-flight estimation can run in the same path and emit cost estimates to
+  the dry-run JSON payload without needing a live API call.
+- `run_budget_usd` in `RunPolicy` already lets operators cap spend. Pre-flight
+  should warn when the estimate exceeds the declared budget before the first
+  task fires.
+
+**Tasks:**
+- [ ] Add `estimate_task_cost(task, agent, plan)` in a new
+      `cost_estimation.py` module; return `{"minUsd": float, "maxUsd": float,
+      "minTokens": int, "maxTokens": int}` based on model pricing from a
+      tracked `model_pricing.json` table and effort-tier token heuristics.
+- [ ] Add `estimate_plan_cost(plan, agents)` that aggregates per-task
+      estimates plus concurrency-adjusted wall-clock time ranges.
+- [ ] Emit `costEstimate` into the dry-run payload from `run_loaded_plan`
+      (per-task and total); surface it in `run --dry-run --json` output.
+- [ ] Add a `--estimate` flag to `run` that runs estimation without needing
+      `--dry-run`; print the estimate table and exit without scheduling.
+- [ ] Warn in `validate` when the plan's `runBudgetUsd` is lower than the
+      minimum cost estimate.
+- [ ] Keep the pricing table in `ai/orchestrator/model-pricing.json` so it
+      can be updated independently of code.
+- [ ] Add regression coverage for per-task and plan-level estimate arithmetic
+      across model profiles and effort tiers.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --estimate --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP49: Dynamic Plan Mutation
+
+**Priority:** Medium
+
+**Goal:** Let the coordinator consume task `followUps` at runtime to inject
+new tasks or modify the pending DAG mid-run without restarting, closing the
+gap between fixed-DAG execution and plan-act-reflect loops.
+
+**Context:**
+- Workers already emit `followUps` in their JSON output (tracked in
+  `TaskRunRecord`). Today these are purely informational and visible in the
+  run summary, but the coordinator never acts on them.
+- In practice, a coding run often discovers mid-task that an additional
+  change is needed (a test file, a missing migration, a second module touched
+  by the first). Without dynamic mutation the operator has to start a new run
+  from scratch for the follow-up work.
+- The safe boundary for mutation is the same as HITL: between batches, after
+  a completed task emits follow-ups and before the next `batch-ready` fires.
+  New tasks injected mid-run must still satisfy the write-scope conflict model
+  and receive dependency wiring to the emitting task.
+- Mutation scope must be bounded: only the current run's pending queue may
+  change; retroactive task changes and re-runs of completed tasks are out of
+  scope for this WP.
+
+**Tasks:**
+- [ ] Add a `RunPolicy.followUpBehavior` field: `"ignore"` (default),
+      `"inject"` (inject approved follow-ups as new tasks after the emitting
+      task's batch).
+- [ ] After each batch result loop in `run_ops.run_loaded_plan`, collect all
+      `followUps` from completed task records; if `inject` mode, validate
+      each follow-up shape and inject it as a new `TaskDefinition` into the
+      pending queue with `depends_on` pointing to the emitting task.
+- [ ] Validate injected tasks against the existing write-scope conflict model
+      before scheduling; reject and warn on scope conflicts.
+- [ ] Emit `task-injected` run events for each follow-up promoted to a real
+      task; track injection lineage in the task record (`injectedFrom` field).
+- [ ] Add `--follow-up-mode` CLI flag to `run` / `resume` that maps to
+      `followUpBehavior`; default `ignore` to preserve existing behavior.
+- [ ] Add regression coverage for injection, scope-conflict rejection,
+      lineage tracking, and the `ignore` default.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --follow-up-mode inject --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP50: Rate-Limit-Aware Proactive Scheduling
+
+**Priority:** Medium
+
+**Goal:** Track rolling token consumption per time window and pre-throttle
+task dispatch when approaching Anthropic quota limits, replacing the current
+purely reactive retry-on-429 model with a smoother submission curve.
+
+**Context:**
+- The current model is: submit task → if 429 → retry with exponential backoff
+  (WP42). This works but produces bursty submission patterns that generate
+  unnecessary 429s and waste wall-clock time on backoff delays.
+- Anthropic's rate limits are expressed as tokens per minute (TPM) and
+  requests per minute (RPM). Both are knowable in advance from the model
+  tier and the account limit tier.
+- The orchestrator already tracks `usage.inputTokens` + `usage.outputTokens`
+  per task record. Adding a rolling window over recent task completions
+  produces a running TPM estimate. When projected consumption for the next
+  batch exceeds the window budget, the scheduler should delay dispatch rather
+  than submit and absorb a 429.
+- This is especially valuable for large parallel runs (`--max-parallel 4+`)
+  where simultaneous task completions spike output token counts.
+
+**Tasks:**
+- [ ] Add a `RateLimitBucket` abstraction in `run_ops.py` (or a new
+      `rate_limiter.py`) that tracks sliding-window token and request counts
+      with configurable `tpm_limit` and `rpm_limit` capacities.
+- [ ] Read `ANTHROPIC_TPM_LIMIT` and `ANTHROPIC_RPM_LIMIT` env vars (with
+      sane defaults per model tier) to initialize the bucket; allow
+      `--tpm-limit` / `--rpm-limit` CLI overrides.
+- [ ] In `run_ops._run_one`, before acquiring the semaphore, check the rate
+      bucket; if the projected next-task cost would exceed the window, sleep
+      until the window refills.
+- [ ] Track per-task token cost before dispatch using the cost estimation
+      module from WP48 (or a simpler heuristic if WP48 is not yet done).
+- [ ] Emit `rate-throttle` run events when the scheduler voluntarily delays
+      a task dispatch due to budget proximity; record delay duration.
+- [ ] Add regression coverage for throttle logic, window refill, and the
+      `rate-throttle` event without requiring live API calls.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP51: Cross-Run Memory and Pattern Learning
+
+**Priority:** Medium
+
+**Goal:** Persist a structured ledger of outcomes, failure patterns, and
+successful decompositions across runs so the planner can consult prior
+evidence when generating new plans for similar tasks on the same codebase.
+
+**Context:**
+- Today every run starts from scratch. The planner has no memory of which
+  task decompositions worked well, which agents struggled with which module
+  paths, or which read-path declarations were too narrow and needed expanding.
+- LangGraph, Microsoft Foundry AgentDB, and similar frameworks all provide
+  some form of persistent cross-run memory. The gap is not retrieval
+  infrastructure (the repo already has `ai/indexes/cold-memory.db` from the
+  memory system) but a structured run-quality ledger that the planner can
+  query.
+- The safest initial form is a tracked `ai/state/run-ledger.jsonl` where each
+  completed run appends a compact record: plan name, task count, per-task
+  status, failure kinds, high-cost tasks, reviewer blocks, and key module
+  paths. The planner prompt can then load the last N ledger entries for the
+  same plan prefix and surface patterns as planning context.
+- This is deliberately shallow: it is a ledger, not a vector store. The goal
+  is to give the planner concrete evidence about this codebase, not to build
+  a general RAG system.
+
+**Tasks:**
+- [ ] Define a compact `RunLedgerEntry` schema: run id, plan name, generated
+      at, task count, per-task `{id, status, failureKind, costUsd, modules}`,
+      reviewer block count, and a brief `plannerNotes` string the coordinator
+      can optionally emit.
+- [ ] Append a `RunLedgerEntry` to `ai/state/run-ledger.jsonl` at the end of
+      every `run_loaded_plan` call (both live and dry-run); keep the file
+      tracked in git as part of AI state.
+- [ ] Add `--ledger-context N` flag to `plan` command; when set, load the
+      last N ledger entries matching the same plan name prefix and inject a
+      compact "prior run evidence" section into the planner prompt.
+- [ ] Add `summarize-ledger` subcommand that prints a human-readable summary
+      of ledger entries (success rate, average cost, common failure kinds,
+      high-cost tasks by module) for a given plan name or date range.
+- [ ] Prune ledger entries older than 90 days in `cleanup` command to keep
+      the tracked file bounded.
+- [ ] Add regression coverage for ledger append, entry schema validation,
+      pruning, and planner context injection.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --json`
+- `scripts/ai/claude-orchestrator.ps1 summarize-ledger --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP52: Diff-Aware Incremental Replay
+
+**Priority:** Medium
+
+**Goal:** On `resume` or `retry`, skip tasks whose inputs are identical to a
+prior successful execution and reuse the existing task record, cutting
+unnecessary re-execution after partial failures.
+
+**Context:**
+- The current `resume` command re-runs all non-completed tasks. The `retry`
+  command re-runs all failed tasks. Neither checks whether the task's inputs
+  (prompt, read-path contents, dependency outputs) have actually changed
+  since the prior run. For large plans where one task fails late, this means
+  re-running all the preceding tasks unnecessarily.
+- Content-addressed task fingerprinting is standard in build tools (Gradle
+  build cache, Bazel remote cache) and increasingly in LLM pipelines. The
+  idea is identical: hash the task's deterministic inputs; if the hash matches
+  a prior successful record, skip execution and reuse the result.
+- Task input fingerprint components: task prompt text, read-path file contents
+  (SHA-256 of each declared `readPaths` file), resolved agent definition hash,
+  dependency output summaries, and model+effort selection. These are all
+  available before task dispatch.
+- Fingerprint reuse must be opt-in (`--reuse-unchanged`) to avoid unexpected
+  skips in the default path.
+
+**Tasks:**
+- [ ] Add `compute_task_fingerprint(task, agent, plan, dep_records,
+      workspace_root)` in a new `task_fingerprint.py` module; hash prompt,
+      sorted read-path file contents, agent JSON, dep summaries, and model
+      selection into a stable SHA-256 hex string.
+- [ ] Store `fingerprint` and `fingerprintInputs` in `TaskRunRecord` and
+      persist them in the manifest; existing records without a fingerprint
+      are treated as uncacheable.
+- [ ] In `run_ops.run_loaded_plan`, when `reuse_unchanged=True`, check if a
+      prior record for the task exists with a matching fingerprint and
+      `status="completed"`; if so, emit a `task-reused` run event and skip
+      dispatch.
+- [ ] Add `--reuse-unchanged` flag to `run`, `resume`, and `retry` commands.
+- [ ] Add `--fingerprint-only` flag to `validate` that computes and prints
+      task fingerprints without running, useful for debugging cache misses.
+- [ ] Add regression coverage for fingerprint stability, cache hits, cache
+      misses on prompt/read-path changes, and the `task-reused` event.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --reuse-unchanged --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP53: CLI Ergonomics
+
+**Priority:** Medium
+
+**Goal:** Eliminate per-run flag repetition with a repo-local config file and
+add a `--watch` live progress formatter so long runs show task progress as it
+happens instead of producing output only at completion.
+
+**Context:**
+- Every run today repeats the same flags: `--runtime-root`, `--claude-bin`,
+  `--max-parallel`, `--continue-on-error`. A `pojolens-agents.toml` in the
+  repo root provides sensible defaults so the daily operator invocation shrinks
+  from a 6-flag command to just the subcommand and plan path.
+- WP44 converted task execution to `asyncio`, so task completions already
+  arrive incrementally. The missing piece is a formatter that emits a
+  human-readable progress line to stderr as each `task-finished` event fires,
+  making long coding runs observable without polling the manifest.
+- Both improvements are additive and do not touch any existing JSON contracts,
+  manifest format, or test fixtures.
+
+**Tasks:**
+- [ ] Define a `[defaults]` section in `pojolens-agents.toml` covering:
+      `runtime_root`, `claude_bin`, `max_parallel`, `continue_on_error`,
+      `dry_run`, `worker_validation_mode`. Load it from the repo root (or
+      `POJOLENS_CONFIG` env var) before argparse defaults; explicit CLI flags
+      still override config values.
+- [ ] Add `config_loader.py` in `pojo_lens_agents` to read and validate the
+      TOML; surface clear errors for unknown keys or wrong value types.
+- [ ] Add `--config` global flag to override the config file path; add
+      `config show` subcommand that prints resolved config as JSON.
+- [ ] Add `--watch` flag to `run`, `resume`, and `retry`; when set, stream
+      a one-line progress update to stderr for each `task-finished`,
+      `task-retry`, `batch-ready`, and `run-finished` event as it is emitted
+      from `run_loaded_plan`.
+- [ ] Format watch lines as: `[HH:MM:SS] task-id  status  cost  summary…`
+      (truncated to terminal width); write to stderr so `--json` stdout
+      piping is unaffected.
+- [ ] Add regression coverage for config loading, flag override precedence,
+      unknown key rejection, and watch event formatting.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 config show --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --watch --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP54: TUI Dashboard
+
+**Priority:** Medium
+
+**Goal:** A live `textual`-based terminal dashboard that replaces staring at
+a blank terminal during long runs: task status grid, rolling cost counter,
+active-task log tail, and key bindings for HITL gate approval.
+
+**Context:**
+- WP44 made execution async and WP53 adds a `--watch` line formatter as the
+  fallback for CI/pipes. WP54 is the interactive upgrade: a proper TUI that
+  updates in place rather than scrolling lines.
+- `textual` is the right library — it handles resize, mouse, and key events,
+  runs on Windows/macOS/Linux, and does not require a special terminal. It
+  composes well with the existing asyncio event loop from WP44.
+- The dashboard should be opt-in via a `--tui` flag (or auto-detected when
+  stdout is a TTY and `textual` is installed); `--watch` and `--json` remain
+  the non-TUI paths for CI and piping.
+- Key panels: task grid (id, status, model, cost, elapsed), run summary bar
+  (total cost, tasks done/total, elapsed), active-task log pane (last N lines
+  of the running task's stderr), and a status footer with key bindings.
+- WP47 HITL gate approval maps naturally to a TUI prompt: when a gate fires
+  the footer switches to `[a] approve  [x] abort` and the run waits for input.
+
+**Tasks:**
+- [ ] Add `textual>=0.60` as an optional dependency in `pyproject.toml` under
+      a `[tui]` extras group; gate import behind `try/except ImportError` so
+      missing `textual` degrades to `--watch` with a warning.
+- [ ] Add `tui_app.py` in `pojo_lens_agents` with a `OrchestratorApp(App)`
+      class; panels: `TaskGrid` (DataTable), `RunSummaryBar` (Static),
+      `LogPane` (RichLog), `FooterBar` (Footer with bindings).
+- [ ] Wire `tui_app.py` into the `run_loaded_plan` async loop via a shared
+      asyncio `Queue`; run events (`task-finished`, `task-retry`,
+      `batch-ready`, `run-finished`) post to the queue; the TUI worker
+      consumes them and updates widgets without blocking task dispatch.
+- [ ] Update `TaskGrid` on each `task-finished` event: status cell color
+      (`green` completed, `red` failed, `yellow` running, `dim` pending),
+      cost column, elapsed time.
+- [ ] Add `LogPane` that tails the active task's stderr file path from the
+      task record; refresh every 500 ms while the task is running.
+- [ ] When WP47 HITL gate fires, post a `hitl-gate` message to the TUI;
+      `FooterBar` switches bindings to `[a] approve  [x] abort`; keypress
+      resolves the gate future and run continues or aborts.
+- [ ] Add `--tui` flag to `run`, `resume`, and `retry`; auto-enable when
+      stderr is a TTY and `textual` is importable unless `--watch` or `--json`
+      is set.
+- [ ] Add regression coverage for queue message routing and widget state
+      updates using `textual`'s built-in test harness (no live terminal
+      required).
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --tui`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP55: Guided Wizard Mode
+
+**Priority:** Medium
+
+**Goal:** Make `pojolens-agents` usable without reading the docs — a no-args
+interactive wizard that walks the operator through the full lifecycle from
+plan selection to promotion, chaining all commands with human-friendly prompts.
+
+**Context:**
+- The full operator workflow is: `validate → run → review → promote`. Each
+  step is a separate command with its own flags. A new user has to read the
+  README to know what to call in what order and with which options.
+- The wizard collapses this into a single guided session: "which plan?",
+  "dry run first?", "max parallel?", then executes, shows the outcome, and
+  asks "promote?" — no command knowledge required.
+- `pojolens-agents` with no arguments (or a `wizard` subcommand) enters the
+  wizard. It uses `textual` from WP54 when available for a full TUI wizard,
+  falling back to simple `rich`-formatted `input()` prompts when `textual`
+  is not installed so it works in any terminal.
+- The wizard does not replace the existing subcommands — it wraps them.
+  Operators who know the commands keep using them directly; the wizard is for
+  occasional users and onboarding.
+- The wizard itself has no LLM calls for pure UI flow. One optional exception:
+  a natural-language entry point ("describe what you want to do") where Claude
+  interprets intent and matches or generates a plan. This step uses
+  `claude-haiku-4-5` (cheapest, lowest latency) since the reasoning is simple
+  — intent parsing, not code generation. All heavy work still runs through
+  the normal worker agents at their declared model profiles.
+- Inventory of prior runs, resume/retry suggestions, and cost estimates
+  (WP48 if done) should surface naturally in the wizard flow so the operator
+  can make informed choices without manually querying.
+
+**Tasks:**
+- [ ] Add `wizard.py` in `pojo_lens_agents`; entry point: `pojolens-agents`
+      with no subcommand (or explicit `wizard` subcommand).
+- [ ] Step 1 — Plan selection: list `ai/orchestrator/tasks/*.json` plans with
+      name/goal previews; operator picks one or provides a path.
+- [ ] Step 2 — Pre-flight: show task count, agent profiles, and cost estimate
+      (WP48 if available); ask "dry run first?" and "max parallel?".
+- [ ] Step 3 — Run: execute with TUI (WP54 if available) or `--watch` output;
+      display run summary on completion (status counts, total cost, duration).
+- [ ] Step 4 — Review gate: if any tasks completed with workspace changes, ask
+      "review changes?" and invoke `review` command inline; show reviewer
+      findings summary.
+- [ ] Step 5 — Promote gate: if review passed (or no reviewer tasks), ask
+      "promote to repo?" with a diff summary; invoke `promote` on confirm,
+      skip on deny.
+- [ ] Step 6 — Validation: after promotion, offer "run post-promotion
+      validation?" and invoke `validate-run` inline; report pass/fail.
+- [ ] Step 7 — Done: print a compact run receipt (run id, promoted files,
+      cost) and exit.
+- [ ] If any step fails (run failure, reviewer block, promotion rejection),
+      surface the error clearly and offer relevant next steps: "retry failed
+      tasks?", "open run dir?", "view manifest?".
+- [ ] Add optional natural-language entry: `pojolens-agents "add pagination to
+      the employee endpoint"` → `claude-haiku-4-5` call that matches intent to
+      an existing tracked plan or generates a minimal task plan; operator
+      confirms before execution. Model hard-coded to haiku — never escalates.
+- [ ] Add `--resume` and `--retry` wizard entry points that skip to the
+      appropriate step for an existing run id.
+- [ ] Add regression coverage for wizard step sequencing, abort paths, and
+      flag forwarding to underlying commands.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 wizard --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP56: Run Completion Notifications
+
+**Priority:** Medium
+
+**Goal:** Notify the operator when a run finishes so they do not have to watch
+the terminal — desktop notification, webhook POST, or Slack message with run
+status and cost summary.
+
+**Context:**
+- Runs take 10-30 minutes. Watching a terminal is not viable. Right now the
+  only signal is the process exit or `--watch` output. A notification fired
+  on `run-finished` closes this gap with minimal architecture: hook into the
+  existing event at the end of `run_loaded_plan` and dispatch based on config.
+- Three channels cover the main use cases: desktop (solo developer, immediate
+  feedback), webhook (CI/CD integration, post to any HTTP endpoint), Slack
+  (team awareness). All three are opt-in via `pojolens-agents.toml` or env
+  vars; no channel is required.
+- Notification payload: run id, status (`completed`/`failed`/`blocked`),
+  task counts, total cost, duration, and a one-line summary. Small enough to
+  fit in a Slack message or desktop toast.
+
+**Tasks:**
+- [ ] Add `[notifications]` section to `pojolens-agents.toml` schema (WP53);
+      fields: `desktop = true/false`, `webhook_url`, `slack_webhook_url`,
+      `notify_on = ["success", "failure", "always"]`.
+- [ ] Add `notify.py` in `pojo_lens_agents` with three dispatcher functions:
+      `notify_desktop(payload)` via `plyer` (optional dep), `notify_webhook(
+      url, payload)` via `urllib.request` (no extra dep), `notify_slack(url,
+      payload)` formatting a Slack Block Kit message with status colour.
+- [ ] Call `notify.py` dispatchers at the end of `run_loaded_plan` after the
+      `run-finished` event is emitted; run in a background thread so a slow
+      webhook does not delay process exit.
+- [ ] Add `--notify` CLI flag to `run`, `resume`, and `retry` that enables
+      desktop notification for that invocation without needing config file
+      changes; `--no-notify` suppresses config-file notifications for one run.
+- [ ] Add `plyer` as an optional dependency in `pyproject.toml` under a
+      `[notifications]` extras group; degrade gracefully if not installed.
+- [ ] Add regression coverage for payload construction and dispatcher
+      routing without requiring live network calls (mock `urllib.request`).
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --notify --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP57: Human Diff View Before Promote
+
+**Priority:** Medium
+
+**Goal:** A `diff-run <run-id>` command that renders git-style file diffs of
+workspace changes vs the live repo so the operator sees exactly what workers
+changed before deciding to promote.
+
+**Context:**
+- The current promote flow shows an AI-generated reviewer summary but no
+  literal file diffs. To see what actually changed the operator has to
+  navigate to the workspace directory manually and run `git diff` themselves.
+- A `diff-run` command closes this: read the task records from the manifest,
+  find each task's workspace, diff touched files against the repo counterpart,
+  and render the output with `rich` syntax highlighting. The wizard (WP55)
+  can call it inline at the promote gate.
+- This is read-only and zero-risk — it never touches the repo. It just
+  presents the same information `promote --dry-run` already has, but in a
+  human-readable diff format rather than a JSON payload.
+- Selective diff by task id or file path covers the most common workflow:
+  "show me just what the implementer changed in `src/`".
+
+**Tasks:**
+- [ ] Add `diff_run.py` in `pojo_lens_agents`; read manifest, iterate task
+      records, collect `actualFilesTouched` paths, diff each workspace file
+      against the repo counterpart using `difflib.unified_diff`.
+- [ ] Render diffs with `rich` syntax highlighting: red for deletions, green
+      for additions, dim for context lines; group by task then by file.
+- [ ] Add `diff-run` subcommand: `pojolens-agents diff-run <run-id-or-path>
+      [--tasks task-a,task-b] [--paths src/**] [--stat]`.
+- [ ] `--stat` flag prints a compact summary (files changed, insertions,
+      deletions per task) without full diff body, matching `git diff --stat`.
+- [ ] `--json` flag emits structured diff payload: per-file unified diff
+      strings, line counts, and task attribution for machine consumption.
+- [ ] Wire `diff-run` into the wizard (WP55) promote gate: show `--stat`
+      output and offer "full diff?" before the promote prompt.
+- [ ] Add regression coverage for diff rendering, stat computation, task and
+      path filtering, and missing workspace graceful handling.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 diff-run .claude-orchestrator/runs/<run-id> --stat --json`
 - `scripts/docs/check-doc-consistency.ps1`
 
 ---
