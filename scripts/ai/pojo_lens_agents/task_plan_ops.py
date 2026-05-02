@@ -3,29 +3,38 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
+from pojo_lens_agents.orchestrator_models import (
+    AgentDefinitionModel,
+    RunPolicyModel,
+    TaskPlanModel,
+    dump_contract,
+    validation_error_summary,
+)
+
+
+def _contract_error(location: str, exc: ValidationError, *, error_factory) -> Exception:
+    return error_factory(f"{location}: typed contract validation failed: {validation_error_summary(exc)}")
+
 
 def load_run_policy(payload: Any, *, location: str, deps: dict[str, Any]) -> Any:
     if payload is None:
-        return deps["run_policy_factory"]()
-    if not isinstance(payload, dict):
+        model = RunPolicyModel()
+    elif not isinstance(payload, dict):
         raise deps["error_factory"](f"{location}: runPolicy must be an object")
+    else:
+        try:
+            model = RunPolicyModel.model_validate(payload)
+        except ValidationError as exc:
+            raise _contract_error(f"{location}:runPolicy", exc, error_factory=deps["error_factory"]) from exc
     return deps["run_policy_factory"](
-        run_budget_usd=deps["require_optional_float"](payload, "runBudgetUsd", location=location),
-        budget_behavior=deps["normalize_run_policy_behavior"](
-            deps["require_optional_string"](payload, "budgetBehavior", location=location),
-            location=location,
-            key="budgetBehavior",
-            default=deps["default_run_budget_behavior"],
-        ),
-        max_task_stdout_bytes=deps["require_optional_int"](payload, "maxTaskStdoutBytes", location=location),
-        max_task_stderr_bytes=deps["require_optional_int"](payload, "maxTaskStderrBytes", location=location),
-        max_task_result_bytes=deps["require_optional_int"](payload, "maxTaskResultBytes", location=location),
-        artifact_behavior=deps["normalize_run_policy_behavior"](
-            deps["require_optional_string"](payload, "artifactBehavior", location=location),
-            location=location,
-            key="artifactBehavior",
-            default=deps["default_artifact_behavior"],
-        ),
+        run_budget_usd=model.run_budget_usd,
+        budget_behavior=model.budget_behavior,
+        max_task_stdout_bytes=model.max_task_stdout_bytes,
+        max_task_stderr_bytes=model.max_task_stderr_bytes,
+        max_task_result_bytes=model.max_task_result_bytes,
+        artifact_behavior=model.artifact_behavior,
     )
 
 
@@ -133,6 +142,10 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
             disallowed_tools=deps["require_string_list"](definition, "disallowedTools", location=location),
             max_retries=deps["require_optional_int"](definition, "maxRetries", location=location),
         )
+        try:
+            AgentDefinitionModel.model_validate(dump_contract(agent))
+        except ValidationError as exc:
+            raise _contract_error(location, exc, error_factory=deps["error_factory"]) from exc
         agents[agent.name] = agent
 
     if deps["planner_task_id"] not in agents:
@@ -275,7 +288,7 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
             raise deps["error_factory"](f"{path}:{task.id}: task cannot depend on itself")
     deps["topological_batches"](tasks)
 
-    return deps["task_plan_factory"](
+    plan = deps["task_plan_factory"](
         version=1,
         name=deps["require_string"](payload, "name", location=str(path)),
         goal=deps["require_string"](payload, "goal", location=str(path)),
@@ -283,6 +296,11 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
         tasks=tasks,
         run_policy=run_policy,
     )
+    try:
+        TaskPlanModel.model_validate(dump_contract(plan))
+    except ValidationError as exc:
+        raise _contract_error(str(path), exc, error_factory=deps["error_factory"]) from exc
+    return plan
 
 
 def effective_task_read_paths(plan: Any, task: Any, *, dedupe_strings) -> list[str]:

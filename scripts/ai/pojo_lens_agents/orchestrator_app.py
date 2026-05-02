@@ -433,6 +433,7 @@ def manifest_payload(
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
             "summarized_worker_validation_mode": summarized_worker_validation_mode,
             "serialize_run_policy": serialize_run_policy,
+            "error_factory": OrchestratorError,
         },
     )
 
@@ -498,6 +499,7 @@ def write_manifest(
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
             "summarized_worker_validation_mode": summarized_worker_validation_mode,
             "serialize_run_policy": serialize_run_policy,
+            "error_factory": OrchestratorError,
         },
     )
 

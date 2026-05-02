@@ -7,6 +7,11 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 
+from pydantic import ValidationError
+
+from pojo_lens_agents.orchestrator_contracts import OrchestratorError
+from pojo_lens_agents.orchestrator_models import CoordinatorCheckpointModel, validation_error_summary
+
 DOC_TEXT_SUFFIXES = frozenset({".md", ".txt", ".adoc", ".rst"})
 DOC_TEXT_FILENAMES = frozenset({"readme", "changelog", "contributing", "license"})
 DOCS_CONSISTENCY_COMMAND = "scripts/docs/check-doc-consistency.ps1"
@@ -282,7 +287,14 @@ def write_run_checkpoint(
     summary_path = checkpoint_dir / "summary.json"
     write_json(summary_path, payload)
     updated_manifest = dict(manifest)
-    updated_manifest[checkpoint_name] = {**payload, "summaryPath": str(summary_path)}
+    checkpoint_payload = {**payload, "summaryPath": str(summary_path)}
+    try:
+        CoordinatorCheckpointModel.model_validate(checkpoint_payload)
+    except ValidationError as exc:
+        raise OrchestratorError(
+            f"{checkpoint_name}: typed checkpoint validation failed: {validation_error_summary(exc)}"
+        ) from exc
+    updated_manifest[checkpoint_name] = checkpoint_payload
     write_json(manifest_path, updated_manifest)
     return updated_manifest
 

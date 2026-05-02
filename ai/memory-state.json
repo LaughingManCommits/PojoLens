@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-02T09:34:18.469553+02:00",
-  "generation": "20260502T073418-10996-1777707258473253200",
+  "generatedAt": "2026-05-02T16:52:18.821239+02:00",
+  "generation": "20260502T145218-10016-1777733538824926200",
   "git": {
-    "headCommit": "5b913f8a62d20772c1f354c5e8d4aac6ff9e7eb8",
+    "headCommit": "d2aa945c506250114e952859182adabc7c5157f9",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "a3d8258409d1061f4f27dd9fa6115f1de6d26be9b069c6afcde43e0eff5d0f99",
+  "inputsHash": "cb192f9c7002b8ea5bcb6bef3386feaf72bf8c717e40298295783efccc02c099",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 31,
-        "bytes": 2956,
+        "lines": 25,
+        "bytes": 1425,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 32,
-        "bytes": 2500,
+        "lines": 30,
+        "bytes": 1716,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 93,
-    "totalBytes": 8097,
+    "totalLines": 85,
+    "totalBytes": 5782,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "b19f06a5518eb9b0c53bc96ed02350958b44da52f88754d2cbefaa95b180fba1",
+        "inputHash": "4c5dc7ed4e6667f94f604803c98f5a0a0b0dbde26cd8c69973d7763b79079b21",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "6968586866ad2d8dd0ef1fc341000dc8937d7e2bd114720be9f38d7e093176d5",
+        "inputHash": "ab75eda35da9792d0b3bc45126e3975082c2212828d3e9d64abba0a5cf562b6f",
         "inputFiles": 560
       },
       {
@@ -166,7 +166,7 @@
       {
         "path": "ai/indexes/config-index.json",
         "status": "reused",
-        "inputHash": "c958a6e53c8d1d4f7c980b17d218b7ea3d996d2055eeba5775722c47d18ac800",
+        "inputHash": "568fec5210d8e4782ed0a2deb24c7a66ad74c12589bbefb6dbcd895ee0ebf1d3",
         "inputFiles": 50
       }
     ],

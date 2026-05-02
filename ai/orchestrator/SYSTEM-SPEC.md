@@ -152,6 +152,11 @@ This file defines the portable contract for recreating the repository's AI memor
 - Same-run resume is run continuity rather than partial sandbox continuity; resumed `copy` or `worktree` tasks may rebuild fresh workspaces before rerun.
 - Run inventory should expose compact status, resume-candidate, coordinator-validation, prompt, and cost summaries across the runtime root.
 - Retained-run manifests and summaries should expose explicit approval lifecycle state plus persisted coordinator review, validation, and promotion checkpoints so interrupts stay resumable and inspectable without reopening every artifact directory.
+- Major orchestration contracts should be represented as typed Pydantic models
+  at the JSON boundaries: task plans, agent definitions, run policies, output
+  profile resolutions, task records, dependency handoffs, retained manifests,
+  and coordinator checkpoints. Internal compatibility dataclasses may remain
+  Pydantic-backed when that preserves existing call sites and manifest shape.
 - Validate surfaces should expose tracked `runPolicy`, and run/retry/manifests plus retained-run summaries should expose run-governance status, alert counts, highest-cost tasks, and aggregate artifact totals.
 - Retained-run summaries should also surface compact topology fields such as batch count, max parallel width, and topology warning count so inventory remains useful without opening each manifest.
 - Retained-run summaries should also expose resolved output-profile counts plus any unexpectedly verbose tasks so cost/debug review can find noisy workers quickly.

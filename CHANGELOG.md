@@ -11,6 +11,15 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Typed orchestrator contracts** - added Pydantic v2 as a core tooling
+  dependency, introduced `pojo_lens_agents.orchestrator_models` for typed
+  task-plan, agent, run-policy, manifest, task-record, prompt, validation, and
+  dependency-layer contracts, converted existing orchestrator contract
+  dataclasses to Pydantic-backed dataclasses while preserving `asdict`
+  compatibility, added typed validation at plan/agent loading and manifest
+  serialization boundaries, published `py.typed`, and added mypy coverage plus
+  model round-trip tests.
+
 - **Skill registry and router for orchestrator workers** - added a tracked
   `ai/orchestrator/skills/registry.json` plus `skills/<name>/SKILL.md`
   folders, task-level `skills` support in task plans, bounded docs/release/

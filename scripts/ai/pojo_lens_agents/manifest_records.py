@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import ValidationError
+
+from pojo_lens_agents.orchestrator_models import (
+    TaskRunRecordModel,
+    dump_contract,
+    validation_error_summary,
+)
+
 
 def count_statuses(values: list[str]) -> dict[str, int]:
     counts: dict[str, int] = {}
@@ -37,8 +45,9 @@ def task_branch_context_id(
 def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any]) -> Any:
     if not isinstance(payload, dict):
         raise deps["error_factory"](f"{location}: expected task record object")
-    budget_payload: dict[str, Any] = payload.get("prompt_budget") if isinstance(payload.get("prompt_budget"), dict) else {}
-    return deps["task_run_record_factory"](
+    raw_budget_payload = payload.get("prompt_budget")
+    budget_payload: dict[str, Any] = raw_budget_payload if isinstance(raw_budget_payload, dict) else {}
+    record = deps["task_run_record_factory"](
         id=str(payload.get("id", "")),
         title=str(payload.get("title", "")),
         agent=str(payload.get("agent", "")),
@@ -148,7 +157,20 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
             for item in payload.get("reviewer_findings", []) or []
             if isinstance(item, dict)
         ],
+        attempt=int(payload.get("attempt", 1) or 1),
+        attempt_errors=[
+            item
+            for item in payload.get("attempt_errors", []) or []
+            if isinstance(item, dict)
+        ],
     )
+    try:
+        TaskRunRecordModel.model_validate(dump_contract(record))
+    except ValidationError as exc:
+        raise deps["error_factory"](
+            f"{location}: typed task record validation failed: {validation_error_summary(exc)}"
+        ) from exc
+    return record
 
 
 def selected_run_records(

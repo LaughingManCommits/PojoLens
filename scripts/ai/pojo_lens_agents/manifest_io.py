@@ -3,6 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
+from pojo_lens_agents.orchestrator_models import RunManifestModel, validation_error_summary
+
 
 def manifest_payload(
     run_id: str,
@@ -114,6 +118,12 @@ def manifest_payload(
         payload["requestedTaskIds"] = list(requested_task_ids or [])
         payload["retriedTaskIds"] = list(retried_task_ids or [])
         payload["seededTaskIds"] = list(seeded_task_ids or [])
+    try:
+        RunManifestModel.model_validate(payload)
+    except ValidationError as exc:
+        raise deps["error_factory"](
+            f"run manifest typed contract validation failed: {validation_error_summary(exc)}"
+        ) from exc
     return payload
 
 

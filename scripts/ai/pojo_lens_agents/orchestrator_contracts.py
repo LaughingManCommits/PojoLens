@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import re
 import threading
-from dataclasses import dataclass, field
+from dataclasses import field
 from pathlib import Path
 from typing import Any
+
+from pydantic.dataclasses import dataclass
 
 ROOT = Path(__file__).resolve().parents[3]
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
