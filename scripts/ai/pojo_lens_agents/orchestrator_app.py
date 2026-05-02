@@ -41,6 +41,7 @@ evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
 hitl_layer = _LazyModuleProxy("pojo_lens_agents.hitl")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
 retry_policy_layer = _LazyModuleProxy("pojo_lens_agents.retry_policy")
+run_ledger_layer = _LazyModuleProxy("pojo_lens_agents.run_ledger")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
@@ -642,7 +643,7 @@ def run_loaded_plan(
             max_task_retries=_max_retries,
         )
 
-    return asyncio.run(run_ops_layer.run_loaded_plan(
+    payload = asyncio.run(run_ops_layer.run_loaded_plan(
         plan_path,
         agents_path,
         agents,
@@ -725,6 +726,12 @@ def run_loaded_plan(
         emit_otel_trace=otel_layer.emit_otel_trace_from_custom_payload,
         error_factory=OrchestratorError,
     ))
+    try:
+        ledger_entry = run_ledger_layer.build_ledger_entry(payload, iso_now_fn=iso_now)
+        run_ledger_layer.append_ledger_entry(DEFAULT_LEDGER_PATH, ledger_entry)
+    except Exception:
+        pass
+    return payload
 
 
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:
@@ -844,7 +851,35 @@ def cleanup_run(args: argparse.Namespace) -> dict[str, Any]:
         args,
         load_run_manifest=load_run_manifest,
         cleanup_loaded_run_fn=cleanup_loaded_run,
+        prune_ledger_fn=run_ledger_layer.prune_ledger_entries,
+        ledger_path=DEFAULT_LEDGER_PATH,
     )
+
+
+def summarize_ledger(args: argparse.Namespace) -> dict[str, Any]:
+    plan_name = str(getattr(args, "plan_name", "") or "")
+    since_str = str(getattr(args, "since", "") or "")
+    limit = int(getattr(args, "limit", 0) or 0)
+
+    since = None
+    if since_str:
+        try:
+            since = datetime.fromisoformat(since_str).replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise OrchestratorError(f"Invalid --since date '{since_str}': expected YYYY-MM-DD")
+
+    entries = run_ledger_layer.load_ledger_entries(
+        DEFAULT_LEDGER_PATH,
+        plan_name_prefix=plan_name or None,
+        limit=limit or None,
+        since=since,
+    )
+    summary = run_ledger_layer.summarize_ledger_entries(entries)
+    summary["ledgerPath"] = str(DEFAULT_LEDGER_PATH)
+    summary["planNameFilter"] = plan_name or None
+    summary["sinceFilter"] = since_str or None
+    summary["limit"] = limit or None
+    return summary
 
 
 def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, Any]]]:
@@ -1246,6 +1281,7 @@ def main() -> int:
             'evaluate-corpus': evaluate_run_corpus,
             'prune': prune_runs,
             'validate-run': validate_run,
+            'summarize-ledger': summarize_ledger,
         },
     )
 

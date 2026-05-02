@@ -22,6 +22,7 @@ DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"
 DEFAULT_SKILL_REGISTRY_PATH = AI_ORCHESTRATOR_DIR / "skills" / "registry.json"
 DEFAULT_RUNTIME_ROOT = ROOT / ".claude-orchestrator"
 DEFAULT_CLAUDE_BIN = "claude"
+DEFAULT_LEDGER_PATH = ROOT / "ai" / "state" / "run-ledger.jsonl"
 DEFAULT_TASK_TIMEOUT_SEC = 30 * 60
 PLANNER_TASK_ID = "planner"
 WORKSPACE_MODES = {"copy", "repo", "worktree"}

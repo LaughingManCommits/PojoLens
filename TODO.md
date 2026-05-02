@@ -56,7 +56,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP48| Pre-Flight Cost Estimation           | Complete | Added tracked model pricing, pre-flight per-task/per-batch USD+token estimates, `run --estimate`, validate-time budget warnings, and retained `costEstimate` payloads/manifests |
 | WP49| Dynamic Plan Mutation                | Complete | Added typed `followUpTasks`, run-policy/CLI follow-up mode, between-batch task injection, persisted lineage, and selected-plan mutation for resume |
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
-| WP51| Cross-Run Memory and Pattern Learning | Planned | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
+| WP51| Cross-Run Memory and Pattern Learning | Complete | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
 | WP52| Diff-Aware Incremental Replay        | Planned | On resume or retry, skip tasks whose inputs (prompt, read paths, dependency outputs) are identical to a prior successful execution |
 | WP53| CLI Ergonomics                       | Planned | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
 | WP54| TUI Dashboard                        | Planned | Live `textual`-based terminal dashboard during runs: task status grid, rolling cost, active-task log tail, and key bindings for HITL gate approval |
@@ -1367,7 +1367,7 @@ purely reactive retry-on-429 model with a smoother submission curve.
 
 ---
 
-## WP51: Cross-Run Memory and Pattern Learning
+## WP51: Cross-Run Memory and Pattern Learning ✅ 2026-05-02
 
 **Priority:** Medium
 
@@ -1394,22 +1394,22 @@ evidence when generating new plans for similar tasks on the same codebase.
   a general RAG system.
 
 **Tasks:**
-- [ ] Define a compact `RunLedgerEntry` schema: run id, plan name, generated
+- [x] Define a compact `RunLedgerEntry` schema: run id, plan name, generated
       at, task count, per-task `{id, status, failureKind, costUsd, modules}`,
       reviewer block count, and a brief `plannerNotes` string the coordinator
       can optionally emit.
-- [ ] Append a `RunLedgerEntry` to `ai/state/run-ledger.jsonl` at the end of
+- [x] Append a `RunLedgerEntry` to `ai/state/run-ledger.jsonl` at the end of
       every `run_loaded_plan` call (both live and dry-run); keep the file
       tracked in git as part of AI state.
-- [ ] Add `--ledger-context N` flag to `plan` command; when set, load the
+- [x] Add `--ledger-context N` flag to `plan` command; when set, load the
       last N ledger entries matching the same plan name prefix and inject a
       compact "prior run evidence" section into the planner prompt.
-- [ ] Add `summarize-ledger` subcommand that prints a human-readable summary
+- [x] Add `summarize-ledger` subcommand that prints a human-readable summary
       of ledger entries (success rate, average cost, common failure kinds,
       high-cost tasks by module) for a given plan name or date range.
-- [ ] Prune ledger entries older than 90 days in `cleanup` command to keep
+- [x] Prune ledger entries older than 90 days in `cleanup` command to keep
       the tracked file bounded.
-- [ ] Add regression coverage for ledger append, entry schema validation,
+- [x] Add regression coverage for ledger append, entry schema validation,
       pruning, and planner context injection.
 
 **Validate:**

@@ -205,6 +205,16 @@ def parse_args() -> argparse.Namespace:
         help_text="Override planner reasoning effort for this request. Defaults to the planner agent definition.",
     )
     plan_parser.add_argument(
+        "--ledger-context",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Inject the last N ledger entries matching this plan name as prior-run evidence "
+            "into the planner prompt. Use 0 to disable (default)."
+        ),
+    )
+    plan_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Write no files and invoke no workers; print the planner request instead.",
@@ -762,6 +772,34 @@ def parse_args() -> argparse.Namespace:
     )
     _add_verbose_arg(validate_run_parser)
     _add_provider_bin_arg(validate_run_parser)
+
+    summarize_ledger_parser = subparsers.add_parser(
+        "summarize-ledger",
+        help="Print a human-readable or JSON summary of run-ledger entries.",
+    )
+    summarize_ledger_parser.add_argument(
+        "--plan-name",
+        default="",
+        help="Filter ledger entries to this plan name prefix.",
+    )
+    summarize_ledger_parser.add_argument(
+        "--since",
+        default="",
+        metavar="YYYY-MM-DD",
+        help="Only include entries on or after this date (UTC).",
+    )
+    summarize_ledger_parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Maximum number of entries to include. Use 0 for all.",
+    )
+    summarize_ledger_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the ledger summary as JSON.",
+    )
+    _add_verbose_arg(summarize_ledger_parser)
 
     return parser.parse_args()
 

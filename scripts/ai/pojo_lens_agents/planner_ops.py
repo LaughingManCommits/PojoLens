@@ -31,6 +31,7 @@ def planner_prompt(
     format_bullet_list,
     prompt_section_factory,
     render_prompt,
+    ledger_context: str | None = None,
 ) -> Any:
     agent_catalog, agent_count, agent_catalog_truncated = format_bullet_list(
         [
@@ -83,52 +84,61 @@ def planner_prompt(
         empty_line="- none",
         max_items=22,
     )
-    return render_prompt(
-        [
+    sections = [
+        prompt_section_factory(
+            name="planner_role",
+            heading="Planner role",
+            body="Plan a bounded Claude worker DAG for this repository.",
+        ),
+        prompt_section_factory(name="goal", heading="Goal", body=goal),
+        prompt_section_factory(name="plan_name", heading="Plan name", body=name),
+        prompt_section_factory(
+            name="available_agents",
+            heading="Available worker agents",
+            body=agent_catalog,
+            item_count=agent_count,
+            truncated=agent_catalog_truncated,
+        ),
+        prompt_section_factory(
+            name="file_hints",
+            heading="Read hints",
+            body=file_lines,
+            item_count=file_count,
+            truncated=files_truncated,
+        ),
+        prompt_section_factory(
+            name="constraints",
+            heading="Constraints",
+            body=constraint_lines,
+            item_count=constraint_count,
+            truncated=constraints_truncated,
+        ),
+        prompt_section_factory(
+            name="validation_hints",
+            heading="Validation hints",
+            body=validation_lines,
+            item_count=validation_count,
+            truncated=validation_truncated,
+        ),
+    ]
+    if ledger_context:
+        sections.append(
             prompt_section_factory(
-                name="planner_role",
-                heading="Planner role",
-                body="Plan a bounded Claude worker DAG for this repository.",
-            ),
-            prompt_section_factory(name="goal", heading="Goal", body=goal),
-            prompt_section_factory(name="plan_name", heading="Plan name", body=name),
-            prompt_section_factory(
-                name="available_agents",
-                heading="Available worker agents",
-                body=agent_catalog,
-                item_count=agent_count,
-                truncated=agent_catalog_truncated,
-            ),
-            prompt_section_factory(
-                name="file_hints",
-                heading="Read hints",
-                body=file_lines,
-                item_count=file_count,
-                truncated=files_truncated,
-            ),
-            prompt_section_factory(
-                name="constraints",
-                heading="Constraints",
-                body=constraint_lines,
-                item_count=constraint_count,
-                truncated=constraints_truncated,
-            ),
-            prompt_section_factory(
-                name="validation_hints",
-                heading="Validation hints",
-                body=validation_lines,
-                item_count=validation_count,
-                truncated=validation_truncated,
-            ),
-            prompt_section_factory(
-                name="requirements",
-                heading="Planning requirements",
-                body=requirement_lines,
-                item_count=requirement_count,
-                truncated=requirements_truncated,
-            ),
-        ]
+                name="ledger_context",
+                heading="Prior run evidence",
+                body=ledger_context,
+            )
+        )
+    sections.append(
+        prompt_section_factory(
+            name="requirements",
+            heading="Planning requirements",
+            body=requirement_lines,
+            item_count=requirement_count,
+            truncated=requirements_truncated,
+        )
     )
+    return render_prompt(sections)
 
 
 def coerce_plan_result(payload: Any, *, error_factory) -> dict[str, Any]:
@@ -150,6 +160,14 @@ def plan_with_claude(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         raise deps["error_factory"](f"Unknown planner agent '{args.planner_agent}'")
     if not args.dry_run:
         deps["ensure_claude_available"](args.claude_bin)
+    ledger_context: str | None = None
+    ledger_context_n = int(getattr(args, "ledger_context", 0) or 0)
+    if ledger_context_n > 0 and deps.get("load_ledger_entries") and deps.get("format_ledger_context"):
+        ledger_entries = deps["load_ledger_entries"](
+            plan_name_prefix=args.name,
+            limit=ledger_context_n,
+        )
+        ledger_context = deps["format_ledger_context"](ledger_entries, args.name)
     prompt_render = planner_prompt(
         args.goal,
         args.name,
@@ -162,6 +180,7 @@ def plan_with_claude(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         format_bullet_list=deps["format_bullet_list"],
         prompt_section_factory=deps["prompt_section_factory"],
         render_prompt=deps["render_prompt"],
+        ledger_context=ledger_context,
     )
     agent = agents[args.planner_agent]
     planner_effort = deps["normalize_effort_override"](
@@ -211,7 +230,7 @@ def plan_with_claude(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         "model": planner_model,
         "modelProfile": agent.model_profile,
         "effort": planner_effort,
-        "outputPath": str(output_path),
+        "ledgerContextN": ledger_context_n,
         "dryRun": bool(args.dry_run),
         "command": command,
     }

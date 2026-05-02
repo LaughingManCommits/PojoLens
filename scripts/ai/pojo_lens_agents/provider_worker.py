@@ -824,6 +824,9 @@ async def run_subprocess_async(
 
 
 def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
+    from pojo_lens_agents import run_ledger as run_ledger_layer
+    from pojo_lens_agents.orchestrator_contracts import DEFAULT_LEDGER_PATH
+    ledger_path = DEFAULT_LEDGER_PATH
     return planner_ops_layer.plan_with_claude(
         args,
         deps={
@@ -851,6 +854,12 @@ def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
             "write_json": write_json,
             "extract_usage": extract_usage,
             "root": current_root(),
+            "load_ledger_entries": lambda plan_name_prefix, limit: run_ledger_layer.load_ledger_entries(
+                ledger_path,
+                plan_name_prefix=plan_name_prefix,
+                limit=limit,
+            ),
+            "format_ledger_context": run_ledger_layer.format_ledger_context,
         },
     )
 

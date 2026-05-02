@@ -85,9 +85,22 @@ def runtime_manifest_entries(*, runtime_root: Path, load_run_manifest) -> list[t
     return entries
 
 
-def cleanup_run(args: argparse.Namespace, *, load_run_manifest, cleanup_loaded_run_fn) -> dict[str, Any]:
+def cleanup_run(
+    args: argparse.Namespace,
+    *,
+    load_run_manifest,
+    cleanup_loaded_run_fn,
+    prune_ledger_fn=None,
+    ledger_path=None,
+) -> dict[str, Any]:
     manifest_path, manifest = load_run_manifest(args.run_ref)
-    return cleanup_loaded_run_fn(manifest_path, manifest)
+    payload = cleanup_loaded_run_fn(manifest_path, manifest)
+    if not bool(getattr(args, "dry_run", False)) and prune_ledger_fn is not None and ledger_path is not None:
+        try:
+            payload["ledgerPrune"] = prune_ledger_fn(ledger_path)
+        except Exception:
+            pass
+    return payload
 
 
 def status_run(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, Any]:
