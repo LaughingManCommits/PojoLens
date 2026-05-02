@@ -35,6 +35,7 @@ class _LazyModuleProxy:
         return getattr(self._load(), name)
 
 
+config_loader_layer = _LazyModuleProxy("pojo_lens_agents.config_loader")
 governance_layer = _LazyModuleProxy("pojo_lens_agents.governance")
 cost_estimation_layer = _LazyModuleProxy("pojo_lens_agents.cost_estimation")
 evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
@@ -612,6 +613,7 @@ def run_loaded_plan(
     otel_endpoint: str | None = None,
     reuse_unchanged: bool = False,
     prior_completed_records: dict[str, TaskRunRecord] | None = None,
+    watch: bool = False,
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
@@ -645,6 +647,10 @@ def run_loaded_plan(
             effort_override=effort_override,
             max_task_retries=_max_retries,
         )
+
+    _active_append_run_event = append_run_event
+    if watch:
+        _active_append_run_event = _make_watch_append_run_event(append_run_event)
 
     payload = asyncio.run(run_ops_layer.run_loaded_plan(
         plan_path,
@@ -684,7 +690,7 @@ def run_loaded_plan(
         ensure_claude_available=lambda bin: ensure_provider_available(bin, sdk_provider_layer.detect_provider_mode()),
         write_selected_plan_snapshot=write_selected_plan_snapshot,
         agent_payload_for_claude=agent_payload_for_claude,
-        append_run_event=append_run_event,
+        append_run_event=_active_append_run_event,
         task_branch_context_id=task_branch_context_id,
         evaluate_run_governance=evaluate_run_governance,
         blocked_record=blocked_record,
@@ -1276,6 +1282,35 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
 
 
 
+def _make_watch_append_run_event(base_fn: Any) -> Any:
+    def _watch_append(events: list[dict[str, Any]], *, phase: str, **kwargs: Any) -> None:
+        base_fn(events, phase=phase, **kwargs)
+        if phase not in config_loader_layer.WATCH_PHASES:
+            return
+        from datetime import datetime as _dt
+        ts = _dt.now().strftime("%H:%M:%S")
+        line = config_loader_layer.format_watch_line(ts, phase, **kwargs)
+        try:
+            import shutil as _shutil
+            width = _shutil.get_terminal_size((120, 24)).columns
+        except Exception:
+            width = 120
+        print(line[:width], file=sys.stderr, flush=True)
+    return _watch_append
+
+
+def config_command(args: Any) -> dict[str, Any]:
+    config_path = str(getattr(args, "config", "") or "").strip() or None
+    try:
+        config_defaults = config_loader_layer.load_config(config_path)
+    except Exception as exc:
+        raise OrchestratorError(str(exc)) from exc
+    return {
+        "configPath": config_path or "(auto)",
+        "defaults": config_defaults,
+    }
+
+
 def main() -> int:
     return dispatch_main(
         parse_args(),
@@ -1297,6 +1332,7 @@ def main() -> int:
             'prune': prune_runs,
             'validate-run': validate_run,
             'summarize-ledger': summarize_ledger,
+            'config': config_command,
         },
     )
 

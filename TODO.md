@@ -58,7 +58,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
 | WP51| Cross-Run Memory and Pattern Learning | Complete | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
 | WP52| Diff-Aware Incremental Replay        | Complete | Content-addressed task fingerprinting, `--reuse-unchanged` on run/resume/retry, `--fingerprint-only` on validate, task-reused events, and fingerprint stored on every executed record |
-| WP53| CLI Ergonomics                       | Planned | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
+| WP53| CLI Ergonomics                       | Complete | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
 | WP54| TUI Dashboard                        | Planned | Live `textual`-based terminal dashboard during runs: task status grid, rolling cost, active-task log tail, and key bindings for HITL gate approval |
 | WP55| Guided Wizard Mode                   | Planned | No-args interactive wizard that walks the operator through the full validate → run → review → promote lifecycle without needing to know any commands |
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
@@ -1470,7 +1470,7 @@ unnecessary re-execution after partial failures.
 
 ---
 
-## WP53: CLI Ergonomics
+## WP53: CLI Ergonomics ✅ 2026-05-02
 
 **Priority:** Medium
 
@@ -1490,24 +1490,30 @@ happens instead of producing output only at completion.
 - Both improvements are additive and do not touch any existing JSON contracts,
   manifest format, or test fixtures.
 
+**Key deliverables:** `config_loader.py` with TOML `[defaults]` support
+(`runtime_root`, `claude_bin`, `max_parallel`, `continue_on_error`, `dry_run`,
+`worker_validation_mode`), `POJOLENS_CONFIG` env var, `--config` global flag,
+`config show` subcommand, `--watch` flag on run/resume/retry streaming
+`[HH:MM:SS] task-id status summary…` to stderr, 33 new regression tests.
+
 **Tasks:**
-- [ ] Define a `[defaults]` section in `pojolens-agents.toml` covering:
+- [x] Define a `[defaults]` section in `pojolens-agents.toml` covering:
       `runtime_root`, `claude_bin`, `max_parallel`, `continue_on_error`,
       `dry_run`, `worker_validation_mode`. Load it from the repo root (or
       `POJOLENS_CONFIG` env var) before argparse defaults; explicit CLI flags
       still override config values.
-- [ ] Add `config_loader.py` in `pojo_lens_agents` to read and validate the
+- [x] Add `config_loader.py` in `pojo_lens_agents` to read and validate the
       TOML; surface clear errors for unknown keys or wrong value types.
-- [ ] Add `--config` global flag to override the config file path; add
+- [x] Add `--config` global flag to override the config file path; add
       `config show` subcommand that prints resolved config as JSON.
-- [ ] Add `--watch` flag to `run`, `resume`, and `retry`; when set, stream
+- [x] Add `--watch` flag to `run`, `resume`, and `retry`; when set, stream
       a one-line progress update to stderr for each `task-finished`,
       `task-retry`, `batch-ready`, and `run-finished` event as it is emitted
       from `run_loaded_plan`.
-- [ ] Format watch lines as: `[HH:MM:SS] task-id  status  cost  summary…`
+- [x] Format watch lines as: `[HH:MM:SS] task-id  status  cost  summary…`
       (truncated to terminal width); write to stderr so `--json` stdout
       piping is unaffected.
-- [ ] Add regression coverage for config loading, flag override precedence,
+- [x] Add regression coverage for config loading, flag override precedence,
       unknown key rejection, and watch event formatting.
 
 **Validate:**

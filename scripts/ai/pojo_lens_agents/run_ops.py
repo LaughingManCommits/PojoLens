@@ -709,6 +709,7 @@ def run_plan(
         "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
         "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
         "reuse_unchanged": bool(getattr(args, "reuse_unchanged", False)),
+        "watch": bool(getattr(args, "watch", False)),
     }
     if getattr(args, "follow_up_mode", None):
         run_kwargs["follow_up_behavior_override"] = getattr(args, "follow_up_mode")
@@ -843,6 +844,7 @@ def resume_run(
             for task_id, record in previous_records.items()
             if record.status == "completed"
         } if _reuse else None,
+        watch=bool(getattr(args, "watch", False)),
         **otel_kwargs,
         **hitl_kwargs,
         **follow_up_kwargs,
@@ -930,6 +932,7 @@ def retry_run(
             for task_id, record in previous_records.items()
             if record.status == "completed"
         }
+    run_kwargs["watch"] = bool(getattr(args, "watch", False))
     payload = run_loaded_plan_fn(
         plan_path,
         agents_path,

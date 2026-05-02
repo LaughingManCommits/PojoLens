@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_AGENTS_PATH,
@@ -115,7 +116,44 @@ def _add_otel_endpoint_arg(parser: argparse.ArgumentParser, *, help_text: str) -
     )
 
 
-def parse_args() -> argparse.Namespace:
+def _add_watch_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help=(
+            "Stream a one-line progress update to stderr for each task-finished, "
+            "task-retry, batch-ready, and run-finished event as it is emitted."
+        ),
+    )
+
+
+def _apply_defaults_to_all_subparsers(
+    parser: argparse.ArgumentParser,
+    defaults: dict,
+    *,
+    _depth: int = 0,
+) -> None:
+    if _depth > 4:
+        return
+    parser.set_defaults(**defaults)
+    for action in parser._actions:
+        name_parser_map = getattr(action, "_name_parser_map", None)
+        if name_parser_map:
+            for sub in name_parser_map.values():
+                _apply_defaults_to_all_subparsers(sub, defaults, _depth=_depth + 1)
+
+
+def _pre_parse_config_path(argv: list[str]) -> str | None:
+    for i, arg in enumerate(argv):
+        if arg == "--config" and i + 1 < len(argv):
+            return argv[i + 1]
+        if arg.startswith("--config="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    raw_argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
         description=(
             "Coordinate local Claude Code workers from tracked repo task specs. "
@@ -124,7 +162,32 @@ def parse_args() -> argparse.Namespace:
             "dependencies or overlapping write scopes are serialized automatically."
         ),
     )
+    parser.add_argument(
+        "--config",
+        default="",
+        metavar="PATH",
+        help=(
+            "Path to a pojolens-agents.toml config file. "
+            "Defaults to pojolens-agents.toml in the repo root, "
+            "or POJOLENS_CONFIG environment variable."
+        ),
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    config_parser = subparsers.add_parser(
+        "config",
+        help="Manage pojolens-agents.toml configuration.",
+    )
+    config_subparsers = config_parser.add_subparsers(dest="config_command", required=True)
+    config_show_parser = config_subparsers.add_parser(
+        "show",
+        help="Print the resolved configuration as JSON.",
+    )
+    config_show_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit config as compact JSON (default is pretty-printed JSON).",
+    )
 
     validate_parser = subparsers.add_parser(
         "validate",
@@ -308,6 +371,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the run summary as JSON.",
     )
+    _add_watch_arg(run_parser)
     _add_verbose_arg(run_parser)
 
     resume_parser = subparsers.add_parser(
@@ -372,6 +436,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the resume summary as JSON.",
     )
+    _add_watch_arg(resume_parser)
     _add_verbose_arg(resume_parser)
 
     retry_parser = subparsers.add_parser(
@@ -436,6 +501,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the retry run summary as JSON.",
     )
+    _add_watch_arg(retry_parser)
     _add_verbose_arg(retry_parser)
 
     review_parser = subparsers.add_parser(
@@ -832,6 +898,16 @@ def parse_args() -> argparse.Namespace:
     )
     _add_verbose_arg(summarize_ledger_parser)
 
-    return parser.parse_args()
+    config_path_hint = _pre_parse_config_path(raw_argv)
+    try:
+        from pojo_lens_agents.config_loader import load_config
+        config_defaults = load_config(config_path_hint or None)
+        if config_defaults:
+            _apply_defaults_to_all_subparsers(parser, config_defaults)
+    except Exception as exc:
+        import sys as _sys
+        print(f"[claude-orchestrator] config warning: {exc}", file=_sys.stderr)
+
+    return parser.parse_args(raw_argv)
 
 
