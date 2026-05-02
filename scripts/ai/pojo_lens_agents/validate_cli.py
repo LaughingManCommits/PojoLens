@@ -36,6 +36,20 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         task_effort_sources = deps["effective_plan_effort_sources"](plan, agents)
         complex_model_tasks = deps["complex_model_task_ids"](task_model_profiles)
         topology = deps["analyze_plan_topology"](plan, agents)
+        cost_estimate = deps["estimate_plan_cost"](
+            plan,
+            agents,
+            pricing=deps["load_model_pricing"](),
+            task_models=task_models,
+            task_model_profiles=task_model_profiles,
+            task_efforts=task_efforts,
+            topology=topology,
+        )
+        topology = dict(topology)
+        topology_warnings = list(topology.get("warnings", []))
+        topology_warnings.extend(cost_estimate.get("warnings", []))
+        topology["warnings"] = topology_warnings
+        topology["warningCount"] = len(topology_warnings)
         plan_batches = deps["topological_batches"](plan.tasks)
         payload.update(
             {
@@ -55,6 +69,7 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
                 "complexModelTaskIds": complex_model_tasks,
                 "complexModelTaskCount": len(complex_model_tasks),
                 "topology": topology,
+                "costEstimate": cost_estimate,
                 "tasks": [
                     {
                         "id": task.id,

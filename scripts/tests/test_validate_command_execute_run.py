@@ -1007,6 +1007,106 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             payload["otel"],
         )
 
+    def test_run_plan_estimate_returns_cost_estimate_without_creating_run(self):
+        orchestrator = self.orchestrator
+        old_run_loaded_plan = orchestrator.run_loaded_plan
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "planning",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "implementer": {
+                                "description": "implementation",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "balanced",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read", "Edit"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "estimate-only",
+                        "goal": "Return a pre-flight estimate without scheduling.",
+                        "sharedContext": {
+                            "summary": "Estimate path test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "implement",
+                                "title": "Implement",
+                                "agent": "implementer",
+                                "prompt": "Implement the requested change.",
+                                "writePaths": ["CHANGELOG.md"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def fail_run_loaded_plan(*args, **kwargs):
+                raise AssertionError("run_loaded_plan should not be called for --estimate")
+
+            orchestrator.run_loaded_plan = fail_run_loaded_plan
+            try:
+                payload = orchestrator.run_plan(
+                    SimpleNamespace(
+                        agents=str(agents_path),
+                        task_plan=str(plan_path),
+                        claude_bin="claude",
+                        runtime_root=str(runtime_root),
+                        max_parallel=2,
+                        continue_on_error=False,
+                        dry_run=False,
+                        worker_validation_mode="",
+                        effort="",
+                        selected_tasks=[],
+                        max_task_retries=None,
+                        hitl=False,
+                        hitl_mode="batch",
+                        hitl_auto_approve=False,
+                        otel_endpoint="",
+                        estimate=True,
+                    )
+                )
+            finally:
+                orchestrator.run_loaded_plan = old_run_loaded_plan
+
+        self.assertTrue(payload["estimatedOnly"])
+        self.assertTrue(payload["dryRun"])
+        self.assertNotIn("runDir", payload)
+        self.assertEqual(1, payload["taskCount"])
+        self.assertGreater(payload["costEstimate"]["totals"]["minUsd"], 0.0)
+        self.assertEqual("heuristic", payload["costEstimate"]["estimateMode"])
+
     def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
         orchestrator = self.orchestrator
         old_ensure_claude_available = orchestrator.ensure_claude_available
@@ -1570,6 +1670,10 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
         self.assertEqual({"deep-design": "complex"}, manifest["taskModelProfiles"])
         self.assertEqual(["deep-design"], manifest["complexModelTaskIds"])
         self.assertEqual(1, manifest["complexModelTaskCount"])
+        self.assertIn("costEstimate", payload)
+        self.assertIn("costEstimate", manifest)
+        self.assertEqual(1, payload["costEstimate"]["totals"]["taskCount"])
+        self.assertEqual(1, manifest["costEstimate"]["totals"]["taskCount"])
 
     def test_run_loaded_plan_and_summary_report_topology(self):
         orchestrator = self.orchestrator

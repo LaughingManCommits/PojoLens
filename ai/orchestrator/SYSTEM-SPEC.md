@@ -109,15 +109,19 @@ This file defines the portable contract for recreating the repository's AI memor
 - Validate/topology should also warn when a task resolves more than `4` skills; keep the resolved stack at `5` or fewer and prefer fewer, more focused skills.
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Validate, dry-run, and manifest surfaces should expose resolved task models/profiles plus a compact list or count of any `complex` tasks so accidental `opus` usage is easy to spot.
+- Validate, `run --estimate`, dry-run, and manifest surfaces should expose a pre-flight `costEstimate` with per-task token and USD ranges, per-batch rollups, and a concurrency-adjusted wall-clock range.
 - Validate, run, and manifest surfaces should also expose a compact topology summary: agent counts, read-only vs write-capable task counts, batch shape, dependency depth, and conservative warnings when the plan is obviously heavier than necessary.
 - Agent/task definitions may declare `maxPromptEstimatedTokens` and/or `maxPromptChars`; oversized prompts should fail locally before live Claude execution.
+- Model pricing should live in tracked `ai/orchestrator/model-pricing.json` so pricing refreshes do not require code edits.
 - Validate/topology surfaces should warn when a reviewer materializes multiple write-capable dependencies with `apply-reviewed` but relies on an inherited prompt-token budget instead of an explicit reviewer override.
 - Validate/topology surfaces should also warn when a docs-only write plan omits an explicit docs consistency validation hint such as `scripts/docs/check-doc-consistency.ps1`.
 - Copy-mode workspace hydration should copy only declared `readPaths` and any existing file-backed `writePaths`; missing or directory `readPaths` must fail validation explicitly, and oversized inputs should be surfaced instead of being skipped silently.
 - If task-workspace validation is expected before promotion, any runtime-loaded config or fixture files needed by that validation should be declared in `readPaths` or `writePaths`; sparse copies should not be assumed to contain undeclared repo files.
 - When `dependencyMaterialization = apply-reviewed`, the coordinator should replay reviewed dependency layers into the downstream `copy` or `worktree` workspace after base hydration, reject ambiguous overlaps across direct dependencies, and record which dependency layers were applied.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
+- `run --estimate` should return the same pre-flight estimate without creating a retained run, while `run --dry-run` should reuse observed prompt-estimate data from prompt assembly to tighten the estimate ranges.
 - Optional run-level governance should be expressible in tracked plans via `runPolicy`; `budgetBehavior` / `artifactBehavior` should support `warn` and `stop`, and `stop` should block unscheduled later batches rather than trying to cancel already-running tasks.
+- Validate should warn when tracked `runPolicy.runBudgetUsd` is already lower than the minimum pre-flight estimate.
 - Human-in-the-loop gates should be expressible through tracked `runPolicy` fields and one-off `run` / `resume` CLI overrides. A gate fires after a completed batch before later scheduling, emits `hitl-gate`, persists the manifest, waits for stdin or a run-local `hitl-gate.lock` sentinel decision, then emits `hitl-approved` or `hitl-aborted`; aborted gates should block pending tasks with an explicit coordinator reason.
 - Run governance should cover aggregate spend plus per-task stdout, stderr, and result artifact size, and should surface the highest-cost tasks plus aggregate artifact totals for operator review.
 - Prompt assembly should keep the most stable coordinator instructions and shared summary ahead of run-specific workspace paths or dependency detail so provider-side prefix caching can reuse more of each request.
@@ -135,7 +139,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Model selection should support both explicit `model` strings and profile-based routing:
   - `simple` -> `claude-haiku-4-5`
   - `balanced` -> `claude-sonnet-4-6`
-  - `complex` -> `claude-opus-4-6` only as an explicit exception when cheaper models are likely insufficient
+  - `complex` -> `claude-opus-4-7` only as an explicit exception when cheaper models are likely insufficient
 
 ## Concurrency Contract
 

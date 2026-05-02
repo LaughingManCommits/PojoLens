@@ -451,6 +451,72 @@ class TaskRunRecordModel(ManifestModel):
         return value
 
 
+class CostRangeModel(ContractModel):
+    min: float = Field(ge=0)
+    max: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_order(self) -> "CostRangeModel":
+        if self.max < self.min:
+            raise ValueError("max must be greater than or equal to min")
+        return self
+
+
+class TokenRangeModel(ContractModel):
+    min: int = Field(ge=0)
+    max: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_order(self) -> "TokenRangeModel":
+        if self.max < self.min:
+            raise ValueError("max must be greater than or equal to min")
+        return self
+
+
+class TaskCostEstimateModel(ManifestModel):
+    task_id: str = Field(alias="taskId")
+    title: str
+    agent: str
+    model: str
+    model_alias: str | None = Field(default=None, alias="modelAlias")
+    model_profile: str = Field(alias="modelProfile")
+    effort: str
+    batch_index: int | None = Field(default=None, alias="batchIndex", ge=1)
+    depends_on: list[str] = Field(default_factory=list, alias="dependsOn")
+    write_task: bool = Field(alias="writeTask")
+    prompt_estimate_source: str = Field(alias="promptEstimateSource")
+    prompt_estimated_tokens: int = Field(alias="promptEstimatedTokens", ge=0)
+    prompt_budget_tokens: int | None = Field(default=None, alias="promptBudgetTokens", ge=1)
+    input_tokens: TokenRangeModel = Field(alias="inputTokens")
+    output_tokens: TokenRangeModel = Field(alias="outputTokens")
+    total_tokens: TokenRangeModel = Field(alias="totalTokens")
+    cost_usd: CostRangeModel = Field(alias="costUsd")
+    duration_minutes: CostRangeModel = Field(alias="durationMinutes")
+
+
+class BatchCostEstimateModel(ManifestModel):
+    batch_index: int = Field(alias="batchIndex", ge=1)
+    task_ids: list[str] = Field(default_factory=list, alias="taskIds")
+    parallel_width: int = Field(alias="parallelWidth", ge=0)
+    cost_usd: CostRangeModel = Field(alias="costUsd")
+    duration_minutes: CostRangeModel = Field(alias="durationMinutes")
+
+
+class RunCostEstimateModel(ManifestModel):
+    currency: str
+    pricing_version: str = Field(alias="pricingVersion")
+    pricing_path: str = Field(alias="pricingPath")
+    estimate_mode: str = Field(alias="estimateMode")
+    prompt_observed_task_count: int = Field(alias="promptObservedTaskCount", ge=0)
+    prompt_heuristic_task_count: int = Field(alias="promptHeuristicTaskCount", ge=0)
+    totals: dict[str, Any]
+    wall_clock: dict[str, Any] = Field(alias="wallClock")
+    tasks: list[TaskCostEstimateModel] = Field(default_factory=list)
+    task_by_id: dict[str, TaskCostEstimateModel] = Field(default_factory=dict, alias="taskById")
+    batches: list[BatchCostEstimateModel] = Field(default_factory=list)
+    warnings: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class RunManifestModel(ManifestModel):
     run_id: str = Field(alias="runId")
     generated_at: str = Field(alias="generatedAt")
@@ -481,4 +547,5 @@ class RunManifestModel(ManifestModel):
     plan: dict[str, Any]
     events: list[dict[str, Any]] = Field(default_factory=list)
     usage_totals: dict[str, Any] = Field(default_factory=dict, alias="usageTotals")
+    cost_estimate: RunCostEstimateModel | None = Field(default=None, alias="costEstimate")
     tasks: dict[str, TaskRunRecordModel] = Field(default_factory=dict)

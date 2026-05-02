@@ -74,6 +74,20 @@ def manifest_payload(
     usage_totals = deps["aggregate_usage"](records)
     run_governance = deps["evaluate_run_governance"](records, plan.run_policy)
     parallel_conflicts = deps["detect_parallel_scope_conflicts"](plan, agents)
+    cost_estimate = deps["estimate_plan_cost"](
+        plan,
+        agents,
+        pricing=deps["load_model_pricing"](),
+        task_models=task_models,
+        task_model_profiles=task_model_profiles,
+        task_efforts=task_efforts,
+        prompt_estimated_tokens_by_task={
+            task_id: int(record.prompt_estimated_tokens or 0)
+            for task_id, record in records.items()
+            if int(record.prompt_estimated_tokens or 0) > 0
+        },
+        topology=topology,
+    )
     payload = {
         "runId": run_id,
         "generatedAt": deps["iso_now"](),
@@ -111,6 +125,7 @@ def manifest_payload(
         },
         "events": list(run_events or []),
         "usageTotals": usage_totals,
+        "costEstimate": cost_estimate,
         "tasks": {task_id: deps["asdict"](record) for task_id, record in sorted(records.items())},
     }
     if retry_of_run_id:

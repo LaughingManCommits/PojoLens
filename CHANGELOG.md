@@ -11,6 +11,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Pre-flight cost estimation** - added tracked `ai/orchestrator/model-pricing.json`,
+  new `pojo_lens_agents.cost_estimation` heuristics for per-task and per-plan
+  token/USD estimation, `costEstimate` in validate/dry-run/run manifests,
+  `run --estimate` for estimate-only operator checks, and validate-time
+  warnings when `runPolicy.runBudgetUsd` is already below the minimum
+  estimated spend.
+
 - **OpenTelemetry observability** - added optional `[otel]` dependencies
   (`opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http`), new
   `pojo_lens_agents.otel_spans` emission support, `--otel-endpoint` on

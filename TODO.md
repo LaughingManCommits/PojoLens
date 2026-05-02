@@ -53,7 +53,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP45| OpenTelemetry Observability          | Complete | Added optional OTLP HTTP emission from retained run spans, live run/export endpoint overrides, and task cost/model attributes on OTEL spans |
 | WP46| Typed Agent Contracts                | Complete | Added Pydantic v2 contract models, Pydantic-backed dataclasses, typed plan/agent/manifest validation boundaries, `py.typed`, and mypy coverage |
 | WP47| Human-in-the-Loop Approval Gates     | Complete | Added batch-boundary HITL policy, run/resume CLI flags, persisted gate events, sentinel/interactive approval, auto-approve test mode, and abort blocking |
-| WP48| Pre-Flight Cost Estimation           | Planned | Estimate token spend and USD cost from plan topology before a run starts, with model/effort/prompt-size inputs and per-task breakdowns |
+| WP48| Pre-Flight Cost Estimation           | Complete | Added tracked model pricing, pre-flight per-task/per-batch USD+token estimates, `run --estimate`, validate-time budget warnings, and retained `costEstimate` payloads/manifests |
 | WP49| Dynamic Plan Mutation                | Planned | Coordinator consumes task `followUps` at runtime to inject new tasks or modify the pending DAG mid-run without restarting |
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
 | WP51| Cross-Run Memory and Pattern Learning | Planned | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
@@ -1244,23 +1244,23 @@ the operator knows the expected bill before committing.
   should warn when the estimate exceeds the declared budget before the first
   task fires.
 
-**Tasks:**
-- [ ] Add `estimate_task_cost(task, agent, plan)` in a new
-      `cost_estimation.py` module; return `{"minUsd": float, "maxUsd": float,
-      "minTokens": int, "maxTokens": int}` based on model pricing from a
-      tracked `model_pricing.json` table and effort-tier token heuristics.
-- [ ] Add `estimate_plan_cost(plan, agents)` that aggregates per-task
-      estimates plus concurrency-adjusted wall-clock time ranges.
-- [ ] Emit `costEstimate` into the dry-run payload from `run_loaded_plan`
-      (per-task and total); surface it in `run --dry-run --json` output.
-- [ ] Add a `--estimate` flag to `run` that runs estimation without needing
-      `--dry-run`; print the estimate table and exit without scheduling.
-- [ ] Warn in `validate` when the plan's `runBudgetUsd` is lower than the
-      minimum cost estimate.
-- [ ] Keep the pricing table in `ai/orchestrator/model-pricing.json` so it
-      can be updated independently of code.
-- [ ] Add regression coverage for per-task and plan-level estimate arithmetic
-      across model profiles and effort tiers.
+**Work done:**
+- Added `scripts/ai/pojo_lens_agents/cost_estimation.py` with
+  `estimate_task_cost(...)` and `estimate_plan_cost(...)`, a tracked pricing
+  loader for `ai/orchestrator/model-pricing.json`, canonical model-alias
+  handling, effort/profile heuristics, per-batch rollups, and wall-clock
+  ranges.
+- Wired `costEstimate` into `validate --json`, `run --estimate --json`,
+  `run --dry-run --json`, live `run` payloads, and retained manifests; dry
+  runs upgrade from heuristic prompt sizing to observed prompt estimates after
+  prompt assembly.
+- Added validate-time budget warnings when `runPolicy.runBudgetUsd` is already
+  below the minimum pre-flight estimate.
+- Added `--estimate` to `run` so operators can price a selected plan without
+  creating a retained run or invoking Claude.
+- Added regression coverage for pricing-table loading, alias canonicalization,
+  estimate arithmetic, validate warnings, `run --estimate`, parser support,
+  and retained-manifest cost-estimate persistence.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

@@ -52,6 +52,7 @@ scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materi
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --estimate --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --max-parallel 2 --otel-endpoint http://localhost:4318/v1/traces --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json
@@ -92,16 +93,19 @@ Tracked samples:
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
+- `run --estimate` computes the same pre-flight pricing and wall-clock estimate without creating a retained run
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 - `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution
 - `validate --json` also reports `topology` so you can inspect agent mix, read-only vs write-capable task count, batch shape, and conservative lean-plan warnings before a run
+- `validate --json`, `run --estimate --json`, and `run --dry-run --json` now also report `costEstimate` with per-task and per-batch USD/token ranges plus concurrency-adjusted wall-clock ranges
 
 Lifecycle helpers:
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
+- `run` accepts `--estimate` to emit pre-flight model-pricing, token, cost, and wall-clock estimates without creating a run manifest
 - `run`, `resume`, `retry`, and `export-trace` accept `--otel-endpoint <url>`; when unset, `OTEL_EXPORTER_OTLP_ENDPOINT` enables OTEL emission automatically for live runs and retained trace export
 - `run` and `resume` accept `--hitl`, `--hitl-mode <batch|on-failure|always>`, and `--hitl-auto-approve`; HITL gates emit `hitl-gate` plus `hitl-approved` or `hitl-aborted`, write the manifest before waiting, and use either an interactive prompt or the run-local `hitl-gate.lock` sentinel file for decisions
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
@@ -151,12 +155,15 @@ Context discipline:
 
 Token and cost visibility:
 - each task record captures the resolved model, prompt size, and Claude usage when the CLI returns it
+- tracked model prices now live in `ai/orchestrator/model-pricing.json`, verified against Anthropic pricing pages, so pricing updates can land without code changes
 - task records and planner dry-runs include section-level prompt accounting (`prompt_sections` / `promptSections`) plus budget results (`prompt_budget` / `promptBudget`)
 - agent/task definitions may set `maxPromptEstimatedTokens` or `maxPromptChars`; the coordinator fails oversized prompts locally before invoking Claude
 - `validate --json` topology warnings now also flag reviewer prompt-budget risk when a reviewer materializes multiple write-capable dependencies with `apply-reviewed` but does not set an explicit `maxPromptEstimatedTokens`
 - `validate --json` topology warnings also flag docs-only plans that skip a declared docs consistency validation hint such as `scripts/docs/check-doc-consistency.ps1`
 - run manifests and `run --json` output include `usageTotals` with prompt estimates plus aggregated input, output, cache, and cost fields
+- `validate --json`, `run --estimate --json`, `run --dry-run --json`, and retained manifests now expose `costEstimate` with per-task token ranges, USD ranges, and batch-aware wall-clock ranges; dry-runs upgrade from heuristic prompt inputs to observed prompt estimates after prompt assembly
 - `runPolicy.runBudgetUsd` now governs aggregate `usage.totalCostUsd` across completed tasks; `budgetBehavior = "stop"` blocks unscheduled tasks before the next batch, while `warn` records the alert and continues
+- `validate --json` also warns when `runPolicy.runBudgetUsd` is already below the minimum pre-flight estimate, so obviously under-budget plans are visible before the first task starts
 - `runPolicy.maxTaskStdoutBytes`, `maxTaskStderrBytes`, and `maxTaskResultBytes` govern per-task artifact size; `artifactBehavior = "stop"` blocks later scheduling after an oversized completed task, while `warn` keeps the run moving
 - `validate --json` exposes the tracked `runPolicy`, and `run --json` plus run manifests expose `runGovernance` with status, alert counts, highest-cost tasks, and aggregate artifact totals so run-level policy decisions stay inspectable
 - `validate --json`, `run --json`, and run manifests now expose `topology` with agent counts, read-only vs write-capable task counts, batch sizes, dependency depth, and conservative warnings when a read-only plan still adds a reviewer hop or a single write task is preceded by analyst-only work
@@ -184,7 +191,7 @@ Token and cost visibility:
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
 - use `modelProfile = balanced` for `claude-sonnet-4-6`
-- use `modelProfile = complex` for `claude-opus-4-6` only as an explicit exception when cheaper models are likely insufficient
+- use `modelProfile = complex` for `claude-opus-4-7` only as an explicit exception when cheaper models are likely insufficient
 - `model` still works as an explicit override and wins over `modelProfile`
 - planner guidance now treats `complex` as the exceptional path; current tracked plans stay on `simple` or `balanced`
 - `ai/orchestrator/tasks/example-review.json` and `ai/orchestrator/tasks/example-parallel.json` show `simple` overrides for cheap read-only work

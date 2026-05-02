@@ -35,6 +35,7 @@ class _LazyModuleProxy:
 
 
 governance_layer = _LazyModuleProxy("pojo_lens_agents.governance")
+cost_estimation_layer = _LazyModuleProxy("pojo_lens_agents.cost_estimation")
 evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
 hitl_layer = _LazyModuleProxy("pojo_lens_agents.hitl")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
@@ -430,6 +431,18 @@ def manifest_payload(
             "effective_task_skills": effective_task_skills,
             "complex_model_task_ids": complex_model_task_ids,
             "analyze_plan_topology": analyze_plan_topology,
+            "load_model_pricing": lambda: cost_estimation_layer.load_model_pricing(
+                read_json=read_json,
+                error_factory=OrchestratorError,
+            ),
+            "estimate_plan_cost": lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+                plan,
+                agents,
+                topological_batches=topological_batches,
+                estimate_tokens=estimate_tokens,
+                error_factory=OrchestratorError,
+                **kwargs,
+            ),
             "aggregate_usage": aggregate_usage,
             "evaluate_run_governance": evaluate_run_governance,
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
@@ -496,6 +509,18 @@ def write_manifest(
             "effective_task_skills": effective_task_skills,
             "complex_model_task_ids": complex_model_task_ids,
             "analyze_plan_topology": analyze_plan_topology,
+            "load_model_pricing": lambda: cost_estimation_layer.load_model_pricing(
+                read_json=read_json,
+                error_factory=OrchestratorError,
+            ),
+            "estimate_plan_cost": lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+                plan,
+                agents,
+                topological_batches=topological_batches,
+                estimate_tokens=estimate_tokens,
+                error_factory=OrchestratorError,
+                **kwargs,
+            ),
             "aggregate_usage": aggregate_usage,
             "evaluate_run_governance": evaluate_run_governance,
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
@@ -625,6 +650,18 @@ def run_loaded_plan(
         effective_plan_models=effective_plan_models,
         complex_model_task_ids=complex_model_task_ids,
         analyze_plan_topology=analyze_plan_topology,
+        load_model_pricing=lambda: cost_estimation_layer.load_model_pricing(
+            read_json=read_json,
+            error_factory=OrchestratorError,
+        ),
+        estimate_plan_cost=lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+            plan,
+            agents,
+            topological_batches=topological_batches,
+            estimate_tokens=estimate_tokens,
+            error_factory=OrchestratorError,
+            **kwargs,
+        ),
         serialize_run_policy=serialize_run_policy,
         summarized_worker_validation_mode=summarized_worker_validation_mode,
         summarize_branch_contexts=summarize_branch_contexts,
@@ -655,6 +692,28 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
         load_task_plan=load_task_plan,
         selected_plan=selected_plan,
         run_loaded_plan_fn=run_loaded_plan,
+        effective_plan_output_profiles=effective_plan_output_profiles,
+        effective_plan_output_profile_sources=effective_plan_output_profile_sources,
+        effective_plan_efforts=effective_plan_efforts,
+        effective_plan_effort_sources=effective_plan_effort_sources,
+        effective_plan_models=effective_plan_models,
+        effective_plan_model_profiles=effective_plan_model_profiles,
+        effective_task_skills=effective_task_skills,
+        complex_model_task_ids=complex_model_task_ids,
+        analyze_plan_topology=analyze_plan_topology,
+        serialize_run_policy=serialize_run_policy,
+        load_model_pricing=lambda: cost_estimation_layer.load_model_pricing(
+            read_json=read_json,
+            error_factory=OrchestratorError,
+        ),
+        estimate_plan_cost=lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+            plan,
+            agents,
+            topological_batches=topological_batches,
+            estimate_tokens=estimate_tokens,
+            error_factory=OrchestratorError,
+            **kwargs,
+        ),
     )
 
 
@@ -1097,6 +1156,18 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
             "complex_model_task_ids": complex_model_task_ids,
             "analyze_plan_topology": analyze_plan_topology,
             "topological_batches": topological_batches,
+            "load_model_pricing": lambda: cost_estimation_layer.load_model_pricing(
+                read_json=read_json,
+                error_factory=OrchestratorError,
+            ),
+            "estimate_plan_cost": lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+                plan,
+                agents,
+                topological_batches=topological_batches,
+                estimate_tokens=estimate_tokens,
+                error_factory=OrchestratorError,
+                **kwargs,
+            ),
             "serialize_run_policy": serialize_run_policy,
             "effective_task_read_paths": effective_task_read_paths,
             "effective_task_write_scope": effective_task_write_scope,

@@ -481,6 +481,12 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["run", plan, "--otel-endpoint", "http://collector:4318/v1/traces"])
         self.assertEqual("http://collector:4318/v1/traces", args.otel_endpoint)
 
+    def test_estimate_flag_accepted_by_run(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--estimate"])
+        self.assertTrue(args.estimate)
+
     def test_otel_endpoint_flag_accepted_by_export_trace(self):
         args = self._parse_argv(["export-trace", "some/run/dir", "--otel-endpoint", "http://collector:4318/v1/traces"])
         self.assertEqual("http://collector:4318/v1/traces", args.otel_endpoint)

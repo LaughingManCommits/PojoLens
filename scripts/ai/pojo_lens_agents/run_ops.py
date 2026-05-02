@@ -59,6 +59,8 @@ async def run_loaded_plan(
     effective_plan_models: Callable[[Any, dict[str, Any]], dict[str, str]] = None,
     complex_model_task_ids: Callable[[dict[str, str]], list[str]] = None,
     analyze_plan_topology: Callable[[Any, dict[str, Any]], dict[str, Any]] = None,
+    load_model_pricing: Callable[..., dict[str, Any]] | None = None,
+    estimate_plan_cost: Callable[..., dict[str, Any]] | None = None,
     serialize_run_policy: Callable[[Any], dict[str, Any]] = None,
     summarized_worker_validation_mode: Callable[[list[str]], str] = None,
     summarize_branch_contexts: Callable[[list[Any]], dict[str, Any]] = None,
@@ -322,6 +324,20 @@ async def run_loaded_plan(
     task_models = effective_plan_models(plan, agents)
     complex_model_tasks = complex_model_task_ids(task_model_profiles)
     topology = analyze_plan_topology(plan, agents)
+    cost_estimate = estimate_plan_cost(
+        plan,
+        agents,
+        pricing=load_model_pricing(),
+        task_models=task_models,
+        task_model_profiles=task_model_profiles,
+        task_efforts=task_efforts,
+        prompt_estimated_tokens_by_task={
+            task_id: int(record.prompt_estimated_tokens or 0)
+            for task_id, record in records.items()
+            if int(record.prompt_estimated_tokens or 0) > 0
+        },
+        topology=topology,
+    )
     payload = {
         "runId": run_id,
         "plan": plan.name,
@@ -358,6 +374,7 @@ async def run_loaded_plan(
         "runGovernance": run_governance,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
+        "costEstimate": cost_estimate,
         "branchSummary": summarize_branch_contexts(list(records.values())),
         "events": list(run_events),
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
@@ -422,11 +439,81 @@ def run_plan(
     load_task_plan: Callable[[Path, dict[str, Any]], Any],
     selected_plan: Callable[[Any, list[str]], Any],
     run_loaded_plan_fn: Callable[..., dict[str, Any]],
+    effective_plan_output_profiles: Callable[[Any, dict[str, Any]], dict[str, str]] | None = None,
+    effective_plan_output_profile_sources: Callable[[Any, dict[str, Any]], dict[str, str]] | None = None,
+    effective_plan_efforts: Callable[[Any, dict[str, Any]], dict[str, str | None]] | None = None,
+    effective_plan_effort_sources: Callable[[Any, dict[str, Any]], dict[str, str]] | None = None,
+    effective_plan_models: Callable[[Any, dict[str, Any]], dict[str, str | None]] | None = None,
+    effective_plan_model_profiles: Callable[[Any, dict[str, Any]], dict[str, str | None]] | None = None,
+    effective_task_skills: Callable[[Any, Any], list[str]] | None = None,
+    complex_model_task_ids: Callable[[dict[str, str | None]], list[str]] | None = None,
+    analyze_plan_topology: Callable[[Any, dict[str, Any]], dict[str, Any]] | None = None,
+    serialize_run_policy: Callable[[Any], dict[str, Any]] | None = None,
+    load_model_pricing: Callable[..., dict[str, Any]] | None = None,
+    estimate_plan_cost: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     agents_path = Path(args.agents).resolve()
     plan_path = Path(args.task_plan).resolve()
     agents = load_agents(agents_path)
     plan = selected_plan(load_task_plan(plan_path, agents), args.selected_tasks)
+    if bool(getattr(args, "estimate", False)):
+        task_output_profiles = effective_plan_output_profiles(plan, agents)
+        task_output_profile_sources = effective_plan_output_profile_sources(plan, agents)
+        task_models = effective_plan_models(plan, agents)
+        task_model_profiles = effective_plan_model_profiles(plan, agents)
+        task_efforts = effective_plan_efforts(plan, agents)
+        task_effort_sources = effective_plan_effort_sources(plan, agents)
+        complex_model_tasks = complex_model_task_ids(task_model_profiles)
+        topology = analyze_plan_topology(plan, agents)
+        cost_estimate = estimate_plan_cost(
+            plan,
+            agents,
+            pricing=load_model_pricing(),
+            task_models=task_models,
+            task_model_profiles=task_model_profiles,
+            task_efforts=task_efforts,
+            topology=topology,
+        )
+        topology = dict(topology)
+        topology_warnings = list(topology.get("warnings", []))
+        topology_warnings.extend(cost_estimate.get("warnings", []))
+        topology["warnings"] = topology_warnings
+        topology["warningCount"] = len(topology_warnings)
+        return {
+            "estimatedOnly": True,
+            "dryRun": True,
+            "plan": plan.name,
+            "goal": plan.goal,
+            "planPath": str(plan_path),
+            "agentsPath": str(agents_path),
+            "runPolicy": serialize_run_policy(plan.run_policy),
+            "taskIds": [task.id for task in plan.tasks],
+            "taskCount": len(plan.tasks),
+            "taskOutputProfiles": task_output_profiles,
+            "taskOutputProfileSources": task_output_profile_sources,
+            "taskEfforts": task_efforts,
+            "taskEffortSources": task_effort_sources,
+            "taskModels": task_models,
+            "taskModelProfiles": task_model_profiles,
+            "complexModelTaskIds": complex_model_tasks,
+            "complexModelTaskCount": len(complex_model_tasks),
+            "topology": topology,
+            "costEstimate": cost_estimate,
+            "tasks": [
+                {
+                    "id": task.id,
+                    "agent": task.agent,
+                    "outputProfile": task_output_profiles[task.id],
+                    "outputProfileSource": task_output_profile_sources[task.id],
+                    "model": task_models[task.id],
+                    "modelProfile": task_model_profiles[task.id],
+                    "effort": task_efforts[task.id],
+                    "effortSource": task_effort_sources[task.id],
+                    "resolvedSkills": effective_task_skills(task, agents[task.agent]),
+                }
+                for task in plan.tasks
+            ],
+        }
     run_kwargs = {
         "claude_bin": args.claude_bin,
         "runtime_root": Path(args.runtime_root).resolve(),

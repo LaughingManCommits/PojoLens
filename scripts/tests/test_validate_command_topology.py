@@ -752,6 +752,90 @@ class ValidateCommandTopologyTest(unittest.TestCase):
             payload["topology"]["warnings"][0]["kind"],
         )
 
+    def test_validate_command_reports_cost_estimate_and_budget_warning(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "planning",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "simple",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                            "implementer": {
+                                "description": "implementation",
+                                "prompt": "Return JSON only.",
+                                "modelProfile": "balanced",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "permissionMode": "dontAsk",
+                                "allowedTools": ["Read", "Edit"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "cost-warning",
+                        "goal": "Expose a budget warning during validation.",
+                        "runPolicy": {
+                            "runBudgetUsd": 0.0001,
+                            "budgetBehavior": "warn",
+                        },
+                        "sharedContext": {
+                            "summary": "Validation cost estimate test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "implement",
+                                "title": "Implement",
+                                "agent": "implementer",
+                                "prompt": "Implement the requested change and validate it.",
+                                "writePaths": ["scripts/tests/test_claude_orchestrator.py"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = orchestrator.validate_command(
+                SimpleNamespace(
+                    agents=str(agents_path),
+                    task_plan=str(plan_path),
+                )
+            )
+
+        self.assertIn("costEstimate", payload)
+        self.assertGreater(payload["costEstimate"]["totals"]["minUsd"], 0.0)
+        self.assertEqual(
+            "run-budget-below-min-estimate",
+            payload["costEstimate"]["warnings"][0]["kind"],
+        )
+        self.assertEqual(
+            "run-budget-below-min-estimate",
+            payload["topology"]["warnings"][-1]["kind"],
+        )
+
     def test_validate_command_rejects_compat_worker_validation_mode(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:

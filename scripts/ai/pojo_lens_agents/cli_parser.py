@@ -251,6 +251,11 @@ def parse_args() -> argparse.Namespace:
         help="Override worker validation suggestion policy. Defaults to task or agent definitions, then 'intents-only'.",
     )
     run_parser.add_argument(
+        "--estimate",
+        action="store_true",
+        help="Estimate plan token spend, USD cost, and wall-clock range, then exit without creating a run.",
+    )
+    run_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Create the run manifest and task requests without invoking Claude.",
