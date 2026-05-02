@@ -449,6 +449,15 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["validate", "--provider-bin", "anthropic-cli"])
         self.assertEqual("anthropic-cli", args.claude_bin)
 
+    def test_no_args_defaults_to_wizard(self):
+        args = self._parse_argv([])
+        self.assertEqual("wizard", args.command)
+
+    def test_natural_language_args_route_to_wizard_goal(self):
+        args = self._parse_argv(["add pagination to the employee endpoint"])
+        self.assertEqual("wizard", args.command)
+        self.assertEqual("add pagination to the employee endpoint", args.goal)
+
     def test_provider_bin_accepted_by_run(self):
         root = pathlib.Path(__file__).resolve().parents[2]
         plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
@@ -510,6 +519,12 @@ class GlobalOptionsTest(unittest.TestCase):
     def test_tui_flag_accepted_by_retry(self):
         args = self._parse_argv(["retry", "some/run/dir", "--tui"])
         self.assertTrue(args.tui)
+
+    def test_wizard_resume_flag_accepted(self):
+        args = self._parse_argv(["wizard", "--resume", "some/run/dir", "--dry-run", "--json"])
+        self.assertEqual("some/run/dir", args.resume_run_ref)
+        self.assertTrue(args.dry_run)
+        self.assertTrue(args.json)
 
     def test_otel_endpoint_flag_accepted_by_export_trace(self):
         args = self._parse_argv(["export-trace", "some/run/dir", "--otel-endpoint", "http://collector:4318/v1/traces"])

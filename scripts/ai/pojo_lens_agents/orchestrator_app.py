@@ -51,6 +51,7 @@ sdk_provider_layer = _LazyModuleProxy("pojo_lens_agents.sdk_provider")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 otel_layer = _LazyModuleProxy("pojo_lens_agents.otel_spans")
 tui_layer = _LazyModuleProxy("pojo_lens_agents.tui_app")
+wizard_layer = _LazyModuleProxy("pojo_lens_agents.wizard")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 
@@ -1407,6 +1408,35 @@ def config_command(args: Any) -> dict[str, Any]:
     }
 
 
+def wizard_command(args: argparse.Namespace) -> dict[str, Any]:
+    return wizard_layer.wizard_command(
+        args,
+        deps={
+            "root": ROOT,
+            "textual_available": tui_layer.textual_is_available,
+            "slugify": slugify,
+            "write_json": write_json,
+            "error_factory": OrchestratorError,
+            "load_agents": load_agents,
+            "ensure_claude_available": lambda bin: ensure_provider_available(bin, sdk_provider_layer.detect_provider_mode()),
+            "claude_command": claude_command,
+            "agent_payload_for_claude": agent_payload_for_claude,
+            "run_subprocess": run_process,
+            "extract_json_payload": extract_json_payload,
+            "inventory_handler": inventory_runs,
+            "validate_handler": validate_command,
+            "run_handler": run_plan,
+            "resume_handler": resume_run,
+            "retry_handler": retry_run,
+            "status_handler": status_run,
+            "review_handler": review_run,
+            "promote_handler": promote_run,
+            "validate_run_handler": validate_run,
+            "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
+        },
+    )
+
+
 def main() -> int:
     return dispatch_main(
         parse_args(),
@@ -1429,6 +1459,7 @@ def main() -> int:
             'validate-run': validate_run,
             'summarize-ledger': summarize_ledger,
             'config': config_command,
+            'wizard': wizard_command,
         },
     )
 

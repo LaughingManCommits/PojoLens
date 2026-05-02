@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Guided wizard mode** - added `pojo_lens_agents.wizard`, default no-args
+  `pojolens-agents` entry into a guided validate/run/review/promote/validate
+  lifecycle, explicit `wizard` / `--resume` / `--retry` entry points,
+  natural-language goal routing with tracked-plan matching or generated
+  runtime plans via hard-coded `claude-haiku-4-5-20251001`, and compact
+  wizard receipts/next-action suggestions for failed, blocked, dry-run, and
+  promotion-gated flows.
+
 - **TUI dashboard** - added optional `[tui]` / `textual` dependency support,
   new `pojo_lens_agents.tui_app` with a live task grid, rolling cost and
   elapsed summary, active-task stderr tailing, TUI-driven HITL approve/abort

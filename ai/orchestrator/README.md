@@ -37,6 +37,7 @@ Primary CLI:
 ```powershell
 py -3 -m pip install -e .
 pojolens-agents validate ai/orchestrator/tasks/example-parallel.json --json
+pojolens-agents wizard --dry-run --json
 pojolens-agents --repo-root C:\data\pojolens run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json
 ```
 
@@ -54,6 +55,10 @@ scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --tui
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --estimate --json
+scripts/ai/claude-orchestrator.ps1 wizard --dry-run --json
+scripts/ai/claude-orchestrator.ps1 "tighten quickstart onboarding docs" --dry-run --json
+scripts/ai/claude-orchestrator.ps1 wizard --resume .claude-orchestrator/runs/<run-id> --dry-run --json
+scripts/ai/claude-orchestrator.ps1 wizard --retry .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --max-parallel 2 --otel-endpoint http://localhost:4318/v1/traces --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json
@@ -96,6 +101,8 @@ Dry runs:
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
 - `run --dry-run --tui` still renders the live dashboard, but exits after the planned task records and run-finished event are written
 - `run --estimate` computes the same pre-flight pricing and wall-clock estimate without creating a retained run
+- `wizard` (or no subcommand) loads retained-run inventory, picks a tracked plan or optional natural-language goal, runs validate plus run in one guided flow, and can continue straight into review, promote, and post-promotion validation
+- wizard-triggered natural-language generation writes ephemeral plans under `.claude-orchestrator/generated-plans/` rather than mutating tracked `ai/orchestrator/tasks/`
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 - `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution
@@ -104,6 +111,7 @@ Dry runs:
 
 Lifecycle helpers:
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
+- `wizard --resume` and `wizard --retry` reuse the same retained-run helpers but keep the guided review/promote/validate flow on top
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`

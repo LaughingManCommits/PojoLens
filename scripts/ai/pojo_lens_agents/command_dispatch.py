@@ -39,7 +39,7 @@ def dispatch_main(args: Any, handlers: dict[str, Callable[[Any], dict[str, Any]]
             raise OrchestratorError(f"Unknown command '{args.command}'")
         payload = handler(args)
         print_payload(payload, as_json=bool(getattr(args, "json", False)))
-        if args.command in {"run", "resume", "retry"}:
+        if args.command in {"run", "resume", "retry", "wizard"}:
             return _worker_run_exit_code(payload.get("statusCounts", {}))
         return EXIT_SUCCESS
     except PromotionBlockedError as exc:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from pojo_lens_agents import wizard as wizard_layer
 from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_AGENTS_PATH,
     DEFAULT_CLAUDE_BIN,
@@ -164,7 +165,8 @@ def _pre_parse_config_path(argv: list[str]) -> str | None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    raw_argv = argv if argv is not None else sys.argv[1:]
+    raw_argv = list(argv if argv is not None else sys.argv[1:])
+    raw_argv = wizard_layer.preprocess_argv(raw_argv)
     parser = argparse.ArgumentParser(
         description=(
             "Coordinate local Claude Code workers from tracked repo task specs. "
@@ -199,6 +201,68 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit config as compact JSON (default is pretty-printed JSON).",
     )
+
+    wizard_parser = subparsers.add_parser(
+        "wizard",
+        help="Guided operator flow for validate, run, review, promote, and validate-run.",
+    )
+    wizard_parser.add_argument(
+        "goal_words",
+        nargs="*",
+        help="Optional natural-language goal. When used without an explicit plan, the wizard resolves it to a tracked or generated plan.",
+    )
+    wizard_parser.add_argument(
+        "--goal",
+        default="",
+        help="Explicit natural-language goal for wizard intent resolution.",
+    )
+    wizard_parser.add_argument(
+        "--plan",
+        default="",
+        help="Tracked task-plan path to use instead of interactive plan selection.",
+    )
+    wizard_parser.add_argument(
+        "--resume",
+        dest="resume_run_ref",
+        default="",
+        help="Existing run directory or manifest path to resume in wizard mode.",
+    )
+    wizard_parser.add_argument(
+        "--retry",
+        dest="retry_run_ref",
+        default="",
+        help="Existing run directory or manifest path to retry in wizard mode.",
+    )
+    wizard_parser.add_argument(
+        "--agents",
+        default=str(DEFAULT_AGENTS_PATH),
+        help="Path to the tracked agents JSON file.",
+    )
+    _add_provider_bin_arg(wizard_parser)
+    wizard_parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="Runtime root for run inventory and any wizard-triggered execution.",
+    )
+    _add_max_parallel_arg(wizard_parser)
+    _add_watch_arg(wizard_parser)
+    _add_tui_arg(wizard_parser)
+    wizard_parser.add_argument(
+        "--planner-agent",
+        default=PLANNER_TASK_ID,
+        help="Planner agent name to use for natural-language wizard intent resolution.",
+    )
+    wizard_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Keep wizard-triggered execution in dry-run mode.",
+    )
+    wizard_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the wizard receipt as JSON.",
+    )
+    _add_verbose_arg(wizard_parser)
 
     validate_parser = subparsers.add_parser(
         "validate",

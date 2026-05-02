@@ -60,7 +60,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP52| Diff-Aware Incremental Replay        | Complete | Content-addressed task fingerprinting, `--reuse-unchanged` on run/resume/retry, `--fingerprint-only` on validate, task-reused events, and fingerprint stored on every executed record |
 | WP53| CLI Ergonomics                       | Complete | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
 | WP54| TUI Dashboard                        | Complete | Added optional `textual` dashboard with task grid, rolling cost/elapsed summary, stderr tailing, auto-enable/fallback logic, and TUI HITL approve/abort controls |
-| WP55| Guided Wizard Mode                   | Planned | No-args interactive wizard that walks the operator through the full validate → run → review → promote lifecycle without needing to know any commands |
+| WP55| Guided Wizard Mode                   | Complete | No-args or natural-language wizard that walks the operator through preflight, run, review, promote, and validate-run with resume/retry entry points |
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Planned | `diff-run <run-id>` command that renders git-style file diffs of workspace vs repo so the operator sees exactly what changed before promoting |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
@@ -1620,34 +1620,34 @@ plan selection to promotion, chaining all commands with human-friendly prompts.
   can make informed choices without manually querying.
 
 **Tasks:**
-- [ ] Add `wizard.py` in `pojo_lens_agents`; entry point: `pojolens-agents`
+- [x] Add `wizard.py` in `pojo_lens_agents`; entry point: `pojolens-agents`
       with no subcommand (or explicit `wizard` subcommand).
-- [ ] Step 1 — Plan selection: list `ai/orchestrator/tasks/*.json` plans with
+- [x] Step 1 — Plan selection: list `ai/orchestrator/tasks/*.json` plans with
       name/goal previews; operator picks one or provides a path.
-- [ ] Step 2 — Pre-flight: show task count, agent profiles, and cost estimate
+- [x] Step 2 — Pre-flight: show task count, agent profiles, and cost estimate
       (WP48 if available); ask "dry run first?" and "max parallel?".
-- [ ] Step 3 — Run: execute with TUI (WP54 if available) or `--watch` output;
+- [x] Step 3 — Run: execute with TUI (WP54 if available) or `--watch` output;
       display run summary on completion (status counts, total cost, duration).
-- [ ] Step 4 — Review gate: if any tasks completed with workspace changes, ask
+- [x] Step 4 — Review gate: if any tasks completed with workspace changes, ask
       "review changes?" and invoke `review` command inline; show reviewer
       findings summary.
-- [ ] Step 5 — Promote gate: if review passed (or no reviewer tasks), ask
+- [x] Step 5 — Promote gate: if review passed (or no reviewer tasks), ask
       "promote to repo?" with a diff summary; invoke `promote` on confirm,
       skip on deny.
-- [ ] Step 6 — Validation: after promotion, offer "run post-promotion
+- [x] Step 6 — Validation: after promotion, offer "run post-promotion
       validation?" and invoke `validate-run` inline; report pass/fail.
-- [ ] Step 7 — Done: print a compact run receipt (run id, promoted files,
+- [x] Step 7 — Done: print a compact run receipt (run id, promoted files,
       cost) and exit.
-- [ ] If any step fails (run failure, reviewer block, promotion rejection),
+- [x] If any step fails (run failure, reviewer block, promotion rejection),
       surface the error clearly and offer relevant next steps: "retry failed
       tasks?", "open run dir?", "view manifest?".
-- [ ] Add optional natural-language entry: `pojolens-agents "add pagination to
+- [x] Add optional natural-language entry: `pojolens-agents "add pagination to
       the employee endpoint"` → `claude-haiku-4-5` call that matches intent to
       an existing tracked plan or generates a minimal task plan; operator
       confirms before execution. Model hard-coded to haiku — never escalates.
-- [ ] Add `--resume` and `--retry` wizard entry points that skip to the
+- [x] Add `--resume` and `--retry` wizard entry points that skip to the
       appropriate step for an existing run id.
-- [ ] Add regression coverage for wizard step sequencing, abort paths, and
+- [x] Add regression coverage for wizard step sequencing, abort paths, and
       flag forwarding to underlying commands.
 
 **Validate:**
