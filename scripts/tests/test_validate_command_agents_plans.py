@@ -76,6 +76,36 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
 
             self.assertEqual(["caveman"], agents["planner"].skills)
 
+    def test_load_agents_preserves_output_profile(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            agents_path = pathlib.Path(tempdir) / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "outputProfile": "lean",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            agents = orchestrator.load_agents(agents_path)
+
+            self.assertEqual("lean", agents["planner"].output_profile)
+
     def test_load_agents_rejects_unknown_skill_when_registry_exists(self):
         orchestrator = self.orchestrator
         with tempfile.TemporaryDirectory() as tempdir:
@@ -458,6 +488,64 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             plan = orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
 
             self.assertEqual(["docs"], plan.tasks[0].skills)
+
+    def test_load_task_plan_preserves_output_profile(self):
+        orchestrator = self.orchestrator
+        planner = orchestrator.AgentDefinition(
+            name="planner",
+            description="Plan",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="Analyze",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            plan_path = pathlib.Path(tempdir) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "task-output-profile",
+                        "goal": "Keep task output profile.",
+                        "sharedContext": {
+                            "summary": "Task output profile test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect guidance.",
+                                "outputProfile": "lean",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            plan = orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
+            self.assertEqual("lean", plan.tasks[0].output_profile)
 
     def test_load_task_plan_rejects_dependency_cycle(self):
         orchestrator = self.orchestrator

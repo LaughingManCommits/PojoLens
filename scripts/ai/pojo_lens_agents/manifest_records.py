@@ -60,6 +60,17 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
         notes=[str(item) for item in payload.get("notes", []) or []],
         model=str(payload["model"]) if payload.get("model") is not None else None,
         model_profile=str(payload["model_profile"]) if payload.get("model_profile") is not None else None,
+        output_profile=(
+            deps["normalize_output_profile"](
+                payload.get("output_profile"),
+                location=f"{location}:output_profile",
+            )
+            or deps["default_output_profile"]
+        ),
+        output_profile_source=deps["normalize_output_profile_source"](
+            payload.get("output_profile_source"),
+            location=f"{location}:output_profile_source",
+        ),
         prompt_chars=int(payload.get("prompt_chars", 0) or 0),
         prompt_estimated_tokens=int(payload.get("prompt_estimated_tokens", 0) or 0),
         prompt_sections=[

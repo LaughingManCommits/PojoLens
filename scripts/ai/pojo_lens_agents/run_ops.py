@@ -33,6 +33,8 @@ def run_loaded_plan(
     normalize_effort_override: Callable[..., str | None] = None,
     effective_plan_worker_validation_modes: Callable[..., dict[str, str]] = None,
     effective_plan_worker_validation_mode_sources: Callable[..., dict[str, str]] = None,
+    effective_plan_output_profiles: Callable[..., dict[str, str]] = None,
+    effective_plan_output_profile_sources: Callable[..., dict[str, str]] = None,
     effective_plan_efforts: Callable[..., dict[str, str | None]] = None,
     effective_plan_effort_sources: Callable[..., dict[str, str | None]] = None,
     effective_task_skills: Callable[..., list[str]] = None,
@@ -69,6 +71,8 @@ def run_loaded_plan(
     normalized_effort_override = normalize_effort_override(effort_override, location="run effort override")
     task_worker_validation_modes = effective_plan_worker_validation_modes(plan, agents, run_override=worker_validation_override)
     task_worker_validation_mode_sources = effective_plan_worker_validation_mode_sources(plan, agents, run_override=worker_validation_override)
+    task_output_profiles = effective_plan_output_profiles(plan, agents)
+    task_output_profile_sources = effective_plan_output_profile_sources(plan, agents)
     task_efforts = effective_plan_efforts(plan, agents, run_override=normalized_effort_override)
     task_effort_sources = effective_plan_effort_sources(plan, agents, run_override=normalized_effort_override)
     topological_batches(plan.tasks)
@@ -225,6 +229,8 @@ def run_loaded_plan(
         "effortOverride": normalized_effort_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskOutputProfiles": task_output_profiles,
+        "taskOutputProfileSources": task_output_profile_sources,
         "taskEfforts": task_efforts,
         "taskEffortSources": task_effort_sources,
         "taskModels": task_models,

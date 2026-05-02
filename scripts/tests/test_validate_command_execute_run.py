@@ -1232,6 +1232,14 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             payload["taskWorkerValidationModeSources"],
         )
         self.assertEqual(
+            {"inspect-a": "standard", "review-b": "standard"},
+            payload["taskOutputProfiles"],
+        )
+        self.assertEqual(
+            {"inspect-a": "agent", "review-b": "agent"},
+            payload["taskOutputProfileSources"],
+        )
+        self.assertEqual(
             ["agent", "task"],
             [task["worker_validation_mode_source"] for task in payload["tasks"]],
         )
@@ -1339,6 +1347,8 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
         self.assertEqual("intents-only", payload["workerValidationModeOverride"])
         self.assertEqual({"inspect-a": "intents-only"}, payload["taskWorkerValidationModes"])
         self.assertEqual({"inspect-a": "override"}, payload["taskWorkerValidationModeSources"])
+        self.assertEqual({"inspect-a": "standard"}, payload["taskOutputProfiles"])
+        self.assertEqual({"inspect-a": "agent"}, payload["taskOutputProfileSources"])
         self.assertEqual(
             {"inspect-a": orchestrator.MODEL_PROFILE_TO_MODEL["simple"]},
             payload["taskModels"],
@@ -1549,6 +1559,8 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
         self.assertEqual(1, summary["topologyBatchCount"])
         self.assertEqual(1, summary["topologyMaxParallelWidth"])
         self.assertEqual(0, summary["topologyWarningCount"])
+        self.assertEqual({"standard": 1}, summary["outputProfileCounts"])
+        self.assertEqual([], summary["unexpectedlyVerboseTaskIds"])
 
     def test_run_loaded_plan_can_reuse_existing_run_directories_without_overwriting_snapshot(self):
         orchestrator = self.orchestrator

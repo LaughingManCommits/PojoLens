@@ -283,6 +283,55 @@ class ValidateCommandPromptsWorkersTest(unittest.TestCase):
         self.assertNotIn("Emit only structured `validationIntents`", rendered.text)
         self.assertNotIn("Use `[]` for known-empty", rendered.text)
 
+    def test_worker_prompt_includes_lean_output_discipline(self):
+        orchestrator = self.orchestrator
+        agent = orchestrator.AgentDefinition(
+            name="docs-implementer",
+            description="docs implementation",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            effort="low",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            output_profile="lean",
+            timeout_sec=30,
+            allowed_tools=["Read", "Edit"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="tighten-docs",
+            title="Tighten docs",
+            agent="docs-implementer",
+            prompt="Tighten the docs.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="lean-output-profile",
+            goal="Keep docs output terse.",
+            shared_context=orchestrator.SharedContext(
+                summary="Prompt test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        rendered = orchestrator.worker_prompt(
+            plan,
+            task,
+            agent,
+            "copy",
+            pathlib.Path("C:/tmp/workspace"),
+            "- none",
+            worker_validation_mode="intents-only",
+        )
+
+        self.assertIn("Resolved profile: `lean`", rendered.text)
+        self.assertIn("keep `summary` to one short sentence", rendered.text)
+        self.assertIn("at most one validation intent", rendered.text)
+
     def test_coerce_worker_result_compacts_verbose_fields(self):
         orchestrator = self.orchestrator
         payload = {
@@ -330,6 +379,41 @@ class ValidateCommandPromptsWorkersTest(unittest.TestCase):
         self.assertEqual([], result["validationCommands"])
         self.assertEqual(3, len(result["followUps"]))
         self.assertEqual(5, len(result["notes"]))
+
+    def test_coerce_worker_result_uses_tighter_lean_limits(self):
+        orchestrator = self.orchestrator
+        payload = {
+            "status": "completed",
+            "summary": "Summary " * 80,
+            "filesTouched": ["docs/guide.md"],
+            "validationIntents": [
+                {
+                    "kind": "repo-script",
+                    "entrypoint": "scripts/docs/check-doc-consistency.ps1",
+                },
+                {
+                    "kind": "tool",
+                    "entrypoint": "py",
+                    "args": ["-3", "-m", "unittest"],
+                },
+            ],
+            "followUps": [
+                "First follow-up item.",
+                "Second follow-up item should be dropped.",
+            ],
+            "notes": [
+                "Note one.",
+                "Note two.",
+                "Note three should be dropped.",
+            ],
+        }
+
+        result = orchestrator.coerce_worker_result(payload, output_profile="lean")
+
+        self.assertLessEqual(len(result["summary"]), orchestrator.LEAN_MAX_WORKER_SUMMARY_CHARS)
+        self.assertEqual(1, len(result["validationIntents"]))
+        self.assertEqual(1, len(result["followUps"]))
+        self.assertEqual(2, len(result["notes"]))
 
     def test_coerce_worker_result_preserves_unknown_null_fields(self):
         orchestrator = self.orchestrator

@@ -31,6 +31,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   resolves more than `4` skills so prompt assembly stays bounded before runtime
   prompt budgets are hit.
 
+- **Low-cost worker profiles and output discipline** - added
+  `outputProfile` support to agent/task definitions, lean docs-oriented
+  `docs-implementer` / `docs-reviewer` worker profiles, tighter `lean` worker
+  JSON caps for `summary` / `notes` / `followUps` / validation intents,
+  retained-run visibility for unexpectedly verbose tasks, and the tracked
+  `ai/orchestrator/tasks/example-cheap-proof-docs.json` plan for repeated
+  low-cost orchestration proofs.
+
 - **Docs/text quality guardrails** - reviewer diff summaries now surface
   `textQualityFindings` for docs-like text files, block promotion on common
   mojibake patterns, warn when new non-ASCII doc text is introduced into an

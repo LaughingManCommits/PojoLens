@@ -534,9 +534,9 @@ class ValidateCommandReportingTest(unittest.TestCase):
 
         self.assertEqual("warn", payload["status"])
         self.assertEqual("warn", payload["scoreSummary"]["status"])
-        self.assertEqual({"pass": 2, "warn": 4}, payload["scoreSummary"]["statusCounts"])
-        self.assertEqual(6, payload["scoreSummary"]["totalChecks"])
-        self.assertEqual(66.7, payload["scoreSummary"]["scorePercent"])
+        self.assertEqual({"pass": 3, "warn": 4}, payload["scoreSummary"]["statusCounts"])
+        self.assertEqual(7, payload["scoreSummary"]["totalChecks"])
+        self.assertEqual(71.4, payload["scoreSummary"]["scorePercent"])
         self.assertTrue(payload["scoreSummary"]["promotionReady"])
         self.assertFalse(payload["scoreSummary"]["resumable"])
         self.assertEqual(2, payload["scoreSummary"]["taskCount"])
@@ -555,6 +555,7 @@ class ValidateCommandReportingTest(unittest.TestCase):
         self.assertEqual("warn", by_name["reviewer-hops"]["status"])
         self.assertEqual("warn", by_name["validation-suggestions"]["status"])
         self.assertEqual("warn", by_name["effort-fit"]["status"])
+        self.assertEqual("pass", by_name["output-discipline"]["status"])
         self.assertEqual("pass", by_name["retry-resume-contract"]["status"])
 
     def test_evaluate_run_corpus_aggregates_scores_and_dimensions(self):
@@ -679,7 +680,7 @@ class ValidateCommandReportingTest(unittest.TestCase):
         self.assertEqual(2, payload["shownRunCount"])
         self.assertEqual({"pass": 1, "warn": 1}, payload["statusCounts"])
         self.assertEqual({"pass": 1, "warn": 1}, payload["scoreStatusCounts"])
-        self.assertEqual(87.5, payload["averageScorePercent"])
+        self.assertEqual(89.3, payload["averageScorePercent"])
         self.assertEqual({"pass": 1, "warn": 1}, payload["dimensionStatusCounts"]["decompositionQuality"])
         self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["retryCorrectness"])
         self.assertEqual({"pass": 2}, payload["dimensionStatusCounts"]["reviewPromotionAccuracy"])

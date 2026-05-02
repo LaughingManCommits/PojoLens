@@ -18,6 +18,9 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         "agentWorkerValidationModes": {
             name: agent.worker_validation_mode for name, agent in sorted(agents.items())
         },
+        "agentOutputProfiles": {
+            name: agent.output_profile for name, agent in sorted(agents.items())
+        },
     }
     if args.task_plan:
         plan_path = Path(args.task_plan).resolve()
@@ -25,6 +28,8 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         deps["validate_scope_contract"](plan, agents)
         task_worker_validation_modes = deps["effective_plan_worker_validation_modes"](plan, agents)
         task_worker_validation_mode_sources = deps["effective_plan_worker_validation_mode_sources"](plan, agents)
+        task_output_profiles = deps["effective_plan_output_profiles"](plan, agents)
+        task_output_profile_sources = deps["effective_plan_output_profile_sources"](plan, agents)
         task_model_profiles = deps["effective_plan_model_profiles"](plan, agents)
         task_models = deps["effective_plan_models"](plan, agents)
         task_efforts = deps["effective_plan_efforts"](plan, agents)
@@ -41,6 +46,8 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
                 "taskIds": [task.id for task in plan.tasks],
                 "taskWorkerValidationModes": task_worker_validation_modes,
                 "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+                "taskOutputProfiles": task_output_profiles,
+                "taskOutputProfileSources": task_output_profile_sources,
                 "taskEfforts": task_efforts,
                 "taskEffortSources": task_effort_sources,
                 "taskModels": task_models,
@@ -54,6 +61,8 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
                         "agent": task.agent,
                         "skills": list(task.skills),
                         "resolvedSkills": deps["effective_task_skills"](task, agents[task.agent]),
+                        "outputProfile": task_output_profiles[task.id],
+                        "outputProfileSource": task_output_profile_sources[task.id],
                         "model": task_models[task.id],
                         "modelProfile": task_model_profiles[task.id],
                         "effort": task_efforts[task.id],

@@ -4,6 +4,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from pojo_lens_agents.orchestrator_contracts import (
+    DEFAULT_OUTPUT_PROFILE,
+    LEAN_MAX_WORKER_FOLLOW_UP_CHARS,
+    LEAN_MAX_WORKER_FOLLOW_UPS,
+    LEAN_MAX_WORKER_NOTE_CHARS,
+    LEAN_MAX_WORKER_NOTES,
+    LEAN_MAX_WORKER_SUMMARY_CHARS,
+    LEAN_VERBOSE_RESULT_BYTES,
+    LEAN_VERBOSE_STDOUT_BYTES,
+    MAX_WORKER_FOLLOW_UP_CHARS,
+    MAX_WORKER_FOLLOW_UPS,
+    MAX_WORKER_NOTE_CHARS,
+    MAX_WORKER_NOTES,
+    MAX_WORKER_SUMMARY_CHARS,
+    STANDARD_VERBOSE_RESULT_BYTES,
+    STANDARD_VERBOSE_STDOUT_BYTES,
+)
+
 
 def summarize_branch_contexts(records: list[Any]) -> dict[str, Any]:
     by_context: dict[str, dict[str, Any]] = {}
@@ -132,6 +150,29 @@ def summarize_approval_checkpoints(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _unexpectedly_verbose(record: Any) -> bool:
+    output_profile = str(getattr(record, "output_profile", DEFAULT_OUTPUT_PROFILE) or DEFAULT_OUTPUT_PROFILE)
+    if output_profile == "lean":
+        return (
+            len(record.summary) >= LEAN_MAX_WORKER_SUMMARY_CHARS
+            or len(record.notes) >= LEAN_MAX_WORKER_NOTES
+            or any(len(note) >= LEAN_MAX_WORKER_NOTE_CHARS for note in record.notes)
+            or len(record.follow_ups) >= LEAN_MAX_WORKER_FOLLOW_UPS
+            or any(len(item) >= LEAN_MAX_WORKER_FOLLOW_UP_CHARS for item in record.follow_ups)
+            or int(record.result_bytes or 0) > LEAN_VERBOSE_RESULT_BYTES
+            or int(record.stdout_bytes or 0) > LEAN_VERBOSE_STDOUT_BYTES
+        )
+    return (
+        len(record.summary) >= MAX_WORKER_SUMMARY_CHARS
+        or len(record.notes) >= MAX_WORKER_NOTES
+        or any(len(note) >= MAX_WORKER_NOTE_CHARS for note in record.notes)
+        or len(record.follow_ups) >= MAX_WORKER_FOLLOW_UPS
+        or any(len(item) >= MAX_WORKER_FOLLOW_UP_CHARS for item in record.follow_ups)
+        or int(record.result_bytes or 0) > STANDARD_VERBOSE_RESULT_BYTES
+        or int(record.stdout_bytes or 0) > STANDARD_VERBOSE_STDOUT_BYTES
+    )
+
+
 def derive_run_lifecycle_state(
     *,
     records: list[Any],
@@ -218,6 +259,14 @@ def summarize_run_manifest(
     manifest_task_effort_sources = (
         manifest.get("taskEffortSources") if isinstance(manifest.get("taskEffortSources"), dict) else {}
     )
+    manifest_task_output_profiles = (
+        manifest.get("taskOutputProfiles") if isinstance(manifest.get("taskOutputProfiles"), dict) else {}
+    )
+    manifest_task_output_profile_sources = (
+        manifest.get("taskOutputProfileSources")
+        if isinstance(manifest.get("taskOutputProfileSources"), dict)
+        else {}
+    )
     resolved_task_efforts = {
         record.id: record.effort if record.effort is not None else manifest_task_efforts.get(record.id)
         for record in records
@@ -229,6 +278,26 @@ def summarize_run_manifest(
         for record in records
     }
     effort_counts = count_statuses([str(resolved_task_efforts.get(record.id) or "unset") for record in records])
+    resolved_task_output_profiles = {
+        record.id: (
+            str(record.output_profile or "")
+            if getattr(record, "output_profile", None) is not None
+            else str(manifest_task_output_profiles.get(record.id) or DEFAULT_OUTPUT_PROFILE)
+        )
+        for record in records
+    }
+    resolved_task_output_profile_sources = {
+        record.id: (
+            record.output_profile_source
+            if getattr(record, "output_profile_source", None) is not None
+            else manifest_task_output_profile_sources.get(record.id)
+        )
+        for record in records
+    }
+    output_profile_counts = count_statuses(
+        [str(resolved_task_output_profiles.get(record.id) or DEFAULT_OUTPUT_PROFILE) for record in records]
+    )
+    unexpectedly_verbose_task_ids = sorted(record.id for record in records if _unexpectedly_verbose(record))
     resume_candidate_task_ids = [record.id for record in records if record.status != "completed"]
     usage_totals = manifest.get("usageTotals") if isinstance(manifest.get("usageTotals"), dict) else {}
     run_governance = manifest.get("runGovernance") if isinstance(manifest.get("runGovernance"), dict) else {}
@@ -278,6 +347,8 @@ def summarize_run_manifest(
         flags.append("text-quality-blocked")
     if is_costly:
         flags.append("costly")
+    if unexpectedly_verbose_task_ids:
+        flags.append("verbose")
     if int(run_governance.get("blockingAlertCount", 0) or 0) > 0:
         flags.append("governance-blocked")
     flags.append(f"state:{lifecycle_state}")
@@ -297,6 +368,7 @@ def summarize_run_manifest(
         "taskIds": plan_task_ids or [record.id for record in records],
         "statusCounts": status_counts,
         "effortCounts": effort_counts,
+        "outputProfileCounts": output_profile_counts,
         "hasFailures": has_failures,
         "hasBlocked": has_blocked,
         "isResumable": is_resumable,
@@ -310,6 +382,10 @@ def summarize_run_manifest(
         "totalCostUsd": float(usage_totals.get("totalCostUsd", 0.0) or 0.0),
         "taskEfforts": resolved_task_efforts,
         "taskEffortSources": resolved_task_effort_sources,
+        "taskOutputProfiles": resolved_task_output_profiles,
+        "taskOutputProfileSources": resolved_task_output_profile_sources,
+        "unexpectedlyVerboseTaskIds": unexpectedly_verbose_task_ids,
+        "unexpectedlyVerboseTaskCount": len(unexpectedly_verbose_task_ids),
         "governanceStatus": str(run_governance.get("status", "ok") or "ok"),
         "governanceAlertCount": int(run_governance.get("alertCount", 0) or 0),
         "governanceBlockingAlertCount": int(run_governance.get("blockingAlertCount", 0) or 0),

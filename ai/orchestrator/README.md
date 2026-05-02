@@ -11,6 +11,7 @@ Tracked files:
 - `README.md`: operating guide for local runs
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
 - `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, and reviewer roles
+- `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, reviewer, and lean docs-oriented worker roles
 - `agents/<role>/prompt.md`: file-backed role prompt bodies referenced from `agents.json`
 - `skills/registry.json`: tracked skill registry for worker-preload skills
 - `skills/<skill>/SKILL.md`: tracked skill prompt bodies referenced from the registry
@@ -82,6 +83,7 @@ Tracked samples:
 - `ai/orchestrator/tasks/example-implement-review-quickstart.json`: minimal implementer-to-reviewer coding sample that adds one grouped-query feature to the Spring Boot quickstart example
 - `ai/orchestrator/tasks/example-parallel-implement-review-quickstart-salary-range.json`: parallel implementer-plus-reviewer coding sample that adds and promotes a real salary-range quickstart endpoint
 - `ai/orchestrator/tasks/example-implement-review-quickstart-salary-range-fixup.json`: follow-up implementer-plus-reviewer sample that fixes docs/tests against an already-promoted controller contract
+- `ai/orchestrator/tasks/example-cheap-proof-docs.json`: smallest tracked cheap-proof docs plan using lean docs worker profiles for repeated low-cost orchestration validation
 - `ai/orchestrator/tasks/wp16-live-run-policy-proof.json`: tiny live governance proof that sets explicit `runPolicy` thresholds and demonstrates between-batch stop on a retained run
 - `ai/orchestrator/tasks/wp17-csv-typed-loader-slice.json`: practical write-capable CSV starter slice that uses lean implementer-plus-reviewer topology and non-contrived `runPolicy` ceilings
 
@@ -119,6 +121,7 @@ Context discipline:
 - for narrow code changes, prefer one `implementer` task or an `implementer -> reviewer` path only when the extra hop materially lowers risk
 - task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
 - task plans may also declare task-local `skills`; the router merges task skills, agent default skills, and a small inferred set for docs/release/benchmark/orchestrator work
+- agent and task definitions may also declare `outputProfile`; use `lean` for cheap docs/read-only proofs that should keep worker JSON terse
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
 - workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters, declare it in `readPaths` or `writePaths`
@@ -127,6 +130,7 @@ Context discipline:
 - skill validation is registry-backed when a nearby `skills/registry.json` exists, and validate/run surfaces now expose resolved per-task skills
 - role prompt files warn above `6 KB` and fail above `8 KB`; skill `SKILL.md` files warn above `3 KB` and fail above `4 KB`
 - validate/topology warns when a task resolves more than `4` skills; keep the stack at `5` or fewer and prefer fewer, sharper skills
+- tracked `docs-implementer` and `docs-reviewer` roles default to `modelProfile = simple`, `effort = low`, and `outputProfile = lean` for cheap docs-oriented proof runs
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer
@@ -155,6 +159,7 @@ Token and cost visibility:
 - `review` now surfaces `textQualityFindings` for docs-like text changes, blocks promotion on mojibake-like output, and warns when Unicode is introduced into an otherwise ASCII doc baseline so operators do not need to spot those issues manually in diffs
 - `export-trace` maps those retained events plus coordinator checkpoints into stable span ids and parent span ids so external tooling can compare runs without learning the manifest internals
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
+- retained-run summaries now also expose `taskOutputProfiles`, `outputProfileCounts`, `unexpectedlyVerboseTaskIds`, and `unexpectedlyVerboseTaskCount`; `evaluate-run` warns when retained output is unexpectedly verbose for the resolved profile
 - `example-eval-readonly-review.json` is the tracked read-only reviewer-hop fixture for score/eval surface regressions
 - operator-facing benchmark fields for WP32 are now `scoreSummary.status`, `scoreSummary.statusCounts`, `scoreSummary.scorePercent`, `scoreSummary.taskCount`, `scoreSummary.batchCount`, `scoreSummary.parallelWidth`, plus `benchmarkDimensions.{decompositionQuality,retryCorrectness,reviewPromotionAccuracy,parallelEfficiency}`
 - `validate --json`, `run --json`, and run manifests now expose resolved `taskModels`, `taskModelProfiles`, and `complexModelTaskIds` / `complexModelTaskCount` so accidental `opus` usage is obvious before or during a run

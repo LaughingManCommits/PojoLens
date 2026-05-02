@@ -45,7 +45,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP34| Trace Export                         | Complete | Added `export-trace`, a stable `pojo-lens-orchestrator-trace/v1` span export, and parent-child task/batch/checkpoint lineage derived from retained events and branch contexts |
 | WP37| Reviewer Findings And Promotion Governance | Complete | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
 | WP38| Docs And Text Quality Guardrails     | Complete | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
-| WP39| Low-Cost Worker Profiles And Output Discipline | Planned | Lean docs-oriented worker/reviewer profiles, tighter output contracts, and lower-cost prompt/result behavior for small live proofs |
+| WP39| Low-Cost Worker Profiles And Output Discipline | Complete | Lean docs-oriented worker/reviewer profiles, tighter output contracts, retained verbosity visibility, and a tracked cheap-proof plan for repeated low-cost live proofs |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -56,7 +56,7 @@ history.
 
 Post-WP live-run hardening:
 - `2026-05-01`: Coordinator contract hardening landed after the real quickstart coding runs: `validate` now warns about risky reviewer prompt budgets, promotion dedupes exact duplicate reviewer/materialized file ownership, and promoted coding runs stay `awaiting_validation` until repo-scope validation is recorded after promotion.
-- `2026-05-01`: The next orchestration queue is now broader than a narrow patch pass: reviewer governance, docs/text guardrails, low-cost worker tuning, and end-to-end coding run reliability are all tracked explicitly as WP37-WP40.
+- `2026-05-02`: WP39 is complete; the orchestrator now has lean docs-oriented worker/reviewer profiles, `outputProfile = lean`, tighter worker JSON caps, retained verbosity visibility, and a tracked `example-cheap-proof-docs.json` plan for repeated low-cost live proofs.
 
 ---
 
@@ -692,17 +692,17 @@ proofs without weakening correctness or governance.
   validation of multi-agent behavior.
 
 **Tasks:**
-- [ ] Add leaner docs-oriented implementer/reviewer profiles or prompt modes
+- [x] Add leaner docs-oriented implementer/reviewer profiles or prompt modes
       for bounded documentation and read-only tasks.
-- [ ] Tighten worker output expectations for `summary`, `notes`,
+- [x] Tighten worker output expectations for `summary`, `notes`,
       `followUps`, and reviewer findings where the task shape is small.
-- [ ] Review whether default task/agent effort should remain `high` for all
+- [x] Review whether default task/agent effort should remain `high` for all
       roles or whether selected orchestration profiles should default lower.
-- [ ] Add retained-run visibility for "unexpectedly verbose" tasks so cost
+- [x] Add retained-run visibility for "unexpectedly verbose" tasks so cost
       debugging is easier.
-- [ ] Add at least one tracked low-cost live-proof task plan explicitly aimed
+- [x] Add at least one tracked low-cost live-proof task plan explicitly aimed
       at repeated cheap orchestration validation.
-- [ ] Add regression coverage for the cheaper profile/contract behavior.
+- [x] Add regression coverage for the cheaper profile/contract behavior.
 
 **Validate:**
 - `py -3 -m py_compile scripts/ai/pojo_lens_agents/prompt_contracts.py scripts/ai/pojo_lens_agents/worker_contracts.py scripts/ai/pojo_lens_agents/evals.py scripts/tests/test_claude_orchestrator.py`

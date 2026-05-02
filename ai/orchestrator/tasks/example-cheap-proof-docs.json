@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "name": "example-cheap-proof-docs",
+  "goal": "Provide a repeatable cheap proof plan for docs-oriented orchestration with lean worker output and low effort defaults.",
+  "sharedContext": {
+    "summary": "Make one bounded quickstart documentation improvement and run it through a lean reviewer so repeated live proofs stay cheap without relaxing coordinator review or docs validation.",
+    "constraints": [
+      "Keep work bounded to examples/spring-boot-starter-quickstart.",
+      "Keep changes documentation-only.",
+      "Prefer terse worker output; empty arrays are better than padded notes.",
+      "Do not edit TODO.md, ai/state files, ai/log files, or ai/indexes."
+    ],
+    "readPaths": [
+      "examples/spring-boot-starter-quickstart/README.md",
+      "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+    ],
+    "validation": [
+      "scripts/docs/check-doc-consistency.ps1"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "tighten-quickstart-readme-scan",
+      "title": "Tighten quickstart README scanability",
+      "agent": "docs-implementer",
+      "modelProfile": "simple",
+      "effort": "low",
+      "outputProfile": "lean",
+      "prompt": "Improve the quickstart README so a developer can scan the example faster. Focus on one small orientation pass: what the example demonstrates, which endpoint to try first, and which source file to inspect next. Keep the diff short.",
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "writePaths": [
+        "examples/spring-boot-starter-quickstart/README.md"
+      ],
+      "workspaceMode": "copy"
+    },
+    {
+      "id": "review-quickstart-readme-scan",
+      "title": "Review the quickstart README pass",
+      "agent": "docs-reviewer",
+      "modelProfile": "simple",
+      "effort": "low",
+      "outputProfile": "lean",
+      "maxPromptEstimatedTokens": 1200,
+      "prompt": "Review the README change for accuracy, clarity, and whether it makes the quickstart easier to scan without overstating the implementation. Call out only concrete risks.",
+      "dependsOn": [
+        "tighten-quickstart-readme-scan"
+      ],
+      "readPaths": [
+        "examples/spring-boot-starter-quickstart/README.md",
+        "examples/spring-boot-starter-quickstart/src/main/java/laughing/man/commits/examples/spring/boot/quickstart/QuickstartEmployeeController.java"
+      ],
+      "workspaceMode": "copy",
+      "dependencyMaterialization": "apply-reviewed"
+    }
+  ]
+}

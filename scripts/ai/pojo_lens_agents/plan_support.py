@@ -18,6 +18,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     AGENT_PROMPT_WARN_BYTES,
     ANALYST_AGENT_NAME,
     CONTEXT_MODES,
+    DEFAULT_OUTPUT_PROFILE,
     DEFAULT_AGENTS_PATH,
     DEPENDENCY_MATERIALIZATION_MODES,
     DEFAULT_ARTIFACT_BEHAVIOR,
@@ -31,6 +32,8 @@ from pojo_lens_agents.orchestrator_contracts import (
     LEGACY_WORKER_VALIDATION_MODES,
     MAX_HYDRATED_FILE_BYTES,
     MODEL_PROFILE_TO_MODEL,
+    OUTPUT_PROFILES,
+    OUTPUT_PROFILE_SOURCES,
     OrchestratorError,
     PLANNER_TASK_ID,
     RESOLVED_SKILLS_FAIL_COUNT,
@@ -167,6 +170,17 @@ def ensure_context_mode(value: str | None, *, location: str) -> str | None:
     return value
 
 
+def normalize_output_profile(value: str | None, *, location: str) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized not in OUTPUT_PROFILES:
+        raise OrchestratorError(
+            f"{location}: invalid outputProfile '{value}', expected one of {sorted(OUTPUT_PROFILES)}"
+        )
+    return normalized
+
+
 def normalize_run_policy_behavior(value: str | None, *, location: str, key: str, default: str) -> str:
     normalized = (value or "").strip()
     if not normalized:
@@ -272,7 +286,9 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             "ensure_context_mode": ensure_context_mode,
             "ensure_model_profile": ensure_model_profile,
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
+            "normalize_output_profile": normalize_output_profile,
             "default_context_mode": DEFAULT_CONTEXT_MODE,
+            "default_output_profile": DEFAULT_OUTPUT_PROFILE,
             "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
             "agent_prompt_fail_bytes": AGENT_PROMPT_FAIL_BYTES,
             "planner_task_id": PLANNER_TASK_ID,
@@ -316,6 +332,7 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             "ensure_context_mode": ensure_context_mode,
             "ensure_model_profile": ensure_model_profile,
             "normalize_dependency_materialization_mode": normalize_dependency_materialization_mode,
+            "normalize_output_profile": normalize_output_profile,
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
             "load_run_policy": load_run_policy,
             "skill_registry_path": registry_path,
@@ -828,6 +845,60 @@ def normalize_worker_validation_mode_source(source: str | None, *, location: str
             f"{location}: worker validation mode source must be one of {sorted(WORKER_VALIDATION_MODE_SOURCES)}"
         )
     return normalized
+
+
+def normalize_output_profile_source(source: str | None, *, location: str) -> str | None:
+    if source is None:
+        return None
+    normalized = source.strip().lower()
+    if normalized not in OUTPUT_PROFILE_SOURCES:
+        raise OrchestratorError(
+            f"{location}: output profile source must be one of {sorted(OUTPUT_PROFILE_SOURCES)}"
+        )
+    return normalized
+
+
+def resolve_output_profile(
+    task: TaskDefinition,
+    agent: AgentDefinition,
+) -> tuple[str, str]:
+    if task.output_profile is not None:
+        return (
+            normalize_output_profile(
+                task.output_profile,
+                location=f"task '{task.id}' outputProfile",
+            )
+            or DEFAULT_OUTPUT_PROFILE,
+            "task",
+        )
+    return (
+        normalize_output_profile(
+            agent.output_profile,
+            location=f"agent '{agent.name}' outputProfile",
+        )
+        or DEFAULT_OUTPUT_PROFILE,
+        "agent" if agent.output_profile else "default",
+    )
+
+
+def effective_plan_output_profiles(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+) -> dict[str, str]:
+    return {
+        task.id: resolve_output_profile(task, agents[task.agent])[0]
+        for task in plan.tasks
+    }
+
+
+def effective_plan_output_profile_sources(
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+) -> dict[str, str]:
+    return {
+        task.id: resolve_output_profile(task, agents[task.agent])[1]
+        for task in plan.tasks
+    }
 
 
 def resolve_worker_validation_mode(

@@ -42,6 +42,8 @@ def manifest_payload(
         agents,
         run_override=worker_validation_override,
     )
+    task_output_profiles = deps["effective_plan_output_profiles"](plan, agents)
+    task_output_profile_sources = deps["effective_plan_output_profile_sources"](plan, agents)
     task_worker_validation_mode_sources = deps["effective_plan_worker_validation_mode_sources"](
         plan,
         agents,
@@ -79,6 +81,8 @@ def manifest_payload(
         "effortOverride": normalized_effort_override,
         "taskWorkerValidationModes": task_worker_validation_modes,
         "taskWorkerValidationModeSources": task_worker_validation_mode_sources,
+        "taskOutputProfiles": task_output_profiles,
+        "taskOutputProfileSources": task_output_profile_sources,
         "taskEfforts": task_efforts,
         "taskEffortSources": task_effort_sources,
         "taskModels": task_models,
@@ -189,6 +193,7 @@ def write_selected_plan_snapshot(run_dir: Path, plan: Any, *, serialize_run_poli
                     "model": task.model,
                     "modelProfile": task.model_profile,
                     "contextMode": task.context_mode,
+                    "outputProfile": task.output_profile,
                     "dependencyMaterialization": task.dependency_materialization,
                     "workerValidationMode": task.worker_validation_mode,
                     "effort": task.effort,

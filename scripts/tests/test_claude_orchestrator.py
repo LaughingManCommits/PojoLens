@@ -125,6 +125,57 @@ class ClaudeCommandTest(unittest.TestCase):
         self.assertIn("--max-budget-usd", command)
         self.assertEqual(["--", "review prompt"], command[-2:])
 
+    def test_summarize_run_manifest_flags_unexpectedly_verbose_lean_task(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            run_dir = temp_path / "run"
+            run_dir.mkdir()
+            manifest_path = run_dir / "manifest.json"
+            record = make_task_run_record(
+                orchestrator,
+                orchestrator.TaskDefinition(
+                    id="tighten-docs",
+                    title="Tighten docs",
+                    agent="docs-implementer",
+                    prompt="Tighten docs.",
+                ),
+                status="completed",
+                summary="S" * orchestrator.LEAN_MAX_WORKER_SUMMARY_CHARS,
+                workspace_path=str(temp_path / "workspace"),
+                result_path=str(run_dir / "tasks" / "tighten-docs" / "worker-result.json"),
+                result_bytes=orchestrator.LEAN_VERBOSE_RESULT_BYTES + 1,
+            )
+            record.output_profile = "lean"
+            record.output_profile_source = "agent"
+            manifest = {
+                "runId": "run-x",
+                "generatedAt": "2026-05-02T00:00:00+00:00",
+                "runDir": str(run_dir),
+                "workspacesDir": str(temp_path / "workspaces"),
+                "plan": {"name": "cheap-proof", "goal": "cheap proof", "taskIds": ["tighten-docs"]},
+                "tasks": {"tighten-docs": asdict(record)},
+                "taskOutputProfiles": {"tighten-docs": "lean"},
+                "taskOutputProfileSources": {"tighten-docs": "agent"},
+                "topology": {"batchCount": 1, "maxParallelWidth": 1, "warningCount": 0},
+                "usageTotals": {},
+                "runGovernance": {},
+                "events": [],
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            summary, _ = orchestrator.summarize_run_manifest(manifest_path, manifest)
+            evaluation = orchestrator.evaluate_loaded_run_quality(
+                manifest_path,
+                manifest,
+                selected_tasks=[],
+            )
+
+        self.assertEqual(["tighten-docs"], summary["unexpectedlyVerboseTaskIds"])
+        self.assertIn("verbose", summary["flags"])
+        check = next(item for item in evaluation["checks"] if item["name"] == "output-discipline")
+        self.assertEqual("warn", check["status"])
+
 
 class ConsoleEntrypointTest(unittest.TestCase):
     @classmethod

@@ -389,6 +389,7 @@ def coerce_worker_result(
     payload: Any,
     *,
     worker_validation_mode: str,
+    output_profile: str,
     worker_statuses: set[str],
     max_worker_summary_chars: int,
     max_worker_validation_commands: int,
@@ -397,6 +398,16 @@ def coerce_worker_result(
     max_worker_follow_up_chars: int,
     max_worker_notes: int,
     max_worker_note_chars: int,
+    max_worker_validation_intents: int,
+    max_worker_validation_intent_arg_chars: int,
+    lean_max_worker_summary_chars: int,
+    lean_max_worker_follow_ups: int,
+    lean_max_worker_follow_up_chars: int,
+    lean_max_worker_notes: int,
+    lean_max_worker_note_chars: int,
+    lean_max_worker_validation_intents: int,
+    lean_max_worker_validation_intent_arg_chars: int,
+    worker_output_limits,
     normalize_worker_validation_mode,
     normalize_worker_files_touched,
     normalize_worker_text_list,
@@ -411,6 +422,23 @@ def coerce_worker_result(
         location="Claude JSON output",
     )
     _ = worker_validation_mode
+    limits = worker_output_limits(
+        output_profile,
+        max_worker_summary_chars=max_worker_summary_chars,
+        max_worker_notes=max_worker_notes,
+        max_worker_note_chars=max_worker_note_chars,
+        max_worker_follow_ups=max_worker_follow_ups,
+        max_worker_follow_up_chars=max_worker_follow_up_chars,
+        max_worker_validation_intents=max_worker_validation_intents,
+        max_worker_validation_intent_arg_chars=max_worker_validation_intent_arg_chars,
+        lean_max_worker_summary_chars=lean_max_worker_summary_chars,
+        lean_max_worker_notes=lean_max_worker_notes,
+        lean_max_worker_note_chars=lean_max_worker_note_chars,
+        lean_max_worker_follow_ups=lean_max_worker_follow_ups,
+        lean_max_worker_follow_up_chars=lean_max_worker_follow_up_chars,
+        lean_max_worker_validation_intents=lean_max_worker_validation_intents,
+        lean_max_worker_validation_intent_arg_chars=lean_max_worker_validation_intent_arg_chars,
+    )
     required = {"status", "summary", "filesTouched", "validationIntents", "followUps", "notes"}
     if isinstance(payload, dict) and not required.issubset(payload):
         for key in ("result", "data", "response", "structured_output"):
@@ -428,7 +456,7 @@ def coerce_worker_result(
     summary_value = payload.get("summary")
     if not isinstance(summary_value, str) or not summary_value.strip():
         raise error_factory("Claude JSON output field 'summary' must be a non-empty string")
-    summary, _ = truncate_text(summary_value, max_worker_summary_chars)
+    summary, _ = truncate_text(summary_value, limits["summaryChars"])
     unknown_fields: list[str] = []
     normalized_files_touched, files_touched_known = normalize_worker_files_touched(payload.get("filesTouched"))
     if not files_touched_known:
@@ -447,8 +475,8 @@ def coerce_worker_result(
     follow_ups, follow_ups_known = normalize_worker_text_list(
         payload.get("followUps"),
         key="followUps",
-        max_items=max_worker_follow_ups,
-        max_chars=max_worker_follow_up_chars,
+        max_items=limits["followUps"],
+        max_chars=limits["followUpChars"],
         compact=True,
     )
     if not follow_ups_known:
@@ -456,13 +484,16 @@ def coerce_worker_result(
     notes, notes_known = normalize_worker_text_list(
         payload.get("notes"),
         key="notes",
-        max_items=max_worker_notes,
-        max_chars=max_worker_note_chars,
+        max_items=limits["notes"],
+        max_chars=limits["noteChars"],
         compact=True,
     )
     if not notes_known:
         unknown_fields.append("notes")
-    validation_intents = normalize_worker_validation_intents(payload.get("validationIntents"))
+    validation_intents = normalize_worker_validation_intents(
+        payload.get("validationIntents"),
+        max_worker_validation_intents=limits["validationIntents"],
+    )
     findings = normalize_worker_findings(payload.get("findings"))
     return {
         "status": status,

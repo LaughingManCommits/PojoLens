@@ -68,7 +68,7 @@ def benchmark_dimensions_for_evaluation(
             default="pass",
         )
 
-    decomposition_status = worst_status(["over-delegation", "reviewer-hops", "effort-fit"])
+    decomposition_status = worst_status(["over-delegation", "reviewer-hops", "effort-fit", "output-discipline"])
     retry_status = str(by_name.get("retry-resume-contract", {}).get("status", "pass") or "pass")
     promotion_status = str(by_name.get("promotion-readiness", {}).get("status", "pass") or "pass")
     task_count = int(run_summary.get("taskCount", 0) or 0)
@@ -86,8 +86,8 @@ def benchmark_dimensions_for_evaluation(
     return {
         "decompositionQuality": {
             "status": decomposition_status,
-            "summary": "Composition quality across delegation, reviewer hops, and effort fit.",
-            "checkNames": ["over-delegation", "reviewer-hops", "effort-fit"],
+            "summary": "Composition quality across delegation, reviewer hops, effort fit, and output discipline.",
+            "checkNames": ["over-delegation", "reviewer-hops", "effort-fit", "output-discipline"],
         },
         "retryCorrectness": {
             "status": retry_status,
@@ -227,6 +227,30 @@ def evaluate_loaded_run_quality(
                 "pass",
                 "Resolved effort looks proportionate to the retained task shape.",
                 evidence={"taskEffortCounts": summary.get("effortCounts", {})},
+            )
+        )
+    verbose_task_ids = [str(task_id) for task_id in summary.get("unexpectedlyVerboseTaskIds", []) or []]
+    if verbose_task_ids:
+        checks.append(
+            evaluation_check(
+                "output-discipline",
+                "warn",
+                "One or more retained tasks were unexpectedly verbose for their resolved output profile.",
+                evidence={
+                    "taskIds": verbose_task_ids,
+                    "taskOutputProfiles": {
+                        task_id: summary.get("taskOutputProfiles", {}).get(task_id) for task_id in verbose_task_ids
+                    },
+                },
+            )
+        )
+    else:
+        checks.append(
+            evaluation_check(
+                "output-discipline",
+                "pass",
+                "Retained task outputs stayed within the expected profile shape.",
+                evidence={"outputProfileCounts": summary.get("outputProfileCounts", {})},
             )
         )
     retry_of_run_id = str(manifest.get("retryOfRunId", "")).strip()

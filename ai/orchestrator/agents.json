@@ -46,6 +46,23 @@
       "allowedTools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "MultiEdit"],
       "timeoutSec": 2700
     },
+    "docs-implementer": {
+      "description": "Makes lean documentation-only changes for cheap proof runs and keeps output terse.",
+      "promptFile": "agents/implementer/prompt.md",
+      "skills": [
+        "caveman",
+        "docs"
+      ],
+      "modelProfile": "simple",
+      "effort": "low",
+      "workspaceMode": "copy",
+      "contextMode": "minimal",
+      "outputProfile": "lean",
+      "permissionMode": "dontAsk",
+      "maxPromptEstimatedTokens": 1600,
+      "allowedTools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write", "MultiEdit"],
+      "timeoutSec": 1800
+    },
     "reviewer": {
       "description": "Reviews worker output for bugs, regressions, and validation gaps.",
       "promptFile": "agents/reviewer/prompt.md",
@@ -60,6 +77,23 @@
       "maxPromptEstimatedTokens": 1600,
       "allowedTools": ["Read", "Grep", "Glob"],
       "timeoutSec": 1800
+    },
+    "docs-reviewer": {
+      "description": "Reviews docs-oriented worker output with lean response discipline for cheap proof runs.",
+      "promptFile": "agents/reviewer/prompt.md",
+      "skills": [
+        "caveman",
+        "docs"
+      ],
+      "modelProfile": "simple",
+      "effort": "low",
+      "workspaceMode": "copy",
+      "contextMode": "minimal",
+      "outputProfile": "lean",
+      "permissionMode": "dontAsk",
+      "maxPromptEstimatedTokens": 1400,
+      "allowedTools": ["Read", "Grep", "Glob"],
+      "timeoutSec": 1200
     }
   }
 }

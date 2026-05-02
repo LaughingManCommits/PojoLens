@@ -19,6 +19,7 @@ from pojo_lens_agents import validation_ops as validation_ops_layer
 from pojo_lens_agents import worker_contracts as worker_contracts_layer
 from pojo_lens_agents import workspace_review as workspace_review_layer
 from pojo_lens_agents.orchestrator_contracts import (
+    DEFAULT_OUTPUT_PROFILE,
     DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT,
     DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
@@ -49,7 +50,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     AgentDefinition,
 )
 from pojo_lens_agents.orchestrator_utils import dedupe_strings, emit_slop_log, format_issue_block, read_bytes, read_json, slugify, summarize_paths, truncate_multiline_text, truncate_text, workspace_prep_action, write_json, write_text
-from pojo_lens_agents.plan_support import analyze_copy_hydration_inputs, effective_task_write_scope, normalize_dependency_materialization_mode, normalize_relative_path, normalize_worker_validation_mode, normalize_worker_validation_mode_source, paths_outside_scope
+from pojo_lens_agents.plan_support import analyze_copy_hydration_inputs, effective_task_write_scope, normalize_dependency_materialization_mode, normalize_output_profile, normalize_output_profile_source, normalize_relative_path, normalize_worker_validation_mode, normalize_worker_validation_mode_source, paths_outside_scope
 
 
 def effective_dependency_materialization_mode(task: TaskDefinition) -> str:
@@ -442,6 +443,9 @@ def coerce_task_run_record(payload: Any, *, location: str) -> TaskRunRecord:
             "coerce_dependency_layer_record_payload": coerce_dependency_layer_record_payload,
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
             "normalize_worker_validation_mode_source": normalize_worker_validation_mode_source,
+            "normalize_output_profile": normalize_output_profile,
+            "normalize_output_profile_source": normalize_output_profile_source,
+            "default_output_profile": DEFAULT_OUTPUT_PROFILE,
             "normalize_effort_override": normalize_effort_override,
             "require_optional_string": require_optional_string,
             "reviewer_finding_factory": ReviewFinding,
@@ -806,5 +810,3 @@ def promote_run(args: argparse.Namespace) -> dict[str, Any]:
         blocked_error_factory=PromotionBlockedError,
         write_run_checkpoint=write_run_checkpoint,
     )
-
-

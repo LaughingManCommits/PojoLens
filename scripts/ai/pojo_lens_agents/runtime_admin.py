@@ -99,6 +99,9 @@ def status_run(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, A
     )
     task_efforts = summary.get("taskEfforts", {})
     task_effort_sources = summary.get("taskEffortSources", {})
+    task_output_profiles = summary.get("taskOutputProfiles", {})
+    task_output_profile_sources = summary.get("taskOutputProfileSources", {})
+    unexpectedly_verbose_task_ids = set(summary.get("unexpectedlyVerboseTaskIds", []) or [])
     records = deps["selected_run_records"](manifest, args.selected_tasks)
     task_payloads: list[dict[str, Any]] = []
     review_summary = {
@@ -122,6 +125,13 @@ def status_run(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, A
                 "agent": record.agent,
                 "branchContextId": record.branch_context_id,
                 "branchParentContextIds": list(record.branch_parent_context_ids),
+                "outputProfile": record.output_profile or task_output_profiles.get(record.id),
+                "outputProfileSource": (
+                    record.output_profile_source
+                    if record.output_profile_source is not None
+                    else task_output_profile_sources.get(record.id)
+                ),
+                "unexpectedlyVerbose": record.id in unexpectedly_verbose_task_ids,
                 "effort": record.effort if record.effort is not None else task_efforts.get(record.id),
                 "effortSource": (
                     record.effort_source

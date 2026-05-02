@@ -18,6 +18,7 @@ from pojo_lens_agents import provider as provider_layer
 from pojo_lens_agents import worker_contracts as worker_contracts_layer
 from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_CONTEXT_MODE,
+    DEFAULT_OUTPUT_PROFILE,
     DEFAULT_TASKS_DIR,
     DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT,
     DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT,
@@ -39,6 +40,13 @@ from pojo_lens_agents.orchestrator_contracts import (
     MAX_WORKER_VALIDATION_COMMAND_CHARS,
     MAX_WORKER_VALIDATION_INTENTS,
     MAX_WORKER_VALIDATION_INTENT_ARG_CHARS,
+    LEAN_MAX_WORKER_SUMMARY_CHARS,
+    LEAN_MAX_WORKER_NOTES,
+    LEAN_MAX_WORKER_NOTE_CHARS,
+    LEAN_MAX_WORKER_FOLLOW_UPS,
+    LEAN_MAX_WORKER_FOLLOW_UP_CHARS,
+    LEAN_MAX_WORKER_VALIDATION_INTENTS,
+    LEAN_MAX_WORKER_VALIDATION_INTENT_ARG_CHARS,
     MODEL_PROFILE_TO_MODEL,
     MODEL_TO_PROFILE,
     OrchestratorError,
@@ -72,7 +80,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     RunPolicy,
 )
 from pojo_lens_agents.orchestrator_utils import compact_text, dedupe_strings, emit_slop_log, estimate_tokens, format_bullet_list, planner_wait_action, render_prompt, slop_log_action, slugify, task_wait_action, truncate_multiline_text, truncate_text, validation_wait_action, workspace_prep_action, write_json
-from pojo_lens_agents.plan_support import agent_payload_for_claude, effective_task_write_scope, load_agents, normalize_dependency_materialization_mode, normalize_relative_path, normalize_worker_validation_mode, prompt_task_read_paths, serialize_run_policy
+from pojo_lens_agents.plan_support import agent_payload_for_claude, effective_task_write_scope, load_agents, normalize_dependency_materialization_mode, normalize_relative_path, normalize_worker_validation_mode, prompt_task_read_paths, resolve_output_profile, serialize_run_policy
 from pojo_lens_agents.workspace_run_review import dependency_review_context
 
 
@@ -450,10 +458,14 @@ def coerce_validation_intent_payload(payload: Any, *, location: str) -> Validati
     )
 
 
-def normalize_worker_validation_intents(payload: Any) -> list[ValidationIntent]:
+def normalize_worker_validation_intents(
+    payload: Any,
+    *,
+    max_worker_validation_intents: int = MAX_WORKER_VALIDATION_INTENTS,
+) -> list[ValidationIntent]:
     return worker_contracts_layer.normalize_worker_validation_intents(
         payload,
-        max_worker_validation_intents=MAX_WORKER_VALIDATION_INTENTS,
+        max_worker_validation_intents=max_worker_validation_intents,
         coerce_validation_intent_payload=coerce_validation_intent_payload,
         error_factory=OrchestratorError,
     )
@@ -516,6 +528,7 @@ def worker_prompt(
             "default_dependency_materialization_mode": DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
             "normalize_dependency_materialization_mode": normalize_dependency_materialization_mode,
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
+            "resolve_output_profile": resolve_output_profile,
             "prompt_task_read_paths": prompt_task_read_paths,
             "effective_task_write_scope": effective_task_write_scope,
             "dedupe_strings": dedupe_strings,
@@ -601,10 +614,12 @@ def coerce_worker_result(
     payload: Any,
     *,
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    output_profile: str = DEFAULT_OUTPUT_PROFILE,
 ) -> dict[str, Any]:
     return worker_contracts_layer.coerce_worker_result(
         payload,
         worker_validation_mode=worker_validation_mode,
+        output_profile=output_profile,
         worker_statuses=WORKER_STATUSES,
         max_worker_summary_chars=MAX_WORKER_SUMMARY_CHARS,
         max_worker_validation_commands=MAX_WORKER_VALIDATION_COMMANDS,
@@ -613,6 +628,16 @@ def coerce_worker_result(
         max_worker_follow_up_chars=MAX_WORKER_FOLLOW_UP_CHARS,
         max_worker_notes=MAX_WORKER_NOTES,
         max_worker_note_chars=MAX_WORKER_NOTE_CHARS,
+        max_worker_validation_intents=MAX_WORKER_VALIDATION_INTENTS,
+        max_worker_validation_intent_arg_chars=MAX_WORKER_VALIDATION_INTENT_ARG_CHARS,
+        lean_max_worker_summary_chars=LEAN_MAX_WORKER_SUMMARY_CHARS,
+        lean_max_worker_follow_ups=LEAN_MAX_WORKER_FOLLOW_UPS,
+        lean_max_worker_follow_up_chars=LEAN_MAX_WORKER_FOLLOW_UP_CHARS,
+        lean_max_worker_notes=LEAN_MAX_WORKER_NOTES,
+        lean_max_worker_note_chars=LEAN_MAX_WORKER_NOTE_CHARS,
+        lean_max_worker_validation_intents=LEAN_MAX_WORKER_VALIDATION_INTENTS,
+        lean_max_worker_validation_intent_arg_chars=LEAN_MAX_WORKER_VALIDATION_INTENT_ARG_CHARS,
+        worker_output_limits=prompt_contracts_layer.worker_output_limits,
         normalize_worker_validation_mode=normalize_worker_validation_mode,
         normalize_worker_files_touched=normalize_worker_files_touched,
         normalize_worker_text_list=normalize_worker_text_list,

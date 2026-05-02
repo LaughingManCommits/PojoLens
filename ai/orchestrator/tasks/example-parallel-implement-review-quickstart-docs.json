@@ -23,8 +23,10 @@
     {
       "id": "improve-quickstart-readme-flow",
       "title": "Improve the quickstart README onboarding flow",
-      "agent": "implementer",
+      "agent": "docs-implementer",
       "modelProfile": "simple",
+      "effort": "low",
+      "outputProfile": "lean",
       "prompt": "Tighten the quickstart README so a developer can scan it and immediately understand what the example demonstrates, which endpoints are worth trying first, and what to inspect in code after the app starts. Add high-signal orientation without turning it into a long guide.",
       "readPaths": [
         "examples/spring-boot-starter-quickstart/README.md",
@@ -38,8 +40,10 @@
     {
       "id": "add-quickstart-developer-notes",
       "title": "Add focused quickstart developer notes",
-      "agent": "implementer",
+      "agent": "docs-implementer",
       "modelProfile": "simple",
+      "effort": "low",
+      "outputProfile": "lean",
       "prompt": "Add a small developer-oriented notes file for the quickstart example that explains the main source file to inspect, how the in-memory employee flow is shaped, and where a developer would extend the example with one more endpoint. Keep it concrete and repo-specific.",
       "readPaths": [
         "examples/spring-boot-starter-quickstart/README.md",
@@ -54,9 +58,11 @@
     {
       "id": "review-quickstart-docs-change",
       "title": "Review the combined quickstart docs change",
-      "agent": "reviewer",
+      "agent": "docs-reviewer",
       "modelProfile": "simple",
-      "maxPromptEstimatedTokens": 1800,
+      "effort": "low",
+      "outputProfile": "lean",
+      "maxPromptEstimatedTokens": 1400,
       "prompt": "Review the combined quickstart documentation change for clarity, accuracy, and whether the README plus developer notes make the example easier to understand without contradicting the implementation. Focus on misleading statements, missing orientation, and promotion risks.",
       "dependsOn": [
         "improve-quickstart-readme-flow",

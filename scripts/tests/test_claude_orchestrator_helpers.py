@@ -83,6 +83,8 @@ def make_task_run_record(
         notes=[],
         model="claude-haiku-4-5",
         model_profile="simple",
+        output_profile="standard",
+        output_profile_source="default",
         prompt_chars=1,
         prompt_estimated_tokens=1,
         prompt_sections=[],

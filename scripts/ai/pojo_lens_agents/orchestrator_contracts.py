@@ -26,6 +26,9 @@ WORKSPACE_MODES = {"copy", "repo", "worktree"}
 TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CONTEXT_MODES = {"minimal", "full"}
 DEFAULT_CONTEXT_MODE = "minimal"
+OUTPUT_PROFILES = {"standard", "lean"}
+DEFAULT_OUTPUT_PROFILE = "standard"
+OUTPUT_PROFILE_SOURCES = {"task", "agent", "default"}
 DEPENDENCY_MATERIALIZATION_MODES = {"summary-only", "apply-reviewed"}
 DEFAULT_DEPENDENCY_MATERIALIZATION_MODE = "summary-only"
 WORKER_VALIDATION_MODES = {"intents-only"}
@@ -74,7 +77,18 @@ MAX_WORKER_VALIDATION_COMMANDS = 2
 MAX_WORKER_VALIDATION_COMMAND_CHARS = 320
 MAX_WORKER_VALIDATION_INTENTS = 2
 MAX_WORKER_VALIDATION_INTENT_ARG_CHARS = 180
+LEAN_MAX_WORKER_SUMMARY_CHARS = 180
+LEAN_MAX_WORKER_NOTES = 2
+LEAN_MAX_WORKER_NOTE_CHARS = 140
+LEAN_MAX_WORKER_FOLLOW_UPS = 1
+LEAN_MAX_WORKER_FOLLOW_UP_CHARS = 120
+LEAN_MAX_WORKER_VALIDATION_INTENTS = 1
+LEAN_MAX_WORKER_VALIDATION_INTENT_ARG_CHARS = 120
 MAX_RUN_SUMMARY_TOP_TASKS = 3
+STANDARD_VERBOSE_RESULT_BYTES = 4096
+STANDARD_VERBOSE_STDOUT_BYTES = 4096
+LEAN_VERBOSE_RESULT_BYTES = 2048
+LEAN_VERBOSE_STDOUT_BYTES = 2048
 VALIDATION_INTENT_KINDS = {"repo-script", "tool"}
 VALIDATION_ALLOWED_EXECUTABLES = {
     "git",
@@ -239,6 +253,10 @@ PLAN_RESULT_SCHEMA = {
                         "type": "string",
                         "enum": sorted(CONTEXT_MODES),
                     },
+                    "outputProfile": {
+                        "type": "string",
+                        "enum": sorted(OUTPUT_PROFILES),
+                    },
                     "dependencyMaterialization": {
                         "type": "string",
                         "enum": sorted(DEPENDENCY_MATERIALIZATION_MODES),
@@ -291,6 +309,7 @@ class AgentDefinition:
     permission_mode: str | None = None
     workspace_mode: str = "copy"
     context_mode: str = DEFAULT_CONTEXT_MODE
+    output_profile: str = DEFAULT_OUTPUT_PROFILE
     worker_validation_mode: str | None = None
     timeout_sec: int = DEFAULT_TASK_TIMEOUT_SEC
     max_budget_usd: float | None = None
@@ -337,6 +356,7 @@ class TaskDefinition:
     effort: str | None = None
     permission_mode: str | None = None
     context_mode: str | None = None
+    output_profile: str | None = None
     dependency_materialization: str | None = None
     worker_validation_mode: str | None = None
     timeout_sec: int | None = None
@@ -487,6 +507,8 @@ class TaskRunRecord:
     stdout_path: str | None
     stderr_path: str | None
     result_path: str | None
+    output_profile: str = DEFAULT_OUTPUT_PROFILE
+    output_profile_source: str | None = None
     stdout_bytes: int = 0
     stderr_bytes: int = 0
     result_bytes: int = 0

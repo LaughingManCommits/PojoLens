@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-02T08:40:06.332840+02:00",
-  "generation": "20260502T064006-42336-1777704006336551300",
+  "generatedAt": "2026-05-02T09:02:21.995602+02:00",
+  "generation": "20260502T070221-6276-1777705341999315900",
   "git": {
-    "headCommit": "df9bc355accee9178df61c3bf22a95f943a67379",
+    "headCommit": "49afab026aaa25cae6690c9360755a0c3e82d4ce",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "c4d037e68c1382f2cf9f7c697e7ea0579c11fa34b87015fad034d4cb5e9ac7fb",
+  "inputsHash": "22fce5c08b1187148b4c9c0583d7ea5e3660860857fa3573111791d2dc971d7c",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 30,
-        "bytes": 2583,
+        "lines": 31,
+        "bytes": 2944,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -65,8 +65,8 @@
       },
       {
         "path": "ai/state/handoff.md",
-        "lines": 35,
-        "bytes": 2981,
+        "lines": 32,
+        "bytes": 2422,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 95,
-    "totalBytes": 8205,
+    "totalLines": 93,
+    "totalBytes": 8007,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,14 +142,14 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "772b9df8bf5dfde485fe346487f3526dc75519823861780d4eba62a463e47939",
+        "inputHash": "f5a560bb00f63a80fb464f63ac48e015fa3ff3e2dc7a4ecbd9872944dcc24148",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "0a356a4622224e23364c5789c2cc0c2b27f9cd2690f3545c819ab204ee54e39b",
-        "inputFiles": 559
+        "inputHash": "3932dbe0bda11e2de0ce191f3f71c90d28efedebf270fa4f78c970c7304c78a7",
+        "inputFiles": 560
       },
       {
         "path": "ai/indexes/symbols-index.json",
@@ -166,8 +166,8 @@
       {
         "path": "ai/indexes/config-index.json",
         "status": "reused",
-        "inputHash": "36a8314dc9cf4603759f3ac519ceb9ada28e13bbebfaae7e255ddb5c1ba67944",
-        "inputFiles": 49
+        "inputHash": "c958a6e53c8d1d4f7c980b17d218b7ea3d996d2055eeba5775722c47d18ac800",
+        "inputFiles": 50
       }
     ],
     "sqlite": {

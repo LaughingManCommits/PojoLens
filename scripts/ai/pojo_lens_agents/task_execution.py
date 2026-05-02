@@ -100,6 +100,7 @@ def blocked_record(
         agent,
         run_override=worker_validation_mode,
     )
+    output_profile, output_profile_source = deps["resolve_output_profile"](task, agent)
     resolved_effort, effort_source = deps["resolve_effort"](task, agent, run_override=effort_override)
     dependency_materialization_mode = deps["effective_dependency_materialization_mode"](task)
     return deps["task_run_record_factory"](
@@ -124,6 +125,8 @@ def blocked_record(
         notes=[],
         model=deps["resolved_model"](task, agent),
         model_profile=deps["resolved_model_profile"](task, agent),
+        output_profile=output_profile,
+        output_profile_source=output_profile_source,
         prompt_chars=0,
         prompt_estimated_tokens=0,
         prompt_sections=[],
@@ -167,6 +170,7 @@ def planned_record(
         agent,
         run_override=worker_validation_mode,
     )
+    output_profile, output_profile_source = deps["resolve_output_profile"](task, agent)
     resolved_effort, effort_source = deps["resolve_effort"](task, agent, run_override=effort_override)
     dependency_materialization_mode = deps["effective_dependency_materialization_mode"](task)
     return deps["task_run_record_factory"](
@@ -191,6 +195,8 @@ def planned_record(
         notes=[],
         model=deps["resolved_model"](task, agent),
         model_profile=deps["resolved_model_profile"](task, agent),
+        output_profile=output_profile,
+        output_profile_source=output_profile_source,
         prompt_chars=0,
         prompt_estimated_tokens=0,
         prompt_sections=[],
@@ -224,6 +230,8 @@ def make_execute_record(
     started_at: str,
     model_name: str | None,
     model_profile: str | None,
+    output_profile: str,
+    output_profile_source: str,
     prompt_chars: int,
     prompt_estimated_tokens: int,
     prompt_render: Any,
@@ -281,6 +289,8 @@ def make_execute_record(
         reviewer_findings=list(reviewer_findings),
         model=model_name,
         model_profile=model_profile,
+        output_profile=output_profile,
+        output_profile_source=output_profile_source,
         prompt_chars=prompt_chars,
         prompt_estimated_tokens=prompt_estimated_tokens,
         prompt_sections=prompt_render.sections,
@@ -328,6 +338,7 @@ def execute_task(
         run_override=worker_validation_mode,
     )
     effective_validation_mode = validation_resolution.mode
+    output_profile, output_profile_source = deps["resolve_output_profile"](task, agent)
     resolved_effort, effort_source = deps["resolve_effort"](
         task,
         agent,
@@ -403,6 +414,8 @@ def execute_task(
         started_at,
         model_name,
         model_profile,
+        output_profile,
+        output_profile_source,
         prompt_chars,
         prompt_estimated_tokens,
         prompt_render,
@@ -495,6 +508,7 @@ def execute_task(
         payload = deps["coerce_worker_result"](
             raw_payload,
             worker_validation_mode=effective_validation_mode,
+            output_profile=output_profile,
         )
         deps["write_json"](worker_result_path, payload)
         record = make_record(

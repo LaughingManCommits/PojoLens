@@ -3,24 +3,21 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP39 -> WP40 -> deferred WP18 -> Release Gate.
+3. Follow `TODO.md`: WP40 -> deferred WP18 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-02`: WP39 is complete. The orchestrator now resolves lean `outputProfile`, adds docs-oriented low-cost worker/reviewer profiles, tightens worker JSON caps, and surfaces retained verbosity warnings.
+- `2026-05-02`: `example-cheap-proof-docs.json` is the tracked low-cost proof plan, and the quickstart docs parallel sample now uses the lean docs profiles.
 - `2026-05-02`: Orchestrator prompt-size policy is explicit: agent prompts warn above `6 KB` and fail above `8 KB`, skill files warn above `3 KB` and fail above `4 KB`, and validate warns when a task resolves more than `4` skills.
-- `2026-05-02`: Workers now use tracked skills from `ai/orchestrator/skills/registry.json`; task plans may add task-local `skills`, and the router merges task, agent-default, and bounded inferred skills.
-- `2026-05-02`: Orchestrator role prompts are now file-backed via `ai/orchestrator/agents/<role>/prompt.md`; keep `agents.json` for structured settings and use inline `prompt` only as a compatibility path.
-- `2026-05-01`: Parallel docs and salary-range quickstart proofs are promoted; repo-scope post-promotion validation remains required for coding runs.
-- `2026-05-01`: Next queue is WP39 low-cost worker tuning, then WP40 end-to-end coding reliability.
+- `2026-05-02`: Next queue is WP40 end-to-end coding reliability, then deferred WP18 and Release Gate.
 
 ## Facts
-- `2026-05-02`: `task_plan_ops.py` hard-fails oversized role prompt files, `skill_router.py` hard-fails oversized skill files, and `analyze_plan_topology(...)` warns on oversized role/skill text plus high resolved-skill counts.
-- `2026-05-02`: `scripts/ai/pojo_lens_agents/skill_router.py` owns tracked skill-registry loading, explicit-skill validation when a nearby registry exists, bounded path-based inference, and per-task resolved skill merging.
-- `2026-05-02`: Validate/run/manifest surfaces now expose resolved task skills, and worker invocations build task-specific selected-agent payloads so task-local skill additions do not require duplicating agent definitions.
-- `2026-05-02`: `scripts/ai/pojo_lens_agents/task_plan_ops.py` resolves relative `promptFile` entries from `agents.json`, rejects ambiguous inline-plus-file prompt definitions, and still accepts inline `prompt` for compatibility.
-- `2026-05-01`: LangGraph is still only a spike in `pojo_lens_agents.langgraph_spike`; it is not a live runtime backend.
-- `2026-05-01`: `export-trace` uses retained manifest data only; it does not add new runtime state or change manifest schema.
-- `2026-05-01`: `TODO.md` order is WP39, WP40, deferred WP18, Release Gate (WP38 complete).
+- `2026-05-02`: `resolve_output_profile(...)` in `plan_support.py` merges task-level plus agent-default output profiles and records whether each task profile came from the task, agent, or fallback default.
+- `2026-05-02`: `prompt_contracts.py`, `provider_worker.py`, and `worker_contracts.py` enforce lean output discipline through lower caps plus an explicit prompt section, and retained summaries warn when lean tasks still produce large summaries, notes, or follow-ups.
+- `2026-05-02`: `docs-implementer` and `docs-reviewer` are tracked in `ai/orchestrator/agents.json` with `modelProfile = simple`, `effort = low`, `outputProfile = lean`, and `docs` plus `caveman` skills.
+- `2026-05-02`: Task/agent skill routing still comes from the tracked registry, bounded inference, and task-specific selected-agent payloads.
+- `2026-05-02`: `TODO.md` order is WP40, deferred WP18, Release Gate (WP39 complete).
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 
 ## Validate
@@ -31,5 +28,5 @@
 
 ## Cold Pointers
 - `AGENTS.md`, `ai/AGENTS.md`, `CHANGELOG.md`
-- `scripts/ai/pojo_lens_agents/langgraph_spike.py`
-- `README.md`, `docs/**`, `RELEASE.md`, `.github/workflows/*`, `docs/benchmarking.md`
+- `ai/orchestrator/README.md`, `ai/orchestrator/SYSTEM-SPEC.md`
+- `README.md`, `RELEASE.md`, `.github/workflows/*`

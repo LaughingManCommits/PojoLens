@@ -102,6 +102,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Live Claude invocations should pass only the selected agent definition instead of the full agent catalog when a single planner or worker role is being invoked.
 - Agent definitions may carry optional `skills`; the orchestrator should pass them through so Claude Code can preload repo-local skills such as `caveman` at agent setup time.
 - Task definitions may also carry optional `skills`; the router should merge task-local skills first, then agent defaults, then any bounded inferred skills from the task scope.
+- Agent and task definitions may also carry `outputProfile`; use `lean` for cheap docs/read-only proofs that need tighter worker JSON and lower review overhead.
 - When a nearby tracked `skills/registry.json` exists, agent/task skill names should validate against it and the resolved per-task skill set should be visible in validate/run/manifest surfaces.
 - Role prompt files should warn above `6 KB` and fail above `8 KB`; skill files should warn above `3 KB` and fail above `4 KB`.
 - Validate/topology should also warn when a task resolves more than `4` skills; keep the resolved stack at `5` or fewer and prefer fewer, more focused skills.
@@ -121,6 +122,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker execution-context text should prefer stable workspace labels over absolute filesystem paths, and the repeated worker-rules block should stay compact enough to avoid normal prompt truncation.
 - Live planner, worker, and coordinator validation execution should emit progress lines on interactive `stderr` only, with phase-tagged status text, so operators can see in-flight work without contaminating machine-readable `stdout`.
 - Worker prompts should keep structured output bounded: `summary` should stay short, `notes` / `followUps` should stay capped to a few high-signal items, and `validationIntents` should stay capped to a few high-signal suggestions.
+- The `lean` output profile should clamp worker JSON more aggressively than the default profile and should be the preferred mode for repeated cheap docs/read-only proofs.
 - Worker result semantics should distinguish known-empty from unknown list fields: workers should emit `[]` when `filesTouched`, `validationIntents`, `followUps`, or `notes` are known-empty, and `null` only for `filesTouched`, `followUps`, or `notes` when those values are genuinely unknown or unverified.
 - Live worker results should emit structured `validationIntents`; the initial supported intent kinds are `repo-script` and `tool`, and the coordinator should preserve them separately from legacy raw command strings found only in older manifests or review surfaces.
 - Coordinator-side shell-free execution of `tool` intents should resolve PATH-backed wrappers before launch so Windows entrypoints like `mvn` can execute as `mvn.cmd` without reopening shell composition.
@@ -152,6 +154,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Retained-run manifests and summaries should expose explicit approval lifecycle state plus persisted coordinator review, validation, and promotion checkpoints so interrupts stay resumable and inspectable without reopening every artifact directory.
 - Validate surfaces should expose tracked `runPolicy`, and run/retry/manifests plus retained-run summaries should expose run-governance status, alert counts, highest-cost tasks, and aggregate artifact totals.
 - Retained-run summaries should also surface compact topology fields such as batch count, max parallel width, and topology warning count so inventory remains useful without opening each manifest.
+- Retained-run summaries should also expose resolved output-profile counts plus any unexpectedly verbose tasks so cost/debug review can find noisy workers quickly.
 - Run/retry/manifests plus retained-run summaries should expose compact event-trace and branch-lineage rollups, and raw event arrays should record branch-context ids alongside task ids when available.
 - The coordinator should also support a trace-export surface that projects retained run events plus persisted review/validation/promotion checkpoints into a stable span graph for external analysis without changing the manifest schema.
 - Age-based prune should support keeping the newest `N` runs and should skip incomplete runs by default unless the operator opts into pruning them.

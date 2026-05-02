@@ -492,12 +492,24 @@ class ValidateCommandTopologyTest(unittest.TestCase):
             payload["agentWorkerValidationModes"],
         )
         self.assertEqual(
+            {"analyst": "standard", "implementer": "standard", "planner": "standard"},
+            payload["agentOutputProfiles"],
+        )
+        self.assertEqual(
             {"inspect": "intents-only", "implement": "intents-only"},
             payload["taskWorkerValidationModes"],
         )
         self.assertEqual(
             {"inspect": "agent", "implement": "task"},
             payload["taskWorkerValidationModeSources"],
+        )
+        self.assertEqual(
+            {"inspect": "standard", "implement": "standard"},
+            payload["taskOutputProfiles"],
+        )
+        self.assertEqual(
+            {"inspect": "agent", "implement": "agent"},
+            payload["taskOutputProfileSources"],
         )
         self.assertEqual(
             {
@@ -519,6 +531,8 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                     "agent": "analyst",
                     "skills": [],
                     "resolvedSkills": [],
+                    "outputProfile": "standard",
+                    "outputProfileSource": "agent",
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "effort": "high",
@@ -534,6 +548,8 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                     "agent": "implementer",
                     "skills": [],
                     "resolvedSkills": [],
+                    "outputProfile": "standard",
+                    "outputProfileSource": "agent",
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "effort": "high",

@@ -112,6 +112,11 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
                 location=location,
             )
             or deps["default_context_mode"],
+            output_profile=deps["normalize_output_profile"](
+                deps["require_optional_string"](definition, "outputProfile", location=location),
+                location=f"{location}:outputProfile",
+            )
+            or deps["default_output_profile"],
             worker_validation_mode=deps["normalize_worker_validation_mode"](
                 worker_validation_mode,
                 location=f"{location}:workerValidationMode",
@@ -233,6 +238,10 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
             context_mode=deps["ensure_context_mode"](
                 deps["require_optional_string"](task_payload, "contextMode", location=location),
                 location=location,
+            ),
+            output_profile=deps["normalize_output_profile"](
+                deps["require_optional_string"](task_payload, "outputProfile", location=location),
+                location=f"{location}:outputProfile",
             ),
             dependency_materialization=deps["normalize_dependency_materialization_mode"](
                 dependency_materialization,

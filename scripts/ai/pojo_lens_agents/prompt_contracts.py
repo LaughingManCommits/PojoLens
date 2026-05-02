@@ -104,6 +104,53 @@ def resolve_effort(
     return None, "default"
 
 
+def resolve_output_profile(task: Any, agent: Any) -> tuple[str, str]:
+    if task.output_profile:
+        return task.output_profile, "task"
+    if agent.output_profile:
+        return agent.output_profile, "agent"
+    return "standard", "default"
+
+
+def worker_output_limits(
+    output_profile: str,
+    *,
+    max_worker_summary_chars: int,
+    max_worker_notes: int,
+    max_worker_note_chars: int,
+    max_worker_follow_ups: int,
+    max_worker_follow_up_chars: int,
+    max_worker_validation_intents: int,
+    max_worker_validation_intent_arg_chars: int,
+    lean_max_worker_summary_chars: int,
+    lean_max_worker_notes: int,
+    lean_max_worker_note_chars: int,
+    lean_max_worker_follow_ups: int,
+    lean_max_worker_follow_up_chars: int,
+    lean_max_worker_validation_intents: int,
+    lean_max_worker_validation_intent_arg_chars: int,
+) -> dict[str, int]:
+    if output_profile == "lean":
+        return {
+            "summaryChars": lean_max_worker_summary_chars,
+            "notes": lean_max_worker_notes,
+            "noteChars": lean_max_worker_note_chars,
+            "followUps": lean_max_worker_follow_ups,
+            "followUpChars": lean_max_worker_follow_up_chars,
+            "validationIntents": lean_max_worker_validation_intents,
+            "validationIntentArgChars": lean_max_worker_validation_intent_arg_chars,
+        }
+    return {
+        "summaryChars": max_worker_summary_chars,
+        "notes": max_worker_notes,
+        "noteChars": max_worker_note_chars,
+        "followUps": max_worker_follow_ups,
+        "followUpChars": max_worker_follow_up_chars,
+        "validationIntents": max_worker_validation_intents,
+        "validationIntentArgChars": max_worker_validation_intent_arg_chars,
+    }
+
+
 def effective_plan_model_profiles(
     plan: Any,
     agents: dict[str, Any],
@@ -232,6 +279,7 @@ def worker_prompt(
         location=f"task '{task.id}' worker validation mode",
     )
     _ = worker_validation_mode
+    output_profile, output_profile_source = deps["resolve_output_profile"](task, agent)
     read_paths = deps["prompt_task_read_paths"](plan, task, context_mode=context_mode)
     write_paths = deps["effective_task_write_scope"](task)
     constraints = deps["dedupe_strings"](plan.shared_context.constraints + task.constraints)
@@ -317,6 +365,22 @@ def worker_prompt(
         empty_line="- none",
         max_items=16,
     )
+    output_profile_lines, output_profile_count, output_profile_truncated = deps["format_bullet_list"](
+        [
+            (
+                "Lean mode: keep `summary` to one short sentence, prefer `notes=[]` and `followUps=[]`, "
+                "and suggest at most one validation intent unless omission would hide real risk."
+            ),
+            (
+                "Lean mode: reviewers should emit findings only for concrete risks and keep each message short."
+            ),
+        ]
+        if output_profile == "lean"
+        else [
+            "Standard mode: keep `summary` to 1-2 sentences and include only high-signal `notes`, `followUps`, and validation intents."
+        ],
+        empty_line="- none",
+    )
     return deps["render_prompt"](
         [
             deps["prompt_section_factory"](name="coordinator_goal", heading="Coordinator goal", body=plan.goal),
@@ -331,6 +395,16 @@ def worker_prompt(
                 body=worker_rules,
                 item_count=rule_count,
                 truncated=rules_truncated,
+            ),
+            deps["prompt_section_factory"](
+                name="output_profile",
+                heading="Output discipline",
+                body=(
+                    f"Resolved profile: `{output_profile}` (source: `{output_profile_source}`)\n"
+                    + output_profile_lines
+                ),
+                item_count=output_profile_count,
+                truncated=output_profile_truncated,
             ),
             deps["prompt_section_factory"](name="task_identity", heading="Task id/title", body=f"{task.id} / {task.title}"),
             deps["prompt_section_factory"](name="task_objective", heading="Task objective", body=task.prompt),
