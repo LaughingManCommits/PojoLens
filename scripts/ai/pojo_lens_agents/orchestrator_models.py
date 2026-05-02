@@ -427,6 +427,8 @@ class TaskRunRecordModel(ManifestModel):
     injected_from: str | None = None
     attempt: int = Field(default=1, ge=1)
     attempt_errors: list[dict[str, Any]] = Field(default_factory=list)
+    fingerprint: str | None = None
+    fingerprint_inputs: dict[str, Any] | None = None
 
     @field_validator("output_profile")
     @classmethod

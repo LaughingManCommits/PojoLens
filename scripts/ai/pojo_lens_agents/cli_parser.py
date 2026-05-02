@@ -150,6 +150,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit the validation summary as JSON.",
     )
+    validate_parser.add_argument(
+        "--fingerprint-only",
+        action="store_true",
+        dest="fingerprint_only",
+        help=(
+            "Compute and print task input fingerprints without running. "
+            "Requires a task plan. Useful for debugging cache misses."
+        ),
+    )
     _add_verbose_arg(validate_parser)
     _add_provider_bin_arg(validate_parser)
 
@@ -280,6 +289,16 @@ def parse_args() -> argparse.Namespace:
         help="Estimate plan token spend, USD cost, and wall-clock range, then exit without creating a run.",
     )
     run_parser.add_argument(
+        "--reuse-unchanged",
+        action="store_true",
+        dest="reuse_unchanged",
+        help=(
+            "Skip tasks whose inputs are identical to a prior successful execution "
+            "by comparing content-addressed fingerprints. Requires --prior-run or is "
+            "a no-op on fresh runs (no prior records to compare against)."
+        ),
+    )
+    run_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Create the run manifest and task requests without invoking Claude.",
@@ -338,6 +357,12 @@ def parse_args() -> argparse.Namespace:
         help="Override worker validation suggestion policy for the resumed run. Defaults to the source run mode or 'intents-only'.",
     )
     resume_parser.add_argument(
+        "--reuse-unchanged",
+        action="store_true",
+        dest="reuse_unchanged",
+        help="Skip tasks whose fingerprinted inputs match a prior successful record in this run.",
+    )
+    resume_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Refresh the in-place run manifest and task requests without invoking Claude.",
@@ -394,6 +419,12 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(WORKER_VALIDATION_MODES),
         default="",
         help="Override worker validation suggestion policy for the retry run. Defaults to the source run mode or 'intents-only'.",
+    )
+    retry_parser.add_argument(
+        "--reuse-unchanged",
+        action="store_true",
+        dest="reuse_unchanged",
+        help="Skip tasks whose fingerprinted inputs match a prior successful record from the source run.",
     )
     retry_parser.add_argument(
         "--dry-run",

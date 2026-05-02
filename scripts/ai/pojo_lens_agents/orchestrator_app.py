@@ -42,6 +42,7 @@ hitl_layer = _LazyModuleProxy("pojo_lens_agents.hitl")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
 retry_policy_layer = _LazyModuleProxy("pojo_lens_agents.retry_policy")
 run_ledger_layer = _LazyModuleProxy("pojo_lens_agents.run_ledger")
+task_fingerprint_layer = _LazyModuleProxy("pojo_lens_agents.task_fingerprint")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
@@ -609,6 +610,8 @@ def run_loaded_plan(
     hitl_mode: str | None = None,
     hitl_auto_approve: bool = False,
     otel_endpoint: str | None = None,
+    reuse_unchanged: bool = False,
+    prior_completed_records: dict[str, TaskRunRecord] | None = None,
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
@@ -724,6 +727,13 @@ def run_loaded_plan(
         parse_iso_datetime=parse_iso_datetime,
         datetime_to_iso=datetime_to_iso,
         emit_otel_trace=otel_layer.emit_otel_trace_from_custom_payload,
+        reuse_unchanged=reuse_unchanged,
+        prior_completed_records=prior_completed_records,
+        compute_task_fingerprint=lambda task, agent, dep_recs, read_paths, model, effort: task_fingerprint_layer.compute_task_fingerprint(
+            task, agent, dep_recs, read_paths, ROOT,
+            resolved_model=model, resolved_effort=effort,
+        ),
+        effective_task_read_paths=effective_task_read_paths,
         error_factory=OrchestratorError,
     ))
     try:
@@ -1255,6 +1265,11 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
             "effective_task_skills": effective_task_skills,
             "effective_dependency_materialization_mode": effective_dependency_materialization_mode,
             "detect_parallel_scope_conflicts": detect_parallel_scope_conflicts,
+            "compute_task_fingerprint": lambda task, agent, dep_recs, read_paths, model, effort: task_fingerprint_layer.compute_task_fingerprint(
+                task, agent, dep_recs, read_paths, ROOT,
+                resolved_model=model, resolved_effort=effort,
+            ),
+            "error_factory": OrchestratorError,
         },
     )
 

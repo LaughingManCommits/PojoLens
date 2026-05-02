@@ -5,7 +5,43 @@ from pathlib import Path
 from typing import Any
 
 
+def _fingerprint_only_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, Any]:
+    agents_path = Path(args.agents).resolve()
+    agents = deps["load_agents"](agents_path)
+    if not args.task_plan:
+        raise deps["error_factory"]("--fingerprint-only requires a task plan argument")
+    plan_path = Path(args.task_plan).resolve()
+    plan = deps["load_task_plan"](plan_path, agents)
+    task_efforts = deps["effective_plan_efforts"](plan, agents)
+    task_models = deps["effective_plan_models"](plan, agents)
+    fingerprints: list[dict[str, Any]] = []
+    for task in plan.tasks:
+        read_paths = deps["effective_task_read_paths"](plan, task)
+        try:
+            fp, fpi = deps["compute_task_fingerprint"](
+                task,
+                agents[task.agent],
+                {},
+                read_paths,
+                task_models.get(task.id),
+                task_efforts.get(task.id),
+            )
+        except Exception as exc:
+            fp = None
+            fpi = {"error": str(exc)}
+        fingerprints.append({"id": task.id, "fingerprint": fp, "inputs": fpi})
+    return {
+        "fingerprintOnly": True,
+        "taskPlanPath": str(plan_path),
+        "planName": plan.name,
+        "taskCount": len(plan.tasks),
+        "fingerprints": fingerprints,
+    }
+
+
 def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, Any]:
+    if bool(getattr(args, "fingerprint_only", False)):
+        return _fingerprint_only_command(args, deps=deps)
     agents_path = Path(args.agents).resolve()
     agents = deps["load_agents"](agents_path)
     payload: dict[str, Any] = {

@@ -169,6 +169,8 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
             if isinstance(item, dict)
         ],
         injected_from=deps["require_optional_string"](payload, "injected_from", location=location),
+        fingerprint=str(payload["fingerprint"]) if payload.get("fingerprint") is not None else None,
+        fingerprint_inputs=dict(payload["fingerprint_inputs"]) if isinstance(payload.get("fingerprint_inputs"), dict) else None,
     )
     try:
         TaskRunRecordModel.model_validate(dump_contract(record))

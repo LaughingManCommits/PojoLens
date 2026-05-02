@@ -761,6 +761,7 @@ class ValidateCommandRunLifecycleTest(unittest.TestCase):
                 existing_workspaces_dir=None,
                 write_plan_snapshot=True,
                 max_task_retries=None,
+                **kwargs,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
                 captured["effort_override"] = effort_override
@@ -959,6 +960,7 @@ class ValidateCommandRunLifecycleTest(unittest.TestCase):
                 existing_workspaces_dir=None,
                 write_plan_snapshot=True,
                 max_task_retries=None,
+                **kwargs,
             ):
                 captured["worker_validation_mode"] = worker_validation_mode
                 return {
@@ -1347,6 +1349,7 @@ class ValidateCommandRunLifecycleTest(unittest.TestCase):
                 existing_workspaces_dir=None,
                 write_plan_snapshot=True,
                 max_task_retries=None,
+                **kwargs,
             ):
                 captured["plan_path"] = pathlib.Path(plan_path_arg)
                 captured["effort_override"] = effort_override

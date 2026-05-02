@@ -603,5 +603,7 @@ class TaskRunRecord:
     injected_from: str | None = None
     attempt: int = 1
     attempt_errors: list[dict[str, Any]] = field(default_factory=list)
+    fingerprint: str | None = None
+    fingerprint_inputs: dict[str, Any] | None = None
 
 

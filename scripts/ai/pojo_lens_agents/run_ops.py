@@ -115,6 +115,10 @@ async def run_loaded_plan(
     hitl_override: bool = False,
     hitl_mode_override: str | None = None,
     hitl_auto_approve: bool = False,
+    reuse_unchanged: bool = False,
+    prior_completed_records: dict[str, Any] | None = None,
+    compute_task_fingerprint: Callable[..., tuple[str, dict[str, Any]]] | None = None,
+    effective_task_read_paths: Callable[[Any, Any], list[str]] | None = None,
     normalize_worker_validation_mode: Callable[..., str | None] = None,
     normalize_effort_override: Callable[..., str | None] = None,
     effective_plan_worker_validation_modes: Callable[..., dict[str, str]] = None,
@@ -176,6 +180,8 @@ async def run_loaded_plan(
     task_output_profile_sources = effective_plan_output_profile_sources(plan, agents)
     task_efforts = effective_plan_efforts(plan, agents, run_override=normalized_effort_override)
     task_effort_sources = effective_plan_effort_sources(plan, agents, run_override=normalized_effort_override)
+    task_model_profiles = effective_plan_model_profiles(plan, agents) if effective_plan_model_profiles is not None else {}
+    task_models = effective_plan_models(plan, agents) if effective_plan_models is not None else {}
     resolved_follow_up_behavior = _resolved_follow_up_behavior(
         plan,
         override=follow_up_behavior_override,
@@ -293,6 +299,62 @@ async def run_loaded_plan(
         batch = select_parallel_ready_batch(plan, ready, agents, max_parallel=max(max_parallel, 1))
         batch_index += 1
         append_run_event(run_events, phase="batch-ready", task_ids=[task.id for task in batch], branch_context_ids=[task_branch_context_id(task, records) for task in batch], details={"pendingTaskIds": sorted(pending)})
+
+        # Compute fingerprints for all batch tasks when fingerprint callable is available
+        task_fingerprints: dict[str, tuple[str, dict[str, Any]]] = {}
+        if compute_task_fingerprint is not None and effective_task_read_paths is not None:
+            for _t in batch:
+                _dep_recs = {_d: records[_d] for _d in _t.depends_on if _d in records}
+                _rp = effective_task_read_paths(plan, _t)
+                try:
+                    _fp, _fpi = compute_task_fingerprint(
+                        _t, agents[_t.agent], _dep_recs, _rp,
+                        task_models.get(_t.id), task_efforts.get(_t.id),
+                    )
+                    task_fingerprints[_t.id] = (_fp, _fpi)
+                except Exception:
+                    pass
+
+        # Identify reusable tasks
+        reused_ids: set[str] = set()
+        if reuse_unchanged and prior_completed_records is not None:
+            for _t in batch:
+                _fp_data = task_fingerprints.get(_t.id)
+                if _fp_data is None:
+                    continue
+                _fp, _fpi = _fp_data
+                _prior = prior_completed_records.get(_t.id)
+                if (
+                    _prior is not None
+                    and _prior.status == "completed"
+                    and getattr(_prior, "fingerprint", None) == _fp
+                ):
+                    reused_ids.add(_t.id)
+
+        completed_batch_task_ids: list[str] = []
+        failed_batch_task_ids: list[str] = []
+
+        # Emit reuse events and skip dispatch for unchanged tasks
+        for _t in batch:
+            if _t.id not in reused_ids:
+                continue
+            _fp, _fpi = task_fingerprints[_t.id]
+            _prior = prior_completed_records[_t.id]
+            records[_t.id] = replace(_prior, fingerprint=_fp, fingerprint_inputs=_fpi)
+            completed_batch_task_ids.append(_t.id)
+            pending.pop(_t.id, None)
+            append_run_event(
+                run_events,
+                phase="task-reused",
+                task_id=_t.id,
+                parent_task_ids=list(_t.depends_on),
+                branch_context_id=records[_t.id].branch_context_id,
+                status="completed",
+                message="Task reused: inputs unchanged from prior successful run.",
+            )
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
+
+        execute_batch = [_t for _t in batch if _t.id not in reused_ids]
         semaphore = asyncio.Semaphore(max(max_parallel, 1))
 
         async def _run_one(t):
@@ -312,12 +374,14 @@ async def run_loaded_plan(
                     effort_override=normalized_effort_override,
                 )
 
-        batch_futures = [asyncio.ensure_future(_run_one(t)) for t in batch]
-        completed_batch_task_ids: list[str] = []
-        failed_batch_task_ids: list[str] = []
+        batch_futures = [asyncio.ensure_future(_run_one(t)) for t in execute_batch]
         for coro in asyncio.as_completed(batch_futures):
             task, record = await coro
-            records[task.id] = record
+            if task.id in task_fingerprints:
+                _fp, _fpi = task_fingerprints[task.id]
+                records[task.id] = replace(record, fingerprint=_fp, fingerprint_inputs=_fpi)
+            else:
+                records[task.id] = record
             completed_batch_task_ids.append(task.id)
             if records[task.id].status not in {"completed", "planned"}:
                 failed_batch_task_ids.append(task.id)
@@ -644,6 +708,7 @@ def run_plan(
         "hitl": bool(getattr(args, "hitl", False)),
         "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
         "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
+        "reuse_unchanged": bool(getattr(args, "reuse_unchanged", False)),
     }
     if getattr(args, "follow_up_mode", None):
         run_kwargs["follow_up_behavior_override"] = getattr(args, "follow_up_mode")
@@ -752,6 +817,7 @@ def resume_run(
     resolved_follow_up_override = getattr(args, "follow_up_mode", None) or source_follow_up_behavior_override
     if resolved_follow_up_override:
         follow_up_kwargs["follow_up_behavior_override"] = resolved_follow_up_override
+    _reuse = bool(getattr(args, "reuse_unchanged", False))
     payload = run_loaded_plan_fn(
         source_plan_path,
         agents_path,
@@ -771,6 +837,12 @@ def resume_run(
         existing_workspaces_dir=workspaces_dir,
         write_plan_snapshot=False,
         max_task_retries=getattr(args, "max_task_retries", None),
+        reuse_unchanged=_reuse,
+        prior_completed_records={
+            task_id: record
+            for task_id, record in previous_records.items()
+            if record.status == "completed"
+        } if _reuse else None,
         **otel_kwargs,
         **hitl_kwargs,
         **follow_up_kwargs,
@@ -850,6 +922,14 @@ def retry_run(
         run_kwargs["follow_up_behavior_override"] = source_follow_up_behavior_override
     if getattr(args, "otel_endpoint", None):
         run_kwargs["otel_endpoint"] = getattr(args, "otel_endpoint")
+    _reuse = bool(getattr(args, "reuse_unchanged", False))
+    run_kwargs["reuse_unchanged"] = _reuse
+    if _reuse:
+        run_kwargs["prior_completed_records"] = {
+            task_id: record
+            for task_id, record in previous_records.items()
+            if record.status == "completed"
+        }
     payload = run_loaded_plan_fn(
         plan_path,
         agents_path,

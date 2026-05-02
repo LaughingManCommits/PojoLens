@@ -57,7 +57,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP49| Dynamic Plan Mutation                | Complete | Added typed `followUpTasks`, run-policy/CLI follow-up mode, between-batch task injection, persisted lineage, and selected-plan mutation for resume |
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
 | WP51| Cross-Run Memory and Pattern Learning | Complete | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
-| WP52| Diff-Aware Incremental Replay        | Planned | On resume or retry, skip tasks whose inputs (prompt, read paths, dependency outputs) are identical to a prior successful execution |
+| WP52| Diff-Aware Incremental Replay        | Complete | Content-addressed task fingerprinting, `--reuse-unchanged` on run/resume/retry, `--fingerprint-only` on validate, task-reused events, and fingerprint stored on every executed record |
 | WP53| CLI Ergonomics                       | Planned | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
 | WP54| TUI Dashboard                        | Planned | Live `textual`-based terminal dashboard during runs: task status grid, rolling cost, active-task log tail, and key bindings for HITL gate approval |
 | WP55| Guided Wizard Mode                   | Planned | No-args interactive wizard that walks the operator through the full validate → run → review → promote lifecycle without needing to know any commands |
@@ -1420,7 +1420,7 @@ evidence when generating new plans for similar tasks on the same codebase.
 
 ---
 
-## WP52: Diff-Aware Incremental Replay
+## WP52: Diff-Aware Incremental Replay ✅ 2026-05-02
 
 **Priority:** Medium
 
@@ -1446,21 +1446,21 @@ unnecessary re-execution after partial failures.
   skips in the default path.
 
 **Tasks:**
-- [ ] Add `compute_task_fingerprint(task, agent, plan, dep_records,
+- [x] Add `compute_task_fingerprint(task, agent, plan, dep_records,
       workspace_root)` in a new `task_fingerprint.py` module; hash prompt,
       sorted read-path file contents, agent JSON, dep summaries, and model
       selection into a stable SHA-256 hex string.
-- [ ] Store `fingerprint` and `fingerprintInputs` in `TaskRunRecord` and
+- [x] Store `fingerprint` and `fingerprintInputs` in `TaskRunRecord` and
       persist them in the manifest; existing records without a fingerprint
       are treated as uncacheable.
-- [ ] In `run_ops.run_loaded_plan`, when `reuse_unchanged=True`, check if a
+- [x] In `run_ops.run_loaded_plan`, when `reuse_unchanged=True`, check if a
       prior record for the task exists with a matching fingerprint and
       `status="completed"`; if so, emit a `task-reused` run event and skip
       dispatch.
-- [ ] Add `--reuse-unchanged` flag to `run`, `resume`, and `retry` commands.
-- [ ] Add `--fingerprint-only` flag to `validate` that computes and prints
+- [x] Add `--reuse-unchanged` flag to `run`, `resume`, and `retry` commands.
+- [x] Add `--fingerprint-only` flag to `validate` that computes and prints
       task fingerprints without running, useful for debugging cache misses.
-- [ ] Add regression coverage for fingerprint stability, cache hits, cache
+- [x] Add regression coverage for fingerprint stability, cache hits, cache
       misses on prompt/read-path changes, and the `task-reused` event.
 
 **Validate:**
