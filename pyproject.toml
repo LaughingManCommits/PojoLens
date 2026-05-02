@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "Repo-local PojoLens multi-agent orchestration CLI"
 requires-python = ">=3.11"
 
+[project.optional-dependencies]
+sdk = ["anthropic>=0.40.0"]
+
 [project.scripts]
 pojolens-agents = "pojo_lens_agents.cli:main"
 

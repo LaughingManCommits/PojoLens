@@ -41,6 +41,7 @@ retry_policy_layer = _LazyModuleProxy("pojo_lens_agents.retry_policy")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
+sdk_provider_layer = _LazyModuleProxy("pojo_lens_agents.sdk_provider")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
@@ -286,6 +287,8 @@ def execute_task(
             "prompt_budget_failure_summary": prompt_budget_failure_summary,
             "snapshot_workspace_files": snapshot_workspace_files,
             "diff_workspace_snapshots": diff_workspace_snapshots,
+            "provider_mode": sdk_provider_layer.detect_provider_mode,
+            "run_sdk_provider": sdk_provider_layer.run_sdk_provider,
             "run_subprocess": run_subprocess,
             "task_wait_action": task_wait_action,
             "extract_json_payload": extract_json_payload,
@@ -596,7 +599,7 @@ def run_loaded_plan(
         effective_task_skills=effective_task_skills,
         topological_batches=topological_batches,
         validate_scope_contract=validate_scope_contract,
-        ensure_claude_available=ensure_claude_available,
+        ensure_claude_available=lambda bin: ensure_provider_available(bin, sdk_provider_layer.detect_provider_mode()),
         write_selected_plan_snapshot=write_selected_plan_snapshot,
         agent_payload_for_claude=agent_payload_for_claude,
         append_run_event=append_run_event,

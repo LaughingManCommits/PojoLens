@@ -122,6 +122,36 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   `pojo_lens_agents.orchestrator_app` is now 863 lines and the focused
   orchestrator suite is green again.
 
+- **Crash-safe manifest flushing** - all orchestrator writes now go through
+  `write_text()` / `write_json()` in `orchestrator_utils.py`, which writes
+  to a unique `.tmp` sibling then `os.replace()` (atomic on POSIX and
+  Windows NTFS). `_atomic_replace()` retries on transient Windows
+  `PermissionError`. `recover_orphaned_write_temps()` cleans crash-left
+  temps recursively; called before loading a run manifest so stale temps
+  from prior crashes are always cleared.
+
+- **Within-run task retry** - added `pojo_lens_agents.retry_policy` with a
+  transient-error classifier (rate-limit 429, timeout, 5xx, overload, SDK
+  typed error strings) vs permanent (scope violation, auth, JSON parse,
+  prompt budget). `execute_task_with_retry` in `orchestrator_app.py` wraps
+  task execution with exponential backoff (1s/2s/4s + jitter, capped 30s),
+  records `attempt`/`attempt_errors`/`retry_delay_ms` in `TaskRunRecord`,
+  emits `task-retry-attempt` events to the run trace, and supports
+  `--max-task-retries` CLI override plus `maxRetries` on task/agent JSON
+  definitions.
+
+- **Direct Anthropic SDK provider** - added `pojo_lens_agents.sdk_provider`
+  with a bounded agentic tool loop (4 workspace tools: `read_file`,
+  `write_file`, `str_replace_based_edit_tool`, `bash`), streaming via
+  `client.messages.stream()` when stderr is a TTY, per-turn usage
+  accumulation, and path-traversal protection. Provider mode is selected by
+  `POJO_LENS_PROVIDER=sdk` or auto-detected when the `anthropic` package is
+  importable and `ANTHROPIC_API_KEY` is set; the `claude` subprocess path
+  remains the default. SDK exceptions are captured as error strings that
+  match WP42 `classify_failure()` transient/permanent patterns without any
+  change to the retry policy. Added `anthropic>=0.40.0` as `[sdk]` optional
+  dep in `pyproject.toml` and 65 new regression tests (484 total).
+
 ### Fixed
 
 - **External worker workspace isolation** - copy/worktree runs now allocate

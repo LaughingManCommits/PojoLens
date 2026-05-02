@@ -389,24 +389,35 @@ def execute_task(
         max_chars=deps["resolved_max_prompt_chars"](task, agent),
         max_estimated_tokens=deps["resolved_max_prompt_estimated_tokens"](task, agent),
     )
-    task_allowed, task_disallowed = deps["effective_tool_lists"](task, agent)
-    command = deps["claude_command"](
-        claude_bin,
-        agents_json,
-        task.agent,
-        prompt,
-        deps["task_output_schema_json"](effective_validation_mode),
-        model=model_name,
-        effort=resolved_effort,
-        permission_mode=task.permission_mode or agent.permission_mode,
-        allowed_tools=task_allowed,
-        disallowed_tools=task_disallowed,
-        max_budget_usd=task.max_budget_usd if task.max_budget_usd is not None else agent.max_budget_usd,
-    )
+    _provider_mode = deps.get("provider_mode", lambda: "subprocess")()
+    if _provider_mode != "sdk":
+        task_allowed, task_disallowed = deps["effective_tool_lists"](task, agent)
+        command = deps["claude_command"](
+            claude_bin,
+            agents_json,
+            task.agent,
+            prompt,
+            deps["task_output_schema_json"](effective_validation_mode),
+            model=model_name,
+            effort=resolved_effort,
+            permission_mode=task.permission_mode or agent.permission_mode,
+            allowed_tools=task_allowed,
+            disallowed_tools=task_disallowed,
+            max_budget_usd=task.max_budget_usd if task.max_budget_usd is not None else agent.max_budget_usd,
+        )
+        _command_artifact: dict[str, Any] = {"cwd": str(prepared_workspace), "command": command}
+    else:
+        command = []
+        _command_artifact = {
+            "cwd": str(prepared_workspace),
+            "command": ["anthropic-sdk"],
+            "providerMode": "sdk",
+            "model": model_name,
+        }
     prompt_path = task_dir / "prompt.txt"
     command_path = task_dir / "command.json"
     deps["write_text"](prompt_path, prompt)
-    deps["write_json"](command_path, {"cwd": str(prepared_workspace), "command": command})
+    deps["write_json"](command_path, _command_artifact)
     started_at = deps["iso_now"]()
     result_path = task_dir / "result.json"
     make_record = lambda **kwargs: make_execute_record(  # noqa: E731
@@ -457,15 +468,30 @@ def execute_task(
     actual_changed_files: list[str] = []
     changed_repo_files: list[str] = []
     try:
-        completed = deps["run_subprocess"](
-            command,
-            cwd=prepared_workspace,
-            timeout_sec=task.timeout_sec or agent.timeout_sec,
-            progress_action=deps["task_wait_action"](task),
-        )
-        return_code = completed.returncode
-        deps["write_text"](stdout_path, completed.stdout)
-        deps["write_text"](stderr_path, completed.stderr)
+        if _provider_mode == "sdk":
+            _sdk_result = deps["run_sdk_provider"](
+                agent.prompt or "",
+                prompt,
+                model=model_name,
+                workspace_root=prepared_workspace,
+                timeout_sec=task.timeout_sec or agent.timeout_sec,
+            )
+            return_code = 1 if _sdk_result.error else 0
+            stdout_text = _sdk_result.text
+            stderr_text = _sdk_result.error or ""
+            usage = _sdk_result.usage
+        else:
+            completed = deps["run_subprocess"](
+                command,
+                cwd=prepared_workspace,
+                timeout_sec=task.timeout_sec or agent.timeout_sec,
+                progress_action=deps["task_wait_action"](task),
+            )
+            return_code = completed.returncode
+            stdout_text = completed.stdout
+            stderr_text = completed.stderr
+        deps["write_text"](stdout_path, stdout_text)
+        deps["write_text"](stderr_path, stderr_text)
         actual_changed_files = deps["diff_workspace_snapshots"](
             workspace_snapshot_before,
             deps["snapshot_workspace_files"](prepared_workspace),
@@ -477,14 +503,15 @@ def execute_task(
             )
         raw_payload: Any | None = None
         try:
-            raw_payload = deps["extract_json_payload"](completed.stdout)
-            usage = deps["extract_usage"](raw_payload)
+            raw_payload = deps["extract_json_payload"](stdout_text)
+            if usage is None:
+                usage = deps["extract_usage"](raw_payload)
         except deps["error_factory"]:
             raw_payload = None
-        if completed.returncode != 0:
+        if return_code != 0:
             record = make_record(
                 status="failed",
-                summary=completed.stderr.strip() or completed.stdout.strip() or "Claude failed",
+                summary=stderr_text.strip() or stdout_text.strip() or "Claude failed",
                 follow_ups=["Inspect stderr/stdout artifacts for details."],
                 usage=usage,
                 return_code=return_code,

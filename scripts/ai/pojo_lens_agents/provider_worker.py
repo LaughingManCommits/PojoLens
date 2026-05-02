@@ -92,6 +92,24 @@ def current_root() -> Path:
 def ensure_claude_available(claude_bin: str) -> None:
     if shutil.which(claude_bin) is None:
         raise OrchestratorError(f"Claude CLI '{claude_bin}' is not available on PATH")
+
+
+def ensure_provider_available(claude_bin: str, provider_mode: str = "subprocess") -> None:
+    """Check that the selected provider is usable before starting a run."""
+    if provider_mode == "sdk":
+        from pojo_lens_agents.sdk_provider import sdk_available
+        import os
+        if not sdk_available():
+            raise OrchestratorError(
+                "SDK provider selected but anthropic package is not installed. "
+                "Run: pip install 'pojolens-agents[sdk]'"
+            )
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise OrchestratorError(
+                "SDK provider selected but ANTHROPIC_API_KEY is not set."
+            )
+    else:
+        ensure_claude_available(claude_bin)
 def planner_output_path(name: str, explicit_path: str) -> Path:
     return planner_ops_layer.planner_output_path(
         name,

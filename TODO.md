@@ -46,9 +46,9 @@ Execution order is dependency-first, not ticket-number order.
 | WP37| Reviewer Findings And Promotion Governance | Complete | Structured reviewer findings with severity, promotion-readiness blocking from reviewer findings, stronger review summaries, and retained-run visibility for material review risk |
 | WP38| Docs And Text Quality Guardrails     | Complete | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
 | WP39| Low-Cost Worker Profiles And Output Discipline | Complete | Lean docs-oriented worker/reviewer profiles, tighter output contracts, retained verbosity visibility, and a tracked cheap-proof plan for repeated low-cost live proofs |
-| WP41| Crash-Safe Manifest Flushing         | Planned | Atomic manifest writes via write-to-temp-then-rename so a process crash never corrupts a retained run |
-| WP42| Within-Run Task Retry                | Planned | Automatic per-task retry with exponential backoff for transient failures (rate-limit, timeout, provider error) |
-| WP43| Direct Anthropic SDK Provider        | Planned | Replace `claude` subprocess provider with the Anthropic Python SDK to unlock streaming, accurate cache stats, and SDK-managed rate-limit handling |
+| WP41| Crash-Safe Manifest Flushing         | Complete | Atomic manifest writes via write-to-temp-then-rename so a process crash never corrupts a retained run |
+| WP42| Within-Run Task Retry                | Complete | Automatic per-task retry with exponential backoff for transient failures (rate-limit, timeout, provider error) |
+| WP43| Direct Anthropic SDK Provider        | Complete | Replace `claude` subprocess provider with the Anthropic Python SDK to unlock streaming, accurate cache stats, and SDK-managed rate-limit handling |
 | WP44| Async Task Execution                 | Planned | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
 | WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
 | WP46| Typed Agent Contracts                | Planned | Introduce Pydantic models at major call boundaries to replace large dict passing and catch contract violations at the type layer |
@@ -771,6 +771,24 @@ state".
 **Goal:** Make all manifest writes atomic so a process crash, OOM kill, or
 power loss mid-task never leaves a corrupted or partial retained run.
 
+**Decision:** Complete. All orchestrator writes now go through `write_text()`
+in `orchestrator_utils.py`, which writes to a unique `.tmp` sibling then
+`os.replace()`. `_atomic_replace()` retries on Windows `PermissionError`.
+`recover_orphaned_write_temps()` cleans crash-left temps recursively;
+`workspace_run_review.py` triggers recovery before loading a run manifest.
+
+**Work done:**
+- Added `_atomic_replace()`, `write_text()`, `write_json()`, and
+  `recover_orphaned_write_temps()` to `orchestrator_utils.py`; all call
+  sites in `task_execution.py`, `review_ops.py`, `validation_ops.py`, and
+  `workspace_run_review.py` use the shared helpers.
+- `recover_orphaned_write_temps()` scans recursively for `.tmp` siblings
+  matching the write-temp naming pattern and removes them with a warning.
+- `workspace_run_review.py` calls `recover_orphaned_write_temps()` before
+  reading the run manifest so stale temps from prior crashes are cleared.
+- Added regression coverage for the atomic write path and orphaned-temp
+  recovery sweep; full suite 375 green after WP41.
+
 **Context:**
 - Manifests are currently written with direct file writes. A crash during a
   write leaves a partial file; the next `resume`, `status`, or `inventory`
@@ -781,17 +799,17 @@ power loss mid-task never leaves a corrupted or partial retained run.
   `.tmp` files from a prior crashed write.
 
 **Tasks:**
-- [ ] Identify every manifest write path in `manifest_io.py`,
+- [x] Identify every manifest write path in `manifest_io.py`,
       `task_execution.py`, `run_ops.py`, and coordinator checkpoint helpers
       in `review_ops.py` and `validation_ops.py`.
-- [ ] Replace each with an atomic write-to-temp-then-`os.replace()` helper;
+- [x] Replace each with an atomic write-to-temp-then-`os.replace()` helper;
       keep the helper in `manifest_io.py` so all call sites share one
       implementation.
-- [ ] Add a manifest recovery helper that detects orphaned `.tmp` sibling
+- [x] Add a manifest recovery helper that detects orphaned `.tmp` sibling
       files on run load and removes them after logging a warning.
-- [ ] Add regression coverage for the atomic write path and the orphaned-temp
+- [x] Add regression coverage for the atomic write path and the orphaned-temp
       recovery sweep.
-- [ ] Verify no existing test fixture depends on in-place manifest mutation
+- [x] Verify no existing test fixture depends on in-place manifest mutation
       order; update any that do.
 
 **Validate:**
@@ -809,6 +827,27 @@ power loss mid-task never leaves a corrupted or partial retained run.
 **Goal:** Automatically retry failed tasks for transient errors (rate limits,
 provider timeouts, subprocess errors) without requiring a manual `retry` run.
 
+**Decision:** Complete. `retry_policy.py` classifies transient failures
+(rate-limit 429, timeout, 5xx, overload, SDK typed errors) vs permanent
+(scope violation, auth, JSON parse, prompt budget). `execute_task_with_retry`
+in `orchestrator_app.py` wraps `execute_task` with exponential backoff
+(1s/2s/4s + jitter, capped 30s), records `attempt`/`attempt_errors` in task
+records, emits retry events to the trace, and supports `--max-task-retries`
+CLI override and `maxRetries` JSON field on task/agent definitions.
+
+**Work done:**
+- Added `retry_policy.py` with `classify_failure()`, `compute_backoff()`,
+  `DEFAULT_MAX_TASK_RETRIES=3`, and pattern lists for transient vs permanent
+  error strings.
+- Added `execute_task_with_retry()` in `orchestrator_app.py`; wraps patchable
+  `execute_task` dep, records `attempt`/`attempt_errors`/`retry_delay_ms` in
+  `TaskRunRecord`, emits `task-retry-attempt` events to run trace.
+- Added `--max-task-retries` CLI override on `run`/`resume`/`retry` commands;
+  `maxRetries` JSON field on task and agent definitions.
+- Retry reuses same workspace and prompt; no re-hydration between attempts.
+- Added regression coverage for attempt counting, backoff timing, transient vs
+  permanent classification, and max-retry exhaustion; 44 new tests; suite 419.
+
 **Context:**
 - Any task failure currently requires the operator to issue a separate `retry`
   run, which creates a new run and loses the original run context.
@@ -820,21 +859,21 @@ provider timeouts, subprocess errors) without requiring a manual `retry` run.
   can distinguish automatic recovery from a first-attempt success.
 
 **Tasks:**
-- [ ] Define a transient-error classifier that maps exit codes, exception
+- [x] Define a transient-error classifier that maps exit codes, exception
       types, and provider error strings to `transient` vs `permanent`; keep
       the classifier in `task_execution.py` or a dedicated `retry_policy.py`.
-- [ ] Add per-task retry config: `maxRetries` (default `3`), backoff base
+- [x] Add per-task retry config: `maxRetries` (default `3`), backoff base
       (`1s`/`2s`/`4s` + jitter), and a `retryPolicy` field in agent/task
       definitions; add a `--max-task-retries` CLI override.
-- [ ] Record `attempt`, `attemptErrors`, and `retryDelayMs` in the task record
+- [x] Record `attempt`, `attemptErrors`, and `retryDelayMs` in the task record
       so retry history is visible in `status`, `inventory`, and
       `evaluate-run`.
-- [ ] Emit a retry-attempt event in the run event trace for each retried
+- [x] Emit a retry-attempt event in the run event trace for each retried
       attempt so `export-trace` captures the full attempt timeline.
-- [ ] Ensure retry attempts consume the same workspace and prompt; do not
+- [x] Ensure retry attempts consume the same workspace and prompt; do not
       re-hydrate the workspace between attempts unless the workspace mode
       requires it.
-- [ ] Add regression coverage for attempt counting, backoff timing, transient
+- [x] Add regression coverage for attempt counting, backoff timing, transient
       vs permanent classification, and max-retry exhaustion behavior.
 
 **Validate:**
@@ -852,6 +891,33 @@ provider timeouts, subprocess errors) without requiring a manual `retry` run.
 **Goal:** Replace the `claude` subprocess provider with the Anthropic Python
 SDK to unlock streaming output, accurate cache hit stats, and SDK-managed
 rate-limit handling with clean backoff.
+
+**Decision:** Complete. The orchestrator now supports a dual-provider model:
+`POJO_LENS_PROVIDER=sdk` (or auto-detect when `anthropic` importable and
+`ANTHROPIC_API_KEY` set) routes tasks through the Anthropic Python SDK with a
+bounded agentic tool loop; the original `claude` subprocess path remains the
+default fallback. No CLI or manifest contract changed.
+
+**Work done:**
+- Added `scripts/ai/pojo_lens_agents/sdk_provider.py` (260 lines): agentic
+  tool loop with 4 workspace tools (`read_file`, `write_file`,
+  `str_replace_based_edit_tool`, `bash`), path-traversal protection,
+  streaming via `client.messages.stream()` when stderr is a TTY, usage
+  accumulation across tool-use turns, and full exception capture returning
+  error strings so WP42 `classify_failure()` patterns match without changes.
+- Added `[project.optional-dependencies] sdk = ["anthropic>=0.40.0"]` to
+  `pyproject.toml`.
+- Extended `provider_worker.py` with `ensure_provider_available()` that
+  validates SDK package + `ANTHROPIC_API_KEY` before SDK runs.
+- Updated `task_execution.py`: provider mode detected once per task, command
+  artifact written with `providerMode: "sdk"` for manifest consistency, SDK
+  result and subprocess result unified into `stdout_text`/`stderr_text`/
+  `return_code`/`usage` variables so all downstream logic is shared.
+- Updated `orchestrator_app.py`: lazy module proxy for SDK layer, deps wired
+  with `provider_mode` and `run_sdk_provider`, `ensure_provider_available`
+  replaces `ensure_claude_available` in run entrypoint.
+- Added `scripts/tests/test_sdk_provider.py` with 65 tests covering all
+  SDK provider paths; total suite 484 tests, all passing.
 
 **Context:**
 - `provider.py` and `provider_worker.py` currently invoke `claude` as a
@@ -871,23 +937,23 @@ rate-limit handling with clean backoff.
   the SDK path when `ANTHROPIC_API_KEY` is present.
 
 **Tasks:**
-- [ ] Add `anthropic` as an optional dependency in `pyproject.toml` with a
+- [x] Add `anthropic` as an optional dependency in `pyproject.toml` with a
       clearly named extras group (e.g., `[sdk]`).
-- [ ] Implement an SDK-backed provider in `provider.py` that calls
+- [x] Implement an SDK-backed provider in `provider.py` that calls
       `client.messages.create()` with the selected model, system prompt, and
       user message; map the response to the existing provider result shape.
-- [ ] Wire the SDK `Usage` object (input tokens, output tokens, cache read,
+- [x] Wire the SDK `Usage` object (input tokens, output tokens, cache read,
       cache write, cost) directly into the task record `usage` field instead
       of parsing subprocess stdout.
-- [ ] Add a streaming path (`client.messages.stream()`) that emits partial
+- [x] Add a streaming path (`client.messages.stream()`) that emits partial
       text to `stderr` for interactive runs and accumulates the full response
       for JSON parsing; keep `stdout` machine-readable.
-- [ ] Map `RateLimitError`, `APITimeoutError`, and `InternalServerError` to
+- [x] Map `RateLimitError`, `APITimeoutError`, and `InternalServerError` to
       the transient-error classifier from WP42; map `AuthenticationError` and
       `InvalidRequestError` to permanent.
-- [ ] Keep the `claude` subprocess path active via a provider-mode flag or
+- [x] Keep the `claude` subprocess path active via a provider-mode flag or
       env var; document which mode is used in dry-run and manifest output.
-- [ ] Add regression coverage for the SDK provider result shape, usage
+- [x] Add regression coverage for the SDK provider result shape, usage
       mapping, and error classification.
 
 **Validate:**

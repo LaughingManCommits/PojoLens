@@ -8,6 +8,12 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Callable
 
+from pojo_lens_agents.sdk_provider import (
+    detect_provider_mode,  # noqa: F401 — re-exported
+    map_sdk_usage,  # noqa: F401 — re-exported
+    sdk_available,  # noqa: F401 — re-exported
+)
+
 
 class ProviderExecutionError(RuntimeError):
     """Raised when provider or validation subprocess execution fails locally."""
