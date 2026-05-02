@@ -97,6 +97,14 @@ def _add_effort_arg(parser: argparse.ArgumentParser, *, help_text: str) -> None:
     )
 
 
+def _add_otel_endpoint_arg(parser: argparse.ArgumentParser, *, help_text: str) -> None:
+    parser.add_argument(
+        "--otel-endpoint",
+        default="",
+        help=help_text,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -229,6 +237,13 @@ def parse_args() -> argparse.Namespace:
     _add_continue_on_error_arg(run_parser)
     _add_max_task_retries_arg(run_parser)
     _add_hitl_args(run_parser)
+    _add_otel_endpoint_arg(
+        run_parser,
+        help_text=(
+            "Override OTEL collector endpoint for this run. When unset, the command "
+            "uses OTEL_EXPORTER_OTLP_ENDPOINT if present."
+        ),
+    )
     run_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -276,6 +291,13 @@ def parse_args() -> argparse.Namespace:
     _add_continue_on_error_arg(resume_parser)
     _add_max_task_retries_arg(resume_parser)
     _add_hitl_args(resume_parser)
+    _add_otel_endpoint_arg(
+        resume_parser,
+        help_text=(
+            "Override OTEL collector endpoint for this resumed run. When unset, the command "
+            "uses OTEL_EXPORTER_OTLP_ENDPOINT if present."
+        ),
+    )
     resume_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -327,6 +349,13 @@ def parse_args() -> argparse.Namespace:
     )
     _add_continue_on_error_arg(retry_parser)
     _add_max_task_retries_arg(retry_parser)
+    _add_otel_endpoint_arg(
+        retry_parser,
+        help_text=(
+            "Override OTEL collector endpoint for this retry run. When unset, the command "
+            "uses OTEL_EXPORTER_OTLP_ENDPOINT if present."
+        ),
+    )
     retry_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -437,6 +466,13 @@ def parse_args() -> argparse.Namespace:
         "--out",
         default="",
         help="Destination trace path. Defaults under the run directory trace/ subfolder.",
+    )
+    _add_otel_endpoint_arg(
+        export_trace_parser,
+        help_text=(
+            "Override OTEL collector endpoint for this trace export. When unset, the command "
+            "uses OTEL_EXPORTER_OTLP_ENDPOINT if present."
+        ),
     )
     export_trace_parser.add_argument(
         "--dry-run",

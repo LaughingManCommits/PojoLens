@@ -11,6 +11,15 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **OpenTelemetry observability** - added optional `[otel]` dependencies
+  (`opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http`), new
+  `pojo_lens_agents.otel_spans` emission support, `--otel-endpoint` on
+  `run` / `resume` / `retry` / `export-trace`, OTLP HTTP export activated by
+  `OTEL_EXPORTER_OTLP_ENDPOINT`, and OTEL task span attributes for model,
+  effort, output profile, token usage, and cost. The retained
+  `pojo-lens-orchestrator-trace/v1` graph remains the source of truth, with
+  extra lineage parents mapped to OTEL span links.
+
 - **Human-in-the-loop approval gates** - added HITL run-policy fields
   (`hitl`, `hitlMode`), `--hitl`, `--hitl-mode`, and
   `--hitl-auto-approve` for `run` / `resume`; runs can now emit

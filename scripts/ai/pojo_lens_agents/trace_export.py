@@ -251,7 +251,29 @@ def export_trace_payload(
                     "modelProfile": record.model_profile,
                     "effort": record.effort,
                     "effortSource": record.effort_source,
+                    "outputProfile": record.output_profile,
+                    "outputProfileSource": record.output_profile_source,
                     "promptEstimatedTokens": int(record.prompt_estimated_tokens or 0),
+                    "usage.totalCostUsd": (
+                        float(record.usage.get("totalCostUsd", 0) or 0)
+                        if isinstance(record.usage, dict)
+                        else 0.0
+                    ),
+                    "usage.inputTokens": (
+                        int(record.usage.get("inputTokens", 0) or 0)
+                        if isinstance(record.usage, dict)
+                        else 0
+                    ),
+                    "usage.outputTokens": (
+                        int(record.usage.get("outputTokens", 0) or 0)
+                        if isinstance(record.usage, dict)
+                        else 0
+                    ),
+                    "usage.cacheReadTokens": (
+                        int(record.usage.get("cacheReadInputTokens", 0) or 0)
+                        if isinstance(record.usage, dict)
+                        else 0
+                    ),
                     "filesTouched": list(record.files_touched),
                     "actualFilesTouched": list(record.actual_files_touched),
                     "validationIntentCount": len(record.validation_intents),
@@ -433,6 +455,24 @@ def export_trace_run(args: Any, *, deps: dict[str, Any]) -> dict[str, Any]:
     )
     payload["tracePath"] = str(output_path)
     payload["dryRun"] = bool(getattr(args, "dry_run", False))
+    endpoint = deps["resolve_otel_endpoint"](getattr(args, "otel_endpoint", ""))
+    if endpoint:
+        if payload["dryRun"]:
+            payload["otel"] = {
+                "enabled": True,
+                "endpoint": endpoint,
+                "emitted": False,
+                "reason": "dry-run",
+            }
+        else:
+            payload["otel"] = deps["emit_otel_trace"](payload, endpoint=endpoint)
+    else:
+        payload["otel"] = {
+            "enabled": False,
+            "endpoint": None,
+            "emitted": False,
+            "reason": "disabled",
+        }
     if not payload["dryRun"]:
         deps["write_json"](output_path, payload)
     return payload

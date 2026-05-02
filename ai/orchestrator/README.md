@@ -53,6 +53,7 @@ scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --max-parallel 2 --otel-endpoint http://localhost:4318/v1/traces --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json
 scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
@@ -101,6 +102,7 @@ Lifecycle helpers:
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
+- `run`, `resume`, `retry`, and `export-trace` accept `--otel-endpoint <url>`; when unset, `OTEL_EXPORTER_OTLP_ENDPOINT` enables OTEL emission automatically for live runs and retained trace export
 - `run` and `resume` accept `--hitl`, `--hitl-mode <batch|on-failure|always>`, and `--hitl-auto-approve`; HITL gates emit `hitl-gate` plus `hitl-approved` or `hitl-aborted`, write the manifest before waiting, and use either an interactive prompt or the run-local `hitl-gate.lock` sentinel file for decisions
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
 - retained-run summaries now also expose `lifecycleState`, `lifecycleStateReason`, and `approvalSummary` so review, validation, and promotion gates are visible without opening the raw manifest
@@ -108,6 +110,7 @@ Lifecycle helpers:
 - `evaluate-corpus` evaluates retained runs across the runtime root and aggregates score status, average score percent, and benchmark-dimension counts
 - `inventory` summarizes retained runs with compact task-status, resume-candidate, validation, prompt, cost, failure/blocking, and promotion-readiness fields
 - `export-trace` writes `pojo-lens-orchestrator-trace/v1` JSON under the run `trace/` directory by default, exporting run, batch, task, validation, and approval spans without changing the retained manifest
+- OTEL emission is opt-in. Install `pojolens-agents[otel]`, then set `OTEL_EXPORTER_OTLP_ENDPOINT` or pass `--otel-endpoint` to send the same retained span graph to any OTLP HTTP collector without a custom converter
 - `prune` removes aged runtime state, supports `--keep` to preserve the newest runs, and skips incomplete runs by default unless `--include-incomplete` is set
 - the compatibility entrypoint remains `scripts/ai/claude-orchestrator.py`, but it is now a thin shim that lazy-loads `pojo_lens_agents.orchestrator_app`; retained-run summary/lifecycle, review/promote, validation checkpoints, and eval logic live in `run_summary`, `review_ops`, `validation_ops`, and `evals`
 
@@ -161,6 +164,7 @@ Token and cost visibility:
 - `review`, `validate-run`, and `promote` now persist coordinator checkpoints back into the run manifest as `coordinatorReview`, `coordinatorValidation`, and `coordinatorPromotion`, each with a run-local `summary.json` path for replayable operator evidence
 - `review` now surfaces `textQualityFindings` for docs-like text changes, blocks promotion on mojibake-like output, and warns when Unicode is introduced into an otherwise ASCII doc baseline so operators do not need to spot those issues manually in diffs
 - `export-trace` maps those retained events plus coordinator checkpoints into stable span ids and parent span ids so external tooling can compare runs without learning the manifest internals
+- OTEL emission reuses that retained span graph: `run` maps to `orchestrator.run`, `batch` to `orchestrator.batch`, `task` to `orchestrator.task`, `validation` to `orchestrator.validation`, and `approval` to `orchestrator.approval`; additional lineage parents are exported as OTEL span links
 - major orchestrator contracts are backed by Pydantic v2 models and Pydantic-backed dataclasses; task plans, agent definitions, run policies, task records, retained manifests, dependency handoffs, and coordinator checkpoints are validated at JSON boundaries while existing CLI and manifest field names remain stable
 - `run --json`, retained-run `status`, retained-run `inventory`, and retained manifests now also expose `effortOverride`, per-task resolved effort/source, and compact `effortCounts`; `evaluate-run` warns when read-only tasks use high effort on non-complex model profiles
 - retained-run summaries now also expose `taskOutputProfiles`, `outputProfileCounts`, `unexpectedlyVerboseTaskIds`, and `unexpectedlyVerboseTaskCount`; `evaluate-run` warns when retained output is unexpectedly verbose for the resolved profile

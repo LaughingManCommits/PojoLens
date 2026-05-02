@@ -779,6 +779,12 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 workspace_path=str(runtime_root / "workspaces" / "trace-run" / "inspect-a"),
                 files_touched=["docs/a.md"],
                 actual_files_touched=["docs/a.md"],
+                usage={
+                    "inputTokens": 12,
+                    "outputTokens": 5,
+                    "cacheReadInputTokens": 2,
+                    "totalCostUsd": 0.07,
+                },
             )
             record_b = make_task_run_record(
                 orchestrator,
@@ -790,6 +796,12 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 workspace_path=str(runtime_root / "workspaces" / "trace-run" / "inspect-b"),
                 files_touched=["docs/b.md"],
                 actual_files_touched=["docs/b.md"],
+                usage={
+                    "inputTokens": 18,
+                    "outputTokens": 9,
+                    "cacheReadInputTokens": 4,
+                    "totalCostUsd": 0.11,
+                },
             )
             manifest = {
                 "runId": "trace-run",
@@ -898,6 +910,102 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 ["inspect-a"],
                 spans_by_id["task:trace-run:inspect-b"]["attributes"]["dependencyTaskIds"],
             )
+            self.assertEqual("standard", spans_by_id["task:trace-run:inspect-a"]["attributes"]["outputProfile"])
+            self.assertEqual(0.11, spans_by_id["task:trace-run:inspect-b"]["attributes"]["usage.totalCostUsd"])
+            self.assertEqual(4, spans_by_id["task:trace-run:inspect-b"]["attributes"]["usage.cacheReadTokens"])
+
+    def test_run_loaded_plan_reports_dry_run_otel_summary_without_emitting(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="otel-dry-run",
+                goal="Show OTEL summary without emission during dry-run.",
+                shared_context=orchestrator.SharedContext(
+                    summary="OTEL dry-run test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            async def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+                effort_override=None,
+            ):
+                return make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                    otel_endpoint="http://collector:4318/v1/traces",
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+        self.assertEqual(
+            {
+                "enabled": True,
+                "endpoint": "http://collector:4318/v1/traces",
+                "emitted": False,
+                "reason": "dry-run",
+            },
+            payload["otel"],
+        )
 
     def test_run_loaded_plan_stops_after_artifact_limit_before_later_batch(self):
         orchestrator = self.orchestrator

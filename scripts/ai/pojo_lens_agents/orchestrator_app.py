@@ -44,6 +44,7 @@ run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
 sdk_provider_layer = _LazyModuleProxy("pojo_lens_agents.sdk_provider")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
+otel_layer = _LazyModuleProxy("pojo_lens_agents.otel_spans")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 
@@ -539,6 +540,7 @@ def run_loaded_plan(
     hitl: bool = False,
     hitl_mode: str | None = None,
     hitl_auto_approve: bool = False,
+    otel_endpoint: str | None = None,
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
@@ -633,11 +635,20 @@ def run_loaded_plan(
         hitl_gate_context_factory=hitl_layer.HitlGateContext,
         wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
         write_text=write_text,
+        otel_endpoint=otel_endpoint,
+        manifest_payload_builder=manifest_payload,
+        build_trace_payload=trace_export_layer.export_trace_payload,
+        summarize_run_manifest=summarize_run_manifest,
+        parse_iso_datetime=parse_iso_datetime,
+        datetime_to_iso=datetime_to_iso,
+        emit_otel_trace=otel_layer.emit_otel_trace_from_custom_payload,
         error_factory=OrchestratorError,
     ))
 
 
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:
+    otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    args.otel_endpoint = otel_endpoint or ""
     return run_ops_layer.run_plan(
         args,
         load_agents=load_agents,
@@ -648,6 +659,8 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def resume_run(args: argparse.Namespace) -> dict[str, Any]:
+    otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    args.otel_endpoint = otel_endpoint or ""
     return run_ops_layer.resume_run(
         args,
         root=ROOT,
@@ -671,6 +684,8 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def retry_run(args: argparse.Namespace) -> dict[str, Any]:
+    otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    args.otel_endpoint = otel_endpoint or ""
     return run_ops_layer.retry_run(
         args,
         load_run_manifest=load_run_manifest,
@@ -735,6 +750,8 @@ def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, A
 
 
 def export_trace(args: argparse.Namespace) -> dict[str, Any]:
+    otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    args.otel_endpoint = otel_endpoint or ""
     return trace_export_layer.export_trace_run(
         args,
         deps={
@@ -744,6 +761,8 @@ def export_trace(args: argparse.Namespace) -> dict[str, Any]:
             "parse_iso_datetime": parse_iso_datetime,
             "datetime_to_iso": datetime_to_iso,
             "write_json": write_json,
+            "resolve_otel_endpoint": otel_layer.resolve_otel_endpoint,
+            "emit_otel_trace": otel_layer.emit_otel_trace_from_custom_payload,
         },
     )
 

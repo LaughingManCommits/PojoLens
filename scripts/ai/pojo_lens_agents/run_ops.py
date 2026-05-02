@@ -69,6 +69,13 @@ async def run_loaded_plan(
     hitl_gate_context_factory: Callable[..., Any] = None,
     wait_for_hitl_decision: Callable[..., Any] = None,
     write_text: Callable[[Path, str], None] | None = None,
+    otel_endpoint: str | None = None,
+    manifest_payload_builder: Callable[..., dict[str, Any]] | None = None,
+    build_trace_payload: Callable[..., dict[str, Any]] | None = None,
+    summarize_run_manifest: Callable[..., Any] | None = None,
+    parse_iso_datetime: Callable[..., Any] | None = None,
+    datetime_to_iso: Callable[..., Any] | None = None,
+    emit_otel_trace: Callable[..., dict[str, Any]] | None = None,
     error_factory: type[Exception] = RuntimeError,
 ) -> dict[str, Any]:
     worker_validation_override = (
@@ -360,6 +367,51 @@ async def run_loaded_plan(
         payload["requestedTaskIds"] = list(requested_task_ids or [])
         payload["retriedTaskIds"] = list(retried_task_ids or [])
         payload["seededTaskIds"] = seeded_task_ids
+    if otel_endpoint:
+        if dry_run:
+            payload["otel"] = {
+                "enabled": True,
+                "endpoint": otel_endpoint,
+                "emitted": False,
+                "reason": "dry-run",
+            }
+        else:
+            manifest_path = run_dir / "manifest.json"
+            manifest = manifest_payload_builder(
+                run_id,
+                plan_path,
+                agents_path,
+                agents,
+                runtime_root,
+                run_dir,
+                workspaces_dir,
+                plan,
+                records,
+                dry_run=dry_run,
+                worker_validation_mode=worker_validation_override,
+                effort_override=normalized_effort_override,
+                retry_of_run_id=retry_of_run_id,
+                requested_task_ids=requested_task_ids,
+                retried_task_ids=retried_task_ids,
+                seeded_task_ids=seeded_task_ids,
+                run_events=run_events,
+            )
+            trace_payload = build_trace_payload(
+                manifest_path,
+                manifest,
+                records=[records[task.id] for task in plan.tasks if task.id in records],
+                summarize_run_manifest=summarize_run_manifest,
+                parse_iso_datetime=parse_iso_datetime,
+                datetime_to_iso=datetime_to_iso,
+            )
+            payload["otel"] = emit_otel_trace(trace_payload, endpoint=otel_endpoint)
+    else:
+        payload["otel"] = {
+            "enabled": False,
+            "endpoint": None,
+            "emitted": False,
+            "reason": "disabled",
+        }
     return payload
 
 
@@ -375,22 +427,28 @@ def run_plan(
     plan_path = Path(args.task_plan).resolve()
     agents = load_agents(agents_path)
     plan = selected_plan(load_task_plan(plan_path, agents), args.selected_tasks)
+    run_kwargs = {
+        "claude_bin": args.claude_bin,
+        "runtime_root": Path(args.runtime_root).resolve(),
+        "max_parallel": args.max_parallel,
+        "continue_on_error": args.continue_on_error,
+        "dry_run": args.dry_run,
+        "worker_validation_mode": args.worker_validation_mode,
+        "effort_override": getattr(args, "effort", None),
+        "max_task_retries": getattr(args, "max_task_retries", None),
+        "hitl": bool(getattr(args, "hitl", False)),
+        "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
+        "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
+    }
+    otel_endpoint = getattr(args, "otel_endpoint", None)
+    if otel_endpoint:
+        run_kwargs["otel_endpoint"] = otel_endpoint
     return run_loaded_plan_fn(
         plan_path,
         agents_path,
         agents,
         plan,
-        claude_bin=args.claude_bin,
-        runtime_root=Path(args.runtime_root).resolve(),
-        max_parallel=args.max_parallel,
-        continue_on_error=args.continue_on_error,
-        dry_run=args.dry_run,
-        worker_validation_mode=args.worker_validation_mode,
-        effort_override=getattr(args, "effort", None),
-        max_task_retries=getattr(args, "max_task_retries", None),
-        hitl=bool(getattr(args, "hitl", False)),
-        hitl_mode=getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
-        hitl_auto_approve=bool(getattr(args, "hitl_auto_approve", False)),
+        **run_kwargs,
     )
 
 
@@ -478,6 +536,9 @@ def resume_run(
             "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
             "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
         }
+    otel_kwargs = {}
+    if getattr(args, "otel_endpoint", None):
+        otel_kwargs["otel_endpoint"] = getattr(args, "otel_endpoint")
     payload = run_loaded_plan_fn(
         source_plan_path,
         agents_path,
@@ -497,6 +558,7 @@ def resume_run(
         existing_workspaces_dir=workspaces_dir,
         write_plan_snapshot=False,
         max_task_retries=getattr(args, "max_task_retries", None),
+        **otel_kwargs,
         **hitl_kwargs,
     )
     payload["sourceManifestPath"] = str(manifest_path)
@@ -552,23 +614,30 @@ def retry_run(
     if not retried_task_ids:
         raise error_factory("Nothing to retry; all selected tasks are already completed")
     source_worker_validation_override = manifest_worker_validation_override(manifest, location=str(manifest_path))
+    run_kwargs = {
+        "claude_bin": args.claude_bin,
+        "runtime_root": runtime_root,
+        "max_parallel": args.max_parallel,
+        "continue_on_error": args.continue_on_error,
+        "dry_run": args.dry_run,
+        "worker_validation_mode": (
+            normalize_worker_validation_mode(getattr(args, "worker_validation_mode", "") or source_worker_validation_override, location=f"retry source '{manifest_path}' worker validation mode") if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override) else None
+        ),
+        "effort_override": getattr(args, "effort", None),
+        "initial_records": initial_records,
+        "retry_of_run_id": str(manifest.get("runId", "")),
+        "requested_task_ids": requested_task_ids,
+        "retried_task_ids": retried_task_ids,
+        "max_task_retries": getattr(args, "max_task_retries", None),
+    }
+    if getattr(args, "otel_endpoint", None):
+        run_kwargs["otel_endpoint"] = getattr(args, "otel_endpoint")
     payload = run_loaded_plan_fn(
         plan_path,
         agents_path,
         agents,
         retry_plan,
-        claude_bin=args.claude_bin,
-        runtime_root=runtime_root,
-        max_parallel=args.max_parallel,
-        continue_on_error=args.continue_on_error,
-        dry_run=args.dry_run,
-        worker_validation_mode=(normalize_worker_validation_mode(getattr(args, "worker_validation_mode", "") or source_worker_validation_override, location=f"retry source '{manifest_path}' worker validation mode") if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override) else None),
-        effort_override=getattr(args, "effort", None),
-        initial_records=initial_records,
-        retry_of_run_id=str(manifest.get("runId", "")),
-        requested_task_ids=requested_task_ids,
-        retried_task_ids=retried_task_ids,
-        max_task_retries=getattr(args, "max_task_retries", None),
+        **run_kwargs,
     )
     payload["sourceManifestPath"] = str(manifest_path)
     return payload

@@ -50,7 +50,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP42| Within-Run Task Retry                | Complete | Automatic per-task retry with exponential backoff for transient failures (rate-limit, timeout, provider error) |
 | WP43| Direct Anthropic SDK Provider        | Complete | Replace `claude` subprocess provider with the Anthropic Python SDK to unlock streaming, accurate cache stats, and SDK-managed rate-limit handling |
 | WP44| Async Task Execution                 | Complete | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
-| WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
+| WP45| OpenTelemetry Observability          | Complete | Added optional OTLP HTTP emission from retained run spans, live run/export endpoint overrides, and task cost/model attributes on OTEL spans |
 | WP46| Typed Agent Contracts                | Complete | Added Pydantic v2 contract models, Pydantic-backed dataclasses, typed plan/agent/manifest validation boundaries, `py.typed`, and mypy coverage |
 | WP47| Human-in-the-Loop Approval Gates     | Complete | Added batch-boundary HITL policy, run/resume CLI flags, persisted gate events, sentinel/interactive approval, auto-approve test mode, and abort blocking |
 | WP48| Pre-Flight Cost Estimation           | Planned | Estimate token spend and USD cost from plan topology before a run starts, with model/effort/prompt-size inputs and per-task breakdowns |
@@ -1029,43 +1029,45 @@ and align the concurrency model with the SDK-backed provider from WP43.
 
 **Priority:** Medium
 
-**Goal:** Emit standard OTEL spans from orchestration events so runs can be
-monitored in any OTEL-compatible backend (Grafana, DataDog, Honeycomb, Jaeger)
-without a custom converter.
+**Decision:** Complete. The orchestrator now reuses the retained
+`pojo-lens-orchestrator-trace/v1` graph to emit standard OTEL spans to any
+OTLP HTTP collector when enabled through `OTEL_EXPORTER_OTLP_ENDPOINT` or a
+`--otel-endpoint` override on `run`, `resume`, `retry`, or `export-trace`.
 
-**Context:**
-- The orchestrator already has a rich internal trace model
-  (`pojo-lens-orchestrator-trace/v1`) and `export-trace` produces a stable
-  span graph. The gap is that this format is custom JSON, not OTEL, so
-  connecting it to standard observability tooling requires a converter.
-- Adding `opentelemetry-sdk` + `opentelemetry-exporter-otlp-proto-http` maps
-  directly to the existing span structure: run span → batch child spans →
-  task grandchild spans → coordinator checkpoint spans.
-- Token counts, model, cost, and effort already exist in task records and
-  can become span attributes, enabling per-task cost dashboards without any
-  new data collection.
-- OTEL emission should be opt-in via env var (`OTEL_EXPORTER_OTLP_ENDPOINT`)
-  so existing runs that do not set the endpoint are unaffected.
+**Work done:**
+- Added optional `[otel]` dependencies in `pyproject.toml` for
+  `opentelemetry-sdk` and OTLP HTTP export.
+- Added `pojo_lens_agents.otel_spans`, which maps the retained custom span
+  graph onto OTEL span names, timestamps, status codes, attributes, and links.
+- Wired live `run`, `resume`, and `retry` to emit OTEL spans after the final
+  manifest write so OTEL export matches retained run state.
+- Wired `export-trace` to optionally send the retained span graph to an OTLP
+  collector in addition to writing the JSON export.
+- Added task OTEL attributes for `model`, `modelProfile`, `effort`,
+  `outputProfile`, `usage.totalCostUsd`, `usage.inputTokens`,
+  `usage.outputTokens`, and `usage.cacheReadTokens`.
+- Added regression coverage for OTEL span-plan construction, status mapping,
+  parent-plus-link translation, dry-run behavior, and CLI flag parsing.
 
 **Tasks:**
-- [ ] Add `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`
+- [x] Add `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`
       as optional dependencies in `pyproject.toml` under an `[otel]` extras
       group.
-- [ ] Add an `otel_spans.py` module that wraps the existing `trace_export`
+- [x] Add an `otel_spans.py` module that wraps the existing `trace_export`
       span structure and emits OTEL spans; activate it when
       `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
-- [ ] Map existing span kinds to OTEL span names: `run` → `orchestrator.run`,
-      `batch` → `orchestrator.batch`, `task` → `orchestrator.task`,
-      `validation` → `orchestrator.validation`, `approval` →
+- [x] Map existing span kinds to OTEL span names: `run` -> `orchestrator.run`,
+      `batch` -> `orchestrator.batch`, `task` -> `orchestrator.task`,
+      `validation` -> `orchestrator.validation`, `approval` ->
       `orchestrator.approval`.
-- [ ] Attach task record fields as span attributes: `model`, `modelProfile`,
+- [x] Attach task record fields as span attributes: `model`, `modelProfile`,
       `effort`, `outputProfile`, `usage.totalCostUsd`, `usage.inputTokens`,
       `usage.outputTokens`, `usage.cacheReadTokens`.
-- [ ] Emit span status `ERROR` for `failed`/`blocked` task outcomes and
+- [x] Emit span status `ERROR` for `failed`/`blocked` task outcomes and
       `OK` for `completed`; keep `UNSET` for pending or unknown.
-- [ ] Add a `--otel-endpoint` CLI flag that overrides the env var for
+- [x] Add a `--otel-endpoint` CLI flag that overrides the env var for
       one-off runs; document both in `ai/orchestrator/README.md`.
-- [ ] Add regression coverage for span construction correctness and
+- [x] Add regression coverage for span construction correctness and
       attribute mapping without requiring a live OTEL collector.
 
 **Validate:**
@@ -1752,3 +1754,4 @@ the final release guardrails are rerun.
 - `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 - `scripts/docs/check-doc-consistency.ps1`
 - Release benchmark guardrails from `docs/benchmarking.md`.
+
