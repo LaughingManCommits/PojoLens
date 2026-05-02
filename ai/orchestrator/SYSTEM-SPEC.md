@@ -103,6 +103,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Agent definitions may carry optional `skills`; the orchestrator should pass them through so Claude Code can preload repo-local skills such as `caveman` at agent setup time.
 - Task definitions may also carry optional `skills`; the router should merge task-local skills first, then agent defaults, then any bounded inferred skills from the task scope.
 - When a nearby tracked `skills/registry.json` exists, agent/task skill names should validate against it and the resolved per-task skill set should be visible in validate/run/manifest surfaces.
+- Role prompt files should warn above `6 KB` and fail above `8 KB`; skill files should warn above `3 KB` and fail above `4 KB`.
+- Validate/topology should also warn when a task resolves more than `4` skills; keep the resolved stack at `5` or fewer and prefer fewer, more focused skills.
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Validate, dry-run, and manifest surfaces should expose resolved task models/profiles plus a compact list or count of any `complex` tasks so accidental `opus` usage is easy to spot.
 - Validate, run, and manifest surfaces should also expose a compact topology summary: agent counts, read-only vs write-capable task counts, batch shape, dependency depth, and conservative warnings when the plan is obviously heavier than necessary.

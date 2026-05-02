@@ -64,6 +64,12 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
                 raise deps["error_factory"](f"{location}: cannot read prompt file '{prompt_file}': {exc}") from exc
             if not prompt_value:
                 raise deps["error_factory"](f"{location}: prompt file '{prompt_file}' is empty")
+            prompt_bytes = len(prompt_value.encode("utf-8"))
+            if prompt_bytes > deps["agent_prompt_fail_bytes"]:
+                raise deps["error_factory"](
+                    f"{location}: prompt file '{prompt_file}' is {prompt_bytes} bytes and exceeds "
+                    f"the hard cap of {deps['agent_prompt_fail_bytes']} bytes"
+                )
         elif inline_prompt:
             prompt_value = inline_prompt
         else:
@@ -91,6 +97,7 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
             name=name.strip(),
             description=deps["require_string"](definition, "description", location=location),
             prompt=prompt_value,
+            prompt_path=str(prompt_path) if prompt_file else None,
             skills=explicit_skills,
             model=deps["require_optional_string"](definition, "model", location=location),
             model_profile=deps["ensure_model_profile"](

@@ -125,6 +125,8 @@ Context discipline:
 - agent definitions may also preload repo-local `skills`; the tracked workers now pass through `caveman` so the model can load that skill after agent setup instead of repeating style instructions in every prompt
 - the tracked skill registry lives under `ai/orchestrator/skills/registry.json`; add new reusable skills there and back them with `skills/<name>/SKILL.md`
 - skill validation is registry-backed when a nearby `skills/registry.json` exists, and validate/run surfaces now expose resolved per-task skills
+- role prompt files warn above `6 KB` and fail above `8 KB`; skill `SKILL.md` files warn above `3 KB` and fail above `4 KB`
+- validate/topology warns when a task resolves more than `4` skills; keep the stack at `5` or fewer and prefer fewer, sharper skills
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer

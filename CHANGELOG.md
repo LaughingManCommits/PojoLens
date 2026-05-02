@@ -25,6 +25,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   live in `ai/orchestrator/agents/<role>/prompt.md` so role customization can
   evolve without large escaped JSON strings.
 
+- **Realistic role/skill prompt budgets** - tracked orchestrator role prompts
+  now warn above `6 KB` and fail above `8 KB`, tracked skill files warn above
+  `3 KB` and fail above `4 KB`, and validate topology warns when a task
+  resolves more than `4` skills so prompt assembly stays bounded before runtime
+  prompt budgets are hit.
+
 - **Docs/text quality guardrails** - reviewer diff summaries now surface
   `textQualityFindings` for docs-like text files, block promotion on common
   mojibake patterns, warn when new non-ASCII doc text is introduced into an

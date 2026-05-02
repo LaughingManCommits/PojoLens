@@ -47,6 +47,12 @@ MODEL_TO_PROFILE = {value: key for key, value in MODEL_PROFILE_TO_MODEL.items()}
 MAX_HYDRATED_FILE_BYTES = 512 * 1024
 DEFAULT_PROMPT_SECTION_ITEM_LIMIT = 8
 DEFAULT_PROMPT_ITEM_CHAR_LIMIT = 180
+AGENT_PROMPT_WARN_BYTES = 6 * 1024
+AGENT_PROMPT_FAIL_BYTES = 8 * 1024
+SKILL_PROMPT_WARN_BYTES = 3 * 1024
+SKILL_PROMPT_FAIL_BYTES = 4 * 1024
+RESOLVED_SKILLS_WARN_COUNT = 4
+RESOLVED_SKILLS_FAIL_COUNT = 5
 DEFAULT_DEPENDENCY_SUMMARY_CHAR_LIMIT = 220
 DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT = 2
 DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT = 120
@@ -277,6 +283,7 @@ class AgentDefinition:
     name: str
     description: str
     prompt: str
+    prompt_path: str | None = None
     skills: list[str] = field(default_factory=list)
     model: str | None = None
     model_profile: str | None = None

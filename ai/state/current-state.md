@@ -5,12 +5,15 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-02`: Orchestrator role prompts now warn above `6 KB` and fail above `8 KB`, skill files warn above `3 KB` and fail above `4 KB`, and validate topology warns when a task resolves more than `4` skills.
 - `2026-05-02`: Orchestrator skills are now tracked under `ai/orchestrator/skills/registry.json`, task plans may declare task-local `skills`, and worker runs now resolve task-local plus agent-default plus bounded inferred skills into task-specific selected-agent payloads.
 - `2026-05-02`: Orchestrator agent definitions now support file-backed `promptFile` entries, and the tracked role prompts moved into `ai/orchestrator/agents/<role>/prompt.md` for per-role customization without inline JSON prompt blobs.
 - `2026-05-01`: WP32-WP38 are complete; next queue is WP39 low-cost worker tuning, then WP40 end-to-end coding reliability.
 - `2026-04-30`: Parallel execution remains required; preserve `--max-parallel`, isolated workspaces, and conservative write-scope serialization.
 
 ## Verified
+- `2026-05-02`: `py -3 -m unittest discover -s scripts/tests -p "test_*.py"` passed with 325 tests after adding realistic role/skill prompt-size guardrails and resolved-skill-count warnings.
+- `2026-05-02`: `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json` and `scripts/docs/check-doc-consistency.ps1` passed after documenting and enforcing the new role/skill size budgets.
 - `2026-05-02`: `py -3 -m unittest discover -s scripts/tests -p "test_*.py"` passed with 315 tests after adding the tracked skill registry/router plus task-level orchestrator skills support.
 - `2026-05-02`: `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json` now exposes `agentSkills` plus per-task `resolvedSkills`, and `scripts/docs/check-doc-consistency.ps1` passed for the skill-router docs.
 - `2026-05-01`: Promoted coding runs remain `awaiting_validation` until a repo-scope validation checkpoint is recorded after promotion.

@@ -227,6 +227,95 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             ):
                 orchestrator.load_agents(agents_path)
 
+    def test_load_agents_rejects_oversized_prompt_file(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            prompt_path = temp_path / "agents" / "planner" / "prompt.md"
+            prompt_path.parent.mkdir(parents=True)
+            prompt_path.write_text("A" * (orchestrator.AGENT_PROMPT_FAIL_BYTES + 1), encoding="utf-8")
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "promptFile": "agents/planner/prompt.md",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "exceeds the hard cap",
+            ):
+                orchestrator.load_agents(agents_path)
+
+    def test_load_agents_rejects_oversized_skill_prompt_file(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            registry_path = temp_path / "skills" / "registry.json"
+            registry_path.parent.mkdir(parents=True)
+            registry_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "skills": {
+                            "huge": {
+                                "description": "Huge skill.",
+                                "promptFile": "huge/SKILL.md",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (temp_path / "skills" / "huge").mkdir()
+            (temp_path / "skills" / "huge" / "SKILL.md").write_text(
+                "B" * (orchestrator.SKILL_PROMPT_FAIL_BYTES + 1),
+                encoding="utf-8",
+            )
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "skills": ["huge"],
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "exceeds the hard cap",
+            ):
+                orchestrator.load_agents(agents_path)
+
     def test_load_task_plan_rejects_unknown_agent(self):
         orchestrator = self.orchestrator
         planner = orchestrator.AgentDefinition(

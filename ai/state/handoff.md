@@ -7,12 +7,14 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-02`: Orchestrator workers now use a tracked skill registry in `ai/orchestrator/skills/registry.json`; task plans may add task-local `skills`, and the router merges task skills, agent defaults, and bounded inferred skills for docs/release/benchmark/orchestrator work.
+- `2026-05-02`: Orchestrator prompt-size policy is explicit: agent prompts warn above `6 KB` and fail above `8 KB`, skill files warn above `3 KB` and fail above `4 KB`, and validate warns when a task resolves more than `4` skills.
+- `2026-05-02`: Workers now use tracked skills from `ai/orchestrator/skills/registry.json`; task plans may add task-local `skills`, and the router merges task, agent-default, and bounded inferred skills.
 - `2026-05-02`: Orchestrator role prompts are now file-backed via `ai/orchestrator/agents/<role>/prompt.md`; keep `agents.json` for structured settings and use inline `prompt` only as a compatibility path.
 - `2026-05-01`: Parallel docs and salary-range quickstart proofs are promoted; repo-scope post-promotion validation remains required for coding runs.
 - `2026-05-01`: Next queue is WP39 low-cost worker tuning, then WP40 end-to-end coding reliability.
 
 ## Facts
+- `2026-05-02`: `task_plan_ops.py` hard-fails oversized role prompt files, `skill_router.py` hard-fails oversized skill files, and `analyze_plan_topology(...)` warns on oversized role/skill text plus high resolved-skill counts.
 - `2026-05-02`: `scripts/ai/pojo_lens_agents/skill_router.py` owns tracked skill-registry loading, explicit-skill validation when a nearby registry exists, bounded path-based inference, and per-task resolved skill merging.
 - `2026-05-02`: Validate/run/manifest surfaces now expose resolved task skills, and worker invocations build task-specific selected-agent payloads so task-local skill additions do not require duplicating agent definitions.
 - `2026-05-02`: `scripts/ai/pojo_lens_agents/task_plan_ops.py` resolves relative `promptFile` entries from `agents.json`, rejects ambiguous inline-plus-file prompt definitions, and still accepts inline `prompt` for compatibility.

@@ -1,5 +1,6 @@
 import json
 import pathlib
+import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -245,6 +246,156 @@ class ValidateCommandTopologyTest(unittest.TestCase):
         )
         self.assertEqual(["task-a", "task-b", "review"], warning["taskIds"])
         self.assertIn("inherits 1600 prompt-token budget", warning["message"])
+
+    def test_analyze_plan_topology_flags_agent_prompt_size_warning(self):
+        orchestrator = self.orchestrator
+        agent = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="X" * (orchestrator.AGENT_PROMPT_WARN_BYTES + 1),
+            prompt_path="ai/orchestrator/agents/analyst/prompt.md",
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect guidance.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="agent-prompt-size-warning",
+            goal="Warn on oversized always-loaded role prompts.",
+            shared_context=orchestrator.SharedContext(
+                summary="Agent prompt warning test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        topology = orchestrator.analyze_plan_topology(plan, {"analyst": agent})
+
+        warning = next(item for item in topology["warnings"] if item["kind"] == "agent-prompt-size-warning")
+        self.assertEqual(["inspect"], warning["taskIds"])
+        self.assertIn("warning threshold", warning["message"])
+
+    def test_analyze_plan_topology_flags_skill_prompt_size_warning(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            skills=["bigskill"],
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect guidance.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="skill-prompt-size-warning",
+            goal="Warn on oversized skill text.",
+            shared_context=orchestrator.SharedContext(
+                summary="Skill prompt warning test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+        plan_support_module = sys.modules["pojo_lens_agents.plan_support"]
+        old_default_agents_path = plan_support_module.DEFAULT_AGENTS_PATH
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            registry_root = temp_path / "ai" / "orchestrator"
+            (registry_root / "skills" / "bigskill").mkdir(parents=True)
+            (registry_root / "skills" / "registry.json").write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "skills": {
+                            "bigskill": {
+                                "description": "Large skill.",
+                                "promptFile": "bigskill/SKILL.md",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (registry_root / "skills" / "bigskill" / "SKILL.md").write_text(
+                "S" * (orchestrator.SKILL_PROMPT_WARN_BYTES + 1),
+                encoding="utf-8",
+            )
+            plan_support_module.DEFAULT_AGENTS_PATH = registry_root / "agents.json"
+            try:
+                topology = orchestrator.analyze_plan_topology(plan, {"analyst": analyst})
+            finally:
+                plan_support_module.DEFAULT_AGENTS_PATH = old_default_agents_path
+
+        warning = next(item for item in topology["warnings"] if item["kind"] == "skill-prompt-size-warning")
+        self.assertEqual(["inspect"], warning["taskIds"])
+        self.assertIn("Keep skills narrow", warning["message"])
+
+    def test_analyze_plan_topology_flags_resolved_skills_count_warning(self):
+        orchestrator = self.orchestrator
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="analysis",
+            prompt="Return JSON only.",
+            skills=["one", "two", "three", "four", "five"],
+            model_profile="simple",
+            effort="high",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        task = orchestrator.TaskDefinition(
+            id="inspect",
+            title="Inspect",
+            agent="analyst",
+            prompt="Inspect guidance.",
+        )
+        plan = orchestrator.TaskPlan(
+            version=1,
+            name="resolved-skills-warning",
+            goal="Warn on stacked skills.",
+            shared_context=orchestrator.SharedContext(
+                summary="Resolved skills warning test.",
+                constraints=[],
+                read_paths=[],
+                validation=[],
+            ),
+            tasks=[task],
+        )
+
+        topology = orchestrator.analyze_plan_topology(plan, {"analyst": analyst})
+
+        warning = next(item for item in topology["warnings"] if item["kind"] == "resolved-skills-count-warning")
+        self.assertEqual(["inspect"], warning["taskIds"])
+        self.assertIn("warning threshold", warning["message"])
 
     def test_validate_command_reports_effective_worker_validation_sources(self):
         orchestrator = self.orchestrator

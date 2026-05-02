@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from pojo_lens_agents.orchestrator_contracts import SKILL_PROMPT_FAIL_BYTES
+
 
 def registry_candidates(anchor_path: Path) -> list[Path]:
     parent = anchor_path.parent
@@ -60,6 +62,12 @@ def load_skill_registry(anchor_path: Path, *, deps: dict[str, Any]) -> dict[str,
             raise deps["error_factory"](f"{location}: cannot read prompt file '{prompt_path_value}': {exc}") from exc
         if not prompt_text:
             raise deps["error_factory"](f"{location}: prompt file '{prompt_path_value}' is empty")
+        prompt_bytes = len(prompt_text.encode("utf-8"))
+        if prompt_bytes > SKILL_PROMPT_FAIL_BYTES:
+            raise deps["error_factory"](
+                f"{location}: prompt file '{prompt_path_value}' is {prompt_bytes} bytes and exceeds "
+                f"the hard cap of {SKILL_PROMPT_FAIL_BYTES} bytes"
+            )
         skill = deps["skill_definition_factory"](
             name=name.strip(),
             description=deps["require_string"](definition, "description", location=location),

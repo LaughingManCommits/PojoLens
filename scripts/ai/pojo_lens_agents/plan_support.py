@@ -14,6 +14,8 @@ from pojo_lens_agents import task_execution as task_execution_layer
 from pojo_lens_agents import task_plan_ops as task_plan_ops_layer
 from pojo_lens_agents import workspace_review as workspace_review_layer
 from pojo_lens_agents.orchestrator_contracts import (
+    AGENT_PROMPT_FAIL_BYTES,
+    AGENT_PROMPT_WARN_BYTES,
     ANALYST_AGENT_NAME,
     CONTEXT_MODES,
     DEFAULT_AGENTS_PATH,
@@ -31,10 +33,13 @@ from pojo_lens_agents.orchestrator_contracts import (
     MODEL_PROFILE_TO_MODEL,
     OrchestratorError,
     PLANNER_TASK_ID,
+    RESOLVED_SKILLS_FAIL_COUNT,
+    RESOLVED_SKILLS_WARN_COUNT,
     REVIEWER_AGENT_NAME,
     ROOT,
     RUN_POLICY_BEHAVIORS,
     RunPolicy,
+    SKILL_PROMPT_WARN_BYTES,
     SharedContext,
     SkillDefinition,
     TASK_ID_RE,
@@ -269,6 +274,7 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
             "default_context_mode": DEFAULT_CONTEXT_MODE,
             "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
+            "agent_prompt_fail_bytes": AGENT_PROMPT_FAIL_BYTES,
             "planner_task_id": PLANNER_TASK_ID,
             "skill_registry_path": registry_path,
             "skill_registry": skill_registry,
@@ -359,6 +365,96 @@ def analyze_plan_topology(plan: TaskPlan, agents: dict[str, AgentDefinition]) ->
         else:
             read_only_task_ids.append(task.id)
     warnings: list[dict[str, Any]] = []
+    skill_registry = skill_router_layer.load_skill_registry(
+        DEFAULT_AGENTS_PATH,
+        deps={
+            "discover_skill_registry": skill_router_layer.discover_skill_registry,
+            "read_json": read_json,
+            "read_text": read_text,
+            "error_factory": OrchestratorError,
+            "require_string": require_string,
+            "skill_definition_factory": SkillDefinition,
+        },
+    )
+    oversized_agent_prompt_task_ids: list[str] = []
+    agent_prompt_warning_details: list[str] = []
+    seen_agent_prompt_keys: set[tuple[str, str | None]] = set()
+    for task in plan.tasks:
+        agent = agents[task.agent]
+        prompt_key = (agent.name, agent.prompt_path)
+        if prompt_key in seen_agent_prompt_keys:
+            continue
+        seen_agent_prompt_keys.add(prompt_key)
+        prompt_bytes = len(agent.prompt.encode("utf-8"))
+        if prompt_bytes > AGENT_PROMPT_WARN_BYTES:
+            matching_task_ids = sorted(candidate.id for candidate in plan.tasks if candidate.agent == agent.name)
+            oversized_agent_prompt_task_ids.extend(matching_task_ids)
+            prompt_label = agent.prompt_path or f"inline prompt for agent '{agent.name}'"
+            agent_prompt_warning_details.append(
+                f"{agent.name} ({prompt_label}, {prompt_bytes} bytes)"
+            )
+    if agent_prompt_warning_details:
+        warnings.append(
+            {
+                "kind": "agent-prompt-size-warning",
+                "taskIds": dedupe_strings(oversized_agent_prompt_task_ids),
+                "message": (
+                    f"Agent prompt text is above the {AGENT_PROMPT_WARN_BYTES}-byte warning threshold for: "
+                    + ", ".join(agent_prompt_warning_details)
+                    + ". Keep always-loaded role prompts compact."
+                ),
+            }
+        )
+    oversized_skill_task_ids: list[str] = []
+    skill_warning_details: list[str] = []
+    seen_skill_names: set[str] = set()
+    for task in plan.tasks:
+        resolved_skills = effective_task_skills(task, agents[task.agent])
+        for skill_name in resolved_skills:
+            if skill_name in seen_skill_names:
+                continue
+            seen_skill_names.add(skill_name)
+            skill = skill_registry.get(skill_name)
+            if skill is None:
+                continue
+            skill_text = read_text(Path(skill.prompt_path))
+            skill_bytes = len(skill_text.encode("utf-8"))
+            if skill_bytes > SKILL_PROMPT_WARN_BYTES:
+                matching_task_ids = sorted(
+                    candidate.id
+                    for candidate in plan.tasks
+                    if skill_name in effective_task_skills(candidate, agents[candidate.agent])
+                )
+                oversized_skill_task_ids.extend(matching_task_ids)
+                skill_warning_details.append(f"{skill_name} ({skill_bytes} bytes)")
+    if skill_warning_details:
+        warnings.append(
+            {
+                "kind": "skill-prompt-size-warning",
+                "taskIds": dedupe_strings(oversized_skill_task_ids),
+                "message": (
+                    f"Skill text is above the {SKILL_PROMPT_WARN_BYTES}-byte warning threshold for: "
+                    + ", ".join(skill_warning_details)
+                    + ". Keep skills narrow and move detail to referenced files."
+                ),
+            }
+        )
+    resolved_skill_warning_task_ids: list[str] = []
+    for task in plan.tasks:
+        resolved_skills = effective_task_skills(task, agents[task.agent])
+        if len(resolved_skills) > RESOLVED_SKILLS_WARN_COUNT:
+            resolved_skill_warning_task_ids.append(task.id)
+    if resolved_skill_warning_task_ids:
+        warnings.append(
+            {
+                "kind": "resolved-skills-count-warning",
+                "taskIds": sorted(resolved_skill_warning_task_ids),
+                "message": (
+                    f"Resolved skill count is above the warning threshold of {RESOLVED_SKILLS_WARN_COUNT} for one or more tasks. "
+                    f"Keep resolved skills at or below {RESOLVED_SKILLS_FAIL_COUNT} and prefer fewer, sharper skills."
+                ),
+            }
+        )
     if reviewer_task_ids and not write_task_ids and len(read_only_task_ids) > len(reviewer_task_ids):
         warnings.append(
             {
