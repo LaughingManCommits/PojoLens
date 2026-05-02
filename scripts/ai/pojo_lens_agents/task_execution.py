@@ -125,6 +125,7 @@ def blocked_record(
         write_scope_violations=[],
         validation_commands=[],
         follow_ups=[reason],
+        follow_up_tasks=[],
         notes=[],
         model=deps["resolved_model"](task, agent),
         model_profile=deps["resolved_model_profile"](task, agent),
@@ -151,6 +152,7 @@ def blocked_record(
         worker_validation_mode_source=validation_resolution.source,
         effort=resolved_effort,
         effort_source=effort_source,
+        injected_from=task.injected_from,
     )
 
 
@@ -195,6 +197,7 @@ def planned_record(
         write_scope_violations=[],
         validation_commands=[],
         follow_ups=[],
+        follow_up_tasks=[],
         notes=[],
         model=deps["resolved_model"](task, agent),
         model_profile=deps["resolved_model_profile"](task, agent),
@@ -222,6 +225,7 @@ def planned_record(
         worker_validation_mode_source=validation_resolution.source,
         effort=resolved_effort,
         effort_source=effort_source,
+        injected_from=task.injected_from,
     )
 
 
@@ -255,6 +259,7 @@ def make_execute_record(
     validation_intents: list[Any] = (),
     validation_commands: list[str] = (),
     follow_ups: list[str] = (),
+    follow_up_tasks: list[dict[str, Any]] = (),
     notes: list[str] = (),
     reviewer_findings: list[Any] = (),
     usage: dict[str, Any] | None = None,
@@ -288,6 +293,7 @@ def make_execute_record(
         validation_intents=list(validation_intents),
         validation_commands=list(validation_commands),
         follow_ups=list(follow_ups),
+        follow_up_tasks=[dict(item) for item in follow_up_tasks],
         notes=list(notes),
         reviewer_findings=list(reviewer_findings),
         model=model_name,
@@ -315,6 +321,7 @@ def make_execute_record(
         worker_validation_mode_source=validation_resolution.source,
         effort=effort,
         effort_source=effort_source,
+        injected_from=task.injected_from,
     )
 
 
@@ -555,6 +562,7 @@ async def execute_task(
             ],
             validation_commands=[str(item) for item in payload["validationCommands"]],
             follow_ups=[str(item) for item in payload["followUps"]],
+            follow_up_tasks=[dict(item) for item in payload.get("followUpTasks", []) or []],
             notes=[str(item) for item in payload["notes"]],
             reviewer_findings=[
                 deps["reviewer_finding_factory"](

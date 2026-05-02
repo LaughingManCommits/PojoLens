@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_ARTIFACT_BEHAVIOR,
     DEFAULT_CONTEXT_MODE,
+    DEFAULT_FOLLOW_UP_BEHAVIOR,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
     DEFAULT_HITL_MODE,
     DEFAULT_OUTPUT_PROFILE,
@@ -20,6 +21,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     OUTPUT_PROFILES,
     OUTPUT_PROFILE_SOURCES,
     REVIEWER_FINDING_SEVERITIES,
+    FOLLOW_UP_BEHAVIORS,
     RUN_POLICY_BEHAVIORS,
     TASK_ID_RE,
     VALIDATION_INTENT_KINDS,
@@ -73,6 +75,7 @@ class RunPolicyModel(ContractModel):
     max_task_stderr_bytes: int | None = Field(default=None, alias="maxTaskStderrBytes", ge=1)
     max_task_result_bytes: int | None = Field(default=None, alias="maxTaskResultBytes", ge=1)
     artifact_behavior: str = Field(default=DEFAULT_ARTIFACT_BEHAVIOR, alias="artifactBehavior")
+    follow_up_behavior: str = Field(default=DEFAULT_FOLLOW_UP_BEHAVIOR, alias="followUpBehavior")
     hitl: bool = False
     hitl_mode: str = Field(default=DEFAULT_HITL_MODE, alias="hitlMode")
 
@@ -81,6 +84,13 @@ class RunPolicyModel(ContractModel):
     def valid_behavior(cls, value: str) -> str:
         if value not in RUN_POLICY_BEHAVIORS:
             raise ValueError(f"expected one of {sorted(RUN_POLICY_BEHAVIORS)}")
+        return value
+
+    @field_validator("follow_up_behavior")
+    @classmethod
+    def valid_follow_up_behavior(cls, value: str) -> str:
+        if value not in FOLLOW_UP_BEHAVIORS:
+            raise ValueError(f"expected one of {sorted(FOLLOW_UP_BEHAVIORS)}")
         return value
 
     @field_validator("hitl_mode")
@@ -195,6 +205,7 @@ class TaskDefinitionModel(ContractModel):
     allowed_tools: list[str] = Field(default_factory=list, alias="allowedTools")
     disallowed_tools: list[str] = Field(default_factory=list, alias="disallowedTools")
     max_retries: int | None = Field(default=None, alias="maxRetries", ge=0)
+    injected_from: str | None = Field(default=None, alias="injectedFrom")
 
     @property
     def files(self) -> list[str]:
@@ -376,6 +387,7 @@ class TaskRunRecordModel(ManifestModel):
     protected_path_violations: list[str] = Field(default_factory=list)
     validation_commands: list[str] = Field(default_factory=list)
     follow_ups: list[str] = Field(default_factory=list)
+    follow_up_tasks: list[dict[str, Any]] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     model: str | None = None
     model_profile: str | None = None
@@ -412,6 +424,7 @@ class TaskRunRecordModel(ManifestModel):
     effort: str | None = None
     effort_source: str | None = None
     reviewer_findings: list[ReviewFindingModel] = Field(default_factory=list)
+    injected_from: str | None = None
     attempt: int = Field(default=1, ge=1)
     attempt_errors: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -521,6 +534,8 @@ class RunManifestModel(ManifestModel):
     run_id: str = Field(alias="runId")
     generated_at: str = Field(alias="generatedAt")
     dry_run: bool = Field(alias="dryRun")
+    follow_up_behavior: str = Field(default=DEFAULT_FOLLOW_UP_BEHAVIOR, alias="followUpBehavior")
+    follow_up_behavior_override: str | None = Field(default=None, alias="followUpBehaviorOverride")
     worker_validation_mode: str = Field(alias="workerValidationMode")
     worker_validation_mode_override: str | None = Field(default=None, alias="workerValidationModeOverride")
     effort_override: str | None = Field(default=None, alias="effortOverride")
@@ -549,3 +564,17 @@ class RunManifestModel(ManifestModel):
     usage_totals: dict[str, Any] = Field(default_factory=dict, alias="usageTotals")
     cost_estimate: RunCostEstimateModel | None = Field(default=None, alias="costEstimate")
     tasks: dict[str, TaskRunRecordModel] = Field(default_factory=dict)
+
+    @field_validator("follow_up_behavior")
+    @classmethod
+    def valid_follow_up_behavior(cls, value: str) -> str:
+        if value not in FOLLOW_UP_BEHAVIORS:
+            raise ValueError(f"expected one of {sorted(FOLLOW_UP_BEHAVIORS)}")
+        return value
+
+    @field_validator("follow_up_behavior_override")
+    @classmethod
+    def valid_follow_up_behavior_override(cls, value: str | None) -> str | None:
+        if value is not None and value not in FOLLOW_UP_BEHAVIORS:
+            raise ValueError(f"expected one of {sorted(FOLLOW_UP_BEHAVIORS)}")
+        return value

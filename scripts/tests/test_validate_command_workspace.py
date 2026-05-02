@@ -108,6 +108,7 @@ class ValidateCommandWorkspaceTest(unittest.TestCase):
             protected_path_violations=[],
             validation_commands=[],
             follow_ups=[],
+            follow_up_tasks=[],
             notes=[],
             model="claude-sonnet-4-6",
             model_profile="balanced",

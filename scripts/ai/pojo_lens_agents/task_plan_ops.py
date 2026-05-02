@@ -35,8 +35,109 @@ def load_run_policy(payload: Any, *, location: str, deps: dict[str, Any]) -> Any
         max_task_stderr_bytes=model.max_task_stderr_bytes,
         max_task_result_bytes=model.max_task_result_bytes,
         artifact_behavior=model.artifact_behavior,
+        follow_up_behavior=model.follow_up_behavior,
         hitl=model.hitl,
         hitl_mode=model.hitl_mode,
+    )
+
+
+def load_task_definition(
+    payload: Any,
+    agents: dict[str, Any],
+    *,
+    location: str,
+    deps: dict[str, Any],
+) -> Any:
+    if not isinstance(payload, dict):
+        raise deps["error_factory"](f"{location}: expected task object")
+    task_id = deps["require_string"](payload, "id", location=location)
+    if not deps["task_id_re"].match(task_id):
+        raise deps["error_factory"](f"{location}: task id '{task_id}' must match {deps['task_id_re'].pattern}")
+    agent_name = deps["require_string"](payload, "agent", location=location)
+    if agent_name not in agents:
+        raise deps["error_factory"](f"{location}: unknown agent '{agent_name}'")
+    if "files" in payload:
+        raise deps["error_factory"](f"{location}: legacy 'files' was replaced by 'readPaths' and 'writePaths'")
+    worker_validation_mode = deps["require_optional_string"](
+        payload,
+        "workerValidationMode",
+        location=location,
+    )
+    dependency_materialization = deps["require_optional_string"](
+        payload,
+        "dependencyMaterialization",
+        location=location,
+    )
+    explicit_skills = deps["validate_known_skills"](
+        deps["require_string_list"](payload, "skills", location=location),
+        deps["skill_registry"],
+        registry_path=deps["skill_registry_path"],
+        location=f"{location}:skills",
+        deps={
+            "dedupe_strings": deps["dedupe_strings"],
+            "error_factory": deps["error_factory"],
+        },
+    )
+    return deps["task_definition_factory"](
+        id=task_id,
+        title=deps["require_string"](payload, "title", location=location),
+        agent=agent_name,
+        prompt=deps["require_string"](payload, "prompt", location=location),
+        skills=explicit_skills,
+        depends_on=deps["require_string_list"](payload, "dependsOn", location=location),
+        read_paths=deps["require_scope_path_list"](
+            payload,
+            "readPaths",
+            location=location,
+            allow_repo_root=True,
+        ),
+        write_paths=deps["require_scope_path_list"](
+            payload,
+            "writePaths",
+            location=location,
+            allow_repo_root=True,
+        ),
+        constraints=deps["require_string_list"](payload, "constraints", location=location),
+        validation=deps["require_string_list"](payload, "validation", location=location),
+        workspace_mode=deps["ensure_workspace_mode"](
+            deps["require_optional_string"](payload, "workspaceMode", location=location),
+            location=location,
+        ),
+        model=deps["require_optional_string"](payload, "model", location=location),
+        model_profile=deps["ensure_model_profile"](
+            deps["require_optional_string"](payload, "modelProfile", location=location),
+            location=location,
+        ),
+        effort=deps["require_optional_string"](payload, "effort", location=location),
+        permission_mode=deps["require_optional_string"](payload, "permissionMode", location=location),
+        context_mode=deps["ensure_context_mode"](
+            deps["require_optional_string"](payload, "contextMode", location=location),
+            location=location,
+        ),
+        output_profile=deps["normalize_output_profile"](
+            deps["require_optional_string"](payload, "outputProfile", location=location),
+            location=f"{location}:outputProfile",
+        ),
+        dependency_materialization=deps["normalize_dependency_materialization_mode"](
+            dependency_materialization,
+            location=f"{location}:dependencyMaterialization",
+        ),
+        worker_validation_mode=deps["normalize_worker_validation_mode"](
+            worker_validation_mode,
+            location=f"{location}:workerValidationMode",
+        )
+        if worker_validation_mode is not None
+        else None,
+        timeout_sec=deps["require_optional_int"](payload, "timeoutSec", location=location),
+        max_budget_usd=deps["require_optional_float"](payload, "maxBudgetUsd", location=location),
+        max_prompt_chars=deps["require_optional_int"](payload, "maxPromptChars", location=location),
+        max_prompt_estimated_tokens=deps["require_optional_int"](
+            payload, "maxPromptEstimatedTokens", location=location
+        ),
+        allowed_tools=deps["require_string_list"](payload, "allowedTools", location=location),
+        disallowed_tools=deps["require_string_list"](payload, "disallowedTools", location=location),
+        max_retries=deps["require_optional_int"](payload, "maxRetries", location=location),
+        injected_from=deps["require_optional_string"](payload, "injectedFrom", location=location),
     )
 
 
@@ -186,99 +287,11 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
     seen_ids: set[str] = set()
     for index, task_payload in enumerate(raw_tasks):
         location = f"{path}:tasks[{index}]"
-        if not isinstance(task_payload, dict):
-            raise deps["error_factory"](f"{location}: expected task object")
-        task_id = deps["require_string"](task_payload, "id", location=location)
-        if not deps["task_id_re"].match(task_id):
-            raise deps["error_factory"](f"{location}: task id '{task_id}' must match {deps['task_id_re'].pattern}")
+        task = load_task_definition(task_payload, agents, location=location, deps=deps)
+        task_id = task.id
         if task_id in seen_ids:
             raise deps["error_factory"](f"{location}: duplicate task id '{task_id}'")
         seen_ids.add(task_id)
-        agent_name = deps["require_string"](task_payload, "agent", location=location)
-        if agent_name not in agents:
-            raise deps["error_factory"](f"{location}: unknown agent '{agent_name}'")
-        if "files" in task_payload:
-            raise deps["error_factory"](f"{location}: legacy 'files' was replaced by 'readPaths' and 'writePaths'")
-        worker_validation_mode = deps["require_optional_string"](
-            task_payload,
-            "workerValidationMode",
-            location=location,
-        )
-        dependency_materialization = deps["require_optional_string"](
-            task_payload,
-            "dependencyMaterialization",
-            location=location,
-        )
-        explicit_skills = deps["validate_known_skills"](
-            deps["require_string_list"](task_payload, "skills", location=location),
-            deps["skill_registry"],
-            registry_path=deps["skill_registry_path"],
-            location=f"{location}:skills",
-            deps={
-                "dedupe_strings": deps["dedupe_strings"],
-                "error_factory": deps["error_factory"],
-            },
-        )
-        task = deps["task_definition_factory"](
-            id=task_id,
-            title=deps["require_string"](task_payload, "title", location=location),
-            agent=agent_name,
-            prompt=deps["require_string"](task_payload, "prompt", location=location),
-            skills=explicit_skills,
-            depends_on=deps["require_string_list"](task_payload, "dependsOn", location=location),
-            read_paths=deps["require_scope_path_list"](
-                task_payload,
-                "readPaths",
-                location=location,
-                allow_repo_root=True,
-            ),
-            write_paths=deps["require_scope_path_list"](
-                task_payload,
-                "writePaths",
-                location=location,
-                allow_repo_root=True,
-            ),
-            constraints=deps["require_string_list"](task_payload, "constraints", location=location),
-            validation=deps["require_string_list"](task_payload, "validation", location=location),
-            workspace_mode=deps["ensure_workspace_mode"](
-                deps["require_optional_string"](task_payload, "workspaceMode", location=location),
-                location=location,
-            ),
-            model=deps["require_optional_string"](task_payload, "model", location=location),
-            model_profile=deps["ensure_model_profile"](
-                deps["require_optional_string"](task_payload, "modelProfile", location=location),
-                location=location,
-            ),
-            effort=deps["require_optional_string"](task_payload, "effort", location=location),
-            permission_mode=deps["require_optional_string"](task_payload, "permissionMode", location=location),
-            context_mode=deps["ensure_context_mode"](
-                deps["require_optional_string"](task_payload, "contextMode", location=location),
-                location=location,
-            ),
-            output_profile=deps["normalize_output_profile"](
-                deps["require_optional_string"](task_payload, "outputProfile", location=location),
-                location=f"{location}:outputProfile",
-            ),
-            dependency_materialization=deps["normalize_dependency_materialization_mode"](
-                dependency_materialization,
-                location=f"{location}:dependencyMaterialization",
-            ),
-            worker_validation_mode=deps["normalize_worker_validation_mode"](
-                worker_validation_mode,
-                location=f"{location}:workerValidationMode",
-            )
-            if worker_validation_mode is not None
-            else None,
-            timeout_sec=deps["require_optional_int"](task_payload, "timeoutSec", location=location),
-            max_budget_usd=deps["require_optional_float"](task_payload, "maxBudgetUsd", location=location),
-            max_prompt_chars=deps["require_optional_int"](task_payload, "maxPromptChars", location=location),
-            max_prompt_estimated_tokens=deps["require_optional_int"](
-                task_payload, "maxPromptEstimatedTokens", location=location
-            ),
-            allowed_tools=deps["require_string_list"](task_payload, "allowedTools", location=location),
-            disallowed_tools=deps["require_string_list"](task_payload, "disallowedTools", location=location),
-            max_retries=deps["require_optional_int"](task_payload, "maxRetries", location=location),
-        )
         tasks.append(task)
 
     task_ids = {task.id for task in tasks}

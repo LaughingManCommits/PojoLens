@@ -9,6 +9,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_RUNTIME_ROOT,
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+    FOLLOW_UP_BEHAVIORS,
     HITL_MODES,
     PLANNER_TASK_ID,
     VALIDATE_RUN_EXECUTION_SCOPES,
@@ -86,6 +87,15 @@ def _add_hitl_args(parser: argparse.ArgumentParser) -> None:
         "--hitl-auto-approve",
         action="store_true",
         help="Emit HITL gate events and continue without blocking. Intended for CI and gate regression tests.",
+    )
+
+
+def _add_follow_up_mode_arg(parser: argparse.ArgumentParser, *, help_text: str) -> None:
+    parser.add_argument(
+        "--follow-up-mode",
+        choices=sorted(FOLLOW_UP_BEHAVIORS),
+        default="",
+        help=help_text,
     )
 
 
@@ -236,6 +246,10 @@ def parse_args() -> argparse.Namespace:
     )
     _add_continue_on_error_arg(run_parser)
     _add_max_task_retries_arg(run_parser)
+    _add_follow_up_mode_arg(
+        run_parser,
+        help_text="Override follow-up task handling. Defaults to the plan runPolicy or 'ignore'.",
+    )
     _add_hitl_args(run_parser)
     _add_otel_endpoint_arg(
         run_parser,
@@ -295,6 +309,10 @@ def parse_args() -> argparse.Namespace:
     )
     _add_continue_on_error_arg(resume_parser)
     _add_max_task_retries_arg(resume_parser)
+    _add_follow_up_mode_arg(
+        resume_parser,
+        help_text="Override follow-up task handling for the resumed run. Defaults to the source run mode or the selected-plan runPolicy.",
+    )
     _add_hitl_args(resume_parser)
     _add_otel_endpoint_arg(
         resume_parser,

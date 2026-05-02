@@ -660,6 +660,7 @@ def coerce_worker_result(
         normalize_worker_files_touched=normalize_worker_files_touched,
         normalize_worker_text_list=normalize_worker_text_list,
         normalize_worker_validation_intents=normalize_worker_validation_intents,
+        normalize_worker_follow_up_tasks=worker_contracts_layer.normalize_worker_follow_up_tasks,
         normalize_worker_findings=normalize_worker_findings,
         truncate_text=truncate_text,
         asdict=asdict,

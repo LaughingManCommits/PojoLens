@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Dynamic plan mutation** - added tracked `runPolicy.followUpBehavior`,
+  `--follow-up-mode` on `run` / `resume`, structured worker `followUpTasks`,
+  runtime task injection between batches, persisted `injectedFrom` lineage in
+  task records and `selected-plan.json`, and `task-injected` retained events
+  for injected follow-up work.
+
 - **Pre-flight cost estimation** - added tracked `ai/orchestrator/model-pricing.json`,
   new `pojo_lens_agents.cost_estimation` heuristics for per-task and per-plan
   token/USD estimation, `costEstimate` in validate/dry-run/run manifests,

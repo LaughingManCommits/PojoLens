@@ -27,6 +27,8 @@ def manifest_payload(
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
     run_events: list[dict[str, Any]] | None = None,
+    follow_up_behavior: str | None = None,
+    follow_up_behavior_override: str | None = None,
     deps: dict[str, Any],
 ) -> dict[str, Any]:
     worker_validation_override = (
@@ -92,6 +94,8 @@ def manifest_payload(
         "runId": run_id,
         "generatedAt": deps["iso_now"](),
         "dryRun": dry_run,
+        "followUpBehavior": follow_up_behavior or plan.run_policy.follow_up_behavior,
+        "followUpBehaviorOverride": follow_up_behavior_override,
         "workerValidationMode": deps["summarized_worker_validation_mode"](
             list(task_worker_validation_modes.values())
         ),
@@ -161,6 +165,8 @@ def write_manifest(
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
     run_events: list[dict[str, Any]] | None = None,
+    follow_up_behavior: str | None = None,
+    follow_up_behavior_override: str | None = None,
     deps: dict[str, Any],
 ) -> None:
     deps["write_json"](
@@ -183,6 +189,8 @@ def write_manifest(
             retried_task_ids=retried_task_ids,
             seeded_task_ids=seeded_task_ids,
             run_events=run_events,
+            follow_up_behavior=follow_up_behavior,
+            follow_up_behavior_override=follow_up_behavior_override,
             deps=deps,
         ),
     )
@@ -229,6 +237,8 @@ def write_selected_plan_snapshot(run_dir: Path, plan: Any, *, serialize_run_poli
                     "maxPromptEstimatedTokens": task.max_prompt_estimated_tokens,
                     "allowedTools": task.allowed_tools,
                     "disallowedTools": task.disallowed_tools,
+                    "maxRetries": task.max_retries,
+                    "injectedFrom": task.injected_from,
                 }
                 for task in plan.tasks
             ],

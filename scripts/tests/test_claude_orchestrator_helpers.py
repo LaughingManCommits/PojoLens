@@ -80,6 +80,7 @@ def make_task_run_record(
         write_scope_violations=[],
         validation_commands=[],
         follow_ups=[],
+        follow_up_tasks=[],
         notes=[],
         model="claude-haiku-4-5",
         model_profile="simple",
@@ -110,4 +111,5 @@ def make_task_run_record(
         ),
         dependency_layers_applied=list(dependency_layers_applied or []),
         reviewer_findings=list(reviewer_findings or []),
+        injected_from=task.injected_from,
     )

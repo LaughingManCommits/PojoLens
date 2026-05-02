@@ -23,6 +23,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_DEPENDENCY_DETAIL_CHAR_LIMIT,
     DEFAULT_DEPENDENCY_DETAIL_ITEM_LIMIT,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
+    DEFAULT_FOLLOW_UP_BEHAVIOR,
     DEFAULT_REVIEW_DEPENDENCY_CONTEXT_LINES,
     DEFAULT_REVIEW_DEPENDENCY_PATCH_CHAR_LIMIT,
     DependencyLayerOperation,
@@ -50,7 +51,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     AgentDefinition,
 )
 from pojo_lens_agents.orchestrator_utils import dedupe_strings, emit_slop_log, format_issue_block, read_bytes, read_json, recover_orphaned_write_temps, slugify, summarize_paths, truncate_multiline_text, truncate_text, workspace_prep_action, write_json, write_text
-from pojo_lens_agents.plan_support import analyze_copy_hydration_inputs, effective_task_write_scope, normalize_dependency_materialization_mode, normalize_output_profile, normalize_output_profile_source, normalize_relative_path, normalize_worker_validation_mode, normalize_worker_validation_mode_source, paths_outside_scope
+from pojo_lens_agents.plan_support import analyze_copy_hydration_inputs, effective_task_write_scope, normalize_dependency_materialization_mode, normalize_follow_up_behavior, normalize_output_profile, normalize_output_profile_source, normalize_relative_path, normalize_worker_validation_mode, normalize_worker_validation_mode_source, paths_outside_scope
 
 
 def effective_dependency_materialization_mode(task: TaskDefinition) -> str:
@@ -401,6 +402,17 @@ def manifest_worker_validation_override(
     legacy_mode = require_optional_string(manifest, "workerValidationMode", location=location)
     if legacy_mode in WORKER_VALIDATION_MODES:
         return legacy_mode
+    return None
+
+
+def manifest_follow_up_behavior_override(
+    manifest: dict[str, Any],
+    *,
+    location: str,
+) -> str | None:
+    override = require_optional_string(manifest, "followUpBehaviorOverride", location=location)
+    if override:
+        return normalize_follow_up_behavior(override, location=f"{location}:followUpBehaviorOverride")
     return None
 
 

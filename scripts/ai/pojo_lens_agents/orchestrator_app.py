@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -179,6 +180,7 @@ def _make_execute_record(
     validation_intents: list[ValidationIntent] = (),
     validation_commands: list[str] = (),
     follow_ups: list[str] = (),
+    follow_up_tasks: list[dict[str, Any]] = (),
     notes: list[str] = (),
     usage: dict[str, Any] | None = None,
     return_code: int | None = None,
@@ -210,6 +212,7 @@ def _make_execute_record(
         validation_intents=list(validation_intents),
         validation_commands=list(validation_commands),
         follow_ups=list(follow_ups),
+        follow_up_tasks=[dict(item) for item in follow_up_tasks],
         notes=list(notes),
         model=model_name,
         model_profile=model_profile,
@@ -234,6 +237,7 @@ def _make_execute_record(
         worker_validation_mode_source=validation_resolution.source,
         effort=effort,
         effort_source=effort_source,
+        injected_from=task.injected_from,
     )
 
 
@@ -395,6 +399,8 @@ def manifest_payload(
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
     run_events: list[dict[str, Any]] | None = None,
+    follow_up_behavior: str | None = None,
+    follow_up_behavior_override: str | None = None,
 ) -> dict[str, Any]:
     return manifest_io_layer.manifest_payload(
         run_id,
@@ -414,6 +420,8 @@ def manifest_payload(
         retried_task_ids=retried_task_ids,
         seeded_task_ids=seeded_task_ids,
         run_events=run_events,
+        follow_up_behavior=follow_up_behavior,
+        follow_up_behavior_override=follow_up_behavior_override,
         deps={
             "root": ROOT,
             "iso_now": iso_now,
@@ -472,6 +480,8 @@ def write_manifest(
     retried_task_ids: list[str] | None = None,
     seeded_task_ids: list[str] | None = None,
     run_events: list[dict[str, Any]] | None = None,
+    follow_up_behavior: str | None = None,
+    follow_up_behavior_override: str | None = None,
 ) -> None:
     manifest_io_layer.write_manifest(
         run_id,
@@ -491,6 +501,8 @@ def write_manifest(
         retried_task_ids=retried_task_ids,
         seeded_task_ids=seeded_task_ids,
         run_events=run_events,
+        follow_up_behavior=follow_up_behavior,
+        follow_up_behavior_override=follow_up_behavior_override,
         deps={
             "write_json": write_json,
             "root": ROOT,
@@ -540,6 +552,35 @@ def write_selected_plan_snapshot(run_dir: Path, plan: TaskPlan) -> None:
     )
 
 
+def coerce_follow_up_task(
+    payload: Any,
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+    *,
+    emitter_task_id: str,
+    existing_task_ids: set[str],
+    location: str,
+) -> TaskDefinition:
+    task = load_task_definition(payload, agents, location=location)
+    if task.id in existing_task_ids:
+        raise OrchestratorError(f"{location}: task id '{task.id}' already exists in the selected plan")
+    dependency_ids: list[str] = []
+    for dependency_id in [emitter_task_id, *task.depends_on]:
+        if dependency_id == task.id:
+            raise OrchestratorError(f"{location}: injected task cannot depend on itself")
+        if dependency_id not in existing_task_ids:
+            raise OrchestratorError(
+                f"{location}: injected task dependency '{dependency_id}' is not available in the current plan"
+            )
+        if dependency_id not in dependency_ids:
+            dependency_ids.append(dependency_id)
+    return replace(
+        task,
+        depends_on=dependency_ids,
+        injected_from=emitter_task_id,
+    )
+
+
 def run_loaded_plan(
     plan_path: Path,
     agents_path: Path,
@@ -557,6 +598,7 @@ def run_loaded_plan(
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
+    follow_up_behavior_override: str | None = None,
     existing_run_id: str | None = None,
     existing_run_dir: Path | None = None,
     existing_workspaces_dir: Path | None = None,
@@ -616,6 +658,7 @@ def run_loaded_plan(
         retry_of_run_id=retry_of_run_id,
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
+        follow_up_behavior_override=follow_up_behavior_override,
         existing_run_id=existing_run_id,
         existing_run_dir=existing_run_dir,
         existing_workspaces_dir=existing_workspaces_dir,
@@ -665,6 +708,7 @@ def run_loaded_plan(
         serialize_run_policy=serialize_run_policy,
         summarized_worker_validation_mode=summarized_worker_validation_mode,
         summarize_branch_contexts=summarize_branch_contexts,
+        coerce_follow_up_task=coerce_follow_up_task,
         default_workspaces_dir=default_workspaces_dir,
         slugify=slugify,
         resolve_hitl_policy=hitl_layer.resolve_hitl_policy,
@@ -732,6 +776,7 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
         manifest_selected_plan_path=manifest_selected_plan_path,
         load_task_plan=load_task_plan,
         manifest_worker_validation_override=manifest_worker_validation_override,
+        manifest_follow_up_behavior_override=manifest_follow_up_behavior_override,
         normalize_worker_validation_mode=normalize_worker_validation_mode,
         selected_plan=selected_plan,
         planned_record=planned_record,
@@ -755,6 +800,7 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
         load_task_plan=load_task_plan,
         selected_plan=selected_plan,
         manifest_worker_validation_override=manifest_worker_validation_override,
+        manifest_follow_up_behavior_override=manifest_follow_up_behavior_override,
         normalize_worker_validation_mode=normalize_worker_validation_mode,
         run_loaded_plan_fn=run_loaded_plan,
         error_factory=OrchestratorError,

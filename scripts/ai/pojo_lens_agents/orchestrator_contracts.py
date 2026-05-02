@@ -43,6 +43,8 @@ REVIEWER_AGENT_NAME = "reviewer"
 RUN_POLICY_BEHAVIORS = {"warn", "stop"}
 DEFAULT_RUN_BUDGET_BEHAVIOR = "stop"
 DEFAULT_ARTIFACT_BEHAVIOR = "warn"
+FOLLOW_UP_BEHAVIORS = {"ignore", "inject"}
+DEFAULT_FOLLOW_UP_BEHAVIOR = "ignore"
 HITL_MODES = {"none", "batch", "on-failure", "always"}
 DEFAULT_HITL_MODE = "none"
 MODEL_PROFILE_TO_MODEL = {
@@ -169,6 +171,60 @@ WORKER_RESULT_SCHEMA = {
             },
         },
         "followUps": {"type": ["array", "null"], "items": {"type": "string"}},
+        "followUpTasks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "agent": {"type": "string"},
+                    "prompt": {"type": "string"},
+                    "skills": {"type": "array", "items": {"type": "string"}},
+                    "dependsOn": {"type": "array", "items": {"type": "string"}},
+                    "readPaths": {"type": "array", "items": {"type": "string"}},
+                    "writePaths": {"type": "array", "items": {"type": "string"}},
+                    "constraints": {"type": "array", "items": {"type": "string"}},
+                    "validation": {"type": "array", "items": {"type": "string"}},
+                    "workspaceMode": {
+                        "type": "string",
+                        "enum": sorted(WORKSPACE_MODES),
+                    },
+                    "model": {"type": "string"},
+                    "modelProfile": {
+                        "type": "string",
+                        "enum": sorted(MODEL_PROFILE_TO_MODEL),
+                    },
+                    "contextMode": {
+                        "type": "string",
+                        "enum": sorted(CONTEXT_MODES),
+                    },
+                    "outputProfile": {
+                        "type": "string",
+                        "enum": sorted(OUTPUT_PROFILES),
+                    },
+                    "dependencyMaterialization": {
+                        "type": "string",
+                        "enum": sorted(DEPENDENCY_MATERIALIZATION_MODES),
+                    },
+                    "workerValidationMode": {
+                        "type": "string",
+                        "enum": sorted(WORKER_VALIDATION_MODES),
+                    },
+                    "effort": {"type": "string"},
+                    "permissionMode": {"type": "string"},
+                    "timeoutSec": {"type": "integer", "minimum": 1},
+                    "maxBudgetUsd": {"type": "number", "exclusiveMinimum": 0},
+                    "maxPromptChars": {"type": "integer", "minimum": 1},
+                    "maxPromptEstimatedTokens": {"type": "integer", "minimum": 1},
+                    "allowedTools": {"type": "array", "items": {"type": "string"}},
+                    "disallowedTools": {"type": "array", "items": {"type": "string"}},
+                    "maxRetries": {"type": "integer", "minimum": 0},
+                },
+                "required": ["id", "title", "agent", "prompt"],
+                "additionalProperties": False,
+            },
+        },
         "notes": {"type": ["array", "null"], "items": {"type": "string"}},
         "findings": {
             "type": ["array", "null"],
@@ -214,6 +270,10 @@ PLAN_RESULT_SCHEMA = {
                 "artifactBehavior": {
                     "type": "string",
                     "enum": sorted(RUN_POLICY_BEHAVIORS),
+                },
+                "followUpBehavior": {
+                    "type": "string",
+                    "enum": sorted(FOLLOW_UP_BEHAVIORS),
                 },
                 "hitl": {"type": "boolean"},
                 "hitlMode": {
@@ -377,6 +437,7 @@ class TaskDefinition:
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
     max_retries: int | None = None
+    injected_from: str | None = None
 
     @property
     def files(self) -> list[str]:
@@ -391,6 +452,7 @@ class RunPolicy:
     max_task_stderr_bytes: int | None = None
     max_task_result_bytes: int | None = None
     artifact_behavior: str = DEFAULT_ARTIFACT_BEHAVIOR
+    follow_up_behavior: str = DEFAULT_FOLLOW_UP_BEHAVIOR
     hitl: bool = False
     hitl_mode: str = DEFAULT_HITL_MODE
 
@@ -507,6 +569,7 @@ class TaskRunRecord:
     protected_path_violations: list[str]
     validation_commands: list[str]
     follow_ups: list[str]
+    follow_up_tasks: list[dict[str, Any]]
     notes: list[str]
     model: str | None
     model_profile: str | None
@@ -536,6 +599,7 @@ class TaskRunRecord:
     effort: str | None = None
     effort_source: str | None = None
     reviewer_findings: list[ReviewFinding] = field(default_factory=list)
+    injected_from: str | None = None
     attempt: int = 1
     attempt_errors: list[dict[str, Any]] = field(default_factory=list)
 

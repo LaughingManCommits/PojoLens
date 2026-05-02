@@ -66,6 +66,11 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
         write_scope_violations=[str(item) for item in payload.get("write_scope_violations", []) or []],
         validation_commands=[str(item) for item in payload.get("validation_commands", []) or []],
         follow_ups=[str(item) for item in payload.get("follow_ups", []) or []],
+        follow_up_tasks=[
+            dict(item)
+            for item in payload.get("follow_up_tasks", []) or []
+            if isinstance(item, dict)
+        ],
         notes=[str(item) for item in payload.get("notes", []) or []],
         model=str(payload["model"]) if payload.get("model") is not None else None,
         model_profile=str(payload["model_profile"]) if payload.get("model_profile") is not None else None,
@@ -163,6 +168,7 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
             for item in payload.get("attempt_errors", []) or []
             if isinstance(item, dict)
         ],
+        injected_from=deps["require_optional_string"](payload, "injected_from", location=location),
     )
     try:
         TaskRunRecordModel.model_validate(dump_contract(record))

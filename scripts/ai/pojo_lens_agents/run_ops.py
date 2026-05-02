@@ -1,11 +1,93 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
+
+
+def _resolved_follow_up_behavior(plan: Any, *, override: str | None) -> str:
+    if override:
+        return override
+    return str(getattr(plan.run_policy, "follow_up_behavior", "ignore") or "ignore")
+
+
+def _inject_follow_up_tasks(
+    *,
+    plan: Any,
+    agents: dict[str, Any],
+    records: dict[str, Any],
+    pending: dict[str, Any],
+    completed_batch_task_ids: list[str],
+    follow_up_behavior: str,
+    batch_index: int,
+    coerce_follow_up_task: Callable[..., Any],
+    validate_scope_contract: Callable[[Any, dict[str, Any]], None],
+    topological_batches: Callable[[list[Any]], Any],
+    write_selected_plan_snapshot: Callable[[Path, Any], None],
+    run_dir: Path,
+    append_run_event: Callable[..., None],
+    run_events: list[dict[str, Any]],
+) -> tuple[Any, list[Any]]:
+    if follow_up_behavior != "inject":
+        return plan, []
+    injected_tasks: list[Any] = []
+    existing_task_ids = {task.id for task in plan.tasks}
+    for emitter_task_id in completed_batch_task_ids:
+        record = records.get(emitter_task_id)
+        if record is None:
+            continue
+        for follow_up_index, proposal in enumerate(getattr(record, "follow_up_tasks", []) or [], start=1):
+            try:
+                injected_task = coerce_follow_up_task(
+                    proposal,
+                    plan,
+                    agents,
+                    emitter_task_id=emitter_task_id,
+                    existing_task_ids=existing_task_ids,
+                    location=f"worker result {emitter_task_id}:followUpTasks[{follow_up_index}]",
+                )
+                candidate_plan = replace(plan, tasks=[*plan.tasks, injected_task])
+                topological_batches(candidate_plan.tasks)
+                validate_scope_contract(candidate_plan, agents)
+            except Exception as exc:
+                append_run_event(
+                    run_events,
+                    phase="task-injection-rejected",
+                    task_id=emitter_task_id,
+                    branch_context_id=record.branch_context_id,
+                    status="blocked",
+                    message=str(exc),
+                    details={
+                        "emitterTaskId": emitter_task_id,
+                        "followUpIndex": follow_up_index,
+                        "batchIndex": batch_index,
+                    },
+                )
+                continue
+            plan = candidate_plan
+            pending[injected_task.id] = injected_task
+            injected_tasks.append(injected_task)
+            existing_task_ids.add(injected_task.id)
+            write_selected_plan_snapshot(run_dir, plan)
+            append_run_event(
+                run_events,
+                phase="task-injected",
+                task_id=injected_task.id,
+                parent_task_ids=list(injected_task.depends_on),
+                branch_context_id=injected_task.id,
+                status="planned",
+                message=f"Injected from task '{emitter_task_id}'.",
+                details={
+                    "emitterTaskId": emitter_task_id,
+                    "followUpIndex": follow_up_index,
+                    "batchIndex": batch_index,
+                    "injectedFrom": emitter_task_id,
+                },
+            )
+    return plan, injected_tasks
 
 
 async def run_loaded_plan(
@@ -25,6 +107,7 @@ async def run_loaded_plan(
     retry_of_run_id: str | None = None,
     requested_task_ids: list[str] | None = None,
     retried_task_ids: list[str] | None = None,
+    follow_up_behavior_override: str | None = None,
     existing_run_id: str | None = None,
     existing_run_dir: Path | None = None,
     existing_workspaces_dir: Path | None = None,
@@ -64,6 +147,7 @@ async def run_loaded_plan(
     serialize_run_policy: Callable[[Any], dict[str, Any]] = None,
     summarized_worker_validation_mode: Callable[[list[str]], str] = None,
     summarize_branch_contexts: Callable[[list[Any]], dict[str, Any]] = None,
+    coerce_follow_up_task: Callable[..., Any] | None = None,
     default_workspaces_dir: Callable[..., Path] = None,
     slugify: Callable[[str], str] = None,
     resolve_hitl_policy: Callable[..., Any] = None,
@@ -92,6 +176,10 @@ async def run_loaded_plan(
     task_output_profile_sources = effective_plan_output_profile_sources(plan, agents)
     task_efforts = effective_plan_efforts(plan, agents, run_override=normalized_effort_override)
     task_effort_sources = effective_plan_effort_sources(plan, agents, run_override=normalized_effort_override)
+    resolved_follow_up_behavior = _resolved_follow_up_behavior(
+        plan,
+        override=follow_up_behavior_override,
+    )
     hitl_policy = resolve_hitl_policy(
         plan.run_policy,
         hitl_override=hitl_override,
@@ -173,7 +261,7 @@ async def run_loaded_plan(
                 pending.pop(task_id)
                 newly_blocked = True
         if newly_blocked:
-            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
             continue
         if fail_fast_triggered or stop_scheduling_reason is not None:
             for task_id, task in list(pending.items()):
@@ -246,10 +334,36 @@ async def run_loaded_plan(
                 )
             append_run_event(run_events, phase="task-finished", task_id=task.id, parent_task_ids=task.depends_on, branch_context_id=records[task.id].branch_context_id, status=records[task.id].status, message=records[task.id].summary)
             pending.pop(task.id, None)
-            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
             if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
                 fail_fast_triggered = True
                 stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
+        plan, injected_tasks = _inject_follow_up_tasks(
+            plan=plan,
+            agents=agents,
+            records=records,
+            pending=pending,
+            completed_batch_task_ids=completed_batch_task_ids,
+            follow_up_behavior=resolved_follow_up_behavior,
+            batch_index=batch_index,
+            coerce_follow_up_task=coerce_follow_up_task,
+            validate_scope_contract=validate_scope_contract,
+            topological_batches=topological_batches,
+            write_selected_plan_snapshot=write_selected_plan_snapshot,
+            run_dir=run_dir,
+            append_run_event=append_run_event,
+            run_events=run_events,
+        )
+        if injected_tasks:
+            for injected_task in injected_tasks:
+                agents_json_by_task_id[injected_task.id] = agent_payload_for_claude(
+                    agents,
+                    selected_names=[injected_task.agent],
+                    resolved_skills_by_name={
+                        injected_task.agent: effective_task_skills(injected_task, agents[injected_task.agent]),
+                    },
+                )
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
         if should_trigger_hitl_gate(
             hitl_policy,
             batch_index=batch_index,
@@ -284,7 +398,7 @@ async def run_loaded_plan(
                     "autoApprove": bool(hitl_policy.auto_approve),
                 },
             )
-            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
             decision = wait_for_hitl_decision(
                 context,
                 auto_approve=hitl_policy.auto_approve,
@@ -309,12 +423,12 @@ async def run_loaded_plan(
                     "sentinelPath": decision.sentinel_path,
                 },
             )
-            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
             if not decision.approved:
                 fail_fast_triggered = True
                 stop_scheduling_reason = f"HITL gate '{gate_id}' aborted by operator."
     append_run_event(run_events, phase="run-finished", details={"remainingTaskIds": sorted(pending)})
-    write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+    write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
     status_counts: dict[str, int] = {}
     for record in records.values():
         status_counts[record.status] = status_counts.get(record.status, 0) + 1
@@ -343,6 +457,8 @@ async def run_loaded_plan(
         "plan": plan.name,
         "goal": plan.goal,
         "dryRun": dry_run,
+        "followUpBehavior": resolved_follow_up_behavior,
+        "followUpBehaviorOverride": follow_up_behavior_override,
         "workerValidationMode": summarized_worker_validation_mode(list(task_worker_validation_modes.values())),
         "workerValidationModeOverride": worker_validation_override,
         "effortOverride": normalized_effort_override,
@@ -412,6 +528,8 @@ async def run_loaded_plan(
                 retried_task_ids=retried_task_ids,
                 seeded_task_ids=seeded_task_ids,
                 run_events=run_events,
+                follow_up_behavior=resolved_follow_up_behavior,
+                follow_up_behavior_override=follow_up_behavior_override,
             )
             trace_payload = build_trace_payload(
                 manifest_path,
@@ -527,6 +645,8 @@ def run_plan(
         "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
         "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
     }
+    if getattr(args, "follow_up_mode", None):
+        run_kwargs["follow_up_behavior_override"] = getattr(args, "follow_up_mode")
     otel_endpoint = getattr(args, "otel_endpoint", None)
     if otel_endpoint:
         run_kwargs["otel_endpoint"] = otel_endpoint
@@ -552,6 +672,7 @@ def resume_run(
     manifest_selected_plan_path: Callable[..., Path],
     load_task_plan: Callable[[Path, dict[str, Any]], Any],
     manifest_worker_validation_override: Callable[..., str | None],
+    manifest_follow_up_behavior_override: Callable[..., str | None],
     normalize_worker_validation_mode: Callable[..., str | None],
     selected_plan: Callable[[Any, list[str]], Any],
     planned_record: Callable[..., Any],
@@ -576,6 +697,7 @@ def resume_run(
         raise error_factory(f"Resume source plan '{source_plan_path}' does not exist")
     base_plan = load_task_plan(source_plan_path, agents)
     source_worker_validation_override = manifest_worker_validation_override(manifest, location=str(manifest_path))
+    source_follow_up_behavior_override = manifest_follow_up_behavior_override(manifest, location=str(manifest_path))
     resume_worker_validation_mode = (
         normalize_worker_validation_mode(getattr(args, "worker_validation_mode", "") or source_worker_validation_override, location=f"resume source '{manifest_path}' worker validation mode")
         if (getattr(args, "worker_validation_mode", "") or source_worker_validation_override)
@@ -626,6 +748,10 @@ def resume_run(
     otel_kwargs = {}
     if getattr(args, "otel_endpoint", None):
         otel_kwargs["otel_endpoint"] = getattr(args, "otel_endpoint")
+    follow_up_kwargs = {}
+    resolved_follow_up_override = getattr(args, "follow_up_mode", None) or source_follow_up_behavior_override
+    if resolved_follow_up_override:
+        follow_up_kwargs["follow_up_behavior_override"] = resolved_follow_up_override
     payload = run_loaded_plan_fn(
         source_plan_path,
         agents_path,
@@ -647,6 +773,7 @@ def resume_run(
         max_task_retries=getattr(args, "max_task_retries", None),
         **otel_kwargs,
         **hitl_kwargs,
+        **follow_up_kwargs,
     )
     payload["sourceManifestPath"] = str(manifest_path)
     payload["requestedTaskIds"] = requested_task_ids
@@ -667,6 +794,7 @@ def retry_run(
     load_task_plan: Callable[[Path, dict[str, Any]], Any],
     selected_plan: Callable[[Any, list[str]], Any],
     manifest_worker_validation_override: Callable[..., str | None],
+    manifest_follow_up_behavior_override: Callable[..., str | None],
     normalize_worker_validation_mode: Callable[..., str | None],
     run_loaded_plan_fn: Callable[..., dict[str, Any]],
     error_factory: type[Exception],
@@ -717,6 +845,9 @@ def retry_run(
         "retried_task_ids": retried_task_ids,
         "max_task_retries": getattr(args, "max_task_retries", None),
     }
+    source_follow_up_behavior_override = manifest_follow_up_behavior_override(manifest, location=str(manifest_path))
+    if source_follow_up_behavior_override:
+        run_kwargs["follow_up_behavior_override"] = source_follow_up_behavior_override
     if getattr(args, "otel_endpoint", None):
         run_kwargs["otel_endpoint"] = getattr(args, "otel_endpoint")
     payload = run_loaded_plan_fn(

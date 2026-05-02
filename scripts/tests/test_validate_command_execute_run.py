@@ -379,6 +379,238 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             tasks_by_id["c-ready"]["summary"],
         )
 
+    def test_run_loaded_plan_ignores_follow_up_tasks_by_default(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            implementer = orchestrator.AgentDefinition(
+                name="implementer",
+                description="implementation",
+                prompt="Return JSON only.",
+                model_profile="balanced",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read", "Write"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="follow-up-ignore",
+                goal="Keep default follow-up behavior inert.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Ignore follow-up tasks by default.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            async def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+                effort_override=None,
+            ):
+                record = make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+                record.follow_up_tasks = [
+                    {
+                        "id": "follow-up-task",
+                        "title": "Follow-up task",
+                        "agent": "implementer",
+                        "prompt": "Implement the discovered fix.",
+                    }
+                ]
+                return record
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst, "implementer": implementer},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+        self.assertEqual(["inspect-a"], [task_record["id"] for task_record in payload["tasks"]])
+        self.assertEqual("ignore", payload["followUpBehavior"])
+        self.assertEqual(
+            [],
+            [event for event in payload["events"] if event["phase"] == "task-injected"],
+        )
+
+    def test_run_loaded_plan_injects_follow_up_tasks_and_persists_selected_plan(self):
+        orchestrator = self.orchestrator
+        old_execute_task = orchestrator.execute_task
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            runtime_root = temp_path / "runtime"
+            runtime_root.mkdir()
+            agents_path = temp_path / "agents.json"
+            plan_path = temp_path / "plan.json"
+            agents_path.write_text("{}", encoding="utf-8")
+            plan_path.write_text("{}", encoding="utf-8")
+            analyst = orchestrator.AgentDefinition(
+                name="analyst",
+                description="analysis",
+                prompt="Return JSON only.",
+                model_profile="simple",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read"],
+                disallowed_tools=[],
+            )
+            implementer = orchestrator.AgentDefinition(
+                name="implementer",
+                description="implementation",
+                prompt="Return JSON only.",
+                model_profile="balanced",
+                effort="high",
+                permission_mode="dontAsk",
+                workspace_mode="copy",
+                context_mode="minimal",
+                timeout_sec=30,
+                allowed_tools=["Read", "Write"],
+                disallowed_tools=[],
+            )
+            task = orchestrator.TaskDefinition(
+                id="inspect-a",
+                title="Inspect A",
+                agent="analyst",
+                prompt="Inspect A.",
+            )
+            plan = orchestrator.TaskPlan(
+                version=1,
+                name="follow-up-inject",
+                goal="Inject follow-up tasks at runtime.",
+                shared_context=orchestrator.SharedContext(
+                    summary="Dynamic follow-up injection test.",
+                    constraints=[],
+                    read_paths=[],
+                    validation=[],
+                ),
+                tasks=[task],
+            )
+
+            async def fake_execute_task(
+                run_dir,
+                runtime_root,
+                workspaces_dir,
+                plan,
+                agents,
+                task,
+                dependency_records,
+                *,
+                claude_bin,
+                agents_json,
+                dry_run,
+                worker_validation_mode=None,
+                effort_override=None,
+            ):
+                record = make_task_run_record(
+                    orchestrator,
+                    task,
+                    status="planned",
+                    summary="Dry run only; Claude was not invoked.",
+                    workspace_path=str(workspaces_dir / task.id),
+                )
+                if task.id == "inspect-a":
+                    record.follow_up_tasks = [
+                        {
+                            "id": "implement-fix",
+                            "title": "Implement fix",
+                            "agent": "implementer",
+                            "prompt": "Apply the discovered fix.",
+                            "writePaths": ["docs/fix.md"],
+                        }
+                    ]
+                return record
+
+            orchestrator.execute_task = fake_execute_task
+            try:
+                payload = orchestrator.run_loaded_plan(
+                    plan_path,
+                    agents_path,
+                    {"analyst": analyst, "implementer": implementer},
+                    plan,
+                    claude_bin="claude",
+                    runtime_root=runtime_root,
+                    max_parallel=1,
+                    continue_on_error=False,
+                    dry_run=True,
+                    follow_up_behavior_override="inject",
+                )
+                selected_plan = json.loads(
+                    (pathlib.Path(payload["runDir"]) / "selected-plan.json").read_text(encoding="utf-8")
+                )
+            finally:
+                orchestrator.execute_task = old_execute_task
+
+        tasks_by_id = {task_record["id"]: task_record for task_record in payload["tasks"]}
+        self.assertEqual(["inspect-a", "implement-fix"], [task_record["id"] for task_record in payload["tasks"]])
+        self.assertEqual("inject", payload["followUpBehavior"])
+        self.assertEqual("inject", payload["followUpBehaviorOverride"])
+        self.assertEqual("inspect-a", tasks_by_id["implement-fix"]["injected_from"])
+        injected_events = [event for event in payload["events"] if event["phase"] == "task-injected"]
+        self.assertEqual(["implement-fix"], [event["taskId"] for event in injected_events])
+        selected_tasks = {task_payload["id"]: task_payload for task_payload in selected_plan["tasks"]}
+        self.assertEqual("inspect-a", selected_tasks["implement-fix"]["injectedFrom"])
+        self.assertEqual(["inspect-a"], selected_tasks["implement-fix"]["dependsOn"])
+
     def test_run_loaded_plan_stops_after_budget_limit_before_later_batch(self):
         orchestrator = self.orchestrator
         old_ensure_claude_available = orchestrator.ensure_claude_available

@@ -701,6 +701,7 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             protected_path_violations=[],
             validation_commands=[],
             follow_ups=[],
+            follow_up_tasks=[],
             notes=[],
             model="claude-haiku-4-5",
             model_profile="simple",
@@ -755,6 +756,7 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             protected_path_violations=[],
             validation_commands=[],
             follow_ups=["Open one follow-up issue."],
+            follow_up_tasks=[],
             notes=[
                 "Rule one is protected-path enforcement.",
                 "Rule two is copy mode by default.",

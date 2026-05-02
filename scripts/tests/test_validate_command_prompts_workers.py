@@ -360,6 +360,20 @@ class ValidateCommandPromptsWorkersTest(unittest.TestCase):
                 "Third follow-up item.",
                 "Fourth follow-up item should be dropped.",
             ],
+            "followUpTasks": [
+                {
+                    "id": "new-task",
+                    "title": "New task",
+                    "agent": "implementer",
+                    "prompt": "Do the new thing.",
+                },
+                {
+                    "id": "new-task",
+                    "title": "Duplicate should be ignored",
+                    "agent": "implementer",
+                    "prompt": "Duplicate.",
+                },
+            ],
             "notes": [
                 "Note one.",
                 "Note two.",
@@ -378,6 +392,7 @@ class ValidateCommandPromptsWorkersTest(unittest.TestCase):
         self.assertEqual(2, len(result["validationIntents"]))
         self.assertEqual([], result["validationCommands"])
         self.assertEqual(3, len(result["followUps"]))
+        self.assertEqual(["new-task"], [task["id"] for task in result["followUpTasks"]])
         self.assertEqual(5, len(result["notes"]))
 
     def test_coerce_worker_result_uses_tighter_lean_limits(self):

@@ -308,6 +308,31 @@ def normalize_worker_validation_intents(
     return intents
 
 
+def normalize_worker_follow_up_tasks(
+    payload: Any,
+    *,
+    error_factory,
+) -> list[dict[str, Any]]:
+    if payload is None:
+        return []
+    if not isinstance(payload, list):
+        raise error_factory("Claude JSON output field 'followUpTasks' must be an array")
+    tasks: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, item in enumerate(payload, start=1):
+        if not isinstance(item, dict):
+            raise error_factory(f"Claude JSON output field 'followUpTasks[{index}]' must be an object")
+        task_id = item.get("id")
+        if not isinstance(task_id, str) or not task_id.strip():
+            raise error_factory(f"Claude JSON output field 'followUpTasks[{index}].id' must be a non-empty string")
+        normalized_task_id = task_id.strip()
+        if normalized_task_id in seen_ids:
+            continue
+        seen_ids.add(normalized_task_id)
+        tasks.append(dict(item))
+    return tasks
+
+
 def validation_intent_policy(
     intent: Any,
     *,
@@ -412,6 +437,7 @@ def coerce_worker_result(
     normalize_worker_files_touched,
     normalize_worker_text_list,
     normalize_worker_validation_intents,
+    normalize_worker_follow_up_tasks,
     normalize_worker_findings,
     truncate_text,
     asdict,
@@ -481,6 +507,10 @@ def coerce_worker_result(
     )
     if not follow_ups_known:
         unknown_fields.append("followUps")
+    follow_up_tasks = normalize_worker_follow_up_tasks(
+        payload.get("followUpTasks"),
+        error_factory=error_factory,
+    )
     notes, notes_known = normalize_worker_text_list(
         payload.get("notes"),
         key="notes",
@@ -502,6 +532,7 @@ def coerce_worker_result(
         "validationIntents": [asdict(intent) for intent in validation_intents],
         "validationCommands": validation_commands,
         "followUps": follow_ups,
+        "followUpTasks": follow_up_tasks,
         "notes": notes,
         "unknownFields": unknown_fields,
         "findings": [asdict(f) for f in findings],

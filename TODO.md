@@ -54,7 +54,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP46| Typed Agent Contracts                | Complete | Added Pydantic v2 contract models, Pydantic-backed dataclasses, typed plan/agent/manifest validation boundaries, `py.typed`, and mypy coverage |
 | WP47| Human-in-the-Loop Approval Gates     | Complete | Added batch-boundary HITL policy, run/resume CLI flags, persisted gate events, sentinel/interactive approval, auto-approve test mode, and abort blocking |
 | WP48| Pre-Flight Cost Estimation           | Complete | Added tracked model pricing, pre-flight per-task/per-batch USD+token estimates, `run --estimate`, validate-time budget warnings, and retained `costEstimate` payloads/manifests |
-| WP49| Dynamic Plan Mutation                | Planned | Coordinator consumes task `followUps` at runtime to inject new tasks or modify the pending DAG mid-run without restarting |
+| WP49| Dynamic Plan Mutation                | Complete | Added typed `followUpTasks`, run-policy/CLI follow-up mode, between-batch task injection, persisted lineage, and selected-plan mutation for resume |
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
 | WP51| Cross-Run Memory and Pattern Learning | Planned | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
 | WP52| Diff-Aware Incremental Replay        | Planned | On resume or retry, skip tasks whose inputs (prompt, read paths, dependency outputs) are identical to a prior successful execution |
@@ -1294,22 +1294,24 @@ gap between fixed-DAG execution and plan-act-reflect loops.
   change; retroactive task changes and re-runs of completed tasks are out of
   scope for this WP.
 
-**Tasks:**
-- [ ] Add a `RunPolicy.followUpBehavior` field: `"ignore"` (default),
-      `"inject"` (inject approved follow-ups as new tasks after the emitting
-      task's batch).
-- [ ] After each batch result loop in `run_ops.run_loaded_plan`, collect all
-      `followUps` from completed task records; if `inject` mode, validate
-      each follow-up shape and inject it as a new `TaskDefinition` into the
-      pending queue with `depends_on` pointing to the emitting task.
-- [ ] Validate injected tasks against the existing write-scope conflict model
-      before scheduling; reject and warn on scope conflicts.
-- [ ] Emit `task-injected` run events for each follow-up promoted to a real
-      task; track injection lineage in the task record (`injectedFrom` field).
-- [ ] Add `--follow-up-mode` CLI flag to `run` / `resume` that maps to
-      `followUpBehavior`; default `ignore` to preserve existing behavior.
-- [ ] Add regression coverage for injection, scope-conflict rejection,
-      lineage tracking, and the `ignore` default.
+**Work done:**
+- Added `RunPolicy.followUpBehavior` with `ignore` (default) and `inject`,
+  plus `--follow-up-mode` on `run` and `resume`.
+- Added structured worker `followUpTasks` alongside informational
+  `followUps`; workers now have a typed path for proposing new runtime tasks.
+- `run_ops.run_loaded_plan` now consumes completed-task `followUpTasks`
+  between batches, validates each proposal through the shared task-definition
+  loader, forces a dependency edge from the emitting task, re-runs graph and
+  scope-contract validation, and injects accepted tasks into the pending DAG.
+- Accepted injections emit `task-injected` events, rejected proposals emit
+  `task-injection-rejected`, and injected tasks persist `injectedFrom` lineage
+  in both task records and the run-local `selected-plan.json` snapshot.
+- Same-run `resume` continues from that mutated `selected-plan.json`, so
+  injected follow-up tasks survive later resumes without rebuilding the plan
+  by hand.
+- Regression coverage now locks the `ignore` default, injection behavior,
+  selected-plan persistence, worker-result normalization for `followUpTasks`,
+  and CLI parsing for `--follow-up-mode`.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

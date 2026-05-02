@@ -820,7 +820,7 @@ class SdkErrorRetryClassificationTest(unittest.TestCase):
                 finished_at="2026-01-01T00:01:00",
                 files_touched=[], actual_files_touched=[],
                 protected_path_violations=[], write_scope_violations=[],
-                validation_commands=[], follow_ups=[], notes=[],
+                validation_commands=[], follow_ups=[], follow_up_tasks=[], notes=[],
                 model=None, model_profile=None,
                 prompt_chars=0, prompt_estimated_tokens=0,
                 prompt_sections=[],

@@ -65,6 +65,7 @@ def _make_record(
         write_scope_violations=write_scope_violations or [],
         validation_commands=[],
         follow_ups=[],
+        follow_up_tasks=[],
         notes=[],
         model=None,
         model_profile=None,

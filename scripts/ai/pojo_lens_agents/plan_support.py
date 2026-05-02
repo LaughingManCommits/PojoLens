@@ -24,6 +24,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_ARTIFACT_BEHAVIOR,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
+    DEFAULT_FOLLOW_UP_BEHAVIOR,
     DEFAULT_RUN_BUDGET_BEHAVIOR,
     DEFAULT_SKILL_REGISTRY_PATH,
     DEFAULT_TASK_TIMEOUT_SEC,
@@ -40,6 +41,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     RESOLVED_SKILLS_WARN_COUNT,
     REVIEWER_AGENT_NAME,
     ROOT,
+    FOLLOW_UP_BEHAVIORS,
     RUN_POLICY_BEHAVIORS,
     RunPolicy,
     SKILL_PROMPT_WARN_BYTES,
@@ -254,10 +256,53 @@ def serialize_run_policy(run_policy: RunPolicy) -> dict[str, Any]:
         )
     ):
         payload["artifactBehavior"] = run_policy.artifact_behavior
+    if run_policy.follow_up_behavior != DEFAULT_FOLLOW_UP_BEHAVIOR:
+        payload["followUpBehavior"] = run_policy.follow_up_behavior
     if run_policy.hitl:
         payload["hitl"] = True
         payload["hitlMode"] = run_policy.hitl_mode
     return payload
+
+
+def load_task_definition(payload: Any, agents: dict[str, AgentDefinition], *, location: str) -> TaskDefinition:
+    registry_path = skill_router_layer.discover_skill_registry(DEFAULT_AGENTS_PATH)
+    skill_registry = skill_router_layer.load_skill_registry(
+        DEFAULT_AGENTS_PATH,
+        deps={
+            "discover_skill_registry": skill_router_layer.discover_skill_registry,
+            "read_json": read_json,
+            "read_text": read_text,
+            "error_factory": OrchestratorError,
+            "require_string": require_string,
+            "skill_definition_factory": SkillDefinition,
+        },
+    )
+    return task_plan_ops_layer.load_task_definition(
+        payload,
+        agents,
+        location=location,
+        deps={
+            "error_factory": OrchestratorError,
+            "task_definition_factory": TaskDefinition,
+            "require_string": require_string,
+            "require_string_list": require_string_list,
+            "require_optional_string": require_optional_string,
+            "require_optional_int": require_optional_int,
+            "require_optional_float": require_optional_float,
+            "require_scope_path_list": require_scope_path_list,
+            "ensure_workspace_mode": ensure_workspace_mode,
+            "ensure_context_mode": ensure_context_mode,
+            "ensure_model_profile": ensure_model_profile,
+            "normalize_dependency_materialization_mode": normalize_dependency_materialization_mode,
+            "normalize_output_profile": normalize_output_profile,
+            "normalize_worker_validation_mode": normalize_worker_validation_mode,
+            "skill_registry_path": registry_path,
+            "skill_registry": skill_registry,
+            "validate_known_skills": skill_router_layer.validate_known_skills,
+            "dedupe_strings": dedupe_strings,
+            "task_id_re": TASK_ID_RE,
+        },
+    )
 
 
 def load_agents(path: Path) -> dict[str, AgentDefinition]:
@@ -857,6 +902,17 @@ def normalize_output_profile_source(source: str | None, *, location: str) -> str
     if normalized not in OUTPUT_PROFILE_SOURCES:
         raise OrchestratorError(
             f"{location}: output profile source must be one of {sorted(OUTPUT_PROFILE_SOURCES)}"
+        )
+    return normalized
+
+
+def normalize_follow_up_behavior(value: str | None, *, location: str, default: str = DEFAULT_FOLLOW_UP_BEHAVIOR) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        return default
+    if normalized not in FOLLOW_UP_BEHAVIORS:
+        raise OrchestratorError(
+            f"{location}: expected one of {sorted(FOLLOW_UP_BEHAVIORS)}"
         )
     return normalized
 
