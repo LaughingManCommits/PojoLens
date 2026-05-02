@@ -52,6 +52,7 @@ scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-materi
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --tui
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --estimate --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --max-parallel 2 --otel-endpoint http://localhost:4318/v1/traces --json
@@ -93,6 +94,7 @@ Tracked samples:
 Dry runs:
 - `plan --dry-run` prints the planner request and target output path without invoking Claude
 - `run --dry-run` writes the run manifest, task prompts, and worker command files without invoking Claude or creating repo copies/worktrees
+- `run --dry-run --tui` still renders the live dashboard, but exits after the planned task records and run-finished event are written
 - `run --estimate` computes the same pre-flight pricing and wall-clock estimate without creating a retained run
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
@@ -109,6 +111,7 @@ Lifecycle helpers:
 - `run`, `resume`, `retry`, and `export-trace` accept `--otel-endpoint <url>`; when unset, `OTEL_EXPORTER_OTLP_ENDPOINT` enables OTEL emission automatically for live runs and retained trace export
 - `run` and `resume` accept `--hitl`, `--hitl-mode <batch|on-failure|always>`, and `--hitl-auto-approve`; HITL gates emit `hitl-gate` plus `hitl-approved` or `hitl-aborted`, write the manifest before waiting, and use either an interactive prompt or the run-local `hitl-gate.lock` sentinel file for decisions
 - `run` and `resume` accept `--follow-up-mode <ignore|inject>`; `inject` promotes structured worker `followUpTasks` into new pending tasks between batches, persists them back into the run-local `selected-plan.json`, and emits `task-injected` events
+- `run`, `resume`, and `retry` accept `--tui`; when stderr is interactive and `textual` is installed, the dashboard auto-enables unless `--watch` or `--json` is selected, and if `textual` is missing the command falls back to `--watch` with a warning
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
 - retained-run summaries now also expose `lifecycleState`, `lifecycleStateReason`, and `approvalSummary` so review, validation, and promotion gates are visible without opening the raw manifest
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
@@ -189,6 +192,7 @@ Token and cost visibility:
 - live worker validation now defaults to `intents-only`; tracked worker agents no longer need per-role overrides just to suppress raw command suggestions
 - live worker JSON schemas now require `validationIntents` and omit `validationCommands`, so raw legacy command items are blocked at the schema boundary as well as during coordinator parsing
 - live planner, worker, and coordinator validation waits now emit phase-tagged slop-status lines on interactive `stderr` (for example `[TASK][FLOW] Slopsloshing .. (...)`) while subprocesses are still running, so `stdout` JSON remains machine-readable
+- the optional TUI dashboard consumes retained run events through an internal queue, adds `task-started` live state for running rows plus stderr tailing, and routes HITL approval through `[a] approve` / `[x] abort` without dropping the sentinel-file fallback
 - worker prompts now put stable coordinator sections ahead of run-specific workspace paths and dependency detail, avoid absolute workspace paths in the execution-context text, and keep the repeated worker-rules block compact enough to stay untruncated so provider-side prefix caching can reuse more of each request
 
 Model selection:

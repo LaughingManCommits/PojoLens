@@ -127,6 +127,17 @@ def _add_watch_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_tui_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--tui",
+        action="store_true",
+        help=(
+            "Render an interactive Textual dashboard for live runs. "
+            "When textual is unavailable the command falls back to --watch."
+        ),
+    )
+
+
 def _apply_defaults_to_all_subparsers(
     parser: argparse.ArgumentParser,
     defaults: dict,
@@ -372,6 +383,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Emit the run summary as JSON.",
     )
     _add_watch_arg(run_parser)
+    _add_tui_arg(run_parser)
     _add_verbose_arg(run_parser)
 
     resume_parser = subparsers.add_parser(
@@ -437,6 +449,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Emit the resume summary as JSON.",
     )
     _add_watch_arg(resume_parser)
+    _add_tui_arg(resume_parser)
     _add_verbose_arg(resume_parser)
 
     retry_parser = subparsers.add_parser(
@@ -502,6 +515,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Emit the retry run summary as JSON.",
     )
     _add_watch_arg(retry_parser)
+    _add_tui_arg(retry_parser)
     _add_verbose_arg(retry_parser)
 
     review_parser = subparsers.add_parser(

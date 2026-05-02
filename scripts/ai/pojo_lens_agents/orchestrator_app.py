@@ -50,6 +50,7 @@ run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
 sdk_provider_layer = _LazyModuleProxy("pojo_lens_agents.sdk_provider")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 otel_layer = _LazyModuleProxy("pojo_lens_agents.otel_spans")
+tui_layer = _LazyModuleProxy("pojo_lens_agents.tui_app")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 
@@ -614,6 +615,7 @@ def run_loaded_plan(
     reuse_unchanged: bool = False,
     prior_completed_records: dict[str, TaskRunRecord] | None = None,
     watch: bool = False,
+    tui: bool = False,
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
@@ -652,96 +654,137 @@ def run_loaded_plan(
     if watch:
         _active_append_run_event = _make_watch_append_run_event(append_run_event)
 
-    payload = asyncio.run(run_ops_layer.run_loaded_plan(
-        plan_path,
-        agents_path,
-        agents,
-        plan,
-        claude_bin=claude_bin,
-        runtime_root=runtime_root,
-        max_parallel=max_parallel,
-        continue_on_error=continue_on_error,
-        dry_run=dry_run,
-        worker_validation_mode=worker_validation_mode,
-        effort_override=effort_override,
-        initial_records=initial_records,
-        retry_of_run_id=retry_of_run_id,
-        requested_task_ids=requested_task_ids,
-        retried_task_ids=retried_task_ids,
-        follow_up_behavior_override=follow_up_behavior_override,
-        existing_run_id=existing_run_id,
-        existing_run_dir=existing_run_dir,
-        existing_workspaces_dir=existing_workspaces_dir,
-        write_plan_snapshot=write_plan_snapshot,
-        hitl_override=hitl,
-        hitl_mode_override=hitl_mode,
-        hitl_auto_approve=hitl_auto_approve,
-        normalize_worker_validation_mode=normalize_worker_validation_mode,
-        normalize_effort_override=normalize_effort_override,
-        effective_plan_worker_validation_modes=effective_plan_worker_validation_modes,
-        effective_plan_worker_validation_mode_sources=effective_plan_worker_validation_mode_sources,
-        effective_plan_output_profiles=effective_plan_output_profiles,
-        effective_plan_output_profile_sources=effective_plan_output_profile_sources,
-        effective_plan_efforts=effective_plan_efforts,
-        effective_plan_effort_sources=effective_plan_effort_sources,
-        effective_task_skills=effective_task_skills,
-        topological_batches=topological_batches,
-        validate_scope_contract=validate_scope_contract,
-        ensure_claude_available=lambda bin: ensure_provider_available(bin, sdk_provider_layer.detect_provider_mode()),
-        write_selected_plan_snapshot=write_selected_plan_snapshot,
-        agent_payload_for_claude=agent_payload_for_claude,
-        append_run_event=_active_append_run_event,
-        task_branch_context_id=task_branch_context_id,
-        evaluate_run_governance=evaluate_run_governance,
-        blocked_record=blocked_record,
-        effective_workspace_mode=effective_workspace_mode,
-        write_manifest=write_manifest,
-        select_parallel_ready_batch=select_parallel_ready_batch,
-        execute_task=_execute_task_with_retry,
-        aggregate_usage=aggregate_usage,
-        effective_plan_model_profiles=effective_plan_model_profiles,
-        effective_plan_models=effective_plan_models,
-        complex_model_task_ids=complex_model_task_ids,
-        analyze_plan_topology=analyze_plan_topology,
-        load_model_pricing=lambda: cost_estimation_layer.load_model_pricing(
-            read_json=read_json,
-            error_factory=OrchestratorError,
-        ),
-        estimate_plan_cost=lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
-            plan,
+    async def _run_inner(
+        *,
+        _append_run_event: Any,
+        _wait_for_hitl_decision: Any,
+        _wait_for_hitl_decision_async: Any = None,
+    ) -> dict[str, Any]:
+        return await run_ops_layer.run_loaded_plan(
+            plan_path,
+            agents_path,
             agents,
+            plan,
+            claude_bin=claude_bin,
+            runtime_root=runtime_root,
+            max_parallel=max_parallel,
+            continue_on_error=continue_on_error,
+            dry_run=dry_run,
+            worker_validation_mode=worker_validation_mode,
+            effort_override=effort_override,
+            initial_records=initial_records,
+            retry_of_run_id=retry_of_run_id,
+            requested_task_ids=requested_task_ids,
+            retried_task_ids=retried_task_ids,
+            follow_up_behavior_override=follow_up_behavior_override,
+            existing_run_id=existing_run_id,
+            existing_run_dir=existing_run_dir,
+            existing_workspaces_dir=existing_workspaces_dir,
+            write_plan_snapshot=write_plan_snapshot,
+            hitl_override=hitl,
+            hitl_mode_override=hitl_mode,
+            hitl_auto_approve=hitl_auto_approve,
+            normalize_worker_validation_mode=normalize_worker_validation_mode,
+            normalize_effort_override=normalize_effort_override,
+            effective_plan_worker_validation_modes=effective_plan_worker_validation_modes,
+            effective_plan_worker_validation_mode_sources=effective_plan_worker_validation_mode_sources,
+            effective_plan_output_profiles=effective_plan_output_profiles,
+            effective_plan_output_profile_sources=effective_plan_output_profile_sources,
+            effective_plan_efforts=effective_plan_efforts,
+            effective_plan_effort_sources=effective_plan_effort_sources,
+            effective_task_skills=effective_task_skills,
             topological_batches=topological_batches,
-            estimate_tokens=estimate_tokens,
+            validate_scope_contract=validate_scope_contract,
+            ensure_claude_available=lambda bin: ensure_provider_available(bin, sdk_provider_layer.detect_provider_mode()),
+            write_selected_plan_snapshot=write_selected_plan_snapshot,
+            agent_payload_for_claude=agent_payload_for_claude,
+            append_run_event=_append_run_event,
+            task_branch_context_id=task_branch_context_id,
+            evaluate_run_governance=evaluate_run_governance,
+            blocked_record=blocked_record,
+            effective_workspace_mode=effective_workspace_mode,
+            write_manifest=write_manifest,
+            select_parallel_ready_batch=select_parallel_ready_batch,
+            execute_task=_execute_task_with_retry,
+            aggregate_usage=aggregate_usage,
+            effective_plan_model_profiles=effective_plan_model_profiles,
+            effective_plan_models=effective_plan_models,
+            complex_model_task_ids=complex_model_task_ids,
+            analyze_plan_topology=analyze_plan_topology,
+            load_model_pricing=lambda: cost_estimation_layer.load_model_pricing(
+                read_json=read_json,
+                error_factory=OrchestratorError,
+            ),
+            estimate_plan_cost=lambda plan, agents, **kwargs: cost_estimation_layer.estimate_plan_cost(
+                plan,
+                agents,
+                topological_batches=topological_batches,
+                estimate_tokens=estimate_tokens,
+                error_factory=OrchestratorError,
+                **kwargs,
+            ),
+            serialize_run_policy=serialize_run_policy,
+            summarized_worker_validation_mode=summarized_worker_validation_mode,
+            summarize_branch_contexts=summarize_branch_contexts,
+            coerce_follow_up_task=coerce_follow_up_task,
+            default_workspaces_dir=default_workspaces_dir,
+            slugify=slugify,
+            resolve_hitl_policy=hitl_layer.resolve_hitl_policy,
+            should_trigger_hitl_gate=hitl_layer.should_trigger_hitl_gate,
+            hitl_gate_context_factory=hitl_layer.HitlGateContext,
+            wait_for_hitl_decision=_wait_for_hitl_decision,
+            wait_for_hitl_decision_async=_wait_for_hitl_decision_async,
+            write_text=write_text,
+            otel_endpoint=otel_endpoint,
+            manifest_payload_builder=manifest_payload,
+            build_trace_payload=trace_export_layer.export_trace_payload,
+            summarize_run_manifest=summarize_run_manifest,
+            parse_iso_datetime=parse_iso_datetime,
+            datetime_to_iso=datetime_to_iso,
+            emit_otel_trace=otel_layer.emit_otel_trace_from_custom_payload,
+            reuse_unchanged=reuse_unchanged,
+            prior_completed_records=prior_completed_records,
+            compute_task_fingerprint=lambda task, agent, dep_recs, read_paths, model, effort: task_fingerprint_layer.compute_task_fingerprint(
+                task, agent, dep_recs, read_paths, ROOT,
+                resolved_model=model, resolved_effort=effort,
+            ),
+            effective_task_read_paths=effective_task_read_paths,
             error_factory=OrchestratorError,
-            **kwargs,
-        ),
-        serialize_run_policy=serialize_run_policy,
-        summarized_worker_validation_mode=summarized_worker_validation_mode,
-        summarize_branch_contexts=summarize_branch_contexts,
-        coerce_follow_up_task=coerce_follow_up_task,
-        default_workspaces_dir=default_workspaces_dir,
-        slugify=slugify,
-        resolve_hitl_policy=hitl_layer.resolve_hitl_policy,
-        should_trigger_hitl_gate=hitl_layer.should_trigger_hitl_gate,
-        hitl_gate_context_factory=hitl_layer.HitlGateContext,
-        wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
-        write_text=write_text,
-        otel_endpoint=otel_endpoint,
-        manifest_payload_builder=manifest_payload,
-        build_trace_payload=trace_export_layer.export_trace_payload,
-        summarize_run_manifest=summarize_run_manifest,
-        parse_iso_datetime=parse_iso_datetime,
-        datetime_to_iso=datetime_to_iso,
-        emit_otel_trace=otel_layer.emit_otel_trace_from_custom_payload,
-        reuse_unchanged=reuse_unchanged,
-        prior_completed_records=prior_completed_records,
-        compute_task_fingerprint=lambda task, agent, dep_recs, read_paths, model, effort: task_fingerprint_layer.compute_task_fingerprint(
-            task, agent, dep_recs, read_paths, ROOT,
-            resolved_model=model, resolved_effort=effort,
-        ),
-        effective_task_read_paths=effective_task_read_paths,
-        error_factory=OrchestratorError,
-    ))
+        )
+
+    if not tui:
+        payload = asyncio.run(
+            _run_inner(
+                _append_run_event=_active_append_run_event,
+                _wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
+            )
+        )
+    else:
+        async def _run_with_tui() -> dict[str, Any]:
+            event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+            app = tui_layer.OrchestratorApp(
+                event_queue=event_queue,
+                task_models={
+                    task.id: resolved_model(task, agents[task.agent]) or "-"
+                    for task in plan.tasks
+                },
+                plan_name=plan.name,
+            )
+            active_append = _make_tui_append_run_event(_active_append_run_event, event_queue)
+            app_task = asyncio.create_task(app.run_async())
+            try:
+                payload_inner = await _run_inner(
+                    _append_run_event=active_append,
+                    _wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
+                    _wait_for_hitl_decision_async=app.wait_for_hitl_decision,
+                )
+            finally:
+                if not app_task.done():
+                    app.call_after_refresh(app.exit)
+                await app_task
+            return payload_inner
+
+        payload = asyncio.run(_run_with_tui())
     try:
         ledger_entry = run_ledger_layer.build_ledger_entry(payload, iso_now_fn=iso_now)
         run_ledger_layer.append_ledger_entry(DEFAULT_LEDGER_PATH, ledger_entry)
@@ -750,9 +793,31 @@ def run_loaded_plan(
     return payload
 
 
+def _resolve_tui_mode(*, requested: bool, watch: bool, json_output: bool, stderr_isatty: bool, textual_available: bool) -> tuple[bool, bool, str | None]:
+    if requested and (watch or json_output):
+        return False, watch, "--tui is ignored when --watch or --json is set."
+    auto_requested = (not requested) and (not watch) and (not json_output) and stderr_isatty
+    wants_tui = requested or auto_requested
+    if not wants_tui:
+        return False, watch, None
+    if textual_available:
+        return True, watch, None
+    warning = "textual is not installed; falling back to --watch. Install 'pojolens-agents[tui]' for the dashboard."
+    return False, True, warning
+
+
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
     args.otel_endpoint = otel_endpoint or ""
+    args.tui, args.watch, tui_warning = _resolve_tui_mode(
+        requested=bool(getattr(args, "tui", False)),
+        watch=bool(getattr(args, "watch", False)),
+        json_output=bool(getattr(args, "json", False)),
+        stderr_isatty=bool(getattr(sys.stderr, "isatty", lambda: False)()),
+        textual_available=bool(tui_layer.textual_is_available()),
+    )
+    if tui_warning:
+        print(tui_warning, file=sys.stderr, flush=True)
     return run_ops_layer.run_plan(
         args,
         load_agents=load_agents,
@@ -787,6 +852,15 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
 def resume_run(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
     args.otel_endpoint = otel_endpoint or ""
+    args.tui, args.watch, tui_warning = _resolve_tui_mode(
+        requested=bool(getattr(args, "tui", False)),
+        watch=bool(getattr(args, "watch", False)),
+        json_output=bool(getattr(args, "json", False)),
+        stderr_isatty=bool(getattr(sys.stderr, "isatty", lambda: False)()),
+        textual_available=bool(tui_layer.textual_is_available()),
+    )
+    if tui_warning:
+        print(tui_warning, file=sys.stderr, flush=True)
     return run_ops_layer.resume_run(
         args,
         root=ROOT,
@@ -813,6 +887,15 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
 def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
     args.otel_endpoint = otel_endpoint or ""
+    args.tui, args.watch, tui_warning = _resolve_tui_mode(
+        requested=bool(getattr(args, "tui", False)),
+        watch=bool(getattr(args, "watch", False)),
+        json_output=bool(getattr(args, "json", False)),
+        stderr_isatty=bool(getattr(sys.stderr, "isatty", lambda: False)()),
+        textual_available=bool(tui_layer.textual_is_available()),
+    )
+    if tui_warning:
+        print(tui_warning, file=sys.stderr, flush=True)
     return run_ops_layer.retry_run(
         args,
         load_run_manifest=load_run_manifest,
@@ -1297,6 +1380,19 @@ def _make_watch_append_run_event(base_fn: Any) -> Any:
             width = 120
         print(line[:width], file=sys.stderr, flush=True)
     return _watch_append
+
+
+def _make_tui_append_run_event(base_fn: Any, event_queue: asyncio.Queue[dict[str, Any]]) -> Any:
+    def _tui_append(events: list[dict[str, Any]], *, phase: str, **kwargs: Any) -> None:
+        previous_len = len(events)
+        base_fn(events, phase=phase, **kwargs)
+        if len(events) <= previous_len:
+            return
+        try:
+            event_queue.put_nowait(dict(events[-1]))
+        except Exception:
+            pass
+    return _tui_append
 
 
 def config_command(args: Any) -> dict[str, Any]:

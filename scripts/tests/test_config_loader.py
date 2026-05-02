@@ -172,6 +172,14 @@ class FlagOverridePrecedenceTest(unittest.TestCase):
         args = self._parse(["--watch"])
         self.assertTrue(args.watch)
 
+    def test_tui_flag_defaults_false(self):
+        args = self._parse([])
+        self.assertFalse(args.tui)
+
+    def test_tui_flag_set(self):
+        args = self._parse(["--tui"])
+        self.assertTrue(args.tui)
+
 
 class PreParseConfigPathTest(unittest.TestCase):
     def test_no_config_flag_returns_none(self):

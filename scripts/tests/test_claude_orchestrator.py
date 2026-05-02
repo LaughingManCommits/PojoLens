@@ -497,6 +497,20 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["resume", "some/run/dir", "--follow-up-mode", "ignore"])
         self.assertEqual("ignore", args.follow_up_mode)
 
+    def test_tui_flag_accepted_by_run(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--tui"])
+        self.assertTrue(args.tui)
+
+    def test_tui_flag_accepted_by_resume(self):
+        args = self._parse_argv(["resume", "some/run/dir", "--tui"])
+        self.assertTrue(args.tui)
+
+    def test_tui_flag_accepted_by_retry(self):
+        args = self._parse_argv(["retry", "some/run/dir", "--tui"])
+        self.assertTrue(args.tui)
+
     def test_otel_endpoint_flag_accepted_by_export_trace(self):
         args = self._parse_argv(["export-trace", "some/run/dir", "--otel-endpoint", "http://collector:4318/v1/traces"])
         self.assertEqual("http://collector:4318/v1/traces", args.otel_endpoint)
@@ -520,6 +534,45 @@ class GlobalOptionsTest(unittest.TestCase):
     def test_dry_run_accepted_by_export_patch(self):
         args = self._parse_argv(["export-patch", "some/run/dir", "--dry-run"])
         self.assertTrue(args.dry_run)
+
+    def test_resolve_tui_mode_auto_enables_when_interactive_and_textual_available(self):
+        enabled, watch, warning = self.orchestrator._resolve_tui_mode(
+            requested=False,
+            watch=False,
+            json_output=False,
+            stderr_isatty=True,
+            textual_available=True,
+        )
+
+        self.assertTrue(enabled)
+        self.assertFalse(watch)
+        self.assertIsNone(warning)
+
+    def test_resolve_tui_mode_falls_back_to_watch_when_textual_missing(self):
+        enabled, watch, warning = self.orchestrator._resolve_tui_mode(
+            requested=True,
+            watch=False,
+            json_output=False,
+            stderr_isatty=True,
+            textual_available=False,
+        )
+
+        self.assertFalse(enabled)
+        self.assertTrue(watch)
+        self.assertIn("falling back to --watch", warning)
+
+    def test_resolve_tui_mode_ignores_tui_when_json_requested(self):
+        enabled, watch, warning = self.orchestrator._resolve_tui_mode(
+            requested=True,
+            watch=False,
+            json_output=True,
+            stderr_isatty=True,
+            textual_available=True,
+        )
+
+        self.assertFalse(enabled)
+        self.assertFalse(watch)
+        self.assertIn("--tui is ignored", warning)
 
     def test_dry_run_accepted_by_export_trace(self):
         args = self._parse_argv(["export-trace", "some/run/dir", "--dry-run"])

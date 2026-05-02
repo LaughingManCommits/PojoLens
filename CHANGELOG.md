@@ -11,6 +11,12 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **TUI dashboard** - added optional `[tui]` / `textual` dependency support,
+  new `pojo_lens_agents.tui_app` with a live task grid, rolling cost and
+  elapsed summary, active-task stderr tailing, TUI-driven HITL approve/abort
+  controls, `--tui` on `run` / `resume` / `retry`, automatic interactive
+  dashboard enablement, and `--watch` fallback when textual is unavailable.
+
 - **Dynamic plan mutation** - added tracked `runPolicy.followUpBehavior`,
   `--follow-up-mode` on `run` / `resume`, structured worker `followUpTasks`,
   runtime task injection between batches, persisted `injectedFrom` lineage in

@@ -158,6 +158,7 @@ async def run_loaded_plan(
     should_trigger_hitl_gate: Callable[..., bool] = None,
     hitl_gate_context_factory: Callable[..., Any] = None,
     wait_for_hitl_decision: Callable[..., Any] = None,
+    wait_for_hitl_decision_async: Callable[..., Any] | None = None,
     write_text: Callable[[Path, str], None] | None = None,
     otel_endpoint: str | None = None,
     manifest_payload_builder: Callable[..., dict[str, Any]] | None = None,
@@ -356,6 +357,23 @@ async def run_loaded_plan(
 
         execute_batch = [_t for _t in batch if _t.id not in reused_ids]
         semaphore = asyncio.Semaphore(max(max_parallel, 1))
+        for _t in execute_batch:
+            task_dir = run_dir / "tasks" / _t.id
+            append_run_event(
+                run_events,
+                phase="task-started",
+                task_id=_t.id,
+                parent_task_ids=list(_t.depends_on),
+                branch_context_id=task_branch_context_id(_t, records),
+                status="running",
+                details={
+                    "startedAt": datetime.now(timezone.utc).isoformat(),
+                    "stderrPath": str((task_dir / "stderr.txt").resolve()),
+                    "stdoutPath": str((task_dir / "stdout.json").resolve()),
+                    "resultPath": str((task_dir / "worker-result.json").resolve()),
+                    "model": task_models.get(_t.id),
+                },
+            )
 
         async def _run_one(t):
             async with semaphore:
@@ -396,7 +414,24 @@ async def run_loaded_plan(
                     message=attempt_error.get("error", ""),
                     details=attempt_error,
                 )
-            append_run_event(run_events, phase="task-finished", task_id=task.id, parent_task_ids=task.depends_on, branch_context_id=records[task.id].branch_context_id, status=records[task.id].status, message=records[task.id].summary)
+            append_run_event(
+                run_events,
+                phase="task-finished",
+                task_id=task.id,
+                parent_task_ids=task.depends_on,
+                branch_context_id=records[task.id].branch_context_id,
+                status=records[task.id].status,
+                message=records[task.id].summary,
+                details={
+                    "startedAt": records[task.id].started_at,
+                    "finishedAt": records[task.id].finished_at,
+                    "stderrPath": records[task.id].stderr_path,
+                    "stdoutPath": records[task.id].stdout_path,
+                    "resultPath": records[task.id].result_path,
+                    "usage": records[task.id].usage,
+                    "model": records[task.id].model,
+                },
+            )
             pending.pop(task.id, None)
             write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
             if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
@@ -463,11 +498,18 @@ async def run_loaded_plan(
                 },
             )
             write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
-            decision = wait_for_hitl_decision(
-                context,
-                auto_approve=hitl_policy.auto_approve,
-                write_text=write_text,
-            )
+            if wait_for_hitl_decision_async is not None:
+                decision = await wait_for_hitl_decision_async(
+                    context,
+                    auto_approve=hitl_policy.auto_approve,
+                    write_text=write_text,
+                )
+            else:
+                decision = wait_for_hitl_decision(
+                    context,
+                    auto_approve=hitl_policy.auto_approve,
+                    write_text=write_text,
+                )
             append_run_event(
                 run_events,
                 phase="hitl-approved" if decision.approved else "hitl-aborted",
@@ -710,6 +752,7 @@ def run_plan(
         "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
         "reuse_unchanged": bool(getattr(args, "reuse_unchanged", False)),
         "watch": bool(getattr(args, "watch", False)),
+        "tui": bool(getattr(args, "tui", False)),
     }
     if getattr(args, "follow_up_mode", None):
         run_kwargs["follow_up_behavior_override"] = getattr(args, "follow_up_mode")
@@ -845,6 +888,7 @@ def resume_run(
             if record.status == "completed"
         } if _reuse else None,
         watch=bool(getattr(args, "watch", False)),
+        tui=bool(getattr(args, "tui", False)),
         **otel_kwargs,
         **hitl_kwargs,
         **follow_up_kwargs,
@@ -933,6 +977,7 @@ def retry_run(
             if record.status == "completed"
         }
     run_kwargs["watch"] = bool(getattr(args, "watch", False))
+    run_kwargs["tui"] = bool(getattr(args, "tui", False))
     payload = run_loaded_plan_fn(
         plan_path,
         agents_path,

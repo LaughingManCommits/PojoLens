@@ -59,7 +59,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP51| Cross-Run Memory and Pattern Learning | Complete | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
 | WP52| Diff-Aware Incremental Replay        | Complete | Content-addressed task fingerprinting, `--reuse-unchanged` on run/resume/retry, `--fingerprint-only` on validate, task-reused events, and fingerprint stored on every executed record |
 | WP53| CLI Ergonomics                       | Complete | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
-| WP54| TUI Dashboard                        | Planned | Live `textual`-based terminal dashboard during runs: task status grid, rolling cost, active-task log tail, and key bindings for HITL gate approval |
+| WP54| TUI Dashboard                        | Complete | Added optional `textual` dashboard with task grid, rolling cost/elapsed summary, stderr tailing, auto-enable/fallback logic, and TUI HITL approve/abort controls |
 | WP55| Guided Wizard Mode                   | Planned | No-args interactive wizard that walks the operator through the full validate → run → review → promote lifecycle without needing to know any commands |
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Planned | `diff-run <run-id>` command that renders git-style file diffs of workspace vs repo so the operator sees exactly what changed before promoting |
@@ -1548,29 +1548,35 @@ active-task log tail, and key bindings for HITL gate approval.
 - WP47 HITL gate approval maps naturally to a TUI prompt: when a gate fires
   the footer switches to `[a] approve  [x] abort` and the run waits for input.
 
+**Key deliverables:** optional `[tui]` dependency extras, queue-driven
+`pojo_lens_agents.tui_app`, task-started lifecycle events for live state,
+stderr-tail dashboard updates, TUI HITL approval flow, `--tui` on
+run/resume/retry with interactive auto-enable plus `--watch` fallback, and
+Textual headless regression coverage.
+
 **Tasks:**
-- [ ] Add `textual>=0.60` as an optional dependency in `pyproject.toml` under
+- [x] Add `textual>=0.60` as an optional dependency in `pyproject.toml` under
       a `[tui]` extras group; gate import behind `try/except ImportError` so
       missing `textual` degrades to `--watch` with a warning.
-- [ ] Add `tui_app.py` in `pojo_lens_agents` with a `OrchestratorApp(App)`
+- [x] Add `tui_app.py` in `pojo_lens_agents` with a `OrchestratorApp(App)`
       class; panels: `TaskGrid` (DataTable), `RunSummaryBar` (Static),
       `LogPane` (RichLog), `FooterBar` (Footer with bindings).
-- [ ] Wire `tui_app.py` into the `run_loaded_plan` async loop via a shared
+- [x] Wire `tui_app.py` into the `run_loaded_plan` async loop via a shared
       asyncio `Queue`; run events (`task-finished`, `task-retry`,
       `batch-ready`, `run-finished`) post to the queue; the TUI worker
       consumes them and updates widgets without blocking task dispatch.
-- [ ] Update `TaskGrid` on each `task-finished` event: status cell color
+- [x] Update `TaskGrid` on each `task-finished` event: status cell color
       (`green` completed, `red` failed, `yellow` running, `dim` pending),
       cost column, elapsed time.
-- [ ] Add `LogPane` that tails the active task's stderr file path from the
+- [x] Add `LogPane` that tails the active task's stderr file path from the
       task record; refresh every 500 ms while the task is running.
-- [ ] When WP47 HITL gate fires, post a `hitl-gate` message to the TUI;
+- [x] When WP47 HITL gate fires, post a `hitl-gate` message to the TUI;
       `FooterBar` switches bindings to `[a] approve  [x] abort`; keypress
       resolves the gate future and run continues or aborts.
-- [ ] Add `--tui` flag to `run`, `resume`, and `retry`; auto-enable when
+- [x] Add `--tui` flag to `run`, `resume`, and `retry`; auto-enable when
       stderr is a TTY and `textual` is importable unless `--watch` or `--json`
       is set.
-- [ ] Add regression coverage for queue message routing and widget state
+- [x] Add regression coverage for queue message routing and widget state
       updates using `textual`'s built-in test harness (no live terminal
       required).
 
@@ -1762,4 +1768,3 @@ the final release guardrails are rerun.
 - `mvn -B -ntp -Pstatic-analysis verify -DskipTests`
 - `scripts/docs/check-doc-consistency.ps1`
 - Release benchmark guardrails from `docs/benchmarking.md`.
-
