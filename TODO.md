@@ -47,6 +47,12 @@ Execution order is dependency-first, not ticket-number order.
 | WP38| Docs And Text Quality Guardrails     | Complete | Mojibake/text-sanity checks, ASCII-safe docs promotion checks, and coordinator validation for documentation-oriented runs |
 | WP39| Low-Cost Worker Profiles And Output Discipline | Complete | Lean docs-oriented worker/reviewer profiles, tighter output contracts, retained verbosity visibility, and a tracked cheap-proof plan for repeated low-cost live proofs |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
+| WP41| Crash-Safe Manifest Flushing         | Planned | Atomic manifest writes via write-to-temp-then-rename so a process crash never corrupts a retained run |
+| WP42| Within-Run Task Retry                | Planned | Automatic per-task retry with exponential backoff for transient failures (rate-limit, timeout, provider error) |
+| WP43| Direct Anthropic SDK Provider        | Planned | Replace `claude` subprocess provider with the Anthropic Python SDK to unlock streaming, accurate cache stats, and SDK-managed rate-limit handling |
+| WP44| Async Task Execution                 | Planned | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
+| WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
+| WP46| Typed Agent Contracts                | Planned | Introduce Pydantic models at major call boundaries to replace large dict passing and catch contract violations at the type layer |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
 
@@ -755,6 +761,292 @@ state".
 - `scripts/docs/check-doc-consistency.ps1`
 - `scripts/ai/refresh-ai-memory.ps1`
 - `scripts/ai/refresh-ai-memory.ps1 -Check`
+
+---
+
+## WP41: Crash-Safe Manifest Flushing
+
+**Priority:** High
+
+**Goal:** Make all manifest writes atomic so a process crash, OOM kill, or
+power loss mid-task never leaves a corrupted or partial retained run.
+
+**Context:**
+- Manifests are currently written with direct file writes. A crash during a
+  write leaves a partial file; the next `resume`, `status`, or `inventory`
+  call then fails to parse it.
+- The fix is the standard atomic-write pattern: write to a `.tmp` sibling,
+  then `os.replace()` (atomic on both POSIX and Windows NTFS).
+- A companion recovery sweep on run load can detect and remove orphaned
+  `.tmp` files from a prior crashed write.
+
+**Tasks:**
+- [ ] Identify every manifest write path in `manifest_io.py`,
+      `task_execution.py`, `run_ops.py`, and coordinator checkpoint helpers
+      in `review_ops.py` and `validation_ops.py`.
+- [ ] Replace each with an atomic write-to-temp-then-`os.replace()` helper;
+      keep the helper in `manifest_io.py` so all call sites share one
+      implementation.
+- [ ] Add a manifest recovery helper that detects orphaned `.tmp` sibling
+      files on run load and removes them after logging a warning.
+- [ ] Add regression coverage for the atomic write path and the orphaned-temp
+      recovery sweep.
+- [ ] Verify no existing test fixture depends on in-place manifest mutation
+      order; update any that do.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/manifest_io.py scripts/ai/pojo_lens_agents/task_execution.py scripts/ai/pojo_lens_agents/run_ops.py scripts/ai/pojo_lens_agents/review_ops.py scripts/ai/pojo_lens_agents/validation_ops.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP42: Within-Run Task Retry
+
+**Priority:** High
+
+**Goal:** Automatically retry failed tasks for transient errors (rate limits,
+provider timeouts, subprocess errors) without requiring a manual `retry` run.
+
+**Context:**
+- Any task failure currently requires the operator to issue a separate `retry`
+  run, which creates a new run and loses the original run context.
+- Transient failures (Claude rate-limit 429, subprocess timeout, provider 5xx)
+  are not logic failures and should not block a run permanently.
+- Logic failures (write-scope violation, JSON parse error, protected-path
+  violation, blocked dependency) must not be retried automatically.
+- Retry state must be visible in the task record and event trace so operators
+  can distinguish automatic recovery from a first-attempt success.
+
+**Tasks:**
+- [ ] Define a transient-error classifier that maps exit codes, exception
+      types, and provider error strings to `transient` vs `permanent`; keep
+      the classifier in `task_execution.py` or a dedicated `retry_policy.py`.
+- [ ] Add per-task retry config: `maxRetries` (default `3`), backoff base
+      (`1s`/`2s`/`4s` + jitter), and a `retryPolicy` field in agent/task
+      definitions; add a `--max-task-retries` CLI override.
+- [ ] Record `attempt`, `attemptErrors`, and `retryDelayMs` in the task record
+      so retry history is visible in `status`, `inventory`, and
+      `evaluate-run`.
+- [ ] Emit a retry-attempt event in the run event trace for each retried
+      attempt so `export-trace` captures the full attempt timeline.
+- [ ] Ensure retry attempts consume the same workspace and prompt; do not
+      re-hydrate the workspace between attempts unless the workspace mode
+      requires it.
+- [ ] Add regression coverage for attempt counting, backoff timing, transient
+      vs permanent classification, and max-retry exhaustion behavior.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/task_execution.py scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/run_ops.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP43: Direct Anthropic SDK Provider
+
+**Priority:** Medium
+
+**Goal:** Replace the `claude` subprocess provider with the Anthropic Python
+SDK to unlock streaming output, accurate cache hit stats, and SDK-managed
+rate-limit handling with clean backoff.
+
+**Context:**
+- `provider.py` and `provider_worker.py` currently invoke `claude` as a
+  subprocess and parse stdout JSON. This works but loses: streaming tokens,
+  real-time usage/cache stats, SDK-level retry and rate-limit backoff, and
+  clean error classification without subprocess exit-code guessing.
+- The Anthropic Python SDK (`anthropic`) exposes the same models via
+  `client.messages.create()` and `client.messages.stream()`, returns
+  structured `Usage` objects, and raises typed exceptions
+  (`RateLimitError`, `APITimeoutError`) that map cleanly to WP42's
+  transient-error classifier.
+- The provider layer is already isolated in `provider.py` /
+  `provider_worker.py`; the rest of the orchestrator calls it through a thin
+  interface. Swapping the backend should not change any public CLI or manifest
+  contract.
+- Keep the `claude` subprocess path as a fallback or local-dev mode; select
+  the SDK path when `ANTHROPIC_API_KEY` is present.
+
+**Tasks:**
+- [ ] Add `anthropic` as an optional dependency in `pyproject.toml` with a
+      clearly named extras group (e.g., `[sdk]`).
+- [ ] Implement an SDK-backed provider in `provider.py` that calls
+      `client.messages.create()` with the selected model, system prompt, and
+      user message; map the response to the existing provider result shape.
+- [ ] Wire the SDK `Usage` object (input tokens, output tokens, cache read,
+      cache write, cost) directly into the task record `usage` field instead
+      of parsing subprocess stdout.
+- [ ] Add a streaming path (`client.messages.stream()`) that emits partial
+      text to `stderr` for interactive runs and accumulates the full response
+      for JSON parsing; keep `stdout` machine-readable.
+- [ ] Map `RateLimitError`, `APITimeoutError`, and `InternalServerError` to
+      the transient-error classifier from WP42; map `AuthenticationError` and
+      `InvalidRequestError` to permanent.
+- [ ] Keep the `claude` subprocess path active via a provider-mode flag or
+      env var; document which mode is used in dry-run and manifest output.
+- [ ] Add regression coverage for the SDK provider result shape, usage
+      mapping, and error classification.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/provider_worker.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-cheap-proof-docs.json --dry-run --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP44: Async Task Execution
+
+**Priority:** Medium
+
+**Goal:** Replace `ThreadPoolExecutor` with `asyncio` subprocess execution
+to remove one-OS-thread-per-task overhead, enable partial output streaming,
+and align the concurrency model with the SDK-backed provider from WP43.
+
+**Context:**
+- The current batch scheduler uses `concurrent.futures.ThreadPoolExecutor`
+  with synchronous `subprocess.run()` calls. Each in-flight task burns a
+  full OS thread for the entire duration of a Claude invocation, which can be
+  minutes. Under `--max-parallel 4`, that is four blocked OS threads doing
+  nothing but waiting.
+- `asyncio.create_subprocess_exec()` + `asyncio.gather()` handles the same
+  concurrency with a single event loop thread and no blocking, enabling 10x+
+  more concurrent tasks per core. When combined with the SDK provider from
+  WP43, `await client.messages.stream()` fits naturally.
+- The batch scheduler logic (topological batching, write-scope conflict
+  detection, dependency readiness) does not need to change; only the
+  execution transport switches from thread pool to event loop.
+- Preserve `--max-parallel` semantics exactly; the semaphore replaces the
+  thread pool's `max_workers`.
+
+**Tasks:**
+- [ ] Replace `ThreadPoolExecutor` in `runtime.py` and `run_ops.py` with an
+      `asyncio.Semaphore(max_parallel)` guard around `asyncio.gather()`.
+- [ ] Convert task dispatch and provider invocation to `async def` functions;
+      keep synchronous entry points at the CLI boundary with
+      `asyncio.run()`.
+- [ ] Replace `subprocess.run()` in `provider.py` with
+      `asyncio.create_subprocess_exec()` and `await proc.communicate()`.
+- [ ] Stream partial stdout lines to `stderr` during interactive runs so the
+      operator sees worker progress without waiting for task completion.
+- [ ] Ensure the `--max-parallel` CLI flag still caps concurrency via the
+      semaphore; behavior must be identical to the thread-pool path.
+- [ ] Add regression coverage for semaphore-bounded parallel dispatch,
+      dependency-ordering under async execution, and write-scope serialization
+      correctness.
+- [ ] Update `scripts/ai/claude-orchestrator.ps1` shim if needed to route
+      through the async entry point cleanly on Windows.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/run_ops.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/task_execution.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP45: OpenTelemetry Observability
+
+**Priority:** Medium
+
+**Goal:** Emit standard OTEL spans from orchestration events so runs can be
+monitored in any OTEL-compatible backend (Grafana, DataDog, Honeycomb, Jaeger)
+without a custom converter.
+
+**Context:**
+- The orchestrator already has a rich internal trace model
+  (`pojo-lens-orchestrator-trace/v1`) and `export-trace` produces a stable
+  span graph. The gap is that this format is custom JSON, not OTEL, so
+  connecting it to standard observability tooling requires a converter.
+- Adding `opentelemetry-sdk` + `opentelemetry-exporter-otlp-proto-http` maps
+  directly to the existing span structure: run span → batch child spans →
+  task grandchild spans → coordinator checkpoint spans.
+- Token counts, model, cost, and effort already exist in task records and
+  can become span attributes, enabling per-task cost dashboards without any
+  new data collection.
+- OTEL emission should be opt-in via env var (`OTEL_EXPORTER_OTLP_ENDPOINT`)
+  so existing runs that do not set the endpoint are unaffected.
+
+**Tasks:**
+- [ ] Add `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`
+      as optional dependencies in `pyproject.toml` under an `[otel]` extras
+      group.
+- [ ] Add an `otel_spans.py` module that wraps the existing `trace_export`
+      span structure and emits OTEL spans; activate it when
+      `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+- [ ] Map existing span kinds to OTEL span names: `run` → `orchestrator.run`,
+      `batch` → `orchestrator.batch`, `task` → `orchestrator.task`,
+      `validation` → `orchestrator.validation`, `approval` →
+      `orchestrator.approval`.
+- [ ] Attach task record fields as span attributes: `model`, `modelProfile`,
+      `effort`, `outputProfile`, `usage.totalCostUsd`, `usage.inputTokens`,
+      `usage.outputTokens`, `usage.cacheReadTokens`.
+- [ ] Emit span status `ERROR` for `failed`/`blocked` task outcomes and
+      `OK` for `completed`; keep `UNSET` for pending or unknown.
+- [ ] Add a `--otel-endpoint` CLI flag that overrides the env var for
+      one-off runs; document both in `ai/orchestrator/README.md`.
+- [ ] Add regression coverage for span construction correctness and
+      attribute mapping without requiring a live OTEL collector.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/trace_export.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 export-trace .claude-orchestrator/runs/<run-id> --json`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP46: Typed Agent Contracts
+
+**Priority:** Low
+
+**Goal:** Introduce Pydantic models at the major orchestrator call boundaries
+to replace large dict passing, make contracts self-documenting, and catch
+shape mismatches at the type layer rather than at runtime.
+
+**Context:**
+- Many orchestrator functions accept 50+ parameter dicts (`deps`, task dicts,
+  agent dicts, plan dicts) because the initial layering extracted behavior
+  without introducing typed boundaries. This makes type-checking, IDE
+  navigation, and safe refactoring harder than it should be.
+- The highest-value boundaries are: `TaskPlan`, `AgentDef`, `TaskRecord`,
+  `RunManifest`, `OutputProfile`, and `RunPolicy`. These are already
+  implicitly typed through JSON schema validation; making them explicit
+  Pydantic models would surface discrepancies at parse time.
+- This is a pure internal refactor. No CLI arguments, manifest fields, JSON
+  output contracts, or test fixtures should change.
+
+**Tasks:**
+- [ ] Define Pydantic v2 models for `TaskPlan`, `TaskDef`, `AgentDef`,
+      `RunPolicy`, `OutputProfile`, and `RunManifest` in a new
+      `orchestrator_models.py` module; derive them from the existing JSON
+      schema definitions in `orchestrator_contracts.py`.
+- [ ] Define `TaskRecord`, `DependencyOutput`, and `CoordinatorCheckpoint`
+      Pydantic models and use them as the output type of task execution and
+      checkpoint persistence helpers.
+- [ ] Migrate `plan_support.py`, `task_execution.py`, `run_ops.py`, and
+      `manifest_io.py` to accept and return typed models instead of raw
+      dicts at their public function signatures; keep internal helpers
+      dict-backed where the migration cost exceeds the benefit.
+- [ ] Replace the `deps` dict injection pattern with explicit typed parameters
+      or a typed `OrchestratorDeps` dataclass at the top-level dispatch layer
+      in `orchestrator_app.py`.
+- [ ] Add `py.typed` marker to `pojo_lens_agents` so downstream consumers
+      benefit from type checking.
+- [ ] Run `mypy` or `pyright` over `pojo_lens_agents` after migration; fix
+      all errors before marking complete.
+- [ ] Add regression coverage that the Pydantic models round-trip correctly
+      through the existing JSON manifest fixtures.
+
+**Validate:**
+- `py -3 -m py_compile scripts/ai/pojo_lens_agents/*.py`
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/ai/claude-orchestrator.ps1 validate ai/orchestrator/tasks/example-parallel.json --json`
+- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
