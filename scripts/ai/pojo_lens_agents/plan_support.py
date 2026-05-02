@@ -9,17 +9,20 @@ from typing import Any
 from pojo_lens_agents import path_safety as path_safety_layer
 from pojo_lens_agents import prompt_contracts as prompt_contracts_layer
 from pojo_lens_agents import runtime as runtime_layer
+from pojo_lens_agents import skill_router as skill_router_layer
 from pojo_lens_agents import task_execution as task_execution_layer
 from pojo_lens_agents import task_plan_ops as task_plan_ops_layer
 from pojo_lens_agents import workspace_review as workspace_review_layer
 from pojo_lens_agents.orchestrator_contracts import (
     ANALYST_AGENT_NAME,
     CONTEXT_MODES,
+    DEFAULT_AGENTS_PATH,
     DEPENDENCY_MATERIALIZATION_MODES,
     DEFAULT_ARTIFACT_BEHAVIOR,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
     DEFAULT_RUN_BUDGET_BEHAVIOR,
+    DEFAULT_SKILL_REGISTRY_PATH,
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_WORKER_VALIDATION_MODE,
     IMPLEMENTER_AGENT_NAME,
@@ -33,6 +36,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     RUN_POLICY_BEHAVIORS,
     RunPolicy,
     SharedContext,
+    SkillDefinition,
     TASK_ID_RE,
     TaskDefinition,
     TaskPlan,
@@ -44,6 +48,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     WorkerValidationModeResolution,
 )
 from pojo_lens_agents.orchestrator_utils import dedupe_strings, format_issue_block, read_json, summarize_paths
+from pojo_lens_agents.orchestrator_utils import read_text
 
 
 def current_root() -> Path:
@@ -234,10 +239,23 @@ def serialize_run_policy(run_policy: RunPolicy) -> dict[str, Any]:
 
 
 def load_agents(path: Path) -> dict[str, AgentDefinition]:
+    registry_path = skill_router_layer.discover_skill_registry(path)
+    skill_registry = skill_router_layer.load_skill_registry(
+        path,
+        deps={
+            "discover_skill_registry": skill_router_layer.discover_skill_registry,
+            "read_json": read_json,
+            "read_text": read_text,
+            "error_factory": OrchestratorError,
+            "require_string": require_string,
+            "skill_definition_factory": SkillDefinition,
+        },
+    )
     return task_plan_ops_layer.load_agents(
         path,
         deps={
             "read_json": read_json,
+            "read_text": read_text,
             "error_factory": OrchestratorError,
             "agent_definition_factory": AgentDefinition,
             "require_optional_string": require_optional_string,
@@ -252,11 +270,27 @@ def load_agents(path: Path) -> dict[str, AgentDefinition]:
             "default_context_mode": DEFAULT_CONTEXT_MODE,
             "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
             "planner_task_id": PLANNER_TASK_ID,
+            "skill_registry_path": registry_path,
+            "skill_registry": skill_registry,
+            "validate_known_skills": skill_router_layer.validate_known_skills,
+            "dedupe_strings": dedupe_strings,
         },
     )
 
 
 def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
+    registry_path = skill_router_layer.discover_skill_registry(path)
+    skill_registry = skill_router_layer.load_skill_registry(
+        path,
+        deps={
+            "discover_skill_registry": skill_router_layer.discover_skill_registry,
+            "read_json": read_json,
+            "read_text": read_text,
+            "error_factory": OrchestratorError,
+            "require_string": require_string,
+            "skill_definition_factory": SkillDefinition,
+        },
+    )
     return task_plan_ops_layer.load_task_plan(
         path,
         agents,
@@ -278,6 +312,10 @@ def load_task_plan(path: Path, agents: dict[str, AgentDefinition]) -> TaskPlan:
             "normalize_dependency_materialization_mode": normalize_dependency_materialization_mode,
             "normalize_worker_validation_mode": normalize_worker_validation_mode,
             "load_run_policy": load_run_policy,
+            "skill_registry_path": registry_path,
+            "skill_registry": skill_registry,
+            "validate_known_skills": skill_router_layer.validate_known_skills,
+            "dedupe_strings": dedupe_strings,
             "topological_batches": topological_batches,
             "task_id_re": TASK_ID_RE,
         },
@@ -622,18 +660,47 @@ def agent_payload_for_claude(
     agents: dict[str, AgentDefinition],
     *,
     selected_names: list[str] | None = None,
+    resolved_skills_by_name: dict[str, list[str]] | None = None,
 ) -> str:
     selected = set(selected_names or agents.keys())
     payload = {
         name: {
             "description": agent.description,
             "prompt": agent.prompt,
-            **({"skills": agent.skills} if agent.skills else {}),
+            **(
+                {
+                    "skills": (
+                        resolved_skills_by_name.get(name, agent.skills)
+                        if resolved_skills_by_name is not None
+                        else agent.skills
+                    )
+                }
+                if (
+                    (resolved_skills_by_name is not None and resolved_skills_by_name.get(name, agent.skills))
+                    or agent.skills
+                )
+                else {}
+            ),
         }
         for name, agent in agents.items()
         if name in selected
     }
     return json.dumps(payload, separators=(",", ":"))
+
+
+def effective_task_skills(task: TaskDefinition, agent: AgentDefinition) -> list[str]:
+    skill_registry = skill_router_layer.load_skill_registry(
+        DEFAULT_AGENTS_PATH,
+        deps={
+            "discover_skill_registry": skill_router_layer.discover_skill_registry,
+            "read_json": read_json,
+            "read_text": read_text,
+            "error_factory": OrchestratorError,
+            "require_string": require_string,
+            "skill_definition_factory": SkillDefinition,
+        },
+    )
+    return skill_router_layer.resolve_task_skills(task, agent, skill_registry, dedupe_strings=dedupe_strings)
 
 
 def normalize_worker_validation_mode(

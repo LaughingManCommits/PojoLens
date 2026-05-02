@@ -64,6 +64,26 @@ class ClaudeCommandTest(unittest.TestCase):
         self.assertEqual(["caveman"], payload["planner"]["skills"])
         self.assertNotIn("skills", payload["analyst"])
 
+    def test_agent_payload_for_claude_can_override_skills_per_task(self):
+        orchestrator = self.orchestrator
+        payload = json.loads(
+            orchestrator.agent_payload_for_claude(
+                {
+                    "analyst": orchestrator.AgentDefinition(
+                        name="analyst",
+                        description="Analyze work.",
+                        prompt="Analyst prompt.",
+                        skills=["caveman"],
+                        model_profile="simple",
+                    ),
+                },
+                selected_names=["analyst"],
+                resolved_skills_by_name={"analyst": ["docs", "caveman"]},
+            )
+        )
+
+        self.assertEqual(["docs", "caveman"], payload["analyst"]["skills"])
+
     def test_variadic_tool_flags_do_not_consume_prompt(self):
         command = self.orchestrator.claude_command(
             "claude",
@@ -147,6 +167,11 @@ class ConsoleEntrypointTest(unittest.TestCase):
         self.assertEqual("example-parallel", payload["planName"])
         self.assertEqual(["inspect-memory-contract", "inspect-runtime-contract"], payload["taskIds"])
         self.assertEqual(2, payload["topology"]["maxParallelWidth"])
+        tasks_by_id = {task["id"]: task for task in payload["tasks"]}
+        self.assertEqual(
+            ["caveman", "orchestrator"],
+            tasks_by_id["inspect-runtime-contract"]["resolvedSkills"],
+        )
 
 
 class ExitCodeConstantsTest(unittest.TestCase):

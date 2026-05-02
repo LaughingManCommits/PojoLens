@@ -59,6 +59,10 @@ def manifest_payload(
     )
     task_model_profiles = deps["effective_plan_model_profiles"](plan, agents)
     task_models = deps["effective_plan_models"](plan, agents)
+    task_resolved_skills = {
+        task.id: deps["effective_task_skills"](task, agents[task.agent])
+        for task in plan.tasks
+    }
     complex_model_tasks = deps["complex_model_task_ids"](task_model_profiles)
     topology = deps["analyze_plan_topology"](plan, agents)
     usage_totals = deps["aggregate_usage"](records)
@@ -79,6 +83,7 @@ def manifest_payload(
         "taskEffortSources": task_effort_sources,
         "taskModels": task_models,
         "taskModelProfiles": task_model_profiles,
+        "taskResolvedSkills": task_resolved_skills,
         "complexModelTaskIds": complex_model_tasks,
         "complexModelTaskCount": len(complex_model_tasks),
         "topology": topology,
@@ -174,6 +179,7 @@ def write_selected_plan_snapshot(run_dir: Path, plan: Any, *, serialize_run_poli
                     "title": task.title,
                     "agent": task.agent,
                     "prompt": task.prompt,
+                    "skills": task.skills,
                     "dependsOn": task.depends_on,
                     "readPaths": task.read_paths,
                     "writePaths": task.write_paths,

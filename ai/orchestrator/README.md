@@ -11,6 +11,9 @@ Tracked files:
 - `README.md`: operating guide for local runs
 - `SYSTEM-SPEC.md`: portable AI memory plus orchestration contract for recreating this setup in another repo
 - `agents.json`: reusable worker definitions for the planner plus optional analyst, implementer, and reviewer roles
+- `agents/<role>/prompt.md`: file-backed role prompt bodies referenced from `agents.json`
+- `skills/registry.json`: tracked skill registry for worker-preload skills
+- `skills/<skill>/SKILL.md`: tracked skill prompt bodies referenced from the registry
 - `tasks/*.json`: task-plan files the coordinator can validate or execute
 - `scripts/ai/pojo_lens_agents/`: installable CLI package exposing the
   `pojolens-agents` console command
@@ -115,10 +118,13 @@ Context discipline:
 - planner guidance now prefers the smallest actor set that can finish the work; `analyst` and `reviewer` are optional roles, not mandatory pipeline stages
 - for narrow code changes, prefer one `implementer` task or an `implementer -> reviewer` path only when the extra hop materially lowers risk
 - task plans now separate context from edit intent: `sharedContext.readPaths` plus task `readPaths` describe what to read, while task `writePaths` describe what the worker may change
+- task plans may also declare task-local `skills`; the router merges task skills, agent default skills, and a small inferred set for docs/release/benchmark/orchestrator work
 - minimal mode includes the shared summary, the task's own read context, declared write scope, merged constraints, dependency outputs, and only task-local validation hints
 - per-task worker prompts now keep only coordinator- and workspace-specific rules in the prompt body; role-stable JSON/output discipline stays in the selected agent definition so task prompts do not repeat it
 - workers should treat the selected agent definition plus the task prompt and declared workspace as the full execution contract; if a repo file matters, declare it in `readPaths` or `writePaths`
 - agent definitions may also preload repo-local `skills`; the tracked workers now pass through `caveman` so the model can load that skill after agent setup instead of repeating style instructions in every prompt
+- the tracked skill registry lives under `ai/orchestrator/skills/registry.json`; add new reusable skills there and back them with `skills/<name>/SKILL.md`
+- skill validation is registry-backed when a nearby `skills/registry.json` exists, and validate/run surfaces now expose resolved per-task skills
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer

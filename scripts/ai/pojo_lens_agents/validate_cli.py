@@ -12,6 +12,9 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
         "agentsPath": str(agents_path),
         "agentCount": len(agents),
         "agents": sorted(agents),
+        "agentSkills": {
+            name: list(agent.skills) for name, agent in sorted(agents.items())
+        },
         "agentWorkerValidationModes": {
             name: agent.worker_validation_mode for name, agent in sorted(agents.items())
         },
@@ -49,6 +52,8 @@ def validate_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[
                     {
                         "id": task.id,
                         "agent": task.agent,
+                        "skills": list(task.skills),
+                        "resolvedSkills": deps["effective_task_skills"](task, agents[task.agent]),
                         "model": task_models[task.id],
                         "modelProfile": task_model_profiles[task.id],
                         "effort": task_efforts[task.id],

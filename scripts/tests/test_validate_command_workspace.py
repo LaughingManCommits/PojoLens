@@ -94,6 +94,7 @@ class ValidateCommandWorkspaceTest(unittest.TestCase):
             id="edit-docs",
             title="Edit docs",
             agent="implementer",
+            resolved_skills=[],
             branch_context_id="edit-docs",
             branch_parent_context_ids=[],
             status="completed",

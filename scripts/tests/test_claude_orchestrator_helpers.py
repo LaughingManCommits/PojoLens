@@ -65,6 +65,7 @@ def make_task_run_record(
         id=task.id,
         title=task.title,
         agent=agent_name or task.agent,
+        resolved_skills=[],
         branch_context_id=branch_context_id or task.id,
         branch_parent_context_ids=list(branch_parent_context_ids or []),
         status=status,

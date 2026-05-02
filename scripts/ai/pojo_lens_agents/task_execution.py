@@ -106,6 +106,7 @@ def blocked_record(
         id=task.id,
         title=task.title,
         agent=agent_name,
+        resolved_skills=deps["effective_task_skills"](task, agent),
         branch_context_id=deps["task_branch_context_id"](task, dependency_records),
         branch_parent_context_ids=deps["task_branch_parent_context_ids"](task, dependency_records),
         status="blocked",
@@ -172,6 +173,7 @@ def planned_record(
         id=task.id,
         title=task.title,
         agent=agent_name,
+        resolved_skills=deps["effective_task_skills"](task, agent),
         branch_context_id=deps["task_branch_context_id"](task, dependency_records),
         branch_parent_context_ids=deps["task_branch_parent_context_ids"](task, dependency_records),
         status="planned",
@@ -216,6 +218,7 @@ def planned_record(
 
 def make_execute_record(
     task: Any,
+    agent: Any,
     workspace_mode: str,
     prepared_workspace: Path,
     started_at: str,
@@ -258,6 +261,7 @@ def make_execute_record(
         id=task.id,
         title=task.title,
         agent=task.agent,
+        resolved_skills=deps["effective_task_skills"](task, agent),
         branch_context_id=deps["task_branch_context_id"](task, dependency_records),
         branch_parent_context_ids=deps["task_branch_parent_context_ids"](task, dependency_records),
         status=status,
@@ -393,6 +397,7 @@ def execute_task(
     result_path = task_dir / "result.json"
     make_record = lambda **kwargs: make_execute_record(  # noqa: E731
         task,
+        agent,
         workspace_mode,
         prepared_workspace,
         started_at,

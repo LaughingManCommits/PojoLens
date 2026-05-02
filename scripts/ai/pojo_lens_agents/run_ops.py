@@ -35,6 +35,7 @@ def run_loaded_plan(
     effective_plan_worker_validation_mode_sources: Callable[..., dict[str, str]] = None,
     effective_plan_efforts: Callable[..., dict[str, str | None]] = None,
     effective_plan_effort_sources: Callable[..., dict[str, str | None]] = None,
+    effective_task_skills: Callable[..., list[str]] = None,
     topological_batches: Callable[[list[Any]], Any] = None,
     validate_scope_contract: Callable[[Any, dict[str, Any]], None] = None,
     ensure_claude_available: Callable[[str], None] = None,
@@ -87,7 +88,16 @@ def run_loaded_plan(
     if write_plan_snapshot:
         write_selected_plan_snapshot(run_dir, plan)
     seeded_task_ids = sorted(initial_records or {})
-    agents_json_by_name = {name: agent_payload_for_claude(agents, selected_names=[name]) for name in agents}
+    agents_json_by_task_id = {
+        task.id: agent_payload_for_claude(
+            agents,
+            selected_names=[task.agent],
+            resolved_skills_by_name={
+                task.agent: effective_task_skills(task, agents[task.agent]),
+            },
+        )
+        for task in plan.tasks
+    }
     records: dict[str, Any] = dict(initial_records or {})
     run_events: list[dict[str, Any]] = []
     append_run_event(
@@ -178,7 +188,7 @@ def run_loaded_plan(
                     task,
                     records,
                     claude_bin=claude_bin,
-                    agents_json=agents_json_by_name[task.agent],
+                    agents_json=agents_json_by_task_id[task.id],
                     dry_run=dry_run,
                     worker_validation_mode=worker_validation_override,
                     effort_override=normalized_effort_override,
@@ -219,6 +229,10 @@ def run_loaded_plan(
         "taskEffortSources": task_effort_sources,
         "taskModels": task_models,
         "taskModelProfiles": task_model_profiles,
+        "taskResolvedSkills": {
+            task.id: effective_task_skills(task, agents[task.agent])
+            for task in plan.tasks
+        },
         "complexModelTaskIds": complex_model_tasks,
         "complexModelTaskCount": len(complex_model_tasks),
         "topology": topology,

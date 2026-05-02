@@ -76,6 +76,157 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
 
             self.assertEqual(["caveman"], agents["planner"].skills)
 
+    def test_load_agents_rejects_unknown_skill_when_registry_exists(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            registry_path = temp_path / "skills" / "registry.json"
+            registry_path.parent.mkdir(parents=True)
+            registry_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "skills": {
+                            "known": {
+                                "description": "Known skill.",
+                                "promptFile": "known/SKILL.md",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (temp_path / "skills" / "known").mkdir()
+            (temp_path / "skills" / "known" / "SKILL.md").write_text("Known skill.\n", encoding="utf-8")
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Return JSON only.",
+                                "skills": ["missing"],
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "unknown skills \\['missing'\\]",
+            ):
+                orchestrator.load_agents(agents_path)
+
+    def test_load_agents_supports_prompt_file(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            prompt_path = temp_path / "agents" / "planner" / "prompt.md"
+            prompt_path.parent.mkdir(parents=True)
+            prompt_path.write_text("Return JSON only from markdown.\n", encoding="utf-8")
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "promptFile": "agents/planner/prompt.md",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            agents = orchestrator.load_agents(agents_path)
+
+            self.assertEqual("Return JSON only from markdown.", agents["planner"].prompt)
+
+    def test_load_agents_rejects_prompt_and_prompt_file_together(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            prompt_path = temp_path / "planner.md"
+            prompt_path.write_text("Return JSON only.\n", encoding="utf-8")
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "prompt": "Inline prompt.",
+                                "promptFile": "planner.md",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "define only one of 'prompt' or 'promptFile'",
+            ):
+                orchestrator.load_agents(agents_path)
+
+    def test_load_agents_rejects_missing_prompt_file(self):
+        orchestrator = self.orchestrator
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            agents_path = temp_path / "agents.json"
+            agents_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "agents": {
+                            "planner": {
+                                "description": "Plan",
+                                "promptFile": "missing.md",
+                                "modelProfile": "simple",
+                                "permissionMode": "dontAsk",
+                                "workspaceMode": "copy",
+                                "contextMode": "minimal",
+                                "allowedTools": ["Read"],
+                                "timeoutSec": 30,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                orchestrator.OrchestratorError,
+                "prompt file 'missing.md' does not exist",
+            ):
+                orchestrator.load_agents(agents_path)
+
     def test_load_task_plan_rejects_unknown_agent(self):
         orchestrator = self.orchestrator
         planner = orchestrator.AgentDefinition(
@@ -134,6 +285,90 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
                 "unknown agent 'ghost'",
             ):
                 orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
+    def test_load_task_plan_preserves_task_skills(self):
+        orchestrator = self.orchestrator
+        planner = orchestrator.AgentDefinition(
+            name="planner",
+            description="Plan",
+            prompt="Return JSON only.",
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        analyst = orchestrator.AgentDefinition(
+            name="analyst",
+            description="Analyze",
+            prompt="Return JSON only.",
+            skills=["caveman"],
+            model_profile="simple",
+            permission_mode="dontAsk",
+            workspace_mode="copy",
+            context_mode="minimal",
+            timeout_sec=30,
+            allowed_tools=["Read"],
+            disallowed_tools=[],
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            registry_path = temp_path / "skills" / "registry.json"
+            registry_path.parent.mkdir(parents=True)
+            registry_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "skills": {
+                            "caveman": {
+                                "description": "Compression skill.",
+                                "promptFile": "caveman/SKILL.md",
+                            },
+                            "docs": {
+                                "description": "Docs skill.",
+                                "promptFile": "docs/SKILL.md",
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (temp_path / "skills" / "caveman").mkdir()
+            (temp_path / "skills" / "caveman" / "SKILL.md").write_text("Caveman.\n", encoding="utf-8")
+            (temp_path / "skills" / "docs").mkdir()
+            (temp_path / "skills" / "docs" / "SKILL.md").write_text("Docs.\n", encoding="utf-8")
+            plan_path = temp_path / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "task-skills",
+                        "goal": "Keep task skills.",
+                        "sharedContext": {
+                            "summary": "Task skill test.",
+                            "constraints": [],
+                            "readPaths": [],
+                            "validation": [],
+                        },
+                        "tasks": [
+                            {
+                                "id": "inspect",
+                                "title": "Inspect",
+                                "agent": "analyst",
+                                "prompt": "Inspect guidance.",
+                                "skills": ["docs"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            plan = orchestrator.load_task_plan(plan_path, {"planner": planner, "analyst": analyst})
+
+            self.assertEqual(["docs"], plan.tasks[0].skills)
 
     def test_load_task_plan_rejects_dependency_cycle(self):
         orchestrator = self.orchestrator
@@ -275,6 +510,7 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             id="inspect",
             title="Inspect",
             agent="analyst",
+            resolved_skills=[],
             branch_context_id="inspect",
             branch_parent_context_ids=[],
             status="completed",
@@ -328,6 +564,7 @@ class ValidateCommandAgentsPlansTest(unittest.TestCase):
             id="inspect",
             title="Inspect",
             agent="analyst",
+            resolved_skills=[],
             branch_context_id="inspect",
             branch_parent_context_ids=[],
             status="completed",

@@ -42,6 +42,7 @@ def coerce_task_run_record(payload: Any, *, location: str, deps: dict[str, Any])
         id=str(payload.get("id", "")),
         title=str(payload.get("title", "")),
         agent=str(payload.get("agent", "")),
+        resolved_skills=[str(item) for item in payload.get("resolved_skills", []) or []],
         branch_context_id=str(payload.get("branch_context_id", payload.get("id", ""))),
         branch_parent_context_ids=[str(item) for item in payload.get("branch_parent_context_ids", []) or []],
         status=str(payload.get("status", "")),

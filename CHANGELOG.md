@@ -11,6 +11,20 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Skill registry and router for orchestrator workers** - added a tracked
+  `ai/orchestrator/skills/registry.json` plus `skills/<name>/SKILL.md`
+  folders, task-level `skills` support in task plans, bounded docs/release/
+  benchmark/orchestrator skill inference, and resolved per-task skill
+  visibility in validate/run/manifest surfaces. Worker invocations now pass a
+  task-specific selected-agent payload so task-local skill additions do not
+  require cloning whole role definitions.
+
+- **File-backed orchestrator role prompts** - `ai/orchestrator/agents.json`
+  now supports `promptFile` alongside the legacy inline `prompt`, and the
+  tracked planner, analyst, implementer, and reviewer role instructions now
+  live in `ai/orchestrator/agents/<role>/prompt.md` so role customization can
+  evolve without large escaped JSON strings.
+
 - **Docs/text quality guardrails** - reviewer diff summaries now surface
   `textQualityFindings` for docs-like text files, block promotion on common
   mojibake patterns, warn when new non-ASCII doc text is introduced into an

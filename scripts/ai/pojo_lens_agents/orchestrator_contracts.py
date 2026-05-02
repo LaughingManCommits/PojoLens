@@ -11,11 +11,13 @@ ROOT = Path(__file__).resolve().parents[3]
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
 DEFAULT_AGENTS_PATH = AI_ORCHESTRATOR_DIR / "agents.json"
 DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"
+DEFAULT_SKILL_REGISTRY_PATH = AI_ORCHESTRATOR_DIR / "skills" / "registry.json"
 DEFAULT_RUNTIME_ROOT = ROOT / ".claude-orchestrator"
 DEFAULT_CLAUDE_BIN = "claude"
 AI_ORCHESTRATOR_DIR = ROOT / "ai" / "orchestrator"
 DEFAULT_AGENTS_PATH = AI_ORCHESTRATOR_DIR / "agents.json"
 DEFAULT_TASKS_DIR = AI_ORCHESTRATOR_DIR / "tasks"
+DEFAULT_SKILL_REGISTRY_PATH = AI_ORCHESTRATOR_DIR / "skills" / "registry.json"
 DEFAULT_RUNTIME_ROOT = ROOT / ".claude-orchestrator"
 DEFAULT_CLAUDE_BIN = "claude"
 DEFAULT_TASK_TIMEOUT_SEC = 30 * 60
@@ -212,6 +214,7 @@ PLAN_RESULT_SCHEMA = {
                     "title": {"type": "string"},
                     "agent": {"type": "string"},
                     "prompt": {"type": "string"},
+                    "skills": {"type": "array", "items": {"type": "string"}},
                     "dependsOn": {"type": "array", "items": {"type": "string"}},
                     "readPaths": {"type": "array", "items": {"type": "string"}},
                     "writePaths": {"type": "array", "items": {"type": "string"}},
@@ -291,6 +294,13 @@ class AgentDefinition:
 
 
 @dataclass(frozen=True)
+class SkillDefinition:
+    name: str
+    description: str
+    prompt_path: str
+
+
+@dataclass(frozen=True)
 class SharedContext:
     summary: str
     constraints: list[str]
@@ -308,6 +318,7 @@ class TaskDefinition:
     title: str
     agent: str
     prompt: str
+    skills: list[str] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
     read_paths: list[str] = field(default_factory=list)
     write_paths: list[str] = field(default_factory=list)
@@ -441,6 +452,7 @@ class TaskRunRecord:
     id: str
     title: str
     agent: str
+    resolved_skills: list[str]
     branch_context_id: str
     branch_parent_context_ids: list[str]
     status: str

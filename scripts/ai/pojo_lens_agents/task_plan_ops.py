@@ -46,6 +46,38 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
             raise deps["error_factory"](f"{location}: invalid agent name")
         if not isinstance(definition, dict):
             raise deps["error_factory"](f"{location}: expected object definition")
+        inline_prompt = deps["require_optional_string"](definition, "prompt", location=location)
+        prompt_file = deps["require_optional_string"](definition, "promptFile", location=location)
+        if inline_prompt and prompt_file:
+            raise deps["error_factory"](f"{location}: define only one of 'prompt' or 'promptFile'")
+        if prompt_file:
+            prompt_path = (path.parent / Path(prompt_file)).resolve()
+            if Path(prompt_file).is_absolute():
+                raise deps["error_factory"](f"{location}: 'promptFile' must be a relative path")
+            if not prompt_path.exists():
+                raise deps["error_factory"](f"{location}: prompt file '{prompt_file}' does not exist")
+            if not prompt_path.is_file():
+                raise deps["error_factory"](f"{location}: prompt file '{prompt_file}' must be a file")
+            try:
+                prompt_value = deps["read_text"](prompt_path).strip()
+            except OSError as exc:
+                raise deps["error_factory"](f"{location}: cannot read prompt file '{prompt_file}': {exc}") from exc
+            if not prompt_value:
+                raise deps["error_factory"](f"{location}: prompt file '{prompt_file}' is empty")
+        elif inline_prompt:
+            prompt_value = inline_prompt
+        else:
+            raise deps["error_factory"](f"{location}: expected one of 'prompt' or 'promptFile'")
+        explicit_skills = deps["validate_known_skills"](
+            deps["require_string_list"](definition, "skills", location=location),
+            deps["skill_registry"],
+            registry_path=deps["skill_registry_path"],
+            location=f"{location}:skills",
+            deps={
+                "dedupe_strings": deps["dedupe_strings"],
+                "error_factory": deps["error_factory"],
+            },
+        )
         workspace_mode = deps["ensure_workspace_mode"](
             deps["require_optional_string"](definition, "workspaceMode", location=location) or "copy",
             location=location,
@@ -58,8 +90,8 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
         agent = deps["agent_definition_factory"](
             name=name.strip(),
             description=deps["require_string"](definition, "description", location=location),
-            prompt=deps["require_string"](definition, "prompt", location=location),
-            skills=deps["require_string_list"](definition, "skills", location=location),
+            prompt=prompt_value,
+            skills=explicit_skills,
             model=deps["require_optional_string"](definition, "model", location=location),
             model_profile=deps["ensure_model_profile"](
                 deps["require_optional_string"](definition, "modelProfile", location=location),
@@ -149,11 +181,22 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
             "dependencyMaterialization",
             location=location,
         )
+        explicit_skills = deps["validate_known_skills"](
+            deps["require_string_list"](task_payload, "skills", location=location),
+            deps["skill_registry"],
+            registry_path=deps["skill_registry_path"],
+            location=f"{location}:skills",
+            deps={
+                "dedupe_strings": deps["dedupe_strings"],
+                "error_factory": deps["error_factory"],
+            },
+        )
         task = deps["task_definition_factory"](
             id=task_id,
             title=deps["require_string"](task_payload, "title", location=location),
             agent=agent_name,
             prompt=deps["require_string"](task_payload, "prompt", location=location),
+            skills=explicit_skills,
             depends_on=deps["require_string_list"](task_payload, "dependsOn", location=location),
             read_paths=deps["require_scope_path_list"](
                 task_payload,

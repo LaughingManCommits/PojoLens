@@ -366,6 +366,8 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                 {
                     "id": "inspect",
                     "agent": "analyst",
+                    "skills": [],
+                    "resolvedSkills": [],
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "effort": "high",
@@ -379,6 +381,8 @@ class ValidateCommandTopologyTest(unittest.TestCase):
                 {
                     "id": "implement",
                     "agent": "implementer",
+                    "skills": [],
+                    "resolvedSkills": [],
                     "model": orchestrator.MODEL_PROFILE_TO_MODEL["simple"],
                     "modelProfile": "simple",
                     "effort": "high",

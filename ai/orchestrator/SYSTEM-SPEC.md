@@ -23,6 +23,9 @@ This file defines the portable contract for recreating the repository's AI memor
 - `ai/indexes/*`: derived navigation and retrieval artifacts only
 - `ai/orchestrator/README.md`: operating guide for local runs
 - `ai/orchestrator/agents.json`: reusable worker definitions
+- `ai/orchestrator/agents/<role>/prompt.md`: file-backed role prompt bodies referenced from `agents.json`
+- `ai/orchestrator/skills/registry.json`: tracked skill registry for worker-preload skills
+- `ai/orchestrator/skills/<skill>/SKILL.md`: tracked skill prompt bodies referenced from the registry
 - `ai/orchestrator/tasks/*.json`: tracked task-plan samples and reusable plans
 - `pyproject.toml` plus `scripts/ai/pojo_lens_agents/`: repo-local installable
   CLI package exposing `pojolens-agents`
@@ -98,6 +101,8 @@ This file defines the portable contract for recreating the repository's AI memor
 - Minimal worker prompts should keep shared file lists out of the prompt body unless `contextMode = full`; shared summaries can stay visible without forcing every worker to reread the same file inventory.
 - Live Claude invocations should pass only the selected agent definition instead of the full agent catalog when a single planner or worker role is being invoked.
 - Agent definitions may carry optional `skills`; the orchestrator should pass them through so Claude Code can preload repo-local skills such as `caveman` at agent setup time.
+- Task definitions may also carry optional `skills`; the router should merge task-local skills first, then agent defaults, then any bounded inferred skills from the task scope.
+- When a nearby tracked `skills/registry.json` exists, agent/task skill names should validate against it and the resolved per-task skill set should be visible in validate/run/manifest surfaces.
 - The orchestrator should expose section-level prompt accounting for planner and worker prompts so prompt growth is visible in dry-runs and manifests.
 - Validate, dry-run, and manifest surfaces should expose resolved task models/profiles plus a compact list or count of any `complex` tasks so accidental `opus` usage is easy to spot.
 - Validate, run, and manifest surfaces should also expose a compact topology summary: agent counts, read-only vs write-capable task counts, batch shape, dependency depth, and conservative warnings when the plan is obviously heavier than necessary.

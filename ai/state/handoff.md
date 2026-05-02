@@ -7,15 +7,15 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-01`: WP38 complete - docs/text guardrails now block mojibake promotion, warn on new non-ASCII doc text in ASCII baselines, add docs-only validation warnings at plan time, and let `validate-run` synthesize the docs consistency check for docs-only retained changes.
-- `2026-05-01`: WP37 complete - reviewer findings persist severity, block promotion when needed, and surface `review-blocked` lifecycle state.
+- `2026-05-02`: Orchestrator workers now use a tracked skill registry in `ai/orchestrator/skills/registry.json`; task plans may add task-local `skills`, and the router merges task skills, agent defaults, and bounded inferred skills for docs/release/benchmark/orchestrator work.
+- `2026-05-02`: Orchestrator role prompts are now file-backed via `ai/orchestrator/agents/<role>/prompt.md`; keep `agents.json` for structured settings and use inline `prompt` only as a compatibility path.
 - `2026-05-01`: Parallel docs and salary-range quickstart proofs are promoted; repo-scope post-promotion validation remains required for coding runs.
 - `2026-05-01`: Next queue is WP39 low-cost worker tuning, then WP40 end-to-end coding reliability.
 
 ## Facts
-- `2026-05-01`: `ai/orchestrator/tasks/example-parallel-implement-review-quickstart-docs.json` is the tracked low-cost parallel docs proof for the quickstart example.
-- `2026-05-01`: `ai/orchestrator/tasks/example-implement-review-quickstart.json` is the smallest tracked implementer-to-reviewer coding sample.
-- `2026-05-01`: Parallel salary-range and fixup proofs are tracked in `ai/orchestrator/tasks/`.
+- `2026-05-02`: `scripts/ai/pojo_lens_agents/skill_router.py` owns tracked skill-registry loading, explicit-skill validation when a nearby registry exists, bounded path-based inference, and per-task resolved skill merging.
+- `2026-05-02`: Validate/run/manifest surfaces now expose resolved task skills, and worker invocations build task-specific selected-agent payloads so task-local skill additions do not require duplicating agent definitions.
+- `2026-05-02`: `scripts/ai/pojo_lens_agents/task_plan_ops.py` resolves relative `promptFile` entries from `agents.json`, rejects ambiguous inline-plus-file prompt definitions, and still accepts inline `prompt` for compatibility.
 - `2026-05-01`: LangGraph is still only a spike in `pojo_lens_agents.langgraph_spike`; it is not a live runtime backend.
 - `2026-05-01`: `export-trace` uses retained manifest data only; it does not add new runtime state or change manifest schema.
 - `2026-05-01`: `TODO.md` order is WP39, WP40, deferred WP18, Release Gate (WP38 complete).

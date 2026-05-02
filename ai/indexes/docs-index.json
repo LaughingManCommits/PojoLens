@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-01T20:48:33.980321+02:00",
+  "generatedAt": "2026-05-02T08:28:43.048581+02:00",
   "documents": [
     {
       "path": "AGENTS.md",
@@ -137,12 +137,93 @@
       "coldSearchEligible": true
     },
     {
+      "path": "ai/orchestrator/agents/analyst/prompt.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 1,
+      "byteCount": 828,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/agents/implementer/prompt.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 1,
+      "byteCount": 835,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/agents/planner/prompt.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 1,
+      "byteCount": 392,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/agents/reviewer/prompt.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 1,
+      "byteCount": 878,
+      "coldSearchEligible": true
+    },
+    {
       "path": "ai/orchestrator/README.md",
       "category": "ai-orchestrator",
       "relevance": "high",
       "loadTier": "cold",
-      "lineCount": 218,
-      "byteCount": 27733,
+      "lineCount": 224,
+      "byteCount": 28458,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/skills/benchmark/SKILL.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 3,
+      "byteCount": 205,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/skills/caveman/SKILL.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 3,
+      "byteCount": 178,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/skills/docs/SKILL.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 3,
+      "byteCount": 170,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/skills/orchestrator/SKILL.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 3,
+      "byteCount": 234,
+      "coldSearchEligible": true
+    },
+    {
+      "path": "ai/orchestrator/skills/release/SKILL.md",
+      "category": "ai-orchestrator",
+      "relevance": "medium",
+      "loadTier": "cold",
+      "lineCount": 3,
+      "byteCount": 217,
       "coldSearchEligible": true
     },
     {
@@ -150,8 +231,8 @@
       "category": "ai-orchestrator",
       "relevance": "medium",
       "loadTier": "cold",
-      "lineCount": 206,
-      "byteCount": 24318,
+      "lineCount": 211,
+      "byteCount": 24988,
       "coldSearchEligible": true
     },
     {
@@ -168,8 +249,8 @@
       "category": "ai-hot-context",
       "relevance": "high",
       "loadTier": "hot",
-      "lineCount": 30,
-      "byteCount": 2199,
+      "lineCount": 27,
+      "byteCount": 1951,
       "coldSearchEligible": true
     },
     {
@@ -178,7 +259,7 @@
       "relevance": "high",
       "loadTier": "hot",
       "lineCount": 33,
-      "byteCount": 2261,
+      "byteCount": 2596,
       "coldSearchEligible": true
     },
     {
@@ -186,8 +267,8 @@
       "category": "ai-validation-history",
       "relevance": "high",
       "loadTier": "warm",
-      "lineCount": 225,
-      "byteCount": 124371,
+      "lineCount": 227,
+      "byteCount": 126465,
       "coldSearchEligible": true
     },
     {
