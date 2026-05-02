@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import textwrap
@@ -9,6 +10,7 @@ from datetime import datetime, timezone
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from pojo_lens_agents import workspace_review as workspace_review_layer
 from pojo_lens_agents.orchestrator_contracts import (
@@ -23,6 +25,12 @@ from pojo_lens_agents.orchestrator_contracts import (
     SLOP_PROGRESS_DOTS,
     TaskDefinition,
 )
+
+# Matches temp files written by write_text: .<original-name>.<8-hex-chars>.tmp
+# Leading dot + original name + dot + 8 lowercase hex chars + .tmp
+_ORPHANED_TMP_RE = re.compile(r"^\..+\.[0-9a-f]{8}\.tmp$")
+
+
 def iso_now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat()
 
@@ -45,13 +53,73 @@ def read_json(path: Path) -> Any:
         raise OrchestratorError(f"Cannot read {path}: {exc}") from exc
 
 
+def _atomic_replace(src: Path, dst: Path, *, _max_attempts: int = 5) -> None:
+    """Rename src → dst atomically, retrying on transient PermissionError.
+
+    On Windows, os.replace() can raise PermissionError(13) if a concurrent
+    reader briefly holds a shared lock on the destination (e.g., an operator
+    running 'status' while a run is in progress).  Retrying with exponential
+    backoff handles this narrow window without masking genuine permission
+    errors (the last attempt raises unconditionally).
+    """
+    import time
+    delay = 0.01
+    for attempt in range(_max_attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == _max_attempts - 1:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 0.1)
+
+
 def write_text(path: Path, text: str | None) -> None:
+    """Write text to path atomically.
+
+    Writes to a unique .tmp sibling first, then renames into place with
+    os.replace() so a crash or KeyboardInterrupt never leaves a partial file.
+    The temp file is cleaned up on any exception before re-raising.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text or "", encoding="utf-8")
+    content = (text or "").encode("utf-8")
+    tmp_path = path.parent / f".{path.name}.{uuid4().hex[:8]}.tmp"
+    try:
+        tmp_path.write_bytes(content)
+        _atomic_replace(tmp_path, path)
+    except BaseException:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
 
 
 def write_json(path: Path, payload: object) -> None:
     write_text(path, json.dumps(payload, indent=2) + "\n")
+
+
+def recover_orphaned_write_temps(directory: Path) -> list[str]:
+    """Remove atomic write temps left by a prior crash.
+
+    Scans the directory tree recursively for files matching the write_text
+    temp pattern (.<name>.<8-hex>.tmp) and deletes them.  Returns the
+    relative paths of every file removed so callers can log a warning.
+    Silently skips any file it cannot remove (e.g. concurrent writer).
+    Returns an empty list if the directory does not exist.
+    """
+    if not directory.is_dir():
+        return []
+    removed: list[str] = []
+    for candidate in directory.rglob("*.tmp"):
+        if candidate.is_file() and _ORPHANED_TMP_RE.match(candidate.name):
+            try:
+                candidate.unlink()
+                removed.append(str(candidate.relative_to(directory)))
+            except OSError:
+                pass
+    return removed
 
 
 def read_bytes(path: Path) -> bytes:

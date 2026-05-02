@@ -273,6 +273,7 @@ PLAN_RESULT_SCHEMA = {
                     "maxPromptEstimatedTokens": {"type": "integer", "minimum": 1},
                     "allowedTools": {"type": "array", "items": {"type": "string"}},
                     "disallowedTools": {"type": "array", "items": {"type": "string"}},
+                    "maxRetries": {"type": "integer", "minimum": 0},
                 },
                 "required": ["id", "title", "agent", "prompt"],
                 "additionalProperties": False,
@@ -317,6 +318,7 @@ class AgentDefinition:
     max_prompt_estimated_tokens: int | None = None
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
+    max_retries: int | None = None
 
 
 @dataclass(frozen=True)
@@ -365,6 +367,7 @@ class TaskDefinition:
     max_prompt_estimated_tokens: int | None = None
     allowed_tools: list[str] = field(default_factory=list)
     disallowed_tools: list[str] = field(default_factory=list)
+    max_retries: int | None = None
 
     @property
     def files(self) -> list[str]:
@@ -522,5 +525,7 @@ class TaskRunRecord:
     effort: str | None = None
     effort_source: str | None = None
     reviewer_findings: list[ReviewFinding] = field(default_factory=list)
+    attempt: int = 1
+    attempt_errors: list[dict[str, Any]] = field(default_factory=list)
 
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
+
+from pojo_lens_agents import retry_policy as _retry_policy
 
 
 def effective_workspace_mode(task: Any, agent: Any) -> str:
@@ -591,3 +594,64 @@ def execute_task(
         )
         deps["write_json"](result_path, deps["asdict"](record))
         return record
+
+
+def execute_task_with_retry(
+    run_dir: Path,
+    runtime_root: Path,
+    workspaces_dir: Path,
+    plan: Any,
+    agents: dict[str, Any],
+    task: Any,
+    dependency_records: dict[str, Any],
+    *,
+    max_task_retries: int | None = None,
+    claude_bin: str,
+    agents_json: str,
+    dry_run: bool,
+    worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
+    deps: dict[str, Any],
+) -> Any:
+    """Execute task with automatic retry for transient failures."""
+    agent = agents[task.agent]
+    max_retries = _retry_policy.resolved_max_retries(task, agent, run_override=max_task_retries)
+    attempt_errors: list[dict[str, Any]] = []
+
+    for attempt_idx in range(max_retries + 1):
+        record = execute_task(
+            run_dir,
+            runtime_root,
+            workspaces_dir,
+            plan,
+            agents,
+            task,
+            dependency_records,
+            claude_bin=claude_bin,
+            agents_json=agents_json,
+            dry_run=dry_run,
+            worker_validation_mode=worker_validation_mode,
+            effort_override=effort_override,
+            deps=deps,
+        )
+        record.attempt = attempt_idx + 1
+        record.attempt_errors = list(attempt_errors)
+        if record.status != "failed" or dry_run:
+            return record
+        if attempt_idx >= max_retries:
+            return record
+        failure_kind = _retry_policy.classify_failure(record)
+        if failure_kind == "permanent":
+            return record
+        delay_sec = _retry_policy.backoff_delay_sec(attempt_idx)
+        attempt_errors.append({
+            "attempt": attempt_idx + 1,
+            "status": record.status,
+            "error": record.summary,
+            "returnCode": record.return_code,
+            "failureKind": failure_kind,
+            "delayMs": int(delay_sec * 1000),
+        })
+        time.sleep(delay_sec)
+
+    return record

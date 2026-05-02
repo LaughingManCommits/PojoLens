@@ -49,7 +49,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     WorkspacePreparationResult,
     AgentDefinition,
 )
-from pojo_lens_agents.orchestrator_utils import dedupe_strings, emit_slop_log, format_issue_block, read_bytes, read_json, slugify, summarize_paths, truncate_multiline_text, truncate_text, workspace_prep_action, write_json, write_text
+from pojo_lens_agents.orchestrator_utils import dedupe_strings, emit_slop_log, format_issue_block, read_bytes, read_json, recover_orphaned_write_temps, slugify, summarize_paths, truncate_multiline_text, truncate_text, workspace_prep_action, write_json, write_text
 from pojo_lens_agents.plan_support import analyze_copy_hydration_inputs, effective_task_write_scope, normalize_dependency_materialization_mode, normalize_output_profile, normalize_output_profile_source, normalize_relative_path, normalize_worker_validation_mode, normalize_worker_validation_mode_source, paths_outside_scope
 
 
@@ -338,6 +338,15 @@ def resolve_manifest_path(run_ref: str) -> Path:
 
 def load_run_manifest(run_ref: str) -> tuple[Path, dict[str, Any]]:
     manifest_path = resolve_manifest_path(run_ref)
+    recovered = recover_orphaned_write_temps(manifest_path.parent)
+    if recovered:
+        sample = ", ".join(recovered[:5])
+        tail = " ..." if len(recovered) > 5 else ""
+        print(
+            f"WARNING: recovered {len(recovered)} orphaned atomic write temp(s) "
+            f"in '{manifest_path.parent}': {sample}{tail}",
+            file=sys.stderr,
+        )
     payload = read_json(manifest_path)
     return manifest_path, run_store_layer.validate_manifest_payload(
         payload,

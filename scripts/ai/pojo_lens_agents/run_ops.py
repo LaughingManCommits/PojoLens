@@ -202,6 +202,17 @@ def run_loaded_plan(
             for future in as_completed(future_map):
                 task = future_map[future]
                 records[task.id] = future.result()
+                for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
+                    append_run_event(
+                        run_events,
+                        phase="task-retry",
+                        task_id=task.id,
+                        parent_task_ids=task.depends_on,
+                        branch_context_id=records[task.id].branch_context_id,
+                        status="retry",
+                        message=attempt_error.get("error", ""),
+                        details=attempt_error,
+                    )
                 append_run_event(run_events, phase="task-finished", task_id=task.id, parent_task_ids=task.depends_on, branch_context_id=records[task.id].branch_context_id, status=records[task.id].status, message=records[task.id].summary)
                 pending.pop(task.id, None)
                 write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
@@ -285,6 +296,7 @@ def run_plan(
         dry_run=args.dry_run,
         worker_validation_mode=args.worker_validation_mode,
         effort_override=getattr(args, "effort", None),
+        max_task_retries=getattr(args, "max_task_retries", None),
     )
 
 
@@ -383,6 +395,7 @@ def resume_run(
         existing_run_dir=run_dir,
         existing_workspaces_dir=workspaces_dir,
         write_plan_snapshot=False,
+        max_task_retries=getattr(args, "max_task_retries", None),
     )
     payload["sourceManifestPath"] = str(manifest_path)
     payload["requestedTaskIds"] = requested_task_ids
@@ -453,6 +466,7 @@ def retry_run(
         retry_of_run_id=str(manifest.get("runId", "")),
         requested_task_ids=requested_task_ids,
         retried_task_ids=retried_task_ids,
+        max_task_retries=getattr(args, "max_task_retries", None),
     )
     payload["sourceManifestPath"] = str(manifest_path)
     return payload

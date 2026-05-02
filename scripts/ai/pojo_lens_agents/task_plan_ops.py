@@ -131,6 +131,7 @@ def load_agents(path: Path, *, deps: dict[str, Any]) -> dict[str, Any]:
             ),
             allowed_tools=deps["require_string_list"](definition, "allowedTools", location=location),
             disallowed_tools=deps["require_string_list"](definition, "disallowedTools", location=location),
+            max_retries=deps["require_optional_int"](definition, "maxRetries", location=location),
         )
         agents[agent.name] = agent
 
@@ -261,6 +262,7 @@ def load_task_plan(path: Path, agents: dict[str, Any], *, deps: dict[str, Any]) 
             ),
             allowed_tools=deps["require_string_list"](task_payload, "allowedTools", location=location),
             disallowed_tools=deps["require_string_list"](task_payload, "disallowedTools", location=location),
+            max_retries=deps["require_optional_int"](task_payload, "maxRetries", location=location),
         )
         tasks.append(task)
 

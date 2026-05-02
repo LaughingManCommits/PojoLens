@@ -37,6 +37,7 @@ class _LazyModuleProxy:
 governance_layer = _LazyModuleProxy("pojo_lens_agents.governance")
 evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
+retry_policy_layer = _LazyModuleProxy("pojo_lens_agents.retry_policy")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
@@ -305,6 +306,71 @@ def execute_task(
     )
 
 
+def execute_task_with_retry(
+    run_dir: Path,
+    runtime_root: Path,
+    workspaces_dir: Path,
+    plan: TaskPlan,
+    agents: dict[str, AgentDefinition],
+    task: TaskDefinition,
+    dependency_records: dict[str, TaskRunRecord],
+    *,
+    claude_bin: str,
+    agents_json: str,
+    dry_run: bool,
+    worker_validation_mode: str | None = None,
+    effort_override: str | None = None,
+    max_task_retries: int | None = None,
+) -> TaskRunRecord:
+    """Execute task with automatic retry for transient failures.
+
+    Calls the module-level execute_task so tests can patch it normally.
+    """
+    import time as _time
+    agent = agents[task.agent]
+    max_retries = retry_policy_layer.resolved_max_retries(
+        task, agent, run_override=max_task_retries
+    )
+    attempt_errors: list[dict[str, Any]] = []
+
+    for attempt_idx in range(max_retries + 1):
+        record = execute_task(
+            run_dir,
+            runtime_root,
+            workspaces_dir,
+            plan,
+            agents,
+            task,
+            dependency_records,
+            claude_bin=claude_bin,
+            agents_json=agents_json,
+            dry_run=dry_run,
+            worker_validation_mode=worker_validation_mode,
+            effort_override=effort_override,
+        )
+        record.attempt = attempt_idx + 1
+        record.attempt_errors = list(attempt_errors)
+        if record.status != "failed" or dry_run:
+            return record
+        if attempt_idx >= max_retries:
+            return record
+        failure_kind = retry_policy_layer.classify_failure(record)
+        if failure_kind == "permanent":
+            return record
+        delay_sec = retry_policy_layer.backoff_delay_sec(attempt_idx)
+        attempt_errors.append({
+            "attempt": attempt_idx + 1,
+            "status": record.status,
+            "error": record.summary,
+            "returnCode": record.return_code,
+            "failureKind": failure_kind,
+            "delayMs": int(delay_sec * 1000),
+        })
+        _time.sleep(delay_sec)
+
+    return record
+
+
 def manifest_payload(
     run_id: str,
     plan_path: Path,
@@ -464,7 +530,41 @@ def run_loaded_plan(
     existing_run_dir: Path | None = None,
     existing_workspaces_dir: Path | None = None,
     write_plan_snapshot: bool = True,
+    max_task_retries: int | None = None,
 ) -> dict[str, Any]:
+    _max_retries = max_task_retries
+
+    def _execute_task_with_retry(
+        run_dir: Path,
+        runtime_root_: Path,
+        workspaces_dir: Path,
+        plan_: Any,
+        agents_: dict[str, Any],
+        task: Any,
+        dependency_records: dict[str, Any],
+        *,
+        claude_bin: str,
+        agents_json: str,
+        dry_run: bool,
+        worker_validation_mode: str | None = None,
+        effort_override: str | None = None,
+    ) -> Any:
+        return execute_task_with_retry(
+            run_dir,
+            runtime_root_,
+            workspaces_dir,
+            plan_,
+            agents_,
+            task,
+            dependency_records,
+            claude_bin=claude_bin,
+            agents_json=agents_json,
+            dry_run=dry_run,
+            worker_validation_mode=worker_validation_mode,
+            effort_override=effort_override,
+            max_task_retries=_max_retries,
+        )
+
     return run_ops_layer.run_loaded_plan(
         plan_path,
         agents_path,
@@ -506,7 +606,7 @@ def run_loaded_plan(
         effective_workspace_mode=effective_workspace_mode,
         write_manifest=write_manifest,
         select_parallel_ready_batch=select_parallel_ready_batch,
-        execute_task=execute_task,
+        execute_task=_execute_task_with_retry,
         aggregate_usage=aggregate_usage,
         effective_plan_model_profiles=effective_plan_model_profiles,
         effective_plan_models=effective_plan_models,

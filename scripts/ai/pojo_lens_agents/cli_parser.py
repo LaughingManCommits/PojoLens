@@ -55,6 +55,20 @@ def _add_continue_on_error_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_max_task_retries_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--max-task-retries",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Maximum automatic retries per task for transient failures (rate limits, "
+            "timeouts, provider errors). Defaults to task/agent definition, then 3. "
+            "Pass 0 to disable automatic retry."
+        ),
+    )
+
+
 def _add_effort_arg(parser: argparse.ArgumentParser, *, help_text: str) -> None:
     parser.add_argument(
         "--effort",
@@ -193,6 +207,7 @@ def parse_args() -> argparse.Namespace:
         help="Restrict execution to a task id and its prerequisites. Repeatable.",
     )
     _add_continue_on_error_arg(run_parser)
+    _add_max_task_retries_arg(run_parser)
     run_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -238,6 +253,7 @@ def parse_args() -> argparse.Namespace:
         help="Restrict resume to one or more task ids. Defaults to all non-completed or missing tasks in the run snapshot.",
     )
     _add_continue_on_error_arg(resume_parser)
+    _add_max_task_retries_arg(resume_parser)
     resume_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -288,6 +304,7 @@ def parse_args() -> argparse.Namespace:
         help="Restrict retry to one or more task ids. Defaults to failed or blocked tasks.",
     )
     _add_continue_on_error_arg(retry_parser)
+    _add_max_task_retries_arg(retry_parser)
     retry_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
