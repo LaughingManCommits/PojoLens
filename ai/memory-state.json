@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-02T09:02:21.995602+02:00",
-  "generation": "20260502T070221-6276-1777705341999315900",
+  "generatedAt": "2026-05-02T09:34:18.469553+02:00",
+  "generation": "20260502T073418-10996-1777707258473253200",
   "git": {
-    "headCommit": "49afab026aaa25cae6690c9360755a0c3e82d4ce",
+    "headCommit": "5b913f8a62d20772c1f354c5e8d4aac6ff9e7eb8",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "22fce5c08b1187148b4c9c0583d7ea5e3660860857fa3573111791d2dc971d7c",
+  "inputsHash": "a3d8258409d1061f4f27dd9fa6115f1de6d26be9b069c6afcde43e0eff5d0f99",
   "hotContext": {
     "files": [
       {
@@ -23,7 +23,7 @@
       {
         "path": "ai/state/current-state.md",
         "lines": 31,
-        "bytes": 2944,
+        "bytes": 2956,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -66,7 +66,7 @@
       {
         "path": "ai/state/handoff.md",
         "lines": 32,
-        "bytes": 2422,
+        "bytes": 2500,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -104,7 +104,7 @@
       }
     ],
     "totalLines": 93,
-    "totalBytes": 8007,
+    "totalBytes": 8097,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "f5a560bb00f63a80fb464f63ac48e015fa3ff3e2dc7a4ecbd9872944dcc24148",
+        "inputHash": "b19f06a5518eb9b0c53bc96ed02350958b44da52f88754d2cbefaa95b180fba1",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "3932dbe0bda11e2de0ce191f3f71c90d28efedebf270fa4f78c970c7304c78a7",
+        "inputHash": "6968586866ad2d8dd0ef1fc341000dc8937d7e2bd114720be9f38d7e093176d5",
         "inputFiles": 560
       },
       {
@@ -175,7 +175,7 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 71,
-      "sections": 808,
+      "sections": 814,
       "updatedFiles": 71,
       "reusedFiles": 0,
       "removedFiles": 0,

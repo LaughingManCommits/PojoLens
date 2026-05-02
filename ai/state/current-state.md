@@ -27,5 +27,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-05-02`: Roadmap order is WP40 -> deferred WP18 -> Release Gate.
-- `2026-05-02`: WP40 is next: end-to-end coding run reliability across planning, review, promotion, post-promotion validation, and tracked proofs.
+- `2026-05-02`: Roadmap order is WP41 -> WP42 -> WP43 -> WP44 -> WP45 -> WP46 -> WP40 -> deferred WP18 -> Release Gate.
+- `2026-05-02`: WP41 is next: crash-safe manifest flushing with atomic writes and orphaned temp-file recovery.
