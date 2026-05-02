@@ -36,6 +36,7 @@ class _LazyModuleProxy:
 
 governance_layer = _LazyModuleProxy("pojo_lens_agents.governance")
 evals_layer = _LazyModuleProxy("pojo_lens_agents.evals")
+hitl_layer = _LazyModuleProxy("pojo_lens_agents.hitl")
 manifest_io_layer = _LazyModuleProxy("pojo_lens_agents.manifest_io")
 retry_policy_layer = _LazyModuleProxy("pojo_lens_agents.retry_policy")
 runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
@@ -535,6 +536,9 @@ def run_loaded_plan(
     existing_workspaces_dir: Path | None = None,
     write_plan_snapshot: bool = True,
     max_task_retries: int | None = None,
+    hitl: bool = False,
+    hitl_mode: str | None = None,
+    hitl_auto_approve: bool = False,
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
@@ -589,6 +593,9 @@ def run_loaded_plan(
         existing_run_dir=existing_run_dir,
         existing_workspaces_dir=existing_workspaces_dir,
         write_plan_snapshot=write_plan_snapshot,
+        hitl_override=hitl,
+        hitl_mode_override=hitl_mode,
+        hitl_auto_approve=hitl_auto_approve,
         normalize_worker_validation_mode=normalize_worker_validation_mode,
         normalize_effort_override=normalize_effort_override,
         effective_plan_worker_validation_modes=effective_plan_worker_validation_modes,
@@ -621,6 +628,11 @@ def run_loaded_plan(
         summarize_branch_contexts=summarize_branch_contexts,
         default_workspaces_dir=default_workspaces_dir,
         slugify=slugify,
+        resolve_hitl_policy=hitl_layer.resolve_hitl_policy,
+        should_trigger_hitl_gate=hitl_layer.should_trigger_hitl_gate,
+        hitl_gate_context_factory=hitl_layer.HitlGateContext,
+        wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
+        write_text=write_text,
         error_factory=OrchestratorError,
     ))
 

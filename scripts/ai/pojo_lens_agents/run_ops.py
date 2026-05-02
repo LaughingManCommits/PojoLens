@@ -29,6 +29,9 @@ async def run_loaded_plan(
     existing_run_dir: Path | None = None,
     existing_workspaces_dir: Path | None = None,
     write_plan_snapshot: bool = True,
+    hitl_override: bool = False,
+    hitl_mode_override: str | None = None,
+    hitl_auto_approve: bool = False,
     normalize_worker_validation_mode: Callable[..., str | None] = None,
     normalize_effort_override: Callable[..., str | None] = None,
     effective_plan_worker_validation_modes: Callable[..., dict[str, str]] = None,
@@ -61,6 +64,11 @@ async def run_loaded_plan(
     summarize_branch_contexts: Callable[[list[Any]], dict[str, Any]] = None,
     default_workspaces_dir: Callable[..., Path] = None,
     slugify: Callable[[str], str] = None,
+    resolve_hitl_policy: Callable[..., Any] = None,
+    should_trigger_hitl_gate: Callable[..., bool] = None,
+    hitl_gate_context_factory: Callable[..., Any] = None,
+    wait_for_hitl_decision: Callable[..., Any] = None,
+    write_text: Callable[[Path, str], None] | None = None,
     error_factory: type[Exception] = RuntimeError,
 ) -> dict[str, Any]:
     worker_validation_override = (
@@ -75,6 +83,12 @@ async def run_loaded_plan(
     task_output_profile_sources = effective_plan_output_profile_sources(plan, agents)
     task_efforts = effective_plan_efforts(plan, agents, run_override=normalized_effort_override)
     task_effort_sources = effective_plan_effort_sources(plan, agents, run_override=normalized_effort_override)
+    hitl_policy = resolve_hitl_policy(
+        plan.run_policy,
+        hitl_override=hitl_override,
+        hitl_mode_override=hitl_mode_override if hitl_override or hitl_mode_override else None,
+        hitl_auto_approve=hitl_auto_approve,
+    )
     topological_batches(plan.tasks)
     validate_scope_contract(plan, agents)
     if not dry_run:
@@ -114,6 +128,7 @@ async def run_loaded_plan(
     pending = {task.id: task for task in plan.tasks if task.id not in records}
     fail_fast_triggered = False
     stop_scheduling_reason: str | None = None
+    batch_index = 0
     while pending:
         run_governance = evaluate_run_governance(records, plan.run_policy)
         if run_governance["shouldStopScheduling"] and stop_scheduling_reason is None:
@@ -179,6 +194,7 @@ async def run_loaded_plan(
             unresolved = ", ".join(sorted(pending))
             raise error_factory(f"No schedulable tasks remain; unresolved tasks: {unresolved}")
         batch = select_parallel_ready_batch(plan, ready, agents, max_parallel=max(max_parallel, 1))
+        batch_index += 1
         append_run_event(run_events, phase="batch-ready", task_ids=[task.id for task in batch], branch_context_ids=[task_branch_context_id(task, records) for task in batch], details={"pendingTaskIds": sorted(pending)})
         semaphore = asyncio.Semaphore(max(max_parallel, 1))
 
@@ -200,9 +216,14 @@ async def run_loaded_plan(
                 )
 
         batch_futures = [asyncio.ensure_future(_run_one(t)) for t in batch]
+        completed_batch_task_ids: list[str] = []
+        failed_batch_task_ids: list[str] = []
         for coro in asyncio.as_completed(batch_futures):
             task, record = await coro
             records[task.id] = record
+            completed_batch_task_ids.append(task.id)
+            if records[task.id].status not in {"completed", "planned"}:
+                failed_batch_task_ids.append(task.id)
             for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
                 append_run_event(
                     run_events,
@@ -220,6 +241,69 @@ async def run_loaded_plan(
             if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
                 fail_fast_triggered = True
                 stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
+        if should_trigger_hitl_gate(
+            hitl_policy,
+            batch_index=batch_index,
+            failed_task_ids=failed_batch_task_ids,
+        ):
+            gate_id = f"gate-{batch_index:03d}"
+            context = hitl_gate_context_factory(
+                gate_id=gate_id,
+                mode=hitl_policy.mode,
+                batch_index=batch_index,
+                completed_batch_task_ids=completed_batch_task_ids,
+                failed_task_ids=failed_batch_task_ids,
+                pending_task_ids=sorted(pending),
+                run_dir=run_dir,
+                dry_run=dry_run,
+            )
+            append_run_event(
+                run_events,
+                phase="hitl-gate",
+                task_ids=completed_batch_task_ids,
+                branch_context_ids=[
+                    records[task_id].branch_context_id
+                    for task_id in completed_batch_task_ids
+                    if task_id in records
+                ],
+                details={
+                    "gateId": gate_id,
+                    "mode": hitl_policy.mode,
+                    "batchIndex": batch_index,
+                    "pendingTaskIds": sorted(pending),
+                    "failedTaskIds": failed_batch_task_ids,
+                    "autoApprove": bool(hitl_policy.auto_approve),
+                },
+            )
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            decision = wait_for_hitl_decision(
+                context,
+                auto_approve=hitl_policy.auto_approve,
+                write_text=write_text,
+            )
+            append_run_event(
+                run_events,
+                phase="hitl-approved" if decision.approved else "hitl-aborted",
+                task_ids=completed_batch_task_ids,
+                branch_context_ids=[
+                    records[task_id].branch_context_id
+                    for task_id in completed_batch_task_ids
+                    if task_id in records
+                ],
+                details={
+                    "gateId": gate_id,
+                    "mode": hitl_policy.mode,
+                    "batchIndex": batch_index,
+                    "action": decision.action,
+                    "reason": decision.reason,
+                    "source": decision.source,
+                    "sentinelPath": decision.sentinel_path,
+                },
+            )
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            if not decision.approved:
+                fail_fast_triggered = True
+                stop_scheduling_reason = f"HITL gate '{gate_id}' aborted by operator."
     append_run_event(run_events, phase="run-finished", details={"remainingTaskIds": sorted(pending)})
     write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
     status_counts: dict[str, int] = {}
@@ -258,6 +342,12 @@ async def run_loaded_plan(
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
         "runPolicy": serialize_run_policy(plan.run_policy),
+        "hitlPolicy": {
+            "enabled": bool(hitl_policy.enabled),
+            "mode": hitl_policy.mode,
+            "autoApprove": bool(hitl_policy.auto_approve),
+            "source": "override" if hitl_override or hitl_mode_override else "runPolicy",
+        },
         "runGovernance": run_governance,
         "statusCounts": status_counts,
         "usageTotals": usage_totals,
@@ -298,6 +388,9 @@ def run_plan(
         worker_validation_mode=args.worker_validation_mode,
         effort_override=getattr(args, "effort", None),
         max_task_retries=getattr(args, "max_task_retries", None),
+        hitl=bool(getattr(args, "hitl", False)),
+        hitl_mode=getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
+        hitl_auto_approve=bool(getattr(args, "hitl_auto_approve", False)),
     )
 
 
@@ -378,6 +471,13 @@ def resume_run(
         )
     if not resumed_task_ids:
         raise error_factory("Nothing to resume; all selected tasks are already completed")
+    hitl_kwargs = {}
+    if any(hasattr(args, name) for name in ("hitl", "hitl_mode", "hitl_auto_approve")):
+        hitl_kwargs = {
+            "hitl": bool(getattr(args, "hitl", False)),
+            "hitl_mode": getattr(args, "hitl_mode", None) if bool(getattr(args, "hitl", False)) else None,
+            "hitl_auto_approve": bool(getattr(args, "hitl_auto_approve", False)),
+        }
     payload = run_loaded_plan_fn(
         source_plan_path,
         agents_path,
@@ -397,6 +497,7 @@ def resume_run(
         existing_workspaces_dir=workspaces_dir,
         write_plan_snapshot=False,
         max_task_retries=getattr(args, "max_task_retries", None),
+        **hitl_kwargs,
     )
     payload["sourceManifestPath"] = str(manifest_path)
     payload["requestedTaskIds"] = requested_task_ids

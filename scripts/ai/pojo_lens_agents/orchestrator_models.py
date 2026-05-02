@@ -9,11 +9,13 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_ARTIFACT_BEHAVIOR,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,
+    DEFAULT_HITL_MODE,
     DEFAULT_OUTPUT_PROFILE,
     DEFAULT_RUN_BUDGET_BEHAVIOR,
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_WORKER_VALIDATION_MODE,
     DEPENDENCY_MATERIALIZATION_MODES,
+    HITL_MODES,
     MODEL_PROFILE_TO_MODEL,
     OUTPUT_PROFILES,
     OUTPUT_PROFILE_SOURCES,
@@ -71,6 +73,8 @@ class RunPolicyModel(ContractModel):
     max_task_stderr_bytes: int | None = Field(default=None, alias="maxTaskStderrBytes", ge=1)
     max_task_result_bytes: int | None = Field(default=None, alias="maxTaskResultBytes", ge=1)
     artifact_behavior: str = Field(default=DEFAULT_ARTIFACT_BEHAVIOR, alias="artifactBehavior")
+    hitl: bool = False
+    hitl_mode: str = Field(default=DEFAULT_HITL_MODE, alias="hitlMode")
 
     @field_validator("budget_behavior", "artifact_behavior")
     @classmethod
@@ -78,6 +82,21 @@ class RunPolicyModel(ContractModel):
         if value not in RUN_POLICY_BEHAVIORS:
             raise ValueError(f"expected one of {sorted(RUN_POLICY_BEHAVIORS)}")
         return value
+
+    @field_validator("hitl_mode")
+    @classmethod
+    def valid_hitl_mode(cls, value: str) -> str:
+        if value not in HITL_MODES:
+            raise ValueError(f"expected one of {sorted(HITL_MODES)}")
+        return value
+
+    @model_validator(mode="after")
+    def normalize_disabled_hitl_mode(self) -> "RunPolicyModel":
+        if not self.hitl and self.hitl_mode != DEFAULT_HITL_MODE:
+            raise ValueError("hitlMode requires hitl=true")
+        if self.hitl and self.hitl_mode == DEFAULT_HITL_MODE:
+            self.hitl_mode = "batch"
+        return self
 
 
 class AgentDefinitionModel(ContractModel):

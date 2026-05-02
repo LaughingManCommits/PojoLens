@@ -73,6 +73,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Worker task plans declare:
   - task id, title, agent, and prompt
   - optional top-level `runPolicy` with `runBudgetUsd`, `budgetBehavior`, per-task artifact byte limits (`maxTaskStdoutBytes`, `maxTaskStderrBytes`, `maxTaskResultBytes`), and `artifactBehavior`
+  - optional human-in-the-loop run gates through `runPolicy.hitl` and `runPolicy.hitlMode` (`none`, `batch`, `on-failure`, or `always`)
   - optional dependencies
   - `sharedContext.readPaths` for cross-task read context
   - task-local `readPaths` for additional read context
@@ -117,6 +118,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - When `dependencyMaterialization = apply-reviewed`, the coordinator should replay reviewed dependency layers into the downstream `copy` or `worktree` workspace after base hydration, reject ambiguous overlaps across direct dependencies, and record which dependency layers were applied.
 - The orchestrator should expose prompt-size estimates (`prompt_chars`, `prompt_estimated_tokens`) before live runs and capture actual Claude usage or cost fields when the CLI returns them.
 - Optional run-level governance should be expressible in tracked plans via `runPolicy`; `budgetBehavior` / `artifactBehavior` should support `warn` and `stop`, and `stop` should block unscheduled later batches rather than trying to cancel already-running tasks.
+- Human-in-the-loop gates should be expressible through tracked `runPolicy` fields and one-off `run` / `resume` CLI overrides. A gate fires after a completed batch before later scheduling, emits `hitl-gate`, persists the manifest, waits for stdin or a run-local `hitl-gate.lock` sentinel decision, then emits `hitl-approved` or `hitl-aborted`; aborted gates should block pending tasks with an explicit coordinator reason.
 - Run governance should cover aggregate spend plus per-task stdout, stderr, and result artifact size, and should surface the highest-cost tasks plus aggregate artifact totals for operator review.
 - Prompt assembly should keep the most stable coordinator instructions and shared summary ahead of run-specific workspace paths or dependency detail so provider-side prefix caching can reuse more of each request.
 - Worker execution-context text should prefer stable workspace labels over absolute filesystem paths, and the repeated worker-rules block should stay compact enough to avoid normal prompt truncation.

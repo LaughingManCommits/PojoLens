@@ -43,6 +43,8 @@ REVIEWER_AGENT_NAME = "reviewer"
 RUN_POLICY_BEHAVIORS = {"warn", "stop"}
 DEFAULT_RUN_BUDGET_BEHAVIOR = "stop"
 DEFAULT_ARTIFACT_BEHAVIOR = "warn"
+HITL_MODES = {"none", "batch", "on-failure", "always"}
+DEFAULT_HITL_MODE = "none"
 MODEL_PROFILE_TO_MODEL = {
     "simple": "claude-haiku-4-5-20251001",
     "balanced": "claude-sonnet-4-6",
@@ -212,6 +214,11 @@ PLAN_RESULT_SCHEMA = {
                 "artifactBehavior": {
                     "type": "string",
                     "enum": sorted(RUN_POLICY_BEHAVIORS),
+                },
+                "hitl": {"type": "boolean"},
+                "hitlMode": {
+                    "type": "string",
+                    "enum": sorted(HITL_MODES),
                 },
             },
             "additionalProperties": False,
@@ -384,6 +391,8 @@ class RunPolicy:
     max_task_stderr_bytes: int | None = None
     max_task_result_bytes: int | None = None
     artifact_behavior: str = DEFAULT_ARTIFACT_BEHAVIOR
+    hitl: bool = False
+    hitl_mode: str = DEFAULT_HITL_MODE
 
 
 @dataclass(frozen=True)

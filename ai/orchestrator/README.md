@@ -53,6 +53,7 @@ scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-review.json --dry-run --json
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2
 scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --effort low --json
+scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --hitl --hitl-auto-approve --json
 scripts/ai/claude-orchestrator.ps1 resume .claude-orchestrator/runs/<run-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 retry .claude-orchestrator/runs/<run-id> --task <task-id> --dry-run --json
 scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --json
@@ -100,6 +101,7 @@ Lifecycle helpers:
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
+- `run` and `resume` accept `--hitl`, `--hitl-mode <batch|on-failure|always>`, and `--hitl-auto-approve`; HITL gates emit `hitl-gate` plus `hitl-approved` or `hitl-aborted`, write the manifest before waiting, and use either an interactive prompt or the run-local `hitl-gate.lock` sentinel file for decisions
 - `status` summarizes one retained run with compact task status, review counts, resumability, governance, and promotion readiness
 - retained-run summaries now also expose `lifecycleState`, `lifecycleStateReason`, and `approvalSummary` so review, validation, and promotion gates are visible without opening the raw manifest
 - `evaluate-run` scores one retained run for orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency; it now also emits a compact `scoreSummary` for trendable pass/warn/fail comparisons
@@ -132,6 +134,7 @@ Context discipline:
 - validate/topology warns when a task resolves more than `4` skills; keep the stack at `5` or fewer and prefer fewer, sharper skills
 - tracked `docs-implementer` and `docs-reviewer` roles default to `modelProfile = simple`, `effort = low`, and `outputProfile = lean` for cheap docs-oriented proof runs
 - task plans may also declare an optional top-level `runPolicy` to govern aggregate run spend and per-task artifact sizes; `budgetBehavior` and `artifactBehavior` accept `warn` or `stop`, and `stop` applies before later batches rather than canceling tasks already running
+- task-plan `runPolicy` may also enable human-in-the-loop gates with `hitl: true` and `hitlMode: "batch"`, `"on-failure"`, or `"always"`; CLI `--hitl` overrides are useful for one-off operator runs without editing tracked plans
 - dependency outputs now carry a bounded upstream handoff: summary plus a few key notes when available, explicit unknown markers when an upstream worker could not verify those sections, and reviewer-only changed-file plus diff previews from dependency workspaces so downstream review can inspect the proposed patch without reading prior task artifacts directly
 - dependency outputs now also carry the upstream `branch_context_id` so downstream tasks can tell which reviewed branch produced the handed-off summary or diff layer
 - downstream tasks default to summary-only dependency handoff; set `dependencyMaterialization = "apply-reviewed"` on any `copy` or `worktree` task â€” including reviewer tasks â€” that needs reviewed upstream code state materialized into its workspace before execution; this is especially important when upstream tasks create new files that would otherwise be invisible to the downstream workspace

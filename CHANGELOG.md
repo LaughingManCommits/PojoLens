@@ -11,6 +11,14 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Human-in-the-loop approval gates** - added HITL run-policy fields
+  (`hitl`, `hitlMode`), `--hitl`, `--hitl-mode`, and
+  `--hitl-auto-approve` for `run` / `resume`; runs can now emit
+  `hitl-gate`, `hitl-approved`, and `hitl-aborted` events at batch
+  boundaries, persist the manifest before waiting, use an interactive prompt
+  or `hitl-gate.lock` sentinel file for operator decisions, and block pending
+  tasks cleanly when a gate is aborted.
+
 - **Typed orchestrator contracts** - added Pydantic v2 as a core tooling
   dependency, introduced `pojo_lens_agents.orchestrator_models` for typed
   task-plan, agent, run-policy, manifest, task-record, prompt, validation, and

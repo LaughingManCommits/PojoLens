@@ -85,6 +85,29 @@ class OrchestratorModelsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "must match"):
             TaskPlanModel.model_validate(payload)
 
+    def test_run_policy_model_round_trips_hitl_fields(self):
+        orchestrator = self.orchestrator
+        policy = orchestrator.load_run_policy(
+            {"hitl": True, "hitlMode": "on-failure"},
+            location="test",
+        )
+
+        self.assertTrue(policy.hitl)
+        self.assertEqual("on-failure", policy.hitl_mode)
+        self.assertEqual(
+            {"hitl": True, "hitlMode": "on-failure"},
+            orchestrator.serialize_run_policy(policy),
+        )
+
+    def test_run_policy_model_rejects_hitl_mode_without_hitl(self):
+        orchestrator = self.orchestrator
+
+        with self.assertRaisesRegex(orchestrator.OrchestratorError, "hitlMode requires hitl=true"):
+            orchestrator.load_run_policy(
+                {"hitlMode": "batch"},
+                location="test",
+            )
+
     def test_run_manifest_model_validates_generated_manifest_payload(self):
         orchestrator = self.orchestrator
         agent = orchestrator.AgentDefinition(

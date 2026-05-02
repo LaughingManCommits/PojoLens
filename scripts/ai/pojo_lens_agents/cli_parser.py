@@ -9,6 +9,7 @@ from pojo_lens_agents.orchestrator_contracts import (
     DEFAULT_RUNTIME_ROOT,
     DEFAULT_TASK_TIMEOUT_SEC,
     DEFAULT_VALIDATE_RUN_EXECUTION_SCOPE,
+    HITL_MODES,
     PLANNER_TASK_ID,
     VALIDATE_RUN_EXECUTION_SCOPES,
     WORKER_STATUSES,
@@ -66,6 +67,25 @@ def _add_max_task_retries_arg(parser: argparse.ArgumentParser) -> None:
             "timeouts, provider errors). Defaults to task/agent definition, then 3. "
             "Pass 0 to disable automatic retry."
         ),
+    )
+
+
+def _add_hitl_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--hitl",
+        action="store_true",
+        help="Pause at human-in-the-loop approval gates before dispatching later batches.",
+    )
+    parser.add_argument(
+        "--hitl-mode",
+        choices=sorted(HITL_MODES - {"none"}),
+        default="batch",
+        help="HITL gate mode when --hitl is enabled. Defaults to 'batch'.",
+    )
+    parser.add_argument(
+        "--hitl-auto-approve",
+        action="store_true",
+        help="Emit HITL gate events and continue without blocking. Intended for CI and gate regression tests.",
     )
 
 
@@ -208,6 +228,7 @@ def parse_args() -> argparse.Namespace:
     )
     _add_continue_on_error_arg(run_parser)
     _add_max_task_retries_arg(run_parser)
+    _add_hitl_args(run_parser)
     run_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),
@@ -254,6 +275,7 @@ def parse_args() -> argparse.Namespace:
     )
     _add_continue_on_error_arg(resume_parser)
     _add_max_task_retries_arg(resume_parser)
+    _add_hitl_args(resume_parser)
     resume_parser.add_argument(
         "--worker-validation-mode",
         choices=sorted(WORKER_VALIDATION_MODES),

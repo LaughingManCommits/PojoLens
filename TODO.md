@@ -52,7 +52,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP44| Async Task Execution                 | Complete | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
 | WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
 | WP46| Typed Agent Contracts                | Complete | Added Pydantic v2 contract models, Pydantic-backed dataclasses, typed plan/agent/manifest validation boundaries, `py.typed`, and mypy coverage |
-| WP47| Human-in-the-Loop Approval Gates     | Planned | Mid-run human checkpoint: pause after any batch, inspect workspace diffs, approve/reject/modify before the next batch dispatches |
+| WP47| Human-in-the-Loop Approval Gates     | Complete | Added batch-boundary HITL policy, run/resume CLI flags, persisted gate events, sentinel/interactive approval, auto-approve test mode, and abort blocking |
 | WP48| Pre-Flight Cost Estimation           | Planned | Estimate token spend and USD cost from plan topology before a run starts, with model/effort/prompt-size inputs and per-task breakdowns |
 | WP49| Dynamic Plan Mutation                | Planned | Coordinator consumes task `followUps` at runtime to inject new tasks or modify the pending DAG mid-run without restarting |
 | WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
@@ -1154,6 +1154,24 @@ shape mismatches at the type layer rather than at runtime.
 
 **Priority:** High
 
+**Decision:** Complete. Runs can now pause at batch boundaries through
+tracked `runPolicy` fields or explicit CLI overrides, persist the manifest at
+the gate, and continue or abort based on operator approval.
+
+**Work done:**
+- Added `RunPolicy.hitl` and `RunPolicy.hitl_mode` with modes `none`,
+  `batch`, `on-failure`, and `always`; serialization and Pydantic validation
+  preserve the public `hitl` / `hitlMode` JSON fields.
+- Added `--hitl`, `--hitl-mode`, and `--hitl-auto-approve` to `run` and
+  `resume`; `--hitl-mode` alone does not enable gates.
+- Added `pojo_lens_agents.hitl` for policy resolution, trigger decisions,
+  sentinel-file writing, interactive stdin approval, and auto-approval.
+- `run_ops.run_loaded_plan` now emits `hitl-gate`, `hitl-approved`, and
+  `hitl-aborted` events after batch completion, writes the manifest before
+  waiting, and blocks pending tasks with a clear summary when a gate aborts.
+- Added regression tests for CLI parsing, policy serialization, auto-approved
+  gate events, and abort behavior that blocks pending work.
+
 **Goal:** Allow the operator to pause a run at any batch boundary, inspect
 workspace diffs and task outputs, then approve or reject continuation before
 the next batch dispatches — closing the gap between post-hoc review and
@@ -1175,21 +1193,21 @@ mid-run oversight.
   touches is sufficient for the repo-local case.
 
 **Tasks:**
-- [ ] Add `hitl` and `hitl_mode` fields to `RunPolicy`: `"none"` (default),
+- [x] Add `hitl` and `hitl_mode` fields to `RunPolicy`: `"none"` (default),
       `"batch"` (pause after every batch), `"on-failure"` (pause after any
       failed task), `"always"` (pause after first batch only).
-- [ ] Add `--hitl` CLI flag to `run` and `resume` commands; add a
+- [x] Add `--hitl` CLI flag to `run` and `resume` commands; add a
       `--hitl-mode` option defaulting to `"batch"`.
-- [ ] In `run_ops.run_loaded_plan`, after each batch result loop, check
+- [x] In `run_ops.run_loaded_plan`, after each batch result loop, check
       `hitl` policy; if triggered, emit a `hitl-gate` run event, write
       current manifest, and block on operator input (stdin prompt or sentinel
       file at `run_dir/hitl-gate.lock`).
-- [ ] Add `hitl-approved` and `hitl-aborted` lifecycle events to the event
+- [x] Add `hitl-approved` and `hitl-aborted` lifecycle events to the event
       trace so retained runs record where operator gates fired.
-- [ ] Support `--hitl-auto-approve` for unattended CI runs that set the flag
+- [x] Support `--hitl-auto-approve` for unattended CI runs that set the flag
       but want HITL gates to pass silently (for testing gate logic without
       blocking).
-- [ ] Add regression coverage for gate emission, manifest state at gate, and
+- [x] Add regression coverage for gate emission, manifest state at gate, and
       continue/abort paths without requiring interactive stdin.
 
 **Validate:**

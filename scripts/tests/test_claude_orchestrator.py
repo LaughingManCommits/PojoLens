@@ -461,6 +461,20 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["run", plan, "--claude-bin", "legacy-claude"])
         self.assertEqual("legacy-claude", args.claude_bin)
 
+    def test_hitl_flags_accepted_by_run(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        plan = str(root / "ai" / "orchestrator" / "tasks" / "example-parallel.json")
+        args = self._parse_argv(["run", plan, "--hitl", "--hitl-mode", "on-failure", "--hitl-auto-approve"])
+        self.assertTrue(args.hitl)
+        self.assertEqual("on-failure", args.hitl_mode)
+        self.assertTrue(args.hitl_auto_approve)
+
+    def test_hitl_flags_accepted_by_resume(self):
+        args = self._parse_argv(["resume", "some/run/dir", "--hitl", "--hitl-mode", "always", "--hitl-auto-approve"])
+        self.assertTrue(args.hitl)
+        self.assertEqual("always", args.hitl_mode)
+        self.assertTrue(args.hitl_auto_approve)
+
     def test_dry_run_accepted_by_validate(self):
         args = self._parse_argv(["validate", "--dry-run"])
         self.assertTrue(args.dry_run)

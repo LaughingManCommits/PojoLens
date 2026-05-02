@@ -254,6 +254,9 @@ def serialize_run_policy(run_policy: RunPolicy) -> dict[str, Any]:
         )
     ):
         payload["artifactBehavior"] = run_policy.artifact_behavior
+    if run_policy.hitl:
+        payload["hitl"] = True
+        payload["hitlMode"] = run_policy.hitl_mode
     return payload
 
 

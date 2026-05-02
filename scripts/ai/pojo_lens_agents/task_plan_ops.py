@@ -35,6 +35,8 @@ def load_run_policy(payload: Any, *, location: str, deps: dict[str, Any]) -> Any
         max_task_stderr_bytes=model.max_task_stderr_bytes,
         max_task_result_bytes=model.max_task_result_bytes,
         artifact_behavior=model.artifact_behavior,
+        hitl=model.hitl,
+        hitl_mode=model.hitl_mode,
     )
 
 
