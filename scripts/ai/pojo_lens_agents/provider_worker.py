@@ -803,6 +803,25 @@ def run_subprocess(
     )
 
 
+async def run_subprocess_async(
+    command: list[str],
+    *,
+    cwd: Path,
+    timeout_sec: int,
+    progress_action: SlopLogAction | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Async subprocess execution using asyncio.create_subprocess_exec."""
+    if progress_action is not None:
+        emit_slop_log(progress_action, frame=1)
+    return await provider_layer.async_run_subprocess(
+        command,
+        cwd=cwd,
+        timeout_sec=timeout_sec,
+        timeout_error=f"Claude timed out after {timeout_sec} seconds",
+        error_factory=OrchestratorError,
+    )
+
+
 def plan_with_claude(args: argparse.Namespace) -> dict[str, Any]:
     return planner_ops_layer.plan_with_claude(
         args,

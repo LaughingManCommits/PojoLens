@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 import pathlib
 import unittest
@@ -258,7 +259,7 @@ class ExecuteTaskWithRetryTest(unittest.TestCase):
         call_count = [0]
         records_returned = []
 
-        def fake_execute_task(run_dir, runtime_root, workspaces_dir, plan, agents_, task_, dep_records, *, claude_bin, agents_json, dry_run, worker_validation_mode, effort_override, deps):
+        async def fake_execute_task(run_dir, runtime_root, workspaces_dir, plan, agents_, task_, dep_records, *, claude_bin, agents_json, dry_run, worker_validation_mode, effort_override, deps):
             call_count[0] += 1
             return execute_task_fn(call_count[0])
 
@@ -266,7 +267,7 @@ class ExecuteTaskWithRetryTest(unittest.TestCase):
         te.execute_task = fake_execute_task
         try:
             with patch.object(rp, "backoff_delay_sec", return_value=0.0):
-                result = te.execute_task_with_retry(
+                result = asyncio.run(te.execute_task_with_retry(
                     pathlib.Path("/tmp/run"),
                     pathlib.Path("/tmp/runtime"),
                     pathlib.Path("/tmp/workspaces"),
@@ -279,7 +280,7 @@ class ExecuteTaskWithRetryTest(unittest.TestCase):
                     agents_json="{}",
                     dry_run=dry_run,
                     deps={},
-                )
+                ))
         finally:
             te.execute_task = original
 
@@ -405,8 +406,6 @@ class RunOpsRetryEventTest(unittest.TestCase):
 
     def test_task_retry_events_emitted_before_task_finished(self):
         """attempt_errors on a record produce task-retry events in run_events."""
-        from pojo_lens_agents import run_ops
-
         attempt_errors = [
             {"attempt": 1, "status": "failed", "error": "rate limit", "failureKind": "transient", "delayMs": 1000, "returnCode": 1},
         ]
@@ -414,69 +413,38 @@ class RunOpsRetryEventTest(unittest.TestCase):
 
         events: list[dict] = []
 
-        def fake_append_event(event_list, *, phase, **kwargs):
-            event_list.append({"phase": phase, **kwargs})
-
-        # Minimal stub of run_loaded_plan that produces one future
-        from concurrent.futures import Future
-
-        future = Future()
-        future.set_result(record)
-
         task_stub = MagicMock()
         task_stub.id = "task-1"
         task_stub.depends_on = []
 
-        original_tlpe = run_ops.ThreadPoolExecutor
+        emitted = []
 
-        class _FakeExecutor:
-            def __init__(self, max_workers=1):
-                pass
+        def capturing_append(event_list, *, phase, **kw):
+            emitted.append({"phase": phase, **kw})
 
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args):
-                pass
-
-            def submit(self, fn, *args, **kwargs):
-                return future
-
-        run_ops.ThreadPoolExecutor = _FakeExecutor
-        try:
-            # We only need to test the as_completed loop logic, so drive a minimal call
-            from concurrent.futures import as_completed as real_as_completed
-            emitted = []
-
-            def capturing_append(event_list, *, phase, **kw):
-                emitted.append({"phase": phase, **kw})
-
-            # Simulate just the inner loop body
-            records: dict = {}
-            task = task_stub
-            records[task.id] = future.result()
-            for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
-                capturing_append(
-                    emitted,
-                    phase="task-retry",
-                    task_id=task.id,
-                    parent_task_ids=task.depends_on,
-                    branch_context_id=records[task.id].branch_context_id,
-                    status="retry",
-                    message=attempt_error.get("error", ""),
-                    details=attempt_error,
-                )
+        records: dict = {}
+        task = task_stub
+        records[task.id] = record
+        for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
             capturing_append(
                 emitted,
-                phase="task-finished",
+                phase="task-retry",
                 task_id=task.id,
                 parent_task_ids=task.depends_on,
                 branch_context_id=records[task.id].branch_context_id,
-                status=records[task.id].status,
-                message=records[task.id].summary,
+                status="retry",
+                message=attempt_error.get("error", ""),
+                details=attempt_error,
             )
-        finally:
-            run_ops.ThreadPoolExecutor = original_tlpe
+        capturing_append(
+            emitted,
+            phase="task-finished",
+            task_id=task.id,
+            parent_task_ids=task.depends_on,
+            branch_context_id=records[task.id].branch_context_id,
+            status=records[task.id].status,
+            message=records[task.id].summary,
+        )
 
         phases = [e["phase"] for e in emitted]
         self.assertIn("task-retry", phases)

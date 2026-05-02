@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import importlib.util
 import io
@@ -598,7 +599,7 @@ class PromptBudgetTest(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as tempdir:
-            record = orchestrator.execute_task(
+            record = asyncio.run(orchestrator.execute_task(
                 pathlib.Path(tempdir) / "run",
                 pathlib.Path(tempdir) / "runtime",
                 pathlib.Path(tempdir) / "workspaces",
@@ -609,7 +610,7 @@ class PromptBudgetTest(unittest.TestCase):
                 claude_bin="claude",
                 agents_json="{}",
                 dry_run=True,
-            )
+            ))
 
         self.assertEqual("failed", record.status)
         self.assertTrue(record.prompt_budget.exceeded)

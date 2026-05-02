@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import asyncio
 import copy
 import difflib
 import importlib
@@ -9,7 +10,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -234,7 +234,7 @@ def _make_execute_record(
     )
 
 
-def execute_task(
+async def execute_task(
     run_dir: Path,
     runtime_root: Path,
     workspaces_dir: Path,
@@ -249,7 +249,7 @@ def execute_task(
     worker_validation_mode: str | None = None,
     effort_override: str | None = None,
 ) -> TaskRunRecord:
-    return task_execution_layer.execute_task(
+    return await task_execution_layer.execute_task(
         run_dir,
         runtime_root,
         workspaces_dir,
@@ -289,7 +289,7 @@ def execute_task(
             "diff_workspace_snapshots": diff_workspace_snapshots,
             "provider_mode": sdk_provider_layer.detect_provider_mode,
             "run_sdk_provider": sdk_provider_layer.run_sdk_provider,
-            "run_subprocess": run_subprocess,
+            "run_subprocess": run_subprocess_async,
             "task_wait_action": task_wait_action,
             "extract_json_payload": extract_json_payload,
             "extract_usage": extract_usage,
@@ -309,7 +309,7 @@ def execute_task(
     )
 
 
-def execute_task_with_retry(
+async def execute_task_with_retry(
     run_dir: Path,
     runtime_root: Path,
     workspaces_dir: Path,
@@ -329,7 +329,6 @@ def execute_task_with_retry(
 
     Calls the module-level execute_task so tests can patch it normally.
     """
-    import time as _time
     agent = agents[task.agent]
     max_retries = retry_policy_layer.resolved_max_retries(
         task, agent, run_override=max_task_retries
@@ -337,7 +336,7 @@ def execute_task_with_retry(
     attempt_errors: list[dict[str, Any]] = []
 
     for attempt_idx in range(max_retries + 1):
-        record = execute_task(
+        record = await execute_task(
             run_dir,
             runtime_root,
             workspaces_dir,
@@ -369,7 +368,7 @@ def execute_task_with_retry(
             "failureKind": failure_kind,
             "delayMs": int(delay_sec * 1000),
         })
-        _time.sleep(delay_sec)
+        await asyncio.sleep(delay_sec)
 
     return record
 
@@ -537,7 +536,7 @@ def run_loaded_plan(
 ) -> dict[str, Any]:
     _max_retries = max_task_retries
 
-    def _execute_task_with_retry(
+    async def _execute_task_with_retry(
         run_dir: Path,
         runtime_root_: Path,
         workspaces_dir: Path,
@@ -552,7 +551,7 @@ def run_loaded_plan(
         worker_validation_mode: str | None = None,
         effort_override: str | None = None,
     ) -> Any:
-        return execute_task_with_retry(
+        return await execute_task_with_retry(
             run_dir,
             runtime_root_,
             workspaces_dir,
@@ -568,7 +567,7 @@ def run_loaded_plan(
             max_task_retries=_max_retries,
         )
 
-    return run_ops_layer.run_loaded_plan(
+    return asyncio.run(run_ops_layer.run_loaded_plan(
         plan_path,
         agents_path,
         agents,
@@ -621,7 +620,7 @@ def run_loaded_plan(
         default_workspaces_dir=default_workspaces_dir,
         slugify=slugify,
         error_factory=OrchestratorError,
-    )
+    ))
 
 
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:

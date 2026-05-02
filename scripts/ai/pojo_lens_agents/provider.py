@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import subprocess
 import time
 import json
@@ -132,3 +133,64 @@ def extract_usage(payload: Any) -> dict[str, Any] | None:
         "modelUsage": model_usage if isinstance(model_usage, dict) else {},
     }
     return summary
+
+
+async def async_run_process(
+    command: list[str] | str,
+    *,
+    cwd: Path,
+    timeout_sec: int,
+    shell: bool,
+    timeout_error: str,
+    error_factory: Callable[[str], Exception] = ProviderExecutionError,
+) -> subprocess.CompletedProcess[str]:
+    if shell:
+        proc = await asyncio.create_subprocess_shell(
+            command if isinstance(command, str) else " ".join(command),
+            cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    else:
+        proc = await asyncio.create_subprocess_exec(
+            *command,
+            cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(),
+            timeout=float(timeout_sec),
+        )
+    except asyncio.TimeoutError:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        await proc.communicate()
+        raise error_factory(timeout_error)
+    return subprocess.CompletedProcess(
+        command,
+        proc.returncode if proc.returncode is not None else -1,
+        stdout_bytes.decode("utf-8", errors="replace"),
+        stderr_bytes.decode("utf-8", errors="replace"),
+    )
+
+
+async def async_run_subprocess(
+    command: list[str],
+    *,
+    cwd: Path,
+    timeout_sec: int,
+    timeout_error: str,
+    error_factory: Callable[[str], Exception] = ProviderExecutionError,
+) -> subprocess.CompletedProcess[str]:
+    return await async_run_process(
+        command,
+        cwd=cwd,
+        timeout_sec=timeout_sec,
+        shell=False,
+        timeout_error=timeout_error,
+        error_factory=error_factory,
+    )

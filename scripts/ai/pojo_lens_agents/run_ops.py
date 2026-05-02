@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,7 +8,7 @@ from typing import Any, Callable
 from uuid import uuid4
 
 
-def run_loaded_plan(
+async def run_loaded_plan(
     plan_path: Path,
     agents_path: Path,
     agents: dict[str, Any],
@@ -180,45 +180,46 @@ def run_loaded_plan(
             raise error_factory(f"No schedulable tasks remain; unresolved tasks: {unresolved}")
         batch = select_parallel_ready_batch(plan, ready, agents, max_parallel=max(max_parallel, 1))
         append_run_event(run_events, phase="batch-ready", task_ids=[task.id for task in batch], branch_context_ids=[task_branch_context_id(task, records) for task in batch], details={"pendingTaskIds": sorted(pending)})
-        with ThreadPoolExecutor(max_workers=max(1, min(max_parallel, len(batch)))) as executor:
-            future_map = {
-                executor.submit(
-                    execute_task,
+        semaphore = asyncio.Semaphore(max(max_parallel, 1))
+
+        async def _run_one(t):
+            async with semaphore:
+                return t, await execute_task(
                     run_dir,
                     runtime_root,
                     workspaces_dir,
                     plan,
                     agents,
-                    task,
+                    t,
                     records,
                     claude_bin=claude_bin,
-                    agents_json=agents_json_by_task_id[task.id],
+                    agents_json=agents_json_by_task_id[t.id],
                     dry_run=dry_run,
                     worker_validation_mode=worker_validation_override,
                     effort_override=normalized_effort_override,
-                ): task
-                for task in batch
-            }
-            for future in as_completed(future_map):
-                task = future_map[future]
-                records[task.id] = future.result()
-                for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
-                    append_run_event(
-                        run_events,
-                        phase="task-retry",
-                        task_id=task.id,
-                        parent_task_ids=task.depends_on,
-                        branch_context_id=records[task.id].branch_context_id,
-                        status="retry",
-                        message=attempt_error.get("error", ""),
-                        details=attempt_error,
-                    )
-                append_run_event(run_events, phase="task-finished", task_id=task.id, parent_task_ids=task.depends_on, branch_context_id=records[task.id].branch_context_id, status=records[task.id].status, message=records[task.id].summary)
-                pending.pop(task.id, None)
-                write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
-                if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
-                    fail_fast_triggered = True
-                    stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
+                )
+
+        batch_futures = [asyncio.ensure_future(_run_one(t)) for t in batch]
+        for coro in asyncio.as_completed(batch_futures):
+            task, record = await coro
+            records[task.id] = record
+            for attempt_error in (getattr(records[task.id], "attempt_errors", None) or []):
+                append_run_event(
+                    run_events,
+                    phase="task-retry",
+                    task_id=task.id,
+                    parent_task_ids=task.depends_on,
+                    branch_context_id=records[task.id].branch_context_id,
+                    status="retry",
+                    message=attempt_error.get("error", ""),
+                    details=attempt_error,
+                )
+            append_run_event(run_events, phase="task-finished", task_id=task.id, parent_task_ids=task.depends_on, branch_context_id=records[task.id].branch_context_id, status=records[task.id].status, message=records[task.id].summary)
+            pending.pop(task.id, None)
+            write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
+            if not continue_on_error and records[task.id].status not in {"completed", "planned"}:
+                fail_fast_triggered = True
+                stop_scheduling_reason = "Coordinator stopped scheduling new tasks after a worker failure."
     append_run_event(run_events, phase="run-finished", details={"remainingTaskIds": sorted(pending)})
     write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events)
     status_counts: dict[str, int] = {}

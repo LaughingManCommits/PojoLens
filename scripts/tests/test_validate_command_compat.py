@@ -196,7 +196,7 @@ class ValidateCommandCompatTest(unittest.TestCase):
                 tasks=[task],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,

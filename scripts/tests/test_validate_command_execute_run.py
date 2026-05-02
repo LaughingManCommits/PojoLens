@@ -1,3 +1,4 @@
+import asyncio
 import json
 import pathlib
 import subprocess
@@ -20,7 +21,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
     def test_execute_task_fails_when_worker_stdout_is_not_json(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
-        old_run_subprocess = orchestrator.run_subprocess
+        old_run_subprocess_async = orchestrator.run_subprocess_async
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = pathlib.Path(tempdir)
             repo_root = temp_path / "repo"
@@ -32,14 +33,11 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             runtime_root.mkdir()
             workspaces_dir.mkdir()
             orchestrator.ROOT = repo_root
-            orchestrator.run_subprocess = (
-                lambda command, *, cwd, timeout_sec, progress_action=None: subprocess.CompletedProcess(
-                    command,
-                    0,
-                    "worker narration only",
-                    "",
-                )
-            )
+
+            async def fake_run_subprocess(command, *, cwd, timeout_sec, progress_action=None):
+                return subprocess.CompletedProcess(command, 0, "worker narration only", "")
+
+            orchestrator.run_subprocess_async = fake_run_subprocess
             try:
                 agent = orchestrator.AgentDefinition(
                     name="analyst",
@@ -74,7 +72,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     tasks=[task],
                 )
 
-                record = orchestrator.execute_task(
+                record = asyncio.run(orchestrator.execute_task(
                     run_dir,
                     runtime_root,
                     workspaces_dir,
@@ -85,11 +83,11 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     claude_bin="claude",
                     agents_json="{}",
                     dry_run=False,
-                )
+                ))
                 stdout_text = pathlib.Path(record.stdout_path).read_text(encoding="utf-8")
                 stderr_text = pathlib.Path(record.stderr_path).read_text(encoding="utf-8")
             finally:
-                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.run_subprocess_async = old_run_subprocess_async
                 orchestrator.ROOT = old_root
 
         self.assertEqual("failed", record.status)
@@ -101,7 +99,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
     def test_execute_task_fails_when_intents_only_worker_returns_raw_validation_commands(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
-        old_run_subprocess = orchestrator.run_subprocess
+        old_run_subprocess_async = orchestrator.run_subprocess_async
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = pathlib.Path(tempdir)
             repo_root = temp_path / "repo"
@@ -113,8 +111,9 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             runtime_root.mkdir()
             workspaces_dir.mkdir()
             orchestrator.ROOT = repo_root
-            orchestrator.run_subprocess = (
-                lambda command, *, cwd, timeout_sec, progress_action=None: subprocess.CompletedProcess(
+
+            async def fake_run_subprocess_intents(command, *, cwd, timeout_sec, progress_action=None):
+                return subprocess.CompletedProcess(
                     command,
                     0,
                     json.dumps(
@@ -130,7 +129,8 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     ),
                     "",
                 )
-            )
+
+            orchestrator.run_subprocess_async = fake_run_subprocess_intents
             try:
                 agent = orchestrator.AgentDefinition(
                     name="analyst",
@@ -165,7 +165,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     tasks=[task],
                 )
 
-                record = orchestrator.execute_task(
+                record = asyncio.run(orchestrator.execute_task(
                     run_dir,
                     runtime_root,
                     workspaces_dir,
@@ -177,10 +177,10 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     agents_json="{}",
                     dry_run=False,
                     worker_validation_mode="intents-only",
-                )
+                ))
                 stderr_text = pathlib.Path(record.stderr_path).read_text(encoding="utf-8")
             finally:
-                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.run_subprocess_async = old_run_subprocess_async
                 orchestrator.ROOT = old_root
 
         self.assertEqual("failed", record.status)
@@ -190,7 +190,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
     def test_execute_task_fails_when_copy_mode_worker_mutates_live_repo(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT
-        old_run_subprocess = orchestrator.run_subprocess
+        old_run_subprocess_async = orchestrator.run_subprocess_async
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = pathlib.Path(tempdir)
             repo_root = temp_path / "repo"
@@ -203,7 +203,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             workspaces_dir.mkdir()
             orchestrator.ROOT = repo_root
 
-            def fake_run_subprocess(command, *, cwd, timeout_sec, progress_action=None):
+            async def fake_run_subprocess(command, *, cwd, timeout_sec, progress_action=None):
                 (repo_root / "leaked.txt").write_text("leak", encoding="utf-8")
                 return subprocess.CompletedProcess(
                     command,
@@ -221,7 +221,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     "",
                 )
 
-            orchestrator.run_subprocess = fake_run_subprocess
+            orchestrator.run_subprocess_async = fake_run_subprocess
             try:
                 agent = orchestrator.AgentDefinition(
                     name="implementer",
@@ -257,7 +257,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     tasks=[task],
                 )
 
-                record = orchestrator.execute_task(
+                record = asyncio.run(orchestrator.execute_task(
                     run_dir,
                     runtime_root,
                     workspaces_dir,
@@ -268,9 +268,9 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                     claude_bin="claude",
                     agents_json="{}",
                     dry_run=False,
-                )
+                ))
             finally:
-                orchestrator.run_subprocess = old_run_subprocess
+                orchestrator.run_subprocess_async = old_run_subprocess_async
                 orchestrator.ROOT = old_root
 
         self.assertEqual("failed", record.status)
@@ -328,7 +328,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             executed_task_ids: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -434,7 +434,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             executed_task_ids: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -539,7 +539,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             executed_task_ids: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -646,7 +646,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 tasks=[task_a, task_b],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -944,7 +944,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             executed_task_ids: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1053,7 +1053,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             executed_task_ids: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1169,7 +1169,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             seen_modes: dict[str, str] = {}
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1290,7 +1290,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
             )
             seen_modes: list[str] = []
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1402,7 +1402,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 tasks=[task],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1506,7 +1506,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 tasks=[task],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1610,7 +1610,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 tasks=[task],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,
@@ -1710,7 +1710,7 @@ class ValidateCommandExecuteRunTest(unittest.TestCase):
                 tasks=[task],
             )
 
-            def fake_execute_task(
+            async def fake_execute_task(
                 run_dir,
                 runtime_root,
                 workspaces_dir,

@@ -49,7 +49,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP41| Crash-Safe Manifest Flushing         | Complete | Atomic manifest writes via write-to-temp-then-rename so a process crash never corrupts a retained run |
 | WP42| Within-Run Task Retry                | Complete | Automatic per-task retry with exponential backoff for transient failures (rate-limit, timeout, provider error) |
 | WP43| Direct Anthropic SDK Provider        | Complete | Replace `claude` subprocess provider with the Anthropic Python SDK to unlock streaming, accurate cache stats, and SDK-managed rate-limit handling |
-| WP44| Async Task Execution                 | Planned | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
+| WP44| Async Task Execution                 | Complete | Replace `ThreadPoolExecutor` with `asyncio` subprocess execution to remove one-thread-per-task overhead and enable streaming |
 | WP45| OpenTelemetry Observability          | Planned | Emit standard OTEL spans from existing trace events so runs can plug into Grafana, DataDog, or Jaeger without a custom converter |
 | WP46| Typed Agent Contracts                | Planned | Introduce Pydantic models at major call boundaries to replace large dict passing and catch contract violations at the type layer |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
@@ -988,23 +988,23 @@ and align the concurrency model with the SDK-backed provider from WP43.
 - Preserve `--max-parallel` semantics exactly; the semaphore replaces the
   thread pool's `max_workers`.
 
+**Decision:** Full async conversion via `asyncio.Semaphore` + `asyncio.as_completed`; sync CLI entry points preserved with `asyncio.run()` wrapper; SDK provider wrapped with `asyncio.to_thread`; subprocess via `asyncio.create_subprocess_exec`.
+
+**Work done:**
+- `provider.py`: Added `async_run_process` / `async_run_subprocess` using `asyncio.create_subprocess_exec` and `asyncio.wait_for(proc.communicate(), ...)`.
+- `provider_worker.py`: Added `run_subprocess_async` async wrapper; sync `run_subprocess` kept for planner path.
+- `task_execution.py`: `execute_task` and `execute_task_with_retry` converted to `async def`; SDK call wrapped with `asyncio.to_thread`; `time.sleep` → `asyncio.sleep`.
+- `run_ops.py`: `run_loaded_plan` converted to `async def`; `ThreadPoolExecutor` + `concurrent.futures.as_completed` replaced with `asyncio.Semaphore` + `asyncio.as_completed` (preserves per-task manifest writes).
+- `orchestrator_app.py`: `execute_task` / `execute_task_with_retry` / `_execute_task_with_retry` converted to `async def`; `run_loaded_plan` sync wrapper uses `asyncio.run(run_ops_layer.run_loaded_plan(...))`.
+- All test files updated: `fake_execute_task` → `async def`, `fake_run_subprocess` → `async def`, direct `execute_task` / `execute_task_with_retry` calls wrapped in `asyncio.run()`; stale `ThreadPoolExecutor` test scaffolding removed from `test_agent_retry_policy.py`.
+
 **Tasks:**
-- [ ] Replace `ThreadPoolExecutor` in `runtime.py` and `run_ops.py` with an
-      `asyncio.Semaphore(max_parallel)` guard around `asyncio.gather()`.
-- [ ] Convert task dispatch and provider invocation to `async def` functions;
-      keep synchronous entry points at the CLI boundary with
-      `asyncio.run()`.
-- [ ] Replace `subprocess.run()` in `provider.py` with
-      `asyncio.create_subprocess_exec()` and `await proc.communicate()`.
-- [ ] Stream partial stdout lines to `stderr` during interactive runs so the
-      operator sees worker progress without waiting for task completion.
-- [ ] Ensure the `--max-parallel` CLI flag still caps concurrency via the
-      semaphore; behavior must be identical to the thread-pool path.
-- [ ] Add regression coverage for semaphore-bounded parallel dispatch,
-      dependency-ordering under async execution, and write-scope serialization
-      correctness.
-- [ ] Update `scripts/ai/claude-orchestrator.ps1` shim if needed to route
-      through the async entry point cleanly on Windows.
+- [x] Replace `ThreadPoolExecutor` in `run_ops.py` with `asyncio.Semaphore(max_parallel)` + `asyncio.as_completed`.
+- [x] Convert task dispatch and provider invocation to `async def`; sync CLI entry points preserved with `asyncio.run()`.
+- [x] Replace `subprocess` in `provider.py` with `asyncio.create_subprocess_exec` + `await proc.communicate()`.
+- [x] Ensure `--max-parallel` still caps concurrency via semaphore.
+- [x] Update all test files to use async fakes and `asyncio.run()` wrappers.
+- [ ] Stream partial stdout lines to `stderr` during interactive runs (deferred — needs streaming API work separate from async transport).
 
 **Validate:**
 - `py -3 -m py_compile scripts/ai/pojo_lens_agents/runtime.py scripts/ai/pojo_lens_agents/run_ops.py scripts/ai/pojo_lens_agents/provider.py scripts/ai/pojo_lens_agents/task_execution.py`

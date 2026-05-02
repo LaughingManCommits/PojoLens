@@ -31,6 +31,8 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
   resolves more than `4` skills so prompt assembly stays bounded before runtime
   prompt budgets are hit.
 
+- **Async task execution** - replaced `ThreadPoolExecutor` + `concurrent.futures.as_completed` with `asyncio.Semaphore` + `asyncio.as_completed` in `run_ops.py`; converted `execute_task`, `execute_task_with_retry`, and `run_loaded_plan` to `async def`; added `async_run_process` / `async_run_subprocess` in `provider.py` using `asyncio.create_subprocess_exec`; added `run_subprocess_async` in `provider_worker.py`; SDK provider call wrapped with `asyncio.to_thread`; sync CLI entry points preserved via `asyncio.run()` wrapper; all test fakes and direct calls updated.
+
 - **Low-cost worker profiles and output discipline** - added
   `outputProfile` support to agent/task definitions, lean docs-oriented
   `docs-implementer` / `docs-reviewer` worker profiles, tighter `lean` worker

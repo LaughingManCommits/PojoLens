@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -318,7 +318,7 @@ def make_execute_record(
     )
 
 
-def execute_task(
+async def execute_task(
     run_dir: Path,
     runtime_root: Path,
     workspaces_dir: Path,
@@ -469,7 +469,8 @@ def execute_task(
     changed_repo_files: list[str] = []
     try:
         if _provider_mode == "sdk":
-            _sdk_result = deps["run_sdk_provider"](
+            _sdk_result = await asyncio.to_thread(
+                deps["run_sdk_provider"],
                 agent.prompt or "",
                 prompt,
                 model=model_name,
@@ -481,7 +482,7 @@ def execute_task(
             stderr_text = _sdk_result.error or ""
             usage = _sdk_result.usage
         else:
-            completed = deps["run_subprocess"](
+            completed = await deps["run_subprocess"](
                 command,
                 cwd=prepared_workspace,
                 timeout_sec=task.timeout_sec or agent.timeout_sec,
@@ -623,7 +624,7 @@ def execute_task(
         return record
 
 
-def execute_task_with_retry(
+async def execute_task_with_retry(
     run_dir: Path,
     runtime_root: Path,
     workspaces_dir: Path,
@@ -646,7 +647,7 @@ def execute_task_with_retry(
     attempt_errors: list[dict[str, Any]] = []
 
     for attempt_idx in range(max_retries + 1):
-        record = execute_task(
+        record = await execute_task(
             run_dir,
             runtime_root,
             workspaces_dir,
@@ -679,6 +680,6 @@ def execute_task_with_retry(
             "failureKind": failure_kind,
             "delayMs": int(delay_sec * 1000),
         })
-        time.sleep(delay_sec)
+        await asyncio.sleep(delay_sec)
 
     return record
