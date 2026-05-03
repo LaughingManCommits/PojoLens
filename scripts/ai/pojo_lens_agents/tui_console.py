@@ -262,14 +262,20 @@ if TEXTUAL_IMPORT_ERROR is None:
             background: $bg;
             color: $green_body;
             align: center middle;
-            padding: 2 4;
         }
-        Screen > Static:first-of-type {
+        #card {
+            width: 70;
+            height: auto;
+            border: heavy $green 40%;
+            background: $bg_panel;
+            padding: 1 2;
+        }
+        #card > Static:first-of-type {
             color: $cyan;
             text-style: bold;
             margin-bottom: 1;
         }
-        Screen > Static {
+        #card > Static {
             color: $green_body;
             padding: 0 1;
         }
@@ -289,8 +295,9 @@ if TEXTUAL_IMPORT_ERROR is None:
             self._default = default
 
         def compose(self) -> ComposeResult:
-            yield Static(self._question)
-            yield Static(f"[y] yes  [n] no  [enter] {'yes' if self._default else 'no'}")
+            with Container(id="card"):
+                yield Static(self._question)
+                yield Static(f"[y] yes  [n] no  [enter] {'yes' if self._default else 'no'}")
             yield Footer()
 
         def action_yes(self) -> None:
@@ -316,9 +323,15 @@ if TEXTUAL_IMPORT_ERROR is None:
             background: $bg;
             color: $green_body;
             align: center middle;
-            padding: 2 4;
         }
-        Screen > Static {
+        #card {
+            width: 70;
+            height: auto;
+            border: heavy $green 40%;
+            background: $bg_panel;
+            padding: 1 2;
+        }
+        #card > Static {
             color: $cyan;
             text-style: bold;
             margin-bottom: 1;
@@ -349,8 +362,9 @@ if TEXTUAL_IMPORT_ERROR is None:
             self._default = default
 
         def compose(self) -> ComposeResult:
-            yield Static(self._question)
-            yield Input(value=self._default, id="input")
+            with Container(id="card"):
+                yield Static(self._question)
+                yield Input(value=self._default, id="input")
             yield Footer()
 
         def action_submit(self) -> None:

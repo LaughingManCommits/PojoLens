@@ -24,12 +24,13 @@ try:
     from rich.text import Text
     from textual.app import App, ComposeResult
     from textual.containers import Vertical
-    from textual.widgets import DataTable, RichLog, Static
+    from textual.widgets import DataTable, Header, RichLog, Static
 except ImportError as exc:  # pragma: no cover - exercised by non-extra installs
     TEXTUAL_IMPORT_ERROR = exc
     App = object  # type: ignore[assignment]
     ComposeResult = Any  # type: ignore[assignment]
     DataTable = object  # type: ignore[assignment]
+    Header = object  # type: ignore[assignment]
     RichLog = object  # type: ignore[assignment]
     Static = object  # type: ignore[assignment]
     Vertical = object  # type: ignore[assignment]
@@ -137,11 +138,11 @@ if textual_is_available():
         def on_mount(self) -> None:
             self.cursor_type = "row"
             self.zebra_stripes = True
-            self.add_column("Task", key="task")
-            self.add_column("Status", key="status")
-            self.add_column("Model", key="model")
-            self.add_column("Cost", key="cost")
-            self.add_column("Elapsed", key="elapsed")
+            self.add_column("Task", key="task", width=20)
+            self.add_column("Status", key="status", width=10)
+            self.add_column("Model", key="model", width=22)
+            self.add_column(Text("Cost", justify="right"), key="cost", width=11)
+            self.add_column(Text("Elapsed", justify="right"), key="elapsed", width=8)
 
 
     class RunSummaryBar(Static):
@@ -295,6 +296,7 @@ if textual_is_available():
             self._streaming_active: bool = False
 
         def compose(self) -> ComposeResult:
+            yield Header()
             yield RunSummaryBar("", id="summary")
             with Vertical():
                 yield TaskGrid(id="grid")
@@ -517,11 +519,13 @@ if textual_is_available():
             state = self.task_states[task_id]
             grid = self.query_one(TaskGrid)
             elapsed = state.elapsed_seconds()
-            cost_text = "-" if state.cost_usd is None else f"${state.cost_usd:.5f}"
+            cost_str = "-" if state.cost_usd is None else f"${state.cost_usd:.5f}"
+            cost_cell = Text(cost_str, justify="right") if Text is not None else cost_str
+            elapsed_cell = Text(_format_elapsed(elapsed), justify="right") if Text is not None else _format_elapsed(elapsed)
             grid.update_cell(task_id, "status", _status_cell(state.status))
             grid.update_cell(task_id, "model", state.model)
-            grid.update_cell(task_id, "cost", cost_text)
-            grid.update_cell(task_id, "elapsed", _format_elapsed(elapsed))
+            grid.update_cell(task_id, "cost", cost_cell)
+            grid.update_cell(task_id, "elapsed", elapsed_cell)
 
         def _refresh_log_tail(self) -> None:
             if self._streaming_active:

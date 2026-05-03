@@ -478,30 +478,27 @@ All surfaces now share one visual language. `_ExitConfirmModal.DEFAULT_CSS`
 kept as hardcoded hex (widget-level CSS limitation; values match theme).
 837 tests pass.
 
-**Review — scope gaps and follow-up findings:**
+**Review — scope gaps and follow-up findings (all fixed same session):**
 
-1. **`_ExitConfirmModal` can't use `$varname` CSS variables** (`DEFAULT_CSS`
-   on a ModalScreen is parsed before the app's `get_css_variables()` runs).
-   Currently hardcoded to matching hex values. If Textual adds a screen-level
-   CSS-variable hook in a future version, migrating would unify the last
-   hardcoded block. Low priority — values match theme.
+1. **`_ExitConfirmModal` can't use `$varname` CSS variables** — `DEFAULT_CSS`
+   on a ModalScreen is parsed before the app's `get_css_variables()` runs.
+   Kept as hardcoded hex; values match theme. Deferred — no code change needed
+   until Textual adds a screen-level CSS-variable hook.
 
-2. **DataTable column widths not tuned for Matrix theme.** The `TaskGrid`
-   inherits `DataTable` with auto-column widths. A wider terminal might leave
-   the task-id column truncated; a narrow one clips the elapsed column. A
-   future WP could add explicit `min_width` to each column and right-align
-   numeric columns (cost, elapsed) for scanability.
+2. **DataTable column widths not tuned for Matrix theme** — Fixed. `TaskGrid`
+   columns now have explicit widths (Task 20, Status 10, Model 22, Cost 11,
+   Elapsed 8). Cost and Elapsed cells use `Text(..., justify="right")` for
+   right-aligned numeric scanning. Column headers also right-justified.
+   Test assertions updated to use `.plain` on the returned `Text` cells.
 
-3. **`_ConfirmApp` / `_InputApp` lack a bordered card container.** They render
-   flat on the full-screen background. A centred card (border + fixed width)
-   would match `_ChoiceApp`'s framing. Low visual priority; compose changes
-   would need test updates.
+3. **`_ConfirmApp` / `_InputApp` lack a bordered card container** — Fixed.
+   Both now wrap content in `Container(id="card")` with `border: heavy $green`,
+   `width: 70`, `background: $bg_panel`. Compose structure matches `_ChoiceApp`
+   card framing. No tests were using these compose paths directly.
 
-4. **`OrchestratorApp` has no `Header` widget.** The title set via
-   `self.title` in `on_mount` is visible only if a `Header` widget is yielded
-   in compose. Currently compose doesn't yield `Header`, so the Matrix title
-   (`POJOLENS // <PLAN>  RUN MONITOR`) doesn't display. To show it, add
-   `yield Header()` to `OrchestratorApp.compose()` and adjust layout heights.
+4. **`OrchestratorApp` has no `Header` widget** — Fixed. `yield Header()` added
+   to `OrchestratorApp.compose()`; `Header` added to textual import + fallback
+   stub. The Matrix title (`POJOLENS // <PLAN>  RUN MONITOR`) now renders.
 
 ---
 

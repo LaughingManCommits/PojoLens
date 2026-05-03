@@ -5,7 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-05-03`: WP68 is complete; shared Matrix theme via `_MTX_VARS` + `get_css_variables()` spans all Textual App subclasses; 837 tests pass.
+- `2026-05-03`: WP68 + follow-ups complete; `Header` added to OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
 - `2026-05-03`: WP60 is complete; shared interactive streaming now reaches watch and TUI surfaces; 836 Python tests passed.
 - `2026-05-03`: WP50 is complete; proactive TPM/RPM throttling, wizard wiring, and follow-up-budget recompute landed; 799 tests passed.
 - `2026-05-03`: WP59 and WP67 are complete; Textual ownership is consolidated and covered by 65 focused `tui_console` tests.

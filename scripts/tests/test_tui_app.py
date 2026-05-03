@@ -99,8 +99,8 @@ class TuiAppTest(unittest.TestCase):
                     await pilot.pause(0.3)
                     finished_row = grid.get_row("task-a")
                     self.assertEqual("completed", finished_row[1].plain)
-                    self.assertEqual("$0.12500", finished_row[3])
-                    self.assertEqual("00:05", finished_row[4])
+                    self.assertEqual("$0.12500", finished_row[3].plain)
+                    self.assertEqual("00:05", finished_row[4].plain)
 
                     summary = app.query_one(RunSummaryBar)
                     self.assertIn("done 1/1", str(summary.renderable))

@@ -7,7 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-03`: WP68 is complete; shared Matrix theme (`_MTX_VARS` + `get_css_variables()`) spans `ConsoleApp`, `OrchestratorApp`, and wizard apps; 837 tests pass.
+- `2026-05-03`: WP68 and all 4 follow-up findings are complete; shared Matrix theme, `Header` in OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
 - `2026-05-03`: WP60 is complete; shared partial streaming reaches watch and TUI surfaces; 836 tests passed.
 - `2026-05-03`: WP50 is complete; proactive rate limiting, wizard propagation, and follow-up-budget recompute landed; 799 tests passed.
 - `2026-05-03`: WP59 and WP67 are complete; Textual ownership is consolidated and covered by focused tests.
