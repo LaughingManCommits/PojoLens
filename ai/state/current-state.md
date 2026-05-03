@@ -5,7 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-05-03`: WP62 complete; `budget-exceeded` event, `budgetExceeded` payload flag, `budget_exceeded` lifecycleState + flag, `EXIT_BUDGET_EXCEEDED=8`, `estimateBudgetWarning` on estimate path; 30 new tests; 925 pass.
+- `2026-05-03`: WP62 complete + after-care; `orchestrator_app` wrapper derives `budgetExceeded` from manifest; event payload + wrapper tests added; 931 tests pass.
 - `2026-05-03`: WP56 complete + after-care; dry-run/estimate suppression fix, `notify_on=[]` fix; 895 tests pass.
 - `2026-05-03`: WP69 complete; planner-first wizard flow landed with clarification loop, staged plan summary, approve/revise/stop checkpoint, and revision loop (up to 3 rounds); 841 tests pass.
 - `2026-05-03`: WP68 + follow-ups complete; `Header` added to OrchestratorApp, DataTable column widths/right-align, wizard card containers; 837 tests pass.
@@ -15,7 +15,7 @@
 - `2026-05-03`: WP58/WP57/WP55 remain the active operator base: persistent console, retained diff preview, and guided wizard flow.
 
 ## Verified
-- `2026-05-03`: Full Python suite at `925` tests after WP62.
+- `2026-05-03`: Full Python suite at `931` tests after WP62 + after-care.
 - `2026-05-03`: Full Python suite at `895` tests after WP56 after-care.
 - `2026-05-03`: Focused validations passed for WP60, WP50, WP59, WP67, WP58, and WP57.
 - `2026-05-03`: `scripts/docs/check-doc-consistency.ps1` passed.

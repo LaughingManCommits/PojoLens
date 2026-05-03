@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-03T16:00:45.037871+02:00",
+  "generatedAt": "2026-05-03T16:14:50.527727+02:00",
   "indexes": {
     "docs": {
       "outputPath": "ai/indexes/docs-index.json",
-      "inputHash": "b0300f35b0c03dc61ffc060fe4fa703682426630cd322088ae691affe7eadc39",
+      "inputHash": "f177eff566d685abadc4535c2e1c33e02b2d70bfa5e001cf0535528f524e994c",
       "pathHashes": {
         "AGENTS.md": "39dbe35552b8de3ff6a217769f69cd7ed367764fd01a4cea7999ed3457cb8285",
         "ai/AGENTS.md": "f516448963e4bd9e440e947216ccc2defc0be99d94ccdd8bc11398f67276e846",
@@ -33,8 +33,8 @@
         "ai/orchestrator/skills/release/SKILL.md": "5572544fa136506fb7d217040a7dce3bb13d769a8b0f72356a67f1e6bdf7772b",
         "ai/orchestrator/SYSTEM-SPEC.md": "8a4feead71a9326e4ae141e085a8281ad5fe920ea5b7163d3cb1adb1e801b2eb",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "480abeaa9418a20ce1e682cec35ff0296911474ddfc5cdc68a4dfa824d135da6",
-        "ai/state/handoff.md": "be9a4b0f28e9c44b7d3de2d45c4c18d83fcd2179bc07fcc74baa9de91db6a1e8",
+        "ai/state/current-state.md": "4faebbe94b2beadcd1a267be4ab1c4563ab39a8dbabd6634d378aed97291e423",
+        "ai/state/handoff.md": "21f6a7561282a16eb6b7098ff7d0298e1309e1d1b37d435e42a1d7a7e095f780",
         "ai/state/recent-validations.md": "8a59cd48d009b24ed7db1332412cb4ab34996679522bbe77a9ddc94fc1aafb60",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",
@@ -79,7 +79,7 @@
     },
     "files": {
       "outputPath": "ai/indexes/files-index.json",
-      "inputHash": "3feeade465d06555c2ded5f5dd2a5ed3e2e85ddf352918f91bcfc6e950fb9435",
+      "inputHash": "fbb44084b6c34b2967dae183788a2afd03c6fe01b7a0ab766fefe6f20f16cb0a",
       "pathHashes": {
         ".github/workflows/ci.yml": "a043bf6658e83e96f2e59db90d505d144437371462c99100299585bf46bc1c77",
         ".github/workflows/release.yml": "5f615f320675632cfc340b6001b8839c3aefcf422e969c51c79d26e9ed33cf2e",
@@ -122,8 +122,8 @@
         "ai/orchestrator/tasks/example-review.json": "f3b7b9ede7af3fcb27665fe1ebfe24ca8036ba7d7b8e57d9921a0e1725c67531",
         "ai/orchestrator/tasks/example-trace-multibatch.json": "6992e800d5c7d27bf8a474958e86633b06af08ffb0220e026e59890575561c35",
         "ai/state/benchmark-state.md": "158ff2e8810ce270929451a9f1c41057dbef93790cf706b805707406fcb0cd69",
-        "ai/state/current-state.md": "480abeaa9418a20ce1e682cec35ff0296911474ddfc5cdc68a4dfa824d135da6",
-        "ai/state/handoff.md": "be9a4b0f28e9c44b7d3de2d45c4c18d83fcd2179bc07fcc74baa9de91db6a1e8",
+        "ai/state/current-state.md": "4faebbe94b2beadcd1a267be4ab1c4563ab39a8dbabd6634d378aed97291e423",
+        "ai/state/handoff.md": "21f6a7561282a16eb6b7098ff7d0298e1309e1d1b37d435e42a1d7a7e095f780",
         "ai/state/recent-validations.md": "8a59cd48d009b24ed7db1332412cb4ab34996679522bbe77a9ddc94fc1aafb60",
         "CONTRIBUTING.md": "193ff34de08ff9c53d7ae23e8d75c14d2550413e494f81e55af6216401de8dfd",
         "docs/advanced-features.md": "1f9a16123778a725374838b7d22fab5d4dc57a32950100a2677195ed5e66f10c",

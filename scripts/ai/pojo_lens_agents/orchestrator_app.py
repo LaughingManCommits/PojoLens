@@ -993,10 +993,16 @@ def derive_run_lifecycle_state(
     promotion_readiness: dict[str, Any],
     approval_summary: dict[str, Any],
 ) -> tuple[str, str]:
-    _ = manifest
+    run_governance = manifest.get("runGovernance") if isinstance(manifest.get("runGovernance"), dict) else {}
+    enriched_base = dict(summary_base)
+    if "budgetExceeded" not in enriched_base:
+        enriched_base["budgetExceeded"] = any(
+            alert.get("kind") == "budget"
+            for alert in run_governance.get("blockingAlerts", [])
+        )
     return run_summary_layer.derive_run_lifecycle_state(
         records=records,
-        summary_base=summary_base,
+        summary_base=enriched_base,
         promotion_readiness=promotion_readiness,
         approval_summary=approval_summary,
     )

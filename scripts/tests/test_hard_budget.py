@@ -490,5 +490,127 @@ class DispatchBudgetExitCodeTest(unittest.TestCase):
         self.assertEqual(EXIT_BLOCKED, exit_code)
 
 
+# ---------------------------------------------------------------------------
+# 7. budget-exceeded event structure
+# ---------------------------------------------------------------------------
+
+class BudgetExceededEventTest(unittest.TestCase):
+    def test_budget_exceeded_event_fields(self):
+        """append_run_event with phase=budget-exceeded captures required fields."""
+        from pojo_lens_agents.orchestrator_app import append_run_event
+        events: list[dict] = []
+        append_run_event(
+            events,
+            phase="budget-exceeded",
+            details={
+                "actualCostUsd": 1.25,
+                "limitCostUsd": 0.50,
+                "remainingTaskIds": ["task-b", "task-c"],
+            },
+        )
+        self.assertEqual(1, len(events))
+        event = events[0]
+        self.assertEqual("budget-exceeded", event["phase"])
+        details = event.get("details", {})
+        self.assertAlmostEqual(1.25, details["actualCostUsd"])
+        self.assertAlmostEqual(0.50, details["limitCostUsd"])
+        self.assertEqual(["task-b", "task-c"], details["remainingTaskIds"])
+        self.assertIn("ts", event)
+
+    def test_governance_budget_alert_fields_match_event_keys(self):
+        """Verify governance 'actualUsd' / 'limitUsd' keys map to event 'actualCostUsd' / 'limitCostUsd'."""
+        records = {"a": _make_record("a", cost=1.0)}
+        result = _eval_gov(records, run_budget_usd=0.5)
+        alert = result["blockingAlerts"][0]
+        # These are the keys the run loop reads from the alert
+        self.assertIn("actualUsd", alert)
+        self.assertIn("limitUsd", alert)
+        self.assertEqual("budget", alert["kind"])
+
+
+# ---------------------------------------------------------------------------
+# 8. orchestrator_app wrapper — derive_run_lifecycle_state with manifest
+# ---------------------------------------------------------------------------
+
+class OrchestratorAppLifecycleWrapperTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from scripts.tests.test_claude_orchestrator_helpers import load_orchestrator_module
+        cls.orchestrator = load_orchestrator_module()
+
+    def _base_approval_summary(self):
+        return {
+            "reviewRecorded": False,
+            "reviewSummaryPath": None,
+            "validationRecorded": False,
+            "validationPassed": None,
+            "validationExecutionScope": None,
+            "validationGeneratedAt": None,
+            "validationSummaryPath": None,
+            "promotionRecorded": False,
+            "promotionAllowed": None,
+            "promotionApplied": False,
+            "promotionGeneratedAt": None,
+            "promotionFilesPromoted": None,
+            "promotionSummaryPath": None,
+        }
+
+    def test_wrapper_derives_budget_exceeded_from_manifest_run_governance(self):
+        orchestrator = self.orchestrator
+        manifest = {
+            "runGovernance": {
+                "blockingAlerts": [{"kind": "budget", "severity": "stop", "actualUsd": 1.5, "limitUsd": 0.5}]
+            }
+        }
+        state, reason = orchestrator.derive_run_lifecycle_state(
+            manifest=manifest,
+            records=[],
+            summary_base={"hasFailures": False, "hasBlocked": True, "isResumable": True},
+            promotion_readiness={"allowed": False, "filesPromotable": 0},
+            approval_summary=self._base_approval_summary(),
+        )
+        self.assertEqual("budget_exceeded", state)
+
+    def test_wrapper_explicit_summary_base_flag_takes_precedence(self):
+        orchestrator = self.orchestrator
+        manifest = {"runGovernance": {"blockingAlerts": []}}
+        state, _ = orchestrator.derive_run_lifecycle_state(
+            manifest=manifest,
+            records=[],
+            summary_base={
+                "hasFailures": False,
+                "hasBlocked": True,
+                "isResumable": True,
+                "budgetExceeded": True,
+            },
+            promotion_readiness={"allowed": False, "filesPromotable": 0},
+            approval_summary=self._base_approval_summary(),
+        )
+        self.assertEqual("budget_exceeded", state)
+
+    def test_wrapper_no_budget_governance_no_budget_exceeded_state(self):
+        orchestrator = self.orchestrator
+        manifest = {"runGovernance": {"blockingAlerts": []}}
+        state, _ = orchestrator.derive_run_lifecycle_state(
+            manifest=manifest,
+            records=[],
+            summary_base={"hasFailures": False, "hasBlocked": True, "isResumable": True},
+            promotion_readiness={"allowed": False, "filesPromotable": 0},
+            approval_summary=self._base_approval_summary(),
+        )
+        self.assertEqual("blocked", state)
+
+    def test_wrapper_empty_manifest_no_crash(self):
+        orchestrator = self.orchestrator
+        state, _ = orchestrator.derive_run_lifecycle_state(
+            manifest={},
+            records=[],
+            summary_base={"hasFailures": False, "hasBlocked": False, "isResumable": False},
+            promotion_readiness={"allowed": False, "filesPromotable": 0},
+            approval_summary=self._base_approval_summary(),
+        )
+        self.assertEqual("completed", state)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-03T16:00:45.037871+02:00",
-  "generation": "20260503T140045-22136-1777816845040839900",
+  "generatedAt": "2026-05-03T16:14:50.527727+02:00",
+  "generation": "20260503T141450-48864-1777817690530686200",
   "git": {
-    "headCommit": "ebec837a49e06cca3670be70e319d7b1cd183ede",
+    "headCommit": "2675a8bada25ecf577eac4dabb8ec67b4bbb47b5",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "af1847210f823f68f4eec9b509a2afda4df8b4de3999342f6d977991be9d5315",
+  "inputsHash": "0552390683ad041f1486582e53143f2f2912f2f728f30ff07d707910cfc616b8",
   "hotContext": {
     "files": [
       {
@@ -23,7 +23,7 @@
       {
         "path": "ai/state/current-state.md",
         "lines": 31,
-        "bytes": 1952,
+        "bytes": 1909,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -66,7 +66,7 @@
       {
         "path": "ai/state/handoff.md",
         "lines": 34,
-        "bytes": 2774,
+        "bytes": 2733,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -104,7 +104,7 @@
       }
     ],
     "totalLines": 95,
-    "totalBytes": 7367,
+    "totalBytes": 7283,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "b0300f35b0c03dc61ffc060fe4fa703682426630cd322088ae691affe7eadc39",
+        "inputHash": "f177eff566d685abadc4535c2e1c33e02b2d70bfa5e001cf0535528f524e994c",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "3feeade465d06555c2ded5f5dd2a5ed3e2e85ddf352918f91bcfc6e950fb9435",
+        "inputHash": "fbb44084b6c34b2967dae183788a2afd03c6fe01b7a0ab766fefe6f20f16cb0a",
         "inputFiles": 560
       },
       {
