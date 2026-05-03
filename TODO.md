@@ -73,7 +73,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP62| Hard Budget Cap Enforcement          | Complete | `budget-exceeded` event + `budgetExceeded` payload flag; `budget_exceeded` lifecycleState + flag; `EXIT_BUDGET_EXCEEDED=8`; `--estimate` warns via `estimateBudgetWarning`; 30 regression tests; 925 pass |
-| WP70| HITL Gate Correctness                | Planned | Fix `always` mode to fire before every batch (not just batch 1); fix stale HITL sentinel reuse on resume; regression tests for multi-batch HITL behavior |
+| WP70| HITL Gate Correctness                | Complete | `always` fires every batch; stale sentinel gateId validation; 18 new regression tests; 949 pass |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
 | WP64| Conditional Task Routing             | Planned | Allow a task's output field value to gate follow-up task injection; extends WP49 injection with `conditionField`/`conditionValue` predicates so reviewer block can auto-route to an implementer-fix task |
 | WP65| Scheduled and Event-Triggered Runs  | Planned | Add `schedule` subcommand to trigger a plan on a cron expression or file-watch pattern, wired through the existing run machinery with retained run output |
@@ -751,10 +751,10 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - `hitl.py:87`: sentinel path is always `run_dir / "hitl-gate.lock"`. If a run is interrupted between `write_hitl_sentinel()` and `wait_for_hitl_decision()` returning, the file persists on disk. On resume, a new gate context with the same run dir but a different `gate_id` could read the stale file and act on the old decision without the operator being prompted again.
 
 **Tasks:**
-- [ ] Fix `should_trigger_hitl_gate`: change `always` from `batch_index == 1` to `True` (fire before every batch when enabled).
-- [ ] Fix stale sentinel: in `wait_for_hitl_decision`, after reading the sentinel file, validate that the `gateId` field in the file matches `context.gate_id`; if mismatched treat the file as absent and wait for a fresh decision.
-- [ ] Add regression tests for: `always` mode fires on batch 2+; mismatched gate ID in sentinel is ignored and operator is re-prompted; matching gate ID proceeds normally.
-- [ ] Update `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` to clarify `always` semantics.
+- [x] Fix `should_trigger_hitl_gate`: change `always` from `batch_index == 1` to `True` (fire before every batch when enabled).
+- [x] Fix stale sentinel: in `wait_for_hitl_decision`, after reading the sentinel file, validate that the `gateId` field in the file matches `context.gate_id`; if mismatched treat the file as absent and wait for a fresh decision.
+- [x] Add regression tests for: `always` mode fires on batch 2+; mismatched gate ID in sentinel is ignored and operator is re-prompted; matching gate ID proceeds normally.
+- [x] Update `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` to clarify `always` semantics.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

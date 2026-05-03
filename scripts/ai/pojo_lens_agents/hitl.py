@@ -79,7 +79,7 @@ def should_trigger_hitl_gate(
     if policy.mode == "on-failure":
         return bool(failed_task_ids)
     if policy.mode == "always":
-        return batch_index == 1
+        return True
     return False
 
 
@@ -105,14 +105,30 @@ def write_hitl_sentinel(context: HitlGateContext, *, write_text: Callable[[Path,
     return sentinel_path
 
 
-def _sentinel_action(sentinel_path: Path) -> str | None:
+def _sentinel_action(sentinel_path: Path, expected_gate_id: str | None = None) -> str | None:
     try:
-        text = sentinel_path.read_text(encoding="utf-8").strip().lower()
+        text = sentinel_path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
-    if text in APPROVE_VALUES:
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            if expected_gate_id is not None:
+                file_gate_id = data.get("gateId")
+                if file_gate_id is not None and file_gate_id != expected_gate_id:
+                    return None  # stale sentinel from a different gate
+            action = str(data.get("action", "")).strip().lower()
+            if action in APPROVE_VALUES:
+                return "approve"
+            if action in ABORT_VALUES:
+                return "abort"
+            return None
+    except (json.JSONDecodeError, ValueError):
+        pass
+    lower = text.lower()
+    if lower in APPROVE_VALUES:
         return "approve"
-    if text in ABORT_VALUES:
+    if lower in ABORT_VALUES:
         return "abort"
     return None
 
@@ -168,7 +184,7 @@ def wait_for_hitl_decision(
         file=output_stream,
     )
     while True:
-        action = _sentinel_action(sentinel_path)
+        action = _sentinel_action(sentinel_path, expected_gate_id=context.gate_id)
         if action == "approve":
             return HitlDecision(True, "approve", "Operator approved via sentinel file.", "sentinel", sentinel)
         if action == "abort":
