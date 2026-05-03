@@ -5,6 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
+- `2026-05-03`: WP71 complete; `prune_generated_plans` in `runtime_admin.py`; wired into `prune_runs`; 30-day/20-count defaults; slug collision warning + `generatedPlanCollision` payload in `wizard_command`; 16 regression tests; 1033 tests pass.
 - `2026-05-03`: WP66 complete; `write_shared_context` 5th base tool; `shared-context.jsonl` per-run scratchpad; `sharedContextTags` filter; prompt section injection; `sharedContextPath` in manifest; 24 regression tests; 1017 tests pass.
 - `2026-05-03`: WP64 complete; `conditionField`/`conditionValue` predicate on followUpTask; case-insensitive substring match against emitter record; `task-injection-skipped` event; 17 regression tests; 993 tests pass.
 - `2026-05-03`: WP63 complete; `ExtraToolDef` + `extraTools` JSON contract; shell/script execution via `execute_extra_tool`; collision + traversal guards; 27 regression tests; 976 tests pass.
@@ -19,6 +20,7 @@
 - `2026-05-03`: WP58/WP57/WP55 remain the active operator base: persistent console, retained diff preview, and guided wizard flow.
 
 ## Verified
+- `2026-05-03`: Full Python suite at `1033` tests after WP71.
 - `2026-05-03`: Full Python suite at `1017` tests after WP66.
 - `2026-05-03`: Full Python suite at `993` tests after WP64.
 - `2026-05-03`: Full Python suite at `976` tests after WP63.
@@ -36,4 +38,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP65 -> WP71 -> WP72 -> WP40 -> Release Gate.
+- `2026-05-03`: Roadmap order is WP65 -> WP72 -> WP40 -> Release Gate.

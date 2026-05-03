@@ -636,6 +636,24 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
                     generated_plan_payload = dict(intent_payload["taskPlan"])
                     generated_plan_path = _generated_plan_path(runtime_root, _goal_active, deps["slugify"])
                     payload["generatedPlanPath"] = str(generated_plan_path)
+                    if generated_plan_path.exists():
+                        try:
+                            _existing = json.loads(generated_plan_path.read_text(encoding="utf-8", errors="replace"))
+                            _existing_goal = str(_existing.get("goal", ""))
+                        except Exception:
+                            _existing_goal = ""
+                        if _existing_goal and _existing_goal != _goal_active:
+                            payload["generatedPlanCollision"] = {
+                                "existingGoal": _existing_goal,
+                                "newGoal": _goal_active,
+                                "path": str(generated_plan_path),
+                            }
+                            prompter.show_message(
+                                f"[warn] Generated plan '{generated_plan_path.name}' already exists "
+                                f"with a different goal and will be overwritten.\n"
+                                f"  existing: {_existing_goal[:80]!r}\n"
+                                f"  new:      {_goal_active[:80]!r}"
+                            )
                     if not _dry_run_arg:
                         deps["write_json"](generated_plan_path, generated_plan_payload)
                         plan_path = str(generated_plan_path)

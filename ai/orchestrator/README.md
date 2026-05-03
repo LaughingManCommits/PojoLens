@@ -105,7 +105,8 @@ Dry runs:
 - `wizard` (or no subcommand) is the planner-first operator entry point: it runs a clarification loop (up to 3 haiku-powered questions when goal is underspecified), resolves intent, shows a staged plan summary, and presents an explicit approve/revise/stop checkpoint before launching run, review, promote, and validate
 - wizard `revise` at the checkpoint resets the goal, re-runs clarification and intent resolution, and re-validates up to 3 rounds; `stop` exits before `run_handler` with no side-effects
 - wizard `--plan <path>` skips clarification and intent resolution (plan already pinned); `--goal` or trailing words feed the clarification and resolution stages
-- wizard-triggered natural-language generation writes ephemeral plans under `.claude-orchestrator/generated-plans/` rather than mutating tracked `ai/orchestrator/tasks/`
+- wizard-triggered natural-language generation writes ephemeral plans under `.claude-orchestrator/generated-plans/` rather than mutating tracked `ai/orchestrator/tasks/`; if the target file already exists with a different `goal`, the wizard emits a collision warning and records `generatedPlanCollision` in the payload before overwriting
+- `prune` also evicts old generated plans (default: older than 30 days and not in the 20 most recent); the `generatedPlans` key in the `prune` result summarises candidates, removed paths, and kept paths
 - dry-run planner/task payloads include `promptSections` plus `promptBudget`, and task records include `prompt_chars` / `prompt_estimated_tokens` so you can budget prompt size before spending Claude tokens
 - `validate --json` now reports declared agent defaults plus each task's effective `workerValidationMode` and source (`override`, `task`, `agent`, or `default`)
 - `validate --json` also reports each task's resolved `effort` and `effortSource`, so planner or worker reasoning level is inspectable before execution

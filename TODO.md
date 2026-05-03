@@ -78,7 +78,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP64| Conditional Task Routing             | Complete | `conditionField`/`conditionValue` predicate on followUpTask proposals; case-insensitive substring match against emitter record fields; skipped tasks emit `task-injection-skipped`; Pydantic mutual-requirement validator; 17 regression tests; 993 pass |
 | WP65| Scheduled and Event-Triggered Runs  | Planned | Add `schedule` subcommand to trigger a plan on a cron expression or file-watch pattern, wired through the existing run machinery with retained run output |
 | WP66| Agent Shared Context File           | Complete | `write_shared_context` 5th base tool; `shared-context.jsonl` per-run scratchpad; prompt section injection; `sharedContextTags` filter; `sharedContextPath` in manifest; 24 regression tests; 1017 pass |
-| WP71| Generated Plan Cleanup              | Planned | Wire `.claude-orchestrator/generated-plans/` pruning into the `cleanup` command; age/count-based eviction; warn on 48-char slug collision at write time |
+| WP71| Generated Plan Cleanup              | Complete | `prune_generated_plans` in `runtime_admin.py` wired into `prune_runs`; default 30-day/20-count eviction; slug collision warning in `wizard_command`; `generatedPlanCollision` payload; 16 regression tests; 1033 pass |
 | WP72| Orchestrator Core Coverage          | Planned | Add `test_orchestrator_app.py` covering CLI dispatch, handler wiring, and error propagation; validate OTEL endpoint at startup; document rate limiter as advisory in README |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
@@ -728,11 +728,11 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - This is deliberately lightweight — not a vector store, not persistent across runs. Goal is intra-run coordination: "implementer-1 noted that file X has a race condition; reviewer should prioritize that."
 
 **Tasks:**
-- [ ] Add `write_shared_context(note: str, tags: list[str])` as a 5th base tool in `sdk_provider.py`; appends `{ts, taskId, note, tags}` JSON line to run-dir `shared-context.jsonl`; workspace-root path enforcement not needed (writes to run dir, not workspace).
-- [ ] Add a `sharedContext` prompt section in `plan_support.worker_prompt` that injects the last N (default 10) lines from `shared-context.jsonl` filtered by optional `tags` declared in the task definition; include only when file exists.
-- [ ] Add `sharedContextTags: list[str] = []` to `TaskDefinition`; when non-empty, filter shared context lines to matching tags only.
-- [ ] Persist `shared-context.jsonl` path in the run manifest so `status`, `export-trace`, and `review` can reference it.
-- [ ] Add regression coverage for: tool call appends line, prompt section injection, tag filtering, missing file is no-op, line count limiting.
+- [x] Add `write_shared_context(note: str, tags: list[str])` as a 5th base tool in `sdk_provider.py`; appends `{ts, taskId, note, tags}` JSON line to run-dir `shared-context.jsonl`; workspace-root path enforcement not needed (writes to run dir, not workspace).
+- [x] Add a `sharedContext` prompt section in `plan_support.worker_prompt` that injects the last N (default 10) lines from `shared-context.jsonl` filtered by optional `tags` declared in the task definition; include only when file exists.
+- [x] Add `sharedContextTags: list[str] = []` to `TaskDefinition`; when non-empty, filter shared context lines to matching tags only.
+- [x] Persist `shared-context.jsonl` path in the run manifest so `status`, `export-trace`, and `review` can reference it.
+- [x] Add regression coverage for: tool call appends line, prompt section injection, tag filtering, missing file is no-op, line count limiting.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
@@ -774,10 +774,10 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - Generated plans are ephemeral (wizard artefacts, not tracked plans) so aggressive pruning (e.g. keep last 20, or older than 30 days) is safe.
 
 **Tasks:**
-- [ ] Add generated-plans pruning to the `cleanup` command: respect the existing `--keep-last-n` / `--older-than-days` policy applied to run directories; default to pruning generated plans older than 30 days or when count exceeds 20.
-- [ ] In `_generated_plan_path` (or its caller), warn via `prompter.show_message` when the target path already exists and the new goal slug differs from the stored `goal` field inside the existing file.
-- [ ] Add regression tests for: cleanup removes old generated plans; cleanup keeps recent ones; collision warning fires when slug matches but goal differs; no warning when slug and goal match (same goal re-resolved).
-- [ ] Update `ai/orchestrator/README.md` cleanup section.
+- [x] Add generated-plans pruning to the `cleanup` command: respect the existing `--keep-last-n` / `--older-than-days` policy applied to run directories; default to pruning generated plans older than 30 days or when count exceeds 20.
+- [x] In `_generated_plan_path` (or its caller), warn via `prompter.show_message` when the target path already exists and the new goal slug differs from the stored `goal` field inside the existing file.
+- [x] Add regression tests for: cleanup removes old generated plans; cleanup keeps recent ones; collision warning fires when slug matches but goal differs; no warning when slug and goal match (same goal re-resolved).
+- [x] Update `ai/orchestrator/README.md` cleanup section.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

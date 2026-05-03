@@ -1,11 +1,70 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+_GENERATED_PLANS_MAX_KEEP = 20
+_GENERATED_PLANS_OLDER_THAN_DAYS = 30.0
+
+
+def prune_generated_plans(
+    runtime_root: Path,
+    *,
+    older_than_days: float = _GENERATED_PLANS_OLDER_THAN_DAYS,
+    keep_count: int = _GENERATED_PLANS_MAX_KEEP,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    plans_dir = runtime_root / "generated-plans"
+    if not plans_dir.exists():
+        return {
+            "plansDir": str(plans_dir),
+            "olderThanDays": older_than_days,
+            "keepCount": keep_count,
+            "dryRun": dry_run,
+            "candidateCount": 0,
+            "removedCount": 0,
+            "removed": [],
+            "kept": [],
+        }
+    now = datetime.now(timezone.utc).astimezone()
+    cutoff = now - timedelta(days=older_than_days)
+    entries: list[tuple[Path, datetime]] = []
+    for path in plans_dir.iterdir():
+        if path.is_file() and path.suffix == ".json":
+            mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).astimezone()
+            entries.append((path, mtime))
+    entries.sort(key=lambda x: x[1], reverse=True)
+    keep_paths: set[Path] = {path for path, _ in entries[:keep_count]}
+    candidates: list[Path] = []
+    kept: list[str] = []
+    for path, mtime in entries:
+        if path in keep_paths or mtime > cutoff:
+            kept.append(str(path))
+        else:
+            candidates.append(path)
+    removed: list[str] = []
+    for path in candidates:
+        if not dry_run:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        removed.append(str(path))
+    return {
+        "plansDir": str(plans_dir),
+        "olderThanDays": older_than_days,
+        "keepCount": keep_count,
+        "dryRun": dry_run,
+        "candidateCount": len(candidates),
+        "removedCount": len(removed),
+        "removed": removed,
+        "kept": kept,
+    }
 
 
 def cleanup_loaded_run(
@@ -246,6 +305,10 @@ def prune_runs(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, A
             failures.append(failure)
             if not args.continue_on_error:
                 raise
+    generated_plans = prune_generated_plans(
+        runtime_root,
+        dry_run=bool(args.dry_run),
+    )
     return {
         "runtimeRoot": str(runtime_root),
         "olderThanDays": older_than_days,
@@ -259,4 +322,5 @@ def prune_runs(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[str, A
         "keptRunIds": sorted(keep_run_ids),
         "removed": removed,
         "failures": failures,
+        "generatedPlans": generated_plans,
     }

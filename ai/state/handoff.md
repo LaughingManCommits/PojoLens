@@ -3,10 +3,11 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP65 -> WP71 -> WP72 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP65 -> WP72 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-03`: WP71 complete; `prune_generated_plans(runtime_root, *, older_than_days, keep_count, dry_run)` in `runtime_admin.py`; called from `prune_runs`; result key `generatedPlans`; `_GENERATED_PLANS_MAX_KEEP=20`, `_GENERATED_PLANS_OLDER_THAN_DAYS=30.0`; slug collision warning + `generatedPlanCollision` payload in `wizard.py`; 16 new tests; 1033 pass.
 - `2026-05-03`: WP66 complete; `write_shared_context` 5th base tool; `execute_shared_context_tool` in `sdk_provider.py`; `_read_shared_context_tail` + `shared_context_notes` section in `prompt_contracts.py`; `sharedContextTags` on `TaskDefinition`/`TaskDefinitionModel`; `sharedContextPath` in manifest; 24 new tests; 1017 pass.
 - `2026-05-03`: WP64 complete; `conditionField`/`conditionValue` optional predicate on followUpTask proposals; `_check_follow_up_condition` in `run_ops.py`; case-insensitive substring match against emitter `TaskRunRecord` fields; skipped tasks emit `task-injection-skipped` event with field/value/actual details; Pydantic mutual-requirement validator (both or neither); 17 new tests; 993 pass.
 - `2026-05-03`: WP63 complete; `ExtraToolDef` dataclass + Pydantic `ExtraToolDefModel`; `extraTools` in agent/task JSON; `effective_task_tools` task-overrides-agent merge; shell/script execution via `execute_extra_tool` with collision + traversal guards; validate payload exposes `agentExtraTools` + per-task `extraTools`; 27 new tests; 976 pass.
@@ -15,6 +16,7 @@
 - `2026-05-03`: Queue is WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-03`: WP71: `prune_generated_plans` in `runtime_admin.py`; `_GENERATED_PLANS_MAX_KEEP=20`, `_GENERATED_PLANS_OLDER_THAN_DAYS=30.0` local constants; iterates `runtime_root/"generated-plans"/*.json` by mtime desc; candidates = not in top-N AND older than cutoff; `prune_runs` calls it and includes result under `"generatedPlans"` key; collision warning in `wizard.py` `wizard_command`: checks existing `goal` field before overwrite, emits `show_message` warning + `payload["generatedPlanCollision"]`.
 - `2026-05-03`: WP66: `SHARED_CONTEXT_FILENAME="shared-context.jsonl"`, `SHARED_CONTEXT_TAIL_LINES=10`, `MAX_SHARED_CONTEXT_NOTE_CHARS=500` in `orchestrator_contracts.py`; `"write_shared_context"` added to `BASE_TOOL_NAMES`; `shared_context_tags` on `TaskDefinition`/`TaskDefinitionModel`; `execute_shared_context_tool` in `sdk_provider.py`; `_read_shared_context_tail` + `shared_context_notes` prompt section in `prompt_contracts.py`; `shared_context_path=run_dir/SHARED_CONTEXT_FILENAME` computed and threaded through `task_execution.py` → `worker_prompt` + `run_sdk_provider`; `sharedContextPath` in `manifest_io.py` payload.
 - `2026-05-03`: WP64: `conditionField`/`conditionValue` added to `TaskDefinition`, `TaskDefinitionModel`, `WORKER_RESULT_SCHEMA` followUpTask item; `_check_follow_up_condition(injected_task, record)` in `run_ops.py`; `_inject_follow_up_tasks` split into 3 phases: coerce → condition check → topology/scope; skipped tasks emit `task-injection-skipped` with `conditionField`, `conditionValue`, `actualValue` in details; `task_plan_ops.load_task_definition` passes `condition_field`/`condition_value` through factory call.
 - `2026-05-03`: WP63: `ExtraToolDef(name,description,kind,template,timeout_sec)` in `orchestrator_contracts.py`; `ExtraToolDefModel` Pydantic validator rejects base-tool name collision + `..` traversal; `effective_task_tools(task,agent)` returns task-level when non-empty else agent-level; `execute_extra_tool` runs shell/script template via `subprocess.run(shell=True, cwd=workspace_root)`, caps output at `MAX_TOOL_OUTPUT_CHARS`; `run_sdk_provider` accepts `extra_tools: list[dict]|None`; validate payload adds `agentExtraTools` dict + per-task `extraTools` list.
