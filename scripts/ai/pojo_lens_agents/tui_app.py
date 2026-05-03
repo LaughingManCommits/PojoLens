@@ -237,6 +237,7 @@ if textual_is_available():
             self._pending_hitl_future: asyncio.Future[str] | None = None
             self._pending_hitl_gate_id: str | None = None
             self._pending_hitl_sentinel_path: str | None = None
+            self._streaming_active: bool = False
 
         def compose(self) -> ComposeResult:
             yield RunSummaryBar("", id="summary")
@@ -347,10 +348,16 @@ if textual_is_available():
             if phase == "task-started":
                 self._handle_task_started(event)
             elif phase in {"task-finished", "task-reused"}:
+                self._streaming_active = False
                 self._handle_task_finished(event)
             elif phase == "task-retry":
+                self._streaming_active = False
                 self._handle_task_retry(event)
+            elif phase == "task-streaming":
+                self._handle_task_streaming(event)
+                return
             elif phase == "run-finished":
+                self._streaming_active = False
                 self._refresh_summary()
                 self.exit()
                 return
@@ -402,6 +409,17 @@ if textual_is_available():
                     self.active_stderr_path = None
             self._update_task_row(task_id)
 
+        def _handle_task_streaming(self, event: dict[str, Any]) -> None:
+            text = str(event.get("text", "") or "")
+            if not text:
+                return
+            if not self._streaming_active:
+                self._streaming_active = True
+                log = self.query_one(LogPane)
+                log.clear()
+            log = self.query_one(LogPane)
+            log.write(text, markup=False)
+
         def _handle_task_retry(self, event: dict[str, Any]) -> None:
             task_id = str(event.get("taskId", "") or "")
             if task_id in self.task_states:
@@ -450,6 +468,8 @@ if textual_is_available():
             grid.update_cell(task_id, "elapsed", _format_elapsed(elapsed))
 
         def _refresh_log_tail(self) -> None:
+            if self._streaming_active:
+                return
             lines = _tail_lines(self.active_stderr_path)
             if lines == self._last_log_lines:
                 return

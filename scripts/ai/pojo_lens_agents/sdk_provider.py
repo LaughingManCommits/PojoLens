@@ -271,6 +271,7 @@ def run_sdk_provider(
     workspace_root: Path,
     timeout_sec: int = 1800,
     stream_to_stderr: bool = False,
+    on_partial_text: Callable[[str], None] | None = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     bash_timeout_sec: int = DEFAULT_BASH_TIMEOUT_SEC,
     on_progress: Callable[[int], None] | None = None,
@@ -305,7 +306,8 @@ def run_sdk_provider(
             if on_progress is not None:
                 on_progress(iteration)
 
-            if stream_to_stderr and sys.stderr.isatty():
+            _use_stream = on_partial_text is not None or (stream_to_stderr and sys.stderr.isatty())
+            if _use_stream:
                 with client.messages.stream(
                     model=effective_model,
                     system=system_prompt,
@@ -314,8 +316,11 @@ def run_sdk_provider(
                     max_tokens=max_tokens,
                 ) as stream:
                     for text_delta in stream.text_stream:
-                        sys.stderr.write(text_delta)
-                        sys.stderr.flush()
+                        if on_partial_text is not None:
+                            on_partial_text(text_delta)
+                        elif stream_to_stderr:
+                            sys.stderr.write(text_delta)
+                            sys.stderr.flush()
                     response = stream.get_final_message()
             else:
                 response = client.messages.create(

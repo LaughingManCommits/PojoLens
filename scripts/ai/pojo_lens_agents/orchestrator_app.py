@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import copy
 import difflib
 import importlib
@@ -15,6 +16,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+_PARTIAL_FACTORY_CTX: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "_pojo_partial_factory", default=None
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
@@ -215,6 +220,7 @@ async def execute_task(
             "diff_workspace_snapshots": diff_workspace_snapshots,
             "provider_mode": sdk_provider_layer.detect_provider_mode,
             "run_sdk_provider": sdk_provider_layer.run_sdk_provider,
+            "partial_text_writer_factory": _PARTIAL_FACTORY_CTX.get(),
             "run_subprocess": run_subprocess_async,
             "task_wait_action": task_wait_action,
             "extract_json_payload": extract_json_payload,
@@ -539,6 +545,7 @@ def run_loaded_plan(
     _rpm = rpm_limit if rpm_limit is not None else (int(_os.environ["ANTHROPIC_RPM_LIMIT"]) if _os.environ.get("ANTHROPIC_RPM_LIMIT", "").strip().isdigit() else None)
     _rate_bucket = rate_limiter_layer.RateLimitBucket(tpm_limit=_tpm, rpm_limit=_rpm) if (_tpm is not None or _rpm is not None) else None
     _max_retries = max_task_retries
+    _partial_factory: Any = None  # set based on watch/tui mode; read via _PARTIAL_FACTORY_CTX
 
     async def _execute_task_with_retry(
         run_dir: Path,
@@ -675,15 +682,25 @@ def run_loaded_plan(
         )
 
     if not tui:
-        payload = asyncio.run(
-            _run_inner(
+        if watch:
+            _partial_factory = _make_stderr_partial_factory()
+
+        async def _run_non_tui() -> dict[str, Any]:
+            if _partial_factory is not None:
+                _PARTIAL_FACTORY_CTX.set(_partial_factory)
+            return await _run_inner(
                 _append_run_event=_active_append_run_event,
                 _wait_for_hitl_decision=hitl_layer.wait_for_hitl_decision,
             )
-        )
+
+        payload = asyncio.run(_run_non_tui())
     else:
         async def _run_with_tui() -> dict[str, Any]:
+            nonlocal _partial_factory
             event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            _partial_factory = _make_tui_partial_factory(event_queue, loop)
+            _PARTIAL_FACTORY_CTX.set(_partial_factory)
             app = tui_layer.OrchestratorApp(
                 event_queue=event_queue,
                 task_models={
@@ -1285,6 +1302,31 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+
+
+def _make_stderr_partial_factory() -> Any:
+    def _factory(*, task_id: str, task_title: str) -> Any:
+        _ = task_id, task_title
+        def _writer(text: str) -> None:
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        return _writer
+    return _factory
+
+
+def _make_tui_partial_factory(event_queue: Any, loop: Any) -> Any:
+    def _factory(*, task_id: str, task_title: str) -> Any:
+        _ = task_title
+        def _writer(text: str) -> None:
+            try:
+                loop.call_soon_threadsafe(
+                    event_queue.put_nowait,
+                    {"phase": "task-streaming", "taskId": task_id, "text": text},
+                )
+            except Exception:
+                pass
+        return _writer
+    return _factory
 
 
 def _make_watch_append_run_event(base_fn: Any) -> Any:

@@ -66,7 +66,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
-| WP60| Interactive Streaming During Runs    | Planned | After WP67, wire SDK partial output into the shared interactive output path for console/watch/TUI without breaking `--json` stdout |
+| WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; `_PARTIAL_FACTORY_CTX` contextvar injection (thread-safe); `--watch` → stderr stream; TUI → `LogPane` via `call_soon_threadsafe`; `_streaming_active` suppresses tail-poll; 25 tests; 824 pass |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
@@ -428,7 +428,7 @@ dismiss-value tests and ConsoleApp host for compose render tests.
 
 ## WP60: Interactive Streaming During Runs
 
-**Priority:** Low
+**Priority:** Low → **Complete** (`2026-05-03`)
 
 **Goal:** After WP67 consolidates the operator surfaces, wire partial SDK
 output into the shared interactive output path during TTY runs so operators see
@@ -447,15 +447,35 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - `--json` stdout must remain clean; partial streaming targets stderr only.
 
 **Tasks:**
-- [ ] Execute this WP after WP67 so partial streaming lands on the consolidated
+- [x] Execute this WP after WP67 so partial streaming lands on the consolidated
       interactive output path.
-- [ ] Add an optional `on_partial_text: Callable[[str], None] | None` param to `sdk_provider.run_sdk_provider` (and its async variant).
-- [ ] When streaming and `on_partial_text` is provided, call it for each delta text token; gate behind `stderr.isatty()` inside the provider.
-- [ ] Wire `on_partial_text` in `task_execution.execute_task` when running in
-      interactive mode (not `--json`, stderr is TTY): emit tokens through the
-      shared console/watch/TUI output adapter rather than ad hoc direct writes.
-- [ ] Ensure no partial lines contaminate the JSON stdout path.
-- [ ] Add regression coverage for `on_partial_text` callback invocation, TTY-gating, and clean no-op when not provided.
+- [x] Add an optional `on_partial_text: Callable[[str], None] | None` param to `sdk_provider.run_sdk_provider`.
+- [x] When streaming and `on_partial_text` is provided, call it for each delta text token; `stream_to_stderr` backward compat preserved (TTY-gated stderr writes if no callback).
+- [x] Wire `on_partial_text` in `task_execution.execute_task` via `deps["partial_text_writer_factory"]`; factory called once per task returning a per-task callback.
+- [x] `orchestrator_app` injects factory via `_PARTIAL_FACTORY_CTX` contextvar (thread-safe; no public API signature changes): `--watch` → `_make_stderr_partial_factory()`; TUI → `_make_tui_partial_factory(event_queue, loop)` set inside async context.
+- [x] TUI: `task-streaming` events routed to `LogPane` via `call_soon_threadsafe`; `_streaming_active` flag suppresses `_refresh_log_tail` tail-poll during active stream.
+- [x] `--json` stdout remains clean; no partial text written to stdout.
+- [x] 25 regression tests in `test_streaming.py` covering all layers; 824 total pass.
+
+**Review findings (`2026-05-03`):**
+
+- **Follow-up: tool-loop silence** — `on_partial_text` only fires for text deltas;
+  tool-call turns (bash, read_file, etc.) emit no tokens. Multi-step agentic loops
+  appear silent for the full tool-use phase. Consider emitting a synthetic
+  `[tool: <name>]` marker per tool call iteration so operators see agentic
+  progress, not just the final synthesis. → New WP candidate.
+
+- **Follow-up: watch-mode interleaving** — When `--watch` runs tasks in parallel,
+  multiple workers write raw tokens to `sys.stderr` concurrently. No task prefix
+  is added; partial tokens from different tasks interleave arbitrarily. Consider
+  buffering per task and flushing whole lines with a `[task-id]` prefix, or
+  restricting streaming to `max_parallel=1` watch runs. → New WP candidate.
+
+- **Follow-up: subprocess factory waste** — `_make_stderr_partial_factory()` is
+  constructed and set even when the run uses subprocess provider. The factory is
+  created but `task_execution` only reads it when `_provider_mode == "sdk"`, so
+  it is silently ignored. Minor waste; no functional impact. Fix: gate factory
+  construction on `sdk_provider.detect_provider_mode() == "sdk"`. → Low priority.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

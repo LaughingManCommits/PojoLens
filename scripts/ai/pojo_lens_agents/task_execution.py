@@ -476,6 +476,8 @@ async def execute_task(
     changed_repo_files: list[str] = []
     try:
         if _provider_mode == "sdk":
+            _partial_factory = deps.get("partial_text_writer_factory")
+            _partial_cb = _partial_factory(task_id=task.id, task_title=task.title) if _partial_factory else None
             _sdk_result = await asyncio.to_thread(
                 deps["run_sdk_provider"],
                 agent.prompt or "",
@@ -483,6 +485,7 @@ async def execute_task(
                 model=model_name,
                 workspace_root=prepared_workspace,
                 timeout_sec=task.timeout_sec or agent.timeout_sec,
+                on_partial_text=_partial_cb,
             )
             return_code = 1 if _sdk_result.error else 0
             stdout_text = _sdk_result.text
