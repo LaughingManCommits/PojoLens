@@ -64,8 +64,9 @@ Execution order is dependency-first, not ticket-number order.
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
-| WP59| TUI Console Test Coverage            | Planned | Zero tests exist for `tui_console.py`; add focused headless Textual tests covering `_ThreadLocalStdout`, dispatch, bg-job workers, inline workers, history, and exit modal |
-| WP60| Interactive Streaming During Runs    | Planned | Deferred WP44 task: wire SDK streaming partial output lines to stderr during interactive (TTY) runs without breaking `--json` stdout |
+| WP67| Interactive Surface Consolidation   | Planned | Make `console`, `tui_console`, `tui_app`, and `wizard` one coherent operator surface with shared components, clear ownership, and no duplicate UI paths |
+| WP59| TUI Console Test Coverage            | Planned | After WP67, add focused headless Textual tests around the consolidated console surface and its shared background-job/output routing |
+| WP60| Interactive Streaming During Runs    | Planned | After WP67, wire SDK partial output into the shared interactive output path for console/watch/TUI without breaking `--json` stdout |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
@@ -416,24 +417,89 @@ status and cost summary.
 
 ---
 
-## WP59: TUI Console Test Coverage
+## WP67: Interactive Surface Consolidation
 
 **Priority:** High
 
-**Goal:** `tui_console.py` ships zero tests. Add headless Textual regression coverage so future changes to the operator console do not regress silently.
+**Goal:** Turn the currently separate interactive layers (`console.py`,
+`tui_console.py`, `tui_app.py`, and `wizard.py`) into one coherent operator
+surface so we do not keep multiple partially-overlapping UIs alive forever.
 
 **Context:**
-- `tui_console.py` was added in WP58 as a new untracked file. It contains `_ThreadLocalStdout` (thread-local stdout routing), `_ExitConfirmModal` (Textual modal), `ConsoleApp` (main TUI with 6 action methods, 2 workers, dispatch, history, busy state, jobs panel). None of this is exercised by tests.
-- `test_console.py` covers the plain-text `console.py` (58 tests). `test_tui_app.py` covers `tui_app.py` (run-time dashboard). Neither touches `tui_console.py`.
-- The module has meaningful threading complexity: `_bg_job_worker` runs in a Textual worker thread; `_capture` redirects stdout per-thread; `_inline_worker` sets/clears busy state across threads. Bugs here manifest as silent output loss or hung sessions.
+- WP58 added both a plain REPL (`console.py`) and a Textual operator console
+  (`tui_console.py`). The older run-scoped Textual dashboard still lives in
+  `tui_app.py`, and `wizard.py` still owns its own prompt model plus mini
+  Textual prompt apps.
+- All of those pieces work, but they are now close enough in scope that we can
+  drift into parallel interactive surfaces: run-only TUI, persistent TUI
+  console, plain REPL console, and wizard-owned prompts.
+- The repo should converge these into one deliberate operator model:
+  persistent `console` as the interactive entry, reused run-monitor widgets,
+  console-owned prompt handling, and one shared event/output path.
+- This WP must land before we invest further in console-specific tests or
+  interactive streaming polish; otherwise we risk hardening a shape we plan to
+  reshape immediately.
 
 **Tasks:**
+- [ ] Define the target ownership split:
+      `console.py` for command/session semantics,
+      `tui_console.py` for the persistent Textual shell,
+      reusable run-monitor widgets extracted from `tui_app.py`,
+      and wizard prompt flow adapted to console-owned prompts.
+- [ ] Extract shared run-monitor panels/state from `tui_app.py` so the
+      persistent TUI console can host the same task grid, summary, stderr tail,
+      and HITL controls instead of maintaining a separate dashboard concept.
+- [ ] Remove or reduce any duplicated rendering/output logic between
+      `console.py`, `tui_console.py`, `tui_app.py`, and `command_dispatch.py`
+      so text-mode and TUI-mode both use the same payload-to-view rules.
+- [ ] Make `wizard` console-native: when invoked from the persistent console it
+      must use console-owned prompt routing rather than nesting raw `input()`
+      or launching a second independent prompt UI.
+- [ ] Decide the steady-state role of the old run-only `--tui` path:
+      either keep it as a thin compatibility wrapper around the shared run
+      monitor widgets or retire its custom shell-level behavior if redundant.
+- [ ] Document the supported operator entry points clearly:
+      one-shot CLI, persistent plain console, persistent TUI console, and any
+      retained compatibility mode for run-only TUI.
+- [ ] Add regression coverage for the shared interactive ownership boundaries so
+      future work cannot reintroduce duplicated UI paths by accident.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP59: TUI Console Test Coverage
+
+**Priority:** Medium
+
+**Goal:** After WP67 lands, add headless Textual regression coverage so the
+consolidated interactive operator surface cannot regress silently.
+
+**Context:**
+- `tui_console.py` was added in WP58 and currently has no direct tests. It
+  contains `_ThreadLocalStdout`, `_ExitConfirmModal`, and `ConsoleApp`, and
+  after WP67 it should also host the shared interactive shell behaviors rather
+  than a parallel one-off surface.
+- WP67 should consolidate the interactive surface first. Testing the pre-
+  consolidation shape too deeply would harden details we may immediately
+  refactor.
+- After consolidation, the retained complexity worth testing is the shared
+  Textual shell behavior: `_bg_job_worker`, `_capture`, `_inline_worker`,
+  history, output routing, run-monitor embedding, and exit handling.
+
+**Tasks:**
+- [ ] Execute this WP only after WP67 reshapes the interactive ownership model.
 - [ ] Add `test_tui_console.py` under `scripts/tests/`; skip all tests when `textual` is not installed (same pattern as `test_tui_app.py`).
 - [ ] Test `_ThreadLocalStdout`: install, `set_sink`/`clear_sink` routing, fallback to real stdout when no sink, `encoding` property.
 - [ ] Test `_capture`: printed output captured into returned string, return value passed through, sink cleared after exception.
 - [ ] Test `_payload_text`: with `_consoleText` present (non-JSON path), without it (JSON path), with `--json` flag override.
 - [ ] Test `ConsoleApp._dispatch` via headless `run_test()`: `/help` writes to output, `/clear` calls `action_clear_output`, `/jobs` with no jobs, `/focus` with and without job-id, unknown slash command writes error, shlex parse error handled, unknown handler warning.
 - [ ] Test long-running vs inline routing: `run`/`resume`/`retry` create a `ConsoleJob` and run as worker; `status` runs inline.
+- [ ] Test the shared run-monitor embedding path that WP67 extracts from
+      `tui_app.py`, including live-task updates and focus changes from the
+      persistent console shell.
 - [ ] Test `_bg_job_worker`: success path sets `job.status = "completed"`, failure path sets `"failed"`, `OrchestratorError` sets `"failed"`, final completion message written.
 - [ ] Test `_inline_worker`: success, `OrchestratorError`, `PromotionBlockedError`, exception; busy cleared in all paths.
 - [ ] Test history navigation: `history_prev`/`history_next` round-trips, empty history is no-op.
@@ -450,18 +516,30 @@ status and cost summary.
 
 **Priority:** Low
 
-**Goal:** Wire partial SDK output lines to stderr during interactive TTY runs so operators see token-level progress instead of a blank wait, closing the deferred WP44 task.
+**Goal:** After WP67 consolidates the operator surfaces, wire partial SDK
+output into the shared interactive output path during TTY runs so operators see
+token-level progress instead of a blank wait, closing the deferred WP44 task.
 
 **Context:**
 - `sdk_provider.py` already calls `client.messages.stream()` when stderr is a TTY. Output currently accumulates in a buffer and is only written at task completion.
 - `_make_watch_append_run_event` in `orchestrator_app.py` formats run events to stderr but has no hook for intra-task partial lines.
-- The fix is to let `sdk_provider.py` emit partial text lines directly to stderr (or via a callback) during the stream, independent of the event formatter.
+- WP67 should leave us with one interactive output ownership model across plain
+  console, TUI console, and legacy run-watch paths. This WP should plug partial
+  streaming into that shared path instead of inventing a console-only side
+  channel.
+- The fix is to let `sdk_provider.py` emit partial text lines directly to
+  stderr (or via a callback) during the stream, independent of the event
+  formatter.
 - `--json` stdout must remain clean; partial streaming targets stderr only.
 
 **Tasks:**
+- [ ] Execute this WP after WP67 so partial streaming lands on the consolidated
+      interactive output path.
 - [ ] Add an optional `on_partial_text: Callable[[str], None] | None` param to `sdk_provider.run_sdk_provider` (and its async variant).
 - [ ] When streaming and `on_partial_text` is provided, call it for each delta text token; gate behind `stderr.isatty()` inside the provider.
-- [ ] Wire `on_partial_text` in `task_execution.execute_task` when running in interactive mode (not `--json`, stderr is TTY): emit tokens to stderr.
+- [ ] Wire `on_partial_text` in `task_execution.execute_task` when running in
+      interactive mode (not `--json`, stderr is TTY): emit tokens through the
+      shared console/watch/TUI output adapter rather than ad hoc direct writes.
 - [ ] Ensure no partial lines contaminate the JSON stdout path.
 - [ ] Add regression coverage for `on_partial_text` callback invocation, TTY-gating, and clean no-op when not provided.
 

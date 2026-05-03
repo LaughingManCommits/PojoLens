@@ -3,23 +3,24 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP59 → WP50 → WP56 → WP61 → WP60 → WP62–WP66 → WP40 (always last) → Release Gate.
+3. Follow `TODO.md`: WP67 -> WP59 -> WP50 -> WP56 -> WP61 -> WP60 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 (always last) -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-03`: WP58 is complete; `console.py` adds persistent operator session; `run`/`resume`/`retry` are background jobs; `/help`,`/jobs`,`/focus`,`/clear`,`/exit` wired; all orchestrator commands route inline; `console` in KNOWN_COMMANDS and cli_parser; 697 tests pass.
-- `2026-05-03`: WP57 is complete; `diff-run` now provides retained workspace-vs-repo diff/stat output with task/path filters and is wired into the wizard promote gate.
-- `2026-05-02`: WP55 is complete; `pojolens-agents` now defaults to a guided wizard with plan inventory, optional natural-language routing, and inline review/promote/validate plus `--resume` / `--retry`.
-- `2026-05-02`: Keep the current orchestrator stack intact: TUI/watch modes, follow-up injection, cost estimation, HITL gates, retry, and typed retained-run contracts.
-- `2026-05-03`: Queue is WP59 (tui_console tests) → WP50 → WP56 → WP61 → WP60 → WP62 → WP63 → WP64 → WP65 → WP66 → WP40 (always last) → Release Gate. WP18 removed.
+- `2026-05-03`: WP67 is next and high priority; consolidate `console.py`, `tui_console.py`, `tui_app.py`, and `wizard.py` before more console/TUI hardening.
+- `2026-05-03`: WP58 is complete; persistent `console` ships `/help`, `/jobs`, `/focus`, `/clear`, `/exit`, inline command routing, and background `run`/`resume`/`retry`; 697 tests passed.
+- `2026-05-03`: WP57 is complete; `diff-run` now covers retained workspace-vs-repo diff/stat output and the wizard promote gate.
+- `2026-05-02`: WP55 is complete; the default operator flow is the guided wizard with plan inventory, goal routing, and inline review/promote/validate plus `--resume` / `--retry`.
+- `2026-05-03`: Queue is WP67 -> WP59 -> WP50 -> WP56 -> WP61 -> WP60 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 (always last) -> Release Gate. WP18 removed.
 
 ## Facts
 - `2026-05-02`: `orchestrator_models.py` owns Pydantic model mirrors; existing contract dataclasses are Pydantic-backed and still support `dataclasses.asdict`.
-- `2026-05-02`: `wizard.py` owns the no-args operator flow; it preprocesses argv before argparse, wraps validate/run/review/promote/validate-run handlers directly, and keeps generated goal plans under `.claude-orchestrator/generated-plans/`.
-- `2026-05-03`: `console.py` owns the persistent operator console; `run`/`resume`/`retry` are background threads via `ConsoleJob`; `dispatch_line` is the per-line router; `run_console_session` owns the REPL loop; `orchestrator_app._build_handlers()` owns the shared handler dict and bypasses `dispatch_main` for `console`.
-- `2026-05-03`: `diff_run.py` owns retained-run human diff rendering plus task/path filter parsing; `command_dispatch.print_payload(...)` now honors a private `_consoleText` field for human text mode without polluting `--json` output.
+- `2026-05-02`: `wizard.py` owns the no-args flow and keeps generated goal plans under `.claude-orchestrator/generated-plans/`.
+- `2026-05-03`: `console.py` owns the plain persistent console; `dispatch_line` routes commands and `run_console_session` owns the REPL loop.
+- `2026-05-03`: `tui_console.py` is a second persistent surface while `tui_app.py` still owns the older run-only dashboard; WP67 must converge both with `wizard.py`.
+- `2026-05-03`: `diff_run.py` owns retained-run human diff rendering; `command_dispatch.print_payload(...)` honors `_consoleText` without polluting `--json`.
 - `2026-05-02`: `hitl.py` owns HITL policy resolution; provider mode still auto-detects SDK when `anthropic` and `ANTHROPIC_API_KEY` are present, otherwise subprocess.
-- `2026-05-03`: `TODO.md` order is WP59 → WP50 → WP56 → WP40 → WP61 → WP60 → deferred WP18 → Release Gate.
+- `2026-05-03`: `TODO.md` now treats WP67 as the tightening gate for further interactive work; WP59 and WP60 both explicitly depend on the consolidated operator-surface ownership model.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 
 ## Validate
