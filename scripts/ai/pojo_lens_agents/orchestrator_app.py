@@ -1491,12 +1491,13 @@ def main() -> int:
     args = parse_args()
     if args.command == "console":
         from pojo_lens_agents.cli_parser import parse_args as _child_parse_args
+        handlers = _build_handlers()
+        no_tui = bool(getattr(args, "no_tui", False))
+        if not no_tui and tui_layer.textual_is_available():
+            from pojo_lens_agents.tui_console import run_tui_console
+            return run_tui_console(args, handlers=handlers, parse_args_fn=_child_parse_args)
         from pojo_lens_agents.console import run_console_session
-        return run_console_session(
-            args,
-            handlers=_build_handlers(),
-            parse_args_fn=_child_parse_args,
-        )
+        return run_console_session(args, handlers=handlers, parse_args_fn=_child_parse_args)
     return dispatch_main(args, _build_handlers())
 
 

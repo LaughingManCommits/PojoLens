@@ -1051,6 +1051,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=str(DEFAULT_RUNTIME_ROOT),
         help="Runtime root for run inventory.",
     )
+    console_parser.add_argument(
+        "--no-tui",
+        action="store_true",
+        default=False,
+        help="Use plain REPL instead of the Textual TUI console.",
+    )
     _add_provider_bin_arg(console_parser)
     _add_verbose_arg(console_parser)
 

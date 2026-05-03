@@ -23,4 +23,5 @@
 - `2026-04-27`: Real MySQL verification for `examples/spring-boot-starter-risk-console` is still pending.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP50 -> WP56 -> WP40 -> deferred WP18 -> Release Gate.
+- `2026-05-03`: Roadmap order is WP59 → WP50 → WP56 → WP61 → WP60 → WP62–WP66 → WP40 (always last before Release Gate) → Release Gate. WP18 removed.
+- `2026-05-03`: New WPs from competitive gap analysis — WP59 (tui_console tests), WP60 (SDK streaming), WP61 (MySQL risk), WP62 (hard budget cap vs prod orchestrators), WP63 (tool registry vs CrewAI/AutoGen), WP64 (conditional routing vs LangGraph), WP65 (scheduled runs vs Prefect), WP66 (shared context vs AutoGen).

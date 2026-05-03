@@ -3,7 +3,7 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP50 -> WP56 -> WP40 -> deferred WP18 -> Release Gate.
+3. Follow `TODO.md`: WP59 → WP50 → WP56 → WP61 → WP60 → WP62–WP66 → WP40 (always last) → Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
@@ -11,7 +11,7 @@
 - `2026-05-03`: WP57 is complete; `diff-run` now provides retained workspace-vs-repo diff/stat output with task/path filters and is wired into the wizard promote gate.
 - `2026-05-02`: WP55 is complete; `pojolens-agents` now defaults to a guided wizard with plan inventory, optional natural-language routing, and inline review/promote/validate plus `--resume` / `--retry`.
 - `2026-05-02`: Keep the current orchestrator stack intact: TUI/watch modes, follow-up injection, cost estimation, HITL gates, retry, and typed retained-run contracts.
-- `2026-05-03`: Next queue is WP58, then WP50, then WP56, then WP40, deferred WP18, and Release Gate.
+- `2026-05-03`: Queue is WP59 (tui_console tests) → WP50 → WP56 → WP61 → WP60 → WP62 → WP63 → WP64 → WP65 → WP66 → WP40 (always last) → Release Gate. WP18 removed.
 
 ## Facts
 - `2026-05-02`: `orchestrator_models.py` owns Pydantic model mirrors; existing contract dataclasses are Pydantic-backed and still support `dataclasses.asdict`.
@@ -19,7 +19,7 @@
 - `2026-05-03`: `console.py` owns the persistent operator console; `run`/`resume`/`retry` are background threads via `ConsoleJob`; `dispatch_line` is the per-line router; `run_console_session` owns the REPL loop; `orchestrator_app._build_handlers()` owns the shared handler dict and bypasses `dispatch_main` for `console`.
 - `2026-05-03`: `diff_run.py` owns retained-run human diff rendering plus task/path filter parsing; `command_dispatch.print_payload(...)` now honors a private `_consoleText` field for human text mode without polluting `--json` output.
 - `2026-05-02`: `hitl.py` owns HITL policy resolution; provider mode still auto-detects SDK when `anthropic` and `ANTHROPIC_API_KEY` are present, otherwise subprocess.
-- `2026-05-03`: `TODO.md` order is WP50, WP56, WP40, deferred WP18, Release Gate.
+- `2026-05-03`: `TODO.md` order is WP59 → WP50 → WP56 → WP40 → WP61 → WP60 → deferred WP18 → Release Gate.
 - `2026-04-29`: Current release/tag is `2026.04.29.1809` (`release-2026.04.29.1809`).
 
 ## Validate
