@@ -83,6 +83,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP73| Wizard Saved Plans & Effort UI      | Complete | `discover_saved_plans`/`save_plan_to`/`_saved_plans_flow`; effort selection (low/medium/high → haiku/sonnet/opus); expanded checkpoint (save_only, save_and_start, edit); `--planner-effort` CLI flag; 16 regression tests; 1070 pass |
 | WP74| Operator TUI Full Wiring            | Complete | `tui_operator.py` multi-screen Textual console; HomeScreen + 17 screens; DiffReviewScreen, AgentsScreen, SkillsScreen, EstimateScreen/EstimateResultScreen; search filter in SavedPlansScreen; Agents+Skills bindings; EstimateScreen from [D]; DiffReviewScreen from promote; `operator` subcommand wired; 1074 pass |
 | WP75| HITL TUI Live Gate Integration      | Planned  | Wire HitlGateScreen to live run event stream; poll retained run for pending HITL sentinels; approve/abort from TUI; gate id display; cost-so-far; completed batch summary |
+| WP76| Operator TUI Feature Completion     | Planned  | ClarificationScreen (wizard AI clarification loop); LiveRunDashboard push from operator TUI; PlanEditorScreen (not stub); SettingsScreen TPM/RPM/notifications; Extra Tools inspector; Follow-Up Task UI; Validation Intents UI; Output Profiles UI; Prompt Accounting section breakdown |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -871,6 +872,43 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - [ ] [A] Approve / [X] Abort bindings calling orchestrator approve/abort handlers
 - [ ] Stale sentinel warning if gate was armed too long
 - [ ] Wire into LiveRunDashboard auto-push when gate detected
+
+---
+
+## WP76: Operator TUI Feature Completion
+
+**Priority:** Low → **Planned**
+
+**Goal:** Complete the remaining stub screens and missing UI surfaces in `tui_operator.py` to fully close the gap between the spec and the implemented operator console.
+
+**Tasks:**
+
+Stubs to replace:
+- [ ] `PlanEditorScreen` — replace `notify()` stub with a real form or `$EDITOR` launch for plan JSON editing
+- [ ] `MemoryToolsScreen` query — replace `notify()` stub with inline PS1 output capture
+
+Wizard clarification:
+- [ ] `ClarificationScreen` — TUI screen for the wizard clarification loop; show up to 3 AI questions before plan generation; skip button; answer Input per question
+
+Live run integration:
+- [ ] Push `OrchestratorApp` (from `tui_app.py`) from operator TUI when a run starts, so user stays in operator console and monitors the live run dashboard inline
+- [ ] Wire `HitlGateScreen` auto-push from `LiveRunDashboard` (tracked separately in WP75)
+
+Settings screen completions:
+- [ ] TPM / RPM rate limit display and edit
+- [ ] Notification settings (desktop / webhook / Slack; notify_on success/failure/always)
+- [ ] ANSI / Unicode fallback toggle
+- [ ] Default HITL mode, workspace mode, effort, budget
+
+Inspector surfaces:
+- [ ] Extra Tools inspector screen — per-tool: name, kind, timeout, source (agent vs task), base-tool collision warning, path traversal warning
+- [ ] Validation Intents UI — show `repo-script` vs `tool` intents per task; warn on legacy `validationCommands`
+- [ ] Output Profiles UI — show `default` vs `lean` per task; explain lean recommendation for docs/read-only tasks
+- [ ] Follow-Up Task UI — show emitted `followUpTasks`, conditionField/conditionValue, injection accepted/skipped/rejected events
+- [ ] Prompt Accounting panel — section-level breakdown (system prompt, role prompt, skill stack, dependency context, shared context, task prompt); warn/block on oversized prompts
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 
 ---
 
