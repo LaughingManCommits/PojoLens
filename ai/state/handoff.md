@@ -7,7 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-03`: WP60 is complete; `sdk_provider.run_sdk_provider` now accepts `on_partial_text` callback; `task_execution` pulls factory from `deps["partial_text_writer_factory"]`; `orchestrator_app` uses `_PARTIAL_FACTORY_CTX` contextvar (thread-safe, no signature changes); `--watch` streams to stderr; TUI routes `task-streaming` events to `LogPane` via `call_soon_threadsafe`; `_refresh_log_tail` suppressed during streaming; 824 tests pass.
+- `2026-05-03`: WP60 is complete (incl. review fixes); `sdk_provider` emits `[tool: name]` markers during tool-use turns; `_make_stderr_partial_factory` line-prefixes every line with `[task-id]`; factory gated on `detect_provider_mode() == "sdk"`; 38 tests; 836 pass.
 - `2026-05-03`: WP50 complete + review-pass fixes: key-name bugs in token budget + actual-usage count fixed; `record_completion` async+locked; wizard piped; follow-up recompute added; 799 total pass.
 - `2026-05-03`: WP59 is complete; `test_tui_console.py` added with 65 tests; 762 total tests pass.
 - `2026-05-03`: WP67 is complete; ownership model across all four interactive modules settled; `route_line`/`DispatchRoute` shared; all Textual classes in `tui_console.py`; wizard pure logic; 697 tests passed.

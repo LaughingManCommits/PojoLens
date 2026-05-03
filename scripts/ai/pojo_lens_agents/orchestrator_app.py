@@ -682,7 +682,7 @@ def run_loaded_plan(
         )
 
     if not tui:
-        if watch:
+        if watch and sdk_provider_layer.detect_provider_mode() == "sdk":
             _partial_factory = _make_stderr_partial_factory()
 
         async def _run_non_tui() -> dict[str, Any]:
@@ -699,8 +699,9 @@ def run_loaded_plan(
             nonlocal _partial_factory
             event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
             loop = asyncio.get_running_loop()
-            _partial_factory = _make_tui_partial_factory(event_queue, loop)
-            _PARTIAL_FACTORY_CTX.set(_partial_factory)
+            if sdk_provider_layer.detect_provider_mode() == "sdk":
+                _partial_factory = _make_tui_partial_factory(event_queue, loop)
+                _PARTIAL_FACTORY_CTX.set(_partial_factory)
             app = tui_layer.OrchestratorApp(
                 event_queue=event_queue,
                 task_models={
@@ -1306,9 +1307,20 @@ def validate_command(args: argparse.Namespace) -> dict[str, Any]:
 
 def _make_stderr_partial_factory() -> Any:
     def _factory(*, task_id: str, task_title: str) -> Any:
-        _ = task_id, task_title
+        _ = task_title
+        _at_line_start = [True]
         def _writer(text: str) -> None:
-            sys.stderr.write(text)
+            if not text:
+                return
+            parts: list[str] = []
+            for ch in text:
+                if _at_line_start[0]:
+                    parts.append(f"[{task_id}] ")
+                    _at_line_start[0] = False
+                parts.append(ch)
+                if ch == "\n":
+                    _at_line_start[0] = True
+            sys.stderr.write("".join(parts))
             sys.stderr.flush()
         return _writer
     return _factory

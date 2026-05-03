@@ -356,6 +356,9 @@ def run_sdk_provider(
                 tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
                 if not tool_use_blocks:
                     return SdkProviderResult(text=response_text, usage=total_usage)
+                if on_partial_text is not None:
+                    for block in tool_use_blocks:
+                        on_partial_text(f"\n[tool: {block.name}]\n")
                 tool_results: list[dict[str, Any]] = []
                 for block in tool_use_blocks:
                     tool_output = execute_workspace_tool(

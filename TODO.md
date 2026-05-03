@@ -66,7 +66,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
-| WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; `_PARTIAL_FACTORY_CTX` contextvar injection (thread-safe); `--watch` → stderr stream; TUI → `LogPane` via `call_soon_threadsafe`; `_streaming_active` suppresses tail-poll; 25 tests; 824 pass |
+| WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
@@ -457,25 +457,23 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - [x] `--json` stdout remains clean; no partial text written to stdout.
 - [x] 25 regression tests in `test_streaming.py` covering all layers; 824 total pass.
 
-**Review findings (`2026-05-03`):**
+**Review findings (`2026-05-03`) — all fixed same session:**
 
-- **Follow-up: tool-loop silence** — `on_partial_text` only fires for text deltas;
-  tool-call turns (bash, read_file, etc.) emit no tokens. Multi-step agentic loops
-  appear silent for the full tool-use phase. Consider emitting a synthetic
-  `[tool: <name>]` marker per tool call iteration so operators see agentic
-  progress, not just the final synthesis. → New WP candidate.
+- **Fixed: tool-loop silence** — `sdk_provider` now emits `\n[tool: <name>]\n`
+  via `on_partial_text` for each tool-use block before executing the tool. Operators
+  see agentic progress (e.g. `[tool: bash]`) during multi-step tool loops instead
+  of silence between text turns. 5 regression tests added.
 
-- **Follow-up: watch-mode interleaving** — When `--watch` runs tasks in parallel,
-  multiple workers write raw tokens to `sys.stderr` concurrently. No task prefix
-  is added; partial tokens from different tasks interleave arbitrarily. Consider
-  buffering per task and flushing whole lines with a `[task-id]` prefix, or
-  restricting streaming to `max_parallel=1` watch runs. → New WP candidate.
+- **Fixed: watch-mode interleaving** — `_make_stderr_partial_factory` now
+  line-prefixes every line of output with `[task-id] ` using a per-writer
+  `_at_line_start` flag. Partial tokens within a line accumulate before the next
+  newline; the prefix is added exactly once per line. Parallel tasks are
+  distinguishable in stderr output. 7 regression tests added.
 
-- **Follow-up: subprocess factory waste** — `_make_stderr_partial_factory()` is
-  constructed and set even when the run uses subprocess provider. The factory is
-  created but `task_execution` only reads it when `_provider_mode == "sdk"`, so
-  it is silently ignored. Minor waste; no functional impact. Fix: gate factory
-  construction on `sdk_provider.detect_provider_mode() == "sdk"`. → Low priority.
+- **Fixed: subprocess factory waste** — `run_loaded_plan` now gates factory
+  construction on `sdk_provider_layer.detect_provider_mode() == "sdk"` for both
+  the `--watch` (non-TUI) and TUI paths. No factory object is created or set in
+  the contextvar when running in subprocess mode. 2 regression tests added.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

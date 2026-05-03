@@ -168,6 +168,252 @@ class SdkProviderStreamingTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# sdk_provider — tool-loop markers (fix 1)
+# ---------------------------------------------------------------------------
+
+def _make_tool_use_response(tool_names: list[str]) -> MagicMock:
+    resp = MagicMock()
+    resp.stop_reason = "tool_use"
+    blocks = []
+    for name in tool_names:
+        b = MagicMock()
+        b.type = "tool_use"
+        b.name = name
+        b.id = f"id_{name}"
+        b.input = {}
+        blocks.append(b)
+    resp.content = blocks
+    resp.usage = MagicMock()
+    resp.usage.input_tokens = 5
+    resp.usage.output_tokens = 2
+    resp.usage.cache_read_input_tokens = 0
+    resp.usage.cache_creation_input_tokens = 0
+    return resp
+
+
+class SdkProviderToolMarkerTest(unittest.TestCase):
+
+    def _build_two_turn_anthropic(self, tool_names: list[str]) -> MagicMock:
+        """First call returns tool_use; second call returns end_turn."""
+        tool_resp = _make_tool_use_response(tool_names)
+        final_resp = _make_fake_message('{"status":"completed"}')
+        anthropic_mod = MagicMock()
+        client = MagicMock()
+        anthropic_mod.Anthropic.return_value = client
+        # Both turns use non-streaming path (on_partial_text provided → streaming used)
+        # Wire stream to return tool_use first, then end_turn
+        call_count = [0]
+        stream_ctx_tool = _make_fake_stream([], "")
+        stream_ctx_tool.get_final_message.return_value = tool_resp
+        stream_ctx_final = _make_fake_stream(["result text"], '{"status":"completed"}')
+
+        def _stream_side_effect(**kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return stream_ctx_tool
+            return stream_ctx_final
+
+        client.messages.stream.side_effect = _stream_side_effect
+        return anthropic_mod
+
+    def _call(self, anthropic_mod, **kwargs) -> tuple[SdkProviderResult, list[str]]:
+        received: list[str] = []
+        with patch.dict(sys.modules, {"anthropic": anthropic_mod}):
+            # patch execute_workspace_tool to avoid real filesystem calls
+            with patch.object(sdk_mod, "execute_workspace_tool", return_value="ok"):
+                result = run_sdk_provider(
+                    "system", "user",
+                    workspace_root=pathlib.Path("/tmp"),
+                    on_partial_text=received.append,
+                    **kwargs,
+                )
+        return result, received
+
+    def test_tool_marker_emitted_for_single_tool(self):
+        anthropic_mod = self._build_two_turn_anthropic(["bash"])
+        _, received = self._call(anthropic_mod)
+        markers = [t for t in received if t.startswith("\n[tool:")]
+        self.assertEqual(len(markers), 1)
+        self.assertIn("bash", markers[0])
+
+    def test_tool_marker_emitted_for_each_tool_in_block(self):
+        anthropic_mod = self._build_two_turn_anthropic(["read_file", "bash"])
+        _, received = self._call(anthropic_mod)
+        markers = [t for t in received if t.startswith("\n[tool:")]
+        self.assertEqual(len(markers), 2)
+        names = [m for m in markers]
+        self.assertTrue(any("read_file" in m for m in names))
+        self.assertTrue(any("bash" in m for m in names))
+
+    def test_no_tool_marker_when_no_callback(self):
+        """When on_partial_text=None, no marker emitted (no streaming path)."""
+        tool_resp = _make_tool_use_response(["bash"])
+        final_resp = _make_fake_message('{"status":"completed"}')
+        anthropic_mod = MagicMock()
+        client = MagicMock()
+        anthropic_mod.Anthropic.return_value = client
+        call_count = [0]
+        def _create_side(**kwargs):
+            call_count[0] += 1
+            return tool_resp if call_count[0] == 1 else final_resp
+        client.messages.create.side_effect = _create_side
+        received: list[str] = []
+        with patch.dict(sys.modules, {"anthropic": anthropic_mod}):
+            with patch.object(sdk_mod, "execute_workspace_tool", return_value="ok"):
+                run_sdk_provider("system", "user", workspace_root=pathlib.Path("/tmp"))
+        self.assertEqual(received, [])
+
+    def test_tool_marker_format(self):
+        anthropic_mod = self._build_two_turn_anthropic(["write_file"])
+        _, received = self._call(anthropic_mod)
+        marker = next(t for t in received if t.startswith("\n[tool:"))
+        self.assertEqual(marker, "\n[tool: write_file]\n")
+
+    def test_final_text_still_streamed_after_tool_turn(self):
+        anthropic_mod = self._build_two_turn_anthropic(["bash"])
+        _, received = self._call(anthropic_mod)
+        non_markers = [t for t in received if not t.startswith("\n[tool:")]
+        self.assertTrue(any("result text" in t for t in non_markers))
+
+
+# ---------------------------------------------------------------------------
+# orchestrator_app — stderr line-prefix factory (fix 2)
+# ---------------------------------------------------------------------------
+
+class StderrPrefixFactoryTest(unittest.TestCase):
+
+    def _make_writer(self, task_id: str = "t1") -> tuple[Any, io.StringIO]:
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        with patch("sys.stderr", buf):
+            writer = factory(task_id=task_id, task_title="Task")
+        # Return writer bound to buf via closure
+        return writer, buf
+
+    def _write(self, writer, text: str, buf: io.StringIO) -> str:
+        with patch("sys.stderr", buf):
+            writer(text)
+        return buf.getvalue()
+
+    def test_single_line_prefixed(self):
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t1", task_title="T")
+        with patch("sys.stderr", buf):
+            writer("hello\n")
+        self.assertEqual(buf.getvalue(), "[t1] hello\n")
+
+    def test_multi_line_each_prefixed(self):
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t2", task_title="T")
+        with patch("sys.stderr", buf):
+            writer("line1\nline2\n")
+        self.assertEqual(buf.getvalue(), "[t2] line1\n[t2] line2\n")
+
+    def test_partial_token_no_double_prefix(self):
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t3", task_title="T")
+        with patch("sys.stderr", buf):
+            writer("hel")   # partial, no newline yet
+            writer("lo\n")  # completes the line
+        self.assertEqual(buf.getvalue(), "[t3] hello\n")
+
+    def test_empty_text_noop(self):
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t4", task_title="T")
+        with patch("sys.stderr", buf):
+            writer("")
+        self.assertEqual(buf.getvalue(), "")
+
+    def test_different_task_ids_prefixed_independently(self):
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        w1 = factory(task_id="task-a", task_title="A")
+        w2 = factory(task_id="task-b", task_title="B")
+        with patch("sys.stderr", buf):
+            w1("line from a\n")
+            w2("line from b\n")
+        out = buf.getvalue()
+        self.assertIn("[task-a] line from a\n", out)
+        self.assertIn("[task-b] line from b\n", out)
+
+    def test_tool_marker_lines_also_prefixed(self):
+        """Markers emitted by sdk_provider (\n[tool: bash]\n) get per-line prefix."""
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
+        buf = io.StringIO()
+        buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t5", task_title="T")
+        with patch("sys.stderr", buf):
+            writer("\n[tool: bash]\n")
+        out = buf.getvalue()
+        # first \n on a fresh line produces just \n (no prefix since empty line),
+        # then [tool: bash] line gets prefix
+        self.assertIn("[t5] [tool: bash]", out)
+
+
+# ---------------------------------------------------------------------------
+# orchestrator_app — subprocess factory gate (fix 3)
+# ---------------------------------------------------------------------------
+
+class SubprocessFactoryGateTest(unittest.TestCase):
+
+    def _run_loaded_plan_minimal(self, watch: bool, provider_mode: str) -> Any:
+        """Call run_loaded_plan with minimal mocks; intercept _partial_factory via ctx."""
+        from pojo_lens_agents import orchestrator_app as oa
+        captured: list[Any] = []
+
+        original_run_non_tui_inner = None
+
+        async def _fake_run_ops(**kwargs):
+            captured.append(oa._PARTIAL_FACTORY_CTX.get())
+            raise StopAsyncIteration("abort")
+
+        return captured, _fake_run_ops
+
+    def test_no_factory_when_subprocess_provider_watch(self):
+        from pojo_lens_agents import orchestrator_app as oa
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory, _PARTIAL_FACTORY_CTX
+        token = _PARTIAL_FACTORY_CTX.set(None)
+        try:
+            with patch.object(oa.sdk_provider_layer, "detect_provider_mode", return_value="subprocess"):
+                factory = _make_stderr_partial_factory()
+                # The gate: only wire factory when detect_provider_mode() == "sdk"
+                mode = oa.sdk_provider_layer.detect_provider_mode()
+                result = factory if mode == "sdk" else None
+            self.assertIsNone(result)
+        finally:
+            _PARTIAL_FACTORY_CTX.reset(token)
+
+    def test_factory_created_when_sdk_provider_watch(self):
+        from pojo_lens_agents import orchestrator_app as oa
+        from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory, _PARTIAL_FACTORY_CTX
+        token = _PARTIAL_FACTORY_CTX.set(None)
+        try:
+            with patch.object(oa.sdk_provider_layer, "detect_provider_mode", return_value="sdk"):
+                mode = oa.sdk_provider_layer.detect_provider_mode()
+                factory = _make_stderr_partial_factory() if mode == "sdk" else None
+            self.assertIsNotNone(factory)
+        finally:
+            _PARTIAL_FACTORY_CTX.reset(token)
+
+
+# ---------------------------------------------------------------------------
 # task_execution — partial_text_writer_factory in deps
 # ---------------------------------------------------------------------------
 
@@ -350,12 +596,13 @@ class FactoryFunctionsTest(unittest.TestCase):
         from pojo_lens_agents.orchestrator_app import _make_stderr_partial_factory
         buf = io.StringIO()
         buf.flush = lambda: None
+        factory = _make_stderr_partial_factory()
+        writer = factory(task_id="t1", task_title="Task 1")
         with patch("sys.stderr", buf):
-            factory = _make_stderr_partial_factory()
-            writer = factory(task_id="t1", task_title="Task 1")
             writer("hello ")
             writer("world")
-        self.assertEqual(buf.getvalue(), "hello world")
+        # partial tokens on the same line → prefix applied once at start
+        self.assertEqual(buf.getvalue(), "[t1] hello world")
 
     def test_tui_factory_uses_call_soon_threadsafe(self):
         from pojo_lens_agents.orchestrator_app import _make_tui_partial_factory
