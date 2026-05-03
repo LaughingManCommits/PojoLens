@@ -65,6 +65,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
+| WP68| Matrix Console Visual System        | Planned | Create a coherent Matrix/cyberpunk Textual visual system across `tui_console.py`, `tui_app.py`, and wizard prompt screens with one shared theme, polished panel hierarchy, and no mojibake/ascii-art corruption |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
@@ -405,6 +406,59 @@ document ownership for all four files. Post-WP67 review fixes applied: dead
 `LONG_RUNNING_COMMANDS` so it runs as a background job (prevents frozen TUI when
 wizard runs inline from ConsoleApp); unused `shlex` import removed from `tui_console.py`.
 697 tests pass.
+
+---
+
+## WP68: Matrix Console Visual System
+
+**Priority:** High
+
+**Goal:** Turn the current Textual operator UI into a coherent Matrix-style
+console surface with a disciplined cyberpunk visual system that feels native to
+the orchestrator rather than a pile of neon overrides.
+
+**Context:**
+- `tui_console.py` already attempts a retro cyberpunk look, but the current
+  theme is mostly ad hoc hardcoded colors and borders embedded directly in one
+  app class.
+- `tui_app.py` still uses a separate, much plainer visual treatment, so the
+  persistent console, run dashboard, and wizard prompt screens do not read as
+  one product.
+- The current TUI still contains mojibake-corrupted banner/docstring text in
+  multiple places. That undercuts the intended theme and needs to be cleaned up
+  as part of the visual-system pass, not left as incidental text debt.
+- Now that WP67 settled ownership, the next sensible UI work is a single
+  shared theme layer spanning the persistent console, run-monitor widgets, and
+  wizard prompt screens.
+
+**Tasks:**
+- [ ] Define one shared Textual theme/token layer for operator UI colors,
+      borders, emphasis states, spacing, titles, and status semantics instead
+      of scattering hex values across `tui_console.py` and `tui_app.py`.
+- [ ] Rework `ConsoleApp` layout and styling into a polished Matrix-style
+      console: restrained black/green base, secondary accent(s), legible
+      hierarchy, consistent panel framing, and command/output styling that
+      still reads clearly during long sessions.
+- [ ] Restyle the run dashboard widgets in `tui_app.py` to match the same
+      visual language so the run-only TUI and persistent console feel like one
+      operator product.
+- [ ] Restyle wizard prompt screens in `tui_console.py` so `_ChoiceApp`,
+      `_ConfirmApp`, and `_InputApp` use the same theme rather than default
+      Textual visuals.
+- [ ] Remove mojibake-corrupted banner/help/decorator text from the TUI layer
+      and replace it with clean ASCII-safe copy that still preserves the
+      intended theme.
+- [ ] Review panel copy, badges, labels, and footer bindings so the UI feels
+      intentional and domain-specific instead of decorative.
+- [ ] Add or update focused Textual tests only where styling or compose
+      structure changes require it; avoid snapshotting incidental CSS.
+- [ ] Document the final operator-UI theme approach in the relevant
+      orchestrator docs if the shared theme layer becomes part of the stable
+      TUI architecture.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
 
 ---
 
