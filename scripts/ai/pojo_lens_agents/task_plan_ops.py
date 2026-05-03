@@ -175,6 +175,7 @@ def load_task_definition(
             error_factory=deps["error_factory"],
             extra_tool_def_factory=deps["extra_tool_def_factory"],
         ),
+        shared_context_tags=deps["require_string_list"](payload, "sharedContextTags", location=location),
     )
 
 

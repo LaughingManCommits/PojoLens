@@ -117,7 +117,10 @@ VALIDATION_ALLOWED_RELATIVE_PREFIXES = ("scripts/",)
 VALIDATION_ALLOWED_SCRIPT_SUFFIXES = {".bat", ".cmd", ".ps1", ".py", ".sh"}
 VALIDATION_SHELL_OPERATOR_TOKENS = {"&", "&&", "|", "||", ";", "<", ">", ">>"}
 WRITE_CAPABLE_TOOLS = {"Bash", "Edit", "Write", "MultiEdit"}
-BASE_TOOL_NAMES: frozenset = frozenset({"read_file", "write_file", "str_replace_based_edit_tool", "bash"})
+BASE_TOOL_NAMES: frozenset = frozenset({"read_file", "write_file", "str_replace_based_edit_tool", "bash", "write_shared_context"})
+SHARED_CONTEXT_FILENAME = "shared-context.jsonl"
+SHARED_CONTEXT_TAIL_LINES = 10
+MAX_SHARED_CONTEXT_NOTE_CHARS = 500
 SPARSE_COPY_BASE_FILES: tuple[str, ...] = ()
 WORKSPACE_AUDIT_IGNORE_DIR_NAMES = {
     ".git",
@@ -225,6 +228,7 @@ WORKER_RESULT_SCHEMA = {
                     "maxRetries": {"type": "integer", "minimum": 0},
                     "conditionField": {"type": "string"},
                     "conditionValue": {"type": "string"},
+                    "sharedContextTags": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["id", "title", "agent", "prompt"],
                 "additionalProperties": False,
@@ -348,6 +352,7 @@ PLAN_RESULT_SCHEMA = {
                     "allowedTools": {"type": "array", "items": {"type": "string"}},
                     "disallowedTools": {"type": "array", "items": {"type": "string"}},
                     "maxRetries": {"type": "integer", "minimum": 0},
+                    "sharedContextTags": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["id", "title", "agent", "prompt"],
                 "additionalProperties": False,
@@ -456,6 +461,7 @@ class TaskDefinition:
     condition_field: str | None = None
     condition_value: str | None = None
     extra_tools: list[ExtraToolDef] = field(default_factory=list)
+    shared_context_tags: list[str] = field(default_factory=list)
 
     @property
     def files(self) -> list[str]:

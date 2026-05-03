@@ -3,7 +3,38 @@ from __future__ import annotations
 import copy
 import json
 import textwrap
+from pathlib import Path
 from typing import Any
+
+_SHARED_CONTEXT_TAIL_LINES = 10
+
+
+def _read_shared_context_tail(
+    path: Path,
+    tail_lines: int,
+    tags: list[str],
+) -> list[dict]:
+    if not path.exists():
+        return []
+    try:
+        raw = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    entries: list[dict] = []
+    for line in raw:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            continue
+        if tags:
+            line_tags = obj.get("tags", [])
+            if not any(t in line_tags for t in tags):
+                continue
+        entries.append(obj)
+    return entries[-tail_lines:]
 
 
 def evaluate_prompt_budget(
@@ -266,6 +297,8 @@ def worker_prompt(
     dependency_layers_applied: list[Any] | None,
     dry_run: bool,
     worker_validation_mode: str,
+    shared_context_path: Path | None = None,
+    shared_context_tags: list[str] | None = None,
     deps: dict[str, Any],
 ) -> Any:
     context_mode = effective_context_mode(task, agent, default_context_mode=deps["default_context_mode"])
@@ -381,6 +414,21 @@ def worker_prompt(
         ],
         empty_line="- none",
     )
+    _shared_ctx_entries: list[dict] = []
+    if shared_context_path is not None:
+        _shared_ctx_entries = _read_shared_context_tail(
+            shared_context_path,
+            tail_lines=_SHARED_CONTEXT_TAIL_LINES,
+            tags=list(shared_context_tags or []),
+        )
+    _shared_ctx_body = (
+        "\n".join(
+            f"[{e.get('taskId', '?')}] {e.get('note', '')}".strip()
+            for e in _shared_ctx_entries
+        )
+        if _shared_ctx_entries
+        else "none"
+    )
     return deps["render_prompt"](
         [
             deps["prompt_section_factory"](name="coordinator_goal", heading="Coordinator goal", body=plan.goal),
@@ -468,6 +516,18 @@ def worker_prompt(
                 ).strip(),
             ),
         ]
+        + (
+            [
+                deps["prompt_section_factory"](
+                    name="shared_context_notes",
+                    heading="Shared context notes",
+                    body=_shared_ctx_body,
+                    item_count=len(_shared_ctx_entries),
+                ),
+            ]
+            if shared_context_path is not None
+            else []
+        )
     )
 
 

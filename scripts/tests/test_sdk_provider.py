@@ -419,13 +419,14 @@ class DetectProviderModeTest(unittest.TestCase):
 
 
 class WorkspaceToolsSchemaTest(unittest.TestCase):
-    def test_four_tools_defined(self):
+    def test_five_tools_defined(self):
         names = [t["name"] for t in WORKSPACE_TOOLS]
         self.assertIn("read_file", names)
         self.assertIn("write_file", names)
         self.assertIn("str_replace_based_edit_tool", names)
         self.assertIn("bash", names)
-        self.assertEqual(4, len(WORKSPACE_TOOLS))
+        self.assertIn("write_shared_context", names)
+        self.assertEqual(5, len(WORKSPACE_TOOLS))
 
     def test_each_tool_has_input_schema(self):
         for tool in WORKSPACE_TOOLS:

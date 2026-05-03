@@ -529,6 +529,7 @@ def worker_prompt(
     dependency_layers_applied: list[DependencyLayerRecord] | None = None,
     dry_run: bool = False,
     worker_validation_mode: str = DEFAULT_WORKER_VALIDATION_MODE,
+    shared_context_path: Path | None = None,
 ) -> PromptRenderResult:
     return prompt_contracts_layer.worker_prompt(
         plan,
@@ -541,6 +542,8 @@ def worker_prompt(
         dependency_layers_applied=dependency_layers_applied,
         dry_run=dry_run,
         worker_validation_mode=worker_validation_mode,
+        shared_context_path=shared_context_path,
+        shared_context_tags=list(getattr(task, "shared_context_tags", None) or []),
         deps={
             "default_context_mode": DEFAULT_CONTEXT_MODE,
             "default_dependency_materialization_mode": DEFAULT_DEPENDENCY_MATERIALIZATION_MODE,

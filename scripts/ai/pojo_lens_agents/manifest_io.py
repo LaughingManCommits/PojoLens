@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from pojo_lens_agents.orchestrator_contracts import SHARED_CONTEXT_FILENAME
 from pojo_lens_agents.orchestrator_models import RunManifestModel, validation_error_summary
 
 
@@ -119,6 +120,7 @@ def manifest_payload(
         "runtimeRoot": str(runtime_root),
         "runDir": str(run_dir),
         "workspacesDir": str(workspaces_dir),
+        "sharedContextPath": str(run_dir / SHARED_CONTEXT_FILENAME),
         "runPolicy": deps["serialize_run_policy"](plan.run_policy),
         "runGovernance": run_governance,
         "plan": {

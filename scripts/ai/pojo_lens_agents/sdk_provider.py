@@ -91,6 +91,28 @@ WORKSPACE_TOOLS: list[dict[str, Any]] = [
             "required": ["command"],
         },
     },
+    {
+        "name": "write_shared_context",
+        "description": (
+            "Append a structured note to the run's shared-context file. "
+            "Downstream tasks in this run will see it in their prompt under 'Shared context notes'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note": {
+                    "type": "string",
+                    "description": "Note to append (max 500 chars)",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional tags to categorize this note (e.g. ['bug', 'performance'])",
+                },
+            },
+            "required": ["note"],
+        },
+    },
 ]
 
 
@@ -244,6 +266,41 @@ def execute_extra_tool(
         return f"Error running extra tool '{name}': {exc}"
 
 
+_MAX_SHARED_CONTEXT_NOTE_CHARS = 500
+
+
+def execute_shared_context_tool(
+    inputs: dict[str, Any],
+    *,
+    shared_context_path: Path,
+    task_id: str,
+) -> str:
+    import json as _json
+    from datetime import datetime, timezone
+    note = str(inputs.get("note", "")).strip()
+    if not note:
+        return "Error: note must not be empty"
+    if len(note) > _MAX_SHARED_CONTEXT_NOTE_CHARS:
+        note = note[:_MAX_SHARED_CONTEXT_NOTE_CHARS]
+    tags = inputs.get("tags", [])
+    if not isinstance(tags, list):
+        tags = []
+    tags = [str(t) for t in tags if t]
+    entry = _json.dumps({
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "taskId": task_id,
+        "note": note,
+        "tags": tags,
+    }, ensure_ascii=False)
+    try:
+        shared_context_path.parent.mkdir(parents=True, exist_ok=True)
+        with shared_context_path.open("a", encoding="utf-8") as fh:
+            fh.write(entry + "\n")
+    except OSError as exc:
+        return f"Error writing shared context: {exc}"
+    return f"Appended note to shared context ({len(entry)} chars)"
+
+
 # ---------------------------------------------------------------------------
 # Usage mapping
 # ---------------------------------------------------------------------------
@@ -334,6 +391,8 @@ def run_sdk_provider(
     bash_timeout_sec: int = DEFAULT_BASH_TIMEOUT_SEC,
     on_progress: Callable[[int], None] | None = None,
     extra_tools: list[dict[str, Any]] | None = None,
+    shared_context_path: Path | None = None,
+    task_id: str = "",
 ) -> SdkProviderResult:
     """
     Execute a worker task via the Anthropic SDK with workspace tool use.
@@ -424,7 +483,13 @@ def run_sdk_provider(
                 tool_results: list[dict[str, Any]] = []
                 for block in tool_use_blocks:
                     block_inputs = dict(block.input) if block.input else {}
-                    if block.name in _extra_by_name:
+                    if block.name == "write_shared_context" and shared_context_path is not None:
+                        tool_output = execute_shared_context_tool(
+                            block_inputs,
+                            shared_context_path=shared_context_path,
+                            task_id=task_id,
+                        )
+                    elif block.name in _extra_by_name:
                         tool_output = execute_extra_tool(
                             block.name,
                             block_inputs,

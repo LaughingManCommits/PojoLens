@@ -236,6 +236,7 @@ class TaskDefinitionModel(ContractModel):
     condition_field: str | None = Field(default=None, alias="conditionField")
     condition_value: str | None = Field(default=None, alias="conditionValue")
     extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
+    shared_context_tags: list[str] = Field(default_factory=list, alias="sharedContextTags")
 
     @property
     def files(self) -> list[str]:
@@ -599,6 +600,7 @@ class RunManifestModel(ManifestModel):
     runtime_root: str = Field(alias="runtimeRoot")
     run_dir: str = Field(alias="runDir")
     workspaces_dir: str = Field(alias="workspacesDir")
+    shared_context_path: str | None = Field(default=None, alias="sharedContextPath")
     run_policy: dict[str, Any] = Field(default_factory=dict, alias="runPolicy")
     run_governance: dict[str, Any] = Field(default_factory=dict, alias="runGovernance")
     plan: dict[str, Any]

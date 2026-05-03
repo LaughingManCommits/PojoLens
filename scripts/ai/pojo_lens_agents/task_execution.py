@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pojo_lens_agents import retry_policy as _retry_policy
+from pojo_lens_agents.orchestrator_contracts import SHARED_CONTEXT_FILENAME
 
 
 def effective_workspace_mode(task: Any, agent: Any) -> str:
@@ -362,6 +363,7 @@ async def execute_task(
     workspace_path = workspaces_dir / task.id
     task_dir = run_dir / "tasks" / task.id
     task_dir.mkdir(parents=True, exist_ok=True)
+    shared_context_path = run_dir / SHARED_CONTEXT_FILENAME
     prepared_workspace = deps["root"] if workspace_mode == "repo" else workspace_path
     prepared_dependency_layers: list[Any] = []
     if not dry_run:
@@ -386,6 +388,7 @@ async def execute_task(
         dependency_layers_applied=prepared_dependency_layers,
         dry_run=dry_run,
         worker_validation_mode=effective_validation_mode,
+        shared_context_path=shared_context_path,
     )
     prompt = prompt_render.text
     prompt_chars = prompt_render.chars
@@ -487,6 +490,8 @@ async def execute_task(
                 timeout_sec=task.timeout_sec or agent.timeout_sec,
                 on_partial_text=_partial_cb,
                 extra_tools=deps.get("extra_tools") or None,
+                shared_context_path=shared_context_path,
+                task_id=task.id,
             )
             return_code = 1 if _sdk_result.error else 0
             stdout_text = _sdk_result.text
