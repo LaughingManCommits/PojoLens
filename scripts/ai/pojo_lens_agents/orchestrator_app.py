@@ -11,6 +11,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -61,6 +62,7 @@ wizard_layer = _LazyModuleProxy("pojo_lens_agents.wizard")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
 rate_limiter_layer = _LazyModuleProxy("pojo_lens_agents.rate_limiter")
+notify_layer = _LazyModuleProxy("pojo_lens_agents.notify")
 
 from pojo_lens_agents.cli_parser import parse_args
 from pojo_lens_agents.command_dispatch import _worker_run_exit_code, dispatch_main
@@ -746,6 +748,27 @@ def _resolve_tui_mode(*, requested: bool, watch: bool, json_output: bool, stderr
     return False, True, warning
 
 
+def _fire_notifications_async(args: argparse.Namespace, payload: dict[str, Any]) -> None:
+    if bool(getattr(args, "no_notify", False)):
+        return
+    notify_flag = bool(getattr(args, "notify", False))
+    config_path = str(getattr(args, "config", "") or "").strip() or None
+
+    def _run() -> None:
+        try:
+            notif_config = config_loader_layer.load_notifications_config(config_path)
+        except Exception:
+            notif_config = {}
+        try:
+            notify_layer.dispatch_notifications(payload, notif_config, force_desktop=notify_flag)
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=15)
+
+
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
     args.otel_endpoint = otel_endpoint or ""
@@ -758,7 +781,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     )
     if tui_warning:
         print(tui_warning, file=sys.stderr, flush=True)
-    return run_ops_layer.run_plan(
+    payload = run_ops_layer.run_plan(
         args,
         load_agents=load_agents,
         load_task_plan=load_task_plan,
@@ -787,6 +810,8 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
             **kwargs,
         ),
     )
+    _fire_notifications_async(args, payload)
+    return payload
 
 
 def resume_run(args: argparse.Namespace) -> dict[str, Any]:
@@ -801,7 +826,7 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
     )
     if tui_warning:
         print(tui_warning, file=sys.stderr, flush=True)
-    return run_ops_layer.resume_run(
+    payload = run_ops_layer.resume_run(
         args,
         root=ROOT,
         load_run_manifest=load_run_manifest,
@@ -822,6 +847,8 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
         run_loaded_plan_fn=run_loaded_plan,
         error_factory=OrchestratorError,
     )
+    _fire_notifications_async(args, payload)
+    return payload
 
 
 def retry_run(args: argparse.Namespace) -> dict[str, Any]:
@@ -836,7 +863,7 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     )
     if tui_warning:
         print(tui_warning, file=sys.stderr, flush=True)
-    return run_ops_layer.retry_run(
+    payload = run_ops_layer.retry_run(
         args,
         load_run_manifest=load_run_manifest,
         selected_run_records=selected_run_records,
@@ -851,6 +878,8 @@ def retry_run(args: argparse.Namespace) -> dict[str, Any]:
         run_loaded_plan_fn=run_loaded_plan,
         error_factory=OrchestratorError,
     )
+    _fire_notifications_async(args, payload)
+    return payload
 
 
 def parse_iso_datetime(value: Any) -> datetime | None:

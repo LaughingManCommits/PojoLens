@@ -22,7 +22,32 @@ ALLOWED_DEFAULTS: dict[str, type] = {
     "worker_validation_mode": str,
 }
 
+ALLOWED_NOTIFICATIONS: dict[str, type] = {
+    "desktop": bool,
+    "webhook_url": str,
+    "slack_webhook_url": str,
+    "notify_on": list,
+}
+
+VALID_NOTIFY_ON = frozenset({"success", "failure", "always"})
+
 _DEFAULT_CONFIG_FILENAME = "pojolens-agents.toml"
+
+
+def _find_config_path(
+    config_path: str | Path | None,
+    env: dict[str, str],
+    root: Path,
+) -> Path | None:
+    if config_path is not None:
+        return Path(config_path).resolve()
+    env_path = env.get("POJOLENS_CONFIG", "").strip()
+    if env_path:
+        return Path(env_path).resolve()
+    candidate = root / _DEFAULT_CONFIG_FILENAME
+    if candidate.exists():
+        return candidate
+    return None
 
 
 def load_config(
@@ -36,17 +61,7 @@ def load_config(
     if root is None:
         root = Path(__file__).resolve().parents[3]
 
-    resolved_path: Path | None = None
-    if config_path is not None:
-        resolved_path = Path(config_path).resolve()
-    else:
-        env_path = env.get("POJOLENS_CONFIG", "").strip()
-        if env_path:
-            resolved_path = Path(env_path).resolve()
-        else:
-            candidate = root / _DEFAULT_CONFIG_FILENAME
-            if candidate.exists():
-                resolved_path = candidate
+    resolved_path = _find_config_path(config_path, env, root)
 
     if resolved_path is None:
         return {}
@@ -83,6 +98,66 @@ def load_config(
                 f"{resolved_path}: [defaults].{key} must be {expected_type.__name__}, "
                 f"got {type(value).__name__}"
             )
+        result[key] = value
+
+    return result
+
+
+def load_notifications_config(
+    config_path: str | Path | None = None,
+    *,
+    env: dict[str, str] | None = None,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    if env is None:
+        env = dict(os.environ)
+    if root is None:
+        root = Path(__file__).resolve().parents[3]
+
+    resolved_path = _find_config_path(config_path, env, root)
+
+    if resolved_path is None:
+        return {}
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Config file not found: {resolved_path}")
+
+    if tomllib is None:
+        raise ImportError(
+            "TOML support requires Python 3.11+ (tomllib) or the 'tomli' package. "
+            "Install tomli: pip install tomli"
+        )
+
+    with open(resolved_path, "rb") as fh:
+        raw = tomllib.load(fh)
+
+    notif_section = raw.get("notifications", {})
+    if not isinstance(notif_section, dict):
+        raise ValueError(f"{resolved_path}: [notifications] section must be a TOML table")
+
+    unknown = set(notif_section) - set(ALLOWED_NOTIFICATIONS)
+    if unknown:
+        raise ValueError(
+            f"{resolved_path}: [notifications] contains unknown keys: {sorted(unknown)}. "
+            f"Allowed keys: {sorted(ALLOWED_NOTIFICATIONS)}"
+        )
+
+    result: dict[str, Any] = {}
+    for key, expected_type in ALLOWED_NOTIFICATIONS.items():
+        if key not in notif_section:
+            continue
+        value = notif_section[key]
+        if not isinstance(value, expected_type):
+            raise ValueError(
+                f"{resolved_path}: [notifications].{key} must be {expected_type.__name__}, "
+                f"got {type(value).__name__}"
+            )
+        if key == "notify_on":
+            invalid = [v for v in value if v not in VALID_NOTIFY_ON]
+            if invalid:
+                raise ValueError(
+                    f"{resolved_path}: [notifications].notify_on contains invalid values: {sorted(invalid)}. "
+                    f"Valid values: {sorted(VALID_NOTIFY_ON)}"
+                )
         result[key] = value
 
     return result

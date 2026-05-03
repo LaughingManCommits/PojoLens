@@ -1,13 +1,13 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-05-03T13:48:46.084343+02:00",
-  "generation": "20260503T114846-37196-1777808926088184500",
+  "generatedAt": "2026-05-03T15:11:29.458062+02:00",
+  "generation": "20260503T131129-37744-1777813889461082900",
   "git": {
-    "headCommit": "c14cf068f1a06cfc2a78589967bec8517fb4e27b",
+    "headCommit": "a7bf0025aa6cf4bd9ff87af09f843178a5ba7b0e",
     "branch": "dev",
     "dirty": true
   },
-  "inputsHash": "008bd9912c14d7fb65cf6dec33406891b89bfa40bc4e5db858d83f5c7cc8e504",
+  "inputsHash": "edefca93f8f16f5254e4e0d1ac5befe25cef69b68de17eeac92eda702f7d892b",
   "hotContext": {
     "files": [
       {
@@ -22,8 +22,8 @@
       },
       {
         "path": "ai/state/current-state.md",
-        "lines": 28,
-        "bytes": 1571,
+        "lines": 29,
+        "bytes": 1792,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -66,7 +66,7 @@
       {
         "path": "ai/state/handoff.md",
         "lines": 35,
-        "bytes": 2742,
+        "bytes": 2787,
         "maxLines": 50,
         "maxBytes": 3072,
         "allowedHeadings": [
@@ -103,8 +103,8 @@
         "withinShape": true
       }
     ],
-    "totalLines": 93,
-    "totalBytes": 6954,
+    "totalLines": 94,
+    "totalBytes": 7220,
     "maxLines": 240,
     "maxBytes": 24576,
     "withinBudget": true,
@@ -142,13 +142,13 @@
       {
         "path": "ai/indexes/docs-index.json",
         "status": "rebuilt",
-        "inputHash": "fe61c7f2c03baa00c5fcec2859dbe895ed60bf30b432d3e4ab230c2cfb363adf",
+        "inputHash": "ff288888267182292fb8f0051d777653acea62cd84cc488c84bcca14f38110bf",
         "inputFiles": 69
       },
       {
         "path": "ai/indexes/files-index.json",
         "status": "rebuilt",
-        "inputHash": "03e5fa15419166134fcfe279c92a9dcf0e4e0f3d40a293273583872b0b24dee4",
+        "inputHash": "c2d13295db27109b2a8d8fde766747b5393f9552fba561403630024052e1cf49",
         "inputFiles": 560
       },
       {
@@ -175,7 +175,7 @@
       "path": "ai/indexes/cold-memory.db",
       "ftsEnabled": true,
       "documents": 71,
-      "sections": 846,
+      "sections": 849,
       "updatedFiles": 71,
       "reusedFiles": 0,
       "removedFiles": 0,

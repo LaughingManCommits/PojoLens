@@ -142,6 +142,22 @@ def _add_rate_limit_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_notify_args(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--notify",
+        action="store_true",
+        dest="notify",
+        help="Send a desktop notification when the run finishes (overrides config).",
+    )
+    group.add_argument(
+        "--no-notify",
+        action="store_true",
+        dest="no_notify",
+        help="Suppress all completion notifications for this run.",
+    )
+
+
 def _add_watch_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--watch",
@@ -507,6 +523,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_watch_arg(run_parser)
     _add_tui_arg(run_parser)
     _add_rate_limit_args(run_parser)
+    _add_notify_args(run_parser)
     _add_verbose_arg(run_parser)
 
     resume_parser = subparsers.add_parser(
@@ -574,6 +591,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_watch_arg(resume_parser)
     _add_tui_arg(resume_parser)
     _add_rate_limit_args(resume_parser)
+    _add_notify_args(resume_parser)
     _add_verbose_arg(resume_parser)
 
     retry_parser = subparsers.add_parser(
@@ -641,6 +659,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_watch_arg(retry_parser)
     _add_tui_arg(retry_parser)
     _add_rate_limit_args(retry_parser)
+    _add_notify_args(retry_parser)
     _add_verbose_arg(retry_parser)
 
     review_parser = subparsers.add_parser(

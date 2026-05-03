@@ -64,7 +64,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP53| CLI Ergonomics                       | Complete | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
 | WP54| TUI Dashboard                        | Complete | Added optional `textual` dashboard with task grid, rolling cost/elapsed summary, stderr tailing, auto-enable/fallback logic, and TUI HITL approve/abort controls |
 | WP55| Guided Wizard Mode                   | Complete | No-args or natural-language wizard that walks the operator through preflight, run, review, promote, and validate-run with resume/retry entry points |
-| WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
+| WP56| Run Completion Notifications         | Complete | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
@@ -334,7 +334,7 @@ OTLP HTTP collector when enabled through `OTEL_EXPORTER_OTLP_ENDPOINT` or a
 
 ---
 
-## WP56: Run Completion Notifications
+## WP56: Run Completion Notifications ✅ 2026-05-03
 
 **Priority:** Medium
 
@@ -355,24 +355,7 @@ status and cost summary.
   task counts, total cost, duration, and a one-line summary. Small enough to
   fit in a Slack message or desktop toast.
 
-**Tasks:**
-- [ ] Add `[notifications]` section to `pojolens-agents.toml` schema (WP53);
-      fields: `desktop = true/false`, `webhook_url`, `slack_webhook_url`,
-      `notify_on = ["success", "failure", "always"]`.
-- [ ] Add `notify.py` in `pojo_lens_agents` with three dispatcher functions:
-      `notify_desktop(payload)` via `plyer` (optional dep), `notify_webhook(
-      url, payload)` via `urllib.request` (no extra dep), `notify_slack(url,
-      payload)` formatting a Slack Block Kit message with status colour.
-- [ ] Call `notify.py` dispatchers at the end of `run_loaded_plan` after the
-      `run-finished` event is emitted; run in a background thread so a slow
-      webhook does not delay process exit.
-- [ ] Add `--notify` CLI flag to `run`, `resume`, and `retry` that enables
-      desktop notification for that invocation without needing config file
-      changes; `--no-notify` suppresses config-file notifications for one run.
-- [ ] Add `plyer` as an optional dependency in `pyproject.toml` under a
-      `[notifications]` extras group; degrade gracefully if not installed.
-- [ ] Add regression coverage for payload construction and dispatcher
-      routing without requiring live network calls (mock `urllib.request`).
+**Decision:** Complete. `notify.py` with `build_notification_payload`, `notify_desktop` (plyer optional), `notify_webhook` (urllib), `notify_slack` (Block Kit); `load_notifications_config` in `config_loader.py` reading `[notifications]` TOML section with `ALLOWED_NOTIFICATIONS`/`VALID_NOTIFY_ON` validation; `--notify`/`--no-notify` mutually-exclusive flags on run/resume/retry; `_fire_notifications_async` daemon thread (join timeout=15s) in `orchestrator_app.py` wired to all three run entry points; `notifications = ["plyer>=2.0"]` extras in `pyproject.toml`; 42 tests in `test_notify.py`; 888 tests pass.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
