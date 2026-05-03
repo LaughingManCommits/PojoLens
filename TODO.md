@@ -62,7 +62,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP54| TUI Dashboard                        | Complete | Added optional `textual` dashboard with task grid, rolling cost/elapsed summary, stderr tailing, auto-enable/fallback logic, and TUI HITL approve/abort controls |
 | WP55| Guided Wizard Mode                   | Complete | No-args or natural-language wizard that walks the operator through preflight, run, review, promote, and validate-run with resume/retry entry points |
 | WP56| Run Completion Notifications         | Planned | Desktop notification, webhook POST, or Slack message when a run finishes, keyed off the `run-finished` event with status and cost summary |
-| WP57| Human Diff View Before Promote       | Planned | `diff-run <run-id>` command that renders git-style file diffs of workspace vs repo so the operator sees exactly what changed before promoting |
+| WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass across planning, review, selective promotion, post-promotion validation, and tracked real-world orchestration proofs |
 | WP18| JDK 25 Runtime Knob Evaluation       | Deferred | Optional runtime-performance guidance; not blocking the orchestration toolchain work |
 | Release Gate | Release Gate                  | Deferred | Cut only after the active roadmap queue and release guardrails are complete |
@@ -1704,7 +1704,7 @@ status and cost summary.
 
 ---
 
-## WP57: Human Diff View Before Promote
+## WP57: Human Diff View Before Promote ✅ 2026-05-03
 
 **Priority:** Medium
 
@@ -1727,20 +1727,20 @@ changed before deciding to promote.
   "show me just what the implementer changed in `src/`".
 
 **Tasks:**
-- [ ] Add `diff_run.py` in `pojo_lens_agents`; read manifest, iterate task
+- [x] Add `diff_run.py` in `pojo_lens_agents`; read manifest, iterate task
       records, collect `actualFilesTouched` paths, diff each workspace file
       against the repo counterpart using `difflib.unified_diff`.
-- [ ] Render diffs with `rich` syntax highlighting: red for deletions, green
+- [x] Render diffs with `rich` syntax highlighting: red for deletions, green
       for additions, dim for context lines; group by task then by file.
-- [ ] Add `diff-run` subcommand: `pojolens-agents diff-run <run-id-or-path>
+- [x] Add `diff-run` subcommand: `pojolens-agents diff-run <run-id-or-path>
       [--tasks task-a,task-b] [--paths src/**] [--stat]`.
-- [ ] `--stat` flag prints a compact summary (files changed, insertions,
+- [x] `--stat` flag prints a compact summary (files changed, insertions,
       deletions per task) without full diff body, matching `git diff --stat`.
-- [ ] `--json` flag emits structured diff payload: per-file unified diff
+- [x] `--json` flag emits structured diff payload: per-file unified diff
       strings, line counts, and task attribution for machine consumption.
-- [ ] Wire `diff-run` into the wizard (WP55) promote gate: show `--stat`
+- [x] Wire `diff-run` into the wizard (WP55) promote gate: show `--stat`
       output and offer "full diff?" before the promote prompt.
-- [ ] Add regression coverage for diff rendering, stat computation, task and
+- [x] Add regression coverage for diff rendering, stat computation, task and
       path filtering, and missing workspace graceful handling.
 
 **Validate:**

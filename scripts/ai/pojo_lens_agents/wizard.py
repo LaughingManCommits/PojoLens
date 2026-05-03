@@ -41,6 +41,7 @@ KNOWN_COMMANDS = {
     "retry",
     "review",
     "export-patch",
+    "diff-run",
     "export-trace",
     "promote",
     "cleanup",
@@ -760,6 +761,53 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
             )
         else:
             payload["steps"].append({"name": "review", "status": "skipped", "summary": "Operator skipped review."})
+
+        diff_run_handler = deps.get("diff_run_handler")
+        if diff_run_handler is not None:
+            diff_stat_payload = diff_run_handler(
+                _namespace(
+                    run_ref=run_ref,
+                    selected_tasks=[],
+                    selected_task_csv="",
+                    path_filters=[],
+                    path_filters_csv="",
+                    context_lines=3,
+                    stat=True,
+                    json=False,
+                    verbose=False,
+                    claude_bin=args.claude_bin,
+                )
+            )
+            payload["diffStat"] = {
+                key: value for key, value in diff_stat_payload.items() if key != "_consoleText"
+            }
+            if interactive:
+                stat_text = str(diff_stat_payload.get("_consoleText", "") or "").strip()
+                if stat_text:
+                    prompter.show_message(stat_text)
+                if int((diff_stat_payload.get("summary") or {}).get("changedFileCount", 0) or 0) > 0:
+                    show_full_diff = prompter.confirm("Show full diff?", default=False)
+                    if show_full_diff:
+                        diff_full_payload = diff_run_handler(
+                            _namespace(
+                                run_ref=run_ref,
+                                selected_tasks=[],
+                                selected_task_csv="",
+                                path_filters=[],
+                                path_filters_csv="",
+                                context_lines=3,
+                                stat=False,
+                                json=False,
+                                verbose=False,
+                                claude_bin=args.claude_bin,
+                            )
+                        )
+                        payload["diffFull"] = {
+                            key: value for key, value in diff_full_payload.items() if key != "_consoleText"
+                        }
+                        full_text = str(diff_full_payload.get("_consoleText", "") or "").strip()
+                        if full_text:
+                            prompter.show_message(full_text)
 
     promote_preview = deps["promote_handler"](
         _namespace(

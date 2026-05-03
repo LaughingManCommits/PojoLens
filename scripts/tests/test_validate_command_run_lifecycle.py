@@ -175,6 +175,266 @@ class ValidateCommandRunLifecycleTest(unittest.TestCase):
         self.assertIn("+new", patch_text)
         self.assertEqual(1, payload["filesChanged"])
 
+    def test_diff_run_stat_filters_paths(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_root = temp_path / "workspace"
+            run_dir = temp_path / "run"
+            (repo_root / "src").mkdir(parents=True)
+            (repo_root / "docs").mkdir(parents=True)
+            workspace_root.mkdir()
+            run_dir.mkdir()
+            (repo_root / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            (repo_root / "docs" / "guide.md").write_text("old\n", encoding="utf-8")
+            (workspace_root / "src").mkdir(parents=True)
+            (workspace_root / "docs").mkdir(parents=True)
+            (workspace_root / "src" / "Foo.java").write_text("class Foo { int x; }\n", encoding="utf-8")
+            (workspace_root / "docs" / "guide.md").write_text("new\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "run-diff-stat",
+                        "tasks": {
+                            "edit-files": {
+                                "id": "edit-files",
+                                "title": "Edit files",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed files.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_root),
+                                "started_at": "2026-05-03T00:00:00+00:00",
+                                "finished_at": "2026-05-03T00:00:01+00:00",
+                                "files_touched": ["src/Foo.java", "docs/guide.md"],
+                                "actual_files_touched": ["src/Foo.java", "docs/guide.md"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {
+                                    "max_chars": None,
+                                    "max_estimated_tokens": None,
+                                    "exceeded": False,
+                                    "violations": [],
+                                },
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.diff_run_command(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        selected_task_csv="",
+                        path_filters=["src/**"],
+                        path_filters_csv="",
+                        context_lines=3,
+                        stat=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual("run-diff-stat", payload["runId"])
+        self.assertEqual(1, payload["summary"]["changedFileCount"])
+        self.assertEqual(["src/Foo.java"], payload["tasks"][0]["selectedPaths"])
+        self.assertIn("src/Foo.java", payload["_consoleText"])
+        self.assertNotIn("docs/guide.md", payload["_consoleText"])
+
+    def test_diff_run_full_includes_unified_diff_and_task_filter_csv(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            workspace_a = temp_path / "workspace-a"
+            workspace_b = temp_path / "workspace-b"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            workspace_a.mkdir()
+            workspace_b.mkdir()
+            run_dir.mkdir()
+            (repo_root / "a.txt").write_text("old a\n", encoding="utf-8")
+            (repo_root / "b.txt").write_text("old b\n", encoding="utf-8")
+            (workspace_a / "a.txt").write_text("new a\n", encoding="utf-8")
+            (workspace_b / "b.txt").write_text("new b\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "run-diff-full",
+                        "tasks": {
+                            "task-a": {
+                                "id": "task-a",
+                                "title": "Task A",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed A.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_a),
+                                "started_at": "2026-05-03T00:00:00+00:00",
+                                "finished_at": "2026-05-03T00:00:01+00:00",
+                                "files_touched": ["a.txt"],
+                                "actual_files_touched": ["a.txt"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                            "task-b": {
+                                "id": "task-b",
+                                "title": "Task B",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed B.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(workspace_b),
+                                "started_at": "2026-05-03T00:00:00+00:00",
+                                "finished_at": "2026-05-03T00:00:01+00:00",
+                                "files_touched": ["b.txt"],
+                                "actual_files_touched": ["b.txt"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            },
+                        },
+                    },
+                )
+                payload = orchestrator.diff_run_command(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        selected_task_csv="task-b",
+                        path_filters=[],
+                        path_filters_csv="",
+                        context_lines=3,
+                        stat=False,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(["task-b"], payload["taskIds"])
+        self.assertEqual(1, len(payload["tasks"]))
+        self.assertEqual("b.txt", payload["tasks"][0]["files"][0]["path"])
+        self.assertIn("--- a/b.txt", payload["tasks"][0]["files"][0]["unifiedDiff"])
+        self.assertIn("+new b", payload["tasks"][0]["files"][0]["unifiedDiff"])
+
+    def test_diff_run_missing_workspace_is_graceful(self):
+        orchestrator = self.orchestrator
+        old_root = orchestrator.ROOT
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = pathlib.Path(tempdir)
+            repo_root = temp_path / "repo"
+            run_dir = temp_path / "run"
+            repo_root.mkdir()
+            run_dir.mkdir()
+            (repo_root / "foo.txt").write_text("old\n", encoding="utf-8")
+            manifest_path = run_dir / "manifest.json"
+            orchestrator.ROOT = repo_root
+            try:
+                orchestrator.write_json(
+                    manifest_path,
+                    {
+                        "runId": "run-missing-workspace",
+                        "tasks": {
+                            "edit-foo": {
+                                "id": "edit-foo",
+                                "title": "Edit foo",
+                                "agent": "implementer",
+                                "status": "completed",
+                                "summary": "Changed foo.",
+                                "workspace_mode": "copy",
+                                "workspace_path": str(temp_path / "missing-workspace"),
+                                "started_at": "2026-05-03T00:00:00+00:00",
+                                "finished_at": "2026-05-03T00:00:01+00:00",
+                                "files_touched": ["foo.txt"],
+                                "actual_files_touched": ["foo.txt"],
+                                "protected_path_violations": [],
+                                "validation_commands": [],
+                                "follow_ups": [],
+                                "notes": [],
+                                "model": "claude-sonnet-4-6",
+                                "model_profile": "balanced",
+                                "prompt_chars": 1,
+                                "prompt_estimated_tokens": 1,
+                                "prompt_sections": [],
+                                "prompt_budget": {"max_chars": None, "max_estimated_tokens": None, "exceeded": False, "violations": []},
+                                "usage": None,
+                                "return_code": 0,
+                                "prompt_path": "",
+                                "command_path": "",
+                                "stdout_path": None,
+                                "stderr_path": None,
+                                "result_path": None,
+                            }
+                        },
+                    },
+                )
+                payload = orchestrator.diff_run_command(
+                    SimpleNamespace(
+                        run_ref=str(run_dir),
+                        selected_tasks=[],
+                        selected_task_csv="",
+                        path_filters=[],
+                        path_filters_csv="",
+                        context_lines=3,
+                        stat=True,
+                    )
+                )
+            finally:
+                orchestrator.ROOT = old_root
+
+        self.assertEqual(1, payload["summary"]["missingWorkspaceTaskCount"])
+        self.assertIn("does not exist", payload["tasks"][0]["error"])
+
     def test_promote_run_applies_modified_added_and_deleted_files(self):
         orchestrator = self.orchestrator
         old_root = orchestrator.ROOT

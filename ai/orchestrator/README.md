@@ -68,6 +68,7 @@ scripts/ai/claude-orchestrator.ps1 status .claude-orchestrator/runs/<run-id> --j
 scripts/ai/claude-orchestrator.ps1 evaluate-run .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 evaluate-corpus --json
 scripts/ai/claude-orchestrator.ps1 review .claude-orchestrator/runs/<run-id> --json
+scripts/ai/claude-orchestrator.ps1 diff-run .claude-orchestrator/runs/<run-id> --stat --json
 scripts/ai/claude-orchestrator.ps1 export-patch .claude-orchestrator/runs/<run-id> --out .claude-orchestrator/runs/<run-id>/review/combined.patch --json
 scripts/ai/claude-orchestrator.ps1 export-trace .claude-orchestrator/runs/<run-id> --json
 scripts/ai/claude-orchestrator.ps1 promote .claude-orchestrator/runs/<run-id> --dry-run --json
@@ -112,6 +113,7 @@ Dry runs:
 Lifecycle helpers:
 - `resume` continues a retained run in place from that run's `selected-plan.json` snapshot, defaults to tasks that are unfinished or missing from the manifest, and preserves already-completed task records
 - `wizard --resume` and `wizard --retry` reuse the same retained-run helpers but keep the guided review/promote/validate flow on top
+- `diff-run` renders literal workspace-vs-repo diffs for retained runs, supports task and path filtering, and can emit either full unified diffs or `--stat` summaries before promotion
 - same-run `resume` reuses the original `run-id`, run directory, and workspaces directory; it is run continuity, not partial sandbox continuation, so resumed `copy` or `worktree` task workspaces are rebuilt before rerun
 - `retry` still creates a new run and seeds already-completed dependencies from the source manifest when possible
 - `plan`, `run`, `resume`, and `retry` accept `--effort <level>` to override tracked planner/worker effort without editing `agents.json`
@@ -256,6 +258,7 @@ Recommended operator flow:
 - use `evaluate-run` when you need a compact quality check over retained topology, branch lineage, validation suggestions, retry/resume metadata, and promotion-readiness signals
 - use `evaluate-corpus` when you need aggregate score status, average score percent, or first-pass benchmark-dimension counts across many retained runs
 - use `review` to inspect changed files, scope violations, dependency materialization, and validation suggestions
+- use `diff-run --stat` or full `diff-run` before promotion when you want the literal file delta rather than only the review summary
 - use `validate-run` to execute accepted validation intents
 - use `promote --dry-run` first to confirm whether promotion is allowed and why it would be refused if blocked
 - use `promote` only after review and validation are complete; for coding runs, treat the run as complete only after a repo-scope `validate-run` pass is recorded after promotion

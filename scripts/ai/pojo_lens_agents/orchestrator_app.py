@@ -48,6 +48,7 @@ runtime_admin_layer = _LazyModuleProxy("pojo_lens_agents.runtime_admin")
 run_ops_layer = _LazyModuleProxy("pojo_lens_agents.run_ops")
 run_store_layer = _LazyModuleProxy("pojo_lens_agents.run_store")
 sdk_provider_layer = _LazyModuleProxy("pojo_lens_agents.sdk_provider")
+diff_run_layer = _LazyModuleProxy("pojo_lens_agents.diff_run")
 trace_export_layer = _LazyModuleProxy("pojo_lens_agents.trace_export")
 otel_layer = _LazyModuleProxy("pojo_lens_agents.otel_spans")
 tui_layer = _LazyModuleProxy("pojo_lens_agents.tui_app")
@@ -1396,6 +1397,29 @@ def _make_tui_append_run_event(base_fn: Any, event_queue: asyncio.Queue[dict[str
     return _tui_append
 
 
+def diff_run_command(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path, manifest = load_run_manifest(args.run_ref)
+    selected_tasks = diff_run_layer.split_csv_values(
+        list(getattr(args, "selected_tasks", []) or []),
+        getattr(args, "selected_task_csv", ""),
+    )
+    path_filters = diff_run_layer.split_csv_values(
+        list(getattr(args, "path_filters", []) or []),
+        getattr(args, "path_filters_csv", ""),
+    )
+    records = selected_run_records(manifest, selected_tasks)
+    return diff_run_layer.diff_run(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        records=records,
+        context_lines=int(getattr(args, "context_lines", 3) or 3),
+        stat_only=bool(getattr(args, "stat", False)),
+        path_filters=path_filters,
+        dedupe_strings=dedupe_strings,
+        diff_file_against_workspace_fn=diff_file_against_workspace,
+    )
+
+
 def config_command(args: Any) -> dict[str, Any]:
     config_path = str(getattr(args, "config", "") or "").strip() or None
     try:
@@ -1430,6 +1454,7 @@ def wizard_command(args: argparse.Namespace) -> dict[str, Any]:
             "retry_handler": retry_run,
             "status_handler": status_run,
             "review_handler": review_run,
+            "diff_run_handler": diff_run_command,
             "promote_handler": promote_run,
             "validate_run_handler": validate_run,
             "default_task_timeout_sec": DEFAULT_TASK_TIMEOUT_SEC,
@@ -1448,6 +1473,7 @@ def main() -> int:
             'retry': retry_run,
             'review': review_run,
             'export-patch': export_patch,
+            'diff-run': diff_run_command,
             'export-trace': export_trace,
             'promote': promote_run,
             'cleanup': cleanup_run,

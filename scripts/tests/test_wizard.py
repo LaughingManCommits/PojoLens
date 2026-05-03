@@ -289,7 +289,7 @@ class WizardFlowTest(unittest.TestCase):
     def test_interactive_flow_can_review_promote_and_validate(self):
         td, root, plan_path = self._make_plan_root()
         self.addCleanup(td.cleanup)
-        prompter = FakePrompter(confirms=[True, True, True, True], texts=["3"])
+        prompter = FakePrompter(confirms=[True, True, True, True, True], texts=["3"])
         old_choose_prompter = wizard_layer.choose_prompter
         wizard_layer.choose_prompter = lambda **kwargs: prompter
         self.addCleanup(setattr, wizard_layer, "choose_prompter", old_choose_prompter)
@@ -343,6 +343,11 @@ class WizardFlowTest(unittest.TestCase):
                     "review_handler": lambda args: calls.append("review") or {
                         "summary": {"changedFileCount": 2},
                     },
+                    "diff_run_handler": lambda args: calls.append("diff-stat" if args.stat else "diff-full") or {
+                        "_consoleText": "diff output",
+                        "summary": {"changedFileCount": 2},
+                        "tasks": [],
+                    },
                     "promote_handler": lambda args: calls.append("promote-dry" if args.dry_run else "promote") or (
                         {
                             "promotionAllowed": True,
@@ -363,9 +368,10 @@ class WizardFlowTest(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(["run", "review", "promote-dry", "promote", "validate-run"], calls)
+        self.assertEqual(["run", "review", "diff-stat", "diff-full", "promote-dry", "promote", "validate-run"], calls)
         self.assertEqual(2, payload["receipt"]["promotedFiles"])
         self.assertIn("validation", payload)
+        self.assertIn("Show full diff?", prompter.messages)
 
     def test_resume_mode_forwards_to_resume_handler(self):
         td, root, _ = self._make_plan_root()

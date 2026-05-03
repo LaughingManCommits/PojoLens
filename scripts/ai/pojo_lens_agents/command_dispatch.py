@@ -18,10 +18,15 @@ from pojo_lens_agents.orchestrator_contracts import (
 
 
 def print_payload(payload: dict[str, Any], *, as_json: bool) -> None:
+    console_text = payload.get("_consoleText")
+    public_payload = {key: value for key, value in payload.items() if key != "_consoleText"}
+    if not as_json and isinstance(console_text, str) and console_text.strip():
+        print(console_text, end="" if console_text.endswith("\n") else "\n")
+        return
     if as_json:
-        print(json.dumps(payload))
+        print(json.dumps(public_payload))
     else:
-        print(json.dumps(payload, indent=2))
+        print(json.dumps(public_payload, indent=2))
 
 
 def _worker_run_exit_code(status_counts: dict[str, int]) -> int:

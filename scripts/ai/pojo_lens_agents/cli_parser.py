@@ -139,6 +139,38 @@ def _add_tui_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_task_filters_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--task",
+        dest="selected_tasks",
+        action="append",
+        default=[],
+        help="Restrict output to one or more task ids. Repeatable.",
+    )
+    parser.add_argument(
+        "--tasks",
+        dest="selected_task_csv",
+        default="",
+        help="Comma-separated task ids to include.",
+    )
+
+
+def _add_path_filters_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--path",
+        dest="path_filters",
+        action="append",
+        default=[],
+        help="Restrict output to changed paths matching this glob. Repeatable.",
+    )
+    parser.add_argument(
+        "--paths",
+        dest="path_filters_csv",
+        default="",
+        help="Comma-separated glob filters for changed paths.",
+    )
+
+
 def _apply_defaults_to_all_subparsers(
     parser: argparse.ArgumentParser,
     defaults: dict,
@@ -654,6 +686,35 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _add_verbose_arg(export_patch_parser)
     _add_provider_bin_arg(export_patch_parser)
+
+    diff_run_parser = subparsers.add_parser(
+        "diff-run",
+        help="Render workspace-vs-repo diffs for a retained run before promotion.",
+    )
+    diff_run_parser.add_argument(
+        "run_ref",
+        help="Path to a run directory or its manifest.json file.",
+    )
+    _add_task_filters_args(diff_run_parser)
+    _add_path_filters_args(diff_run_parser)
+    diff_run_parser.add_argument(
+        "--context-lines",
+        type=int,
+        default=3,
+        help="Context lines to use in unified diffs.",
+    )
+    diff_run_parser.add_argument(
+        "--stat",
+        action="store_true",
+        help="Print only per-task and per-file change statistics.",
+    )
+    diff_run_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the diff payload as JSON.",
+    )
+    _add_verbose_arg(diff_run_parser)
+    _add_provider_bin_arg(diff_run_parser)
 
     export_trace_parser = subparsers.add_parser(
         "export-trace",

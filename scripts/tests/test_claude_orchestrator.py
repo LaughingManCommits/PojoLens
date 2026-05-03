@@ -550,6 +550,31 @@ class GlobalOptionsTest(unittest.TestCase):
         args = self._parse_argv(["export-patch", "some/run/dir", "--dry-run"])
         self.assertTrue(args.dry_run)
 
+    def test_diff_run_accepts_task_and_path_filters(self):
+        args = self._parse_argv(
+            [
+                "diff-run",
+                "some/run/dir",
+                "--task",
+                "task-a",
+                "--tasks",
+                "task-b,task-c",
+                "--path",
+                "src/**",
+                "--paths",
+                "docs/**,README.md",
+                "--stat",
+                "--json",
+            ]
+        )
+        self.assertEqual("some/run/dir", args.run_ref)
+        self.assertEqual(["task-a"], args.selected_tasks)
+        self.assertEqual("task-b,task-c", args.selected_task_csv)
+        self.assertEqual(["src/**"], args.path_filters)
+        self.assertEqual("docs/**,README.md", args.path_filters_csv)
+        self.assertTrue(args.stat)
+        self.assertTrue(args.json)
+
     def test_resolve_tui_mode_auto_enables_when_interactive_and_textual_available(self):
         enabled, watch, warning = self.orchestrator._resolve_tui_mode(
             requested=False,

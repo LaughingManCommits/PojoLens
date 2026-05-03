@@ -155,6 +155,7 @@ This file defines the portable contract for recreating the repository's AI memor
 - Each run id must be unique so overlapping orchestrator invocations do not collide on manifests or workspaces.
 - The coordinator owns review, merge or cherry-pick decisions, memory updates, and final validation after worker runs.
 - The coordinator should expose a review surface that summarizes workspace diffs, can export unified patches for copy/worktree runs, and can conservatively promote isolated workspace changes back into the repo.
+- The coordinator should also expose a human diff view for retained runs that renders literal workspace-vs-repo file diffs, supports task/path filtering plus a `--stat` mode, and is suitable for an operator promote gate.
 - The coordinator should support bounded lifecycle helpers for resuming a retained run in place from its per-run selected-plan snapshot, retrying failed or blocked tasks into a new run, inventorying retained runs, pruning aged runtime state, and cleaning run-scoped artifacts, including detached worktrees.
 - Retained runs should also support a lightweight evaluation surface that scores orchestration quality signals such as over-delegation, optional reviewer hops, validation suggestion quality, retry/resume contract consistency, and promotion-readiness consistency.
 - Same-run resume should default to unfinished or missing tasks, preserve already-completed task records, reuse the same run id and runtime directories, and allow explicit task narrowing.

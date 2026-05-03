@@ -11,6 +11,13 @@ Versions use date-based scheme `YYYY.MM.DD.HHmm`.
 
 ### Added
 
+- **Human diff view before promote** - added `pojo_lens_agents.diff_run` plus
+  the `diff-run` command for retained runs, with task and path filters,
+  `--stat` summaries, structured per-file unified diff JSON payloads, ANSI or
+  Rich-style diff rendering in text mode, graceful missing-workspace handling,
+  and wizard promote-gate diff preview plus optional full diff display before
+  promotion.
+
 - **Guided wizard mode** - added `pojo_lens_agents.wizard`, default no-args
   `pojolens-agents` entry into a guided validate/run/review/promote/validate
   lifecycle, explicit `wizard` / `--resume` / `--retry` entry points,
