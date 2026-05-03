@@ -73,14 +73,14 @@ def _format_elapsed(seconds: float | None) -> str:
 
 def _status_style(status: str) -> str:
     return {
-        "completed": "green",
-        "failed": "red",
-        "blocked": "red",
-        "running": "yellow",
-        "retry": "yellow",
-        "planned": "dim",
-        "pending": "dim",
-    }.get(status, "white")
+        "completed": "#00ff41",
+        "failed": "#ff2244",
+        "blocked": "#ff2244",
+        "running": "#ffaa00",
+        "retry": "#ffaa00",
+        "planned": "#2a5a3a",
+        "pending": "#2a5a3a",
+    }.get(status, "#a0ffa0")
 
 
 def _status_cell(status: str) -> Any:
@@ -155,33 +155,45 @@ if textual_is_available():
             total_cost_usd: float,
             elapsed_seconds: float,
         ) -> None:
+            done_c = "#00ff41" if completed == total and total > 0 else "#ffaa00"
+            fail_c = "#ff2244" if failed else "#2a5a3a"
             self.update(
-                "  ".join(
-                    [
-                        f"done {completed}/{total}",
-                        f"running {running}",
-                        f"failed {failed}",
-                        f"cost ${total_cost_usd:.5f}",
-                        f"elapsed {_format_elapsed(elapsed_seconds)}",
-                    ]
-                )
+                f"[bold {done_c}]done {completed}/{total}[/]  "
+                f"[#ffaa00]run {running}[/]  "
+                f"[{fail_c}]fail {failed}[/]  "
+                f"[#00e5ff]cost ${total_cost_usd:.5f}[/]  "
+                f"[#a0ffa0]{_format_elapsed(elapsed_seconds)}[/]"
             )
 
 
     class FooterBar(Static):
         def set_state(self, *, hitl_gate_id: str | None = None, sentinel_path: str | None = None) -> None:
             if hitl_gate_id:
-                suffix = f"  gate {hitl_gate_id}"
+                suffix = f"  gate [bold #ffaa00]{hitl_gate_id}[/]"
                 if sentinel_path:
-                    suffix += f"  sentinel {sentinel_path}"
+                    suffix += f"  [dim]{sentinel_path}[/]"
                 self.update(f"[a] approve  [x] abort{suffix}")
                 return
-            self.update("Live dashboard")
+            self.update("[dim #2a5a3a]>> live <<[/]")
 
 
     class LogPane(RichLog):
         pass
 
+
+    _MTX_VARS_APP: dict[str, str] = {
+        "bg": "#050508",
+        "bg_panel": "#07070f",
+        "bg_input": "#04040c",
+        "green": "#00ff41",
+        "green_body": "#a0ffa0",
+        "green_dim": "#1a4a2a",
+        "cyan": "#00e5ff",
+        "amber": "#ffaa00",
+        "red": "#ff2244",
+        "text_dim": "#2a5a3a",
+        "border_dim": "#1a3a1a",
+    }
 
     class OrchestratorApp(App[None]):
         BINDINGS = [
@@ -189,28 +201,71 @@ if textual_is_available():
             ("x", "abort_gate", "Abort"),
         ]
 
+        def get_css_variables(self) -> dict[str, str]:
+            return {**super().get_css_variables(), **_MTX_VARS_APP}
+
         CSS = """
         Screen {
             layout: vertical;
+            background: $bg;
+            color: $green_body;
+        }
+
+        Header {
+            background: $bg_panel;
+            color: $green;
+            border-bottom: heavy $green 30%;
         }
 
         #summary {
             height: 1;
             padding: 0 1;
+            background: $bg_panel;
+            color: $green_body;
         }
 
         #grid {
             height: 12;
             min-height: 8;
+            background: $bg_panel;
+        }
+
+        DataTable {
+            background: $bg_panel;
+            color: $green_body;
+        }
+
+        DataTable > .datatable--header {
+            background: $bg_input;
+            color: $cyan;
+            text-style: bold;
+        }
+
+        DataTable > .datatable--cursor {
+            background: $green_dim;
+        }
+
+        DataTable > .datatable--even-row {
+            background: $bg_panel;
+        }
+
+        DataTable > .datatable--odd-row {
+            background: $bg;
         }
 
         #log {
             height: 1fr;
+            background: $bg;
+            padding: 0 1;
+            color: $green_body;
         }
 
         #footer {
             height: 1;
             padding: 0 1;
+            background: $bg_input;
+            color: $text_dim;
+            border-top: solid $green 20%;
         }
         """
 
@@ -247,7 +302,8 @@ if textual_is_available():
             yield FooterBar("", id="footer")
 
         def on_mount(self) -> None:
-            self.title = f"PojoLens Agents: {self.plan_name}"
+            self.title = f"POJOLENS // {self.plan_name.upper()}"
+            self.sub_title = "RUN MONITOR"
             grid = self.query_one(TaskGrid)
             for task_id in self.task_order:
                 state = self.task_states[task_id]

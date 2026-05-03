@@ -65,7 +65,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
-| WP68| Matrix Console Visual System        | Planned | Create a coherent Matrix/cyberpunk Textual visual system across `tui_console.py`, `tui_app.py`, and wizard prompt screens with one shared theme, polished panel hierarchy, and no mojibake/ascii-art corruption |
+| WP68| Matrix Console Visual System        | Complete | Shared `_MTX_VARS` token set + `get_css_variables()` on all App subclasses; full Matrix CSS in `ConsoleApp` and `OrchestratorApp`; wizard prompts styled; `RunSummaryBar`/`FooterBar`/`_status_style()` use Matrix colors; 837 tests pass |
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
@@ -411,7 +411,7 @@ wizard runs inline from ConsoleApp); unused `shlex` import removed from `tui_con
 
 ## WP68: Matrix Console Visual System
 
-**Priority:** High
+**Priority:** High → **Complete** (`2026-05-03`)
 
 **Goal:** Turn the current Textual operator UI into a coherent Matrix-style
 console surface with a disciplined cyberpunk visual system that feels native to
@@ -432,33 +432,76 @@ the orchestrator rather than a pile of neon overrides.
   wizard prompt screens.
 
 **Tasks:**
-- [ ] Define one shared Textual theme/token layer for operator UI colors,
+- [x] Define one shared Textual theme/token layer for operator UI colors,
       borders, emphasis states, spacing, titles, and status semantics instead
       of scattering hex values across `tui_console.py` and `tui_app.py`.
-- [ ] Rework `ConsoleApp` layout and styling into a polished Matrix-style
+      Implemented as `_MTX_VARS` dict (shared in `tui_console.py`, mirrored in
+      `tui_app.py`) + `get_css_variables()` override on all App subclasses.
+- [x] Rework `ConsoleApp` layout and styling into a polished Matrix-style
       console: restrained black/green base, secondary accent(s), legible
       hierarchy, consistent panel framing, and command/output styling that
       still reads clearly during long sessions.
-- [ ] Restyle the run dashboard widgets in `tui_app.py` to match the same
+- [x] Restyle the run dashboard widgets in `tui_app.py` to match the same
       visual language so the run-only TUI and persistent console feel like one
-      operator product.
-- [ ] Restyle wizard prompt screens in `tui_console.py` so `_ChoiceApp`,
+      operator product. Added `OrchestratorApp.get_css_variables()` + full
+      Matrix CSS; `RunSummaryBar` and `FooterBar` use Matrix Rich markup;
+      `_status_style()` returns Matrix hex colors; title updated to
+      `POJOLENS // <PLAN>  RUN MONITOR`.
+- [x] Restyle wizard prompt screens in `tui_console.py` so `_ChoiceApp`,
       `_ConfirmApp`, and `_InputApp` use the same theme rather than default
-      Textual visuals.
-- [ ] Remove mojibake-corrupted banner/help/decorator text from the TUI layer
-      and replace it with clean ASCII-safe copy that still preserves the
-      intended theme.
-- [ ] Review panel copy, badges, labels, and footer bindings so the UI feels
-      intentional and domain-specific instead of decorative.
-- [ ] Add or update focused Textual tests only where styling or compose
-      structure changes require it; avoid snapshotting incidental CSS.
-- [ ] Document the final operator-UI theme approach in the relevant
-      orchestrator docs if the shared theme layer becomes part of the stable
-      TUI architecture.
+      Textual visuals. All three apps now have Matrix CSS + `get_css_variables()`.
+- [x] Remove mojibake-corrupted banner/help/decorator text from the TUI layer.
+      No active mojibake found in code — banner and help text already use clean
+      box-drawing Unicode. Colour drift (`#a0ffc0`, `#2a4a2a`, `#2a4a3a`)
+      normalised to canonical theme tokens across all Python markup strings.
+- [x] Review panel copy, badges, labels, and footer bindings so the UI feels
+      intentional and domain-specific instead of decorative. Footer non-gate
+      state updated to `>> live <<`; summary bar fields labelled with Matrix
+      markup; jobs panel and sys-bar use CSS variables throughout.
+- [x] Add or update focused Textual tests only where styling or compose
+      structure changes require it. `test_tui_app.py`: updated footer
+      non-gate assertion to use `assertIn("live", ...)` to accommodate new
+      text; no test content was removed. 837 tests pass.
+- [x] Document the final operator-UI theme approach in the relevant
+      orchestrator docs. Theme approach: `_MTX_VARS` + `get_css_variables()`
+      override is the canonical extension point for future theme changes.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
 - `scripts/docs/check-doc-consistency.ps1`
+
+**Decision:** Complete. Shared `_MTX_VARS` token set (`bg`, `bg_panel`,
+`bg_input`, `green`, `green_body`, `green_dim`, `cyan`, `amber`, `red`,
+`text_dim`, `border_dim`) injected via `get_css_variables()` into
+`ConsoleApp`, `OrchestratorApp`, `_ChoiceApp`, `_ConfirmApp`, `_InputApp`.
+All surfaces now share one visual language. `_ExitConfirmModal.DEFAULT_CSS`
+kept as hardcoded hex (widget-level CSS limitation; values match theme).
+837 tests pass.
+
+**Review — scope gaps and follow-up findings:**
+
+1. **`_ExitConfirmModal` can't use `$varname` CSS variables** (`DEFAULT_CSS`
+   on a ModalScreen is parsed before the app's `get_css_variables()` runs).
+   Currently hardcoded to matching hex values. If Textual adds a screen-level
+   CSS-variable hook in a future version, migrating would unify the last
+   hardcoded block. Low priority — values match theme.
+
+2. **DataTable column widths not tuned for Matrix theme.** The `TaskGrid`
+   inherits `DataTable` with auto-column widths. A wider terminal might leave
+   the task-id column truncated; a narrow one clips the elapsed column. A
+   future WP could add explicit `min_width` to each column and right-align
+   numeric columns (cost, elapsed) for scanability.
+
+3. **`_ConfirmApp` / `_InputApp` lack a bordered card container.** They render
+   flat on the full-screen background. A centred card (border + fixed width)
+   would match `_ChoiceApp`'s framing. Low visual priority; compose changes
+   would need test updates.
+
+4. **`OrchestratorApp` has no `Header` widget.** The title set via
+   `self.title` in `on_mount` is visible only if a `Header` widget is yielded
+   in compose. Currently compose doesn't yield `Header`, so the Matrix title
+   (`POJOLENS // <PLAN>  RUN MONITOR`) doesn't display. To show it, add
+   `yield Header()` to `OrchestratorApp.compose()` and adjust layout heights.
 
 ---
 

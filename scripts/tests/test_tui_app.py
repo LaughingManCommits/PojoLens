@@ -140,6 +140,6 @@ class TuiAppTest(unittest.TestCase):
                     self.assertTrue(decision.approved)
                     self.assertEqual("tui", decision.source)
                     await pilot.pause(0.2)
-                    self.assertEqual("Live dashboard", str(footer.renderable))
+                    self.assertIn("live", str(footer.renderable).lower())
 
         asyncio.run(scenario())

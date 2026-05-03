@@ -184,10 +184,41 @@ if TEXTUAL_IMPORT_ERROR is None:
         ]
 
         CSS = """
-        Screen { layout: vertical; }
-        #body { height: 1fr; }
-        OptionList { height: 1fr; }
+        Screen {
+            layout: vertical;
+            background: $bg;
+            color: $green_body;
+        }
+        #body {
+            height: 1fr;
+            background: $bg_panel;
+            border: heavy $green 40%;
+            padding: 1 2;
+        }
+        #body Static {
+            color: $cyan;
+            text-style: bold;
+            margin-bottom: 1;
+        }
+        OptionList {
+            height: 1fr;
+            background: $bg;
+            border: solid $green_dim;
+            color: $green_body;
+        }
+        OptionList > .option-list--option-highlighted {
+            background: $green_dim;
+            color: $green;
+            text-style: bold;
+        }
+        Footer {
+            background: $bg_input;
+            color: $text_dim;
+        }
         """
+
+        def get_css_variables(self) -> dict[str, str]:
+            return {**super().get_css_variables(), **_MTX_VARS}
 
         def __init__(self, title_text: str, choices: list[Any], *, default_index: int = 0) -> None:
             super().__init__()
@@ -226,6 +257,31 @@ if TEXTUAL_IMPORT_ERROR is None:
             Binding("escape", "abort", "Abort"),
         ]
 
+        CSS = """
+        Screen {
+            background: $bg;
+            color: $green_body;
+            align: center middle;
+            padding: 2 4;
+        }
+        Screen > Static:first-of-type {
+            color: $cyan;
+            text-style: bold;
+            margin-bottom: 1;
+        }
+        Screen > Static {
+            color: $green_body;
+            padding: 0 1;
+        }
+        Footer {
+            background: $bg_input;
+            color: $text_dim;
+        }
+        """
+
+        def get_css_variables(self) -> dict[str, str]:
+            return {**super().get_css_variables(), **_MTX_VARS}
+
         def __init__(self, question: str, *, default: bool = True) -> None:
             super().__init__()
             self.title = "Confirm"
@@ -255,6 +311,37 @@ if TEXTUAL_IMPORT_ERROR is None:
             Binding("escape", "abort", "Abort"),
         ]
 
+        CSS = """
+        Screen {
+            background: $bg;
+            color: $green_body;
+            align: center middle;
+            padding: 2 4;
+        }
+        Screen > Static {
+            color: $cyan;
+            text-style: bold;
+            margin-bottom: 1;
+            padding: 0 1;
+        }
+        Input {
+            background: $bg_panel;
+            color: $green;
+            border: solid $green 40%;
+        }
+        Input:focus {
+            border: solid $cyan;
+            color: $cyan;
+        }
+        Footer {
+            background: $bg_input;
+            color: $text_dim;
+        }
+        """
+
+        def get_css_variables(self) -> dict[str, str]:
+            return {**super().get_css_variables(), **_MTX_VARS}
+
         def __init__(self, question: str, *, default: str = "") -> None:
             super().__init__()
             self.title = "Input"
@@ -276,19 +363,34 @@ if TEXTUAL_IMPORT_ERROR is None:
 
 # ── Main operator console app ──────────────────────────────────────────────────
 
+_MTX_VARS: dict[str, str] = {
+    "bg": "#050508",
+    "bg_panel": "#07070f",
+    "bg_input": "#04040c",
+    "green": "#00ff41",
+    "green_body": "#a0ffa0",
+    "green_dim": "#1a4a2a",
+    "cyan": "#00e5ff",
+    "amber": "#ffaa00",
+    "red": "#ff2244",
+    "text_dim": "#2a5a3a",
+    "border_dim": "#1a3a1a",
+}
+
+
 class ConsoleApp(App):  # type: ignore[type-arg]
     """Retro cyberpunk operator console."""
 
     CSS = """
     ConsoleApp {
-        background: #050508;
-        color: #a0ffa0;
+        background: $bg;
+        color: $green_body;
     }
 
     Header {
-        background: #08080f;
-        color: #00ff41;
-        border-bottom: heavy #00ff41 30%;
+        background: $bg_panel;
+        color: $green;
+        border-bottom: heavy $green 30%;
     }
 
     #body {
@@ -298,94 +400,94 @@ class ConsoleApp(App):  # type: ignore[type-arg]
 
     RichLog {
         width: 1fr;
-        background: #060610;
-        border-right: heavy #00ff41 25%;
-        scrollbar-color: #00ff41 25%;
-        scrollbar-background: #050508;
+        background: $bg;
+        border-right: heavy $green 25%;
+        scrollbar-color: $green 25%;
+        scrollbar-background: $bg;
         padding: 0 1;
     }
 
     #jobs-panel {
         width: 34;
-        background: #050510;
+        background: $bg_panel;
         padding: 1;
     }
 
     #jobs-title {
         text-style: bold;
-        color: #00e5ff;
+        color: $cyan;
         text-align: center;
         margin-bottom: 1;
-        border-bottom: solid #00e5ff 30%;
+        border-bottom: solid $cyan 30%;
     }
 
     #jobs-empty {
-        color: #2a4a3a;
+        color: $green_dim;
         text-align: center;
         margin-top: 2;
         text-style: italic;
     }
 
     #jobs-list {
-        color: #a0ffc0;
+        color: $green_body;
     }
 
     #sys-bar {
         height: 1;
-        background: #080810;
-        color: #1a4a2a;
+        background: $bg_panel;
+        color: $green_dim;
         padding: 0 2;
     }
 
     #input-bar {
         height: 3;
         padding: 0 1;
-        background: #04040c;
-        border-top: heavy #00ff41 40%;
+        background: $bg_input;
+        border-top: heavy $green 40%;
     }
 
     CommandInput {
         width: 1fr;
-        background: #050510;
-        color: #00ff41;
-        border: solid #00ff41 35%;
+        background: $bg_panel;
+        color: $green;
+        border: solid $green 35%;
     }
 
     CommandInput:focus {
-        border: solid #00e5ff;
-        color: #00e5ff;
-        background: #05051a;
+        border: solid $cyan;
+        color: $cyan;
+        background: $bg_input;
     }
 
     CommandInput:disabled {
-        background: #080808;
-        color: #1a3a1a;
-        border: solid #1a3a1a;
+        background: $bg_panel;
+        color: $border_dim;
+        border: solid $border_dim;
         opacity: 70%;
     }
 
     #run-btn {
         min-width: 8;
         margin-left: 1;
-        background: #001800;
-        color: #00ff41;
-        border: solid #00ff41 60%;
+        background: $bg_panel;
+        color: $green;
+        border: solid $green 60%;
     }
 
     #run-btn:hover {
-        background: #002800;
+        background: $green_dim;
     }
 
     #run-btn:disabled {
-        background: #080808;
-        color: #1a3a1a;
-        border: solid #1a3a1a;
+        background: $bg_panel;
+        color: $border_dim;
+        border: solid $border_dim;
     }
 
     Footer {
-        background: #04040c;
-        color: #2a5a3a;
-        border-top: solid #00ff41 20%;
+        background: $bg_input;
+        color: $text_dim;
+        border-top: solid $green 20%;
     }
     """
 
@@ -397,6 +499,9 @@ class ConsoleApp(App):  # type: ignore[type-arg]
     ]
 
     show_jobs: reactive[bool] = reactive(True)
+
+    def get_css_variables(self) -> dict[str, str]:
+        return {**super().get_css_variables(), **_MTX_VARS}
 
     def __init__(
         self,
@@ -467,7 +572,7 @@ class ConsoleApp(App):  # type: ignore[type-arg]
         total = len(self._session.all_jobs())
         status = (
             f"[#00ff41]JOBS: {total}  ACTIVE: {running}[/]"
-            if total else "[dim #2a4a2a]STANDBY[/]"
+            if total else "[dim #2a5a3a]STANDBY[/]"
         )
         self.query_one("#sys-bar", Static).update(status)
 
@@ -565,7 +670,7 @@ class ConsoleApp(App):  # type: ignore[type-arg]
             return
         self._history.append(line)
         self._history_pos = -1
-        self._write(f"\n[bold #00ff41]>>[/bold #00ff41] [#a0ffc0]{line}[/]")
+        self._write(f"\n[bold #00ff41]>>[/bold #00ff41] [#a0ffa0]{line}[/]")
         self._dispatch(line)
 
     def _dispatch(self, line: str) -> None:
@@ -739,7 +844,7 @@ class ConsoleApp(App):  # type: ignore[type-arg]
             self._write("[dim]>> no background jobs[/]")
             return
         self._write("[bold #00e5ff]JOB       STATUS       ELAPSED    COMMAND[/]")
-        self._write("[dim #2a4a3a]" + "-" * 54 + "[/]")
+        self._write("[dim #2a5a3a]" + "-" * 54 + "[/]")
         for job in jobs:
             c = {"running": "#ffaa00", "completed": "#00ff41", "failed": "#ff2244"}.get(
                 job.status, "#a0ffa0"
@@ -761,24 +866,24 @@ class ConsoleApp(App):  # type: ignore[type-arg]
             "  [bold #00ff41]/exit[/]             disconnect session\n"
             "\n[bold #00e5ff]╔══ ORCHESTRATOR COMMANDS ══╗[/bold #00e5ff]  "
             "[#ffaa00][bg][/] = background job\n"
-            "  [#a0ffc0]wizard[/] [goal]          guided operator flow\n"
-            "  [#a0ffc0]validate[/] [plan]         validate definitions\n"
-            "  [#a0ffc0]plan[/] <goal>             generate task plan\n"
-            "  [#a0ffc0]run[/] <plan>              execute plan        [#ffaa00][bg][/]\n"
-            "  [#a0ffc0]resume[/] <run>            resume partial      [#ffaa00][bg][/]\n"
-            "  [#a0ffc0]retry[/] <run>             retry failed        [#ffaa00][bg][/]\n"
-            "  [#a0ffc0]status[/] <run>            show run status\n"
-            "  [#a0ffc0]inventory[/]               list runs\n"
-            "  [#a0ffc0]review[/] <run>            summarize changes\n"
-            "  [#a0ffc0]diff-run[/] <run>          show diffs\n"
-            "  [#a0ffc0]promote[/] <run>           apply to repo\n"
-            "  [#a0ffc0]validate-run[/] <run>      post-promote check\n"
-            "  [#a0ffc0]evaluate-run[/] <run>      quality score\n"
-            "  [#a0ffc0]evaluate-corpus[/]         corpus quality score\n"
-            "  [#a0ffc0]cleanup[/] <run>           remove artifacts\n"
-            "  [#a0ffc0]prune[/]                   prune old runs\n"
-            "  [#a0ffc0]summarize-ledger[/]         print ledger summary\n"
-            "  [#a0ffc0]config show[/]             print config\n"
+            "  [#a0ffa0]wizard[/] [goal]          guided operator flow\n"
+            "  [#a0ffa0]validate[/] [plan]         validate definitions\n"
+            "  [#a0ffa0]plan[/] <goal>             generate task plan\n"
+            "  [#a0ffa0]run[/] <plan>              execute plan        [#ffaa00][bg][/]\n"
+            "  [#a0ffa0]resume[/] <run>            resume partial      [#ffaa00][bg][/]\n"
+            "  [#a0ffa0]retry[/] <run>             retry failed        [#ffaa00][bg][/]\n"
+            "  [#a0ffa0]status[/] <run>            show run status\n"
+            "  [#a0ffa0]inventory[/]               list runs\n"
+            "  [#a0ffa0]review[/] <run>            summarize changes\n"
+            "  [#a0ffa0]diff-run[/] <run>          show diffs\n"
+            "  [#a0ffa0]promote[/] <run>           apply to repo\n"
+            "  [#a0ffa0]validate-run[/] <run>      post-promote check\n"
+            "  [#a0ffa0]evaluate-run[/] <run>      quality score\n"
+            "  [#a0ffa0]evaluate-corpus[/]         corpus quality score\n"
+            "  [#a0ffa0]cleanup[/] <run>           remove artifacts\n"
+            "  [#a0ffa0]prune[/]                   prune old runs\n"
+            "  [#a0ffa0]summarize-ledger[/]         print ledger summary\n"
+            "  [#a0ffa0]config show[/]             print config\n"
             "\n[dim #2a5a3a]CTRL+J :: toggle job queue  /  "
             "UP/DOWN :: command history  /  "
             "CTRL+L :: clear[/]\n"
