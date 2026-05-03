@@ -55,6 +55,7 @@ tui_layer = _LazyModuleProxy("pojo_lens_agents.tui_app")
 wizard_layer = _LazyModuleProxy("pojo_lens_agents.wizard")
 validate_cli_layer = _LazyModuleProxy("pojo_lens_agents.validate_cli")
 validation_ops_layer = _LazyModuleProxy("pojo_lens_agents.validation_ops")
+rate_limiter_layer = _LazyModuleProxy("pojo_lens_agents.rate_limiter")
 
 from pojo_lens_agents.cli_parser import parse_args
 from pojo_lens_agents.command_dispatch import _worker_run_exit_code, dispatch_main
@@ -530,7 +531,13 @@ def run_loaded_plan(
     prior_completed_records: dict[str, TaskRunRecord] | None = None,
     watch: bool = False,
     tui: bool = False,
+    tpm_limit: int | None = None,
+    rpm_limit: int | None = None,
 ) -> dict[str, Any]:
+    import os as _os
+    _tpm = tpm_limit if tpm_limit is not None else (int(_os.environ["ANTHROPIC_TPM_LIMIT"]) if _os.environ.get("ANTHROPIC_TPM_LIMIT", "").strip().isdigit() else None)
+    _rpm = rpm_limit if rpm_limit is not None else (int(_os.environ["ANTHROPIC_RPM_LIMIT"]) if _os.environ.get("ANTHROPIC_RPM_LIMIT", "").strip().isdigit() else None)
+    _rate_bucket = rate_limiter_layer.RateLimitBucket(tpm_limit=_tpm, rpm_limit=_rpm) if (_tpm is not None or _rpm is not None) else None
     _max_retries = max_task_retries
 
     async def _execute_task_with_retry(
@@ -663,6 +670,7 @@ def run_loaded_plan(
                 resolved_model=model, resolved_effort=effort,
             ),
             effective_task_read_paths=effective_task_read_paths,
+            rate_limit_bucket=_rate_bucket,
             error_factory=OrchestratorError,
         )
 

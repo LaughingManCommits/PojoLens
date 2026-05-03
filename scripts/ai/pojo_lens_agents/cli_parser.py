@@ -117,6 +117,31 @@ def _add_otel_endpoint_arg(parser: argparse.ArgumentParser, *, help_text: str) -
     )
 
 
+def _add_rate_limit_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--tpm-limit",
+        type=int,
+        default=None,
+        dest="tpm_limit",
+        metavar="N",
+        help=(
+            "Proactive tokens-per-minute cap. Dispatcher waits before each task dispatch "
+            "to stay within the sliding-window budget. Overrides ANTHROPIC_TPM_LIMIT env var."
+        ),
+    )
+    parser.add_argument(
+        "--rpm-limit",
+        type=int,
+        default=None,
+        dest="rpm_limit",
+        metavar="N",
+        help=(
+            "Proactive requests-per-minute cap. Combined with --tpm-limit when both are set. "
+            "Overrides ANTHROPIC_RPM_LIMIT env var."
+        ),
+    )
+
+
 def _add_watch_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--watch",
@@ -480,6 +505,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _add_watch_arg(run_parser)
     _add_tui_arg(run_parser)
+    _add_rate_limit_args(run_parser)
     _add_verbose_arg(run_parser)
 
     resume_parser = subparsers.add_parser(
@@ -546,6 +572,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _add_watch_arg(resume_parser)
     _add_tui_arg(resume_parser)
+    _add_rate_limit_args(resume_parser)
     _add_verbose_arg(resume_parser)
 
     retry_parser = subparsers.add_parser(
@@ -612,6 +639,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _add_watch_arg(retry_parser)
     _add_tui_arg(retry_parser)
+    _add_rate_limit_args(retry_parser)
     _add_verbose_arg(retry_parser)
 
     review_parser = subparsers.add_parser(

@@ -55,7 +55,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP47| Human-in-the-Loop Approval Gates     | Complete | Added batch-boundary HITL policy, run/resume CLI flags, persisted gate events, sentinel/interactive approval, auto-approve test mode, and abort blocking |
 | WP48| Pre-Flight Cost Estimation           | Complete | Added tracked model pricing, pre-flight per-task/per-batch USD+token estimates, `run --estimate`, validate-time budget warnings, and retained `costEstimate` payloads/manifests |
 | WP49| Dynamic Plan Mutation                | Complete | Added typed `followUpTasks`, run-policy/CLI follow-up mode, between-batch task injection, persisted lineage, and selected-plan mutation for resume |
-| WP50| Rate-Limit-Aware Proactive Scheduling| Planned | Track rolling token consumption per time window and pre-throttle task dispatch before hitting quota, replacing pure reactive backoff |
+| WP50| Rate-Limit-Aware Proactive Scheduling| Complete | `RateLimitBucket` sliding-window TPM+RPM; acquire before dispatch; record_completion charges delta; `rate-throttle` events; `rateLimiting` payload; `--tpm-limit`/`--rpm-limit`; env-var fallback; 37 tests |
 | WP51| Cross-Run Memory and Pattern Learning | Complete | Persist a structured ledger of what worked and failed across runs so the planner can consult prior evidence when decomposing similar tasks |
 | WP52| Diff-Aware Incremental Replay        | Complete | Content-addressed task fingerprinting, `--reuse-unchanged` on run/resume/retry, `--fingerprint-only` on validate, task-reused events, and fingerprint stored on every executed record |
 | WP53| CLI Ergonomics                       | Complete | Config file (`pojolens-agents.toml`) for default flags and a `--watch` live progress formatter that tails run events to stderr during long runs |
@@ -267,50 +267,15 @@ OTLP HTTP collector when enabled through `OTEL_EXPORTER_OTLP_ENDPOINT` or a
 
 ---
 
-## WP50: Rate-Limit-Aware Proactive Scheduling
+## WP50: Rate-Limit-Aware Proactive Scheduling ✅ 2026-05-03
 
-**Priority:** Medium
-
-**Goal:** Track rolling token consumption per time window and pre-throttle
-task dispatch when approaching Anthropic quota limits, replacing the current
-purely reactive retry-on-429 model with a smoother submission curve.
-
-**Context:**
-- The current model is: submit task → if 429 → retry with exponential backoff
-  (WP42). This works but produces bursty submission patterns that generate
-  unnecessary 429s and waste wall-clock time on backoff delays.
-- Anthropic's rate limits are expressed as tokens per minute (TPM) and
-  requests per minute (RPM). Both are knowable in advance from the model
-  tier and the account limit tier.
-- The orchestrator already tracks `usage.inputTokens` + `usage.outputTokens`
-  per task record. Adding a rolling window over recent task completions
-  produces a running TPM estimate. When projected consumption for the next
-  batch exceeds the window budget, the scheduler should delay dispatch rather
-  than submit and absorb a 429.
-- This is especially valuable for large parallel runs (`--max-parallel 4+`)
-  where simultaneous task completions spike output token counts.
-
-**Tasks:**
-- [ ] Add a `RateLimitBucket` abstraction in `run_ops.py` (or a new
-      `rate_limiter.py`) that tracks sliding-window token and request counts
-      with configurable `tpm_limit` and `rpm_limit` capacities.
-- [ ] Read `ANTHROPIC_TPM_LIMIT` and `ANTHROPIC_RPM_LIMIT` env vars (with
-      sane defaults per model tier) to initialize the bucket; allow
-      `--tpm-limit` / `--rpm-limit` CLI overrides.
-- [ ] In `run_ops._run_one`, before acquiring the semaphore, check the rate
-      bucket; if the projected next-task cost would exceed the window, sleep
-      until the window refills.
-- [ ] Track per-task token cost before dispatch using the cost estimation
-      module from WP48 (or a simpler heuristic if WP48 is not yet done).
-- [ ] Emit `rate-throttle` run events when the scheduler voluntarily delays
-      a task dispatch due to budget proximity; record delay duration.
-- [ ] Add regression coverage for throttle logic, window refill, and the
-      `rate-throttle` event without requiring live API calls.
-
-**Validate:**
-- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/ai/claude-orchestrator.ps1 run ai/orchestrator/tasks/example-parallel.json --dry-run --max-parallel 2 --json`
-- `scripts/docs/check-doc-consistency.ps1`
+**Delivered:**
+- `rate_limiter.py`: `RateLimitBucket` — sliding-window (60 s default) async acquire/record_completion; TPM + RPM enforcement; empty-window pass-through when single estimate exceeds limit.
+- `run_ops.run_loaded_plan`: `rate_limit_bucket` param; pre-computes `_token_budget_by_task` via `estimate_plan_cost`; calls `acquire` before semaphore; calls `record_completion` after; emits `rate-throttle` event; writes `rateLimiting` stats to payload.
+- `orchestrator_app.run_loaded_plan`: `tpm_limit` / `rpm_limit` params; env-var fallback `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT`; creates `RateLimitBucket` and passes to `run_ops`.
+- `cli_parser`: `_add_rate_limit_args` helper wired to `run`, `resume`, `retry` subparsers.
+- `test_rate_limiter.py`: 37 tests — bucket enabled/disabled, TPM/RPM windows, prune, throttle events, record_completion, stats, run_ops integration, CLI args, env vars.
+- Full suite: 799 tests pass.
 
 ---
 

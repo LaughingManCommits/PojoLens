@@ -167,6 +167,7 @@ async def run_loaded_plan(
     parse_iso_datetime: Callable[..., Any] | None = None,
     datetime_to_iso: Callable[..., Any] | None = None,
     emit_otel_trace: Callable[..., dict[str, Any]] | None = None,
+    rate_limit_bucket: Any = None,
     error_factory: type[Exception] = RuntimeError,
 ) -> dict[str, Any]:
     worker_validation_override = (
@@ -233,6 +234,27 @@ async def run_loaded_plan(
     fail_fast_triggered = False
     stop_scheduling_reason: str | None = None
     batch_index = 0
+    _token_budget_by_task: dict[str, int] = {}
+    if rate_limit_bucket is not None and rate_limit_bucket.enabled and estimate_plan_cost is not None and load_model_pricing is not None:
+        try:
+            _task_models_now = effective_plan_models(plan, agents) if effective_plan_models is not None else {}
+            _task_model_profiles_now = effective_plan_model_profiles(plan, agents) if effective_plan_model_profiles is not None else {}
+            _task_efforts_now = effective_plan_efforts(plan, agents, run_override=normalized_effort_override) if effective_plan_efforts is not None else {}
+            _cost_est = estimate_plan_cost(
+                plan,
+                agents,
+                pricing=load_model_pricing(),
+                task_models=_task_models_now,
+                task_model_profiles=_task_model_profiles_now,
+                task_efforts=_task_efforts_now,
+            )
+            for _task_est in _cost_est.get("tasks", []):
+                _tid = _task_est.get("taskId") or _task_est.get("id")
+                _toks = int(_task_est.get("estimatedInputTokens", 0) or 0) + int(_task_est.get("estimatedOutputTokens", 0) or 0)
+                if _tid and _toks > 0:
+                    _token_budget_by_task[_tid] = _toks
+        except Exception:
+            pass
     while pending:
         run_governance = evaluate_run_governance(records, plan.run_policy)
         if run_governance["shouldStopScheduling"] and stop_scheduling_reason is None:
@@ -376,8 +398,24 @@ async def run_loaded_plan(
             )
 
         async def _run_one(t):
+            _estimated = _token_budget_by_task.get(t.id, 0) if rate_limit_bucket is not None else 0
+            if rate_limit_bucket is not None and rate_limit_bucket.enabled:
+                _delay = await rate_limit_bucket.acquire(_estimated)
+                if _delay > 0:
+                    append_run_event(
+                        run_events,
+                        phase="rate-throttle",
+                        task_id=t.id,
+                        parent_task_ids=list(t.depends_on),
+                        branch_context_id=task_branch_context_id(t, records),
+                        details={
+                            "taskId": t.id,
+                            "delayMs": int(_delay * 1000),
+                            "estimatedTokens": _estimated,
+                        },
+                    )
             async with semaphore:
-                return t, await execute_task(
+                record = await execute_task(
                     run_dir,
                     runtime_root,
                     workspaces_dir,
@@ -391,6 +429,10 @@ async def run_loaded_plan(
                     worker_validation_mode=worker_validation_override,
                     effort_override=normalized_effort_override,
                 )
+            if rate_limit_bucket is not None and rate_limit_bucket.enabled:
+                _actual = int((getattr(record, "usage", None) or {}).get("totalTokens", 0) or 0)
+                rate_limit_bucket.record_completion(_actual, estimated_tokens=_estimated)
+            return t, record
 
         batch_futures = [asyncio.ensure_future(_run_one(t)) for t in execute_batch]
         for coro in asyncio.as_completed(batch_futures):
@@ -600,6 +642,7 @@ async def run_loaded_plan(
         "branchSummary": summarize_branch_contexts(list(records.values())),
         "events": list(run_events),
         "tasks": [asdict(records[task.id]) for task in plan.tasks],
+        "rateLimiting": rate_limit_bucket.stats() if rate_limit_bucket is not None and rate_limit_bucket.enabled else None,
     }
     if retry_of_run_id:
         payload["retryOfRunId"] = retry_of_run_id
@@ -759,6 +802,12 @@ def run_plan(
     otel_endpoint = getattr(args, "otel_endpoint", None)
     if otel_endpoint:
         run_kwargs["otel_endpoint"] = otel_endpoint
+    _tpm = getattr(args, "tpm_limit", None)
+    _rpm = getattr(args, "rpm_limit", None)
+    if _tpm is not None:
+        run_kwargs["tpm_limit"] = _tpm
+    if _rpm is not None:
+        run_kwargs["rpm_limit"] = _rpm
     return run_loaded_plan_fn(
         plan_path,
         agents_path,
@@ -892,6 +941,10 @@ def resume_run(
         **otel_kwargs,
         **hitl_kwargs,
         **follow_up_kwargs,
+        **{k: v for k, v in [
+            ("tpm_limit", getattr(args, "tpm_limit", None)),
+            ("rpm_limit", getattr(args, "rpm_limit", None)),
+        ] if v is not None},
     )
     payload["sourceManifestPath"] = str(manifest_path)
     payload["requestedTaskIds"] = requested_task_ids
@@ -978,6 +1031,10 @@ def retry_run(
         }
     run_kwargs["watch"] = bool(getattr(args, "watch", False))
     run_kwargs["tui"] = bool(getattr(args, "tui", False))
+    if getattr(args, "tpm_limit", None) is not None:
+        run_kwargs["tpm_limit"] = getattr(args, "tpm_limit")
+    if getattr(args, "rpm_limit", None) is not None:
+        run_kwargs["rpm_limit"] = getattr(args, "rpm_limit")
     payload = run_loaded_plan_fn(
         plan_path,
         agents_path,
