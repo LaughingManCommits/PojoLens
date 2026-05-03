@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import urllib.parse
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -759,6 +760,16 @@ def _resolve_tui_mode(*, requested: bool, watch: bool, json_output: bool, stderr
     return False, True, warning
 
 
+def _assert_otel_endpoint(endpoint: str | None) -> None:
+    if not endpoint:
+        return
+    parsed = urllib.parse.urlparse(endpoint)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise OrchestratorError(
+            f"Invalid --otel-endpoint '{endpoint}': expected an http or https URL"
+        )
+
+
 def _fire_notifications_async(args: argparse.Namespace, payload: dict[str, Any]) -> None:
     if bool(getattr(args, "no_notify", False)):
         return
@@ -784,6 +795,7 @@ def _fire_notifications_async(args: argparse.Namespace, payload: dict[str, Any])
 
 def run_plan(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    _assert_otel_endpoint(otel_endpoint)
     args.otel_endpoint = otel_endpoint or ""
     args.tui, args.watch, tui_warning = _resolve_tui_mode(
         requested=bool(getattr(args, "tui", False)),
@@ -829,6 +841,7 @@ def run_plan(args: argparse.Namespace) -> dict[str, Any]:
 
 def resume_run(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    _assert_otel_endpoint(otel_endpoint)
     args.otel_endpoint = otel_endpoint or ""
     args.tui, args.watch, tui_warning = _resolve_tui_mode(
         requested=bool(getattr(args, "tui", False)),
@@ -866,6 +879,7 @@ def resume_run(args: argparse.Namespace) -> dict[str, Any]:
 
 def retry_run(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    _assert_otel_endpoint(otel_endpoint)
     args.otel_endpoint = otel_endpoint or ""
     args.tui, args.watch, tui_warning = _resolve_tui_mode(
         requested=bool(getattr(args, "tui", False)),
@@ -972,6 +986,7 @@ def runtime_manifest_entries(runtime_root: Path) -> list[tuple[Path, dict[str, A
 
 def export_trace(args: argparse.Namespace) -> dict[str, Any]:
     otel_endpoint = otel_layer.resolve_otel_endpoint(getattr(args, "otel_endpoint", ""))
+    _assert_otel_endpoint(otel_endpoint)
     args.otel_endpoint = otel_endpoint or ""
     return trace_export_layer.export_trace_run(
         args,

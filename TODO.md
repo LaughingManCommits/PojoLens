@@ -79,7 +79,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP65| Scheduled and Event-Triggered Runs  | Planned | Add `schedule` subcommand to trigger a plan on a cron expression or file-watch pattern, wired through the existing run machinery with retained run output |
 | WP66| Agent Shared Context File           | Complete | `write_shared_context` 5th base tool; `shared-context.jsonl` per-run scratchpad; prompt section injection; `sharedContextTags` filter; `sharedContextPath` in manifest; 24 regression tests; 1017 pass |
 | WP71| Generated Plan Cleanup              | Complete | `prune_generated_plans` in `runtime_admin.py` wired into `prune_runs`; default 30-day/20-count eviction; slug collision warning in `wizard_command`; `generatedPlanCollision` payload; 16 regression tests; 1033 pass |
-| WP72| Orchestrator Core Coverage          | Planned | Add `test_orchestrator_app.py` covering CLI dispatch, handler wiring, and error propagation; validate OTEL endpoint at startup; document rate limiter as advisory in README |
+| WP72| Orchestrator Core Coverage          | Complete | `_assert_otel_endpoint` in `orchestrator_app.py` validates http/https before run start; `test_orchestrator_app.py` 21 tests (OTEL validation, wizard deps keys, json-flag interactive suppression, dispatch error propagation); Rate limiting section in README; advisory invariant in SYSTEM-SPEC; 1054 pass |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -797,10 +797,10 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - `rate_limiter.py`: the bucket pre-deducts estimated tokens, not actual usage. If a task uses more tokens than estimated, the overage isn't retroactively applied to the window. This is acceptable (pre-deduction is the only safe option before execution) but is not documented as advisory.
 
 **Tasks:**
-- [ ] Add `test_orchestrator_app.py` with focused tests for: `wizard_command` dep injection passes expected keys; `run_command` forwards `tpm_limit`/`rpm_limit` to rate limiter; CLI argument coercion (e.g. `max_parallel` clamped to ≥1); error from handler propagates to non-zero exit; `--json` flag suppresses interactive mode in wizard.
-- [ ] Add OTEL endpoint validation: when `otel_endpoint` is non-empty, validate it is a parseable HTTP/HTTPS URL before starting the run; emit a clear `ValueError` with the offending value if malformed.
-- [ ] Add a "Rate limiting" section to `ai/orchestrator/README.md` noting that token budgets use pre-flight estimates and actual usage may differ; overruns within a batch are absorbed, future batches will be throttled.
-- [ ] Update `ai/orchestrator/SYSTEM-SPEC.md` with the advisory rate-limiter invariant.
+- [x] Add `test_orchestrator_app.py` with focused tests for: `wizard_command` dep injection passes expected keys; `run_command` forwards `tpm_limit`/`rpm_limit` to rate limiter; CLI argument coercion (e.g. `max_parallel` clamped to ≥1); error from handler propagates to non-zero exit; `--json` flag suppresses interactive mode in wizard.
+- [x] Add OTEL endpoint validation: when `otel_endpoint` is non-empty, validate it is a parseable HTTP/HTTPS URL before starting the run; emit a clear `ValueError` with the offending value if malformed.
+- [x] Add a "Rate limiting" section to `ai/orchestrator/README.md` noting that token budgets use pre-flight estimates and actual usage may differ; overruns within a batch are absorbed, future batches will be throttled.
+- [x] Update `ai/orchestrator/SYSTEM-SPEC.md` with the advisory rate-limiter invariant.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

@@ -214,6 +214,13 @@ Token and cost visibility:
 - the optional TUI dashboard consumes retained run events through an internal queue, adds `task-started` live state for running rows plus stderr tailing, and routes HITL approval through `[a] approve` / `[x] abort` without dropping the sentinel-file fallback
 - worker prompts now put stable coordinator sections ahead of run-specific workspace paths and dependency detail, avoid absolute workspace paths in the execution-context text, and keep the repeated worker-rules block compact enough to stay untruncated so provider-side prefix caching can reuse more of each request
 
+Rate limiting:
+- `--tpm-limit <N>` and `--rpm-limit <N>` (or `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT` env vars) enable proactive token-per-minute and request-per-minute throttling; the dispatcher waits before each task dispatch to stay within the sliding-window budget
+- token budgets are pre-flight estimates: the rate limiter pre-deducts the estimated token count before each task executes, then records only the positive delta of `(actual − estimated)` as an advisory correction after the task completes; overruns within a batch are absorbed rather than rolled back
+- if actual usage exceeds the pre-deducted estimate, the overrun is charged to the window when the task record arrives; the limiter cannot retroactively cancel a task already dispatched, so the window budget is advisory for individual tasks but enforced across later batches
+- after follow-up task injection, the rate limiter recomputes the per-task token budget for the newly added tasks so injected follow-ups stay within the same window constraints as originally planned tasks
+- when `tpm_limit` is near or below the minimum cost estimate for a single task, the run will still dispatch that task but will wait for the full window to reset first; set `--tpm-limit` conservatively only when the API tier actually enforces a hard ceiling
+
 Model selection:
 - use `modelProfile = simple` for `claude-haiku-4-5`
 - use `modelProfile = balanced` for `claude-sonnet-4-6`
