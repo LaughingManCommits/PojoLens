@@ -3,16 +3,18 @@
 ## Resume
 1. Load hot context files.
 2. Check `git status --short`.
-3. Follow `TODO.md`: WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
+3. Follow `TODO.md`: WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
+- `2026-05-03`: WP64 complete; `conditionField`/`conditionValue` optional predicate on followUpTask proposals; `_check_follow_up_condition` in `run_ops.py`; case-insensitive substring match against emitter `TaskRunRecord` fields; skipped tasks emit `task-injection-skipped` event with field/value/actual details; Pydantic mutual-requirement validator (both or neither); 17 new tests; 993 pass.
 - `2026-05-03`: WP63 complete; `ExtraToolDef` dataclass + Pydantic `ExtraToolDefModel`; `extraTools` in agent/task JSON; `effective_task_tools` task-overrides-agent merge; shell/script execution via `execute_extra_tool` with collision + traversal guards; validate payload exposes `agentExtraTools` + per-task `extraTools`; 27 new tests; 976 pass.
 - `2026-05-03`: WP70 complete; `always` fires every batch (`True` not `batch_index==1`); stale sentinel gateId validation; 18 new tests; 949 pass.
 - `2026-05-03`: WP62 complete + after-care; `orchestrator_app` wrapper now derives `budgetExceeded` from manifest; 931 tests pass.
 - `2026-05-03`: Queue is WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 
 ## Facts
+- `2026-05-03`: WP64: `conditionField`/`conditionValue` added to `TaskDefinition`, `TaskDefinitionModel`, `WORKER_RESULT_SCHEMA` followUpTask item; `_check_follow_up_condition(injected_task, record)` in `run_ops.py`; `_inject_follow_up_tasks` split into 3 phases: coerce → condition check → topology/scope; skipped tasks emit `task-injection-skipped` with `conditionField`, `conditionValue`, `actualValue` in details; `task_plan_ops.load_task_definition` passes `condition_field`/`condition_value` through factory call.
 - `2026-05-03`: WP63: `ExtraToolDef(name,description,kind,template,timeout_sec)` in `orchestrator_contracts.py`; `ExtraToolDefModel` Pydantic validator rejects base-tool name collision + `..` traversal; `effective_task_tools(task,agent)` returns task-level when non-empty else agent-level; `execute_extra_tool` runs shell/script template via `subprocess.run(shell=True, cwd=workspace_root)`, caps output at `MAX_TOOL_OUTPUT_CHARS`; `run_sdk_provider` accepts `extra_tools: list[dict]|None`; validate payload adds `agentExtraTools` dict + per-task `extraTools` list.
 - `2026-05-03`: WP70: `hitl.py` `should_trigger_hitl_gate` `always` branch = `True` (was `batch_index==1`); `_sentinel_action(path, expected_gate_id)` tries JSON first, rejects mismatched gateId; polling loop passes `context.gate_id`; plain-text fallback retained for backwards compat.
 - `2026-05-03`: WP62: `budget_exceeded_stop` flag in `run_loaded_plan`; `budget-exceeded` event has `{actualCostUsd, limitCostUsd, remainingTaskIds}`; `budgetExceeded` in payload; `derive_run_lifecycle_state` checks `summary_base["budgetExceeded"]` before `hasBlocked`; `EXIT_BUDGET_EXCEEDED=8`; wrapper in `orchestrator_app.py` derives from manifest if not in summary_base.

@@ -233,6 +233,8 @@ class TaskDefinitionModel(ContractModel):
     disallowed_tools: list[str] = Field(default_factory=list, alias="disallowedTools")
     max_retries: int | None = Field(default=None, alias="maxRetries", ge=0)
     injected_from: str | None = Field(default=None, alias="injectedFrom")
+    condition_field: str | None = Field(default=None, alias="conditionField")
+    condition_value: str | None = Field(default=None, alias="conditionValue")
     extra_tools: list[ExtraToolDefModel] = Field(default_factory=list, alias="extraTools")
 
     @property
@@ -287,6 +289,16 @@ class TaskDefinitionModel(ContractModel):
         if value is not None and value not in WORKER_VALIDATION_MODES:
             raise ValueError(f"expected one of {sorted(WORKER_VALIDATION_MODES)}")
         return value
+
+    @model_validator(mode="after")
+    def condition_fields_both_or_neither(self) -> "TaskDefinitionModel":
+        has_field = self.condition_field is not None
+        has_value = self.condition_value is not None
+        if has_field != has_value:
+            raise ValueError(
+                "conditionField and conditionValue must both be set or both omitted"
+            )
+        return self
 
 
 class TaskPlanModel(ContractModel):

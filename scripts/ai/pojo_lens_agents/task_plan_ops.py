@@ -167,6 +167,8 @@ def load_task_definition(
         disallowed_tools=deps["require_string_list"](payload, "disallowedTools", location=location),
         max_retries=deps["require_optional_int"](payload, "maxRetries", location=location),
         injected_from=deps["require_optional_string"](payload, "injectedFrom", location=location),
+        condition_field=deps["require_optional_string"](payload, "conditionField", location=location),
+        condition_value=deps["require_optional_string"](payload, "conditionValue", location=location),
         extra_tools=_load_extra_tools(
             payload.get("extraTools"),
             location=location,

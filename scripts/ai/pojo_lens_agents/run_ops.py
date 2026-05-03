@@ -8,6 +8,18 @@ from typing import Any, Callable
 from uuid import uuid4
 
 
+def _check_follow_up_condition(injected_task: Any, record: Any) -> tuple[bool, Any]:
+    """Return (condition_met, actual_field_value). No condition → always True."""
+    condition_field = getattr(injected_task, "condition_field", None)
+    if not condition_field:
+        return True, None
+    actual = getattr(record, condition_field, None)
+    if actual is None:
+        return False, None
+    condition_value = str(getattr(injected_task, "condition_value", "") or "")
+    return condition_value.lower() in str(actual).lower(), actual
+
+
 def _resolved_follow_up_behavior(plan: Any, *, override: str | None) -> str:
     if override:
         return override
@@ -40,6 +52,13 @@ def _inject_follow_up_tasks(
         if record is None:
             continue
         for follow_up_index, proposal in enumerate(getattr(record, "follow_up_tasks", []) or [], start=1):
+            location = f"worker result {emitter_task_id}:followUpTasks[{follow_up_index}]"
+            _rejection_details: dict[str, Any] = {
+                "emitterTaskId": emitter_task_id,
+                "followUpIndex": follow_up_index,
+                "batchIndex": batch_index,
+            }
+            # Phase 1: coerce proposal → TaskDefinition
             try:
                 injected_task = coerce_follow_up_task(
                     proposal,
@@ -47,8 +66,39 @@ def _inject_follow_up_tasks(
                     agents,
                     emitter_task_id=emitter_task_id,
                     existing_task_ids=existing_task_ids,
-                    location=f"worker result {emitter_task_id}:followUpTasks[{follow_up_index}]",
+                    location=location,
                 )
+            except Exception as exc:
+                append_run_event(
+                    run_events,
+                    phase="task-injection-rejected",
+                    task_id=emitter_task_id,
+                    branch_context_id=record.branch_context_id,
+                    status="blocked",
+                    message=str(exc),
+                    details=_rejection_details,
+                )
+                continue
+            # Phase 2: evaluate conditionField/conditionValue predicate
+            condition_met, actual_value = _check_follow_up_condition(injected_task, record)
+            if not condition_met:
+                append_run_event(
+                    run_events,
+                    phase="task-injection-skipped",
+                    task_id=emitter_task_id,
+                    branch_context_id=record.branch_context_id,
+                    status="skipped",
+                    message=f"Condition not met for follow-up task '{injected_task.id}'.",
+                    details={
+                        **_rejection_details,
+                        "conditionField": injected_task.condition_field,
+                        "conditionValue": injected_task.condition_value,
+                        "actualValue": str(actual_value) if actual_value is not None else None,
+                    },
+                )
+                continue
+            # Phase 3: validate plan topology and scope
+            try:
                 candidate_plan = replace(plan, tasks=[*plan.tasks, injected_task])
                 topological_batches(candidate_plan.tasks)
                 validate_scope_contract(candidate_plan, agents)
@@ -60,11 +110,7 @@ def _inject_follow_up_tasks(
                     branch_context_id=record.branch_context_id,
                     status="blocked",
                     message=str(exc),
-                    details={
-                        "emitterTaskId": emitter_task_id,
-                        "followUpIndex": follow_up_index,
-                        "batchIndex": batch_index,
-                    },
+                    details=_rejection_details,
                 )
                 continue
             plan = candidate_plan
@@ -81,9 +127,7 @@ def _inject_follow_up_tasks(
                 status="planned",
                 message=f"Injected from task '{emitter_task_id}'.",
                 details={
-                    "emitterTaskId": emitter_task_id,
-                    "followUpIndex": follow_up_index,
-                    "batchIndex": batch_index,
+                    **_rejection_details,
                     "injectedFrom": emitter_task_id,
                 },
             )

@@ -223,6 +223,8 @@ WORKER_RESULT_SCHEMA = {
                     "allowedTools": {"type": "array", "items": {"type": "string"}},
                     "disallowedTools": {"type": "array", "items": {"type": "string"}},
                     "maxRetries": {"type": "integer", "minimum": 0},
+                    "conditionField": {"type": "string"},
+                    "conditionValue": {"type": "string"},
                 },
                 "required": ["id", "title", "agent", "prompt"],
                 "additionalProperties": False,
@@ -451,6 +453,8 @@ class TaskDefinition:
     disallowed_tools: list[str] = field(default_factory=list)
     max_retries: int | None = None
     injected_from: str | None = None
+    condition_field: str | None = None
+    condition_value: str | None = None
     extra_tools: list[ExtraToolDef] = field(default_factory=list)
 
     @property
