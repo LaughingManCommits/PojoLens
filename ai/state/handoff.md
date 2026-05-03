@@ -7,7 +7,7 @@
 4. Treat `Release Gate` as last and cut from `RELEASE.md` only when requested.
 
 ## Focus
-- `2026-05-03`: WP50 is complete; `rate_limiter.py` + wiring to `run_ops`/`orchestrator_app`/`cli_parser`; 37 new tests; 799 total pass.
+- `2026-05-03`: WP50 complete + review-pass fixes: key-name bugs in token budget + actual-usage count fixed; `record_completion` async+locked; wizard piped; follow-up recompute added; 799 total pass.
 - `2026-05-03`: WP59 is complete; `test_tui_console.py` added with 65 tests; 762 total tests pass.
 - `2026-05-03`: WP67 is complete; ownership model across all four interactive modules settled; `route_line`/`DispatchRoute` shared; all Textual classes in `tui_console.py`; wizard pure logic; 697 tests passed.
 - `2026-05-03`: WP58 is complete; persistent `console` ships `/help`, `/jobs`, `/focus`, `/clear`, `/exit`, inline command routing, and background `run`/`resume`/`retry`; 697 tests passed.
@@ -16,8 +16,9 @@
 - `2026-05-03`: Queue is WP56 -> WP61 -> WP60 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 (always last) -> Release Gate.
 
 ## Facts
-- `2026-05-03`: `rate_limiter.py` owns `RateLimitBucket`; sliding window (60 s default); `acquire(estimated_tokens)` blocks before semaphore; `record_completion(actual, estimated)` charges delta; empty-window pass-through when estimate > limit; `ANTHROPIC_TPM_LIMIT`/`ANTHROPIC_RPM_LIMIT` env vars as fallback.
-- `2026-05-03`: `run_ops.run_loaded_plan` accepts `rate_limit_bucket`; pre-computes `_token_budget_by_task` via `estimate_plan_cost`; emits `rate-throttle` event on delay > 0; writes `rateLimiting` stats to payload.
+- `2026-05-03`: `rate_limiter.py` owns `RateLimitBucket`; sliding window (60 s default); `acquire(estimated_tokens)` blocks before semaphore; `record_completion` async+locked, charges `inputTokens+outputTokens` delta; empty-window pass-through when estimate > limit.
+- `2026-05-03`: `run_ops.run_loaded_plan` accepts `rate_limit_bucket`; pre-computes `_token_budget_by_task` using `totalTokens["max"]` from `estimate_plan_cost`; recomputes on follow-up task injection; emits `rate-throttle` event; writes `rateLimiting` stats to payload.
+- `2026-05-03`: wizard `_namespace` calls for run/resume/retry propagate `tpm_limit`/`rpm_limit` from wizard args.
 - `2026-05-02`: `orchestrator_models.py` owns Pydantic model mirrors; existing contract dataclasses are Pydantic-backed and still support `dataclasses.asdict`.
 - `2026-05-02`: `wizard.py` owns the no-args flow and keeps generated goal plans under `.claude-orchestrator/generated-plans/`.
 - `2026-05-03`: `console.py` owns the plain persistent console; `dispatch_line` routes commands and `run_console_session` owns the REPL loop.

@@ -319,6 +319,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit the wizard receipt as JSON.",
     )
+    _add_rate_limit_args(wizard_parser)
     _add_verbose_arg(wizard_parser)
 
     validate_parser = subparsers.add_parser(

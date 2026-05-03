@@ -249,8 +249,9 @@ async def run_loaded_plan(
                 task_efforts=_task_efforts_now,
             )
             for _task_est in _cost_est.get("tasks", []):
-                _tid = _task_est.get("taskId") or _task_est.get("id")
-                _toks = int(_task_est.get("estimatedInputTokens", 0) or 0) + int(_task_est.get("estimatedOutputTokens", 0) or 0)
+                _tid = _task_est.get("taskId")
+                _total = _task_est.get("totalTokens") or {}
+                _toks = int(_total.get("max", 0) or 0)
                 if _tid and _toks > 0:
                     _token_budget_by_task[_tid] = _toks
         except Exception:
@@ -430,8 +431,9 @@ async def run_loaded_plan(
                     effort_override=normalized_effort_override,
                 )
             if rate_limit_bucket is not None and rate_limit_bucket.enabled:
-                _actual = int((getattr(record, "usage", None) or {}).get("totalTokens", 0) or 0)
-                rate_limit_bucket.record_completion(_actual, estimated_tokens=_estimated)
+                _usage = getattr(record, "usage", None) or {}
+                _actual = int(_usage.get("inputTokens", 0) or 0) + int(_usage.get("outputTokens", 0) or 0)
+                await rate_limit_bucket.record_completion(_actual, estimated_tokens=_estimated)
             return t, record
 
         batch_futures = [asyncio.ensure_future(_run_one(t)) for t in execute_batch]
@@ -504,6 +506,27 @@ async def run_loaded_plan(
                         injected_task.agent: effective_task_skills(injected_task, agents[injected_task.agent]),
                     },
                 )
+            if rate_limit_bucket is not None and rate_limit_bucket.enabled and estimate_plan_cost is not None and load_model_pricing is not None:
+                try:
+                    _injected_models = effective_plan_models(plan, agents) if effective_plan_models is not None else {}
+                    _injected_profiles = effective_plan_model_profiles(plan, agents) if effective_plan_model_profiles is not None else {}
+                    _injected_efforts = effective_plan_efforts(plan, agents, run_override=normalized_effort_override) if effective_plan_efforts is not None else {}
+                    _injected_cost_est = estimate_plan_cost(
+                        plan,
+                        agents,
+                        pricing=load_model_pricing(),
+                        task_models=_injected_models,
+                        task_model_profiles=_injected_profiles,
+                        task_efforts=_injected_efforts,
+                    )
+                    for _task_est in _injected_cost_est.get("tasks", []):
+                        _tid = _task_est.get("taskId")
+                        _total = _task_est.get("totalTokens") or {}
+                        _toks = int(_total.get("max", 0) or 0)
+                        if _tid and _toks > 0:
+                            _token_budget_by_task[_tid] = _toks
+                except Exception:
+                    pass
             write_manifest(run_id, plan_path, agents_path, agents, runtime_root, run_dir, workspaces_dir, plan, records, dry_run=dry_run, worker_validation_mode=worker_validation_override, effort_override=normalized_effort_override, retry_of_run_id=retry_of_run_id, requested_task_ids=requested_task_ids, retried_task_ids=retried_task_ids, seeded_task_ids=seeded_task_ids, run_events=run_events, follow_up_behavior=resolved_follow_up_behavior, follow_up_behavior_override=follow_up_behavior_override)
         if should_trigger_hitl_gate(
             hitl_policy,

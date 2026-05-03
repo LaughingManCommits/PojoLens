@@ -271,11 +271,19 @@ OTLP HTTP collector when enabled through `OTEL_EXPORTER_OTLP_ENDPOINT` or a
 
 **Delivered:**
 - `rate_limiter.py`: `RateLimitBucket` — sliding-window (60 s default) async acquire/record_completion; TPM + RPM enforcement; empty-window pass-through when single estimate exceeds limit.
-- `run_ops.run_loaded_plan`: `rate_limit_bucket` param; pre-computes `_token_budget_by_task` via `estimate_plan_cost`; calls `acquire` before semaphore; calls `record_completion` after; emits `rate-throttle` event; writes `rateLimiting` stats to payload.
+- `run_ops.run_loaded_plan`: `rate_limit_bucket` param; pre-computes `_token_budget_by_task` via `estimate_plan_cost`; calls `acquire` before semaphore; calls `record_completion` after; emits `rate-throttle` event; writes `rateLimiting` stats to payload; recomputes budgets for injected follow-up tasks.
 - `orchestrator_app.run_loaded_plan`: `tpm_limit` / `rpm_limit` params; env-var fallback `ANTHROPIC_TPM_LIMIT` / `ANTHROPIC_RPM_LIMIT`; creates `RateLimitBucket` and passes to `run_ops`.
-- `cli_parser`: `_add_rate_limit_args` helper wired to `run`, `resume`, `retry` subparsers.
+- `cli_parser`: `_add_rate_limit_args` helper wired to `run`, `resume`, `retry`, `wizard` subparsers.
+- `wizard.py`: propagates `tpm_limit` / `rpm_limit` through all three `_namespace` run/resume/retry branches.
 - `test_rate_limiter.py`: 37 tests — bucket enabled/disabled, TPM/RPM windows, prune, throttle events, record_completion, stats, run_ops integration, CLI args, env vars.
 - Full suite: 799 tests pass.
+
+**Post-delivery review fixes (same session):**
+- **Bug**: `_token_budget_by_task` always zero — `estimatedInputTokens`/`estimatedOutputTokens` keys don't exist; real shape is `totalTokens: {min, max}`; fixed to `totalTokens["max"]`.
+- **Bug**: `record_completion` actual count always zero — `usage["totalTokens"]` doesn't exist; real keys are `inputTokens` + `outputTokens`; fixed sum of both.
+- **Fix**: `record_completion` now async and holds `_lock` during append — eliminates data race when concurrent workers call it simultaneously.
+- **Gap**: wizard `--tpm-limit`/`--rpm-limit` flags added to wizard subparser; `tpm_limit`/`rpm_limit` piped through all three wizard `_namespace` calls so wizard-triggered runs honour the rate limits.
+- **Gap**: `_token_budget_by_task` recomputed after follow-up task injection so WP49-injected tasks get token-budget throttling, not just RPM throttling.
 
 ---
 

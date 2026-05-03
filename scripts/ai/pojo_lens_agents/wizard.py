@@ -541,6 +541,8 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
             tui=child_tui,
             json=False,
             verbose=False,
+            tpm_limit=getattr(args, "tpm_limit", None),
+            rpm_limit=getattr(args, "rpm_limit", None),
         )
         run_payload = deps["run_handler"](run_args)
     elif payload["mode"] == "resume":
@@ -570,6 +572,8 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
                 tui=child_tui,
                 json=False,
                 verbose=False,
+                tpm_limit=getattr(args, "tpm_limit", None),
+                rpm_limit=getattr(args, "rpm_limit", None),
             )
         )
     else:
@@ -596,6 +600,8 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
                 tui=child_tui,
                 json=False,
                 verbose=False,
+                tpm_limit=getattr(args, "tpm_limit", None),
+                rpm_limit=getattr(args, "rpm_limit", None),
             )
         )
     payload["run"] = run_payload

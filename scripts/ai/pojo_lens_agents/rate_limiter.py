@@ -83,11 +83,12 @@ class RateLimitBucket:
             rpm_wait = max(0.0, (oldest + self._window) - now)
         return max(tpm_wait, rpm_wait)
 
-    def record_completion(self, actual_tokens: int, estimated_tokens: int = 0) -> None:
+    async def record_completion(self, actual_tokens: int, estimated_tokens: int = 0) -> None:
         """Charge the delta between actual and estimated tokens into the window."""
         delta = actual_tokens - estimated_tokens
         if delta > 0:
-            self._token_events.append((time.monotonic(), delta))
+            async with self._lock:
+                self._token_events.append((time.monotonic(), delta))
 
     def stats(self) -> dict[str, Any]:
         return {

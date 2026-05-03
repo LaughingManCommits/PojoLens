@@ -162,23 +162,23 @@ class RpmWindowTest(unittest.TestCase):
 class RecordCompletionTest(unittest.TestCase):
     def test_positive_delta_adds_tokens(self):
         b = RateLimitBucket(tpm_limit=10_000)
-        b.record_completion(actual_tokens=500, estimated_tokens=200)
+        _run(b.record_completion(actual_tokens=500, estimated_tokens=200))
         self.assertEqual(1, len(b._token_events))
         self.assertEqual(300, b._token_events[0][1])
 
     def test_zero_delta_no_op(self):
         b = RateLimitBucket(tpm_limit=10_000)
-        b.record_completion(actual_tokens=200, estimated_tokens=200)
+        _run(b.record_completion(actual_tokens=200, estimated_tokens=200))
         self.assertEqual(0, len(b._token_events))
 
     def test_negative_delta_no_op(self):
         b = RateLimitBucket(tpm_limit=10_000)
-        b.record_completion(actual_tokens=100, estimated_tokens=500)
+        _run(b.record_completion(actual_tokens=100, estimated_tokens=500))
         self.assertEqual(0, len(b._token_events))
 
     def test_no_estimated_charges_full_actual(self):
         b = RateLimitBucket(tpm_limit=10_000)
-        b.record_completion(actual_tokens=300)
+        _run(b.record_completion(actual_tokens=300))
         self.assertEqual(1, len(b._token_events))
         self.assertEqual(300, b._token_events[0][1])
 
@@ -321,7 +321,7 @@ class RateLimitRunOpsIntegrationTest(unittest.TestCase):
             complex_model_task_ids=lambda m: [],
             analyze_plan_topology=lambda p, a: {"warnings": []},
             load_model_pricing=lambda: {},
-            estimate_plan_cost=lambda p, a, **kw: {"tasks": [{"taskId": "task-1", "estimatedInputTokens": 50, "estimatedOutputTokens": 50}], "warnings": []},
+            estimate_plan_cost=lambda p, a, **kw: {"tasks": [{"taskId": "task-1", "totalTokens": {"min": 80, "max": 100}}], "warnings": []},
             serialize_run_policy=lambda rp: {},
             summarized_worker_validation_mode=lambda modes: "intents-only",
             summarize_branch_contexts=lambda recs: {},

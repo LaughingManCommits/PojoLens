@@ -5,7 +5,7 @@
 - Release is `2026.04.29.1809`.
 
 ## Focus
-- `2026-05-03`: WP50 is complete; `rate_limiter.py` ships `RateLimitBucket` with sliding-window TPM+RPM proactive pre-throttling; `run_ops.py` wires acquire/record_completion around `_run_one` with `rate-throttle` event + `rateLimiting` payload; `orchestrator_app.py` creates bucket from CLI flags or `ANTHROPIC_TPM_LIMIT`/`ANTHROPIC_RPM_LIMIT` env vars; `--tpm-limit`/`--rpm-limit` added to `run`/`resume`/`retry`; 37 new tests; 799 total pass.
+- `2026-05-03`: WP50 is complete (+ review fixes): `rate_limiter.py` ships `RateLimitBucket`; two key-name bugs fixed (`totalTokens["max"]` for budget, `inputTokens+outputTokens` for actual); `record_completion` made async+locked; `--tpm-limit`/`--rpm-limit` wired to wizard subparser and piped through all wizard `_namespace` branches; follow-up task budget recomputed after injection; 37 tests; 799 total pass.
 - `2026-05-03`: WP59 is complete; `test_tui_console.py` added with 65 tests covering `_ThreadLocalStdout`, `_capture`, `_payload_text`, all `_dispatch` routes, bg/inline worker paths, history navigation, `_ExitConfirmModal`, and exit flow; 762 tests pass.
 - `2026-05-03`: WP67 is complete; ownership is clear across all four interactive modules; `route_line`/`DispatchRoute` shared routing eliminates dispatch duplication; all Textual classes unified in `tui_console.py`; wizard.py is pure logic; 697 tests pass.
 - `2026-05-03`: WP58 is complete; `pojolens-agents console` now opens a persistent operator session with `/help`, `/jobs`, `/focus`, `/clear`, `/exit`; all orchestrator commands route inline; `run`/`resume`/`retry` run as managed background jobs; waits for jobs on exit; `console` added to `KNOWN_COMMANDS` and `cli_parser`.
@@ -14,7 +14,7 @@
 - `2026-05-02`: Preserve the current orchestrator base: guided wizard entry, TUI fallback, async `--max-parallel`, follow-up injection, cost estimation, HITL gates, low-cost profiles, and typed manifest/task-plan validation.
 
 ## Verified
-- `2026-05-03`: WP50 validations passed: 37 focused rate-limiter tests (bucket enabled/disabled, TPM/RPM windows, prune, throttle events, record_completion, stats, run_ops integration, CLI args, env vars), full Python suite (`799` tests).
+- `2026-05-03`: WP50 + review fixes validated: two key-name bugs fixed, record_completion async+locked, wizard wired, follow-up recompute added; 37 focused tests + full suite (`799` tests).
 - `2026-05-03`: WP59 validations passed: 65 focused `tui_console` tests (routing, workers, history, modal, exit flow), full Python suite (`762` tests).
 - `2026-05-03`: WP67 validations passed: ownership model established, `route_line` shared routing, wizard Textual classes moved to `tui_console.py`, `textual_is_available` consolidated to `tui_app`, full Python suite (`697` tests).
 - `2026-05-03`: WP58 validations passed: 58 focused console tests (session lifecycle, `/exit`, `/jobs`, `/focus`, `/clear`, inline dispatch, background jobs, parse errors, handler exceptions, subcommand parsing, `KNOWN_COMMANDS`), full Python suite (`697` tests).
