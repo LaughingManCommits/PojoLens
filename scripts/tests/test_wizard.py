@@ -435,6 +435,160 @@ class WizardFlowTest(unittest.TestCase):
         self.assertEqual("run-dir", getattr(captured["args"], "run_ref"))
         self.assertEqual(4, getattr(captured["args"], "max_parallel"))
 
+    def test_run_clarification_loop_asks_questions_and_folds_answers(self):
+        old_clarify = wizard_layer.clarify_goal_with_claude
+        wizard_layer.clarify_goal_with_claude = lambda *args, **kwargs: {
+            "questions": ["Which module?", "Target version?"],
+            "refinedGoal": "add pagination to the API endpoint",
+        }
+        self.addCleanup(setattr, wizard_layer, "clarify_goal_with_claude", old_clarify)
+
+        prompter = FakePrompter(texts=["users module", ""])
+        refined_goal, answers = wizard_layer._run_clarification_loop(
+            "add pagination",
+            [],
+            prompter,
+            args=argparse.Namespace(planner_agent="planner", agents="agents.json", claude_bin="claude"),
+            deps={},
+        )
+
+        self.assertIn("Which module?", prompter.messages)
+        self.assertIn("Target version?", prompter.messages)
+        self.assertEqual(2, len(answers))
+        self.assertEqual("Which module?", answers[0]["question"])
+        self.assertEqual("users module", answers[0]["answer"])
+        self.assertEqual("", answers[1]["answer"])
+        self.assertIn("users module", refined_goal)
+        self.assertNotIn("Target version?", refined_goal)
+
+    def test_clarify_goal_with_claude_parses_questions_and_refined_goal(self):
+        fake_completed = argparse.Namespace(
+            stdout='{"questions": ["Q1", "Q2"], "refinedGoal": "sharper goal"}'
+        )
+        planner_agent = argparse.Namespace(
+            permission_mode="default",
+            allowed_tools=[],
+            disallowed_tools=[],
+            max_budget_usd=None,
+            timeout_sec=30,
+        )
+
+        result = wizard_layer.clarify_goal_with_claude(
+            "vague goal",
+            [],
+            args=argparse.Namespace(planner_agent="planner", agents="agents.json", claude_bin="claude"),
+            deps={
+                "root": Path("."),
+                "load_agents": lambda path: {"planner": planner_agent},
+                "ensure_claude_available": lambda bin: None,
+                "claude_command": lambda *a, **kw: [],
+                "agent_payload_for_claude": lambda *a, **kw: "{}",
+                "run_subprocess": lambda *a, **kw: fake_completed,
+                "extract_json_payload": lambda text: json.loads(text),
+            },
+        )
+
+        self.assertEqual(["Q1", "Q2"], result["questions"])
+        self.assertEqual("sharper goal", result["refinedGoal"])
+
+    def test_clarify_goal_with_claude_returns_fallback_on_bad_response(self):
+        planner_agent = argparse.Namespace(
+            permission_mode="default",
+            allowed_tools=[],
+            disallowed_tools=[],
+            max_budget_usd=None,
+            timeout_sec=30,
+        )
+
+        result = wizard_layer.clarify_goal_with_claude(
+            "original goal",
+            [],
+            args=argparse.Namespace(planner_agent="planner", agents="agents.json", claude_bin="claude"),
+            deps={
+                "root": Path("."),
+                "load_agents": lambda path: {"planner": planner_agent},
+                "ensure_claude_available": lambda bin: None,
+                "claude_command": lambda *a, **kw: [],
+                "agent_payload_for_claude": lambda *a, **kw: "{}",
+                "run_subprocess": lambda *a, **kw: argparse.Namespace(stdout="not-json"),
+                "extract_json_payload": lambda text: None,
+            },
+        )
+
+        self.assertEqual([], result["questions"])
+        self.assertEqual("original goal", result["refinedGoal"])
+
+    def test_format_staged_plan_summary_includes_topology_and_cost(self):
+        summary = wizard_layer._format_staged_plan_summary(
+            "/path/to/plan.json",
+            {
+                "planName": "my-plan",
+                "taskCount": 2,
+                "tasks": [{"id": "t1"}],
+                "topology": {"maxParallelWidth": 3},
+                "costEstimate": {"totalMaxUsd": 0.0125},
+            },
+        )
+        self.assertIn("Max parallel", summary)
+        self.assertIn("3", summary)
+        self.assertIn("Est. cost", summary)
+        self.assertIn("0.0125", summary)
+
+    def test_noninteractive_plan_mode_omits_plan_checkpoint_key(self):
+        td, root, plan_path = self._make_plan_root()
+        self.addCleanup(td.cleanup)
+
+        payload = wizard_layer.wizard_command(
+            argparse.Namespace(
+                json=True,
+                tui=False,
+                watch=False,
+                plan=plan_path,
+                goal="",
+                goal_words=[],
+                resume_run_ref="",
+                retry_run_ref="",
+                agents=str(root / "ai" / "orchestrator" / "agents.json"),
+                claude_bin="claude",
+                runtime_root=str(root / ".claude-orchestrator"),
+                max_parallel=2,
+                dry_run=True,
+                planner_agent="planner",
+                verbose=False,
+            ),
+            deps={
+                "root": root,
+                "textual_available": lambda: False,
+                "slugify": lambda text: text.replace(" ", "-"),
+                "write_json": lambda path, data: None,
+                "error_factory": RuntimeError,
+                "load_agents": lambda path: {"planner": object()},
+                "ensure_claude_available": lambda bin: None,
+                "claude_command": lambda *args, **kwargs: [],
+                "agent_payload_for_claude": lambda *args, **kwargs: "{}",
+                "run_subprocess": lambda *args, **kwargs: None,
+                "extract_json_payload": lambda text: {},
+                "inventory_handler": lambda args: {"runCount": 0, "runs": []},
+                "validate_handler": lambda args: {"planName": "alpha-plan", "taskCount": 1, "tasks": []},
+                "run_handler": lambda args: {
+                    "runId": "r1",
+                    "runDir": str(root / ".claude-orchestrator" / "runs" / "r1"),
+                    "dryRun": True,
+                    "statusCounts": {"planned": 1},
+                    "usageTotals": {"totalCostUsd": 0.0},
+                },
+                "resume_handler": lambda args: {},
+                "retry_handler": lambda args: {},
+                "status_handler": lambda args: {},
+                "review_handler": lambda args: {},
+                "promote_handler": lambda args: {},
+                "validate_run_handler": lambda args: {},
+                "default_task_timeout_sec": 30,
+            },
+        )
+
+        self.assertNotIn("planCheckpoint", payload)
+
     def test_plan_approval_checkpoint_noninteractive_returns_proceed(self):
         prompter = FakePrompter()
         result = wizard_layer._plan_approval_checkpoint("plan summary", prompter, interactive=False)

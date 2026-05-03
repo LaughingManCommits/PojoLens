@@ -73,10 +73,13 @@ Execution order is dependency-first, not ticket-number order.
 | WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Complete | `on_partial_text` callback in sdk_provider; tool-loop `[tool: name]` markers; `[task-id]` line-prefixed stderr; subprocess-provider gated; `_PARTIAL_FACTORY_CTX` contextvar injection; TUI `LogPane` streaming; 38 tests; 836 pass |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
+| WP70| HITL Gate Correctness                | Planned | Fix `always` mode to fire before every batch (not just batch 1); fix stale HITL sentinel reuse on resume; regression tests for multi-batch HITL behavior |
 | WP63| Worker Tool Registry                 | Planned | Replace 4 hardcoded SDK tools with a plan/agent-declared extensible registry; allow `extraTools` JSON in agent definitions for project-specific tools like `run_tests` or `lint_file` |
 | WP64| Conditional Task Routing             | Planned | Allow a task's output field value to gate follow-up task injection; extends WP49 injection with `conditionField`/`conditionValue` predicates so reviewer block can auto-route to an implementer-fix task |
 | WP65| Scheduled and Event-Triggered Runs  | Planned | Add `schedule` subcommand to trigger a plan on a cron expression or file-watch pattern, wired through the existing run machinery with retained run output |
 | WP66| Agent Shared Context File           | Planned | Add a per-run shared scratchpad that workers can read and append to within a run, enabling agent-to-agent coordination beyond unidirectional dependency summaries |
+| WP71| Generated Plan Cleanup              | Planned | Wire `.claude-orchestrator/generated-plans/` pruning into the `cleanup` command; age/count-based eviction; warn on 48-char slug collision at write time |
+| WP72| Orchestrator Core Coverage          | Planned | Add `test_orchestrator_app.py` covering CLI dispatch, handler wiring, and error propagation; validate OTEL endpoint at startup; document rate limiter as advisory in README |
 | WP40| End-To-End Coding Run Reliability    | Planned | Full run quality pass — always last before Release Gate; coding + docs end-to-end proofs, evaluate-run corpus alignment, release-grade proof documentation |
 | Release Gate | Release Gate                  | Planned  | Cut only after WP40 and all active WPs complete and release guardrails pass |
 
@@ -742,6 +745,74 @@ token-level progress instead of a blank wait, closing the deferred WP44 task.
 - [ ] Add `sharedContextTags: list[str] = []` to `TaskDefinition`; when non-empty, filter shared context lines to matching tags only.
 - [ ] Persist `shared-context.jsonl` path in the run manifest so `status`, `export-trace`, and `review` can reference it.
 - [ ] Add regression coverage for: tool call appends line, prompt section injection, tag filtering, missing file is no-op, line count limiting.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP70: HITL Gate Correctness
+
+**Priority:** Medium
+
+**Goal:** Fix two correctness defects in the HITL gate system discovered during the WP69 feature review: `always` mode fires only once instead of every batch, and stale sentinel files from interrupted runs can be acted upon during resume.
+
+**Context:**
+- `hitl.py:82`: `if policy.mode == "always": return batch_index == 1` — the condition means "fire once before the first batch". The documented and intuitive meaning of `always` is "fire before every batch". All other modes (`batch`, `on-failure`) behave as named; `always` does not.
+- `hitl.py:87`: sentinel path is always `run_dir / "hitl-gate.lock"`. If a run is interrupted between `write_hitl_sentinel()` and `wait_for_hitl_decision()` returning, the file persists on disk. On resume, a new gate context with the same run dir but a different `gate_id` could read the stale file and act on the old decision without the operator being prompted again.
+
+**Tasks:**
+- [ ] Fix `should_trigger_hitl_gate`: change `always` from `batch_index == 1` to `True` (fire before every batch when enabled).
+- [ ] Fix stale sentinel: in `wait_for_hitl_decision`, after reading the sentinel file, validate that the `gateId` field in the file matches `context.gate_id`; if mismatched treat the file as absent and wait for a fresh decision.
+- [ ] Add regression tests for: `always` mode fires on batch 2+; mismatched gate ID in sentinel is ignored and operator is re-prompted; matching gate ID proceeds normally.
+- [ ] Update `ai/orchestrator/README.md` and `ai/orchestrator/SYSTEM-SPEC.md` to clarify `always` semantics.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP71: Generated Plan Cleanup
+
+**Priority:** Low
+
+**Goal:** Wire pruning of `.claude-orchestrator/generated-plans/` into the `cleanup` command, and add a collision warning when a new generated plan would overwrite an existing one with the same 48-char goal slug.
+
+**Context:**
+- `wizard.py:385`: `_generated_plan_path` truncates the goal slug to 48 chars and writes `generated-wizard-{slug}.json`. Files accumulate indefinitely — there is no cleanup path. The `cleanup` command prunes old run directories but ignores `generated-plans/`.
+- Goals that differ only after the first 48 characters silently overwrite each other. An operator who runs the wizard twice with similar-but-distinct goals may lose the first generated plan without warning.
+- Generated plans are ephemeral (wizard artefacts, not tracked plans) so aggressive pruning (e.g. keep last 20, or older than 30 days) is safe.
+
+**Tasks:**
+- [ ] Add generated-plans pruning to the `cleanup` command: respect the existing `--keep-last-n` / `--older-than-days` policy applied to run directories; default to pruning generated plans older than 30 days or when count exceeds 20.
+- [ ] In `_generated_plan_path` (or its caller), warn via `prompter.show_message` when the target path already exists and the new goal slug differs from the stored `goal` field inside the existing file.
+- [ ] Add regression tests for: cleanup removes old generated plans; cleanup keeps recent ones; collision warning fires when slug matches but goal differs; no warning when slug and goal match (same goal re-resolved).
+- [ ] Update `ai/orchestrator/README.md` cleanup section.
+
+**Validate:**
+- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
+- `scripts/docs/check-doc-consistency.ps1`
+
+---
+
+## WP72: Orchestrator Core Coverage
+
+**Priority:** Medium
+
+**Goal:** Add direct test coverage for the CLI dispatch and handler-wiring layer in `orchestrator_app.py`, validate the OTEL endpoint at startup, and document the rate limiter's advisory nature in the operator README.
+
+**Context:**
+- `orchestrator_app.py` is the main wiring layer (1000+ lines): it maps CLI args to handler calls, injects all deps, and owns the `wizard_command` wrapper. The handler logic is covered by per-handler test files (`test_agent_runtime.py`, `test_agent_governance.py`, etc.) but the dispatch layer itself — argument coercion, dep injection, error propagation to CLI exit codes — has no dedicated tests. A regression in wiring (wrong dep injected, missing field) goes undetected.
+- `otel_spans.py`/`run_ops.py`: the `--otel-endpoint` / `OTEL_EXPORTER_OTLP_ENDPOINT` value is accepted as a raw string and only fails at emission time (silently). Validating the URL format at startup gives the operator a clear error before a run starts.
+- `rate_limiter.py`: the bucket pre-deducts estimated tokens, not actual usage. If a task uses more tokens than estimated, the overage isn't retroactively applied to the window. This is acceptable (pre-deduction is the only safe option before execution) but is not documented as advisory.
+
+**Tasks:**
+- [ ] Add `test_orchestrator_app.py` with focused tests for: `wizard_command` dep injection passes expected keys; `run_command` forwards `tpm_limit`/`rpm_limit` to rate limiter; CLI argument coercion (e.g. `max_parallel` clamped to ≥1); error from handler propagates to non-zero exit; `--json` flag suppresses interactive mode in wizard.
+- [ ] Add OTEL endpoint validation: when `otel_endpoint` is non-empty, validate it is a parseable HTTP/HTTPS URL before starting the run; emit a clear `ValueError` with the offending value if malformed.
+- [ ] Add a "Rate limiting" section to `ai/orchestrator/README.md` noting that token budgets use pre-flight estimates and actual usage may differ; overruns within a batch are absorbed, future batches will be throttled.
+- [ ] Update `ai/orchestrator/SYSTEM-SPEC.md` with the advisory rate-limiter invariant.
 
 **Validate:**
 - `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`

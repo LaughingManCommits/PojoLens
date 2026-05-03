@@ -441,10 +441,18 @@ def _format_staged_plan_summary(plan_path: str, validate_payload: dict[str, Any]
     plan_name = str(validate_payload.get("planName", "") or Path(plan_path).stem)
     task_count = int(validate_payload.get("taskCount", 0) or 0)
     tasks = list(validate_payload.get("tasks", []) or [])
+    topology = validate_payload.get("topology") or {}
+    cost_estimate = validate_payload.get("costEstimate") or {}
     lines = [
         f"[bold]Plan:[/bold] {plan_name}",
         f"[bold]Tasks:[/bold] {task_count}",
     ]
+    max_parallel_width = int(topology.get("maxParallelWidth", 0) or 0)
+    if max_parallel_width:
+        lines.append(f"[bold]Max parallel:[/bold] {max_parallel_width}")
+    total_cost = cost_estimate.get("totalMaxUsd") or cost_estimate.get("totalCostUsd")
+    if total_cost is not None:
+        lines.append(f"[bold]Est. cost:[/bold] ${float(total_cost):.4f}")
     for task in tasks[:10]:
         task_id = str(task.get("id", "") or "")
         agent = str(task.get("agent", "") or "")
@@ -605,7 +613,7 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
                 pass
         payload["clarification"] = {"refinedGoal": _goal_active, "answers": _clarification_answers}
 
-        for _plan_round in range(3):
+        for _plan_round in range(4):
             plan_path = str(Path(_explicit_plan).resolve()) if _explicit_plan else None
             generated_plan_payload = None
 
@@ -669,7 +677,8 @@ def wizard_command(args: argparse.Namespace, *, deps: dict[str, Any]) -> dict[st
 
             _plan_summary = _format_staged_plan_summary(plan_path, validate_payload)
             _checkpoint = _plan_approval_checkpoint(_plan_summary, prompter, interactive=interactive)
-            payload["planCheckpoint"] = _checkpoint
+            if interactive:
+                payload["planCheckpoint"] = _checkpoint
 
             if _checkpoint == _CHECKPOINT_PROCEED:
                 break

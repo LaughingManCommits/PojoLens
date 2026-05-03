@@ -13,7 +13,7 @@
 - `2026-05-03`: WP58/WP57/WP55 remain the active operator base: persistent console, retained diff preview, and guided wizard flow.
 
 ## Verified
-- `2026-05-03`: Full Python suite last recorded at `841` tests after WP69.
+- `2026-05-03`: Full Python suite last recorded at `846` tests after WP69 follow-ups.
 - `2026-05-03`: Focused validations passed for WP60, WP50, WP59, WP67, WP58, and WP57.
 - `2026-05-03`: `scripts/docs/check-doc-consistency.ps1` passed.
 
@@ -25,4 +25,4 @@
 - No active orchestrator risks beyond the remaining roadmap queue.
 
 ## Next
-- `2026-05-03`: Roadmap order is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+- `2026-05-03`: Roadmap order is WP56 -> WP62 -> WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.

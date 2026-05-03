@@ -12,7 +12,7 @@
 - `2026-05-03`: WP60 is complete; shared partial streaming reaches watch and TUI surfaces; 836 tests passed.
 - `2026-05-03`: WP50 is complete; proactive rate limiting, wizard propagation, and follow-up-budget recompute landed; 799 tests passed.
 - `2026-05-03`: WP59 and WP67 are complete; Textual ownership is consolidated and covered by focused tests.
-- `2026-05-03`: Queue is WP56 -> WP62 -> WP63 -> WP64 -> WP65 -> WP66 -> WP40 -> Release Gate.
+- `2026-05-03`: Queue is WP56 -> WP62 -> WP70 -> WP63 -> WP64 -> WP65 -> WP66 -> WP71 -> WP72 -> WP40 -> Release Gate.
 
 ## Facts
 - `2026-05-03`: `console.py` owns session state and shared routing (`DispatchRoute`/`route_line`).
