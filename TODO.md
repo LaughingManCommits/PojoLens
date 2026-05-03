@@ -65,7 +65,7 @@ Execution order is dependency-first, not ticket-number order.
 | WP57| Human Diff View Before Promote       | Complete | Added `diff-run`, task/path-filtered workspace-vs-repo diff/stat output, structured JSON diff payloads, and wizard promote-gate diff preview |
 | WP58| Persistent Operator Console          | Complete | `pojolens-agents console` session with `/exit`, `/help`, `/jobs`, `/focus`, `/clear`; inline command routing; `run`/`resume`/`retry` as background jobs; waits for jobs on exit |
 | WP67| Interactive Surface Consolidation   | Complete | Ownership: `console.py` = session/routing; `tui_console.py` = all Textual UI; `tui_app.py` = run dashboard + canonical `textual_is_available`; `wizard.py` = pure logic. Dispatch routing unified via `route_line`. 697 tests pass. |
-| WP59| TUI Console Test Coverage            | Planned | After WP67, add focused headless Textual tests around the consolidated console surface and its shared background-job/output routing |
+| WP59| TUI Console Test Coverage            | Complete | `test_tui_console.py`: 65 tests across `_ThreadLocalStdout`, `_capture`, `_payload_text`, `ConsoleApp._dispatch`, bg/inline routing, history navigation, `_ExitConfirmModal`, and exit flow. 762 tests pass. |
 | WP60| Interactive Streaming During Runs    | Planned | After WP67, wire SDK partial output into the shared interactive output path for console/watch/TUI without breaking `--json` stdout |
 | WP61| Spring Boot MySQL Live Verification  | Planned | Close open risk (2026-04-27): verify `examples/spring-boot-starter-risk-console` against a real MySQL instance; document setup; remove from risk register |
 | WP62| Hard Budget Cap Enforcement          | Planned | Harden `budgetBehavior=stop` to cancel remaining batches when `runBudgetUsd` is exceeded mid-run with proper events, manifest state, and regression coverage |
@@ -439,41 +439,17 @@ wizard runs inline from ConsoleApp); unused `shlex` import removed from `tui_con
 
 **Priority:** Medium
 
-**Goal:** After WP67 lands, add headless Textual regression coverage so the
-consolidated interactive operator surface cannot regress silently.
-
-**Context:**
-- `tui_console.py` was added in WP58 and currently has no direct tests. It
-  contains `_ThreadLocalStdout`, `_ExitConfirmModal`, and `ConsoleApp`, and
-  after WP67 it should also host the shared interactive shell behaviors rather
-  than a parallel one-off surface.
-- WP67 should consolidate the interactive surface first. Testing the pre-
-  consolidation shape too deeply would harden details we may immediately
-  refactor.
-- After consolidation, the retained complexity worth testing is the shared
-  Textual shell behavior: `_bg_job_worker`, `_capture`, `_inline_worker`,
-  history, output routing, run-monitor embedding, and exit handling.
-
-**Tasks:**
-- [ ] Execute this WP only after WP67 reshapes the interactive ownership model.
-- [ ] Add `test_tui_console.py` under `scripts/tests/`; skip all tests when `textual` is not installed (same pattern as `test_tui_app.py`).
-- [ ] Test `_ThreadLocalStdout`: install, `set_sink`/`clear_sink` routing, fallback to real stdout when no sink, `encoding` property.
-- [ ] Test `_capture`: printed output captured into returned string, return value passed through, sink cleared after exception.
-- [ ] Test `_payload_text`: with `_consoleText` present (non-JSON path), without it (JSON path), with `--json` flag override.
-- [ ] Test `ConsoleApp._dispatch` via headless `run_test()`: `/help` writes to output, `/clear` calls `action_clear_output`, `/jobs` with no jobs, `/focus` with and without job-id, unknown slash command writes error, shlex parse error handled, unknown handler warning.
-- [ ] Test long-running vs inline routing: `run`/`resume`/`retry` create a `ConsoleJob` and run as worker; `status` runs inline.
-- [ ] Test the shared run-monitor embedding path that WP67 extracts from
-      `tui_app.py`, including live-task updates and focus changes from the
-      persistent console shell.
-- [ ] Test `_bg_job_worker`: success path sets `job.status = "completed"`, failure path sets `"failed"`, `OrchestratorError` sets `"failed"`, final completion message written.
-- [ ] Test `_inline_worker`: success, `OrchestratorError`, `PromotionBlockedError`, exception; busy cleared in all paths.
-- [ ] Test history navigation: `history_prev`/`history_next` round-trips, empty history is no-op.
-- [ ] Test `_ExitConfirmModal`: compose shows count, `confirm-yes` dismisses `True`, `confirm-no` dismisses `False`.
-- [ ] Test `action_request_quit` with no running jobs exits immediately; with running jobs shows modal.
-
-**Validate:**
-- `py -3 -m unittest discover -s scripts/tests -p "test_*.py"`
-- `scripts/docs/check-doc-consistency.ps1`
+**Decision:** Complete. `test_tui_console.py` added with 65 tests covering all
+consolidated surfaces: `_ThreadLocalStdout` routing/install/encoding/flush (9);
+`_capture` interception/result/sink-lifecycle (5); `_payload_text` all paths (5);
+`ConsoleApp._dispatch` for all 13 route actions via headless `run_test()`;
+bg/inline worker routing + failure paths + busy-flag lifecycle (13);
+history prev/next/clamp/submit (8); `_ExitConfirmModal` button dismissal via
+direct `on_button_pressed` + compose via ConsoleApp host (6); `_exit_flow`/
+`action_request_quit` no-jobs, with-jobs, confirm, cancelled, completed-jobs-
+excluded (5). `ModalScreen` limitation noted: use direct handler calls for
+dismiss-value tests and ConsoleApp host for compose render tests.
+762 tests pass total.
 
 ---
 
